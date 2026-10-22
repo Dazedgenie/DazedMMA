@@ -1,0 +1,12 @@
+{
+	"schema": "enum@1",
+	"id": "flags",
+	"values": {
+		"ONE_LEG": "Standing on one leg (kicks, teeps, knees). Exploited by catch-kick takedowns, sweeps, counter crosses.",
+		"HANDS_LOW": "Guard is down (lazy jab return, shot attempt, fatigue). Exploited by overhands, head kicks, knees.",
+		"HEAD_LOW": "Head below the opponent's chest (level change, shot). Exploited by knees, guillotines, front headlocks, uppercuts.",
+		"LEANING": "Weight overcommitted forward (wild hook/overhand). Exploited by counter hooks, trips, level changes.",
+		"BACK_TO_CAGE": "Pinned against the fence. Exploited by cage takedowns and clinch knees.",
+		"POSTURE_BROKEN": "Posture pulled down in the clinch or guard. Exploited by bottom submissions and sweeps."
+	}
+}

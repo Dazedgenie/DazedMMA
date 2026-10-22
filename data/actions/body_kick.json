@@ -1,0 +1,17 @@
+{
+	"schema": "action@1",
+	"id": "body_kick",
+	"name": "Body kick",
+	"category": "strike",
+	"positions": ["standing"],
+	"ranges": ["long", "mid"],
+	"phases_ms": { "telegraph": 300, "windup": 300, "active": 200, "recovery": 400 },
+	"stamina_cost": 6,
+	"flags_self": [
+		{ "flag": "ONE_LEG", "from": "windup", "to": "recovery" }
+	],
+	"strike": { "target": "body", "base_damage": 8 },
+	"stats": { "offense": ["kicking", "power"], "defense": ["striking_defense"] },
+	"opportunities": [],
+	"requires_technique": null
+}

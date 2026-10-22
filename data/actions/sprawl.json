@@ -1,0 +1,17 @@
+{
+	"schema": "action@1",
+	"id": "sprawl",
+	"name": "Sprawl",
+	"category": "defense",
+	"positions": ["standing"],
+	"ranges": ["mid", "pocket"],
+	"phases_ms": { "telegraph": 0, "windup": 100, "active": 300, "recovery": 300 },
+	"stamina_cost": 5,
+	"flags_self": [],
+	"defense": { "against_categories": ["takedown"], "base_success": 0.45 },
+	"stats": { "offense": ["takedown_defense", "explosiveness"], "defense": ["takedowns"] },
+	"opportunities": [
+		{ "opponent_flag": "HEAD_LOW", "success_bonus": 0.10 }
+	],
+	"requires_technique": null
+}

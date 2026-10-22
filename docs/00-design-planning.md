@@ -108,6 +108,7 @@ boxer between fights and influence bouts from the corner. Chin Check takes that 
 - [`06-fight-hud.md`](06-fight-hud.md): fight screen layout, HUD elements, input map
 - [`07-onboarding.md`](07-onboarding.md): tutorial plan (the first amateur fights teach the corner)
 - [`08-amateur-rules.md`](08-amateur-rules.md): amateur vs pro rulesets, the teen amateur stage
+- [`09-data-formats.md`](09-data-formats.md): JSON content formats + what the validator checks
 - [`10-prototype-spec.md`](10-prototype-spec.md): Phase 1 fight prototype, the "kick → takedown" test
 
 ---

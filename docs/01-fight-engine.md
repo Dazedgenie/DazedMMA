@@ -91,14 +91,14 @@ Each phase can set **state flags** that counters look for:
 | `POSTURE_BROKEN` | Clinch control, being pulled into guard | Subs from the bottom, sweeps |
 
 ### 5.1 The example the whole game is built around: kick → takedown
-- Opponent throws a **body kick**: telegraph 0.25 s, wind-up 0.30 s, active 0.15 s, recovery 0.40 s
-  (fight time). `ONE_LEG` is set from wind-up through recovery, about **0.85 s of fight time ≈ 0.43 s real time**.
+- Opponent throws a **body kick**: telegraph 0.3 s, wind-up 0.3 s, active 0.2 s, recovery 0.4 s
+  (fight time). `ONE_LEG` is set from wind-up through recovery, about **0.9 s of fight time ≈ 0.45 s real time** (all timings are whole 100 ms ticks; source: `data/actions/body_kick.json`).
 - A takedown that *starts* while `ONE_LEG` is active gets a large bonus (e.g. +35% success) and turns into a
   **catch-kick single leg**.
 - The same shot against a balanced opponent with good TDD is likely to get sprawled on (D29), and shooting
   into a knee (`HEAD_LOW` against a knee in active frames) risks a **flash KO**.
 
-Even counting the fighter's reaction delay (§6.2), a 0.43 s real-time window is too short for pure reaction. Players
+Even counting the fighter's reaction delay (§6.2), a 0.45 s real-time window is too short for pure reaction. Players
 hit it in two ways:
 1. **Anticipation**: the player knows (from tells/scouting) *when* the kick is coming and calls just before it.
 2. **Read calls**: see §6.1. These are the core skill, and they make "perfect timing" achievable without twitch reflexes.

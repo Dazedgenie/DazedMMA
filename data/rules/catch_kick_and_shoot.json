@@ -1,0 +1,9 @@
+{
+	"schema": "rule@1",
+	"id": "catch_kick_and_shoot",
+	"name": "When he kicks → catch & shoot",
+	"trigger": "opp_kick_starts",
+	"action": "catch_kick_single",
+	"priority": 1,
+	"cooldown_ms": 15000
+}

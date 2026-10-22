@@ -1,0 +1,14 @@
+{
+	"schema": "call@1",
+	"id": "takedown",
+	"name": "Takedown!",
+	"kind": "now",
+	"tier": "intent",
+	"parent": null,
+	"hotkey": 4,
+	"voice_cost": 20,
+	"positions": ["standing"],
+	"actions": ["double_leg", "catch_kick_single"],
+	"priority_boost": 3.0,
+	"requires_technique": null
+}
