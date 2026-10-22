@@ -10,6 +10,21 @@ boxer between fights and influence bouts from the corner. DazedMMA takes that lo
 
 ---
 
+## 0. Decisions log
+
+| # | Decision | Answer | Implications |
+|---|---|---|---|
+| D1 | Fight pacing (Q3.1) | **Real-time with slow-mo / active pause** | The simulation must support time scaling, and pausing has to be fair (the opponent AI doesn't act while paused). Calls can be queued while paused. |
+| D2 | Art / camera (Q2.1–2.2) | **Isometric / top-down 2D** | Cage position and octagon geometry are visible, which makes cage-cutting and pinning real mechanics. Tells need to read clearly from above (silhouette + UI cue). |
+| D3 | Project goal (Q1.2–1.3) | **All three: hobby + learning + eventual Steam release** | Build in milestones that are each worth finishing, and keep code quality good enough for public release. Docs should explain the *why* (learning value). |
+| D4 | Engine (Q8.1) | **Godot 4** | GDScript to start (C# optional later). The simulation core is plain scripts with no node dependencies, so it can run headless for balance tests. |
+| D5 | Call compliance (Q3.4–3.5) | **Visible reaction delay + rare ignores** | Delay = f(Fight IQ, Coach Trust, fatigue, damage, crowd). Ignore chance = f(ego, trust, panic). Show the delay so the player can learn to anticipate it. |
+| D6 | Call types (Q3.2–3.3) | **Broad intents at first → specific moves unlock** | Call tree: intent ("Takedown!") → technique ("Catch kick → single leg"). Learning techniques in training adds calls, so training feeds directly into fight-night options. |
+| D7 | Tone (Q1.5) | **Grounded but warm** | Realistic MMA. Injuries, losses and money trouble exist, but with heart and humour. No grimdark spirals. |
+| D8 | Background (Q4.2) | **Series of childhood vignettes** | 3–4 lifepath scenes (~age 8 / 13 / 17 / 19) that build stats, traits and relationships, with persistent characters introduced there. |
+
+---
+
 ## 1. Vision statement (draft)
 
 > *You built this fighter from a kid in a rough neighbourhood (or a wrestling household, or a
