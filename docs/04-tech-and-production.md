@@ -128,5 +128,26 @@ You direct and AI writes the code. Your control comes from these tools instead o
 - P2 → **D60**: 3D → 2D sprite sheets for now, built in Blender.
 - P4 → Blender now. Open to adding tools when they're needed (see §8).
 - S3 → **D62**: friends + a small Discord.
-- P3 (open). Should we set up **GitHub issues/milestones** for the roadmap once the docs are locked?
-- P5 (open). Rough budget for paid tools/assets over the project (the Steam fee is $100)?
+- P3 → **D75**: GitHub issues + milestones after sign-off.
+- P5 → **D76**: no budget for now; free tools only, art near the end.
+
+## 10. Risk register (A12, from the Foundation doc + ours)
+
+| # | Risk | Mitigation |
+|---|---|---|
+| R1 | Scope expansion | Prove the coaching loop first; gate every phase on its exit criteria |
+| R2 | Animation bottleneck (paired MMA motion, ground) | Visual proof milestone right after the prototype; one rig; reuse + vary |
+| R3 | Unclear AI ("my fighter ignored me") | Visible delay ring, ignore animation, explanations in the event log |
+| R4 | Tactical exploits (one rule/call beats everyone) | Harness bots (ideal / spam / single-strategy) on varied seeds and opponents |
+| R5 | Ground-game unreadable | Camera zoom + position overlays; compare options in the visual proof |
+| R6 | World stagnation | Long-run world sims in CI (30 in-game years) |
+| R7 | Management busywork | Auto-train, auto-resolve, "advance to next event"; track decisions per hour |
+| R8 | Save corruption | Multiple slots, atomic write (temp file → rename), backup of last good save |
+| R9 | AI-written code drifts from the design | Docs as source of truth, tests named in plain language, small PRs |
+| R10 | Motivation/burnout (solo hobby) | Playable build every milestone, Discord playtests, visible progress |
+
+## 11. Save system (A11)
+- Multiple independent career slots. Each holds the fighter, world, calendar and event history.
+- Autosave every week + before every fight. Atomic writes plus 1 backup save.
+- Versioned save format with migrations (saves must survive updates).
+- Combat replays (seed + command log) are separate from the career's RNG stream.

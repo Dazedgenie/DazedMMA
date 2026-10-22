@@ -166,5 +166,11 @@ Design rules for every minigame:
 - T2 → **D63**: the head coach is customisable (name, look, background, starting specialty).
 - T3 → **D65**: family/life events affect fatigue, motivation and focus.
 - T4 → **D64**: training trips are in (see §6).
-- T1 (open). Should the player choose **which** 1–3 sessions to play each week, or should the game suggest key sessions?
-- T5 (open). Head coach starting specialties: Striking / Wrestling / BJJ / Motivator / Tactician? Each gives a different early bonus.
+- T1 → **D70**: the player picks which sessions to play (with "key session" hints).
+- T5 → **D71**: head coach starting specialty: Striking / Wrestling / BJJ / Motivator / Tactician.
+
+## 8. Merged from the Foundation doc (see `05`)
+- **Minigames are bonuses, not gates (A5):** every planned session gives baseline progress. Playing it as a minigame
+  raises *session quality* (bad play still ≥ baseline × 0.8; great play up to ~1.5×). Same balance as D14, friendlier framing.
+- **Camp phases (A6):** *Early* (development, S&C) → *Middle* (matchup drills, sparring, **drilling rules**, C2) →
+  *Late* (taper, recovery, weight cut) → *Post-fight* (medical, review, return to training).

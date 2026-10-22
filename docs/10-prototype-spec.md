@@ -36,6 +36,19 @@ Submissions struggle, corner/cutman, officials personalities, fouls, commentary 
 4. **Punishment readability**: testers can explain why a bad takedown failed (sprawl, knee, guillotine risk flagged).
 5. **Fun**: testers want to play another fight (subjective, but it's the real test).
 
+Merged acceptance tests from the Foundation doc (A13):
+
+| Test | Pass when |
+|---|---|
+| Timing | A well-timed call/rule exploits a real opening without guaranteeing success |
+| Tactical value | Over many seeds, correct timing beats poor timing by a clear margin |
+| Fairness | Skilled opponents can defend, and the log explains why |
+| Slow motion | Slow-mo gives decision time without changing the simulation result |
+| Rules (if C2 adopted) | Rules fire only when eligible; conflicts resolve by priority, predictably |
+| Autonomy | With no calls, fighters still fight competently and in character |
+| Readability | Testers can name range, position, current action and the opening |
+| Reproducibility | Same seed + same commands → identical fight |
+
 ---
 
 ## 3. Deliverables

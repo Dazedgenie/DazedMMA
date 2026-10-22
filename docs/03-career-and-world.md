@@ -108,6 +108,17 @@ Name generators need some care: promotion names should sound plausible without c
 - W2 → **D56**: 6 men's divisions at launch.
 - W3 → **D57**: real places, fictional promotions generated per career.
 - W6 → **D58**: the head coach acts as manager by default; an optional hired agent auto-negotiates for a cut.
-- W4 (open). Should **titles** have an extra layer (defending, vacating, double champ, super fights)?
-- W5 (open). Does the player see **other fights on the card** (results list), and can they watch them?
-- W7 (open). Should your fighter be able to sign with a **foreign regional promotion** (e.g. fight in Thailand during a trip)?
+- W4 → **D72**: full title layer (defences, vacating, double champ, superfights) + GOAT legacy score.
+- W5 → **D73**: results list first, then watching the whole card.
+- W7 → **D74**: foreign fights during trips.
+
+## 9. Merged from the Foundation doc (see `05`)
+- **World-sim tiers (A9):** *Player* (full sim) · *Important competitors* (top 15 of each division + rivals +
+  your opponents: full headless fight sim) · *Wider world* (statistical result model). Keeps ~600 fighters cheap.
+- **Rankings (A10):** recent results, opponent quality, activity, title status. Ranking moves get a one-line
+  explanation ("+3: beat #7 by KO").
+- **Long-run validation (A10):** automated 30-year world sims check that champions turn over, divisions stay
+  full, and records/ages look plausible.
+- **Conditional consequences (A7):** a loss's effect scales with expectation (ranking gap, performance, finish type).
+- **Retirement (A8):** forced retirement is rare, foreshadowed (doctor warnings, declining camp results) and explained, with a
+  career epilogue + legacy/GOAT screen.

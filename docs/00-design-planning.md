@@ -31,7 +31,7 @@ boxer between fights and influence bouts from the corner. DazedMMA takes that lo
 | D15 | Player role (Q6.9) | **Named head coach** | A coach character with their own progression (coaching level → clearer, faster calls), a relationship/trust stat with the fighter, and a hook for a future next-generation coaching mode. |
 | D16 | Career length (Q6.1) | **~20–30 hours, ~25–35 pro fights** | About 1 fight every ~45 min of play including camp. Fits about 3 fights/year over a ~10-year pro career. |
 | D17 | Divisions (Q4.4) | **Men's divisions only at launch** | Women's divisions are a post-launch roadmap item. Keep the data model gender-agnostic so adding them later doesn't need a rewrite. |
-| D18 | Career structure (Q6.4) | **Tiered ladder with competing major leagues** | Amateur → regional → national → 2–3 fictional majors. Contracts, free agency, and promotions competing for fighters. |
+| D18 | Career structure (Q6.4) | **Tiered ladder with competing major leagues** (refined by D41: 2 pro orgs) | Amateur → regional → national → 2–3 fictional majors. Contracts, free agency, and promotions competing for fighters. |
 | D19 | Injuries (Q6.7) | **Real but recoverable** | Medical suspensions, camp injuries and occasional lasting dents. Chin and durability wear accumulates slowly over a career. |
 | D20 | Fight-night extras | **Ref/judge personalities, fouls + deductions, cutman minigame, commentary feed: all in** | Phased in: commentary + cutman by Alpha, ref/judge personalities + fouls by Beta. |
 | D21 | Life sim depth (Q6.5–6.6) | **Medium** | Weekly budget, purses/sponsors, choice-based press conferences and callouts, 4–6 persistent relationships with light story events. |
@@ -80,12 +80,26 @@ boxer between fights and influence bouts from the corner. DazedMMA takes that lo
 | D64 | Training trips (T4) | **Yes: "Bangkok ready"** | Travel camps (Thailand, Dagestan, Brazil, Netherlands...) with unique coaches, techniques and minigame variants. |
 | D65 | Family & life → training (T3) | **Yes** | Life events affect fatigue, motivation and focus (new baby, sick parent, breakup, wedding). |
 | D66 | Tell visibility tie-in | Head coach **Reading** stat + film study | Better reading = cue appears earlier in the telegraph. |
+| D67 | Stacked read calls (F7) | **Yes: up to 2 at once** | Two active reads = a bigger attention cost (slower defense against everything else). |
+| D68 | Opponent corner (F8) | **The AI corner makes calls and you can hear them** | Shown as a speech bubble/feed line. Lets you counter ("they're telling him to shoot → Watch the shot!"). The AI corner has its own voice meter and coaching level. |
+| D69 | Difficulty (F9) | **Both: opponent AI and player assistance** | Uses the 3-dimension split (combat challenge / realism / assistance), see `05` A4. |
+| D70 | Played sessions (T1) | **The player picks which sessions to play** | The game can highlight "key sessions" as a hint. |
+| D71 | Coach specialty (T5) | **Yes** | Striking / Wrestling / BJJ / Motivator / Tactician. Each gives a different early bonus and coach skill-tree start. |
+| D72 | Titles (W4) | **Everything: defences, vacating, double champ, superfights, GOAT legacy** | A **GOAT score** (titles, defences, opponent quality, finishes, longevity) compared against the generated all-time list. |
+| D73 | Fight card (W5) | **Watch the whole card eventually** | Results list first (Alpha). Watching other fights (same fight renderer) by Beta. |
+| D74 | Foreign fights (W7) | **Yes** | Fights abroad during training trips (e.g. a Muay Thai or MMA bout in Bangkok). |
+| D75 | GitHub tracking (P3) | **Yes: issues + milestones after sign-off** | |
+| D76 | Budget (P5) | **No budget for now: free tools only** | Gameplay first. Art assets come near the end. |
+| D77 | Title | **Open**: shortlist in `05` §7 | "DazedMMA" stays as the repo/working name. |
+| D78 | Reference game #3 | **Glass Jaw** | Take: the excitement of watching the card, simple between-round adjustments. Leave: shared online world. |
+| D79 | Foundation doc merge | **Adopted A1–A16 from the user's Foundation v1.0** (except conflicts C1–C3, pending) | See `05-review-and-reconciliation.md`. |
 
 ### Per-system design docs
 - [`01-fight-engine.md`](01-fight-engine.md): simulation, positions, coaching calls, tells, corner, scoring
 - [`02-fighter-and-training.md`](02-fighter-and-training.md): creation, vignettes, attributes, minigames, camps, gyms
 - [`03-career-and-world.md`](03-career-and-world.md): promotions, world sim, contracts, life, rivals, injuries
 - [`04-tech-and-production.md`](04-tech-and-production.md): Godot architecture, AI-assisted workflow, art pipeline, milestones
+- [`05-review-and-reconciliation.md`](05-review-and-reconciliation.md): review pass + merge with the Foundation v1.0 doc, conflicts C1–C3, title ideas
 - [`10-prototype-spec.md`](10-prototype-spec.md): Phase 1 fight prototype, the "kick → takedown" test
 
 ---
@@ -99,13 +113,14 @@ boxer between fights and influence bouts from the corner. DazedMMA takes that lo
 ### Design pillars
 1. **The corner matters.** Coaching calls change the fight in a way you can see. Good timing is
    rewarded, bad timing is punished, and you can read why from what happens on screen.
-2. **A career with a story.** Background, rivalries, injuries, camps, contracts and aging all add
+2. **Prove the coaching loop first.** Don't build the whole sport before the corner feels good (scope guardrail, Foundation doc).
+3. **A career with a story.** Background, rivalries, injuries, camps, contracts and aging all add
    up to one fighter's story that no other player gets.
-3. **Training is play, not a menu.** Fighters improve through short, skill-based minigames, plus
+4. **Training is play, not a menu.** Fighters improve through short, skill-based minigames, plus
    longer-term choices like camps, coaches and lifestyle.
-4. **MMA is three games in one.** Striking, wrestling/clinch and grappling each have their own
+5. **MMA is three games in one.** Striking, wrestling/clinch and grappling each have their own
    decisions, and the fight moves between them.
-5. **Readable simulation.** Every outcome comes from systems the player can learn: stats,
+6. **Readable simulation.** Every outcome comes from systems the player can learn: stats,
    tendencies, fatigue, damage and timing. Hidden dice-roll results are kept to a minimum.
 
 ---
@@ -146,7 +161,7 @@ This is the part that makes or breaks the game, so it gets planned first and pro
   that window gets a big success bonus (catch-kick single leg). The same shot against a fighter in
   a balanced stance is likely to be sprawled on.
 
-### 3.2 How coaching plugs in [ASSUMPTION, needs your input]
+### 3.2 How coaching plugs in *(superseded: see `01-fight-engine.md` §6 and `05` C2)*
 Three layers of influence:
 
 | Layer | When | Example | Effect |
@@ -241,7 +256,7 @@ before* the window opens, allowing for your fighter's delay.
 
 ---
 
-## 5. Development phases (draft roadmap)
+## 5. Development phases (summary; the source of truth with estimates is `04-tech-and-production.md` §6)
 
 | Phase | Goal | Exit criteria |
 |---|---|---|
@@ -269,6 +284,8 @@ fights to balance stats.
 ---
 
 ## 7. Open questions (the big list)
+
+> **Mostly answered.** See the decisions log (§0). Kept for reference and numbering.
 
 Answer these in any order, short answers are fine, and "not sure, you recommend" is a valid
 answer. They're numbered so we can refer to them later (e.g. "Q3.4: yes").

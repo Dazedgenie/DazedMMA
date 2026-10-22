@@ -262,7 +262,22 @@ but happen often enough that an underdog always has a chance.
 - F5 → **D53**: auto slow-mo on big moments (can be switched off in settings).
 - F6 → **D54**: keyboard + mouse at launch (hotkeys 1–9 + clickable call bar). Controller later.
 
-## 15. Open questions
-- F7. Read calls: one active at a time, or can you stack two (with a bigger attention cost)?
-- F8. Should the opponent's corner make calls too (the AI coach), and can you *hear/see* them for counter-play?
-- F9. Should difficulty also change the *opponent* AI (smarter reads), or only player-side help (cues, pause)?
+## 15. Resolved (round 2)
+- F7 → **D67**: up to 2 read calls stacked, with a bigger attention cost.
+- F8 → **D68**: the opponent's corner calls are audible/visible, so you can counter-call.
+- F9 → **D69**: difficulty affects both opponent AI and assistance.
+
+## 16. Merged from the Foundation doc (see `05`)
+- **Speed controls (A3):** Normal (2× fight time) / Fast (4×, quiet moments) / Tactical slow-mo (test 0.15–0.5×). The simulation clock slows, not only the animation.
+- **Autonomy principles (A2):** the fighter never silently replaces the gameplan, never attempts impossible actions,
+  never switches instantly between incompatible actions, and always defends against immediate danger.
+- **Difficulty dimensions (A4):** *Combat challenge* (opponent AI quality, adaptation) · *Simulation realism*
+  (stamina/injury/weight-cut strictness) · *Coaching assistance* (cues, auto slow-mo, pause on Easy, explanation detail).
+  Same core rules on every difficulty.
+- **Explanations in the event log (A16):** every call/rule logs why it fired, was ignored, suppressed, or fell back.
+- **Drilled rules (proposal C2, pending):** see `05` §4.
+
+## 17. Gaps to spec before sign-off
+- **Fight HUD layout** (round/clock, both fighters' condition, position/range, active plan/rules/reads, voice meter, call bar, feed).
+- **Onboarding**: the first amateur fights double as a tutorial that introduces calls one at a time.
+- **Amateur ruleset**: 3×3 min rounds, shin guards, no elbows / no strikes to a grounded head (with C3).
