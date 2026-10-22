@@ -13,7 +13,7 @@ simulation kept separate from presentation, tested with seeds before art.** The 
 **engineering discipline** (risks, acceptance tests, save integrity, world-sim tiers, difficulty split). Our docs
 are stronger on **game feel and content** (voice meter, compliance, tells, submissions, corner, life, trips, generated promotions).
 
-There are **three real conflicts** that need your decision (§4). Everything else merges cleanly.
+There were **three real conflicts** (§4), **all resolved**: C1 → D80, C2 → D82, C3 → D83. Everything else merges cleanly.
 
 ---
 

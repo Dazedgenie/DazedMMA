@@ -1,11 +1,11 @@
-# DazedMMA — Design Planning (Draft v0)
+# Chin Check — Design Planning (v1)
 
-> Status: **pre-production / planning**. No code until the open questions below are answered
-> and the Vertical Slice scope is locked. Everything marked **[ASSUMPTION]** is a placeholder
-> guess for discussion and can be overturned.
+> Status: **v1: design signed off for Phase 0 wrap-up.** Working title **Chin Check** (D81); the repo stays `DazedMMA`.
+> Decisions D1–D84 are binding unless revisited on purpose. Anything still marked **[ASSUMPTION]**
+> in older sections has been superseded by the decisions log and the per-system docs.
 
 Inspiration: *Boxing School* (Steam app 939990). It's a management/coaching sim where you shape a
-boxer between fights and influence bouts from the corner. DazedMMA takes that loop to MMA, with
+boxer between fights and influence bouts from the corner. Chin Check takes that loop to MMA, with
 **one created fighter followed through a full career**.
 
 ---
@@ -15,7 +15,7 @@ boxer between fights and influence bouts from the corner. DazedMMA takes that lo
 | # | Decision | Answer | Implications |
 |---|---|---|---|
 | D1 | Fight pacing (Q3.1) | **Real-time with slow-mo / active pause** | The simulation must support time scaling, and pausing has to be fair (the opponent AI doesn't act while paused). Calls can be queued while paused. |
-| D2 | Art / camera (Q2.1–2.2) | **Isometric / top-down 2D** | Cage position and octagon geometry are visible, which makes cage-cutting and pinning real mechanics. Tells need to read clearly from above (silhouette + UI cue). |
+| D2 | Art / camera (Q2.1–2.2) | **Isometric view** *(now low-poly 3D with an isometric camera: see D80)* | Cage position and octagon geometry are visible, which makes cage-cutting and pinning real mechanics. Tells need to read clearly from above (silhouette + UI cue). |
 | D3 | Project goal (Q1.2–1.3) | **All three: hobby + learning + eventual Steam release** | Build in milestones that are each worth finishing, and keep code quality good enough for public release. Docs should explain the *why* (learning value). |
 | D4 | Engine (Q8.1) | **Godot 4** | GDScript to start (C# optional later). The simulation core is plain scripts with no node dependencies, so it can run headless for balance tests. |
 | D5 | Call compliance (Q3.4–3.5) | **Visible reaction delay + rare ignores** | Delay = f(Fight IQ, Coach Trust, fatigue, damage, crowd). Ignore chance = f(ego, trust, panic). Show the delay so the player can learn to anticipate it. |
@@ -73,7 +73,7 @@ boxer between fights and influence bouts from the corner. DazedMMA takes that lo
 | D57 | Places & promotions (W3) | **Real-world places, fictional promotions, generated at game start** | Each new career generates the regional promotions + 2 pro orgs (names, HQ city, style, pay scale). Adds replayability (D25). |
 | D58 | Manager (W6) | **Head coach does it by default; optional agent** | Hiring an agent auto-handles negotiation for a % cut, for players who don't want that layer. |
 | D59 | Code ownership (P1) | **You direct; AI writes the code** | Docs, tests and playtests are how you keep control (see `04`). No learning tasks in milestones. |
-| D60 | Art approach (P2) | **3D → 2D sprite sheets** (for now) | Blender is available. Free/cheap tools to add: see `04` §3. |
+| D60 | Art approach (P2) | ~~3D → 2D sprite sheets~~ **superseded by D80** | Blender is available. Free/cheap tools to add: see `04` §3. |
 | D61 | Prototype art (S2) | **None: mechanics first** | Art direction starts only after the prototype passes. |
 | D62 | Playtesters (S3) | **Friends + a small Discord** | Needs a shareable build (Windows export) + a feedback form. |
 | D63 | Head coach (T2) | **Customisable** | Name, look, background, plus a starting coaching specialty. |
@@ -92,7 +92,12 @@ boxer between fights and influence bouts from the corner. DazedMMA takes that lo
 | D76 | Budget (P5) | **No budget for now: free tools only** | Gameplay first. Art assets come near the end. |
 | D77 | Title | **Open**: shortlist in `05` §7 | "DazedMMA" stays as the repo/working name. |
 | D78 | Reference game #3 | **Glass Jaw** | Take: the excitement of watching the card, simple between-round adjustments. Leave: shared online world. |
-| D79 | Foundation doc merge | **Adopted A1–A16 from the user's Foundation v1.0** (except conflicts C1–C3, pending) | See `05-review-and-reconciliation.md`. |
+| D79 | Foundation doc merge | **Adopted A1–A16 from the user's Foundation v1.0** | See `05-review-and-reconciliation.md`. |
+| D80 | Presentation (C1) | **Real-time low-poly 3D, isometric (orthographic) camera** | Camera zooms in for clinch/ground. Blender for models/rig, Mixamo-style animations. No sprite baking. Replaces D60. |
+| D81 | Title | **Chin Check** (working title) | Check Steam/trademark before the store page. |
+| D82 | Coaching layers (C2) | **4 layers: Gameplan → Drilled rules → Live calls → Corner** | Drilled rules: 2–3 trigger→action slots, reliability from camp drilling + Fight IQ. Advanced conditions unlock later. See `01` §6.0. |
+| D83 | Career start (C3) | **Vignettes at ~8 / ~12 / ~15 → gym walk-in at ~16 → teen amateur → pro at 18+** | Amateur ruleset in `08-amateur-rules.md`. |
+| D84 | Launch model | **Open**: full release vs Early Access | Decide at the vertical-slice checkpoint, when scope/cost is known. |
 
 ### Per-system design docs
 - [`01-fight-engine.md`](01-fight-engine.md): simulation, positions, coaching calls, tells, corner, scoring
@@ -100,6 +105,9 @@ boxer between fights and influence bouts from the corner. DazedMMA takes that lo
 - [`03-career-and-world.md`](03-career-and-world.md): promotions, world sim, contracts, life, rivals, injuries
 - [`04-tech-and-production.md`](04-tech-and-production.md): Godot architecture, AI-assisted workflow, art pipeline, milestones
 - [`05-review-and-reconciliation.md`](05-review-and-reconciliation.md): review pass + merge with the Foundation v1.0 doc, conflicts C1–C3, title ideas
+- [`06-fight-hud.md`](06-fight-hud.md): fight screen layout, HUD elements, input map
+- [`07-onboarding.md`](07-onboarding.md): tutorial plan (the first amateur fights teach the corner)
+- [`08-amateur-rules.md`](08-amateur-rules.md): amateur vs pro rulesets, the teen amateur stage
 - [`10-prototype-spec.md`](10-prototype-spec.md): Phase 1 fight prototype, the "kick → takedown" test
 
 ---

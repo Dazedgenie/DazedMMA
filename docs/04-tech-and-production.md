@@ -56,15 +56,17 @@ Key rules:
 
 ---
 
-## 3. Art pipeline (AI-assisted, isometric 2D)
+## 3. Art pipeline (low-poly 3D, isometric camera: D80)
 
-The hard part of AI art is **consistency**: the same fighter across many animation frames and angles.
-Recommended pipeline (needs your input, P2):
+The hard part of AI-assisted art is **consistency**. Real-time 3D with one shared rig fixes most of that.
 
-1. **Style bible first**: palette, line weight, proportions, lighting direction, UI look. Locked before mass production.
-2. **Fighters: 3D-to-2D**. Build a simple 3D base mannequin and use animation sources (e.g. Mixamo-style libraries, or motion capture from video)
-   rendered from fixed isometric angles into **sprite sheets**. AI tools are used for textures, variations and portraits, not for frame-by-frame animation.
-   This gives consistent, smooth animation, which matters because tells must be readable.
+1. **Style bible first**: low-poly shape language, palette, flat/toon shading, lighting, UI look. Locked before mass production.
+2. **Fighters: one humanoid rig** (Blender) shared by every fighter. Looks come from swappable parts (heads, hair, tattoos,
+   shorts, body-shape blend shapes), so customisation (D63) is cheap.
+3. **Animations**: Mixamo-style library + Blender edits; later video-to-mocap. Retarget onto the one rig. Budget cleanup for
+   foot sliding, contact and **paired interactions** (clinch, takedowns, ground), as in the Foundation doc checklist.
+4. **Camera**: orthographic isometric by default. Smooth zoom/angle change for clinch and ground. The camera never affects outcomes.
+5. **Readability features**: silhouette outlines, telegraph glow (D51), position overlay on the ground.
 3. **Portraits, gyms, menus, vignette illustrations**: AI image generation with style references + manual cleanup.
 4. **Placeholder first**: the prototype uses shapes/capsules. Art never blocks the simulation.
 
@@ -116,7 +118,7 @@ You direct and AI writes the code. Your control comes from these tools instead o
 | Need | Tool | Cost |
 |---|---|---|
 | Engine | Godot 4 | Free |
-| 3D mannequin, render to sprite sheets | **Blender** (you have it) + a render-to-sprite script with a fixed isometric camera | Free |
+| Low-poly models + shared rig | **Blender** (you have it), exported as glTF into Godot | Free |
 | Animations | Mixamo (free library), Blender for edits. Later: video-to-mocap tools | Free → low |
 | Image generation (portraits, gyms, vignettes) | Pick one with style-reference support once the style bible exists | Subscription; decide in Beta |
 | Sound | Free libraries (freesound etc.) for the prototype | Free |
@@ -125,7 +127,7 @@ You direct and AI writes the code. Your control comes from these tools instead o
 
 ## 9. Resolved & open questions
 - P1 → **D59**: you direct; AI writes the code.
-- P2 → **D60**: 3D → 2D sprite sheets for now, built in Blender.
+- P2 → **D60 → D80**: real-time low-poly 3D with an isometric camera.
 - P4 → Blender now. Open to adding tools when they're needed (see §8).
 - S3 → **D62**: friends + a small Discord.
 - P3 → **D75**: GitHub issues + milestones after sign-off.

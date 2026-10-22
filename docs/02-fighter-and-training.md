@@ -8,8 +8,9 @@
 
 ```
 Name / nickname / nationality / hometown
-   └─► Childhood vignettes (D8): ages ~8, ~13, ~17
-        └─► Age ~19: "the gym walk-in" (D37) → first gym choice
+   └─► Childhood vignettes (D8/D83): ages ~8, ~12, ~15
+        └─► Age ~16: "the gym walk-in" (D37/D83) → first gym choice
+             └─► Teen amateur stage (`08-amateur-rules.md`) → pro debut possible at 18+
              └─► Starting attributes, traits, frame, relationships are set
                   └─► Amateur career begins
 ```
@@ -172,5 +173,5 @@ Design rules for every minigame:
 ## 8. Merged from the Foundation doc (see `05`)
 - **Minigames are bonuses, not gates (A5):** every planned session gives baseline progress. Playing it as a minigame
   raises *session quality* (bad play still ≥ baseline × 0.8; great play up to ~1.5×). Same balance as D14, friendlier framing.
-- **Camp phases (A6):** *Early* (development, S&C) → *Middle* (matchup drills, sparring, **drilling rules**, C2) →
+- **Camp phases (A6):** *Early* (development, S&C) → *Middle* (matchup drills, sparring, **rule drilling**: each session adds reps to one drilled rule (D82), raising its reliability) →
   *Late* (taper, recovery, weight cut) → *Post-fight* (medical, review, return to training).

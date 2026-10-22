@@ -105,9 +105,31 @@ hit it in two ways:
 
 ---
 
-## 6. Coaching calls
+## 6. Coaching
 
-### 6.1 Two kinds of call (proposal, needs confirmation)
+### 6.0 The four coaching layers (D82)
+
+| Layer | When set | What it does |
+|---|---|---|
+| 1. **Gameplan** | Pre-fight (adjustable in the corner) | Strategic preset (Pressure / Counter / Range / Wrestle-heavy / Conserve) that biases the AI's action weights |
+| 2. **Drilled rules** | Pre-fight / between rounds; must be **drilled in camp** | 2–3 slots of *trigger → action* ("Opponent body kick → catch-kick single"). Fire automatically with the fighter's own reaction time |
+| 3. **Live calls** | During the round | Now calls + read calls (§6.1), with delay, compliance and the voice meter |
+| 4. **Corner** | Between rounds | Recovery, cutman, adjustments, motivation (§10) |
+
+**Drilled rules in detail:**
+- A rule = **trigger** (an opponent event like *body kick telegraph*, *level change*, *back to cage*; or a state like
+  *opponent stamina < 30%*) + **action** (a technique the fighter knows) + **priority**.
+- **Reliability (0–100%)** = how many reps it got in camp (the "Rule drilling" session in the middle-camp phase) ×
+  Fight IQ × technique proficiency. Each fire also gets fatigue/damage penalties.
+- A rule fires only if it's eligible (range, position, stamina, not committed) and passes the reliability roll. Otherwise
+  the log says why (*"Catch-kick rule: too tired to fire"*).
+- **Cooldown** after each fire, so rules can't be farmed. Opponents with high Fight IQ **adapt** to a rule that fires
+  repeatedly: they telegraph less or bait it (counter-play, risk R4).
+- **Slots:** 2 at the start, a 3rd from the coach's *Tactician* skill / experience. Advanced conditions
+  (AND filters, stamina thresholds, fallbacks) are a later unlock (Foundation doc "advanced rule builder").
+- Rules and read calls work together: a rule is the **pre-planned** answer, and a read call is the **improvised** one.
+
+### 6.1 Two kinds of live call (D49)
 
 | Kind | Example | Behaviour |
 |---|---|---|

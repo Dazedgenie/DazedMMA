@@ -8,8 +8,8 @@
 
 | Stage | Typical age | Fights | Notes |
 |---|---|---|---|
-| Gym walk-in / amateur | 19–21 | 3–8 amateur | Short fights, headgear optional, small regional cards |
-| Regional pro | 21–25 | 6–12 | A few regional promotions; build record and hype |
+| Gym walk-in / teen amateur (D83) | 16–19 | 4–10 amateur | Amateur rules (`08`), local/regional amateur cards; pro debut possible at 18+ |
+| Regional pro | 18–25 | 6–12 | A few regional promotions; build record and hype |
 | Pro org (tier 2) | 23–28 | 5–10 | The smaller of the 2 pro orgs |
 | Pro org (tier 1) | 25–33 | 8–15 | Rankings, title fights, PPV |
 | Decline / retirement | 33+ | — | Aging, chin wear, legacy decisions |

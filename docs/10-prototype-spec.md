@@ -1,7 +1,7 @@
 # 10 — Phase 1 Fight Prototype Spec (draft)
 
 > **One question this prototype answers:** *Does calling the takedown during the kick feel right?*
-> Everything not needed to answer that is out of scope. Status: **draft, not approved for coding**.
+> Everything not needed to answer that is out of scope. Status: **v1: approved in principle; final go after the Phase 0 wrap-up tasks**.
 
 ---
 
@@ -15,11 +15,12 @@
 - **Calls (9):** Pressure, Circle out, Work the range, Takedown, Clinch, Defend the shot, Get up, Survive, Stay safe,
   plus **one read call: "Catch the kick!"**
 - **Voice meter**, call delay, compliance (ego/trust), the visible processing ring.
+- **Drilled rules (D82)**: 2 slots, simple trigger → action, with a reliability slider standing in for camp drilling. Includes cooldown and opponent adaptation.
 - **2 fighters with authored tendencies + 1 tell each**:
   - Opponent A, "Kicker": throws a right body kick after their jab is blocked (~70%).
   - Opponent B, "Wrestler": telegraphs a level change with a stance shift before shooting.
 - **Damage & stamina** (head/body/legs, simple). KO/TKO and decision (simple 10-point scoring). 3 rounds.
-- **Isometric grey-box view**: capsules on a polygon cage, action labels, flags shown as icons, slow-mo toggle, event text feed.
+- **Isometric grey-box view (3D, D80)**: capsule fighters on a low-poly octagon, orthographic camera with clinch/ground zoom, action labels, flags shown as icons, slow-mo toggle, event text feed.
 - **Debug overlay** + **balance harness** (headless N-fight CSV).
 
 ### Out (later phases)
