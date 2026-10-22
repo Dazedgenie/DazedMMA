@@ -38,6 +38,37 @@ boxer between fights and influence bouts from the corner. DazedMMA takes that lo
 | D22 | Rivals (Q6.11) | **Generated only (systemic)** | No handcrafted story rival. Rivalries form from world events (losses, callouts, shared opponents, close decisions). Needs a solid grudge/relationship model in the world sim. |
 | D23 | Weight cut | **Fight-week mini-system** | Planning minigame: cut aggressiveness ↔ size advantage vs cardio and chin penalties. Missing weight = fine + reputation hit. |
 | D24 | Stat display (Q7.3) | **Letter grades + descriptive tags** | Internally 0–100, shown as grades (F → A+) plus tags like "Iron chin" or "Elite wrestler". Debug overlay shows the raw numbers. |
+| D25 | Session design (Q1.9) | **Replayability + "30 minutes or 3 hours"** | Natural save points every week, a fast "advance week", fight skip and auto-train. Each career must feel different: seeded variety, emergent world, different backgrounds. |
+| D26 | Reference game #2 | **Corner King: Boxing Tycoon** (Steam 4259990) | Borrow: emergent stories (grudges, media, poaching), weekly drag-and-drop training plans, fatigue ("enter the ring broken"), trainers with personalities. Avoid: it's gym-tycoon (many fighters); we stay single-fighter. |
+| D27 | Starting calls (Q3.2) | Pressure, Circle out, Work the range, Takedown, Clinch, Defend the shot, Get up, Survive, **plus Stay safe** | Each one is an "intent" that branches into unlockable techniques (D6). |
+| D28 | Call spam (Q3.7) | **Voice meter** | Each call costs voice and voice regenerates. Low voice → longer delay, lower compliance, and trust drains if you keep spamming. |
+| D29 | Bad timing (Q3.6) | **Punished hard** | Shooting into a knee → flash KO risk. Shooting into a front headlock → guillotine/D'arce risk. Mistimed calls must *visibly* explain the punishment. |
+| D30 | Between rounds (Q3.10) | **Cutman minigame + coaching options that shape the next round** | The 60 s corner is a time budget: cutman work, ice/water, 1–2 tactical instructions (they buff or bias the next round), motivation. |
+| D31 | Towel / safety (Q3.11) | **Throw in the towel + "Stay safe" call** | Towel = TKO loss but protects long-term health (chin wear, injuries) and the relationship. |
+| D32 | Habits from calls (Q3.9) | **Only if they fit the fighter's personality** | Adaptive/coachable fighters absorb your call patterns into their AI. Stubborn fighters resist. |
+| D33 | Cage (Q3.12) | **Fully strategic** | Pinning, cage-walking, wall-and-stall, cutting off the cage, and cage position affecting takedown/escape odds. |
+| D34 | Backgrounds (Q4.1) | All 10 listed **plus Track star (cardio)** and **Bullied underdog** | 12 background flavours delivered through vignettes (D8). |
+| D35 | Weight class (Q4.5) | **Emerges over time** | Frame/height come from vignettes + growth. Walk-around weight changes with training and lifestyle. The division is picked at amateur debut and can change later (D44). |
+| D36 | Personality (Q4.8) | **Hybrid** (recommended, user open) | Vignette choices set the initial traits, with a small random roll for variety. Traits then drift with career events (big wins → ego up, etc.). |
+| D37 | Career start (Q4.7) | **Walking into a gym** | The first playable moment after the vignettes is the gym walk-in. Amateur fights follow. |
+| D38 | Minigames (Q5.2) | **All 10 approved**, about **1 minute each** | Mitt rhythm, heavy-bag power, Thai pads, wrestling chain, sprawl reflex, rolling puzzle, roadwork pacing, film study, hard sparring, meditation, plus the weight-cut system (D23). |
+| D39 | Training partners (Q5.7) | **Persistent; can turn pro** | They feed the generated rivalry system (D22): a former partner can become a rival. |
+| D40 | Gyms & coaches (Q5.5) | **Major strategic layer** | Switching gyms and hiring specialists, each with personality, specialties, cost and a technique catalogue. |
+| D41 | World size (Q6.3) | **At least 100 fighters across amateur/regional/pro** (*per division? see open Q*) | A few regional promotions + **2 pro organisations** (refines D18). |
+| D42 | Fight business (Q6.12) | **All in:** short-notice offers, catchweights, interim belts, eliminators | — |
+| D43 | Bad outcomes (Q6.8) | **Warm but punishing** | Cuts from the roster, going broke, career-ending injuries are possible. Bad things can always happen. |
+| D44 | Weight moves (Q6.x) | **Can move up/down mid-career** | — |
+| D45 | Ironman (Q6.10) | **Yes, optional ironman mode** | Single autosave and no reloading. |
+| D46 | Team & capacity (Q1.3–1.4) | **About 20 hrs/week**; background in GTA V modding + web design/coding | GDScript (Python-like) is a good fit. Plan milestones in 4–8 week chunks. |
+| D47 | Production approach (Q8.6) | **AI-assisted for most code and art** | Requires a strong style guide, a repeatable art pipeline, tests and docs so AI output stays consistent. See `04-tech-and-production.md`. |
+| D48 | First playable (vertical slice) | **Create fighter → 1 camp → 3 fights** | Comes after the Phase 1 fight prototype. |
+
+### Per-system design docs
+- [`01-fight-engine.md`](01-fight-engine.md): simulation, positions, coaching calls, tells, corner, scoring
+- [`02-fighter-and-training.md`](02-fighter-and-training.md): creation, vignettes, attributes, minigames, camps, gyms
+- [`03-career-and-world.md`](03-career-and-world.md): promotions, world sim, contracts, life, rivals, injuries
+- [`04-tech-and-production.md`](04-tech-and-production.md): Godot architecture, AI-assisted workflow, art pipeline, milestones
+- [`10-prototype-spec.md`](10-prototype-spec.md): Phase 1 fight prototype, the "kick → takedown" test
 
 ---
 
