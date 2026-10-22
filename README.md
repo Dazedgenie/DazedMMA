@@ -23,6 +23,7 @@ wins fights.
 | `game/` | Godot scenes and the game layer |
 | `ui/` | HUD, menus, minigame UI |
 | `data/` | Content data (moves, calls, rules, rulesets…) |
-| `tests/` | Automated tests |
+| `tests/` | Automated tests (GUT). Also runnable in the editor from the **GUT** panel at the bottom |
 | `tools/` | Headless runners and dev scripts |
 | `docs/` | Design docs (source of truth) |
+| `addons/gut/` | The GUT test framework (third-party, MIT licence) |
