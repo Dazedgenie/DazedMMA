@@ -22,6 +22,22 @@ boxer between fights and influence bouts from the corner. DazedMMA takes that lo
 | D6 | Call types (Q3.2–3.3) | **Broad intents at first → specific moves unlock** | Call tree: intent ("Takedown!") → technique ("Catch kick → single leg"). Learning techniques in training adds calls, so training feeds directly into fight-night options. |
 | D7 | Tone (Q1.5) | **Grounded but warm** | Realistic MMA. Injuries, losses and money trouble exist, but with heart and humour. No grimdark spirals. |
 | D8 | Background (Q4.2) | **Series of childhood vignettes** | 3–4 lifepath scenes (~age 8 / 13 / 17 / 19) that build stats, traits and relationships, with persistent characters introduced there. |
+| D9 | Round length (Q3.16) | **~2.5 real minutes per 5-min round** (time scale ≈ 2×) | A 3-round fight ≈ 9–10 min with corners; a 5-round title fight ≈ 15 min. Pacing has to stay interesting, so we need lulls, feints and resets. Slow-mo is still available, and fight skip is required (Q3.17). |
+| D10 | Submissions (Q3.13) | **Coach-driven struggle** | When a sub is locked in, play switches to a short sequence of struggle calls (hand-fight, posture, turn in, stack, tap?). Stats set the base odds and good calls swing them. The same system works on offence (finishing calls). |
+| D11 | Tells (Q3.8) | **Real behaviour patterns + scouting reveals** | Every fighter has authored or generated habits (e.g. "drops right hand after double jab", "overcommits body kick when behind"). Unscouted habits are still in the sim and can be spotted by eye. Film study adds on-screen cues. |
+| D12 | Randomness (Q7.1) | **~80% for the clearly better fighter** | Upsets and lucky punches exist. Good coaching should be worth about +10–20% win probability against an even opponent. The balance harness tests against this target. |
+| D13 | Progression (Q5.3) | **XP with diminishing returns + technique unlocks** | Training fatigue and soft caps per camp. Techniques come from coaches/gyms plus skill thresholds, and each one adds a fight call (links to D6). |
+| D14 | Auto-train (Q5.6) | **Skippable with reduced gains (~60–70% of an average result)** | Every minigame needs a "simulated score" path. |
+| D15 | Player role (Q6.9) | **Named head coach** | A coach character with their own progression (coaching level → clearer, faster calls), a relationship/trust stat with the fighter, and a hook for a future next-generation coaching mode. |
+| D16 | Career length (Q6.1) | **~20–30 hours, ~25–35 pro fights** | About 1 fight every ~45 min of play including camp. Fits about 3 fights/year over a ~10-year pro career. |
+| D17 | Divisions (Q4.4) | **Men's divisions only at launch** | Women's divisions are a post-launch roadmap item. Keep the data model gender-agnostic so adding them later doesn't need a rewrite. |
+| D18 | Career structure (Q6.4) | **Tiered ladder with competing major leagues** | Amateur → regional → national → 2–3 fictional majors. Contracts, free agency, and promotions competing for fighters. |
+| D19 | Injuries (Q6.7) | **Real but recoverable** | Medical suspensions, camp injuries and occasional lasting dents. Chin and durability wear accumulates slowly over a career. |
+| D20 | Fight-night extras | **Ref/judge personalities, fouls + deductions, cutman minigame, commentary feed: all in** | Phased in: commentary + cutman by Alpha, ref/judge personalities + fouls by Beta. |
+| D21 | Life sim depth (Q6.5–6.6) | **Medium** | Weekly budget, purses/sponsors, choice-based press conferences and callouts, 4–6 persistent relationships with light story events. |
+| D22 | Rivals (Q6.11) | **Generated only (systemic)** | No handcrafted story rival. Rivalries form from world events (losses, callouts, shared opponents, close decisions). Needs a solid grudge/relationship model in the world sim. |
+| D23 | Weight cut | **Fight-week mini-system** | Planning minigame: cut aggressiveness ↔ size advantage vs cardio and chin penalties. Missing weight = fine + reputation hit. |
+| D24 | Stat display (Q7.3) | **Letter grades + descriptive tags** | Internally 0–100, shown as grades (F → A+) plus tags like "Iron chin" or "Elite wrestler". Debug overlay shows the raw numbers. |
 
 ---
 
