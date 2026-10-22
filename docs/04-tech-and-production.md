@@ -79,7 +79,7 @@ Recommended pipeline (needs your input, P2):
 - **One design-doc section → one task** for AI coding sessions. Every PR links its doc section.
 - **Weekly loop** (20 h): ~2 h planning/review · ~14 h build (with AI) · ~4 h playtesting + notes.
 - **Playtest log**: `docs/playtests/YYYY-MM-DD.md`, recording what felt good or bad. This drives design changes.
-- **Learning goal** (D3): each milestone includes one "understand it" task. You explain the system back, or change it yourself.
+- **Direction over learning** (D59): no learning tasks. Each milestone ends with a playable build and a plain-language summary instead.
 
 ---
 
@@ -102,9 +102,31 @@ and a good moment for a public demo or Steam page.
 
 ---
 
-## 7. Open questions
-- P1. Do you want to **learn GDScript hands-on** (I explain while we build), or mostly direct while AI writes the code?
-- P2. OK with the **3D-mannequin → 2D sprite sheet** art approach, or do you prefer pure 2D (AI-assisted pixel art)?
-- P3. Should we set up **GitHub issues/milestones** for the roadmap once the docs are locked?
-- P4. Which AI art tools do you already use or have access to?
-- P5. Budget for paid tools/assets (art tools, sound, Steam fee $100)?
+## 7. Directing, not coding (D59)
+
+You direct and AI writes the code. Your control comes from these tools instead of reading code:
+- **Design docs** are the source of truth. Code that contradicts a doc is a bug in one of them.
+- **Plain-language test names** you can read (e.g. `test_takedown_during_body_kick_gets_bonus`), plus a test report on every PR.
+- **The balance harness report** (win rates, finish types, call effectiveness) as a readable summary.
+- **A playable build after every milestone.** Your playtest notes drive the next tasks.
+- **PR summaries** written for a non-programmer: what changed, how to try it, and what to look for.
+
+## 8. Tools (D60)
+
+| Need | Tool | Cost |
+|---|---|---|
+| Engine | Godot 4 | Free |
+| 3D mannequin, render to sprite sheets | **Blender** (you have it) + a render-to-sprite script with a fixed isometric camera | Free |
+| Animations | Mixamo (free library), Blender for edits. Later: video-to-mocap tools | Free → low |
+| Image generation (portraits, gyms, vignettes) | Pick one with style-reference support once the style bible exists | Subscription; decide in Beta |
+| Sound | Free libraries (freesound etc.) for the prototype | Free |
+| Playtest builds | Windows export + itch.io (private link) or a Discord file share | Free |
+| Feedback | A simple form (e.g. Google Forms) linked from the build's title screen | Free |
+
+## 9. Resolved & open questions
+- P1 → **D59**: you direct; AI writes the code.
+- P2 → **D60**: 3D → 2D sprite sheets for now, built in Blender.
+- P4 → Blender now. Open to adding tools when they're needed (see §8).
+- S3 → **D62**: friends + a small Discord.
+- P3 (open). Should we set up **GitHub issues/milestones** for the roadmap once the docs are locked?
+- P5 (open). Rough budget for paid tools/assets over the project (the Steam fee is $100)?

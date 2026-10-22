@@ -149,8 +149,22 @@ Design rules for every minigame:
 
 ---
 
-## 6. Open questions
-- T1. Should the player be able to choose **which** 1–3 sessions are played each week, or should the game suggest key sessions?
-- T2. Should the head coach be customisable (name, look, background), or is a preset coach fine for launch?
-- T3. Can the fighter's **family/relationships** affect training (e.g. new baby → fatigue, motivation)?
-- T4. Is a **"camp in Thailand / Dagestan / Brazil"** travel option interesting (special training trips)?
+## 6. Training trips (D64: "Bangkok ready")
+
+| Destination | Specialty | Unique techniques / minigame variants | Trade-offs |
+|---|---|---|---|
+| Bangkok, Thailand | Muay Thai | Thai plum, elbows, teep; harder Thai pads | Cost, heat fatigue, time away from family |
+| Dagestan, Russia | Wrestling / sambo | Chain wrestling, mat returns; brutal wrestling chain | Very high fatigue, injury risk |
+| Rio de Janeiro, Brazil | BJJ | Advanced guard and back takes; rolling puzzle "black belt" tier | Weaker striking work |
+| Amsterdam, Netherlands | Dutch kickboxing | Low kicks, punch-kick combos | — |
+| US altitude camp | Strength & conditioning | Cardio ceiling boost | Expensive |
+
+- A trip takes 2–6 weeks, costs money, and needs an invitation or contact (from your network, background or a coach).
+- Trips create **story moments** and possible persistent contacts (a Thai trainer who'll corner you later).
+
+## 7. Resolved & open questions
+- T2 → **D63**: the head coach is customisable (name, look, background, starting specialty).
+- T3 → **D65**: family/life events affect fatigue, motivation and focus.
+- T4 → **D64**: training trips are in (see §6).
+- T1 (open). Should the player choose **which** 1–3 sessions to play each week, or should the game suggest key sessions?
+- T5 (open). Head coach starting specialties: Striking / Wrestling / BJJ / Motivator / Tactician? Each gives a different early bonus.

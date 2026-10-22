@@ -254,10 +254,15 @@ but happen often enough that an underdog always has a chance.
 
 ---
 
-## 14. Open questions for this system
-- F1. Now calls + read calls: does this two-kind split sound right?
-- F2. Active pause: on by default, or an accessibility/difficulty setting?
-- F3. Should we show tells **visually** (a flash/icon on telegraph) once scouted, or only through behaviour?
-- F4. Should there be a "perfect call" flourish (brief slow-mo + sound) when a call lands in a counter window?
-- F5. Should the fight speed adapt (auto slow-mo on rocked/sub moments), or stay manual?
-- F6. Are hotkeys (1–9) + mouse/click both supported? Controller support?
+## 14. Resolved questions
+- F1 → **D49**: now calls + read calls are both in.
+- F2 → **D50**: active pause on Easy difficulty only.
+- F3 → **D51/D66**: scouted tells show an on-screen cue. The head coach's *Reading* stat makes it appear earlier.
+- F4 → **D52**: perfect-call flourish (slow-mo + sound + feed line).
+- F5 → **D53**: auto slow-mo on big moments (can be switched off in settings).
+- F6 → **D54**: keyboard + mouse at launch (hotkeys 1–9 + clickable call bar). Controller later.
+
+## 15. Open questions
+- F7. Read calls: one active at a time, or can you stack two (with a bigger attention cost)?
+- F8. Should the opponent's corner make calls too (the AI coach), and can you *hear/see* them for counter-play?
+- F9. Should difficulty also change the *opponent* AI (smarter reads), or only player-side help (cues, pause)?

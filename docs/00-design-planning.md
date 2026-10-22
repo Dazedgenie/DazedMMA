@@ -62,6 +62,24 @@ boxer between fights and influence bouts from the corner. DazedMMA takes that lo
 | D46 | Team & capacity (Q1.3–1.4) | **About 20 hrs/week**; background in GTA V modding + web design/coding | GDScript (Python-like) is a good fit. Plan milestones in 4–8 week chunks. |
 | D47 | Production approach (Q8.6) | **AI-assisted for most code and art** | Requires a strong style guide, a repeatable art pipeline, tests and docs so AI output stays consistent. See `04-tech-and-production.md`. |
 | D48 | First playable (vertical slice) | **Create fighter → 1 camp → 3 fights** | Comes after the Phase 1 fight prototype. |
+| D49 | Call kinds (F1) | **Now calls + read calls** both in | Now = pure timing; read = primed reaction with an attention cost. |
+| D50 | Active pause (F2) | **Easy difficulty only** | Normal/Hard: slow-mo only. |
+| D51 | Tell display (F3) | **On-screen cue once a habit is scouted** | E.g. a small icon/glow on the telegraph. Unscouted habits are behaviour only. Head coach *Reading* skill improves cue timing. |
+| D52 | Perfect-call flourish (F4) | **Yes** | Brief slow-mo + sound + feed line when a call lands inside a counter window. |
+| D53 | Auto slow-mo (F5) | **Yes** | Triggers: fighter rocked, sub locked in, knockdown, scramble. Can be turned off in settings. |
+| D54 | Input (F6) | **Keyboard + mouse only at launch** | Hotkeys 1–9 + clickable call wheel/bar. Controller later. |
+| D55 | World size (W1) | **~100 fighters per division** | With D56: about 600 simulated fighters. |
+| D56 | Divisions (W2) | **6 men's divisions** | Bantam, Feather, Light, Welter, Middle, Light Heavy. Heavyweight post-launch. |
+| D57 | Places & promotions (W3) | **Real-world places, fictional promotions, generated at game start** | Each new career generates the regional promotions + 2 pro orgs (names, HQ city, style, pay scale). Adds replayability (D25). |
+| D58 | Manager (W6) | **Head coach does it by default; optional agent** | Hiring an agent auto-handles negotiation for a % cut, for players who don't want that layer. |
+| D59 | Code ownership (P1) | **You direct; AI writes the code** | Docs, tests and playtests are how you keep control (see `04`). No learning tasks in milestones. |
+| D60 | Art approach (P2) | **3D → 2D sprite sheets** (for now) | Blender is available. Free/cheap tools to add: see `04` §3. |
+| D61 | Prototype art (S2) | **None: mechanics first** | Art direction starts only after the prototype passes. |
+| D62 | Playtesters (S3) | **Friends + a small Discord** | Needs a shareable build (Windows export) + a feedback form. |
+| D63 | Head coach (T2) | **Customisable** | Name, look, background, plus a starting coaching specialty. |
+| D64 | Training trips (T4) | **Yes: "Bangkok ready"** | Travel camps (Thailand, Dagestan, Brazil, Netherlands...) with unique coaches, techniques and minigame variants. |
+| D65 | Family & life → training (T3) | **Yes** | Life events affect fatigue, motivation and focus (new baby, sick parent, breakup, wedding). |
+| D66 | Tell visibility tie-in | Head coach **Reading** stat + film study | Better reading = cue appears earlier in the telegraph. |
 
 ### Per-system design docs
 - [`01-fight-engine.md`](01-fight-engine.md): simulation, positions, coaching calls, tells, corner, scoring

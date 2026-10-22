@@ -91,10 +91,23 @@ Trilogies are possible.
 
 ---
 
-## 7. Open questions
-- W1. **100 fighters per division** or in total? (Recommended: about 100 *per active division*, with 4–6 men's divisions at launch ≈ 400–600 fighters.)
-- W2. How many **men's divisions** at launch? (Recommended: 6: Bantam, Feather, Light, Welter, Middle, Light Heavy. Heavyweight later.)
-- W3. Should the world include **real-sounding but fictional** country/region names, or real countries with fictional cities?
-- W4. Should **titles** have an extra layer (defending, vacating, double champ)?
-- W5. Does the player see **other fights on the card** (sim results list), and can they watch them?
-- W6. Should a **manager** be a hired character (takes %, gets better offers) or part of what the head coach does?
+## 7. Promotion generation (D57)
+
+At the start of every new career:
+1. Pick the **home region** from the fighter's hometown (real places).
+2. Generate **3–4 regional promotions** near it: name, HQ city, venue sizes, matchmaking style, pay scale, reputation.
+3. Generate **2 pro organisations** (international): name, branding colours, HQ, ranking style, contract tactics, PPV model.
+4. Fill each of the 6 divisions (D56) with **~100 fighters** (D55), spread across amateur/regional/pro tiers, with backgrounds and nationalities
+   weighted toward real-world MMA hotbeds.
+5. Simulate a short **history** (e.g. 3–5 years of past results) so champions, records and rivalries already exist on day one.
+
+Name generators need some care: promotion names should sound plausible without copying real brands.
+
+## 8. Resolved & open questions
+- W1 → **D55**: ~100 fighters **per division**.
+- W2 → **D56**: 6 men's divisions at launch.
+- W3 → **D57**: real places, fictional promotions generated per career.
+- W6 → **D58**: the head coach acts as manager by default; an optional hired agent auto-negotiates for a cut.
+- W4 (open). Should **titles** have an extra layer (defending, vacating, double champ, super fights)?
+- W5 (open). Does the player see **other fights on the card** (results list), and can they watch them?
+- W7 (open). Should your fighter be able to sign with a **foreign regional promotion** (e.g. fight in Thailand during a trip)?

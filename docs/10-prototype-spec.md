@@ -64,7 +64,16 @@ Submissions struggle, corner/cutman, officials personalities, fouls, commentary 
 
 ---
 
-## 5. Open questions before approval
-- S1. Should we confirm the **now call vs read call** split (F1) before building it?
-- S2. Are you OK with this prototype having **no real art** at all?
-- S3. Who are your playtesters? (Friends, Discord, a modding community?)
+## 5. Additions from decisions D49–D54
+- **Read call "Catch the kick!"** and all now calls are in scope (D49).
+- **Scouted-tell cue**: a toggle in the prototype to compare cue on vs off (D51).
+- **Perfect-call flourish** (D52) and **auto slow-mo** on rocked/knockdown (D53).
+- **Active pause** behind an "Easy" toggle (D50).
+- **Keyboard + mouse**: hotkeys 1–9 + clickable call bar (D54).
+- **Playtest build**: Windows export + a feedback form for friends and the Discord (D62).
+
+## 6. Approval checklist
+- [x] S1: now/read call split confirmed (D49)
+- [x] S2: no art; mechanics first (D61)
+- [x] S3: playtesters: friends + small Discord (D62)
+- [ ] Final sign-off from you → Phase 0 wrap-up → coding begins
