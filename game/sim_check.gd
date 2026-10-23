@@ -56,6 +56,9 @@ func _run(fight_seed: int, actions: ActionLibrary) -> void:
 		_check("%s throws, lands and misses strikes" % f.name,
 			f.strikes_thrown > 0 and f.strikes_landed > 0 and f.strikes_landed < f.strikes_thrown,
 			"landed %d of %d" % [f.strikes_landed, f.strikes_thrown])
+	for f in sim.fighters:
+		_check("%s gets tired from working" % f.name, f.stamina < f.max_stamina(),
+			"stamina %d of %d" % [roundi(f.stamina), roundi(f.max_stamina())])
 	_check("Bad command is refused", _count(FightEvent.COMMAND_REJECTED) == 1,
 		"%d refused" % _count(FightEvent.COMMAND_REJECTED))
 

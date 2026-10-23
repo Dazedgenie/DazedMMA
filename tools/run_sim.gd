@@ -28,6 +28,7 @@ func _initialize() -> void:
 		fight_seed, sim.now, sim.now / FightClock.TICKS_PER_SECOND, sim.events.size(), Time.get_ticks_msec() - started])
 	for f in sim.fighters:
 		print("  %-5s landed %3d / %3d jabs, took head damage %d" % [f.name, f.strikes_landed, f.strikes_thrown, f.damage.head])
+		print("        " + FightLogFormatter.condition_line(f))
 
 
 func _process(_delta: float) -> bool:
