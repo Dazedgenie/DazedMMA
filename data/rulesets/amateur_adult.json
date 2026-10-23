@@ -1,0 +1,24 @@
+{
+	"schema": "ruleset@1",
+	"id": "amateur_adult",
+	"name": "Amateur MMA (18+)",
+	"rounds": 3,
+	"title_rounds": 3,
+	"round_seconds": 180,
+	"glove_oz": 6,
+	"gear": ["shin_guards"],
+	"allows": {
+		"elbows": false,
+		"head_strikes_on_ground": false,
+		"knees_to_head_standing": true,
+		"knees_to_head_grounded": false,
+		"heel_hooks": false,
+		"slams": false,
+		"takedowns": true
+	},
+	"damage_multiplier": 0.8,
+	"cut_multiplier": 0.6,
+	"early_stoppage_bias": 0.3,
+	"weigh_in": "same_day",
+	"paid": false
+}

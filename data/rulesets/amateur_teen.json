@@ -1,0 +1,24 @@
+{
+	"schema": "ruleset@1",
+	"id": "amateur_teen",
+	"name": "Teen amateur MMA (16–17)",
+	"rounds": 3,
+	"title_rounds": 3,
+	"round_seconds": 120,
+	"glove_oz": 8,
+	"gear": ["headgear", "shin_guards"],
+	"allows": {
+		"elbows": false,
+		"head_strikes_on_ground": false,
+		"knees_to_head_standing": false,
+		"knees_to_head_grounded": false,
+		"heel_hooks": false,
+		"slams": false,
+		"takedowns": true
+	},
+	"damage_multiplier": 0.6,
+	"cut_multiplier": 0.3,
+	"early_stoppage_bias": 0.5,
+	"weigh_in": "same_day",
+	"paid": false
+}

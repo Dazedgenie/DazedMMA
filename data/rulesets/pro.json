@@ -1,0 +1,24 @@
+{
+	"schema": "ruleset@1",
+	"id": "pro",
+	"name": "Professional MMA",
+	"rounds": 3,
+	"title_rounds": 5,
+	"round_seconds": 300,
+	"glove_oz": 4,
+	"gear": [],
+	"allows": {
+		"elbows": true,
+		"head_strikes_on_ground": true,
+		"knees_to_head_standing": true,
+		"knees_to_head_grounded": false,
+		"heel_hooks": true,
+		"slams": true,
+		"takedowns": true
+	},
+	"damage_multiplier": 1.0,
+	"cut_multiplier": 1.0,
+	"early_stoppage_bias": 0.0,
+	"weigh_in": "day_before",
+	"paid": true
+}

@@ -1,0 +1,10 @@
+{
+	"schema": "position@1",
+	"id": "full_guard",
+	"name": "Full guard",
+	"phase": "ground",
+	"roles": ["top", "bottom"],
+	"stamina_drain_per_s": { "top": 0.2, "bottom": 0.3 },
+	"control_score": { "top": 1.0, "bottom": 0.2 },
+	"strike_damage_multiplier": { "top": 1.0, "bottom": 0.4 }
+}

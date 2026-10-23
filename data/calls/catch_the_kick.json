@@ -1,0 +1,14 @@
+{
+	"schema": "call@1",
+	"id": "catch_the_kick",
+	"name": "Catch the kick!",
+	"kind": "read",
+	"tier": "technique",
+	"parent": "takedown",
+	"hotkey": null,
+	"voice_cost": 25,
+	"positions": ["standing"],
+	"actions": ["catch_kick_single"],
+	"read": { "trigger": "opp_kick_starts", "duration_ms": 6000, "attention_cost": 0.15 },
+	"requires_technique": "catch_kick_single"
+}

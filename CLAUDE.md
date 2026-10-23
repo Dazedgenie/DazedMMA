@@ -4,6 +4,7 @@
   Every change should trace to a doc section or GitHub issue. If code and docs disagree, flag it.
 - Engine: **Godot 4.7** (`project.godot`). Typed GDScript (`var x: int`, `:=`), tabs for indentation.
 - Layers: `sim/` is pure logic with no Node/scene-tree use (see `sim/README.md`); `game/` and `ui/` are presentation.
+- Content lives in `data/` as JSON, one file per item (`docs/09-data-formats.md`). New fields or types: update the doc and `tests/data/test_data_files.gd` together.
 - The user directs and doesn't read code: PR descriptions must be plain language (what changed, how to try it, what to look for).
 
 ## Commands

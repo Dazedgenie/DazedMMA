@@ -1,0 +1,15 @@
+{
+	"schema": "action@1",
+	"id": "jab",
+	"name": "Jab",
+	"category": "strike",
+	"positions": ["standing"],
+	"ranges": ["mid", "pocket"],
+	"phases_ms": { "telegraph": 100, "windup": 100, "active": 100, "recovery": 200 },
+	"stamina_cost": 2,
+	"flags_self": [],
+	"strike": { "target": "head", "base_damage": 3 },
+	"stats": { "offense": ["boxing", "speed"], "defense": ["striking_defense"] },
+	"opportunities": [],
+	"requires_technique": null
+}

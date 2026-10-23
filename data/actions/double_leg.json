@@ -1,0 +1,20 @@
+{
+	"schema": "action@1",
+	"id": "double_leg",
+	"name": "Double-leg takedown",
+	"category": "takedown",
+	"positions": ["standing"],
+	"ranges": ["mid", "pocket"],
+	"phases_ms": { "telegraph": 300, "windup": 200, "active": 500, "recovery": 400 },
+	"stamina_cost": 10,
+	"flags_self": [
+		{ "flag": "HEAD_LOW", "from": "windup", "to": "active" }
+	],
+	"takedown": { "base_success": 0.35, "on_success": { "position": "full_guard", "role": "top" } },
+	"stats": { "offense": ["takedowns", "explosiveness"], "defense": ["takedown_defense"] },
+	"opportunities": [
+		{ "opponent_flag": "BACK_TO_CAGE", "success_bonus": 0.15 },
+		{ "opponent_flag": "LEANING", "success_bonus": 0.10 }
+	],
+	"requires_technique": null
+}
