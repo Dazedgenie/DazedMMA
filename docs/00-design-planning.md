@@ -110,6 +110,7 @@ boxer between fights and influence bouts from the corner. Chin Check takes that 
 - [`08-amateur-rules.md`](08-amateur-rules.md): amateur vs pro rulesets, the teen amateur stage
 - [`09-data-formats.md`](09-data-formats.md): JSON content formats + what the validator checks
 - [`10-prototype-spec.md`](10-prototype-spec.md): Phase 1 fight prototype, the "kick → takedown" test
+- [`11-attributes-and-traits.md`](11-attributes-and-traits.md): **proposal**: attribute list, how stats enter a fight, trait layers (incl. style from training habits)
 
 ---
 
