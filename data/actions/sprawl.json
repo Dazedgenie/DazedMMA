@@ -9,7 +9,7 @@
 	"stamina_cost": 5,
 	"flags_self": [],
 	"defense": { "against_categories": ["takedown"], "base_success": 0.45 },
-	"stats": { "offense": ["takedown_defense", "explosiveness"], "defense": ["takedowns"] },
+	"stats": { "offense": ["takedown_defense", "speed"], "defense": ["takedowns"] },
 	"opportunities": [
 		{ "opponent_flag": "HEAD_LOW", "success_bonus": 0.10 }
 	],

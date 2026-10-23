@@ -11,7 +11,7 @@
 		{ "flag": "HEAD_LOW", "from": "windup", "to": "active" }
 	],
 	"takedown": { "base_success": 0.35, "on_success": { "position": "full_guard", "role": "top" } },
-	"stats": { "offense": ["takedowns", "explosiveness"], "defense": ["takedown_defense"] },
+	"stats": { "offense": ["takedowns", "speed"], "defense": ["takedown_defense"] },
 	"opportunities": [
 		{ "opponent_flag": "BACK_TO_CAGE", "success_bonus": 0.15 },
 		{ "opponent_flag": "LEANING", "success_bonus": 0.10 }

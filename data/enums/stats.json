@@ -2,13 +2,13 @@
 	"schema": "enum@1",
 	"id": "stats",
 	"values": {
-		"strength": "Physical", "speed": "Physical", "explosiveness": "Physical", "cardio": "Physical",
+		"strength": "Physical", "speed": "Physical", "cardio": "Physical",
 		"recovery": "Physical", "durability": "Physical", "chin": "Physical",
 		"boxing": "Striking", "kicking": "Striking", "clinch_striking": "Striking",
 		"striking_defense": "Striking", "footwork": "Striking", "power": "Striking",
 		"takedowns": "Wrestling", "takedown_defense": "Wrestling", "clinch_control": "Wrestling", "scrambles": "Wrestling",
 		"top_control": "Grappling", "guard": "Grappling", "submissions": "Grappling",
-		"submission_defense": "Grappling", "ground_and_pound": "Grappling",
-		"fight_iq": "Mental", "composure": "Mental", "heart": "Mental", "coachability": "Mental"
+		"submission_defense": "Grappling",
+		"fight_iq": "Mental", "composure": "Mental", "heart": "Mental"
 	}
 }

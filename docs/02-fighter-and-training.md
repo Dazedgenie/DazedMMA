@@ -33,40 +33,43 @@ Each vignette is a short illustrated scene with **2–4 choices**. A choice affe
 | Jiu-jitsu prodigy | Subs, Guard | Striking, TDs | Competition rivals from the mats |
 | Farm / labour kid | Strength, Durability | Technique, Speed | Family needs money |
 | Muay Thai camp abroad | Clinch, Kicks, toughness | Wrestling | A Thai trainer contact |
-| College football athlete | Explosiveness, Strength | Raw skills, cardio | Injury history |
+| College football athlete | Speed (burst), Strength | Raw skills, cardio | Injury history |
 | Judo / sambo household | Throws, leg locks | Boxing | Olympic dreams that didn't happen |
 | Boxing gym kid | Hands, head movement | Kicks, ground | Old boxing coach feels betrayed |
 | Late starter / privileged | Money, time, Fight IQ | Toughness, chin | Proving yourself |
 | **Track star** | Cardio, Speed, footwork | Strength, power | Former coach and scholarship |
-| **Bullied underdog** | Heart, composure growth, Coachability | Low starting stats | A bully from school shows up in the world |
+| **Bullied underdog** | Heart, composure growth, Coachable trait | Low starting stats | A bully from school shows up in the world |
 
 Backgrounds aren't picked from a list. They **emerge** from vignette choices (a scene at age 8 might be "a
 wrestling tournament with dad" vs "a karate class at the community centre" vs "getting jumped after school").
 
-### 1.3 Personality traits (D36)
-Hybrid: vignettes set the starting traits plus a small random roll, and traits drift during the career.
+### 1.3 Traits (D36, D86–D90)
+Three layers, detailed in `11-attributes-and-traits.md` §4:
+1. **Personality**: vignettes set it, plus a small random roll; it drifts with career events.
+2. **Fighting style**: four leanings (Pace, Range, Base, Risk) pushed by training, gameplans and calls; named traits at ±60.
+3. **Gifts & flaws**: rolled at creation; some hidden until discovered.
 
-| Trait axis | Gameplay effect |
+| Personality axis | Gameplay effect |
 |---|---|
 | Ego ↔ Humble | Compliance with calls; habit absorption (only successful calls) |
 | Discipline ↔ Party animal | Camp consistency, weight-cut success, life-event risks |
-| Aggressive ↔ Patient | AI tendencies, foul risk |
-| Coachable/Adaptive ↔ Stubborn | Habit absorption (D32); training XP multiplier |
+| Coachable/Adaptive ↔ Stubborn | Habit absorption (D32); training XP multiplier; how fast style changes |
 | Loyal ↔ Mercenary | Reaction to poaching offers, switching gyms, money disputes |
-| Composed ↔ Fragile | Panic thresholds; between-round motivation effect |
 
 ---
 
-## 2. Attributes (internally 0–100, shown as grades + tags, D24)
+## 2. Attributes (internally 0–100, shown as grades + tags, D24, D85)
+
+What each attribute does in a fight: `11` §2.2.
 
 | Group | Attributes |
 |---|---|
-| Physical | Strength, Speed, Explosiveness, Cardio, Recovery, Durability, **Chin** (wears down over a career) |
+| Physical | Strength, Speed, Cardio, Recovery, Durability, **Chin** (wears down over a career) |
 | Striking | Boxing, Kicking, Clinch striking, Striking defense, Footwork, Power |
 | Wrestling | Takedowns, Takedown defense, Clinch control, Scrambles |
-| Grappling | Top control, Guard/bottom game, Submissions, Submission defense, Ground-and-pound |
-| Mental | Fight IQ, Composure, Heart, Coachability |
-| Hidden / derived | Potential ceiling, aging curve, injury proneness, **natural weight** |
+| Grappling | Top control, Guard/bottom game, Submissions, Submission defense |
+| Mental | Fight IQ, Composure, Heart |
+| Hidden / derived | Frame, stance, potential ceiling, max chin, aging curve, injury proneness, **natural weight** |
 
 **Example tags:** "Iron chin", "Elite wrestler", "Dangerous off the back", "Gasses late", "Calf-kick specialist", "Glass jaw".
 Tags appear when an attribute crosses a threshold or is shown in fights.
@@ -101,7 +104,7 @@ Tags appear when an attribute crosses a threshold or is shown in fights.
 | **Heavy bag** | Power-timing meter with combo chaining | Power, Strength |
 | **Thai pads** | Aim + timing; the pad holder feeds kicks/knees/elbows | Kicking, Clinch striking |
 | **Wrestling chain** | Directional input sequences under time pressure (shot → finish → chain) | Takedowns, Scrambles |
-| **Sprawl reflex** | React to incoming shots with feints mixed in | Takedown defense, Explosiveness |
+| **Sprawl reflex** | React to incoming shots with feints mixed in | Takedown defense, Speed |
 | **Rolling puzzle** | Turn-based positional puzzle: pick transitions, chess-like | Top control, Guard, Submissions |
 | **Roadwork** | Pace management: stay in the target zone; going too fast gasses you out | Cardio, Recovery |
 | **Film study** | Watch a short sim clip and spot the tell | Fight IQ; reveals opponent tells (D11) |
