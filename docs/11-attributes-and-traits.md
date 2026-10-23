@@ -133,6 +133,25 @@ The standing + takedown prototype only needs about 17: Strength, Speed, Cardio, 
 Striking defense, Footwork, Takedowns, Takedown defense, Clinch control, Top control, Guard, Fight IQ, Composure.
 The rest stay at the default 50 until their systems exist.
 
+### 3.5 In the engine now (first-guess numbers)
+What `sim/` does today. Every number is a first guess for the balance harness (#18) to tune; they live as named constants
+in `sim/fighter_state.gd`, `sim/fight_sim.gd` and `sim/contest.gd`.
+
+| Piece | Rule |
+|---|---|
+| Contest formula (§3.1) | `Contest.chance`, used for every strike. `FightSim.odds()` gives takedowns and sprawls their odds the same way (base from data, opportunity bonuses from the opponent's flags, 0 if a `required` opportunity is missing); applying a takedown's result waits for #15 |
+| Stamina tank | 60 + 0.8 × Cardio points (Cardio 50 = 100). Refills 0.6 + 1.2 × Cardio/100 per second. Every move costs its `stamina_cost` when it starts |
+| Corner | Wins back 30% + Recovery/2 % of the missing stamina (Recovery 50 = 55%) |
+| Tired | Below half a tank, physical and technique stats fall linearly to −30% at empty. Cardio, Recovery, Durability, Chin and the mental stats don't |
+| Hurt | "Fully hurt" = 10 × (Chin + 50) head damage, 10 × (Durability + 50) body or leg damage. Head: Speed, Striking defense, Fight IQ up to −30%. Legs: Footwork, Speed, Kicking up to −30%. Body: stamina tank up to −30% |
+| Panic | When head hurt reaches 40% + Composure/2 % (Composure 50 = 65%): Fight IQ and the defense stats −20%, Power +15%, 20% busier |
+| Timing (§3.3) | Speed 100 → telegraph and wind-up −20%, Speed 0 → +20% (kick telegraphs use the average of Speed and Kicking). Tired stretches them up to another +30% (`01` §8). Whole ticks, never below one |
+| Style leanings (§4.2) | Four leanings with the ±30 hint, ±60 trait and ±40 fade lines. The placeholder AI reads two of them: Pace (+100 = 1.5× as busy, −100 = half) and Base (+100 doubles takedowns and halves strikes, −100 never shoots). Range and Risk wait for distance (#13) and finishes |
+| Debug | The console summary shows stamina, panic and worn-down stats as *Boxing 70 → 49 (tired)*, plus style hints and traits; strike lines show the odds they were rolled at |
+
+Not yet: rocked/knockdowns and damage recovery between rounds (#13), what named style traits actually do in a fight,
+and pushing leanings from training, gameplans and calls (those systems don't exist yet).
+
 ---
 
 ## 4. Traits: random or earned? Both, in three layers
@@ -220,4 +239,4 @@ Each fighter rolls **0–2 gifts and 0–1 flaw**, weighted by frame and backgro
 ## 6. Follow-up work
 - Done with D85–D90: `00` decisions, `02` §1.3/§2, `data/enums/stats.json`, and the Double leg and Sprawl actions (Explosiveness → Speed).
 - Add attributes, personality, style leanings and gifts/flaws to the fighter profile format (`09`, with #14).
-- Engine: effective stats and the shared contest formula, as the standing game and takedowns land (#13, #15).
+- Engine: effective stats, the shared contest formula, timing and style leanings are in (§3.5). Still to come: takedown results (#15), rocked/knockdowns (#13), style trait effects, and leaning pushes from training and calls.

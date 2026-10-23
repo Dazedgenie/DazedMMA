@@ -146,3 +146,107 @@ func test_a_full_fight_runs_over_1000x_faster_than_fight_time() -> void:
 	# 3 x 5:00 = 900 s of fight time, so 1000x means under 900 ms.
 	gut.p("Full fight simulated in %.1f ms" % elapsed_ms)
 	assert_lt(elapsed_ms, 900.0)
+
+
+func _idle_pair(red: FighterState = null, blue: FighterState = null) -> FightSim:
+	return FightSim.new(SEED,
+		[red if red != null else FighterState.new("Red", {}, []), blue if blue != null else FighterState.new("Blue", {}, [])],
+		_actions)
+
+
+func test_starting_a_move_costs_its_stamina() -> void:
+	var sim: FightSim = _idle_pair()
+	sim.submit(FightCommand.queue_action(0, 0, "body_kick"))
+	sim.tick()
+	assert_almost_eq(sim.fighters[0].stamina, 94.0, 0.001, "body_kick.json costs 6")
+	sim.tick()
+	assert_almost_eq(sim.fighters[0].stamina, 94.12, 0.001, "then breathing refills 1.2 a second")
+
+
+func test_the_corner_gives_stamina_back_between_rounds() -> void:
+	var sim := FightSim.new(SEED, [FighterState.new("Red", {}, []), FighterState.new("Blue", {}, [])], _actions, 2, 10)
+	sim.fighters[0].stamina = 0.0
+	while sim.clock.current_round == 1:
+		sim.tick()
+	# 10 s of breathing (12) then the corner wins back 55% of the missing 88.
+	assert_almost_eq(sim.fighters[0].stamina, 12.0 + 88.0 * 0.55, 0.01)
+
+
+func test_a_jab_uses_the_shared_formula_on_effective_stats() -> void:
+	var sim: FightSim = _idle_pair(FighterState.new("Red", { "boxing": 70, "speed": 60 }, []))
+	assert_almost_eq(sim.odds(0, "jab"), 0.65, 0.0001)
+	sim.fighters[0].stamina = 0.0  # exhausted: Boxing and Speed both at −30%
+	assert_almost_eq(sim.odds(0, "jab"), 0.5 + (65.0 * 0.7 - 50.0) / 100.0, 0.0001)
+
+
+func test_a_hurt_defender_gets_hit_more() -> void:
+	var sim: FightSim = _idle_pair()
+	var fresh: float = sim.odds(0, "jab")
+	sim.fighters[1].damage.head = 500
+	assert_gt(sim.odds(0, "jab"), fresh)
+
+
+func test_strike_events_carry_the_odds_they_were_rolled_at() -> void:
+	var sim: FightSim = _idle_pair()
+	sim.submit(FightCommand.queue_action(0, 0, "jab"))
+	for i in 10:
+		sim.tick()
+	for e in sim.events:
+		if e.type in [FightEvent.STRIKE_LANDED, FightEvent.STRIKE_MISSED]:
+			assert_almost_eq(e.data.chance, 0.5, 0.0001)
+
+
+func test_the_catch_kick_is_only_possible_while_the_opponent_is_on_one_leg() -> void:
+	var sim: FightSim = _idle_pair()
+	assert_eq(sim.odds(0, "catch_kick_single"), 0.0)
+	sim.fighters[1].action_id = "body_kick"
+	sim.fighters[1].phase = "windup"  # ONE_LEG from windup to recovery
+	assert_eq(sim.active_flags(1), ["ONE_LEG"] as Array[String])
+	assert_almost_eq(sim.odds(0, "catch_kick_single"), 0.20 + 0.35, 0.0001)
+
+
+func test_a_sprawl_is_easier_against_a_shot_with_the_head_low() -> void:
+	var sim: FightSim = _idle_pair()
+	var early: float = sim.odds(1, "sprawl")
+	sim.fighters[0].action_id = "double_leg"
+	sim.fighters[0].phase = "active"  # HEAD_LOW from windup to active
+	assert_almost_eq(sim.odds(1, "sprawl") - early, 0.10, 0.0001)
+	assert_almost_eq(sim.odds(0, "double_leg"), 0.35, 0.0001)
+
+
+func test_speed_shortens_telegraph_and_windup_and_fatigue_stretches_them() -> void:
+	var sim: FightSim = _idle_pair(FighterState.new("Fast", { "speed": 100, "kicking": 100 }, []), FighterState.new("Slow", { "speed": 0, "kicking": 0 }, []))
+	var average := FighterState.new("Average", {}, [])
+	# body_kick.json: telegraph 3 ticks, windup 3, active 2.
+	assert_eq(sim.phase_ticks(average, "body_kick", "telegraph"), 3)
+	assert_eq(sim.phase_ticks(sim.fighters[0], "body_kick", "telegraph"), 2)
+	assert_eq(sim.phase_ticks(sim.fighters[1], "body_kick", "telegraph"), 4)
+	assert_eq(sim.phase_ticks(sim.fighters[0], "body_kick", "windup"), 2)
+	assert_eq(sim.phase_ticks(sim.fighters[0], "body_kick", "active"), 2, "only telegraph and windup change")
+	assert_eq(sim.phase_ticks(sim.fighters[0], "jab", "telegraph"), 1, "never below one tick")
+	average.stamina = 0.0
+	assert_eq(sim.phase_ticks(average, "double_leg", "telegraph"), 4, "an exhausted fighter telegraphs longer")
+
+
+func test_an_aggressive_pace_leaning_throws_more_than_a_patient_one() -> void:
+	var sim := FightSim.new(SEED, [
+		FighterState.new("Aggressive", {}, ["jab"], 0.08, StyleLeanings.new({ "pace": 100 })),
+		FighterState.new("Patient", {}, ["jab"], 0.08, StyleLeanings.new({ "pace": -100 })),
+	], _actions)
+	sim.run_to_end()
+	assert_gt(sim.fighters[0].strikes_thrown, int(sim.fighters[1].strikes_thrown * 1.5))
+
+
+func test_a_grappler_leaning_shoots_more_and_a_pure_striker_never_shoots() -> void:
+	var repertoire: Array[String] = ["jab", "double_leg"]
+	var sim := FightSim.new(SEED, [
+		FighterState.new("Grappler", {}, repertoire, 0.08, StyleLeanings.new({ "base": 100 })),
+		FighterState.new("Striker", {}, repertoire, 0.08, StyleLeanings.new({ "base": -100 })),
+	], _actions)
+	sim.run_to_end()
+	var shots: Array[int] = [0, 0]
+	for e in sim.events:
+		if e.type == FightEvent.ACTION_PHASE and e.data.phase == "telegraph" and e.data.action_id == "double_leg":
+			shots[e.actor] += 1
+	assert_gt(shots[0], sim.fighters[0].strikes_thrown, "a +100 grappler shoots four times as often as they jab")
+	assert_eq(shots[1], 0)

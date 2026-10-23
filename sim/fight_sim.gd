@@ -7,14 +7,18 @@ extends RefCounted
 ## randomness comes from one seeded RNG, so the same seed + command log always
 ## produces the same fight (see FightSim.replay).
 ##
-## Strikes resolve with a placeholder hit chance; distance, stamina and the real
-## damage model are the standing game (#13), and the utility AI is #14.
+## Every contest uses Contest.chance on effective stats (docs/11 §3), and Speed
+## and Kicking change how long telegraphs and wind-ups last (§3.3). Strikes
+## resolve; takedowns get their odds from odds() but land with #15. Distance and
+## the real damage model are the standing game (#13), and the utility AI is #14.
 
 signal event_emitted(event: FightEvent)
 
-const BASE_HIT_CHANCE: float = 0.5
-const MIN_HIT_CHANCE: float = 0.05
-const MAX_HIT_CHANCE: float = 0.95
+## Speed (and Kicking, for kick telegraphs) shortens or stretches telegraph and
+## wind-up by up to 20% (docs/11 §3.3); being tired stretches them up to another
+## 30% (docs/01 §8). Rounded to whole ticks.
+const MAX_TIMING_SHIFT: float = 0.2
+const TIMED_PHASES: Array[String] = ["telegraph", "windup"]
 
 var fight_seed: int
 var clock: FightClock
@@ -79,6 +83,7 @@ func tick() -> void:
 		else:
 			for f in fighters:
 				f.clear_action()
+				f.recover_between_rounds()
 			clock.start_next_round()
 	now += 1
 
@@ -128,6 +133,7 @@ func _reject_reason(command: FightCommand) -> String:
 
 func _advance_fighter(i: int) -> void:
 	var f: FighterState = fighters[i]
+	f.regen_tick()
 	if not f.is_free():
 		f.phase_ticks_left -= 1
 		if f.phase_ticks_left <= 0:
@@ -138,21 +144,56 @@ func _advance_fighter(i: int) -> void:
 			_start_action(i, id)
 
 
-## Queued commands win; otherwise the placeholder AI sometimes throws from its repertoire.
+## Queued commands win; otherwise the placeholder AI sometimes throws from its
+## repertoire, nudged by style leanings (docs/11 §4.2) and panic (§3.2).
 func _choose_action(f: FighterState) -> String:
 	if f.queued_action_id != "":
 		var id: String = f.queued_action_id
 		f.queued_action_id = ""
 		return id
-	if f.repertoire.is_empty() or _rng.randf() >= f.work_rate:
+	if f.repertoire.is_empty() or _rng.randf() >= idle_work_rate(f):
 		return ""
-	return f.repertoire[_rng.randi_range(0, f.repertoire.size() - 1)]
+	var weights: Array[float] = []
+	var total: float = 0.0
+	for id in f.repertoire:
+		weights.append(choice_weight(f, id))
+		total += weights[-1]
+	if total <= 0.0:
+		return ""
+	var roll: float = _rng.randf() * total
+	for n in weights.size():
+		roll -= weights[n]
+		if roll < 0.0:
+			return f.repertoire[n]
+	return f.repertoire[-1]
+
+
+## Chance per idle tick to start something. Pace +100 = 1.5× as busy, −100 = half; panic adds 20%.
+func idle_work_rate(f: FighterState) -> float:
+	var rate: float = f.work_rate * (1.0 + f.style.value(StyleLeanings.PACE) / 200.0)
+	if f.is_panicking():
+		rate *= 1.0 + FighterState.PANIC_WORK_RATE_BONUS
+	return rate
+
+
+## How much the AI favours an action from its repertoire. The Base leaning tilts
+## strikes against takedowns: +100 doubles takedowns and halves strikes, −100 never shoots.
+func choice_weight(f: FighterState, id: String) -> float:
+	var base_leaning: float = f.style.value(StyleLeanings.BASE) / 100.0
+	match actions.get_action(id).category:
+		"takedown":
+			return 1.0 + base_leaning
+		"strike":
+			return 1.0 - base_leaning / 2.0
+	return 1.0
 
 
 func _start_action(i: int, id: String) -> void:
 	var f: FighterState = fighters[i]
 	f.action_id = id
-	if actions.get_action(id).category == "strike":
+	var action: Dictionary = actions.get_action(id)
+	f.spend_stamina(float(action.stamina_cost))
+	if action.category == "strike":
 		f.strikes_thrown += 1
 	_enter_phase(i, 0)
 
@@ -171,12 +212,57 @@ func _next_phase(i: int) -> void:
 func _enter_phase(i: int, at: int) -> void:
 	var f: FighterState = fighters[i]
 	f.phase = ActionLibrary.PHASES[at]
-	f.phase_ticks_left = actions.phase_ticks(f.action_id, f.phase)
+	f.phase_ticks_left = phase_ticks(f, f.action_id, f.phase)
 	_emit(FightEvent.ACTION_PHASE, i, { "action_id": f.action_id, "phase": f.phase })
 	if f.phase == "active":
 		_resolve_active(i)
 	if f.phase_ticks_left <= 0:
 		_next_phase(i)
+
+
+## How long this fighter takes over one phase of an action, in whole ticks.
+## A fresh 50-Speed fighter matches the data exactly; zero-length phases stay zero.
+func phase_ticks(f: FighterState, id: String, phase: String) -> int:
+	var ticks: int = actions.phase_ticks(id, phase)
+	if ticks == 0 or phase not in TIMED_PHASES:
+		return ticks
+	var quickness: float = f.effective_stat("speed")
+	if phase == "telegraph" and actions.get_action(id).stats.offense.has("kicking"):
+		quickness = (quickness + f.effective_stat("kicking")) / 2.0
+	var factor: float = 1.0 - MAX_TIMING_SHIFT * clampf((quickness - FighterState.DEFAULT_STAT) / 50.0, -1.0, 1.0)
+	factor *= 1.0 + f.tired()
+	return maxi(1, roundi(ticks * factor))
+
+
+## Flags fighter i carries right now from their current action's phase (docs/09 flags_self).
+func active_flags(i: int) -> Array[String]:
+	var f: FighterState = fighters[i]
+	var out: Array[String] = []
+	if f.is_free():
+		return out
+	var at: int = ActionLibrary.PHASES.find(f.phase)
+	for entry: Dictionary in actions.get_action(f.action_id).flags_self:
+		if ActionLibrary.PHASES.find(entry.from) <= at and at <= ActionLibrary.PHASES.find(entry.to):
+			out.append(entry.flag)
+	return out
+
+
+## Fighter i's odds for this action against the opponent right now: the shared
+## contest formula on effective stats, plus opportunity bonuses for flags the
+## opponent carries. 0 when a required opportunity is missing (catch-kick needs a kick).
+func odds(i: int, id: String) -> float:
+	var action: Dictionary = actions.get_action(id)
+	var opponent_flags: Array[String] = active_flags(1 - i)
+	var bonus: float = 0.0
+	for opp: Dictionary in action.opportunities:
+		if opponent_flags.has(opp.opponent_flag):
+			bonus += float(opp.success_bonus)
+		elif opp.get("required", false):
+			return 0.0
+	return Contest.chance(Contest.base_for(action),
+		_average_stat(fighters[i], action.stats.offense),
+		_average_stat(fighters[1 - i], action.stats.defense),
+		bonus)
 
 
 func _resolve_active(i: int) -> void:
@@ -186,16 +272,14 @@ func _resolve_active(i: int) -> void:
 	var attacker: FighterState = fighters[i]
 	var defender: FighterState = fighters[1 - i]
 	var target: String = action.strike.target
-	var chance: float = clampf(
-		BASE_HIT_CHANCE + (_average_stat(attacker, action.stats.offense) - _average_stat(defender, action.stats.defense)) / 100.0,
-		MIN_HIT_CHANCE, MAX_HIT_CHANCE)
+	var chance: float = odds(i, action.id)
 	if _rng.randf() < chance:
 		var dealt: int = int(action.strike.base_damage)
 		defender.damage[target] += dealt
 		attacker.strikes_landed += 1
-		_emit(FightEvent.STRIKE_LANDED, i, { "action_id": action.id, "target": target, "damage": dealt })
+		_emit(FightEvent.STRIKE_LANDED, i, { "action_id": action.id, "target": target, "damage": dealt, "chance": chance })
 	else:
-		_emit(FightEvent.STRIKE_MISSED, i, { "action_id": action.id, "target": target })
+		_emit(FightEvent.STRIKE_MISSED, i, { "action_id": action.id, "target": target, "chance": chance })
 
 
 func _average_stat(f: FighterState, ids: Array) -> float:
@@ -203,7 +287,7 @@ func _average_stat(f: FighterState, ids: Array) -> float:
 		return FighterState.DEFAULT_STAT
 	var total: float = 0.0
 	for id: String in ids:
-		total += f.stat(id)
+		total += f.effective_stat(id)
 	return total / ids.size()
 
 

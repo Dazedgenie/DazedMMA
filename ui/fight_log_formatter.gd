@@ -7,6 +7,8 @@ const FIGHTER_COLOURS: Array[String] = ["#ff6b6b", "#5fa8ff"]
 const PASS_COLOUR := "#6bd66b"
 const FAIL_COLOUR := "#ff5555"
 const DIM_COLOUR := "#8a8f98"
+## Stats the debug summary shows when condition has moved them (docs/11 §3.2).
+const CONDITION_STATS: Array[String] = ["boxing", "kicking", "power", "speed", "striking_defense", "footwork", "takedowns", "takedown_defense", "fight_iq"]
 
 
 ## Phase changes are noisy; the console hides them unless "phase details" is on.
@@ -40,9 +42,9 @@ static func _describe(event: FightEvent, sim: FightSim) -> String:
 		FightEvent.ACTION_ENDED:
 			return "[color=%s]%s %s finished[/color]" % [DIM_COLOUR, who, _action_name(event.data.action_id, sim)]
 		FightEvent.STRIKE_LANDED:
-			return "%s's %s [b]LANDS[/b] (%s, %d damage)" % [who, _action_name(event.data.action_id, sim), event.data.target, event.data.damage]
+			return "%s's %s [b]LANDS[/b] (%s, %d damage)%s" % [who, _action_name(event.data.action_id, sim), event.data.target, event.data.damage, _odds(event)]
 		FightEvent.STRIKE_MISSED:
-			return "%s's %s misses" % [who, _action_name(event.data.action_id, sim)]
+			return "%s's %s misses%s" % [who, _action_name(event.data.action_id, sim), _odds(event)]
 		FightEvent.COMMAND_REJECTED:
 			return "[color=%s]Command refused for %s: %s[/color]" % [FAIL_COLOUR, who, event.data.reason]
 		FightEvent.ROUND_ENDED:
@@ -50,6 +52,29 @@ static func _describe(event: FightEvent, sim: FightSim) -> String:
 		FightEvent.FIGHT_ENDED:
 			return "[b]── Fight over (%s) ──[/b]" % event.data.result
 	return "%s %s %s" % [who, event.type, JSON.stringify(event.data)]
+
+
+## One fighter's condition for the debug console, e.g.
+## "Red stamina 41/100 · Boxing 60 → 55 (tired) · Speed 55 → 44 (tired, hurt)".
+static func condition_line(f: FighterState) -> String:
+	var parts: Array[String] = ["%s stamina %d/%d" % [f.name, roundi(f.stamina), roundi(f.max_stamina())]]
+	if f.is_panicking():
+		parts.append("PANICKING")
+	for id in CONDITION_STATS:
+		if not f.condition_reasons(id).is_empty() and roundi(f.effective_stat(id)) != f.stat(id):
+			parts.append(f.describe_stat(id))
+	for leaning in StyleLeanings.LEANINGS:
+		if f.style.hint(leaning) != "":
+			parts.append(f.style.hint(leaning))
+	for trait_id in f.style.traits():
+		parts.append(StyleLeanings.TRAIT_NAMES[trait_id])
+	return " · ".join(parts)
+
+
+static func _odds(event: FightEvent) -> String:
+	if not event.data.has("chance"):
+		return ""
+	return " [color=%s]%d%%[/color]" % [DIM_COLOUR, roundi(event.data.chance * 100.0)]
 
 
 static func _fighter(index: int, sim: FightSim) -> String:

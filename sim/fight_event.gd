@@ -7,8 +7,8 @@ extends RefCounted
 
 const ACTION_PHASE := "action_phase"  # data: {action_id, phase}
 const ACTION_ENDED := "action_ended"  # data: {action_id}
-const STRIKE_LANDED := "strike_landed"  # data: {action_id, target, damage}
-const STRIKE_MISSED := "strike_missed"  # data: {action_id, target}
+const STRIKE_LANDED := "strike_landed"  # data: {action_id, target, damage, chance}
+const STRIKE_MISSED := "strike_missed"  # data: {action_id, target, chance}
 const COMMAND_REJECTED := "command_rejected"  # data: {command, reason}
 const ROUND_ENDED := "round_ended"  # data: {}
 const FIGHT_ENDED := "fight_ended"  # data: {result}

@@ -27,3 +27,15 @@ func test_only_the_start_of_a_move_is_shown_without_phase_details() -> void:
 	var windup := FightEvent.new(1, 1, FightEvent.ACTION_PHASE, 0, { "action_id": "jab", "phase": "windup" })
 	assert_false(FightLogFormatter.is_detail(start))
 	assert_true(FightLogFormatter.is_detail(windup))
+
+
+func test_a_strike_shows_the_odds_it_was_rolled_at() -> void:
+	var e := FightEvent.new(34, 1, FightEvent.STRIKE_MISSED, 1, { "action_id": "jab", "target": "head", "chance": 0.634 })
+	assert_eq(_plain(FightLogFormatter.line(e, _sim)), "R1 0:03.4  t34  Blue's Jab misses 63%")
+
+
+func test_the_condition_line_shows_stamina_and_worn_down_stats() -> void:
+	var f := FighterState.new("Red", { "boxing": 70 }, [], 0.08, StyleLeanings.new({ "pace": 65 }))
+	assert_eq(FightLogFormatter.condition_line(f), "Red stamina 100/100 · leaning aggressive · Natural aggressor")
+	f.stamina = 0.0
+	assert_string_contains(FightLogFormatter.condition_line(f), "Red stamina 0/100 · Boxing 70 → 49 (tired)")
