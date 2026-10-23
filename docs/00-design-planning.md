@@ -49,7 +49,7 @@ boxer between fights and influence bouts from the corner. Chin Check takes that 
 | D33 | Cage (Q3.12) | **Fully strategic** | Pinning, cage-walking, wall-and-stall, cutting off the cage, and cage position affecting takedown/escape odds. |
 | D34 | Backgrounds (Q4.1) | All 10 listed **plus Track star (cardio)** and **Bullied underdog** | 12 background flavours delivered through vignettes (D8). |
 | D35 | Weight class (Q4.5) | **Emerges over time** | Frame/height come from vignettes + growth. Walk-around weight changes with training and lifestyle. The division is picked at amateur debut and can change later (D44). |
-| D36 | Personality (Q4.8) | **Hybrid** (recommended, user open) | Vignette choices set the initial traits, with a small random roll for variety. Traits then drift with career events (big wins → ego up, etc.). |
+| D36 | Personality (Q4.8) | **Hybrid** (refined by D86/D87) | Vignette choices set the initial traits, with a small random roll for variety. Traits then drift with career events (big wins → ego up, etc.). |
 | D37 | Career start (Q4.7) | **Walking into a gym** | The first playable moment after the vignettes is the gym walk-in. Amateur fights follow. |
 | D38 | Minigames (Q5.2) | **All 10 approved**, about **1 minute each** | Mitt rhythm, heavy-bag power, Thai pads, wrestling chain, sprawl reflex, rolling puzzle, roadwork pacing, film study, hard sparring, meditation, plus the weight-cut system (D23). |
 | D39 | Training partners (Q5.7) | **Persistent; can turn pro** | They feed the generated rivalry system (D22): a former partner can become a rival. |
@@ -98,6 +98,12 @@ boxer between fights and influence bouts from the corner. Chin Check takes that 
 | D82 | Coaching layers (C2) | **4 layers: Gameplan → Drilled rules → Live calls → Corner** | Drilled rules: 2–3 trigger→action slots, reliability from camp drilling + Fight IQ. Advanced conditions unlock later. See `01` §6.0. |
 | D83 | Career start (C3) | **Vignettes at ~8 / ~12 / ~15 → gym walk-in at ~16 → teen amateur → pro at 18+** | Amateur ruleset in `08-amateur-rules.md`. |
 | D84 | Launch model | **Open**: full release vs Early Access | Decide at the vertical-slice checkpoint, when scope/cost is known. |
+| D85 | Attribute count | **23 attributes**, each with one job in the fight engine | Explosiveness → Speed, Ground-and-pound → Top control + Power, Coachability → personality only. See `11` §2. |
+| D86 | Trait model | **Three layers: personality / fighting style / gifts & flaws** | Style leanings (Pace, Range, Base, Risk) move with training, gameplans and calls, and earn named traits at ±60. Refines D36. See `11` §4. |
+| D87 | Personality axes | **4 axes**: Ego, Discipline, Coachable, Loyal | Aggressive ↔ Patient becomes the Pace leaning; Composed ↔ Fragile dropped (the Composure attribute covers it). |
+| D88 | Style visibility | **Fuzzy hint** once a leaning passes ±30 | e.g. "leaning aggressive". Raw numbers in the debug overlay only. |
+| D89 | Losing style traits | **Yes** | Trait fades below ±40; style changes much more slowly after ~30. |
+| D90 | Gifts & flaws | **0–2 gifts, 0–1 flaw rolled at creation; some hidden until discovered** | e.g. Bleeder shows after the first cut. See `11` §4.3. |
 
 ### Per-system design docs
 - [`01-fight-engine.md`](01-fight-engine.md): simulation, positions, coaching calls, tells, corner, scoring
@@ -110,7 +116,7 @@ boxer between fights and influence bouts from the corner. Chin Check takes that 
 - [`08-amateur-rules.md`](08-amateur-rules.md): amateur vs pro rulesets, the teen amateur stage
 - [`09-data-formats.md`](09-data-formats.md): JSON content formats + what the validator checks
 - [`10-prototype-spec.md`](10-prototype-spec.md): Phase 1 fight prototype, the "kick → takedown" test
-- [`11-attributes-and-traits.md`](11-attributes-and-traits.md): **proposal**: attribute list, how stats enter a fight, trait layers (incl. style from training habits)
+- [`11-attributes-and-traits.md`](11-attributes-and-traits.md): attribute list, how stats enter a fight, trait layers (incl. style from training habits)
 
 ---
 
@@ -218,10 +224,10 @@ before* the window opens, allowing for your fighter's delay.
 - [Post] Starting from different points (late bloomer, ex-boxer converting, Olympic wrestler)
 
 ### 4.2 Attributes and skills
-- [VS] Core physicals: Strength, Speed, Cardio, Chin, Durability, Recovery
+- [VS] Core physicals: Strength, Speed, Cardio, Chin, Durability, Recovery (full list: `11` §2.2, D85)
 - [VS] Striking: Boxing, Kicking, Clinch striking, Defense, Footwork
 - [VS] Grappling: Takedowns, Takedown defense, Top control, Guard/bottom game, Submissions, Submission defense, Scrambles
-- [VS] Mental: Fight IQ, Composure, Heart, Coachability
+- [VS] Mental: Fight IQ, Composure, Heart
 - [A] **Technique unlocks**: specific moves (spinning back kick, D'arce, calf kick, Imanari roll...)
 - [A] Fighter **tendencies** that come from how you play (if you call a lot of jab-cross, the fighter starts doing it on their own)
 - [B] Aging curves, peak window and decline; injuries that never fully heal

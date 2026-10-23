@@ -1,8 +1,7 @@
 # 11 — Attributes & Traits (proposal)
 
 > Kyle asked to settle the stat and trait system before more engine work, because it decides how simulated fights play out.
-> Related: D13, D24, D32, D36, `02` §1.3 and §2, `01` §6.5, §7, §8. Status: **proposal: options + open questions**.
-> Nothing here is decided until it gets a D-number in `00`. When it does, `02` §1.3/§2 and `data/enums/stats.json` get updated to match.
+> Related: D13, D24, D32, D36, `02` §1.3 and §2, `01` §6.5, §7, §8. Status: **v1: decided** (D85–D90, 2026-10-23). `02` §1.3/§2 and `data/enums/stats.json` follow this doc.
 
 ---
 
@@ -207,17 +206,18 @@ Each fighter rolls **0–2 gifts and 0–1 flaw**, weighted by frame and backgro
 
 ---
 
-## 5. Open questions for Kyle
+## 5. Decisions (Kyle, 2026-10-23)
 
-1. **Stat count:** keep 26, trim to 23 (recommended), or go lean (~14)?
-2. **Three trait layers** (personality / style / gifts & flaws): does that match what you had in mind?
-3. **Moves:** OK to move Aggressive ↔ Patient into style, and drop Coachability (attribute) and Composed ↔ Fragile (axis) as duplicates?
-4. **Visibility of style leanings:** hidden until a trait is earned, or shown as a fuzzy hint ("leaning aggressive") once past ±30? Recommended: the hint.
-5. **Can earned style traits be lost** if you stop feeding them? Recommended: yes, with the ±40 buffer, and much slower after age 30.
-6. **Gifts and flaws:** some hidden until discovered (recommended), or all shown at creation?
+| # | Question | Answer |
+|---|---|---|
+| D85 | Stat count | **Trim to 23** (§2.2). Explosiveness → Speed, Ground-and-pound → Top control + Power, Coachability → personality |
+| D86 | Trait model | **Three layers**: personality / fighting style / gifts & flaws (§4) |
+| D87 | Moves | **Yes**: Aggressive ↔ Patient becomes the Pace leaning; Composed ↔ Fragile axis dropped (Composure attribute + Fragile flaw / Ice in the veins gift) |
+| D88 | Style leaning visibility | **Fuzzy hint** ("leaning aggressive") once past ±30; exact numbers only in the debug overlay |
+| D89 | Losing style traits | **Yes**, below ±40 (buffer from the ±60 earn line), much slower after ~30 |
+| D90 | Gifts & flaws visibility | **Mixed**: some shown at creation, some hidden until discovered |
 
-## 6. Once this is agreed
-- Record the answers as D-numbers in `00` and update `02` §1.3 and §2 to match.
-- Update `data/enums/stats.json` and `tests/data/test_data_files.gd` together (and action files that use removed stats, like `double_leg`'s Explosiveness).
+## 6. Follow-up work
+- Done with D85–D90: `00` decisions, `02` §1.3/§2, `data/enums/stats.json`, and the Double leg and Sprawl actions (Explosiveness → Speed).
 - Add attributes, personality, style leanings and gifts/flaws to the fighter profile format (`09`, with #14).
 - Engine: effective stats and the shared contest formula, as the standing game and takedowns land (#13, #15).
