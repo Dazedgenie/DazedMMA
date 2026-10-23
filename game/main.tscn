@@ -1,6 +1,7 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://game/main.gd" id="1"]
+[ext_resource type="Script" path="res://ui/debug_console.gd" id="2"]
 
 [sub_resource type="CylinderMesh" id="ArenaMesh"]
 top_radius = 5.0
@@ -33,3 +34,6 @@ offset_left = 16.0
 offset_top = 16.0
 offset_right = 800.0
 offset_bottom = 48.0
+
+[node name="DebugConsole" type="PanelContainer" parent="UI"]
+script = ExtResource("2")
