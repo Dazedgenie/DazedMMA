@@ -7,3 +7,12 @@ Rules (docs/04-tech-and-production.md §2.2):
 - **Never read real time or input.** Time advances only by `tick()`; commands arrive through a queue.
 - **Seeded randomness only**, so any fight can be replayed from seed + command log.
 - Emit events for presentation and commentary to listen to. Never call into `game/` or `ui/`.
+
+## What's here
+| File | Role |
+|---|---|
+| `fight_sim.gd` | The fight: `tick()` = 100 ms. Commands in (`submit`), events out (`events`, `event_emitted`). `FightSim.replay(seed, fighters, actions, command_log)` rebuilds a fight exactly |
+| `fight_clock.gd` | Rounds and ticks |
+| `fight_command.gd` / `fight_event.gd` | What goes in / what comes out. Event types are snake_case to match `data/triggers` |
+| `fighter_state.gd` | One fighter's live state |
+| `action_library.gd` | Loads `data/actions/*.json` |
