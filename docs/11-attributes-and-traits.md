@@ -9,7 +9,7 @@
 
 - `02` §2 lists **26 attributes** (all in `data/enums/stats.json`) plus hidden ones. `02` §1.3 lists **6 personality axes** (D36).
 - The engine uses stats in exactly one place so far: **strike hit chance** = 50% + (attacker's offense stats − defender's
-  defense stats) / 100, clamped to 5–95% (`sim/fight_sim.gd`). A jab uses Boxing + Speed against Striking defense.
+  defense stats) / 100, clamped to 5–95% (`sim/fight/contest.gd`). A jab uses Boxing + Speed against Striking defense.
   Takedown stats are written in the data but not resolved yet (#15). Any stat a fighter doesn't have counts as 50.
 - So almost everything is still open, which makes this the right time to decide.
 
@@ -135,7 +135,7 @@ The rest stay at the default 50 until their systems exist.
 
 ### 3.5 In the engine now (first-guess numbers)
 What `sim/` does today. Every number is a first guess for the balance harness (#18) to tune; they live as named constants
-in `sim/fighter_state.gd`, `sim/fight_sim.gd` and `sim/contest.gd`.
+in `sim/fight/fighter_state.gd`, `sim/fight/fight_sim.gd` and `sim/fight/contest.gd`.
 
 | Piece | Rule |
 |---|---|
