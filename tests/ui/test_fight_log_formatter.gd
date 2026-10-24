@@ -79,3 +79,8 @@ func test_a_capped_chance_says_so() -> void:
 func test_a_call_outcome_reads_naturally() -> void:
 	var e := FightEvent.new(40, 1, FightEvent.CALL_ANSWERED, 1, { "action_id": "double_leg", "outcome": "infeasible", "reason": "not possible from this position" })
 	assert_eq(_plain(FightLogFormatter.line(e, _sim)), "R1 0:04.0  t40  Blue can't do the Double-leg takedown call (not possible from this position)")
+
+
+func test_a_change_of_position_says_who_did_it_and_who_is_on_top() -> void:
+	var e := FightEvent.new(50, 1, FightEvent.POSITION_CHANGED, 1, { "action_id": "double_leg", "position": "full_guard", "phase": "ground", "roles": ["bottom", "top"] })
+	assert_eq(_plain(FightLogFormatter.line(e, _sim)), "R1 0:05.0  t50  Blue's Double-leg takedown → Full guard (Blue on top)")

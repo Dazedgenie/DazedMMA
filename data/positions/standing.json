@@ -1,10 +1,14 @@
 {
-	"schema": "position@1",
+	"schema": "position@2",
 	"id": "standing",
 	"name": "Standing",
 	"phase": "standing",
 	"roles": ["neutral"],
 	"stamina_drain_per_s": { "neutral": 0.1 },
 	"control_score": { "neutral": 0.0 },
-	"strike_damage_multiplier": { "neutral": 1.0 }
+	"strike_damage_multiplier": { "neutral": 1.0 },
+	"transitions": [
+		{ "action": "double_leg", "from_role": "neutral", "to": "full_guard", "roles": { "actor": "top", "opponent": "bottom" } },
+		{ "action": "catch_kick_single", "from_role": "neutral", "to": "full_guard", "roles": { "actor": "top", "opponent": "bottom" } }
+	]
 }

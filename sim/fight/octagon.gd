@@ -13,6 +13,8 @@ const BAND_OUT := "out"
 const BAND_LONG := "long"
 const BAND_MID := "mid"
 const BAND_POCKET := "pocket"
+## Tied up in the clinch or on the ground (the Situation says which, not the distance).
+const BAND_CLINCH := "clinch"
 ## Distance (between fighters' centres) where each band starts, from far to close.
 const LONG_WITHIN: float = 3.0
 const MID_WITHIN: float = 2.2

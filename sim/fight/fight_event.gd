@@ -11,6 +11,7 @@ const STRIKE_LANDED := "strike_landed"  # data: {action_id, target, damage, chan
 const STRIKE_MISSED := "strike_missed"  # data: {action_id, target, chance, odds? | reason?} reason: "out of range" / "opponent down"
 ## `odds` is OddsBreakdown.to_dict(): {base, attack, defense, stat_gap, bonuses: [{name, value}], chance, clamped?}
 const RANGE_CHANGED := "range_changed"  # data: {band}
+const POSITION_CHANGED := "position_changed"  # actor's action moved the fight. data: {action_id, position, phase, roles: [red, blue]}
 const CAGE_CHANGED := "cage_changed"  # actor's cage proximity. data: {proximity}
 const ROCKED := "rocked"  # actor got rocked. data: {by}
 const KNOCKDOWN := "knockdown"  # actor got knocked down. data: {by}

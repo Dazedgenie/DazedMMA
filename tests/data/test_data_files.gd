@@ -22,15 +22,15 @@ const ALLOWS: Array[String] = [
 ## schema → folder, required fields and their JSON types.
 const SCHEMAS := {
 	"enum@1": { "folder": "enums", "fields": { "values": TYPE_DICTIONARY } },
-	"action@1": { "folder": "actions", "fields": {
+	"action@2": { "folder": "actions", "fields": {
 		"name": TYPE_STRING, "category": TYPE_STRING, "positions": TYPE_ARRAY, "ranges": TYPE_ARRAY,
 		"phases_ms": TYPE_DICTIONARY, "stamina_cost": TYPE_FLOAT, "flags_self": TYPE_ARRAY,
 		"stats": TYPE_DICTIONARY, "opportunities": TYPE_ARRAY,
 	} },
-	"position@1": { "folder": "positions", "fields": {
+	"position@2": { "folder": "positions", "fields": {
 		"name": TYPE_STRING, "phase": TYPE_STRING, "roles": TYPE_ARRAY,
 		"stamina_drain_per_s": TYPE_DICTIONARY, "control_score": TYPE_DICTIONARY,
-		"strike_damage_multiplier": TYPE_DICTIONARY,
+		"strike_damage_multiplier": TYPE_DICTIONARY, "transitions": TYPE_ARRAY,
 	} },
 	"call@1": { "folder": "calls", "fields": {
 		"name": TYPE_STRING, "kind": TYPE_STRING, "tier": TYPE_STRING, "voice_cost": TYPE_FLOAT,
@@ -157,8 +157,6 @@ func test_references_point_to_things_that_exist() -> void:
 		for side: String in a.get("stats", {}):
 			for s: String in a.stats[side]:
 				_expect_key(problems, where, "stat", s, stats)
-		if a.has("takedown"):
-			_expect_ids(problems, where, "positions", [a.takedown.on_success.position])
 	for id: String in _items("calls"):
 		var c: Dictionary = _items("calls")[id]
 		var where := "call '%s'" % id
@@ -177,6 +175,35 @@ func test_references_point_to_things_that_exist() -> void:
 		var r: Dictionary = _items("rules")[id]
 		_expect_ids(problems, "rule '%s'" % id, "triggers", [r.get("trigger")])
 		_expect_ids(problems, "rule '%s'" % id, "actions", [r.get("action")])
+	_report(problems)
+
+
+func test_position_transitions_lead_somewhere_real() -> void:
+	var problems: Array[String] = []
+	var positions: Dictionary = _items("positions")
+	for id: String in positions:
+		var p: Dictionary = positions[id]
+		var where := "position '%s'" % id
+		var seen: Dictionary = {}
+		for t: Variant in p.get("transitions", []):
+			if not t is Dictionary or not t.get("roles") is Dictionary:
+				problems.append("%s: each transition needs {action, from_role, to, roles: {actor, opponent}}" % where)
+				continue
+			_expect_ids(problems, where, "actions", [t.get("action")])
+			_expect_ids(problems, where, "positions", [t.get("to")])
+			if t.get("from_role") not in p.get("roles", []):
+				problems.append("%s: transition '%s' starts from role '%s', not one of %s" % [where, t.get("action"), t.get("from_role"), p.get("roles", [])])
+			var key: String = "%s/%s" % [t.get("action"), t.get("from_role")]
+			if seen.has(key):
+				problems.append("%s: '%s' from '%s' is listed twice" % [where, t.get("action"), t.get("from_role")])
+			seen[key] = true
+			var action: Dictionary = _items("actions").get(t.get("action"), {})
+			if not action.is_empty() and id not in action.get("positions", []):
+				problems.append("%s: transition '%s' uses an action that can't be done from here" % [where, t.get("action")])
+			var target: Dictionary = positions.get(t.get("to"), {})
+			for side: String in ["actor", "opponent"]:
+				if not target.is_empty() and t.roles.get(side) not in target.get("roles", []):
+					problems.append("%s: transition '%s' gives the %s role '%s', not one of %s's roles" % [where, t.get("action"), side, t.roles.get(side), t.get("to")])
 	_report(problems)
 
 
@@ -247,7 +274,10 @@ func _items(folder: String) -> Dictionary:
 
 
 func _expect_in(problems: Array[String], type: String, field: String, allowed: Array) -> void:
-	var folder: String = SCHEMAS[type + "@1"].folder
+	var folder: String = ""
+	for schema: String in SCHEMAS:
+		if schema.begins_with(type + "@"):
+			folder = SCHEMAS[schema].folder
 	for id: String in _items(folder):
 		var value: Variant = _items(folder)[id].get(field)
 		if value not in allowed:

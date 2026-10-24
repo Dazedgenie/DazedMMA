@@ -1,6 +1,6 @@
 class_name ActionLibrary
 extends RefCounted
-## Action definitions loaded from data/actions/*.json (docs/09-data-formats.md, action@1).
+## Action definitions loaded from data/actions/*.json (docs/09-data-formats.md, action@2).
 ## The data files are validated by tests/data/test_data_files.gd.
 
 const DEFAULT_DIR := "res://data/actions/"

@@ -1,5 +1,5 @@
 {
-	"schema": "action@1",
+	"schema": "action@2",
 	"id": "leg_kick",
 	"name": "Leg kick",
 	"category": "strike",

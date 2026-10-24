@@ -21,8 +21,8 @@ Rules:
 | Folder | Schema | What it is |
 |---|---|---|
 | `data/enums/` | `enum@1` | Fixed vocabularies: `flags` (state flags, `docs/01` §5), `stats` (attributes, `docs/02` §2), `gifts` and `flaws` (`docs/11` §4.3) |
-| `data/actions/` | `action@1` | Everything a fighter can do: strikes, takedowns, defenses, ground moves |
-| `data/positions/` | `position@1` | Standing, clinch and ground positions (`docs/01` §4) |
+| `data/actions/` | `action@2` | Everything a fighter can do: strikes, takedowns, defenses, ground moves |
+| `data/positions/` | `position@2` | Standing, clinch and ground positions (`docs/01` §4) |
 | `data/calls/` | `call@1` | Coach calls: now/read, intent/technique (`docs/01` §6) |
 | `data/triggers/` | `trigger@1` | Building blocks for read calls and drilled rules ("opponent starts a kick") |
 | `data/rules/` | `rule@1` | Drilled-rule presets: trigger → action (`docs/01` §6.0) |
@@ -31,7 +31,7 @@ Rules:
 
 ## 3. Schemas
 
-### action@1 (example: `data/actions/body_kick.json`)
+### action@2 (example: `data/actions/body_kick.json`)
 | Field | Type | Meaning |
 |---|---|---|
 | `name` | string | Display name |
@@ -43,12 +43,22 @@ Rules:
 | `flags_self` | `[{flag, from, to}]` | Flags the *user* carries during those phases (`ONE_LEG` from windup to recovery) |
 | `stats` | `{offense: [stat], defense: [stat]}` | Attributes that decide the contest |
 | `opportunities` | `[{opponent_flag, success_bonus, required?}]` | Bonus when the *opponent* carries that flag; `required: true` = only possible then (catch-kick) |
-| `strike` / `takedown` / `defense` | object | Category-specific: `{target, base_damage}` · `{base_success, on_success: {position, role}}` · `{against_categories, base_success}` |
+| `strike` / `takedown` / `defense` | object | Category-specific: `{target, base_damage}` · `{base_success}` · `{against_categories, base_success}`. Where a landed takedown takes the fight is in the position files |
 | `requires_technique` | id or null | Needs this technique learned (`docs/02` §2.1) |
 
-### position@1 (example: `full_guard.json`)
+### position@2 (example: `standing.json`)
 `name`, `phase` (`standing`/`clinch`/`ground`), `roles` (`neutral` or `top`/`bottom`), and per role:
 `stamina_drain_per_s`, `control_score` (judging), `strike_damage_multiplier`.
+
+`transitions`: how the fight leaves this position (`docs/01` §4.1). Each entry is
+`{action, from_role, to, roles: {actor, opponent}}`: when the fighter in `from_role` lands `action` here, the fight moves to
+position `to`, with the actor and the opponent in those roles. Example from `standing.json`:
+`{ "action": "double_leg", "from_role": "neutral", "to": "full_guard", "roles": { "actor": "top", "opponent": "bottom" } }`.
+An action with no entry doesn't move the fight. The validator checks that the action exists and can be used here, `from_role`
+is one of this position's roles, `to` exists and has both roles, and no action/role pair is listed twice.
+Loaded by `PositionLibrary` (`sim/fight/position_library.gd`).
+
+Versions: position@2 added `transitions`; action@2 moved a takedown's `on_success` into them (no saved data needed migrating).
 
 ### call@1 (examples: `takedown.json` now/intent, `catch_the_kick.json` read/technique)
 `name`, `kind` (`now`/`read`), `tier` (`intent`/`technique`), `parent` (intent call it unlocks under), `hotkey` (1–9 or null),

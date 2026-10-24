@@ -54,6 +54,8 @@ static func _describe(event: FightEvent, sim: FightSim) -> String:
 			return "%s's %s misses%s" % [who, _action_name(event.data.action_id, sim), _odds(event)]
 		FightEvent.RANGE_CHANGED:
 			return "[color=%s]Range: %s[/color]" % [DIM_COLOUR, RANGE_NAMES.get(event.data.band, event.data.band)]
+		FightEvent.POSITION_CHANGED:
+			return "[b]%s's %s → %s[/b]%s" % [who, _action_name(event.data.action_id, sim), _position_name(event.data.position, sim), _roles(event, sim)]
 		FightEvent.CAGE_CHANGED:
 			return "[color=%s]%s %s[/color]" % [DIM_COLOUR, who, CAGE_NAMES.get(event.data.proximity, event.data.proximity)]
 		FightEvent.ROCKED:
@@ -146,6 +148,17 @@ static func _fighter(index: int, sim: FightSim) -> String:
 	if index < 0 or index >= sim.fighters.size():
 		return "?" if index != FightEvent.NO_ACTOR else ""
 	return "[color=%s]%s[/color]" % [FIGHTER_COLOURS[index], sim.fighters[index].name]
+
+
+static func _position_name(id: String, sim: FightSim) -> String:
+	return String(sim.positions.get_position(id).name) if sim.positions.has(id) else id
+
+
+## " (Red on top)" when someone is on top, "" when both are neutral.
+static func _roles(event: FightEvent, sim: FightSim) -> String:
+	var roles: Array = event.data.get("roles", [])
+	var top: int = roles.find("top")
+	return " (%s on top)" % _fighter(top, sim) if top != -1 else ""
 
 
 static func _action_name(id: String, sim: FightSim) -> String:

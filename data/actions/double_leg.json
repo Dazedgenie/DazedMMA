@@ -1,5 +1,5 @@
 {
-	"schema": "action@1",
+	"schema": "action@2",
 	"id": "double_leg",
 	"name": "Double-leg takedown",
 	"category": "takedown",
@@ -10,7 +10,7 @@
 	"flags_self": [
 		{ "flag": "HEAD_LOW", "from": "windup", "to": "active" }
 	],
-	"takedown": { "base_success": 0.35, "on_success": { "position": "full_guard", "role": "top" } },
+	"takedown": { "base_success": 0.35 },
 	"stats": { "offense": ["takedowns", "speed"], "defense": ["takedown_defense"] },
 	"opportunities": [
 		{ "opponent_flag": "BACK_TO_CAGE", "success_bonus": 0.15 },

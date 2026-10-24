@@ -60,7 +60,6 @@ var style: StyleLeanings
 ## flaws, tells. Kept for the AI (#14), the world and saves; the fight doesn't read them yet.
 var profile: Dictionary = {}
 
-var position: String = "standing"
 ## Where they stand in the cage, in metres from the centre (Octagon).
 var pos: Vector2 = Vector2.ZERO
 var damage: Dictionary = { "head": 0, "body": 0, "legs": 0 }
