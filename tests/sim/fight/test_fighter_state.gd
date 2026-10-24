@@ -119,3 +119,12 @@ func test_the_corner_gives_back_more_stamina_with_better_recovery() -> void:
 	high.recover_between_rounds()
 	assert_almost_eq(low.stamina, 30.0, 0.001)
 	assert_almost_eq(high.stamina, 80.0, 0.001)
+
+
+func test_reaction_time_is_two_ticks_at_speed_50_and_fatigue_stretches_it() -> void:
+	assert_eq(FighterState.new("Slow", { "speed": 0 }, []).reaction_ticks(), 3)
+	var average := FighterState.new("Average", {}, [])
+	assert_eq(average.reaction_ticks(), 2)
+	assert_eq(FighterState.new("Fast", { "speed": 100 }, []).reaction_ticks(), 1)
+	average.stamina = 0.0
+	assert_eq(average.reaction_ticks(), 3, "D93: stretched by fatigue")

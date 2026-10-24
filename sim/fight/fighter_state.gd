@@ -33,6 +33,11 @@ const PANIC_WORK_RATE_BONUS: float = 0.2
 ## Rocked (docs/01 §8: wobbly, huge counter vulnerability): Speed, Striking defense and Fight IQ a further −30%.
 const ROCKED_PENALTY: float = 0.3
 
+## Reaction time inside a primed read or a drilled rule (D93): 3 ticks at Speed 0,
+## 2 at Speed 50, 1 at Speed 100, stretched by fatigue (up to +30%).
+const REACTION_TICKS_AT_ZERO: float = 3.0
+const REACTION_TICKS_PER_SPEED: float = 0.02
+
 ## Capacities and mental stats aren't worn down by fatigue (docs/11 §3.2: "physical and technique stats").
 ## Sets (stat id → true): effective_stat runs thousands of times a fight.
 const FATIGUE_EXEMPT := { "cardio": true, "recovery": true, "durability": true, "chin": true, "fight_iq": true, "composure": true, "heart": true }
@@ -155,6 +160,12 @@ func is_rocked() -> bool:
 
 func is_down() -> bool:
 	return down_ticks > 0
+
+
+## Ticks between a trigger and this fighter's own reaction to it. One number
+## shared by read calls, drilled rules and the AI (D93).
+func reaction_ticks() -> int:
+	return maxi(1, roundi((REACTION_TICKS_AT_ZERO - REACTION_TICKS_PER_SPEED * stat("speed")) * (1.0 + tired())))
 
 
 func spend_stamina(amount: float) -> void:

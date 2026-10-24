@@ -11,6 +11,7 @@ const DIM_COLOUR := "#8a8f98"
 const RANGE_NAMES := { "out": "out of range", "long": "long (kicking range)", "mid": "mid (punching range)", "pocket": "in the pocket" }
 const CAGE_NAMES := { "centre": "is back in open space", "near": "is near the fence", "pinned": "is PINNED against the cage" }
 const RESULT_NAMES := { "ko": "KO", "tko": "TKO" }
+const CALL_OUTCOMES := { "accepted": "takes", "ignored": "ignores", "infeasible": "can't do" }
 const CONDITION_STATS: Array[String] = ["boxing", "kicking", "power", "speed", "striking_defense", "footwork", "takedowns", "takedown_defense", "fight_iq"]
 
 
@@ -63,6 +64,9 @@ static func _describe(event: FightEvent, sim: FightSim) -> String:
 			return "%s beats the count and gets back up" % who
 		FightEvent.RECOVERED:
 			return "[color=%s]%s has shaken it off[/color]" % [DIM_COLOUR, who]
+		FightEvent.CALL_ANSWERED:
+			var outcome: String = CALL_OUTCOMES.get(event.data.outcome, event.data.outcome)
+			return "[color=%s]%s %s the %s call (%s)[/color]" % [DIM_COLOUR, who, outcome, _action_name(event.data.action_id, sim), event.data.reason]
 		FightEvent.COMMAND_REJECTED:
 			return "[color=%s]Command refused for %s: %s[/color]" % [FAIL_COLOUR, who, event.data.reason]
 		FightEvent.ROUND_ENDED:
@@ -114,7 +118,28 @@ static func _cards(cards: Array) -> String:
 static func _odds(event: FightEvent) -> String:
 	if not event.data.has("chance"):
 		return ""
-	return " [color=%s]%d%%[/color]" % [DIM_COLOUR, roundi(event.data.chance * 100.0)]
+	var why: String = ""
+	if event.data.has("odds"):
+		why = " (%s)" % odds_reasons(event.data.odds)
+	return " [color=%s]%d%%%s[/color]" % [DIM_COLOUR, roundi(event.data.chance * 100.0), why]
+
+
+## Why the odds were what they were (OddsBreakdown.to_dict), e.g.
+## "base 50 · stats +7 · counter +10 · ONE_LEG +35 · capped at 95".
+static func odds_reasons(odds: Dictionary) -> String:
+	var parts: Array[String] = ["base %d" % roundi(odds.base * 100.0), "stats %s" % _signed(odds.stat_gap)]
+	for b: Dictionary in odds.bonuses:
+		parts.append("%s %s" % [b.name, _signed(b.value)])
+	if odds.has("missing"):
+		parts.append("needs %s" % odds.missing)
+	elif odds.get("clamped", false):
+		parts.append("capped at %d" % roundi(odds.chance * 100.0))
+	return " · ".join(parts)
+
+
+static func _signed(fraction: float) -> String:
+	var points: int = roundi(fraction * 100.0)
+	return "+%d" % points if points >= 0 else "%d" % points
 
 
 static func _fighter(index: int, sim: FightSim) -> String:

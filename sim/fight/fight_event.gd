@@ -7,8 +7,9 @@ extends RefCounted
 
 const ACTION_PHASE := "action_phase"  # data: {action_id, phase}
 const ACTION_ENDED := "action_ended"  # data: {action_id}
-const STRIKE_LANDED := "strike_landed"  # data: {action_id, target, damage, chance, counter}
-const STRIKE_MISSED := "strike_missed"  # data: {action_id, target, chance, reason?} reason: "out of range" / "opponent down"
+const STRIKE_LANDED := "strike_landed"  # data: {action_id, target, damage, chance, counter, odds}
+const STRIKE_MISSED := "strike_missed"  # data: {action_id, target, chance, odds? | reason?} reason: "out of range" / "opponent down"
+## `odds` is OddsBreakdown.to_dict(): {base, attack, defense, stat_gap, bonuses: [{name, value}], chance, clamped?}
 const RANGE_CHANGED := "range_changed"  # data: {band}
 const CAGE_CHANGED := "cage_changed"  # actor's cage proximity. data: {proximity}
 const ROCKED := "rocked"  # actor got rocked. data: {by}
@@ -16,6 +17,7 @@ const KNOCKDOWN := "knockdown"  # actor got knocked down. data: {by}
 const GOT_UP := "got_up"  # actor is back up after a knockdown
 const RECOVERED := "recovered"  # actor is no longer rocked
 const COMMAND_REJECTED := "command_rejected"  # data: {command, reason}
+const CALL_ANSWERED := "call_answered"  # what actor did with a live call. data: {action_id, outcome: accepted/ignored/infeasible, reason}
 const ROUND_ENDED := "round_ended"  # data: {cards: per judge [red, blue]}
 const FIGHT_ENDED := "fight_ended"  # data: {result, winner (-1 = draw), cards? (judges' totals)}
 

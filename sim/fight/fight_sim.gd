@@ -13,9 +13,13 @@ extends RefCounted
 ## must by three judges (Judging).
 ##
 ## Every contest uses Contest.chance on effective stats (docs/11 §3), and Speed
-## and Kicking change how long telegraphs and wind-ups last (§3.3). Takedowns get
-## their odds from odds() but land with #15; the utility AI is #14, so movement
-## and action choice here are placeholders.
+## and Kicking change how long telegraphs and wind-ups last (§3.3). Strike events
+## carry an OddsBreakdown saying where the odds came from. Takedowns get their
+## odds from odds() but land with #15.
+##
+## The sim owns time, movement and resolution; what each fighter tries comes from
+## their DecisionLayer (commands → live calls → drilled rules → AI, docs/01 §6.0),
+## which reads the fight through a FightView. The fight runs under a Ruleset.
 
 signal event_emitted(event: FightEvent)
 
@@ -30,10 +34,6 @@ const START_POSITIONS: Array[Vector2] = [Vector2(-1.75, 0.0), Vector2(1.75, 0.0)
 ## Walking speed in m/s: 0.8 + 1.2 × average of Footwork and Speed / 100 (50/50 → 1.4).
 const MOVE_BASE: float = 0.8
 const MOVE_PER_STAT: float = 1.2
-## Range leaning +100 stands 0.5 m closer than their moves need; Pace +100 another 0.3 m.
-const RANGE_LEANING_SHIFT: float = 0.5
-const PACE_LEANING_SHIFT: float = 0.3
-
 ## Range and cage changes are announced once they've held this long (0.5 s), so
 ## shuffling across a line isn't news. Flags and odds always use the exact state.
 const ANNOUNCE_AFTER_TICKS: int = 5
@@ -68,7 +68,11 @@ const RESULT_TKO := "tko"
 var fight_seed: int
 var clock: FightClock
 var actions: ActionLibrary
+var ruleset: Ruleset
 var fighters: Array[FighterState]
+## Each fighter's decision step, and the view of the fight it reads.
+var decisions: Array[DecisionLayer] = []
+var views: Array[FightView] = []
 ## Ticks processed since the opening bell. The next tick() processes tick `now`.
 var now: int = 0
 var events: Array[FightEvent] = []
@@ -85,16 +89,26 @@ var _round_knockdowns: Array[int] = [0, 0]  # knockdowns scored this round
 ## Announced state for range ("band") and each fighter's cage proximity (0, 1):
 ## key → {shown, candidate, held} (see _announce).
 var _space: Dictionary = {}
-var _reach_cache: Dictionary = {}  # FighterState → distance their repertoire works from
 
 
-func _init(p_seed: int, p_fighters: Array[FighterState], p_actions: ActionLibrary, p_rounds: int = 3, p_round_seconds: int = 300) -> void:
+## `p_rules` is a Ruleset (null = pro rules), or a round count with
+## `p_round_seconds` for a short pro-rules test fight.
+func _init(p_seed: int, p_fighters: Array[FighterState], p_actions: ActionLibrary, p_rules: Variant = null, p_round_seconds: int = 300) -> void:
 	assert(p_fighters.size() == 2, "a fight has two fighters")
 	fight_seed = p_seed
 	_rng.seed = p_seed
 	fighters = p_fighters
 	actions = p_actions
-	clock = FightClock.new(p_rounds, p_round_seconds)
+	if p_rules is Ruleset:
+		ruleset = p_rules
+	elif p_rules is int:
+		ruleset = Ruleset.pro_with(p_rules, p_round_seconds)
+	else:
+		ruleset = Ruleset.load_id()
+	clock = FightClock.new(ruleset.rounds, ruleset.round_seconds)
+	for i in fighters.size():
+		decisions.append(DecisionLayer.new())
+		views.append(FightView.new(self, i))
 	for j in Judging.JUDGES:
 		judge_totals.append([0, 0])
 	_to_corners()
@@ -102,8 +116,8 @@ func _init(p_seed: int, p_fighters: Array[FighterState], p_actions: ActionLibrar
 
 ## Rebuilds a fight from its seed and command log. Pass freshly made fighters set
 ## up the same way as in the original fight (FighterState is mutated by a fight).
-static func replay(p_seed: int, p_fighters: Array[FighterState], p_actions: ActionLibrary, commands: Array, p_rounds: int = 3, p_round_seconds: int = 300) -> FightSim:
-	var sim := FightSim.new(p_seed, p_fighters, p_actions, p_rounds, p_round_seconds)
+static func replay(p_seed: int, p_fighters: Array[FighterState], p_actions: ActionLibrary, commands: Array, p_rules: Variant = null, p_round_seconds: int = 300) -> FightSim:
+	var sim := FightSim.new(p_seed, p_fighters, p_actions, p_rules, p_round_seconds)
 	for entry: Variant in commands:
 		sim.submit(entry if entry is FightCommand else FightCommand.from_dict(entry))
 	sim.run_to_end()
@@ -129,6 +143,8 @@ func is_over() -> bool:
 func tick() -> void:
 	if _fight_over:
 		return
+	for v in views:
+		v.now = now
 	_apply_commands()
 	for i in fighters.size():
 		_advance_fighter(i)
@@ -180,6 +196,8 @@ func _apply_commands() -> void:
 		var reason: String = _reject_reason(command)
 		if reason != "":
 			_emit(FightEvent.COMMAND_REJECTED, command.fighter, { "command": command.type, "reason": reason })
+		elif command.type == FightCommand.LIVE_CALL:
+			decisions[command.fighter].calls.hear(views[command.fighter], command.data.action_id)
 		else:
 			fighters[command.fighter].queued_action_id = command.data.action_id
 		command_log.append(command)
@@ -188,14 +206,30 @@ func _apply_commands() -> void:
 func _reject_reason(command: FightCommand) -> String:
 	if command.fighter < 0 or command.fighter >= fighters.size():
 		return "unknown fighter"
-	if command.type != FightCommand.QUEUE_ACTION:
-		return "unknown command"
 	var id: String = command.data.get("action_id", "")
+	match command.type:
+		FightCommand.QUEUE_ACTION:
+			return why_not(command.fighter, id)
+		FightCommand.LIVE_CALL:
+			return "" if actions.has(id) else "unknown action"  # Feasibility is checked once the call is processed.
+	return "unknown command"
+
+
+## "" when fighter i could start this action now, else why not.
+func why_not(i: int, id: String) -> String:
 	if not actions.has(id):
 		return "unknown action"
-	if not actions.get_action(id).positions.has(fighters[command.fighter].position):
+	var action: Dictionary = actions.get_action(id)
+	if not ruleset.allows_action(action):
+		return "not allowed under %s rules" % ruleset.name
+	if not action.positions.has(fighters[i].position):
 		return "not possible from this position"
 	return ""
+
+
+## One draw from the fight's seeded RNG, for decision sources (through FightView).
+func roll() -> float:
+	return _rng.randf()
 
 
 func _advance_fighter(i: int) -> void:
@@ -215,27 +249,21 @@ func _advance_fighter(i: int) -> void:
 		if f.phase_ticks_left <= 0:
 			_next_phase(i)
 	if f.is_free():
-		_move(i)
-		var id: String = _choose_action(i)
-		if id != "":
-			_start_action(i, id)
+		var seen: FightView = views[i]
+		_move(i, decisions[i].preferred_distance(seen))
+		var decision: Decision = decisions[i].decide(seen)
+		if not decision.is_idle():
+			_start_action(i, decision.action_id)
+			decisions[i].started(seen, decision)
+		for n: Dictionary in decisions[i].take_notes():
+			_emit(n.type, i, n.data)
 
 
 # --- Space: moving, range and the cage (docs/01 §3) --------------------------
 
-## How far apart fighter i wants to be: where their moves reach, shifted by the
-## Range and Pace leanings. Rocked fighters get out; a hurt opponent gets swarmed.
+## How far apart fighter i wants to be (their decision step decides; the feet follow).
 func preferred_distance(i: int) -> float:
-	var f: FighterState = fighters[i]
-	if f.is_rocked():
-		return Octagon.LONG_WITHIN + 1.0
-	var want: float = _repertoire_distance(f)
-	var o: FighterState = fighters[1 - i]
-	if o.is_rocked() or o.is_down():
-		want = Octagon.BAND_CENTRES[Octagon.BAND_POCKET]
-	want -= f.style.value(StyleLeanings.RANGE) / 100.0 * RANGE_LEANING_SHIFT
-	want -= f.style.value(StyleLeanings.PACE) / 100.0 * PACE_LEANING_SHIFT
-	return clampf(want, Octagon.MIN_GAP, Octagon.LONG_WITHIN + 1.0)
+	return decisions[i].preferred_distance(views[i])
 
 
 func move_speed(f: FighterState) -> float:
@@ -248,16 +276,16 @@ func footwork_share(i: int) -> float:
 	return Contest.chance(Contest.STRIKE_BASE, fighters[i].effective_stat("footwork"), fighters[1 - i].effective_stat("footwork"))
 
 
-## The placeholder AI's feet: step toward the preferred distance. Backing up near
+## The feet: step toward the preferred distance. Backing up near
 ## the fence turns into circling toward open space; pressing a fighter who is
 ## circling mirrors them to cut the cage off.
-func _move(i: int) -> void:
+func _move(i: int, want: float) -> void:
 	var f: FighterState = fighters[i]
 	var o: FighterState = fighters[1 - i]
 	var gap: Vector2 = o.pos - f.pos
 	var toward: Vector2 = gap.normalized() if gap.length() > 0.0 else Vector2.RIGHT
 	var step: float = move_speed(f) / FightClock.TICKS_PER_SECOND
-	var radial: float = clampf(gap.length() - preferred_distance(i), -step, step)
+	var radial: float = clampf(gap.length() - want, -step, step)
 	var side := Vector2.ZERO
 	if radial < 0.0 and _near_fence(f):
 		side = _open_side(f.pos, toward) * step * footwork_share(i)
@@ -277,20 +305,6 @@ func _near_fence(f: FighterState) -> bool:
 func _open_side(p: Vector2, toward_opponent: Vector2) -> Vector2:
 	var side := Vector2(-toward_opponent.y, toward_opponent.x)
 	return side if side.dot(-p) >= 0.0 else -side
-
-
-func _repertoire_distance(f: FighterState) -> float:
-	if _reach_cache.has(f):
-		return _reach_cache[f]
-	var total: float = 0.0
-	var count: int = 0
-	for id in f.repertoire:
-		for r: String in actions.get_action(id).ranges:
-			if Octagon.BAND_CENTRES.has(r):
-				total += Octagon.BAND_CENTRES[r]
-				count += 1
-	_reach_cache[f] = total / count if count > 0 else Octagon.BAND_CENTRES[Octagon.BAND_MID]
-	return _reach_cache[f]
 
 
 func _update_space() -> void:
@@ -325,63 +339,6 @@ func _quiet(value: String) -> Dictionary:
 
 
 # --- Choosing and running actions ---------------------------------------------
-
-
-## Queued commands win (even out of range: the move then falls short). Otherwise
-## the placeholder AI sometimes throws something that reaches from here, nudged by
-## style leanings (docs/11 §4.2) and panic (§3.2). Nobody hits a downed opponent standing.
-func _choose_action(i: int) -> String:
-	var f: FighterState = fighters[i]
-	if f.queued_action_id != "":
-		var id: String = f.queued_action_id
-		f.queued_action_id = ""
-		return id
-	if f.repertoire.is_empty() or fighters[1 - i].is_down() or _rng.randf() >= idle_work_rate(i):
-		return ""
-	var reach: String = band()
-	var options: Array[String] = []
-	var weights: Array[float] = []
-	var total: float = 0.0
-	for id in f.repertoire:
-		if actions.get_action(id).ranges.has(reach):
-			options.append(id)
-			weights.append(choice_weight(f, id))
-			total += weights[-1]
-	if total <= 0.0:
-		return ""
-	var roll: float = _rng.randf() * total
-	for n in weights.size():
-		roll -= weights[n]
-		if roll < 0.0:
-			return options[n]
-	return options[-1]
-
-
-## Chance per idle tick to start something. Pace +100 = 1.5× as busy, −100 = half;
-## panic adds 20%. Rocked fighters mostly cover up; against a rocked opponent they
-## let it go (more so with a Wild Risk leaning).
-func idle_work_rate(i: int) -> float:
-	var f: FighterState = fighters[i]
-	var rate: float = f.work_rate * (1.0 + f.style.value(StyleLeanings.PACE) / 200.0)
-	if f.is_panicking():
-		rate *= 1.0 + FighterState.PANIC_WORK_RATE_BONUS
-	if f.is_rocked():
-		rate *= 0.3
-	elif fighters[1 - i].is_rocked():
-		rate *= 1.5 + f.style.value(StyleLeanings.RISK) / 200.0
-	return rate
-
-
-## How much the AI favours an action from its repertoire. The Base leaning tilts
-## strikes against takedowns: +100 doubles takedowns and halves strikes, −100 never shoots.
-func choice_weight(f: FighterState, id: String) -> float:
-	var base_leaning: float = f.style.value(StyleLeanings.BASE) / 100.0
-	match actions.get_action(id).category:
-		"takedown":
-			return 1.0 + base_leaning
-		"strike":
-			return 1.0 - base_leaning / 2.0
-	return 1.0
 
 
 func _start_action(i: int, id: String) -> void:
@@ -453,18 +410,25 @@ func active_flags(i: int) -> Array[String]:
 ## opponent carries and for catching them mid-commitment (a counter).
 ## 0 when a required opportunity is missing (catch-kick needs a kick).
 func odds(i: int, id: String) -> float:
+	return odds_breakdown(i, id).chance
+
+
+## The same odds with every part named (OddsBreakdown), as strike events carry them.
+func odds_breakdown(i: int, id: String) -> OddsBreakdown:
 	var action: Dictionary = actions.get_action(id)
+	var b := OddsBreakdown.new(id)
+	b.base = Contest.base_for(action)
+	b.attack = _average_stat(fighters[i], action.stats.offense)
+	b.defense = _average_stat(fighters[1 - i], action.stats.defense)
+	if is_counter(i):
+		b.add_bonus("counter", COUNTER_BONUS)
 	var opponent_flags: Array[String] = active_flags(1 - i)
-	var bonus: float = COUNTER_BONUS if is_counter(i) else 0.0
 	for opp: Dictionary in action.opportunities:
 		if opponent_flags.has(opp.opponent_flag):
-			bonus += float(opp.success_bonus)
-		elif opp.get("required", false):
-			return 0.0
-	return Contest.chance(Contest.base_for(action),
-		_average_stat(fighters[i], action.stats.offense),
-		_average_stat(fighters[1 - i], action.stats.defense),
-		bonus)
+			b.add_bonus(opp.opponent_flag, float(opp.success_bonus))
+		elif opp.get("required", false) and b.missing == "":
+			b.missing = opp.opponent_flag
+	return b.settle()
 
 
 ## True when fighter i's opponent is committed (wind-up or recovery) right now.
@@ -489,16 +453,18 @@ func _resolve_active(i: int) -> void:
 		_emit(FightEvent.STRIKE_MISSED, i, miss)
 		return
 	var counter: bool = is_counter(i)
-	var chance: float = odds(i, action.id)
+	var breakdown: OddsBreakdown = odds_breakdown(i, action.id)
+	var chance: float = breakdown.chance
 	if _rng.randf() >= chance:
 		miss.chance = chance
+		miss.odds = breakdown.to_dict()
 		_emit(FightEvent.STRIKE_MISSED, i, miss)
 		return
-	var dealt: int = maxi(1, roundi(float(action.strike.base_damage) * strike_power(attacker) * (COUNTER_DAMAGE if counter else 1.0)))
+	var dealt: int = maxi(1, roundi(float(action.strike.base_damage) * strike_power(attacker) * (COUNTER_DAMAGE if counter else 1.0) * ruleset.damage_multiplier))
 	defender.damage[target] += dealt
 	attacker.strikes_landed += 1
 	_round_points[i] += dealt * Judging.TARGET_WEIGHTS[target]
-	_emit(FightEvent.STRIKE_LANDED, i, { "action_id": action.id, "target": target, "damage": dealt, "chance": chance, "counter": counter })
+	_emit(FightEvent.STRIKE_LANDED, i, { "action_id": action.id, "target": target, "damage": dealt, "chance": chance, "counter": counter, "odds": breakdown.to_dict() })
 	if target == "head":
 		_head_impact(i, dealt)
 

@@ -62,3 +62,20 @@ func test_big_moments_and_short_strikes_get_their_own_lines() -> void:
 	assert_string_contains(_plain(FightLogFormatter.line(short, _sim)), "Red's Jab misses (out of range)")
 	var pinned := FightEvent.new(52, 1, FightEvent.CAGE_CHANGED, 1, { "proximity": "pinned" })
 	assert_string_contains(_plain(FightLogFormatter.line(pinned, _sim)), "Blue is PINNED against the cage")
+
+
+func test_a_strike_explains_where_its_odds_came_from() -> void:
+	var odds := { "base": 0.5, "attack": 55.0, "defense": 50.0, "stat_gap": 0.05, "chance": 0.65,
+		"bonuses": [{ "name": "counter", "value": 0.1 }] }
+	var e := FightEvent.new(34, 1, FightEvent.STRIKE_LANDED, 0, { "action_id": "jab", "target": "head", "damage": 3, "chance": 0.65, "odds": odds })
+	assert_eq(_plain(FightLogFormatter.line(e, _sim)), "R1 0:03.4  t34  Red's Jab LANDS (head, 3 damage) 65% (base 50 · stats +5 · counter +10)")
+
+
+func test_a_capped_chance_says_so() -> void:
+	var odds := { "base": 0.5, "attack": 100.0, "defense": 0.0, "stat_gap": 1.0, "chance": 0.95, "bonuses": [], "clamped": true }
+	assert_eq(FightLogFormatter.odds_reasons(odds), "base 50 · stats +100 · capped at 95")
+
+
+func test_a_call_outcome_reads_naturally() -> void:
+	var e := FightEvent.new(40, 1, FightEvent.CALL_ANSWERED, 1, { "action_id": "double_leg", "outcome": "infeasible", "reason": "not possible from this position" })
+	assert_eq(_plain(FightLogFormatter.line(e, _sim)), "R1 0:04.0  t40  Blue can't do the Double-leg takedown call (not possible from this position)")

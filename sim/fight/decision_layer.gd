@@ -1,0 +1,94 @@
+class_name DecisionLayer
+extends RefCounted
+## One fighter's decision step, separate from the fight loop (docs/12 §3 item 2,
+## issue #33). Each tick the fighter is free, FightSim asks decide() what to
+## start, and the answer comes from one priority stack (docs/01 §6.0, §7):
+##
+##   1. COMMAND  an action queued from outside (tests, bots, the debug console)
+##   2. CALL     a live call the fighter heard, processed and accepted (#16)
+##   3. RULE     a drilled rule whose trigger fired (#17)
+##   4. AI       the fighter's own choice, weighted by the gameplan and habits
+##
+## The first layer that claims the choice wins. Gameplan sources never claim;
+## they only tilt the AI's weights, so the fighter never silently replaces the
+## gameplan (docs/01 §16 A2). The sim still owns time, movement and resolution.
+
+const COMMAND := "command"
+const CALL := "call"
+const RULE := "rule"
+const GAMEPLAN := "gameplan"
+const AI := "ai"
+## "Nothing to start": shared, so idle ticks don't allocate. Never modify it.
+static var IDLE := Decision.new()
+## Claiming layers, highest first.
+const CLAIM_ORDER: Array[String] = [CALL, RULE]
+
+var ai: PlaceholderAI
+## Every live call for this fighter goes through here (delay, compliance, feasibility).
+var calls: LiveCalls
+var sources: Array[DecisionSource] = []
+## The sources that can claim the choice, in CLAIM_ORDER.
+var _claimers: Array[DecisionSource] = []
+## Outcomes the sources reported this tick, for the sim to log: [{type, data}].
+var _notes: Array[Dictionary] = []
+
+
+func _init(p_ai: PlaceholderAI = null) -> void:
+	ai = p_ai if p_ai != null else PlaceholderAI.new()
+	calls = LiveCalls.new()
+	add_source(calls)
+
+
+func add_source(source: DecisionSource) -> void:
+	sources.append(source)
+	_claimers.clear()
+	for layer in CLAIM_ORDER:
+		for s in sources:
+			if s.layer == layer:
+				_claimers.append(s)
+
+
+## How far apart this fighter wants to stand (their feet follow it every free tick).
+func preferred_distance(view: FightView) -> float:
+	return ai.preferred_distance(view)
+
+
+func decide(view: FightView) -> Decision:
+	var f: FighterState = view.me
+	if f.queued_action_id != "":
+		return Decision.new(f.queued_action_id, COMMAND, "queued")
+	for source in _claimers:
+		if not source.may_claim:
+			continue
+		var claimed: Decision = source.claim(view)
+		if source.has_notes():
+			_notes.append_array(source.take_notes())
+		if claimed != null and not claimed.is_idle():
+			claimed.source = source
+			return claimed
+	return ai.choose(view, self)
+
+
+## The AI's weight for an action after every gameplan-style bias.
+func weight(view: FightView, action: Dictionary, base_weight: float) -> float:
+	var w: float = base_weight
+	for source in sources:
+		w = source.adjust_weight(view, action, w)
+	return w
+
+
+## The sim calls this once a decision's action has started.
+func started(view: FightView, decision: Decision) -> void:
+	if decision.layer == COMMAND:
+		view.me.queued_action_id = ""
+	if decision.source != null:
+		decision.source.claimed_started(view, decision)
+		_notes.append_array(decision.source.take_notes())
+
+
+func take_notes() -> Array[Dictionary]:
+	if _notes.is_empty():
+		return _notes
+	var out: Array[Dictionary] = _notes
+	_notes = []
+	return out

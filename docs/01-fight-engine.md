@@ -306,7 +306,7 @@ but happen often enough that an underdog always has a chance.
 
 ## 18. Standing game v1 in the engine (#13)
 What `sim/` does today for §3, §5, §8 and §11. Every number is a first guess for the balance harness (#18); they are named
-constants in `sim/octagon.gd`, `sim/fight_sim.gd` and `sim/judging.gd`. Stat effects are in `11` §3.5.
+constants in `sim/fight/octagon.gd`, `sim/fight/fight_sim.gd`, `sim/fight/placeholder_ai.gd` and `sim/fight/judging.gd`. Stat effects are in `11` §3.5.
 
 | Piece | Rule |
 |---|---|
@@ -322,7 +322,28 @@ constants in `sim/octagon.gd`, `sim/fight_sim.gd` and `sim/judging.gd`. Stat eff
 | Knockdown | Rocked again while rocked. Down for 2 s (nobody hits a downed fighter until the ground game exists), then up and rocked |
 | KO / TKO | KO roll on each knockdown: 15% + (shock − 1) × 50%, 5–80%, × (1.5 − Heart/100). TKO on a third knockdown in a round, or a rock with the head fully hurt |
 | Judges | Three judges, 10-point must. A round's points = damage landed (head ×1, body ×0.8, legs ×0.6) + 8 per rock + 20 per knockdown; each judge sees each fighter's points ±15%. Within 5% = 10-10 (too generous: D97 wants 10-10 rounds very rare and draws under 2%); 10-8 for two more knockdowns or out-landing 3 to 1 in a busy round. Decision: unanimous / split / majority / draw |
-| Events | `range_changed`, `cage_changed` (announced once held for 0.5 s), `rocked`, `knockdown`, `got_up`, `recovered`; strikes carry `counter` and, when they fall short, a `reason` |
+| Events | `range_changed`, `cage_changed` (announced once held for 0.5 s), `rocked`, `knockdown`, `got_up`, `recovered`; strikes carry `counter`, the `odds` breakdown (§19) and, when they fall short, a `reason` |
 
 Not yet: leg damage giving out, liver shots, cuts, aggression and cage control on the cards, judge personalities and fouls (D20),
 and anything clinch or ground (#15). Fatigue never shows with the current costs (D96, `12` §4).
+
+## 19. Decision layer in the engine (#33)
+How §6.0 and §7 plug into the code (`12` §3 item 2). The fight loop (`sim/fight/fight_sim.gd`) owns time, movement and
+resolution. What a free fighter starts each tick comes from their **decision layer** (`sim/fight/decision_layer.gd`), which reads
+the fight through a read-only **view** and walks one priority stack. The first layer that claims the choice wins:
+
+| Priority | Layer | Today |
+|---|---|---|
+| 1 | **Command** | An action queued from outside (tests, bots, the debug console). Always obeyed if possible |
+| 2 | **Live call** | A `live_call` command waits out the call delay in fight time (base 0.6 s = 6 ticks, D92), then a compliance check (always complies until #16 adds the roll, D5) and a feasibility check (legal, possible from this position). Every outcome is logged as `call_answered`: accepted, ignored or infeasible, with the reason (A16) |
+| 3 | **Drilled rule** | Slot reserved; rules arrive with #17 |
+| 4 | **Fighter AI** | The placeholder AI (`sim/fight/placeholder_ai.gd`) until #14. Gameplans only multiply its weights per action or category, so the fighter never silently replaces the gameplan (§16 A2) |
+
+- **Reaction time** (D93) is one number on the fighter, shared by read calls, rules and the AI: 3 − 0.02 × Speed ticks
+  (3 at Speed 0, 2 at 50, 1 at 100), stretched by fatigue up to +30%, at least 1 tick.
+- **Odds breakdown** (A16): every rolled strike event carries `odds` = base, the stat gap on effective stats, and each bonus by
+  name (`counter`, the opponent's flag such as `ONE_LEG`), plus `clamped` when the 5–95% cap cut it. The debug console prints it:
+  *"Jab LANDS (head, 3 damage) 65% (base 50 · stats +5 · counter +10)"*. Takedowns get the same breakdown when they resolve (#15).
+- **Rulesets** (`08`): the fight takes a ruleset (pro by default) for rounds, round length, damage scaling from gear and which
+  actions are legal. Banned actions are refused as commands and calls and never picked by the AI. Today only `takedowns` maps to
+  actions; elbows, knees to a grounded opponent, ground strikes to the head and slams map as those actions arrive (#15).
