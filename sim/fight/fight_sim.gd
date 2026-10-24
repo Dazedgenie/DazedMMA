@@ -20,6 +20,11 @@ extends RefCounted
 ## The sim owns time, movement and resolution; what each fighter tries comes from
 ## their DecisionLayer (commands → live calls → drilled rules → AI, docs/01 §6.0),
 ## which reads the fight through a FightView. The fight runs under a Ruleset.
+##
+## Positions (#34, docs/01 §4): one Situation both fighters share says where the
+## fight is (phase, named position, each fighter's role). Moves between positions
+## come from the position data (PositionLibrary), and the fighters' cage spot
+## carries through, so a takedown on the fence lands on the fence.
 
 signal event_emitted(event: FightEvent)
 
@@ -62,6 +67,10 @@ const KO_MAX: float = 0.8
 ## The referee stops it: three knockdowns in a round, or rocked with nothing left (head fully hurt).
 const TKO_KNOCKDOWNS: int = 3
 
+## Tied up (clinch or ground), the fighters' centres are this close, on the spot
+## where the one being taken down or tied up stood.
+const TANGLED_GAP: float = 0.4
+
 const RESULT_KO := "ko"
 const RESULT_TKO := "tko"
 
@@ -69,6 +78,9 @@ var fight_seed: int
 var clock: FightClock
 var actions: ActionLibrary
 var ruleset: Ruleset
+var positions: PositionLibrary
+## Where the fight is: phase, position and both roles (shared, docs/01 §4).
+var situation := Situation.new()
 var fighters: Array[FighterState]
 ## Each fighter's decision step, and the view of the fight it reads.
 var decisions: Array[DecisionLayer] = []
@@ -99,6 +111,7 @@ func _init(p_seed: int, p_fighters: Array[FighterState], p_actions: ActionLibrar
 	_rng.seed = p_seed
 	fighters = p_fighters
 	actions = p_actions
+	positions = PositionLibrary.shared()
 	if p_rules is Ruleset:
 		ruleset = p_rules
 	elif p_rules is int:
@@ -181,8 +194,10 @@ func distance() -> float:
 	return fighters[0].pos.distance_to(fighters[1].pos)
 
 
-## "out", "long", "mid" or "pocket" (Octagon).
+## "out", "long", "mid" or "pocket" (Octagon) standing; "clinch" once tied up.
 func band() -> String:
+	if not situation.is_standing():
+		return Octagon.BAND_CLINCH
 	return Octagon.band(distance())
 
 
@@ -242,7 +257,7 @@ func why_not(i: int, id: String) -> String:
 	var action: Dictionary = actions.get_action(id)
 	if not ruleset.allows_action(action):
 		return "not allowed under %s rules" % ruleset.name
-	if not action.positions.has(fighters[i].position):
+	if not action.positions.has(situation.position):
 		return "not possible from this position"
 	return ""
 
@@ -270,7 +285,8 @@ func _advance_fighter(i: int) -> void:
 			_next_phase(i)
 	if f.is_free():
 		var seen: FightView = views[i]
-		_move(i, decisions[i].preferred_distance(seen))
+		if situation.is_standing():
+			_move(i, decisions[i].preferred_distance(seen))
 		var decision: Decision = decisions[i].decide(seen)
 		if not decision.is_idle():
 			_start_action(i, decision.action_id)
@@ -349,6 +365,7 @@ func _announce(key: Variant, value: String, type: String, actor: int, field: Str
 
 
 func _to_corners() -> void:
+	situation.reset()
 	for i in fighters.size():
 		fighters[i].pos = START_POSITIONS[i]
 	_space = { "band": _quiet(band()), 0: _quiet(cage_proximity(0)), 1: _quiet(cage_proximity(1)) }
@@ -356,6 +373,48 @@ func _to_corners() -> void:
 
 func _quiet(value: String) -> Dictionary:
 	return { "shown": value, "candidate": value, "held": 0 }
+
+
+# --- Positions: standing, clinch and ground (docs/01 §4, #34) -----------------
+
+## Fighter i's role in the current position ("neutral", "top", "bottom").
+func role(i: int) -> String:
+	return situation.role(i)
+
+
+## The transition fighter i would make by landing this action from here, or {}.
+func transition_for(i: int, action_id: String) -> Dictionary:
+	return positions.transition(situation.position, situation.role(i), action_id)
+
+
+## Moves the fight to where fighter i's action takes it (from the position data).
+## Returns false, changing nothing, when the action doesn't move the fight from
+## here. The fight stays on the spot where the opponent stood, so the cage carries
+## over: tied up on the fence stays on the fence, and getting up separates there.
+## Resolution (#15) calls this when a takedown, clinch entry or get-up succeeds.
+func apply_transition(i: int, action_id: String) -> bool:
+	var t: Dictionary = transition_for(i, action_id)
+	if t.is_empty():
+		return false
+	var roles: Array[String] = ["", ""]
+	roles[i] = t.roles.actor
+	roles[1 - i] = t.roles.opponent
+	situation.set_to(positions.get_position(t.to), roles)
+	_place_bodies(i)
+	_emit(FightEvent.POSITION_CHANGED, i, { "action_id": action_id, "position": situation.position, "phase": situation.phase, "roles": roles.duplicate() })
+	return true
+
+
+## Puts fighter i next to the opponent: tangled when tied up, a standing gap apart otherwise.
+## The opponent keeps their spot unless the fence is in the way.
+func _place_bodies(i: int) -> void:
+	var f: FighterState = fighters[i]
+	var o: FighterState = fighters[1 - i]
+	var from_o: Vector2 = f.pos - o.pos
+	var side: Vector2 = from_o.normalized() if from_o.length() > 0.0 else Vector2.LEFT
+	var gap: float = Octagon.MIN_GAP if situation.is_standing() else TANGLED_GAP
+	f.pos = Octagon.keep_inside(o.pos + side * gap)
+	o.pos = Octagon.keep_inside(f.pos - side * gap)  # Only moves them when the fence was in fighter i's way.
 
 
 # --- Choosing and running actions ---------------------------------------------

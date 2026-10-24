@@ -38,6 +38,23 @@ func distance() -> float:
 	return _sim().distance()
 
 
+## The current position id (e.g. "standing", "full_guard"), its phase, and roles.
+func position() -> String:
+	return _sim().situation.position
+
+
+func phase() -> String:
+	return _sim().situation.phase
+
+
+func my_role() -> String:
+	return _sim().role(index)
+
+
+func opponent_role() -> String:
+	return _sim().role(1 - index)
+
+
 func my_flags() -> Array[String]:
 	return _sim().active_flags(index)
 

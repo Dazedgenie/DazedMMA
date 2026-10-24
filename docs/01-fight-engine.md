@@ -66,6 +66,30 @@ STANDING ──(clinch entry)──► CLINCH (open / cage / plum / body lock)
 Every position defines its **available actions**, its **available calls**, its stamina drain, how much
 control it scores for the judges, and its striking damage multipliers.
 
+### 4.1 The model in the engine (#34, `12` §3 item 4)
+- **One shared situation.** Positions are relational (one fighter is on top), so the fight holds a single **situation** both
+  fighters read (`sim/fight/situation.gd`): the phase (standing / clinch / ground), the named position (`standing`,
+  `full_guard`, …) and each fighter's **role** in it (`neutral` standing, `top` / `bottom` on the ground; clinch positions name
+  their own roles). Fighters no longer carry their own position. Every round starts standing.
+- **Transitions are data.** Each position file lists how the fight leaves it: *this action, landed by the fighter in this role,
+  takes the fight to that position with these roles* (`09` position@2). Today: a landed double leg or catch-kick single from
+  standing → full guard, shooter on top. The code only applies what the data says (`FightSim.apply_transition`); resolution
+  calls it when a takedown, clinch entry or get-up succeeds (#15). Adding a position is a content change, not a code change.
+- **The cage carries through.** Where the fight is in the cage stays with the fighters' own spots. Tying up or taking someone
+  down happens on the spot where the opponent stood, so a takedown on the fence stays on the fence, the bottom fighter keeps
+  `BACK_TO_CAGE` (wall-walking), and getting up separates the fighters right there, a standing gap apart.
+- While tied up (clinch or ground) nobody walks, and the range reads `clinch` whatever the distance.
+- **Still to come with #15:** actions say which roles may use them (so only the bottom fighter can get up), clinch entry,
+  get up and scramble as actions, and removing the standing minimum gap (`Octagon.MIN_GAP`) once the clinch exists. Each
+  position's stamina drain, control score and damage multipliers are in the data but not yet applied.
+
+### 4.2 Playtest scope (D98)
+The Phase 1 playtest ships a trimmed ground game (#15):
+
+| In the playtest | After the playtest |
+|---|---|
+| Clinch (one clinch position), double leg, catch-kick single, sprawl, full guard top/bottom, get up, scramble | Half guard, side control, mount, back, north-south, turtle, guard passing, sweeps, ground-and-pound, submissions (§9) |
+
 ---
 
 ## 5. Actions: the commitment model (the core idea)
