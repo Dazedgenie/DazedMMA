@@ -115,13 +115,33 @@ func _init(p_seed: int, p_fighters: Array[FighterState], p_actions: ActionLibrar
 
 
 ## Rebuilds a fight from its seed and command log. Pass freshly made fighters set
-## up the same way as in the original fight (FighterState is mutated by a fight).
+## up the same way as in the original fight (FighterState is mutated by a fight);
+## from_record() does that from fighter ids.
 static func replay(p_seed: int, p_fighters: Array[FighterState], p_actions: ActionLibrary, commands: Array, p_rules: Variant = null, p_round_seconds: int = 300) -> FightSim:
 	var sim := FightSim.new(p_seed, p_fighters, p_actions, p_rules, p_round_seconds)
 	for entry: Variant in commands:
 		sim.submit(entry if entry is FightCommand else FightCommand.from_dict(entry))
 	sim.run_to_end()
 	return sim
+
+
+## Everything needed to replay this fight (docs/04 §2.2, #32): seed, the
+## data/fighters ids, the rules and the command log. Plain data, safe to save as JSON.
+func record() -> Dictionary:
+	var ids: Array[String] = []
+	for f in fighters:
+		assert(f.id != "", "only fighters made from data/fighters can be recorded")
+		ids.append(f.id)
+	return { "seed": fight_seed, "fighters": ids, "ruleset": ruleset.id, "rounds": ruleset.rounds,
+		"round_seconds": ruleset.round_seconds, "commands": command_log_as_dicts() }
+
+
+## Replays a record() with fresh fighters made from the same profiles.
+static func from_record(rec: Dictionary, roster: FighterLibrary, p_actions: ActionLibrary) -> FightSim:
+	var rules: Ruleset = Ruleset.load_id(rec.ruleset)
+	rules.rounds = int(rec.rounds)
+	rules.round_seconds = int(rec.round_seconds)
+	return replay(int(rec.seed), roster.make_pair(rec.fighters[0], rec.fighters[1]), p_actions, rec.commands, rules)
 
 
 ## Queues a command for its tick. Commands for ticks already processed are refused.

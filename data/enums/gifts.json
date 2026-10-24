@@ -1,0 +1,9 @@
+{
+	"schema": "enum@1",
+	"id": "gifts",
+	"values": {
+		"granite_chin": "Granite chin", "heavy_hands": "Heavy hands", "freak_athlete": "Freak athlete",
+		"ice_in_the_veins": "Ice in the veins", "fast_learner": "Fast learner",
+		"natural_southpaw": "Natural southpaw", "long_limbs": "Long limbs"
+	}
+}

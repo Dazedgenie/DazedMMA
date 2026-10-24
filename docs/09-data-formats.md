@@ -20,13 +20,14 @@ Rules:
 
 | Folder | Schema | What it is |
 |---|---|---|
-| `data/enums/` | `enum@1` | Fixed vocabularies: `flags` (state flags, `docs/01` §5), `stats` (attributes, `docs/02` §2) |
+| `data/enums/` | `enum@1` | Fixed vocabularies: `flags` (state flags, `docs/01` §5), `stats` (attributes, `docs/02` §2), `gifts` and `flaws` (`docs/11` §4.3) |
 | `data/actions/` | `action@1` | Everything a fighter can do: strikes, takedowns, defenses, ground moves |
 | `data/positions/` | `position@1` | Standing, clinch and ground positions (`docs/01` §4) |
 | `data/calls/` | `call@1` | Coach calls: now/read, intent/technique (`docs/01` §6) |
 | `data/triggers/` | `trigger@1` | Building blocks for read calls and drilled rules ("opponent starts a kick") |
 | `data/rules/` | `rule@1` | Drilled-rule presets: trigger → action (`docs/01` §6.0) |
 | `data/rulesets/` | `ruleset@1` | Amateur/pro rules (`docs/08`) |
+| `data/fighters/` | `fighter@1` | Fighter profiles: authored fighters, archetype templates and (later) generated fighters (D94) |
 
 ## 3. Schemas
 
@@ -66,10 +67,31 @@ Rules:
 `knees_to_head_standing`, `knees_to_head_grounded`, `heel_hooks`, `slams`, `takedowns`), `damage_multiplier`, `cut_multiplier`,
 `early_stoppage_bias`, `weigh_in` (`same_day`/`day_before`), `paid`.
 
+### fighter@1 (examples: `kicker.json`, `boxer.json`; `check_blue.json` uses a template)
+One format for every fighter (D94): the showcase pair, the debug-console check fighters, and later archetypes and the ~600
+generated world fighters. Loaded by `FighterLibrary` (`sim/fight/fighter_library.gd`); `FighterState.from_profile()` builds the fight state.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `name` | string | Display name (required) |
+| `template` | fighter id or null | Fill in anything this file leaves out from that fighter. `frame`, `stats`, `personality`, `style` and `tendencies` merge key by key; other fields replace. One level only (a template has no template) |
+| `frame` | `{height_cm, reach_cm, build}` | Body (`docs/11` §2.3). `build`: `lean` · `average` · `stocky` |
+| `stance` | `orthodox` · `southpaw` · `switch` | |
+| `stats` | `{stat: 0–100}` | Attributes from `enums/stats`; unlisted stats are 50 |
+| `personality` | `{ego, discipline, coachable, loyal}` −100–100 | `docs/11` §4.1: + is Ego / Disciplined / Coachable / Loyal, − is Humble / Party animal / Stubborn / Mercenary |
+| `style` | `{pace, range, base, risk}` −100–100 | Style leanings (`docs/11` §4.2); ±60 earns the named trait |
+| `gifts` / `flaws` | ids from `enums/gifts` / `enums/flaws` | `docs/11` §4.3 |
+| `techniques` | action ids | The moves this fighter knows and the AI picks from |
+| `tendencies` | `{work_rate, actions: {action id: weight}}` | `work_rate`: chance per idle tick to start something (0–1). `actions`: how much they favour a move (1.0 = normal, 0–10), `docs/01` §7 |
+| `tells` | `[{trigger, action, chance, within_ms}]` | Habits an opponent can scout: after `trigger`, `chance` to throw `action` within `within_ms` (`docs/01` §7, D11). Read by the AI from #14 |
+
+Without a `template`, every field above must be present. A fight is saved and replayed as seed + fighter ids + ruleset +
+command log (`FightSim.record()` / `FightSim.from_record()`).
+
 ## 4. What the validator checks
 Valid JSON with a known schema · id matches file name and folder · required fields present with the right types ·
 action timings are whole ticks · values come from the allowed lists · every reference (positions, actions, calls, triggers,
 flags, stats) points to something that exists.
 
 ## 5. Not yet defined (comes with the issue that needs it)
-Fighter profiles and tendencies/tells (#14), state/threshold trigger fields (#16), backgrounds/vignettes, techniques, promotions and names (Alpha).
+How the AI reads tells (#14), technique proficiency and the `techniques` link to `requires_technique` (D6), state/threshold trigger fields (#16), backgrounds/vignettes, techniques, promotions and names (Alpha).

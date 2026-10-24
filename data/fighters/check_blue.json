@@ -1,0 +1,8 @@
+{
+	"schema": "fighter@1",
+	"id": "check_blue",
+	"name": "Blue",
+	"template": "check_red",
+	"stance": "southpaw",
+	"stats": { "boxing": 50, "speed": 50, "striking_defense": 55 }
+}

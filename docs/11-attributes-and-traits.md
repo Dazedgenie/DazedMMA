@@ -238,5 +238,5 @@ Each fighter rolls **0–2 gifts and 0–1 flaw**, weighted by frame and backgro
 
 ## 6. Follow-up work
 - Done with D85–D90: `00` decisions, `02` §1.3/§2, `data/enums/stats.json`, and the Double leg and Sprawl actions (Explosiveness → Speed).
-- Add attributes, personality, style leanings and gifts/flaws to the fighter profile format (`09`, with #14).
+- Done with #32: attributes, frame, stance, personality, style leanings and gifts/flaws are in the fighter profile format (`09` fighter@1).
 - Engine: effective stats, the shared contest formula, timing and style leanings are in (§3.5). Still to come: takedown results (#15), rocked/knockdowns (#13), style trait effects, and leaning pushes from training and calls.

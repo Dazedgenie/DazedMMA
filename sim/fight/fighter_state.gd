@@ -45,13 +45,20 @@ const HEAD_HURT_STATS := { "speed": true, "striking_defense": true, "fight_iq": 
 const LEG_HURT_STATS := { "footwork": true, "speed": true, "kicking": true }
 const PANIC_DEFENSE_STATS := { "fight_iq": true, "striking_defense": true, "takedown_defense": true, "submission_defense": true }
 
+## The data/fighters id this fighter was made from ("" when built in code, e.g. in tests).
+var id: String = ""
 var name: String
 var stats: Dictionary  # stat id → 0–100; missing stats count as DEFAULT_STAT
-## Actions the placeholder AI picks from when nothing is queued.
+## Actions the placeholder AI picks from when nothing is queued (the profile's `techniques`).
 var repertoire: Array[String]
 ## Chance per idle tick that the placeholder AI starts an action, before style and panic.
 var work_rate: float
+## action id → how much more (or less) this fighter likes it than usual (1.0 = normal, docs/01 §7).
+var tendencies: Dictionary = {}
 var style: StyleLeanings
+## The rest of the profile (docs/09 fighter@1): frame, stance, personality, gifts,
+## flaws, tells. Kept for the AI (#14), the world and saves; the fight doesn't read them yet.
+var profile: Dictionary = {}
 
 var position: String = "standing"
 ## Where they stand in the cage, in metres from the centre (Octagon).
@@ -79,6 +86,18 @@ func _init(p_name: String, p_stats: Dictionary = {}, p_repertoire: Array[String]
 	work_rate = p_work_rate
 	style = p_style if p_style != null else StyleLeanings.new()
 	stamina = max_stamina()
+
+
+## Builds a fighter from a fighter@1 profile (FighterLibrary.profile fills in its template).
+static func from_profile(p: Dictionary) -> FighterState:
+	var reps: Array[String] = []
+	reps.assign(p.get("techniques", []))
+	var tend: Dictionary = p.get("tendencies", {})
+	var f := FighterState.new(p.name, p.get("stats", {}).duplicate(), reps, float(tend.get("work_rate", 0.03)), StyleLeanings.new(p.get("style", {})))
+	f.id = p.get("id", "")
+	f.tendencies = tend.get("actions", {}).duplicate()
+	f.profile = p
+	return f
 
 
 func is_free() -> bool:

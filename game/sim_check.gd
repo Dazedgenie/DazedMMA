@@ -29,22 +29,15 @@ func passed() -> bool:
 	return not results.is_empty()
 
 
+## Two plain jabbers (data/fighters/check_red.json, check_blue.json).
 static func default_fighters() -> Array[FighterState]:
-	return [
-		FighterState.new("Red", { "boxing": 60, "speed": 55, "striking_defense": 50 }),
-		FighterState.new("Blue", { "boxing": 50, "speed": 50, "striking_defense": 55 }),
-	]
+	return FighterLibrary.load_dir().make_pair("check_red", "check_blue")
 
 
 ## A kicker who likes range against a boxer who walks forward: shows the standing
 ## game (range, cage pressure, rocked and knockdowns) with the placeholder AI.
 static func showcase_fighters() -> Array[FighterState]:
-	return [
-		FighterState.new("Kicker", { "kicking": 70, "footwork": 70, "speed": 60, "power": 55, "boxing": 45, "striking_defense": 55 },
-			["jab", "teep", "leg_kick", "body_kick", "head_kick"], 0.03, StyleLeanings.new({ "range": -60, "pace": -30 })),
-		FighterState.new("Boxer", { "boxing": 65, "power": 60, "chin": 55, "footwork": 50, "striking_defense": 50 },
-			["jab", "cross", "hook"], 0.03, StyleLeanings.new({ "range": 50, "pace": 40 })),
-	]
+	return FighterLibrary.load_dir().make_pair("kicker", "boxer")
 
 
 func _run(fight_seed: int, actions: ActionLibrary) -> void:
@@ -75,8 +68,9 @@ func _run(fight_seed: int, actions: ActionLibrary) -> void:
 	_check("Bad command is refused", _count(FightEvent.COMMAND_REJECTED) == 1,
 		"%d refused" % _count(FightEvent.COMMAND_REJECTED))
 
-	var replayed: FightSim = FightSim.replay(fight_seed, default_fighters(), actions, sim.command_log_as_dicts(), 1, ROUND_SECONDS)
-	_check("Replay from seed + commands is identical",
+	var saved: Variant = JSON.parse_string(JSON.stringify(sim.record()))
+	var replayed: FightSim = FightSim.from_record(saved, FighterLibrary.load_dir(), actions)
+	_check("Replay from seed + fighter ids + commands is identical",
 		JSON.stringify(replayed.events_as_dicts()) == JSON.stringify(sim.events_as_dicts()),
 		"%d events compared" % sim.events.size())
 	# 60 fight-seconds at 1000x = 60 ms (docs/01 §2).

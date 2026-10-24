@@ -67,16 +67,18 @@ func idle_work_rate(view: FightView) -> float:
 	return rate
 
 
-## How much the AI favours an action from its repertoire. The Base leaning tilts
-## strikes against takedowns: +100 doubles takedowns and halves strikes, −100 never shoots.
+## How much the AI favours an action from its repertoire: the fighter's own
+## tendency for it (profile `tendencies.actions`, 1.0 if unlisted), tilted by the
+## Base leaning: +100 doubles takedowns and halves strikes, −100 never shoots.
 func choice_weight(f: FighterState, action: Dictionary) -> float:
 	var base_leaning: float = f.style.value(StyleLeanings.BASE) / 100.0
+	var tendency: float = float(f.tendencies.get(action.id, 1.0))
 	match action.category:
 		"takedown":
-			return 1.0 + base_leaning
+			return tendency * (1.0 + base_leaning)
 		"strike":
-			return 1.0 - base_leaning / 2.0
-	return 1.0
+			return tendency * (1.0 - base_leaning / 2.0)
+	return tendency
 
 
 func _repertoire_distance(f: FighterState, actions: ActionLibrary) -> float:
