@@ -303,3 +303,26 @@ but happen often enough that an underdog always has a chance.
 - **Fight HUD layout** (round/clock, both fighters' condition, position/range, active plan/rules/reads, voice meter, call bar, feed).
 - **Onboarding**: the first amateur fights double as a tutorial that introduces calls one at a time.
 - **Amateur ruleset**: 3×3 min rounds, shin guards, no elbows / no strikes to a grounded head (with C3).
+
+## 18. Standing game v1 in the engine (#13)
+What `sim/` does today for §3, §5, §8 and §11. Every number is a first guess for the balance harness (#18); they are named
+constants in `sim/octagon.gd`, `sim/fight_sim.gd` and `sim/judging.gd`. Stat effects are in `11` §3.5.
+
+| Piece | Rule |
+|---|---|
+| Cage | Regular octagon, 4.5 m from the centre to each panel (30 ft across). Fighters start 3.5 m apart and go back to their corners each round |
+| Distance bands | Out > 3.0 m · Long 2.2–3.0 · Mid 1.5–2.2 · Pocket < 1.5. Standing fighters can't get closer than 0.9 m until the clinch exists (#15) |
+| Reach | A strike only lands from the bands in its data. The AI only starts moves that reach; a commanded or interrupted move that no longer reaches *falls short* ("out of range") |
+| Movement | Walk at 0.8 + 1.2 × (Footwork + Speed)/200 m/s toward the distance where your moves work, shifted by the Range (±0.5 m) and Pace (±0.3 m) leanings. Committed fighters don't move |
+| Cage | Near = within 1.5 m of the fence; pinned = within 0.5 m with the opponent in mid range or closer (`BACK_TO_CAGE`). Backing up near the fence turns into circling toward open space; the presser mirrors to cut it off. Who wins the sideways battle is a Footwork contest |
+| Flags | From action phases (data `flags_self`), plus `BACK_TO_CAGE` when pinned and `HANDS_LOW` below a quarter tank or while rocked |
+| Counters | Hitting a fighter in wind-up or recovery: +10% to land and ×1.3 damage |
+| Damage | Base damage × (0.5 + Power/100), at least 1 |
+| Rocked | Head shots only. Shock = damage × (1 + head hurt) / (6 + 0.12 × Chin). Rock chance = (shock − 0.6) × 0.5, up to 60%: a jab never rocks a fresh fighter, a clean hook or head kick can. Rocked lasts 4 s × (1.5 − Recovery/100): Speed, Striking defense, Fight IQ −30% more, hands drop, they back off and mostly cover up, and the opponent swarms (more with a Wild Risk leaning) |
+| Knockdown | Rocked again while rocked. Down for 2 s (nobody hits a downed fighter until the ground game exists), then up and rocked |
+| KO / TKO | KO roll on each knockdown: 15% + (shock − 1) × 50%, 5–80%, × (1.5 − Heart/100). TKO on a third knockdown in a round, or a rock with the head fully hurt |
+| Judges | Three judges, 10-point must. A round's points = damage landed (head ×1, body ×0.8, legs ×0.6) + 8 per rock + 20 per knockdown; each judge sees each fighter's points ±15%. Within 5% = 10-10; 10-8 for two more knockdowns or out-landing 3 to 1 in a busy round. Decision: unanimous / split / majority / draw |
+| Events | `range_changed`, `cage_changed` (announced once held for 0.5 s), `rocked`, `knockdown`, `got_up`, `recovered`; strikes carry `counter` and, when they fall short, a `reason` |
+
+Not yet: leg damage giving out, liver shots, cuts, aggression and cage control on the cards, judge personalities and fouls (D20),
+and anything clinch or ground (#15).

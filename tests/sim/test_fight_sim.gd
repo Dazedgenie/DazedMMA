@@ -76,14 +76,15 @@ func test_two_fighters_trade_jabs_with_no_commands() -> void:
 	assert_gt(sim.fighters[1].damage.head, 0, "jabs should hurt the head")
 
 
-func test_three_rounds_end_with_a_time_decision_on_tick_9000() -> void:
+func test_three_rounds_of_jabs_go_to_the_judges_on_tick_9000() -> void:
 	var sim: FightSim = _run(SEED)
 	assert_true(sim.is_over())
 	assert_eq(sim.now, 9000)
 	assert_eq(_count(sim, FightEvent.ROUND_ENDED), 3)
 	var last: FightEvent = sim.events[-1]
 	assert_eq(last.type, FightEvent.FIGHT_ENDED)
-	assert_eq(last.data.result, "time")
+	assert_has([Judging.UNANIMOUS, Judging.SPLIT, Judging.MAJORITY, Judging.DRAW], last.data.result)
+	assert_eq(last.data.cards.size(), Judging.JUDGES)
 	assert_eq(last.round_number, 3)
 
 
@@ -148,10 +149,18 @@ func test_a_full_fight_runs_over_1000x_faster_than_fight_time() -> void:
 	assert_lt(elapsed_ms, 900.0)
 
 
-func _idle_pair(red: FighterState = null, blue: FighterState = null) -> FightSim:
-	return FightSim.new(SEED,
+## Two fighters who do nothing unless told, standing at `gap` metres (default: mid range).
+func _idle_pair(red: FighterState = null, blue: FighterState = null, gap: float = 1.8) -> FightSim:
+	var sim := FightSim.new(SEED,
 		[red if red != null else FighterState.new("Red", {}, []), blue if blue != null else FighterState.new("Blue", {}, [])],
 		_actions)
+	_place(sim, gap)
+	return sim
+
+
+func _place(sim: FightSim, gap: float, centre: Vector2 = Vector2.ZERO) -> void:
+	sim.fighters[0].pos = centre + Vector2(-gap / 2.0, 0.0)
+	sim.fighters[1].pos = centre + Vector2(gap / 2.0, 0.0)
 
 
 func test_starting_a_move_costs_its_stamina() -> void:
@@ -202,7 +211,8 @@ func test_the_catch_kick_is_only_possible_while_the_opponent_is_on_one_leg() -> 
 	sim.fighters[1].action_id = "body_kick"
 	sim.fighters[1].phase = "windup"  # ONE_LEG from windup to recovery
 	assert_eq(sim.active_flags(1), ["ONE_LEG"] as Array[String])
-	assert_almost_eq(sim.odds(0, "catch_kick_single"), 0.20 + 0.35, 0.0001)
+	# Base 20% + 35% for the leg + 10% for catching them mid-commitment.
+	assert_almost_eq(sim.odds(0, "catch_kick_single"), 0.20 + 0.35 + FightSim.COUNTER_BONUS, 0.0001)
 
 
 func test_a_sprawl_is_easier_against_a_shot_with_the_head_low() -> void:

@@ -36,6 +36,17 @@ static func default_fighters() -> Array[FighterState]:
 	]
 
 
+## A kicker who likes range against a boxer who walks forward: shows the standing
+## game (range, cage pressure, rocked and knockdowns) with the placeholder AI.
+static func showcase_fighters() -> Array[FighterState]:
+	return [
+		FighterState.new("Kicker", { "kicking": 70, "footwork": 70, "speed": 60, "power": 55, "boxing": 45, "striking_defense": 55 },
+			["jab", "teep", "leg_kick", "body_kick", "head_kick"], 0.03, StyleLeanings.new({ "range": -60, "pace": -30 })),
+		FighterState.new("Boxer", { "boxing": 65, "power": 60, "chin": 55, "footwork": 50, "striking_defense": 50 },
+			["jab", "cross", "hook"], 0.03, StyleLeanings.new({ "range": 50, "pace": 40 })),
+	]
+
+
 func _run(fight_seed: int, actions: ActionLibrary) -> void:
 	_check("Moves load from data/actions", actions.ids().size() > 0, "%d moves" % actions.ids().size())
 	if actions.ids().is_empty():
@@ -56,9 +67,11 @@ func _run(fight_seed: int, actions: ActionLibrary) -> void:
 		_check("%s throws, lands and misses strikes" % f.name,
 			f.strikes_thrown > 0 and f.strikes_landed > 0 and f.strikes_landed < f.strikes_thrown,
 			"landed %d of %d" % [f.strikes_landed, f.strikes_thrown])
-	for f in sim.fighters:
-		_check("%s gets tired from working" % f.name, f.stamina < f.max_stamina(),
-			"stamina %d of %d" % [roundi(f.stamina), roundi(f.max_stamina())])
+	_check("Fighters walk into punching range", _count(FightEvent.RANGE_CHANGED) > 0,
+		"%d range changes" % _count(FightEvent.RANGE_CHANGED))
+	var cards: Array = sim.events[-1].data.get("cards", [])
+	_check("Three judges score the fight", cards.size() == Judging.JUDGES,
+		FightLogFormatter.result_text(sim.events[-1], sim))
 	_check("Bad command is refused", _count(FightEvent.COMMAND_REJECTED) == 1,
 		"%d refused" % _count(FightEvent.COMMAND_REJECTED))
 

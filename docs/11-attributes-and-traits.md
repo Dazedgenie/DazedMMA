@@ -146,7 +146,7 @@ in `sim/fighter_state.gd`, `sim/fight_sim.gd` and `sim/contest.gd`.
 | Hurt | "Fully hurt" = 10 × (Chin + 50) head damage, 10 × (Durability + 50) body or leg damage. Head: Speed, Striking defense, Fight IQ up to −30%. Legs: Footwork, Speed, Kicking up to −30%. Body: stamina tank up to −30% |
 | Panic | When head hurt reaches 40% + Composure/2 % (Composure 50 = 65%): Fight IQ and the defense stats −20%, Power +15%, 20% busier |
 | Timing (§3.3) | Speed 100 → telegraph and wind-up −20%, Speed 0 → +20% (kick telegraphs use the average of Speed and Kicking). Tired stretches them up to another +30% (`01` §8). Whole ticks, never below one |
-| Style leanings (§4.2) | Four leanings with the ±30 hint, ±60 trait and ±40 fade lines. The placeholder AI reads two of them: Pace (+100 = 1.5× as busy, −100 = half) and Base (+100 doubles takedowns and halves strikes, −100 never shoots). Range and Risk wait for distance (#13) and finishes |
+| Style leanings (§4.2) | Four leanings with the ±30 hint, ±60 trait and ±40 fade lines. The placeholder AI reads them: Pace (+100 = 1.5× as busy, −100 = half) and Base (+100 doubles takedowns and halves strikes, −100 never shoots). With the standing game (`01` §18), Range sets how far apart they like to stand and Risk how hard they swarm a rocked opponent |
 | Debug | The console summary shows stamina, panic and worn-down stats as *Boxing 70 → 49 (tired)*, plus style hints and traits; strike lines show the odds they were rolled at |
 
 Not yet: rocked/knockdowns and damage recovery between rounds (#13), what named style traits actually do in a fight,

@@ -1,0 +1,18 @@
+{
+	"schema": "action@1",
+	"id": "cross",
+	"name": "Cross",
+	"category": "strike",
+	"positions": ["standing"],
+	"ranges": ["mid", "pocket"],
+	"phases_ms": { "telegraph": 200, "windup": 100, "active": 100, "recovery": 300 },
+	"stamina_cost": 4,
+	"flags_self": [],
+	"strike": { "target": "head", "base_damage": 6 },
+	"stats": { "offense": ["boxing", "power"], "defense": ["striking_defense"] },
+	"opportunities": [
+		{ "opponent_flag": "ONE_LEG", "success_bonus": 0.15 },
+		{ "opponent_flag": "LEANING", "success_bonus": 0.10 }
+	],
+	"requires_technique": null
+}
