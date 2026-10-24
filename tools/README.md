@@ -5,3 +5,12 @@ and prints a summary; `--fights=N` runs N seeds and counts how they ended:
 
     godot --headless --script res://tools/run_sim.gd -- --seed=123
     godot --headless --script res://tools/run_sim.gd -- --fights=200
+
+`balance.gd` is the balance harness (#18): many seeded fights for one or more pairs from `data/fighters/`, written to
+`build/balance/balance.csv` (one line per fight) and `build/balance/summary.txt`, with the balance targets (D96, D97,
+`docs/12` §4) marked MET, MISSED or INFO. 100 fights per pair takes about a minute:
+
+    godot --headless --script res://tools/balance.gd -- --fights=200 --pairs=kicker:boxer,check_red:check_blue
+    godot --headless --script res://tools/balance.gd -- --seed=500 --ruleset=amateur_adult --out=build/amateur
+
+The CSV columns are listed in `sim/balance/fight_summary.gd` (`FightSummary.COLUMNS`).
