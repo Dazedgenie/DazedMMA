@@ -6,8 +6,8 @@ extends MainLoop
 ##
 ## Runs one placeholder fight between two fighters from data/fighters (default:
 ## the showcase kicker and boxer) and prints a summary; with --fights=N it runs N
-## seeds and prints how they ended.
-## Later it becomes the balance harness (docs/10-prototype-spec.md, issue #18).
+## seeds and prints the balance harness summary (BalanceReport). For CSV output
+## and several pairs, use tools/balance.gd (#18).
 
 
 func _initialize() -> void:
@@ -49,20 +49,12 @@ func _initialize() -> void:
 		print("         " + FightLogFormatter.condition_line(f))
 
 
-## N fights on consecutive seeds: how often each fighter wins, and how.
+## N fights on consecutive seeds: the balance harness summary (who wins, how, stamina, targets).
 func _many(first_seed: int, fights: int, actions: ActionLibrary, roster: FighterLibrary, pair: PackedStringArray) -> void:
-	var tally: Dictionary = {}
+	var report := BalanceReport.new()
 	for n in fights:
-		var sim := FightSim.new(first_seed + n, roster.make_pair(pair[0], pair[1]), actions)
-		sim.run_to_end()
-		var end: FightEvent = sim.events[-1]
-		var key: String = "%s by %s" % ["draw" if end.data.winner < 0 else sim.fighters[end.data.winner].name, end.data.result]
-		tally[key] = tally.get(key, 0) + 1
-	print("%d fights from seed %d:" % [fights, first_seed])
-	var keys: Array = tally.keys()
-	keys.sort()
-	for key: String in keys:
-		print("  %-30s %d" % [key, tally[key]])
+		report.add(FightSummary.run(first_seed + n, roster, actions, pair[0], pair[1]))
+	print(report.summary({ pair[0]: roster.profile(pair[0]).name, pair[1]: roster.profile(pair[1]).name }))
 
 
 func _plain(bbcode: String) -> String:

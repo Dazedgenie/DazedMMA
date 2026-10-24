@@ -15,6 +15,8 @@ wins fights.
    Right now it shows an empty octagon from the isometric camera.
 3. Headless simulation check (from a terminal in this folder):
    `godot --headless --script res://tools/run_sim.gd`
+4. Balance harness (many fights, a CSV and a summary of the balance targets in `build/balance/`):
+   `godot --headless --script res://tools/balance.gd -- --fights=100`
 
 ## Layout
 | Folder | What lives there |

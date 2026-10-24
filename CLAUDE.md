@@ -12,5 +12,6 @@
   Tests live in `tests/` (mirror `sim/` paths), extend `GutTest`, and are named as plain sentences (`test_round_ends_exactly_on_its_last_tick`).
   CI (`.github/workflows/tests.yml`) runs them on every PR and posts a readable table in the run summary.
 - Run the headless sim: `godot --headless --script res://tools/run_sim.gd`
+- Run the balance harness: `godot --headless --script res://tools/balance.gd -- --fights=100 --pairs=kicker:boxer` (CSV + summary in `build/balance/`)
 - Smoke-run the main scene: `godot --headless --quit-after 30`
 - Import/refresh the project cache: `godot --headless --import`

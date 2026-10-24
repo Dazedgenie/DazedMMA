@@ -1,6 +1,6 @@
 # sim/ — simulation core
 
-Pure GDScript (`RefCounted` classes). The fight engine, AI, coaching and judging live in `fight/`; the career and world
+Pure GDScript (`RefCounted` classes). The fight engine, AI, coaching and judging live in `fight/`; the balance harness's numbers in `balance/`; the career and world
 simulation will live in `world/` under the same rules (D100).
 
 Rules (docs/04-tech-and-production.md §2.2):
@@ -32,6 +32,12 @@ Rules (docs/04-tech-and-production.md §2.2):
 | `position_library.gd` | Loads `data/positions/*.json`, including the transitions between positions |
 | `action_library.gd` | Loads `data/actions/*.json` |
 | `fighter_library.gd` | Loads `data/fighters/*.json` (fighter@1), fills in templates, makes fresh `FighterState`s |
+
+## balance/
+| File | Role |
+|---|---|
+| `fight_summary.gd` | One finished fight as one row of numbers: result, method, knockdowns, strikes, damage, stamina at the end and its lowest, 10-10 cards, clamped odds |
+| `balance_report.gd` | Rows in; CSV, a readable summary and the balance targets (met / missed / info) out. Run by `tools/balance.gd` (#18) |
 
 ## world/
 Empty for now: the career and world simulation (D100) starts here.
