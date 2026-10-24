@@ -1,0 +1,17 @@
+{
+	"schema": "action@1",
+	"id": "leg_kick",
+	"name": "Leg kick",
+	"category": "strike",
+	"positions": ["standing"],
+	"ranges": ["mid"],
+	"phases_ms": { "telegraph": 200, "windup": 200, "active": 200, "recovery": 300 },
+	"stamina_cost": 4,
+	"flags_self": [
+		{ "flag": "ONE_LEG", "from": "windup", "to": "active" }
+	],
+	"strike": { "target": "legs", "base_damage": 6 },
+	"stats": { "offense": ["kicking", "power"], "defense": ["striking_defense"] },
+	"opportunities": [],
+	"requires_technique": null
+}

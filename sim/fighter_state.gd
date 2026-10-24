@@ -4,8 +4,8 @@ extends RefCounted
 ##
 ## Fighters fight at their stats × their condition (docs/11-attributes-and-traits.md
 ## §3.2): effective_stat() lowers stats when tired, hurt in the head or legs, or
-## panicking. The numbers below are first guesses for the balance harness (#18)
-## to tune. Distance, knockdowns and the real damage model are the standing game (#13).
+## panicking, and much harder while rocked. The numbers below are first guesses
+## for the balance harness (#18) to tune.
 
 const DEFAULT_STAT: int = 50
 
@@ -30,12 +30,15 @@ const PANIC_BASE: float = 0.4
 const PANIC_DEFENSE_PENALTY: float = 0.2
 const PANIC_POWER_BONUS: float = 0.15
 const PANIC_WORK_RATE_BONUS: float = 0.2
+## Rocked (docs/01 §8: wobbly, huge counter vulnerability): Speed, Striking defense and Fight IQ a further −30%.
+const ROCKED_PENALTY: float = 0.3
 
 ## Capacities and mental stats aren't worn down by fatigue (docs/11 §3.2: "physical and technique stats").
-const FATIGUE_EXEMPT: Array[String] = ["cardio", "recovery", "durability", "chin", "fight_iq", "composure", "heart"]
-const HEAD_HURT_STATS: Array[String] = ["speed", "striking_defense", "fight_iq"]
-const LEG_HURT_STATS: Array[String] = ["footwork", "speed", "kicking"]
-const PANIC_DEFENSE_STATS: Array[String] = ["fight_iq", "striking_defense", "takedown_defense", "submission_defense"]
+## Sets (stat id → true): effective_stat runs thousands of times a fight.
+const FATIGUE_EXEMPT := { "cardio": true, "recovery": true, "durability": true, "chin": true, "fight_iq": true, "composure": true, "heart": true }
+const HEAD_HURT_STATS := { "speed": true, "striking_defense": true, "fight_iq": true }
+const LEG_HURT_STATS := { "footwork": true, "speed": true, "kicking": true }
+const PANIC_DEFENSE_STATS := { "fight_iq": true, "striking_defense": true, "takedown_defense": true, "submission_defense": true }
 
 var name: String
 var stats: Dictionary  # stat id → 0–100; missing stats count as DEFAULT_STAT
@@ -46,7 +49,14 @@ var work_rate: float
 var style: StyleLeanings
 
 var position: String = "standing"
+## Where they stand in the cage, in metres from the centre (Octagon).
+var pos: Vector2 = Vector2.ZERO
 var damage: Dictionary = { "head": 0, "body": 0, "legs": 0 }
+## Ticks left rocked, and ticks left on the canvas after a knockdown.
+var rocked_ticks: int = 0
+var down_ticks: int = 0
+var knockdowns: int = 0  # suffered this fight
+var knockdowns_this_round: int = 0
 var stamina: float
 var strikes_landed: int = 0
 var strikes_thrown: int = 0
@@ -57,7 +67,7 @@ var phase_ticks_left: int = 0
 var queued_action_id: String = ""
 
 
-func _init(p_name: String, p_stats: Dictionary = {}, p_repertoire: Array[String] = ["jab"], p_work_rate: float = 0.08, p_style: StyleLeanings = null) -> void:
+func _init(p_name: String, p_stats: Dictionary = {}, p_repertoire: Array[String] = ["jab"], p_work_rate: float = 0.03, p_style: StyleLeanings = null) -> void:
 	name = p_name
 	stats = p_stats
 	repertoire = p_repertoire
@@ -78,17 +88,19 @@ func stat(id: String) -> int:
 ## The number they fight at right now: stat × condition.
 func effective_stat(id: String) -> float:
 	var value: float = stat(id)
-	if id not in FATIGUE_EXEMPT:
+	if not FATIGUE_EXEMPT.has(id):
 		value *= 1.0 - tired()
-	if id in HEAD_HURT_STATS:
+	if HEAD_HURT_STATS.has(id):
 		value *= 1.0 - MAX_HURT_PENALTY * hurt("head")
-	if id in LEG_HURT_STATS:
+		if is_rocked():
+			value *= 1.0 - ROCKED_PENALTY
+	if LEG_HURT_STATS.has(id):
 		value *= 1.0 - MAX_HURT_PENALTY * hurt("legs")
-	if is_panicking():
-		if id in PANIC_DEFENSE_STATS:
+	if PANIC_DEFENSE_STATS.has(id):
+		if is_panicking():
 			value *= 1.0 - PANIC_DEFENSE_PENALTY
-		elif id == "power":
-			value *= 1.0 + PANIC_POWER_BONUS
+	elif id == "power" and is_panicking():
+		value *= 1.0 + PANIC_POWER_BONUS
 	return value
 
 
@@ -99,6 +111,8 @@ func condition_reasons(id: String) -> Array[String]:
 		out.append("tired")
 	if id in HEAD_HURT_STATS and hurt("head") > 0.0:
 		out.append("hurt")
+	if id in HEAD_HURT_STATS and is_rocked():
+		out.append("rocked")
 	if id in LEG_HURT_STATS and hurt("legs") > 0.0:
 		out.append("legs hurt")
 	if is_panicking() and (id in PANIC_DEFENSE_STATS or id == "power"):
@@ -116,6 +130,8 @@ func stamina_fraction() -> float:
 
 ## 0 at half a tank or more, rising to MAX_TIRED_PENALTY when empty.
 func tired() -> float:
+	if stamina >= TANK_BASE + TANK_PER_CARDIO * stat("cardio"):
+		return 0.0  # A full fresh tank: skip the maths.
 	var f: float = clampf(stamina_fraction(), 0.0, 1.0)
 	if f >= TIRED_BELOW:
 		return 0.0
@@ -131,6 +147,14 @@ func hurt(area: String) -> float:
 ## Composure broken: defense and Fight IQ drop, power and output go up (wild swings).
 func is_panicking() -> bool:
 	return hurt("head") >= PANIC_BASE + stat("composure") / 200.0
+
+
+func is_rocked() -> bool:
+	return rocked_ticks > 0
+
+
+func is_down() -> bool:
+	return down_ticks > 0
 
 
 func spend_stamina(amount: float) -> void:

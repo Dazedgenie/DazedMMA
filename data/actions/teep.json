@@ -1,0 +1,17 @@
+{
+	"schema": "action@1",
+	"id": "teep",
+	"name": "Teep",
+	"category": "strike",
+	"positions": ["standing"],
+	"ranges": ["long", "mid"],
+	"phases_ms": { "telegraph": 200, "windup": 200, "active": 200, "recovery": 300 },
+	"stamina_cost": 4,
+	"flags_self": [
+		{ "flag": "ONE_LEG", "from": "windup", "to": "active" }
+	],
+	"strike": { "target": "body", "base_damage": 4 },
+	"stats": { "offense": ["kicking", "speed"], "defense": ["striking_defense"] },
+	"opportunities": [],
+	"requires_technique": null
+}

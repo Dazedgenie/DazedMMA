@@ -39,3 +39,26 @@ func test_the_condition_line_shows_stamina_and_worn_down_stats() -> void:
 	assert_eq(FightLogFormatter.condition_line(f), "Red stamina 100/100 · leaning aggressive · Natural aggressor")
 	f.stamina = 0.0
 	assert_string_contains(FightLogFormatter.condition_line(f), "Red stamina 0/100 · Boxing 70 → 49 (tired)")
+
+
+func test_a_decision_names_the_winner_and_every_judges_card() -> void:
+	var e := FightEvent.new(9000, 3, FightEvent.FIGHT_ENDED, FightEvent.NO_ACTOR,
+		{ "result": Judging.SPLIT, "winner": 1, "cards": [[29, 28], [28, 29], [28, 29]] })
+	assert_eq(_plain(FightLogFormatter.result_text(e, _sim)), "Blue wins by split decision (29-28, 28-29, 28-29)")
+
+
+func test_a_knockout_and_a_draw_read_naturally() -> void:
+	var ko := FightEvent.new(400, 1, FightEvent.FIGHT_ENDED, FightEvent.NO_ACTOR, { "result": FightSim.RESULT_KO, "winner": 0 })
+	assert_eq(_plain(FightLogFormatter.result_text(ko, _sim)), "Red wins by KO")
+	var draw := FightEvent.new(9000, 3, FightEvent.FIGHT_ENDED, FightEvent.NO_ACTOR,
+		{ "result": Judging.DRAW, "winner": -1, "cards": [[29, 28], [28, 29], [28, 28]] })
+	assert_eq(_plain(FightLogFormatter.result_text(draw, _sim)), "Draw (29-28, 28-29, 28-28)")
+
+
+func test_big_moments_and_short_strikes_get_their_own_lines() -> void:
+	var rocked := FightEvent.new(50, 1, FightEvent.ROCKED, 1, { "by": 0 })
+	assert_string_contains(_plain(FightLogFormatter.line(rocked, _sim)), "Blue is ROCKED!")
+	var short := FightEvent.new(51, 1, FightEvent.STRIKE_MISSED, 0, { "action_id": "jab", "target": "head", "chance": 0.0, "reason": "out of range" })
+	assert_string_contains(_plain(FightLogFormatter.line(short, _sim)), "Red's Jab misses (out of range)")
+	var pinned := FightEvent.new(52, 1, FightEvent.CAGE_CHANGED, 1, { "proximity": "pinned" })
+	assert_string_contains(_plain(FightLogFormatter.line(pinned, _sim)), "Blue is PINNED against the cage")

@@ -8,6 +8,9 @@ const PASS_COLOUR := "#6bd66b"
 const FAIL_COLOUR := "#ff5555"
 const DIM_COLOUR := "#8a8f98"
 ## Stats the debug summary shows when condition has moved them (docs/11 §3.2).
+const RANGE_NAMES := { "out": "out of range", "long": "long (kicking range)", "mid": "mid (punching range)", "pocket": "in the pocket" }
+const CAGE_NAMES := { "centre": "is back in open space", "near": "is near the fence", "pinned": "is PINNED against the cage" }
+const RESULT_NAMES := { "ko": "KO", "tko": "TKO" }
 const CONDITION_STATS: Array[String] = ["boxing", "kicking", "power", "speed", "striking_defense", "footwork", "takedowns", "takedown_defense", "fight_iq"]
 
 
@@ -42,15 +45,30 @@ static func _describe(event: FightEvent, sim: FightSim) -> String:
 		FightEvent.ACTION_ENDED:
 			return "[color=%s]%s %s finished[/color]" % [DIM_COLOUR, who, _action_name(event.data.action_id, sim)]
 		FightEvent.STRIKE_LANDED:
-			return "%s's %s [b]LANDS[/b] (%s, %d damage)%s" % [who, _action_name(event.data.action_id, sim), event.data.target, event.data.damage, _odds(event)]
+			var counter: String = "counter " if event.data.get("counter", false) else ""
+			return "%s's %s%s [b]LANDS[/b] (%s, %d damage)%s" % [who, counter, _action_name(event.data.action_id, sim), event.data.target, event.data.damage, _odds(event)]
 		FightEvent.STRIKE_MISSED:
+			if event.data.has("reason"):
+				return "%s's %s misses (%s)" % [who, _action_name(event.data.action_id, sim), event.data.reason]
 			return "%s's %s misses%s" % [who, _action_name(event.data.action_id, sim), _odds(event)]
+		FightEvent.RANGE_CHANGED:
+			return "[color=%s]Range: %s[/color]" % [DIM_COLOUR, RANGE_NAMES.get(event.data.band, event.data.band)]
+		FightEvent.CAGE_CHANGED:
+			return "[color=%s]%s %s[/color]" % [DIM_COLOUR, who, CAGE_NAMES.get(event.data.proximity, event.data.proximity)]
+		FightEvent.ROCKED:
+			return "[b]%s is ROCKED![/b]" % who
+		FightEvent.KNOCKDOWN:
+			return "[b]%s goes DOWN![/b]" % who
+		FightEvent.GOT_UP:
+			return "%s beats the count and gets back up" % who
+		FightEvent.RECOVERED:
+			return "[color=%s]%s has shaken it off[/color]" % [DIM_COLOUR, who]
 		FightEvent.COMMAND_REJECTED:
 			return "[color=%s]Command refused for %s: %s[/color]" % [FAIL_COLOUR, who, event.data.reason]
 		FightEvent.ROUND_ENDED:
-			return "[b]── End of round %d ──[/b]" % event.round_number
+			return "[b]── End of round %d ──[/b]  judges: %s" % [event.round_number, _cards(event.data.get("cards", []))]
 		FightEvent.FIGHT_ENDED:
-			return "[b]── Fight over (%s) ──[/b]" % event.data.result
+			return "[b]── %s ──[/b]" % result_text(event, sim)
 	return "%s %s %s" % [who, event.type, JSON.stringify(event.data)]
 
 
@@ -58,8 +76,12 @@ static func _describe(event: FightEvent, sim: FightSim) -> String:
 ## "Red stamina 41/100 · Boxing 60 → 55 (tired) · Speed 55 → 44 (tired, hurt)".
 static func condition_line(f: FighterState) -> String:
 	var parts: Array[String] = ["%s stamina %d/%d" % [f.name, roundi(f.stamina), roundi(f.max_stamina())]]
+	if f.is_rocked():
+		parts.append("ROCKED")
 	if f.is_panicking():
 		parts.append("PANICKING")
+	if f.knockdowns > 0:
+		parts.append("knocked down %d×" % f.knockdowns)
 	for id in CONDITION_STATS:
 		if not f.condition_reasons(id).is_empty() and roundi(f.effective_stat(id)) != f.stat(id):
 			parts.append(f.describe_stat(id))
@@ -69,6 +91,24 @@ static func condition_line(f: FighterState) -> String:
 	for trait_id in f.style.traits():
 		parts.append(StyleLeanings.TRAIT_NAMES[trait_id])
 	return " · ".join(parts)
+
+
+## e.g. "Red wins by KO", "Blue wins by split decision (29-28, 28-29, 29-28)", "Draw (...)".
+static func result_text(event: FightEvent, sim: FightSim) -> String:
+	var result: String = event.data.result
+	var how: String = RESULT_NAMES.get(result, result)
+	var cards: String = " (%s)" % _cards(event.data.cards) if event.data.has("cards") else ""
+	var winner: int = int(event.data.get("winner", -1))
+	if winner < 0:
+		return "%s%s" % [how.capitalize(), cards]
+	return "%s wins by %s%s" % [_fighter(winner, sim), how, cards]
+
+
+static func _cards(cards: Array) -> String:
+	var out: Array[String] = []
+	for c: Array in cards:
+		out.append("%d-%d" % [c[0], c[1]])
+	return ", ".join(out)
 
 
 static func _odds(event: FightEvent) -> String:

@@ -86,7 +86,7 @@ func _toggle_live() -> void:
 		write("[color=%s]%s[/color]" % [FightLogFormatter.DIM_COLOUR, "Paused" if _live_paused else "Resumed"])
 		return
 	var fight_seed: int = randi()
-	_live_sim = FightSim.new(fight_seed, SimCheck.default_fighters(), _actions)
+	_live_sim = FightSim.new(fight_seed, SimCheck.showcase_fighters(), _actions)
 	_live_sim.event_emitted.connect(_on_live_event)
 	_live_paused = false
 	_tick_budget = 0.0
