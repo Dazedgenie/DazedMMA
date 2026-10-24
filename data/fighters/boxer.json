@@ -1,0 +1,16 @@
+{
+	"schema": "fighter@1",
+	"id": "boxer",
+	"name": "Boxer",
+	"template": null,
+	"frame": { "height_cm": 175, "reach_cm": 178, "build": "stocky" },
+	"stance": "orthodox",
+	"stats": { "boxing": 65, "power": 60, "chin": 55, "footwork": 50, "striking_defense": 50 },
+	"personality": { "ego": 0, "discipline": 0, "coachable": 0, "loyal": 0 },
+	"style": { "pace": 40, "range": 50, "base": 0, "risk": 0 },
+	"gifts": [],
+	"flaws": [],
+	"techniques": ["jab", "cross", "hook"],
+	"tendencies": { "work_rate": 0.03, "actions": {} },
+	"tells": []
+}

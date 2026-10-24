@@ -1,0 +1,8 @@
+{
+	"schema": "enum@1",
+	"id": "flaws",
+	"values": {
+		"glass_jaw": "Glass jaw", "bleeder": "Bleeder", "brittle_hands": "Brittle hands",
+		"fragile": "Fragile", "slow_healer": "Slow healer", "hard_cut": "Hard cut"
+	}
+}

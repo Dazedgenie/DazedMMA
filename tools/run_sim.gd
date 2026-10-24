@@ -2,26 +2,35 @@ extends MainLoop
 ## Headless entry point for the simulation layer. Runs without a scene tree.
 ##
 ## Usage:
-##   godot --headless --script res://tools/run_sim.gd [-- --seed=123 --fights=100]
+##   godot --headless --script res://tools/run_sim.gd [-- --seed=123 --fights=100 --fighters=kicker,boxer]
 ##
-## Runs one placeholder fight between a kicker and a boxer (SimCheck.showcase_fighters)
-## and prints a summary; with --fights=N it runs N seeds and prints how they ended.
+## Runs one placeholder fight between two fighters from data/fighters (default:
+## the showcase kicker and boxer) and prints a summary; with --fights=N it runs N
+## seeds and prints how they ended.
 ## Later it becomes the balance harness (docs/10-prototype-spec.md, issue #18).
 
 
 func _initialize() -> void:
 	var fight_seed: int = 1
 	var fights: int = 1
+	var pair: PackedStringArray = ["kicker", "boxer"]
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--seed="):
 			fight_seed = int(arg.trim_prefix("--seed="))
 		elif arg.begins_with("--fights="):
 			fights = int(arg.trim_prefix("--fights="))
+		elif arg.begins_with("--fighters="):
+			pair = arg.trim_prefix("--fighters=").split(",")
 	var actions := ActionLibrary.load_dir()
+	var roster := FighterLibrary.load_dir()
+	for id in pair:
+		if not roster.has(id):
+			printerr("No fighter '%s' in data/fighters (have: %s)" % [id, ", ".join(roster.ids())])
+			return
 	if fights > 1:
-		_many(fight_seed, fights, actions)
+		_many(fight_seed, fights, actions, roster, pair)
 		return
-	var sim := FightSim.new(fight_seed, SimCheck.showcase_fighters(), actions)
+	var sim := FightSim.new(fight_seed, roster.make_pair(pair[0], pair[1]), actions)
 	var clock: FightClock = sim.clock  # Captured instead of sim, so the listener doesn't keep sim alive.
 	var started: int = Time.get_ticks_msec()
 	var counts: Dictionary = {}
@@ -41,10 +50,10 @@ func _initialize() -> void:
 
 
 ## N fights on consecutive seeds: how often each fighter wins, and how.
-func _many(first_seed: int, fights: int, actions: ActionLibrary) -> void:
+func _many(first_seed: int, fights: int, actions: ActionLibrary, roster: FighterLibrary, pair: PackedStringArray) -> void:
 	var tally: Dictionary = {}
 	for n in fights:
-		var sim := FightSim.new(first_seed + n, SimCheck.showcase_fighters(), actions)
+		var sim := FightSim.new(first_seed + n, roster.make_pair(pair[0], pair[1]), actions)
 		sim.run_to_end()
 		var end: FightEvent = sim.events[-1]
 		var key: String = "%s by %s" % ["draw" if end.data.winner < 0 else sim.fighters[end.data.winner].name, end.data.result]

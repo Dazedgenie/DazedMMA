@@ -12,7 +12,7 @@ Rules (docs/04-tech-and-production.md §2.2):
 ## fight/
 | File | Role |
 |---|---|
-| `fight_sim.gd` | The fight: `tick()` = 100 ms. Owns time, movement and resolution. Commands in (`submit`), events out (`events`, `event_emitted`). `FightSim.replay(seed, fighters, actions, command_log)` rebuilds a fight exactly |
+| `fight_sim.gd` | The fight: `tick()` = 100 ms. Owns time, movement and resolution. Commands in (`submit`), events out (`events`, `event_emitted`). `record()` / `FightSim.from_record()` save and rebuild a fight from seed + fighter ids + commands |
 | `decision_layer.gd` | What a free fighter starts: one priority stack, command → live call → drilled rule → AI (`docs/01` §19) |
 | `fight_view.gd` | The read-only view of the fight a decision step sees |
 | `decision.gd` / `decision_source.gd` | A decision (action, layer, reason) and the base for layers that claim or bias it |
@@ -29,6 +29,7 @@ Rules (docs/04-tech-and-production.md §2.2):
 | `contest.gd` | The one odds formula every exchange uses (`docs/11` §3.1) |
 | `style_leanings.gd` | Pace / Range / Base / Risk leanings, hints and named style traits (`docs/11` §4.2) |
 | `action_library.gd` | Loads `data/actions/*.json` |
+| `fighter_library.gd` | Loads `data/fighters/*.json` (fighter@1), fills in templates, makes fresh `FighterState`s |
 
 ## world/
 Empty for now: the career and world simulation (D100) starts here.
