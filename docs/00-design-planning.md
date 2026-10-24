@@ -1,7 +1,7 @@
 # Chin Check — Design Planning (v1)
 
 > Status: **v1: design signed off for Phase 0 wrap-up.** Working title **Chin Check** (D81); the repo stays `DazedMMA`.
-> Decisions D1–D84 are binding unless revisited on purpose. Anything still marked **[ASSUMPTION]**
+> Decisions D1–D102 are binding unless revisited on purpose. Anything still marked **[ASSUMPTION]**
 > in older sections has been superseded by the decisions log and the per-system docs.
 
 Inspiration: *Boxing School* (Steam app 939990). It's a management/coaching sim where you shape a
@@ -104,6 +104,18 @@ boxer between fights and influence bouts from the corner. Chin Check takes that 
 | D88 | Style visibility | **Fuzzy hint** once a leaning passes ±30 | e.g. "leaning aggressive". Raw numbers in the debug overlay only. |
 | D89 | Losing style traits | **Yes** | Trait fades below ±40; style changes much more slowly after ~30. |
 | D90 | Gifts & flaws | **0–2 gifts, 0–1 flaw rolled at creation; some hidden until discovered** | e.g. Bleeder shows after the first cut. See `11` §4.3. |
+| D91 | Prototype fight speed | **Build the speed control first; playtest at 1× and 2×** | D9's 2× stays the target, but the catch-kick window is only ~0.45 s real time at 2×. The playtest decides. See `12` §4. |
+| D92 | Call delay unit | **Fight time** | The 0.6 s base delay in `01` §6.2 is 6 ticks of fight time, so the simulation stays speed-independent. |
+| D93 | Reaction time inside a primed read or drilled rule | **2 ticks at Speed 50, 1 at Speed 100, 3 at Speed 0, stretched by fatigue** | One derived number in `FighterState`, shared by read calls (#16), drilled rules (#17) and the AI (#14). |
+| D94 | Fighter data format | **One `fighter` schema for authored profiles and generated fighters** | Authored opponents (tells) and the ~600 generated fighters use the same file, with an optional archetype template field. See `09`, `12` §3. |
+| D95 | Harness before AI | **A minimal balance harness (#18) lands before the fighter AI (#14)** | The AI is tuned against numbers, not by eye. Coaching bots join when calls exist (#16). |
+| D96 | Fatigue | **Earned, not automatic** | A fighter who pushed the pace, had it pushed on them, or took heavy body damage ends round 3 at ~30–50% of the tank. A slow tit-for-tat fight can leave both fresh. Movement costs stamina. Harness target, see `12` §4. |
+| D97 | Even rounds | **10-10 rounds are very rare; draws under 2%** | Judges pick a winner unless nothing happened. Tightens `01` §18. |
+| D98 | Ground scope for the playtest | **Trimmed**: clinch, takedowns, sprawl, full guard top/bottom, get up, scramble | Side control, mount, guard passing and ground-and-pound come after the Phase 1 playtest. Refines `10` §1 and #15. |
+| D99 | Between rounds | **Rocked and panic clear in the corner; stamina recovers (Recovery); head and leg damage do not** | Replaces the "damage recovered between rounds" wording in `11` §2.2. |
+| D100 | World and career simulation | **Pure, in `sim/world/`** | Same rules as the fight engine (no scene tree, seeded), so 30-year world sims can run in CI (R6). The game layer only schedules it. |
+| D101 | Renderer | **Compatibility** | Switch before the grey-box view (#19). Smooth on most machines first, looks second. |
+| D102 | Pre-coding review | **Filed as `12-pre-coding-review.md`; priority items tracked as GitHub issues** | Structure work lands before #14–#17. |
 
 ### Per-system design docs
 - [`01-fight-engine.md`](01-fight-engine.md): simulation, positions, coaching calls, tells, corner, scoring
@@ -117,6 +129,7 @@ boxer between fights and influence bouts from the corner. Chin Check takes that 
 - [`09-data-formats.md`](09-data-formats.md): JSON content formats + what the validator checks
 - [`10-prototype-spec.md`](10-prototype-spec.md): Phase 1 fight prototype, the "kick → takedown" test
 - [`11-attributes-and-traits.md`](11-attributes-and-traits.md): attribute list, how stats enter a fight, trait layers (incl. style from training habits)
+- [`12-pre-coding-review.md`](12-pre-coding-review.md): structural review before heavy coding (2026-10-24), baseline numbers, D91–D102
 
 ---
 
