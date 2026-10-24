@@ -19,6 +19,7 @@
 ### 2.1 Language
 - **GDScript** (Python-like, quick to learn, and there's plenty of training data for AI help). Use typed GDScript (`var hp: int`) for safety.
 - Revisit C# only if the headless simulation gets too slow (unlikely at this scale).
+- **Renderer: Compatibility** (D101). Low-poly isometric needs nothing Forward+ offers, and Compatibility runs on far more playtest machines.
 
 ### 2.2 Layering
 
@@ -45,6 +46,7 @@
 Key rules:
 - The simulation **emits events** (`KickThrown`, `TakedownAttempt`, `CallIgnored`...). The presentation and commentary listen to them.
 - The simulation never reads the clock or input directly. Commands come in through a queue.
+- The **world and career simulation follow the same rules** (`sim/world/`, D100), so long-run world sims can run in CI. The game layer schedules; it never holds rules.
 - **Seeded RNG** everywhere, so any fight can be replayed exactly from seed + command log (great for bug reports).
 
 ### 2.3 Tooling

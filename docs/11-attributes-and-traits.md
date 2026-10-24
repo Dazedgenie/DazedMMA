@@ -48,7 +48,7 @@ Problems found while reading:
 | Physical | **Strength** | Wins clinch and grappling contests (control, escapes, finishing takedowns) | Small damage bonus; walk-around weight |
 | | **Speed** *(absorbs Explosiveness)* | Shortens telegraph and wind-up on every action; faster reactions for read calls and drilled rules | Burst on shots; hit chance on fast strikes |
 | | **Cardio** | Size of the stamina tank and how fast it refills during a round | How much the tank shrinks round to round |
-| | **Recovery** | Stamina and damage recovered between rounds; how fast "rocked" wears off | Healing between fights; training fatigue |
+| | **Recovery** | Stamina recovered between rounds (head and leg damage don't come back, D99); how fast "rocked" wears off | Healing between fights; training fatigue |
 | | **Durability** | Resists body and leg damage | Injury risk in training |
 | | **Chin** | How much head damage before rocked / knockdown / KO | Wears down over a career (KO losses and wars chip it) |
 | Striking | **Boxing** | Punch accuracy and combo flow | |
@@ -141,7 +141,7 @@ in `sim/fighter_state.gd`, `sim/fight_sim.gd` and `sim/contest.gd`.
 |---|---|
 | Contest formula (§3.1) | `Contest.chance`, used for every strike. `FightSim.odds()` gives takedowns and sprawls their odds the same way (base from data, opportunity bonuses from the opponent's flags, 0 if a `required` opportunity is missing); applying a takedown's result waits for #15 |
 | Stamina tank | 60 + 0.8 × Cardio points (Cardio 50 = 100). Refills 0.6 + 1.2 × Cardio/100 per second. Every move costs its `stamina_cost` when it starts |
-| Corner | Wins back 30% + Recovery/2 % of the missing stamina (Recovery 50 = 55%) |
+| Corner | Wins back 30% + Recovery/2 % of the missing stamina (Recovery 50 = 55%). Rocked ends; damage stays (D99) |
 | Tired | Below half a tank, physical and technique stats fall linearly to −30% at empty. Cardio, Recovery, Durability, Chin and the mental stats don't |
 | Hurt | "Fully hurt" = 10 × (Chin + 50) head damage, 10 × (Durability + 50) body or leg damage. Head: Speed, Striking defense, Fight IQ up to −30%. Legs: Footwork, Speed, Kicking up to −30%. Body: stamina tank up to −30% |
 | Panic | When head hurt reaches 40% + Composure/2 % (Composure 50 = 65%): Fight IQ and the defense stats −20%, Power +15%, 20% busier |
@@ -149,8 +149,8 @@ in `sim/fighter_state.gd`, `sim/fight_sim.gd` and `sim/contest.gd`.
 | Style leanings (§4.2) | Four leanings with the ±30 hint, ±60 trait and ±40 fade lines. The placeholder AI reads them: Pace (+100 = 1.5× as busy, −100 = half) and Base (+100 doubles takedowns and halves strikes, −100 never shoots). With the standing game (`01` §18), Range sets how far apart they like to stand and Risk how hard they swarm a rocked opponent |
 | Debug | The console summary shows stamina, panic and worn-down stats as *Boxing 70 → 49 (tired)*, plus style hints and traits; strike lines show the odds they were rolled at |
 
-Not yet: rocked/knockdowns and damage recovery between rounds (#13), what named style traits actually do in a fight,
-and pushing leanings from training, gameplans and calls (those systems don't exist yet).
+Not yet: what named style traits actually do in a fight, and pushing leanings from training, gameplans and calls (those systems
+don't exist yet). Rocked and knockdowns landed with #13; the corner clears rocked and panic but not damage (D99).
 
 ---
 

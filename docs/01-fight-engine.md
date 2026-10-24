@@ -144,7 +144,7 @@ players combine them: prime the read, then follow up with a now call.
 ```
 Player presses call
    └─► Voice check (D28): costs voice; low voice = garbled call
-        └─► Delay = base 0.6 s
+        └─► Delay = base 0.6 s of fight time (6 ticks, D92)
                     × (1 - FightIQ bonus)
                     × (1 - CoachTrust bonus)
                     × (1 + fatigue + damage + crowd noise penalties)
@@ -321,8 +321,8 @@ constants in `sim/octagon.gd`, `sim/fight_sim.gd` and `sim/judging.gd`. Stat eff
 | Rocked | Head shots only. Shock = damage × (1 + head hurt) / (6 + 0.12 × Chin). Rock chance = (shock − 0.6) × 0.5, up to 60%: a jab never rocks a fresh fighter, a clean hook or head kick can. Rocked lasts 4 s × (1.5 − Recovery/100): Speed, Striking defense, Fight IQ −30% more, hands drop, they back off and mostly cover up, and the opponent swarms (more with a Wild Risk leaning) |
 | Knockdown | Rocked again while rocked. Down for 2 s (nobody hits a downed fighter until the ground game exists), then up and rocked |
 | KO / TKO | KO roll on each knockdown: 15% + (shock − 1) × 50%, 5–80%, × (1.5 − Heart/100). TKO on a third knockdown in a round, or a rock with the head fully hurt |
-| Judges | Three judges, 10-point must. A round's points = damage landed (head ×1, body ×0.8, legs ×0.6) + 8 per rock + 20 per knockdown; each judge sees each fighter's points ±15%. Within 5% = 10-10; 10-8 for two more knockdowns or out-landing 3 to 1 in a busy round. Decision: unanimous / split / majority / draw |
+| Judges | Three judges, 10-point must. A round's points = damage landed (head ×1, body ×0.8, legs ×0.6) + 8 per rock + 20 per knockdown; each judge sees each fighter's points ±15%. Within 5% = 10-10 (too generous: D97 wants 10-10 rounds very rare and draws under 2%); 10-8 for two more knockdowns or out-landing 3 to 1 in a busy round. Decision: unanimous / split / majority / draw |
 | Events | `range_changed`, `cage_changed` (announced once held for 0.5 s), `rocked`, `knockdown`, `got_up`, `recovered`; strikes carry `counter` and, when they fall short, a `reason` |
 
 Not yet: leg damage giving out, liver shots, cuts, aggression and cage control on the cards, judge personalities and fouls (D20),
-and anything clinch or ground (#15).
+and anything clinch or ground (#15). Fatigue never shows with the current costs (D96, `12` §4).

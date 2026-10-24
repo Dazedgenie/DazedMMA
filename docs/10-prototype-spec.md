@@ -9,9 +9,9 @@
 
 ### In
 - Headless `FightSim` (tick-based, seeded) per `01-fight-engine.md` §2–§8 (simplified).
-- **Positions:** Standing (distance bands + cage proximity), Cage clinch, Ground: Full guard top/bottom, Side control, Mount, Scramble.
+- **Positions:** Standing (distance bands + cage proximity), Cage clinch, Ground: Full guard top/bottom, Scramble. *Side control and Mount moved to after the playtest (D98).*
 - **Actions (~15):** jab, cross, hook, leg kick, body kick, head kick, teep, knee, double leg, single leg, catch-kick single,
-  sprawl, clinch entry, clinch break, ground-and-pound, guard pass, get up, sweep.
+  sprawl, clinch entry, clinch break, get up, sweep. *Ground-and-pound and guard pass after the playtest (D98).*
 - **Calls (9):** Pressure, Circle out, Work the range, Takedown, Clinch, Defend the shot, Get up, Survive, Stay safe,
   plus **one read call: "Catch the kick!"**
 - **Voice meter**, call delay, compliance (ego/trust), the visible processing ring.
@@ -71,7 +71,7 @@ Merged acceptance tests from the Foundation doc (A13):
 
 1. **Week 1:** Godot learning + project skeleton + CI + first sim test (two fighters trade jabs headless).
 2. **Weeks 2–3:** Standing game: distance, cage, action phases, flags, damage, stamina. Harness v1.
-3. **Week 4:** Clinch + takedowns (incl. catch-kick) + sprawl + simple ground.
+3. **Week 4:** Clinch + takedowns (incl. catch-kick) + sprawl + simple ground (trimmed per D98). The balance harness v1 comes before the AI (D95).
 4. **Week 5:** Calls, delay, voice, compliance, read call. "Ideal caller" and "spam caller" bots.
 5. **Week 6:** Grey-box view, slow-mo, feed, debug overlay.
 6. **Weeks 7–8:** Tuning + playtests (you plus 2–4 friends) + write-up → go / adjust / rethink.
@@ -84,6 +84,7 @@ Merged acceptance tests from the Foundation doc (A13):
 - **Perfect-call flourish** (D52) and **auto slow-mo** on rocked/knockdown (D53).
 - **Active pause** behind an "Easy" toggle (D50).
 - **Keyboard + mouse**: hotkeys 1–9 + clickable call bar (D54).
+- **Speed control first** (D91): the playtest compares 1× and 2× fight speed before D9's 2× is confirmed.
 - **Playtest build**: Windows export + a feedback form for friends and the Discord (D62).
 
 ## 6. Approval checklist
