@@ -79,3 +79,20 @@ func test_results_sort_into_ko_tko_decision_or_draw() -> void:
 	assert_eq(FightSummary.method_of(Judging.DRAW), FightSummary.METHOD_DRAW)
 	for verdict: String in [Judging.UNANIMOUS, Judging.SPLIT, Judging.MAJORITY]:
 		assert_eq(FightSummary.method_of(verdict), FightSummary.METHOD_DECISION)
+
+
+func test_movement_columns_are_shares_of_standing_time() -> void:
+	var row: Dictionary = _row()
+	for column: String in ["fence_red", "pinned_red", "centre_red", "fence_blue", "pinned_blue", "centre_blue", "chase"]:
+		assert_between(float(row[column]), 0.0, 1.0, column)
+	for side: String in FightSummary.SIDES:
+		assert_lte(row["pinned_" + side], row["fence_" + side], "pinned on the fence is part of the time near it")
+	assert_lte(row.centre_red + row.centre_blue, 1.001, "only one fighter can be nearer the centre at a time")
+
+
+func test_a_row_made_without_movement_counts_has_no_movement() -> void:
+	var sim := FightSim.new(SEED, _roster.make_pair("kicker", "boxer"), _actions, 1, 60)
+	sim.run_to_end()
+	var row: Dictionary = FightSummary.of(sim)
+	assert_eq(row.chase, 0.0)
+	assert_eq(row.fence_red, 0.0)

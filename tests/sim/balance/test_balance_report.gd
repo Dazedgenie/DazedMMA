@@ -55,10 +55,18 @@ func test_ten_ten_cards_count_against_all_judges_cards() -> void:
 
 
 func test_the_showcase_pair_is_checked_in_either_corner() -> void:
-	var lopsided: Array[Dictionary] = [_row(), _row(), _row(), _row({ "winner": "blue" })]
+	var lopsided: Array[Dictionary] = [_row(), _row(), _row(), _row({ "winner": "blue", "winner_id": "boxer" })]
 	assert_eq(_check(_report(lopsided), "Kicker vs Boxer").status, BalanceReport.MISSED, "75/25 is outside 60/40")
-	var swapped: Array[Dictionary] = [_row({ "red": "boxer", "blue": "kicker" }), _row({ "red": "boxer", "blue": "kicker", "winner": "blue" })]
+	var swapped: Array[Dictionary] = [_row({ "red": "boxer", "blue": "kicker", "winner_id": "boxer" }), _row({ "red": "boxer", "blue": "kicker", "winner": "blue", "winner_id": "kicker" })]
 	assert_eq(_check(_report(swapped), "Kicker vs Boxer").status, BalanceReport.MET, "50/50 with the corners swapped")
+
+
+func test_the_showcase_check_counts_wins_by_fighter_not_by_corner() -> void:
+	# Red wins all four, but the Kicker and the Boxer each won two.
+	var rows: Array[Dictionary] = [_row(), _row(), _row({ "red": "boxer", "blue": "kicker", "winner_id": "boxer" }), _row({ "red": "boxer", "blue": "kicker", "winner_id": "boxer" })]
+	var c: Dictionary = _check(_report(rows), "Kicker vs Boxer")
+	assert_eq(c.status, BalanceReport.MET)
+	assert_eq(c.value, "favourite wins 50.0%")
 
 
 func test_other_pairs_skip_the_showcase_check() -> void:
@@ -94,6 +102,19 @@ func test_the_summary_has_a_block_per_pair_and_the_targets() -> void:
 	assert_string_contains(text, "Boxer (red) vs Boxer (blue): 1 fights")
 	assert_string_contains(text, "Targets (all 2 fights)")
 	assert_string_contains(text, "MET     Draws under 2%")
+
+
+func test_the_fence_check_follows_whichever_fighter_is_on_the_fence_more() -> void:
+	var rows: Array[Dictionary] = [_row({ "fence_red": 0.8, "fence_blue": 0.1 }), _row({ "fence_red": 0.2, "fence_blue": 0.4 })]
+	assert_almost_eq(BalanceReport.fenced_share(rows), 0.6, 0.0001)
+	assert_eq(_check(_report(rows), "Standing time the more-fenced").value, "60.0%")
+
+
+func test_the_summary_says_how_the_fighters_moved() -> void:
+	var text: String = _report([_row({ "fence_red": 0.5, "pinned_red": 0.25, "centre_blue": 0.75, "chase": 0.4 })]).summary({ "kicker": "Kicker", "boxer": "Boxer" })
+	assert_string_contains(text, "near the fence: Kicker (red) 50.0% (pinned 25.0%)")
+	assert_string_contains(text, "Boxer (blue) 75.0%")
+	assert_string_contains(text, "chasing 40.0%")
 
 
 func test_harness_rows_from_real_fights_feed_the_report() -> void:

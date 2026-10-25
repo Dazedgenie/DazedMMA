@@ -55,8 +55,10 @@ Key rules:
   Target from D12: ~80% for the clearly better fighter, and coaching worth +10–20%.
   v1 (#18, D95) is `tools/balance.gd`: fighter pairs from `data/fighters/`, one CSV line per fight and a summary that marks
   each target as met or missed: draws under 2% and 10-10 on under 2% of judges' round cards (D97), Kicker vs Boxer within
-  60/40 (#14's exit test, `12` §4). Fatigue (D96), finish rate and how often the odds clamp bites are reported without a
-  pass mark yet. Coaching bots (ideal / spam / none) join with live calls (#16).
+  60/40 (#14's exit test, `12` §4, counted by fighter whichever corner they were in). Fatigue (D96), finish rate and how
+  often the odds clamp bites are reported without a pass mark yet, and so is movement (D107): per pair, each fighter's
+  share of standing time near the fence and pinned, who was nearer the centre, and how much of the fight was one fighter
+  chasing the other. Coaching bots (ideal / spam / none) join with live calls (#16).
 - **CI**: GitHub Actions running headless Godot tests on every PR.
 - **Debug overlay** in the fight view: raw stats, flags, action phases, AI scores.
 

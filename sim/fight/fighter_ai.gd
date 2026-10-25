@@ -162,6 +162,39 @@ const PRESSED_BY: float = 0.1
 const FENCE_SENSE: float = 1.5
 ## Closer to the centre than this, no fence is within FENCE_SENSE (Octagon.CLEAR_INSIDE).
 const CLEAR_OF_FENCE: float = Octagon.APOTHEM - Octagon.BODY_MARGIN - FENCE_SENSE - 0.01
+## Holding the centre (D107): pressed by an opponent who can't do much from where they
+## stand (the opponent's share of the danger there under this), fighters hold their
+## ground instead of backing up. Once the opponent gets into range of their own weapons
+## they give ground, all the way back to their spot, and then hold again.
+const HOLD_DANGER: float = 0.15
+## Back toward the centre (D107): further from the middle than the opponent, outside
+## fighters giving ground (or while the opponent is busy throwing) circle round them
+## toward it, harder the further out they are (CENTRE_PULL × outside, all of it from
+## CENTRE_PULL_OVER metres further out), and pivot more than they back off: that share
+## (PIVOT × outside × how much further out) of the backing up goes.
+const CENTRE_PULL: float = 1.0
+const CENTRE_PULL_OVER: float = 1.0
+const PIVOT: float = 1.0
+## Cutting off the cage (D107): pressing, fighters step sideways to stay between the
+## opponent and the middle (the sim scales it by the Footwork contest). Range 0 cuts this
+## much, ± CUT_PER_RANGE at Range ±100.
+const CUT_BASE: float = 0.6
+const CUT_PER_RANGE: float = 0.4
+## Getting off the fence (D107): backed onto it, outside fighters plant and fight, and
+## try to circle out (all they can for ESCAPE_TICKS, toward the middle side, or either
+## way at random when neither is clearly more open) the moment the opponent commits to
+## a move, or on a chance of ESCAPE_RATE × outside a tick.
+const ESCAPE_RATE: float = 0.5
+const ESCAPE_TICKS: int = 15
+## Switching direction (D107): away from the fence (further than SWITCH_FENCE), circling
+## fighters think again every SWITCH_EVERY ticks and change direction on a chance of
+## SWITCH_CHANCE, so they don't circle the same way all fight. Closer to the fence they
+## circle toward the middle.
+const SWITCH_EVERY: int = 30
+const SWITCH_CHANCE: float = 0.4
+const SWITCH_FENCE: float = 0.8
+## Closer to the centre than this, the fence is further than SWITCH_FENCE.
+const CLEAR_OF_SWITCH: float = Octagon.APOTHEM - Octagon.BODY_MARGIN - SWITCH_FENCE - 0.01
 
 var _triggers: TriggerLibrary
 var _ready_for: FighterState
@@ -190,10 +223,21 @@ var _danger: Dictionary = {}
 var _last_want: float = 0.0
 ## How hard the feet were told to circle off the fence (0–1, _fence_behind).
 var _off_fence: float = 0.0
+## Giving ground until they're back at their spot (HOLD_DANGER).
+var _giving_ground: bool = false
+## Circling out off the fence until this tick, and which way (±1, as in FightSim.way_toward_middle).
+var _escape_until: int = -1
+var _escape_way: int = 0
+## Which way they circle in open space (±1), thought again at _way_at + SWITCH_EVERY.
+var _way: int = 1
+var _way_at: int = -SWITCH_EVERY
+## Scratch plan for circling(), circle_way() and cutting() asked on their own (tests).
+var _feet := FeetPlan.new()
 ## What preferred_distance saw on tick _feet_at, for circling() on the same tick.
 var _feet_at: int = -1
 var _feet_gap: float = 0.0
 var _feet_outside: float = 0.0
+var _feet_cut: float = 0.0
 ## How fast the opponent walks toward this fighter (m per tick, negative = away),
 ## from where they were seen last; and whether this advance has been met already.
 var _closing: float = 0.0
@@ -663,7 +707,7 @@ func preferred_distance(view: FightView, layer: DecisionLayer) -> float:
 	if not _follow.is_empty() and _follow.kind == TELL:
 		band = _nearest_band(view.actions.get_action(_follow.id).ranges, band)
 	var range_leaning: float = _lean(view, layer, StyleLeanings.RANGE)
-	var pace: float = _lean(view, layer, StyleLeanings.PACE)
+	var pace: float = _leanings[StyleLeanings.PACE]  # _lean just refreshed them all if due.
 	var want: float = band_spot(band, range_leaning, pace)
 	if view.now < _evade_until:
 		want += EVADE_STEP
@@ -673,6 +717,7 @@ func preferred_distance(view: FightView, layer: DecisionLayer) -> float:
 	_feet_at = view.now
 	_feet_gap = gap
 	_feet_outside = clampf(-range_leaning / 100.0, 0.0, 1.0)
+	_feet_cut = clampf(CUT_BASE + CUT_PER_RANGE * range_leaning / 100.0, 0.0, 1.0)
 	var here: String = Octagon.band(gap)
 	if want < gap and o.is_free() and _danger.get(here, 0.0) > 0.0:
 		# Walking into their weapons: stalk, the more carefully the more they out-gun me
@@ -682,10 +727,27 @@ func preferred_distance(view: FightView, layer: DecisionLayer) -> float:
 			stalk += STALK_WHEN_LOSING  # Has to take risks to get inside.
 		stalk = clampf(stalk, 0.1, 1.0)
 		want = maxf(want, gap - (1.0 - (1.0 - stalk) * _danger[here]) * view.step())
+	if want > gap + PRESSED_BY and view.now >= _evade_until and view.now >= _reset_until:
+		# Pressed. Out of the opponent's weapons, hold the ground; in them, give ground
+		# all the way back to the spot before holding again.
+		if _danger.get(here, 1.0) >= HOLD_DANGER:
+			_giving_ground = true
+		if not _giving_ground:
+			want = gap
+	else:
+		_giving_ground = false
 	_off_fence = 0.0
 	if want > gap:
 		_off_fence = _fence_behind(view)
-		want = lerpf(want, gap, _off_fence)
+		if _off_fence > 0.0 and _feet_outside > 0.0 and view.now >= _escape_until \
+				and (not o.is_free() or view.roll() < ESCAPE_RATE * _feet_outside):
+			_escape_until = view.now + ESCAPE_TICKS
+			_escape_way = _way_out(view)
+		var back: float = _off_fence
+		if _feet_outside > 0.0:
+			var further_out: float = view.me.pos.length() - o.pos.length()
+			back = maxf(back, PIVOT * _feet_outside * clampf(further_out / CENTRE_PULL_OVER, 0.0, 1.0))
+		want = gap if view.now < _escape_until and _off_fence > 0.0 else lerpf(want, gap, back)
 	_last_want = clampf(want, Octagon.MIN_GAP, Octagon.LONG_WITHIN + 1.0)
 	return _last_want
 
@@ -706,19 +768,88 @@ func _fence_behind(view: FightView) -> float:
 	return clampf(1.0 - fence / FENCE_SENSE, 0.0, 1.0) * maxf(0.0, into)
 
 
-## How much to circle while moving (0–1): outside fighters circle off the opponent's
-## line, hard when pressed; rocked fighters circle away; everyone else walks straight.
+## This tick's footwork, all in one go (DecisionLayer.plan_feet): the distance
+## (preferred_distance), then circling, which way, and cutting off (_plan_steps).
+func plan_feet(view: FightView, layer: DecisionLayer, out: FeetPlan) -> void:
+	out.want = preferred_distance(view, layer)
+	_plan_steps(view, layer, out)
+
+
+## How much to circle while moving (0–1), as plan_feet works it out.
 func circling(view: FightView, layer: DecisionLayer) -> float:
-	if view.me.is_rocked():
-		return 1.0
-	if view.opponent.is_rocked() or view.opponent.is_down():
-		return 0.0
+	_plan_steps(view, layer, _feet)
+	return _feet.circle
+
+
+## Which way to circle (±1, or 0 for the side toward the middle), as plan_feet works it out.
+func circle_way(view: FightView, layer: DecisionLayer) -> int:
+	_plan_steps(view, layer, _feet)
+	return _feet.way
+
+
+## How hard to cut the cage off (0–1), as plan_feet works it out.
+func cutting(view: FightView, layer: DecisionLayer) -> float:
+	_plan_steps(view, layer, _feet)
+	return _feet.cut
+
+
+## Everything but the distance, after preferred_distance:
+##  - Circling (0–1): outside fighters circle off the opponent's line, hard when giving
+##    ground, and round the opponent back toward the middle when they're further out
+##    (or the opponent is busy throwing); circling out off the fence, all they can;
+##    rocked fighters circle away; everyone else walks straight.
+##  - Which way: circling out off the fence, the way picked when the escape started;
+##    close to the fence, the side toward the middle (0); in open space their own way,
+##    thought again every SWITCH_EVERY ticks.
+##  - Cutting off (0–1): pressing or holding, step sideways to stay between the opponent
+##    and the middle. Not while giving ground, rocked, or swarming a hurt opponent.
+func _plan_steps(view: FightView, layer: DecisionLayer, out: FeetPlan) -> void:
+	var me: FighterState = view.me
+	var o: FighterState = view.opponent
+	out.way = 0
+	out.cut = 0.0
+	if me.is_rocked():
+		out.circle = 1.0
+		return
+	if o.is_rocked() or o.is_down():
+		out.circle = 0.0
+		return
 	if _feet_at != view.now:  # preferred_distance didn't get as far this tick.
+		_feet_at = view.now
 		_feet_gap = view.distance()
-		_feet_outside = clampf(-_lean(view, layer, StyleLeanings.RANGE) / 100.0, 0.0, 1.0)
+		var range_leaning: float = _lean(view, layer, StyleLeanings.RANGE)
+		_feet_outside = clampf(-range_leaning / 100.0, 0.0, 1.0)
+		_feet_cut = clampf(CUT_BASE + CUT_PER_RANGE * range_leaning / 100.0, 0.0, 1.0)
 		_off_fence = 0.0
+	if view.now < _escape_until and _off_fence > 0.0:
+		out.circle = 1.0
+		out.way = _escape_way
+		return
 	var pressed: bool = _feet_gap < _last_want - PRESSED_BY
-	return maxf(_feet_outside * (CIRCLE_PRESSED if pressed else CIRCLE_FREE), _off_fence)
+	var free_to_move: bool = pressed and _off_fence <= 0.0
+	out.circle = _feet_outside * (CIRCLE_PRESSED if free_to_move else CIRCLE_FREE)
+	if out.circle > 0.0:
+		var further_out: float = me.pos.length() - o.pos.length()
+		if further_out > 0.0 and (free_to_move or not o.is_free()):
+			out.circle = maxf(out.circle, _feet_outside * CENTRE_PULL * minf(further_out / CENTRE_PULL_OVER, 1.0))
+		if view.now >= _way_at + SWITCH_EVERY or view.now < _way_at:
+			_way_at = view.now
+			if view.roll() < SWITCH_CHANCE:
+				_way = -_way
+		if me.pos.length_squared() < CLEAR_OF_SWITCH * CLEAR_OF_SWITCH \
+				or Octagon.distance_to_fence(me.pos) - Octagon.BODY_MARGIN >= SWITCH_FENCE:
+			out.way = _way  # Near the fence it stays 0: the feet take the side toward the middle.
+	if not _giving_ground and not pressed:
+		out.cut = _feet_cut
+
+
+## The way out off the fence: toward the middle when one side clearly is, else a coin flip.
+func _way_out(view: FightView) -> int:
+	var gap: Vector2 = view.opponent.pos - view.me.pos
+	var way: int = FightSim.way_toward_middle(view.me.pos, gap.normalized() if gap.length() > 0.0 else Vector2.RIGHT)
+	if way != 0:
+		return way
+	return 1 if view.roll() < 0.5 else -1
 
 
 ## Where in a band to stand: its centre, Range +100 0.25 m closer and Pace +100 0.15 m
@@ -991,6 +1122,8 @@ func _new_round() -> void:
 	_chain = 0
 	_reset_until = -1
 	_evade_until = -1
+	_giving_ground = false
+	_escape_until = -1
 	_plan_band = ""
 	_band_scores = {}
 	_danger = {}

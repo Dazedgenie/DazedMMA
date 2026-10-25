@@ -19,6 +19,11 @@ var ruleset: Ruleset
 ## The tick being decided.
 var now: int = 0
 var _sim_ref: WeakRef
+## The fight's seeded RNG and its position state, held directly: roll() and band()
+## run several times a tick, and neither points back at the sim, so holding them
+## doesn't keep a finished fight alive.
+var _rng: RandomNumberGenerator
+var _situation: Situation
 
 
 func _init(p_sim: FightSim, p_index: int) -> void:
@@ -28,10 +33,13 @@ func _init(p_sim: FightSim, p_index: int) -> void:
 	opponent = p_sim.fighters[1 - p_index]
 	actions = p_sim.actions
 	ruleset = p_sim.ruleset
+	_rng = p_sim.rng_for_views()
+	_situation = p_sim.situation
 
 
 func band() -> String:
-	return _sim_ref.get_ref().band()
+	# As FightSim.band(), without the trip through the sim.
+	return Octagon.band(distance()) if _situation.is_standing() else Octagon.BAND_CLINCH
 
 
 ## How fast this fighter walks right now, in metres per tick (legs hurt = slower).
@@ -40,7 +48,7 @@ func step() -> float:
 
 
 func distance() -> float:
-	return _sim_ref.get_ref().distance()
+	return me.pos.distance_to(opponent.pos)  # As FightSim.distance(), without the trip through the sim.
 
 
 ## The current position id (e.g. "standing", "full_guard"), its phase, and roles.
@@ -144,9 +152,10 @@ func why_not(action_id: String) -> String:
 
 
 func roll() -> float:
-	return _sim_ref.get_ref().roll()
+	return _rng.randf()  # The same draw as FightSim.roll().
 
 
-## band(), step(), distance() and roll() run every tick, so they read _sim_ref directly.
+## step() runs every tick, so it reads _sim_ref directly; band(), distance() and
+## roll() skip the sim altogether.
 func _sim() -> FightSim:
 	return _sim_ref.get_ref()

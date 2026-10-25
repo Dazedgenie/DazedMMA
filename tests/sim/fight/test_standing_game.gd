@@ -83,20 +83,29 @@ func test_backing_onto_the_fence_gets_you_pinned_with_your_back_to_the_cage() ->
 	assert_eq(sim.cage_proximity(0), Octagon.CAGE_NEAR)
 
 
-func test_better_footwork_spends_less_time_pinned() -> void:
+func test_better_footwork_gets_off_the_fence_sooner() -> void:
+	# The mover starts pinned, the presser in front of them cutting off the way out (D107).
 	var pinned: Array[int] = []
-	for footwork in [20, 90]:
+	for footwork in [20, 50, 90]:
 		var sim: FightSim = _sim(
 			FighterState.new("Presser", { "footwork": 50 }, ["hook"], 0.0, StyleLeanings.new({ "range": 100, "pace": 100 })),
 			FighterState.new("Mover", { "footwork": footwork }, ["head_kick"], 0.0, StyleLeanings.new({ "range": -100 })))
+		_place(sim, Vector2(2.7, 0.0), Vector2(3.9, 0.0))
 		var ticks: int = 0
-		for i in 600:
+		for i in 300:
 			sim.tick()
 			if sim.cage_proximity(1) == Octagon.CAGE_PINNED:
 				ticks += 1
 		pinned.append(ticks)
-	assert_gt(pinned[0], 0, "a slow-footed mover should get pinned")
-	assert_lt(pinned[1], pinned[0], "pinned ticks with Footwork 20 vs 90: %s" % [pinned])
+	assert_gt(pinned[0], 200, "Footwork 20 against 50 stays trapped: %s" % [pinned])
+	assert_lt(pinned[1], 50, "even feet get out: %s" % [pinned])
+	assert_lte(pinned[2], pinned[1], "and better feet get out at least as fast: %s" % [pinned])
+
+
+func test_even_feet_get_all_of_a_chase_and_worse_feet_a_lot_less() -> void:
+	assert_eq(FightSim.footwork_edge(0.5), 1.0)
+	assert_almost_eq(FightSim.footwork_edge(0.3), 0.36, 0.0001, "the Boxer's Footwork 50 against the Kicker's 70")
+	assert_eq(FightSim.footwork_edge(0.7), 1.0)
 
 
 # --- Flags and counters (each flag's bonus, issue #13 "done when") --------------

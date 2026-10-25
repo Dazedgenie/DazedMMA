@@ -29,6 +29,8 @@ var ai: FighterAI
 ## Every live call for this fighter goes through here (delay, compliance, feasibility).
 var calls: LiveCalls
 var sources: Array[DecisionSource] = []
+## This fighter's footwork, refilled by plan_feet.
+var feet := FeetPlan.new()
 ## The sources that can claim the choice, in CLAIM_ORDER.
 var _claimers: Array[DecisionSource] = []
 ## Outcomes the sources reported this tick, for the sim to log: [{type, data}].
@@ -58,6 +60,13 @@ func preferred_distance(view: FightView) -> float:
 ## How much this fighter circles while they move (0 = straight in or out, 1 = all they can).
 func circling(view: FightView) -> float:
 	return ai.circling(view, self)
+
+
+## This tick's footwork in one go (the sim asks once per free standing tick): distance,
+## circling and which way, and cutting the cage off. The same FeetPlan comes back every time.
+func plan_feet(view: FightView) -> FeetPlan:
+	ai.plan_feet(view, self, feet)
+	return feet
 
 
 func decide(view: FightView) -> Decision:
