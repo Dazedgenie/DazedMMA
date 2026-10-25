@@ -43,6 +43,11 @@ static func line(event: FightEvent, sim: FightSim) -> String:
 	return stamp + _describe(event, sim)
 
 
+## The event in words (BBCode) without the time stamp: the fight screen's feed adds its own clock.
+static func describe(event: FightEvent, sim: FightSim) -> String:
+	return _describe(event, sim)
+
+
 static func _describe(event: FightEvent, sim: FightSim) -> String:
 	var who: String = _fighter(event.actor, sim)
 	match event.type:
@@ -158,6 +163,8 @@ static func _stopped(event: FightEvent, sim: FightSim) -> String:
 static func result_text(event: FightEvent, sim: FightSim) -> String:
 	var result: String = event.data.result
 	var how: String = RESULT_NAMES.get(result, result)
+	if event.data.get("stopped_by", "") == FightSim.STOPPED_BY_TOWEL:
+		how += " (the corner threw in the towel)"
 	var cards: String = " (%s)" % _cards(event.data.cards) if event.data.has("cards") else ""
 	var winner: int = int(event.data.get("winner", -1))
 	if winner < 0:

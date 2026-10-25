@@ -40,7 +40,7 @@ const CALL_ANSWERED := "call_answered"
 ## too tired, rocked, no opening …) / missed (busy until the moment had gone)
 const RULE_ANSWERED := "rule_answered"
 const ROUND_ENDED := "round_ended"  # data: {cards: per judge [red, blue]}
-const FIGHT_ENDED := "fight_ended"  # data: {result, winner (-1 = draw), cards? (judges' totals)}
+const FIGHT_ENDED := "fight_ended"  # data: {result, winner (-1 = draw), cards? (judges' totals), stopped_by? ("towel")}
 
 const NO_ACTOR: int = -1
 

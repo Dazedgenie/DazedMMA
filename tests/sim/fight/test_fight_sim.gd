@@ -270,3 +270,30 @@ func test_a_grappler_leaning_shoots_more_and_a_pure_striker_never_shoots() -> vo
 				jab_leads += 1
 	assert_gt(shots[0], jab_leads * 3, "a +100 grappler leads with the shot (4× the weight), jabbing to counter")
 	assert_eq(shots[1], 0)
+
+
+func test_throwing_in_the_towel_ends_the_fight_there_as_a_tko_for_the_other_corner() -> void:
+	var sim := FightSim.new(SEED, _fighters(), _actions)
+	sim.submit(FightCommand.throw_towel(400, 0))
+	sim.run_to_end()
+	var last: FightEvent = sim.events[-1]
+	assert_eq(last.type, FightEvent.FIGHT_ENDED)
+	assert_eq(last.tick, 400, "the fight ends on the towel's tick")
+	assert_eq(last.data.result, FightSim.RESULT_TKO)
+	assert_eq(last.data.winner, 1)
+	assert_eq(last.data.stopped_by, FightSim.STOPPED_BY_TOWEL)
+	var again: FightSim = FightSim.replay(SEED, _fighters(), _actions, sim.command_log_as_dicts())
+	assert_eq(again.events_as_dicts(), sim.events_as_dicts(), "a towel replays from the command log")
+
+
+func test_the_round_so_far_is_readable_without_changing_the_fight() -> void:
+	var watched := FightSim.new(SEED, _fighters(), _actions)
+	var plain := FightSim.new(SEED, _fighters(), _actions)
+	var seen_points: bool = false
+	while not watched.is_over():
+		watched.tick()
+		var points: Array[float] = watched.round_points()
+		seen_points = seen_points or points[0] + points[1] > 0.0
+	plain.run_to_end()
+	assert_true(seen_points, "points add up during a round")
+	assert_eq(watched.events_as_dicts(), plain.events_as_dicts())

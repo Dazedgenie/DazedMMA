@@ -2,5 +2,8 @@
 
 HUD, menus, minigame UI and themes (docs/06-fight-hud.md). Presentation only: no game rules here.
 
-- `debug_console.gd`: developer console in the main scene (toggle with the ` key). "Run test fight" runs `game/sim_check.gd` and prints pass/fail; "Live fight" plays a fight at 2x and prints every event. Lines are formatted by `fight_log_formatter.gd`.
-- `cage_map.gd`: TEMPORARY top-down view of the cage for judging how the AI moves (D106, docs/01 §20.1). The console's **Cage view** box shows it beside the log during a Live fight. Delete once the grey-box fight view (#19) exists.
+- `fight_hud.gd`: HUD v0 for the fight screen (docs/06 §6): top bar, plan panel, opponent corner bubble, feed, voice meter, call bar, and the dialog in the middle (bell, result, menu, towel).
+- `fight_feed.gd`: the feed with its All / Key moments / Explanations filter. `voice_meter.gd`: the voice bar with the garbled zone.
+- `fight_setup.gd`: the screen before a fight (matchup, speed, difficulty, cue toggles, rules, seed). `rule_slots.gd`: the two rule slots and the Drilled slider, used there and between rounds.
+- `debug_overlay.gd`: F3 on the fight screen, the raw numbers behind what's on screen.
+- `debug_console.gd`: developer console (toggle with the ` key). "Run test fight" runs `game/sim_check.gd` and prints pass/fail; the fight on screen is logged here with every odds breakdown. Lines are formatted by `fight_log_formatter.gd`.
