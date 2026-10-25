@@ -86,6 +86,18 @@ func test_a_call_outcome_reads_naturally() -> void:
 	assert_eq(_plain(FightLogFormatter.line(e, _sim)), "R1 0:04.0  t40  Blue can't do the Double-leg takedown call (not possible from this position)")
 
 
+func test_a_call_says_what_was_called_how_much_voice_is_left_and_when_the_fighter_acts() -> void:
+	var e := FightEvent.new(40, 1, FightEvent.CALL_HEARD, 0, { "call_id": "takedown", "voice": 12, "garbled": true, "delay": 9, "trust": 46, "spam": true })
+	assert_eq(_plain(FightLogFormatter.line(e, _sim)), "R1 0:04.0  t40  Red's corner: Takedown!  (voice 12 left · acts in 0.9 s · garbled · spam: trust 46)")
+
+
+func test_a_call_the_fighter_acted_on_names_the_move() -> void:
+	var e := FightEvent.new(46, 1, FightEvent.CALL_ANSWERED, 0, { "call_id": "takedown", "action_id": "catch_kick_single", "outcome": "accepted", "reason": "call after 6 ticks" })
+	assert_eq(_plain(FightLogFormatter.line(e, _sim)), "R1 0:04.6  t46  Red takes the Takedown! call: Catch-kick single leg (call after 6 ticks)")
+	var ignored := FightEvent.new(46, 1, FightEvent.CALL_ANSWERED, 0, { "call_id": "pressure", "outcome": "ignored", "reason": "panicking" })
+	assert_eq(_plain(FightLogFormatter.line(ignored, _sim)), "R1 0:04.6  t46  Red IGNORES the Pressure! call (panicking)")
+
+
 func test_a_change_of_position_says_who_did_it_and_who_is_on_top() -> void:
 	var e := FightEvent.new(50, 1, FightEvent.POSITION_CHANGED, 1, { "action_id": "double_leg", "position": "full_guard", "phase": "ground", "roles": ["bottom", "top"] })
 	assert_eq(_plain(FightLogFormatter.line(e, _sim)), "R1 0:05.0  t50  Blue's Double-leg takedown → Full guard (Blue on top)")
