@@ -4,6 +4,8 @@ extends PanelContainer
 ##
 ## - "Run test fight" plays a short check fight instantly and reports pass/fail (SimCheck).
 ## - "Live fight" plays a full fight in real time at Normal speed (2x, docs/01 §2).
+## - "Cage view" shows a TEMPORARY top-down map of the live fight (CageMap, D106) on the
+##   left of the screen, to judge how the AI moves. It hides with the console.
 ## - Toggle the window with the ` key (left of 1). "Copy" puts the log on the clipboard
 ##   for bug reports; the seed is printed with every fight so it can be replayed.
 
@@ -11,6 +13,7 @@ const MAX_LINES: int = 2000
 const TOGGLE_KEY: Key = KEY_QUOTELEFT
 ## Normal speed: 2x fight time, so 20 ticks per real second.
 const LIVE_TICKS_PER_SECOND: float = 20.0
+const CAGE_VIEW_WIDTH: float = 780.0
 
 ## Also print every line to Godot's Output panel (and the terminal).
 var echo_to_output: bool = true
@@ -18,6 +21,8 @@ var echo_to_output: bool = true
 var _log: RichTextLabel
 var _live_button: Button
 var _details_toggle: CheckBox
+var _cage_toggle: CheckBox
+var _cage_map: CageMap
 var _actions: ActionLibrary
 var _live_sim: FightSim
 var _live_paused: bool = false
@@ -44,6 +49,7 @@ func _process(delta: float) -> void:
 	while _tick_budget >= 1.0 and not _live_sim.is_over():
 		_tick_budget -= 1.0
 		_live_sim.tick()
+		_cage_map.sample()
 	if _live_sim.is_over():
 		_print_summary(_live_sim)
 		_live_button.text = "Live fight"
@@ -88,6 +94,8 @@ func _toggle_live() -> void:
 	var fight_seed: int = randi()
 	_live_sim = FightSim.new(fight_seed, SimCheck.showcase_fighters(), _actions)
 	_live_sim.event_emitted.connect(_on_live_event)
+	_cage_map.watch(_live_sim)
+	_cage_map.sample()
 	_live_paused = false
 	_tick_budget = 0.0
 	_live_button.text = "Pause"
@@ -99,6 +107,7 @@ func _stop_live() -> void:
 	if _live_sim != null and not _live_sim.is_over():
 		write("[color=%s]Live fight stopped.[/color]" % FightLogFormatter.DIM_COLOUR)
 	_live_sim = null
+	_cage_map.watch(null)
 	_live_button.text = "Live fight"
 
 
@@ -142,6 +151,11 @@ func _build() -> void:
 	_details_toggle = CheckBox.new()
 	_details_toggle.text = "Phase details"
 	bar.add_child(_details_toggle)
+	_cage_toggle = CheckBox.new()
+	_cage_toggle.text = "Cage view"
+	_cage_toggle.button_pressed = true
+	_cage_toggle.toggled.connect(func(on: bool) -> void: _cage_map.visible = on)
+	bar.add_child(_cage_toggle)
 	_add_button(bar, "Copy", func() -> void: DisplayServer.clipboard_set(_log.get_parsed_text()))
 	_add_button(bar, "Clear", func() -> void: _log.clear())
 
@@ -153,6 +167,17 @@ func _build() -> void:
 	_log.add_theme_font_size_override("normal_font_size", 15)
 	_log.add_theme_font_size_override("bold_font_size", 15)
 	column.add_child(_log)
+
+	# Not laid out by this panel: it sits on the left of the screen, outside the console.
+	_cage_map = CageMap.new()
+	_cage_map.top_level = true
+	_cage_map.anchor_bottom = 1.0
+	_cage_map.offset_left = 16.0
+	_cage_map.offset_top = 64.0
+	_cage_map.offset_right = 16.0 + CAGE_VIEW_WIDTH
+	_cage_map.offset_bottom = -16.0
+	_cage_map.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_cage_map)
 
 
 func _add_button(parent: Control, label: String, on_press: Callable) -> Button:

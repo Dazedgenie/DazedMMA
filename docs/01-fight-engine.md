@@ -443,3 +443,26 @@ is as much the damage numbers (§18) as the AI.
 
 Speed: the AI made a full fight about 1.65× slower; the speed-ups in §2.1 won back about 20%. The speed budget and the timing
 checks are in §2.1 (D105).
+
+### 20.1 Watching the AI move: the top-down cage view (temporary, D106)
+A debug-only map of the cage seen from straight above, to judge by eye how the AI uses range, the fence and circling before
+the grey-box fight view (#19) exists. It lives in `ui/cage_map.gd` and is switched on and off with the **Cage view** box in the
+debug console (the ` key); it follows **Live fight** and hides with the console. It only reads the fight, so a watched fight
+plays out exactly as an unwatched one (tested in `tests/ui/test_cage_map.gd`).
+
+| On the map | What it shows |
+|---|---|
+| Octagon | The fence (`Octagon.APOTHEM`, 4.5 m to each panel); two faint lines inside it mark where "near the fence" (1.5 m) and "pinned" (0.5 m) start, measured from a fighter's body |
+| Dots | Each fighter (red, blue) at body width; a white halo when pinned, a purple one when rocked, dimmed when down |
+| White point | The way the fighter faces. The engine has no separate facing yet (§3 says fighters have one): both always face each other, so this points at the opponent |
+| Arrow | Where the fighter is heading: their last 0.5 s of movement, drawn as 1 s at that pace |
+| Trail | The path of the last 4 s; it restarts when the fighters go back to their corners for a new round |
+| Ring | The distance each fighter is walking toward (their range plan, §20 "Feet"), drawn around the opponent in the walker's colour |
+| Line between them | Coloured by range: grey out, green long, yellow mid, orange pocket |
+| Text above | Per fighter: wanted distance, how much they're circling (0–100%), pace in m/s, near the fence or pinned, and the move they're in. Then the clock, the distance and the range |
+
+To change it: trail length, arrow length and the pace window are constants at the top of `ui/cage_map.gd` (`TRAIL_TICKS`,
+`ARROW_SECONDS`, `SPEED_WINDOW`); its size and place on screen are `CAGE_VIEW_WIDTH` and the offsets in `ui/debug_console.gd`.
+The sim gives it two read-only numbers, `FightSim.last_wanted_distance()` and `last_circling()`. To remove it once #19 is in:
+delete `ui/cage_map.gd`, its test and the **Cage view** lines in `ui/debug_console.gd`, those two `FightSim` functions, and
+this section; mark D106 as replaced.
