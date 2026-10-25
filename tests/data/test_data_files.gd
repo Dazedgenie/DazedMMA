@@ -54,9 +54,8 @@ const SCHEMAS := {
 	"trigger@1": { "folder": "triggers", "fields": {
 		"name": TYPE_STRING, "type": TYPE_STRING, "match": TYPE_DICTIONARY,
 	} },
-	"rule@1": { "folder": "rules", "fields": {
-		"name": TYPE_STRING, "trigger": TYPE_STRING, "action": TYPE_STRING,
-		"priority": TYPE_FLOAT, "cooldown_ms": TYPE_FLOAT,
+	"rule@2": { "folder": "rules", "fields": {
+		"name": TYPE_STRING, "trigger": TYPE_STRING, "action": TYPE_STRING, "cooldown_ms": TYPE_FLOAT,
 	} },
 	"ruleset@1": { "folder": "rulesets", "fields": {
 		"name": TYPE_STRING, "rounds": TYPE_FLOAT, "title_rounds": TYPE_FLOAT, "round_seconds": TYPE_FLOAT,

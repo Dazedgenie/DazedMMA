@@ -42,12 +42,15 @@ func pairs() -> Array[String]:
 	return out
 
 
-## "red:blue", with " red corner ideal" (and blue's) when a coaching bot made calls.
+## "red:blue", with " red corner ideal" (and blue's) when a coaching bot made calls, and
+## " red rules catch_kick_and_shoot@80" when a fighter had drilled rules.
 static func pair_key(row: Dictionary) -> String:
 	var key: String = fighters_key(row)
 	for side: String in FightSummary.SIDES:
 		if corner(row, side) != Corner.NONE:
 			key += " %s corner %s" % [side, corner(row, side)]
+		if drilled(row, side) != "":
+			key += " %s rules %s" % [side, drilled(row, side)]
 	return key
 
 
@@ -62,10 +65,17 @@ static func corner(row: Dictionary, side: String) -> String:
 	return style if style != "" and style != "0" else Corner.NONE
 
 
-## The fights with no coaching bot in either corner: the fight engine's own balance.
+## This side's drilled rules ("" for none, and in rows from before #17).
+static func drilled(row: Dictionary, side: String) -> String:
+	var text: String = str(row.get("rules_" + side, ""))
+	return text if text != "0" else ""
+
+
+## The fights with no coaching bot in either corner and no drilled rules: the fight engine's own balance.
 func uncoached() -> Array[Dictionary]:
 	return rows.filter(func(row: Dictionary) -> bool:
-		return corner(row, "red") == Corner.NONE and corner(row, "blue") == Corner.NONE)
+		return corner(row, "red") == Corner.NONE and corner(row, "blue") == Corner.NONE \
+			and drilled(row, "red") == "" and drilled(row, "blue") == "")
 
 
 func rows_for(pair: String) -> Array[Dictionary]:
@@ -150,7 +160,7 @@ func checks() -> Array[Dictionary]:
 	# The engine's targets are about fights without calls; coached fights get their own checks.
 	var plain: Array[Dictionary] = uncoached()
 	if plain.is_empty():
-		return coaching_checks()
+		return coaching_checks() + rule_checks()
 	var draws: float = method_share(plain, FightSummary.METHOD_DRAW)
 	out.append(_check("Draws under 2%", "D97", _pct(draws), draws < DRAWS_UNDER))
 	var even: float = even_card_share(plain)
@@ -171,6 +181,7 @@ func checks() -> Array[Dictionary]:
 	out.append(_info("Standing time with one fighter chasing the other", "D107", _pct(average(plain, "chase"))))
 	out.append(_info("Standing time the more-fenced fighter spends near the fence", "D107", _pct(fenced_share(plain))))
 	out.append_array(coaching_checks())
+	out.append_array(rule_checks())
 	return out
 
 
@@ -216,11 +227,49 @@ func coaching_checks() -> Array[Dictionary]:
 	return out
 
 
-## "red" or "blue" when exactly one corner has a coaching bot, else "".
+## For each fighter with drilled rules (the other with none, no coaching bots) against an
+## opponent, next to the same two fighters without rules: what the rules did to their wins
+## (#17, reported with no pass mark yet).
+func rule_checks() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	var ruled: Dictionary = {}  # "id:opponent" → rules → [scores]
+	for row in rows:
+		var side: String = ruled_side(row)
+		if side == "":
+			continue
+		var by_rules: Dictionary = ruled.get_or_add("%s:%s" % [row[side], row[_other(side)]], {})
+		by_rules.get_or_add(drilled(row, side), []).append(1.0 if row.winner == side else 0.0)
+	var plain: Array[Dictionary] = uncoached()
+	for key: String in ruled:
+		var ids: PackedStringArray = key.split(":")
+		var base_scores: Array = []
+		for row in plain:
+			if [row.red, row.blue] == [ids[0], ids[1]] or [row.red, row.blue] == [ids[1], ids[0]]:
+				base_scores.append(_side_score(row, ids[0]))
+		if base_scores.is_empty():
+			continue
+		var base: float = _mean(base_scores)
+		for rules: String in ruled[key]:
+			var with_rules: float = _mean(ruled[key][rules])
+			out.append(_info("%s drilled (%s) against the %s" % [ids[0].capitalize(), rules, ids[1].capitalize()], "#17",
+				"%+.1f%% (%s → %s, %d and %d fights)" % [(with_rules - base) * 100.0, _pct(base), _pct(with_rules), base_scores.size(), ruled[key][rules].size()]))
+	return out
+
+
+## "red" or "blue" when exactly one corner has a coaching bot (and no rules either side), else "".
 static func coached_side(row: Dictionary) -> String:
 	var red: bool = corner(row, "red") != Corner.NONE
 	var blue: bool = corner(row, "blue") != Corner.NONE
-	if red == blue:
+	if red == blue or drilled(row, "red") != "" or drilled(row, "blue") != "":
+		return ""
+	return "red" if red else "blue"
+
+
+## "red" or "blue" when exactly one fighter has drilled rules (and no coaching bots), else "".
+static func ruled_side(row: Dictionary) -> String:
+	var red: bool = drilled(row, "red") != ""
+	var blue: bool = drilled(row, "blue") != ""
+	if red == blue or corner(row, "red") != Corner.NONE or corner(row, "blue") != Corner.NONE:
 		return ""
 	return "red" if red else "blue"
 
@@ -286,7 +335,7 @@ func summary(names: Dictionary = {}) -> String:
 	for pair in pairs():
 		out.append_array(_pair_lines(rows_for(pair), names))
 		out.append("")
-	out.append("Targets (all %d fights; the engine's own on the %d without calls)" % [rows.size(), uncoached().size()])
+	out.append("Targets (all %d fights; the engine's own on the %d without calls or rules)" % [rows.size(), uncoached().size()])
 	for c in checks():
 		out.append("  %-7s %s: %s  [%s]" % [c.status, c.name, c.value, c.source])
 	return "\n".join(out) + "\n"
@@ -301,6 +350,8 @@ func _pair_lines(of_rows: Array[Dictionary], names: Dictionary) -> PackedStringA
 	for side: String in FightSummary.SIDES:
 		if corner(first, side) != Corner.NONE:
 			lines.append("  Corner     %s's corner: %s caller, %.1f calls a fight" % [red if side == "red" else blue, corner(first, side), average(of_rows, "calls_" + side)])
+		if drilled(first, side) != "":
+			lines.append("  Rules      %s drilled %s, fired %.1f times a fight" % [red if side == "red" else blue, drilled(first, side), average(of_rows, "fired_" + side)])
 	lines.append("  Wins       %s %s · %s %s · draw %s" % [red, _pct(win_share(of_rows, "red")), blue, _pct(win_share(of_rows, "blue")), _pct(method_share(of_rows, FightSummary.METHOD_DRAW))])
 	lines.append("  How        KO %s · TKO %s · decision %s · draw %s" % [
 		_pct(method_share(of_rows, FightSummary.METHOD_KO)), _pct(method_share(of_rows, FightSummary.METHOD_TKO)),

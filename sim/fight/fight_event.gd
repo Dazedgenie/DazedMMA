@@ -34,6 +34,11 @@ const CALL_HEARD := "call_heard"
 ## outcome: accepted (the move started, the focus or read began) / ignored (compliance) / infeasible /
 ## fired (a read went off; action_id says with what) / missed (a read came too late) / expired / replaced
 const CALL_ANSWERED := "call_answered"
+## What one of the actor's drilled rules did (DrilledRules, #17). data: {rule_id, outcome, reason, slot, action_id?, drilled?}
+## outcome: set (put in a slot before a round) / fired (action_id says with what) / cooling (fired too recently) /
+## slow (the reliability roll: didn't see it in time) / outranked (the rule in slot 1 went) / not_eligible (out of range,
+## too tired, rocked, no opening …) / missed (busy until the moment had gone)
+const RULE_ANSWERED := "rule_answered"
 const ROUND_ENDED := "round_ended"  # data: {cards: per judge [red, blue]}
 const FIGHT_ENDED := "fight_ended"  # data: {result, winner (-1 = draw), cards? (judges' totals)}
 

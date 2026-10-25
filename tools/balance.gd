@@ -10,6 +10,9 @@ extends MainLoop
 ## on the same seeds, with the bot in red's corner, then in blue's (--coach=red or blue for
 ## one side only; the other corner makes no calls), so the report can check what good
 ## coaching and spam do to the coached fighter's wins (D12).
+## --rules=wrestler:catch_kick_and_shoot@80,kicker:sprawl_on_the_shot@60 runs every pair once more
+## with those fighters' drilled rules (data/rules ids @ how well drilled, 0–100; a fighter's
+## rules fill slots 1 and 2 in order), so the report shows what the rules did (#17).
 ## Writes <out>/balance.csv (one line per fight) and <out>/summary.txt, and prints the summary.
 ## A 3-round fight takes about half a second, so 100 fights per pair is ~1 minute.
 
@@ -22,6 +25,7 @@ func _initialize() -> void:
 	var out_dir: String = "build/balance"
 	var corners: PackedStringArray = [Corner.NONE]
 	var coach_sides: Array[int] = [0, 1]
+	var drilled: Dictionary = {}  # fighter id → ["rule_id@percent", …]
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--seed="):
 			first_seed = int(arg.trim_prefix("--seed="))
@@ -37,7 +41,14 @@ func _initialize() -> void:
 			corners = arg.trim_prefix("--corners=").split(",")
 		elif arg.begins_with("--coach="):
 			var side: String = arg.trim_prefix("--coach=")
-			coach_sides = [0] if side == "red" else ([1] if side == "blue" else [0, 1])
+			coach_sides.assign([0] if side == "red" else ([1] if side == "blue" else [0, 1]))
+		elif arg.begins_with("--rules="):
+			for entry in arg.trim_prefix("--rules=").split(","):
+				var parts: PackedStringArray = entry.split(":")
+				if parts.size() != 2 or not RuleLibrary.shared().has(parts[1].split("@")[0]):
+					printerr("A rule is fighter:rule@percent with a data/rules id, e.g. wrestler:catch_kick_and_shoot@80 (got '%s')" % entry)
+					return
+				drilled.get_or_add(parts[0], []).append(parts[1])
 	var actions := ActionLibrary.load_dir()
 	var roster := FighterLibrary.load_dir()
 	var names: Dictionary = {}
@@ -67,6 +78,11 @@ func _initialize() -> void:
 					report.add(FightSummary.run(first_seed + n, roster, actions, ids[0], ids[1], rules, 300, both))
 				var label: String = pair if style == Corner.NONE else "%s, %s caller in %s's corner" % [pair, style, ["red", "blue"][side]]
 				print("%s: %d fights done (%.0f s so far)" % [label, fights, (Time.get_ticks_msec() - started) / 1000.0])
+		var with_rules: Array = [drilled.get(ids[0], []), drilled.get(ids[1], [])]
+		if not with_rules[0].is_empty() or not with_rules[1].is_empty():
+			for n in fights:
+				report.add(FightSummary.run(first_seed + n, roster, actions, ids[0], ids[1], rules, 300, [] as Array[String], with_rules))
+			print("%s, drilled rules: %d fights done (%.0f s so far)" % [pair, fights, (Time.get_ticks_msec() - started) / 1000.0])
 	var summary: String = report.summary(names)
 	var dir: String = ProjectSettings.globalize_path("res://").path_join(out_dir) if out_dir.is_relative_path() else out_dir
 	DirAccess.make_dir_recursive_absolute(dir)

@@ -8,6 +8,8 @@ extends PanelContainer
 ## - In a live fight, the call bar (or keys 1–9 and 0) makes Red's corner's calls (LiveCalls,
 ##   docs/01 §22): the Wrestler against the Kicker is the playtest matchup (calling the
 ##   takedown during the kick, D112). Calls can be made while paused; they land on the next tick.
+## - "Rule 1" / "Rule 2" and the "Drilled" slider put drilled rules in Red's two slots before the
+##   live fight (DrilledRules, docs/01 §23): slot 1 goes first; the slider stands in for camp drilling.
 ## - "Cage view" shows a TEMPORARY top-down map of the live fight (CageMap, D106) on the
 ##   left of the screen, to judge how the AI moves. It hides with the console.
 ## - Toggle the window with the ` key (left of 1). "Copy" puts the log on the clipboard
@@ -36,6 +38,10 @@ var _cage_toggle: CheckBox
 var _cage_map: CageMap
 var _call_buttons: Array[Button] = []
 var _voice_label: Label
+var _rule_pickers: Array[OptionButton] = []
+var _drilled: HSlider
+var _drilled_label: Label
+var _rules: RuleLibrary
 var _actions: ActionLibrary
 var _calls: CallLibrary
 var _live_sim: FightSim
@@ -46,6 +52,7 @@ var _tick_budget: float = 0.0
 func _ready() -> void:
 	_actions = ActionLibrary.load_dir()
 	_calls = CallLibrary.shared()
+	_rules = RuleLibrary.shared()
 	_build()
 	write("[b]Debug console[/b]  (press ` to hide/show)")
 	write("Loaded %d moves from data/actions." % _actions.ids().size())
@@ -131,6 +138,10 @@ func _toggle_live() -> void:
 	# Blue's corner coaches too (D68): its calls show in the log as "<Blue>'s corner: …".
 	_live_sim.corners[1] = Corner.new(Corner.AI, fight_seed)
 	_live_sim.event_emitted.connect(_on_live_event)
+	for slot in _rule_pickers.size():
+		var pick_rule: int = _rule_pickers[slot].selected
+		if pick_rule > 0:
+			_live_sim.submit(FightCommand.set_rule(0, 0, slot + 1, _rules.ids()[pick_rule - 1], _drilled.value))
 	_cage_map.watch(_live_sim)
 	_cage_map.sample()
 	_live_paused = false
@@ -226,6 +237,30 @@ func _build() -> void:
 		var label: String = String(call.name).trim_suffix("!")
 		_call_buttons.append(_add_button(call_bar, "%d %s" % [int(key), label] if key != null else label, make_call.bind(id)))
 	_show_corner()
+
+	var rule_bar := HFlowContainer.new()
+	column.add_child(rule_bar)
+	for slot in DrilledRules.MAX_SLOTS:
+		var label := Label.new()
+		label.text = "Rule %d:" % (slot + 1)
+		rule_bar.add_child(label)
+		var picker := OptionButton.new()
+		picker.add_item("none")
+		for id in _rules.ids():
+			picker.add_item(_rules.get_rule(id).name)
+		rule_bar.add_child(picker)
+		_rule_pickers.append(picker)
+	_drilled_label = Label.new()
+	rule_bar.add_child(_drilled_label)
+	_drilled = HSlider.new()
+	_drilled.min_value = 0.0
+	_drilled.max_value = 100.0
+	_drilled.step = 5.0
+	_drilled.value = 80.0
+	_drilled.custom_minimum_size = Vector2(140.0, 0.0)
+	_drilled.value_changed.connect(func(v: float) -> void: _drilled_label.text = "Drilled %d%%" % roundi(v))
+	_drilled_label.text = "Drilled %d%%" % roundi(_drilled.value)
+	rule_bar.add_child(_drilled)
 
 	_log = RichTextLabel.new()
 	_log.bbcode_enabled = true

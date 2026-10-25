@@ -6,12 +6,13 @@ extends RefCounted
 ## an exchange's odds hit the 5–95% clamp, how the fighters moved (time on the
 ## fence, who held the centre, how much of it was a chase), and the grappling
 ## (takedowns tried and landed, time in the clinch, on the ground and on top, #15),
-## and each corner's coaching bot and how many calls it made (Corner, D12, D68).
+## each corner's coaching bot and how many calls it made (Corner, D12, D68), and each
+## fighter's drilled rules and how often they fired (DrilledRules, #17).
 ## BalanceReport turns rows into the CSV and the summary.
 
 ## Every key a row has, in CSV column order.
 const COLUMNS: Array[String] = [
-	"seed", "ruleset", "red", "blue", "corner_red", "corner_blue", "winner", "winner_id", "result", "method", "end_round", "end_second",
+	"seed", "ruleset", "red", "blue", "corner_red", "corner_blue", "rules_red", "rules_blue", "winner", "winner_id", "result", "method", "end_round", "end_second",
 	"knockdowns_red", "knockdowns_blue", "rocked_red", "rocked_blue",
 	"thrown_red", "landed_red", "thrown_blue", "landed_blue",
 	"head_damage_red", "body_damage_red", "leg_damage_red", "head_damage_blue", "body_damage_blue", "leg_damage_blue",
@@ -19,7 +20,7 @@ const COLUMNS: Array[String] = [
 	"round_cards", "even_cards", "exchanges", "clamped", "events",
 	"fence_red", "pinned_red", "centre_red", "fence_blue", "pinned_blue", "centre_blue", "chase",
 	"shots_red", "takedowns_red", "shots_blue", "takedowns_blue", "clinch", "ground", "top_red", "top_blue",
-	"calls_red", "calls_blue",
+	"calls_red", "calls_blue", "fired_red", "fired_blue",
 ]
 const SIDES: Array[String] = ["red", "blue"]
 
@@ -35,8 +36,15 @@ const CHASE_STEP: float = 0.01
 ## Runs one fight between two data/fighters ids and summarises it. `rules` is
 ## whatever FightSim takes (a Ruleset, a round count for short tests, or null for pro).
 ## `corners` is each corner's coaching bot, a Corner style ([] or "none" = no calls).
-static func run(fight_seed: int, roster: FighterLibrary, actions: ActionLibrary, red_id: String, blue_id: String, rules: Variant = null, round_seconds: int = 300, corners: Array[String] = []) -> Dictionary:
+## `drilled` is each fighter's drilled rules, slot 1 first, as "rule_id@percent" ([] = none).
+static func run(fight_seed: int, roster: FighterLibrary, actions: ActionLibrary, red_id: String, blue_id: String, rules: Variant = null, round_seconds: int = 300, corners: Array[String] = [], drilled: Array = []) -> Dictionary:
 	var sim := FightSim.new(fight_seed, roster.make_pair(red_id, blue_id), actions, rules, round_seconds)
+	for i in drilled.size():
+		var slot: int = 1
+		for entry: String in drilled[i]:
+			var parts: PackedStringArray = entry.split("@")
+			sim.submit(FightCommand.set_rule(0, i, slot, parts[0], float(parts[1]) if parts.size() > 1 else 100.0))
+			slot += 1
 	for i in corners.size():
 		if corners[i] != Corner.NONE:
 			sim.corners[i] = Corner.new(corners[i], corner_seed(fight_seed, i))
@@ -104,6 +112,7 @@ static func of(sim: FightSim, lows: Array[float] = [], moves: Dictionary = {}) -
 		"seed": sim.fight_seed, "ruleset": sim.ruleset.id,
 		"red": sim.fighters[0].id, "blue": sim.fighters[1].id,
 		"corner_red": _style(sim.corners[0]), "corner_blue": _style(sim.corners[1]), "calls_red": 0, "calls_blue": 0,
+		"rules_red": "", "rules_blue": "", "fired_red": 0, "fired_blue": 0,
 		"winner": "draw" if winner < 0 else SIDES[winner],
 		"winner_id": "" if winner < 0 else sim.fighters[winner].id,
 		"result": end.data.result, "method": method_of(end.data.result),
@@ -138,6 +147,12 @@ static func of(sim: FightSim, lows: Array[float] = [], moves: Dictionary = {}) -
 				row["rocked_" + SIDES[e.actor]] += 1
 			FightEvent.CALL_HEARD:
 				row["calls_" + SIDES[e.actor]] += 1
+			FightEvent.RULE_ANSWERED:
+				var side: String = SIDES[e.actor]
+				if e.data.outcome == DrilledRules.SET:
+					row["rules_" + side] += ("+" if row["rules_" + side] != "" else "") + "%s@%d" % [e.data.rule_id, e.data.drilled]
+				elif e.data.outcome == DrilledRules.FIRED:
+					row["fired_" + side] += 1
 			FightEvent.ROUND_ENDED:
 				for card: Array in e.data.cards:
 					row.round_cards += 1

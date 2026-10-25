@@ -20,7 +20,12 @@ Coaching bots (D12, `docs/01` §22.7): `--corners` runs every pair again with a 
 
     godot --headless --script res://tools/balance.gd -- --fights=100 --pairs=wrestler:kicker,kicker:wrestler --corners=none,ideal,spam,ai --coach=both
 
+Drilled rules (#17, `docs/01` §23): `--rules=wrestler:catch_kick_and_shoot@80` runs every pair once more with those
+fighters' rules (`fighter:rule@drilled`, comma-separated; a fighter's rules fill slots 1 and 2 in order) and reports what
+they did to that fighter's wins, next to the same fights without rules.
+
 The CSV columns are listed in `sim/balance/fight_summary.gd` (`FightSummary.COLUMNS`). The movement columns (D107,
 `docs/01` §20.2) are shares of standing time: `fence_*` near the fence or pinned, `pinned_*` pinned, `centre_*` nearer the
 centre than the opponent, and `chase` one fighter stepping back while the other steps in. `corner_red`/`corner_blue` name the bot in each corner
-and `calls_red`/`calls_blue` count the calls it made.
+and `calls_red`/`calls_blue` count the calls it made; `rules_red`/`rules_blue` name each fighter's drilled rules and
+`fired_red`/`fired_blue` count how often they fired.

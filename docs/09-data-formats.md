@@ -26,7 +26,7 @@ Rules:
 | `data/calls/` | `call@2` | Coach calls: now/read, intent/technique (`docs/01` §6, §22) |
 | `data/gameplans/` | `gameplan@1` | Gameplan presets: Pressure, Counter, Range, Wrestle-heavy, Conserve (`docs/01` §6.0, §22.4) |
 | `data/triggers/` | `trigger@1` | Building blocks for read calls and drilled rules ("opponent starts a kick") |
-| `data/rules/` | `rule@1` | Drilled-rule presets: trigger → action (`docs/01` §6.0) |
+| `data/rules/` | `rule@2` | Drilled-rule presets: trigger → action (`docs/01` §6.0) |
 | `data/rulesets/` | `ruleset@1` | Amateur/pro rules (`docs/08`) |
 | `data/fighters/` | `fighter@1` | Fighter profiles: authored fighters, archetype templates and (later) generated fighters (D94) |
 
@@ -92,8 +92,10 @@ An event trigger matches one event as one fighter sees it; every `match` field i
 of these), `phase` (`action_phase` events), `defended` (`strike_missed` events: `true` = the opponent stopped it, not "out of
 range"). Loaded by `TriggerLibrary` (`sim/fight/trigger_library.gd`). State/threshold match fields get defined in #16.
 
-### rule@1 (example: `catch_kick_and_shoot.json`)
-`name`, `trigger` (trigger id), `action` (action id), `priority`, `cooldown_ms`. Reliability comes from camp drilling at runtime, not data.
+### rule@2 (examples: `catch_kick_and_shoot.json`, `sprawl_on_the_shot.json`)
+`name`, `trigger` (trigger id), `action` (action id), `cooldown_ms`. Which rule goes first is the slot it's put in (slot 1 before
+slot 2), and how well it's drilled is set with it (the `set_rule` command), not in the data (D116, `docs/01` §23). rule@1 had a
+`priority` field; the slot replaced it.
 
 ### ruleset@1 (examples: `pro`, `amateur_adult`, `amateur_teen`)
 `name`, `rounds`, `title_rounds`, `round_seconds`, `glove_oz`, `gear`, `allows` (exactly: `elbows`, `head_strikes_on_ground`,

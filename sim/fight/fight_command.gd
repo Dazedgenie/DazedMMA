@@ -10,6 +10,10 @@ const QUEUE_ACTION := "queue_action"
 ## compliance and feasibility checks first (LiveCalls, docs/01 §6.2, §22). data: {call_id}:
 ## a data/calls id, or an action id for a bare call of that move (tests, the debug console).
 const LIVE_CALL := "live_call"
+## Before a round (tick 0, or a round's first tick): a drilled rule goes in one of the fighter's
+## slots (DrilledRules, docs/01 §23). data: {slot (1 or 2), rule_id (a data/rules id, "" empties
+## the slot), drilled (0–100: how well it was drilled in camp)}
+const SET_RULE := "set_rule"
 
 var tick: int
 var fighter: int
@@ -30,6 +34,10 @@ static func queue_action(p_tick: int, p_fighter: int, action_id: String) -> Figh
 
 static func live_call(p_tick: int, p_fighter: int, call_id: String) -> FightCommand:
 	return FightCommand.new(p_tick, p_fighter, LIVE_CALL, { "call_id": call_id })
+
+
+static func set_rule(p_tick: int, p_fighter: int, slot: int, rule_id: String, drilled: float) -> FightCommand:
+	return FightCommand.new(p_tick, p_fighter, SET_RULE, { "slot": slot, "rule_id": rule_id, "drilled": drilled })
 
 
 func to_dict() -> Dictionary:

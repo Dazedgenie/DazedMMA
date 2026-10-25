@@ -302,6 +302,11 @@ func _apply_commands() -> void:
 			_emit(FightEvent.CALL_HEARD, i, decisions[i].hear_call(views[i], call_for(command)))
 			for n: Dictionary in decisions[i].take_notes():
 				_emit(n.type, i, n.data)
+		elif command.type == FightCommand.SET_RULE:
+			var i: int = command.fighter
+			decisions[i].set_rule(views[i], int(command.data.slot), String(command.data.rule_id), float(command.data.drilled))
+			for n: Dictionary in decisions[i].take_notes():
+				_emit(n.type, i, n.data)
 		else:
 			fighters[command.fighter].queued_action_id = command.data.action_id
 		command_log.append(command)
@@ -321,6 +326,11 @@ func _reject_reason(command: FightCommand) -> String:
 			if decisions[command.fighter].calls.voice(now) < float(call.voice_cost):
 				return "no voice left"  # D28: every call costs voice; feasibility is checked once it's processed.
 			return ""
+		FightCommand.SET_RULE:
+			if clock.tick_in_round != 0:
+				return "rules are set before a round"
+			return decisions[command.fighter].rules.check(views[command.fighter], int(command.data.get("slot", 0)),
+				String(command.data.get("rule_id", "")), float(command.data.get("drilled", -1.0)))
 	return "unknown command"
 
 
