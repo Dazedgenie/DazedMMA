@@ -28,6 +28,8 @@ const CLAIM_ORDER: Array[String] = [CALL, RULE]
 var ai: FighterAI
 ## Every live call for this fighter goes through here (delay, compliance, feasibility).
 var calls: LiveCalls
+## This fighter's drilled rules (two slots, set before a round).
+var rules: DrilledRules
 var sources: Array[DecisionSource] = []
 ## This fighter's footwork, refilled by plan_feet.
 var feet := FeetPlan.new()
@@ -41,6 +43,8 @@ func _init(p_ai: FighterAI = null) -> void:
 	ai = p_ai if p_ai != null else FighterAI.new()
 	calls = LiveCalls.new()
 	add_source(calls)
+	rules = DrilledRules.new()
+	add_source(rules)
 
 
 func add_source(source: DecisionSource) -> void:
@@ -78,6 +82,13 @@ func hear_call(view: FightView, call: Dictionary) -> Dictionary:
 	var heard: Dictionary = calls.hear(view, call)
 	_notes.append_array(calls.take_notes())
 	return heard
+
+
+## Puts a drilled rule in a slot (FightSim applies the set_rule command). "" or why not.
+func set_rule(view: FightView, slot: int, rule_id: String, drilled: float) -> String:
+	var why: String = rules.set_rule(view, slot, rule_id, drilled)
+	_notes.append_array(rules.take_notes())
+	return why
 
 
 ## Moves the calls on by a tick (the sim asks while calls.active): processes calls whose
@@ -144,6 +155,8 @@ func on_event(view: FightView, event: FightEvent) -> void:
 	ai.on_event(view, event, self)
 	for source in sources:
 		source.on_event(view, event)
+		if source.has_notes():
+			_notes.append_array(source.take_notes())
 
 
 ## The sim calls this once a decision's action has started.

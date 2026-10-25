@@ -1,0 +1,8 @@
+{
+	"schema": "rule@2",
+	"id": "sprawl_on_the_shot",
+	"name": "When he shoots → sprawl",
+	"trigger": "opp_shot_starts",
+	"action": "sprawl",
+	"cooldown_ms": 15000
+}

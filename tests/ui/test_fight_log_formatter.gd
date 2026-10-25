@@ -98,6 +98,13 @@ func test_a_call_the_fighter_acted_on_names_the_move() -> void:
 	assert_eq(_plain(FightLogFormatter.line(ignored, _sim)), "R1 0:04.6  t46  Red IGNORES the Pressure! call (panicking)")
 
 
+func test_a_drilled_rule_says_what_it_did_and_why() -> void:
+	var fired := FightEvent.new(23, 1, FightEvent.RULE_ANSWERED, 0, { "rule_id": "catch_kick_and_shoot", "outcome": "fired", "slot": 1, "action_id": "catch_kick_single", "reason": "3 ticks after the body kick started" })
+	assert_eq(_plain(FightLogFormatter.line(fired, _sim)), "R1 0:02.3  t23  Red goes on the rule \"When he kicks → catch & shoot\": Catch-kick single leg (3 ticks after the body kick started)")
+	var cooling := FightEvent.new(60, 1, FightEvent.RULE_ANSWERED, 0, { "rule_id": "catch_kick_and_shoot", "outcome": "cooling", "slot": 1, "reason": "fired 4 s ago" })
+	assert_eq(_plain(FightLogFormatter.line(cooling, _sim)), "R1 0:06.0  t60  Red holds the rule \"When he kicks → catch & shoot\" (fired 4 s ago)")
+
+
 func test_a_change_of_position_says_who_did_it_and_who_is_on_top() -> void:
 	var e := FightEvent.new(50, 1, FightEvent.POSITION_CHANGED, 1, { "action_id": "double_leg", "position": "full_guard", "phase": "ground", "roles": ["bottom", "top"] })
 	assert_eq(_plain(FightLogFormatter.line(e, _sim)), "R1 0:05.0  t50  Blue's Double-leg takedown → Full guard (Blue on top)")

@@ -198,6 +198,7 @@ hit it in two ways:
 - **Slots:** 2 at the start, a 3rd from the coach's *Tactician* skill / experience. Advanced conditions
   (AND filters, stamina thresholds, fallbacks) are a later unlock (Foundation doc "advanced rule builder").
 - Rules and read calls work together: a rule is the **pre-planned** answer, and a read call is the **improvised** one.
+- In the engine (the slots, reliability, cooldown, adapting, the presets, and how to try them): §23.
 
 ### 6.1 Two kinds of live call (D49)
 
@@ -409,7 +410,7 @@ the fight through a read-only **view** and walks one priority stack. The first l
 |---|---|---|
 | 1 | **Command** | An action queued from outside (tests, bots, the debug console). Always obeyed if possible |
 | 2 | **Live call** | A `live_call` command costs voice, waits out the call delay in fight time (base 0.6 s = 6 ticks, D92), then a compliance roll (D5) and a feasibility check (legal, possible from this position, a move the fighter knows). Attempts, focus calls and read calls: §22. Every outcome is logged as `call_answered` with the reason (A16) |
-| 3 | **Drilled rule** | Slot reserved; rules arrive with #17 |
+| 3 | **Drilled rule** | Two slots of trigger → move, set before a round, firing with the fighter's own reaction time when eligible and reliable; slot 1 first, a cooldown, and opponents who learn to disguise what a rule keeps catching. Every outcome is logged as `rule_answered` with the reason (A16): §23 |
 | 4 | **Fighter AI** | The fighter AI (`sim/fight/fighter_ai.gd`, §20). Gameplans only multiply its weights per action or category and shift its style leanings, so the fighter never silently replaces the gameplan (§16 A2) |
 
 - **Reaction time** (D93) is one number on the fighter, shared by read calls, rules and the AI: 3 − 0.02 × Speed ticks
@@ -865,3 +866,67 @@ gameplan@1) and `tests/ui/` (the log lines, the call bar).
 After changing any of it, run the harness with the bots on the Wrestler both ways round and read the **Coaching** lines:
 `--fights=100 --pairs=wrestler:kicker,kicker:wrestler --corners=none,ideal,spam,ai`. Coaching is noisy: 100 fights a side is
 about ±5% on each corner, so pool both corners and a second seed (`--seed=101`) before moving a number.
+
+## 23. Drilled rules in the engine (#17, D82, D116)
+How §6.0's second layer works in the code (`sim/fight/drilled_rules.gd`, one per fighter, third in the §19 stack: under live
+calls, over the fighter's own AI). A rule is a preset in `data/rules/` (`09` rule@2): a trigger from `data/triggers/` and a
+move. It goes in one of the fighter's two slots before a round as a `set_rule` command, with how well it was drilled (0–100%,
+the playtest's stand-in for camp drilling), so a fight with rules replays from its seed and command log. A fighter with no
+rules never wakes any of this.
+
+### 23.1 What happens when the trigger comes
+| Step | Rule |
+|---|---|
+| **Slot order** (D116) | Slot 1 goes first. Both slots answering the same moment: slot 1 is tried first; if it's cooling down or too slow, slot 2 gets its turn; once one is on its way, the other is `outranked`. A slot 1 rule set off while a slot 2 rule waits takes over |
+| **Cooldown** | A rule that fired sits out `cooldown_ms` of fight time (15 s for both presets), logged as `cooling` |
+| **Reliability** | drilled × (1 ± 20% for Fight IQ 100 / 0) × (1 − the tired penalty, up to 30%) × (1 − 50% × head hurt) × (1 − how wise the opponent is to it). Missed rolls are logged as `slow` with the chance: *"didn't see it in time: 64% sharp"* |
+| **Reaction** | The fighter acts their own reaction time after first seeing the move (D93, 2 ticks at Speed 50), like a read call |
+| **Eligible** | Allowed by the rules, possible from here, in range, the stamina for it, and not rocked; otherwise `not_eligible` with the reason. A move that needs an opening waits for it while the opponent's move goes on (a catch waits for the leg). Busy until the moment has gone: `missed` |
+| **Adapting** (§6.0, R4) | Each time a rule fires on the opponent's move, they disguise it a little more: 10% off its reliability per fire at the opponent's Fight IQ 100 (5% at 50), at most half. It carries over when the same rule stays in the slot between rounds |
+
+Live calls still outrank rules: a call the fighter is acting on goes first. Rules take no voice and cost no attention.
+
+Every outcome is a `rule_answered` event (A16): `set`, `fired`, `cooling`, `slow`, `outranked`, `not_eligible`, `missed`. The
+debug console prints them: *"Wrestler goes on the rule "When he kicks → catch & shoot": Catch-kick single leg (3 ticks after the
+body kick started)"*, *"Wrestler holds the rule "When he kicks → catch & shoot" (fired 4 s ago)"*.
+
+### 23.2 The presets
+| Rule | Trigger | Move | Who can use it |
+|---|---|---|---|
+| When he kicks → catch & shoot | The opponent starts a body kick or teep | Catch-kick single | Fighters who learned the catch (the Wrestler, D112). The only way besides a call that the catch is ever thrown (D103) |
+| When he shoots → sprawl | The opponent starts a double leg | Sprawl | Everyone (the sprawl is basic) |
+
+**To try it:** in the debug console, pick rules for Red under *Rule 1* / *Rule 2*, set *Drilled*, then press **Live fight**.
+
+### 23.3 Balance (2026-10-25)
+From the harness, Wrestler vs Kicker both ways round, 100 fights a side per seed set, against the same fights without rules:
+
+| Rule | Drilled | Fires a fight | Wins | What changes |
+|---|---|---|---|---|
+| Wrestler: When he kicks → catch & shoot | 50% | 8 | −2% (seeds 1–100) | |
+| Wrestler: When he kicks → catch & shoot | 80% | 9–11 | **−1%** (both seed sets) | Takedowns 9.5 → 11.4 a fight, time on top 34% → 40%, but head damage taken 150 → 235 and KOs 1–4% → 6–10% |
+| Wrestler: When he kicks → catch & shoot | 100% | 10 | −5.5% (seeds 1–100) | |
+| Kicker: When he shoots → sprawl | 80% | 9 | **−8%** (−5 and −11) | Shots sprawled on 3.7 → 6.3 a fight, takedowns −1, but the Kicker's lowest stamina 17% → 10% |
+| Boxer: When he shoots → sprawl, against the Kicker | 80% | 0 | 0 | Never set off: the fight is the same |
+
+**Why the rules don't pay yet.** The catch rule works as a catch (two more takedowns a fight), but each catch also makes the
+Kicker throw body kicks and teeps less (×0.7 each, §21.8), so he goes upstairs: head kicks on a Wrestler standing in front of
+him double, and that costs what the takedowns win. A floor on that fade (never below a third as keen) took the head damage
+from 235 to 200 without changing the wins, and pushed good coaching (§22.8) to +18.5%, near the top of the D12 band, so it
+was left out. The sprawl rule sprawls on top of the sprawls the Kicker already makes when he reads the shot (about 10 a fight)
+and the extra stamina leaves him gassed. Both are the counter-play §6.0 asks for (opponents adapt, rules cost something), but
+a drilled rule should be worth having. Next to try: rules that only fire while the fighter is fresh enough (the "stamina
+threshold" condition §6.0 saves for later), a rule that stands in for the fighter's own read instead of adding to it, and
+the opponent's adaptation leaning on the rule's reliability (already in) more than on dropping the move.
+
+### 23.4 To change it, and the tests
+- A rule's trigger, move and cooldown: its file in `data/rules/`; what sets a trigger off: `data/triggers/`.
+- Reliability, adaptation and the slot count: `RELIABILITY_PER_IQ`, `RELIABILITY_PER_HEAD_HURT`, `ADAPT_PER_FIRE`, `ADAPT_MAX`,
+  `MAX_SLOTS` at the top of `sim/fight/drilled_rules.gd`.
+- How far a caught move fades: `FighterAI.CAUGHT_FADE` (§21.8).
+- In the harness: `--rules=wrestler:catch_kick_and_shoot@80` (fighter:rule@drilled, a fighter's rules fill slots 1 and 2 in
+  order) runs every pair once more with those rules and reports what they did to that fighter's wins.
+
+Tested in `tests/sim/fight/test_drilled_rules.gd` (firing with reaction time, reliability, cooldown, slot order, out of range,
+rocked, busy, setting rules, adaptation, untouched fights, replays), `tests/sim/balance/` (the rules columns and lines) and
+`tests/ui/test_fight_log_formatter.gd`.

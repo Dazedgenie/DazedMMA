@@ -15,6 +15,10 @@ const CALL_OUTCOMES := {
 	"accepted": "takes", "ignored": "[b]IGNORES[/b]", "infeasible": "can't do", "fired": "goes on the read of",
 	"missed": "misses with the read of", "expired": "is done with", "replaced": "drops",
 }
+const RULE_OUTCOMES := {
+	"set": "drilled", "fired": "goes on the", "cooling": "holds the", "slow": "is too slow for the",
+	"outranked": "skips the", "not_eligible": "can't use the", "missed": "misses with the",
+}
 const CONDITION_STATS: Array[String] = ["boxing", "kicking", "power", "speed", "striking_defense", "footwork", "takedowns", "takedown_defense", "fight_iq"]
 
 
@@ -100,6 +104,11 @@ static func _describe(event: FightEvent, sim: FightSim) -> String:
 				move = ": %s" % _action_name(event.data.action_id, sim)
 			var colour: String = FAIL_COLOUR if event.data.outcome == "ignored" else DIM_COLOUR
 			return "[color=%s]%s %s the %s call%s (%s)[/color]" % [colour, who, outcome, _call_name(id, sim), move, event.data.reason]
+		FightEvent.RULE_ANSWERED:
+			var rule_name: String = RuleLibrary.shared().get_rule(event.data.rule_id).name if RuleLibrary.shared().has(event.data.rule_id) else event.data.rule_id
+			var colour: String = PASS_COLOUR if event.data.outcome == "fired" else DIM_COLOUR
+			var rule_move: String = ": %s" % _action_name(event.data.action_id, sim) if event.data.has("action_id") else ""
+			return "[color=%s]%s %s rule \"%s\"%s (%s)[/color]" % [colour, who, RULE_OUTCOMES.get(event.data.outcome, event.data.outcome), rule_name, rule_move, event.data.reason]
 		FightEvent.COMMAND_REJECTED:
 			return "[color=%s]Command refused for %s: %s[/color]" % [FAIL_COLOUR, who, event.data.reason]
 		FightEvent.ROUND_ENDED:

@@ -1,7 +1,7 @@
 # Chin Check — Design Planning (v1)
 
 > Status: **v1: design signed off for Phase 0 wrap-up.** Working title **Chin Check** (D81); the repo stays `DazedMMA`.
-> Decisions D1–D115 are binding unless revisited on purpose. Anything still marked **[ASSUMPTION]**
+> Decisions D1–D116 are binding unless revisited on purpose. Anything still marked **[ASSUMPTION]**
 > in older sections has been superseded by the decisions log and the per-system docs.
 
 Inspiration: *Boxing School* (Steam app 939990). It's a management/coaching sim where you shape a
@@ -129,6 +129,7 @@ boxer between fights and influence bouts from the corner. Chin Check takes that 
 | D113 | Corners that call on their own (D12, D68) | **A `Corner` in each corner: none, ideal (a good coach, 0.3 s), the AI corner (0.5 s, notices half the moments) and spam (a random call every 1.5 s)** | Its calls go through the fighter's whole call pipeline as commands, so fights replay without it. The AI corner calls for the Kicker in the debug console's live fight. The harness runs every pair with each bot in red's corner and then blue's, and checks good coaching at +10–20% wins and spam below none, pooled over both corners (one corner alone swung ±6% on the same fights). `01` §22.7. |
 | D114 | Strikers' answers to grappling (Kyle: "Fix it in this PR", "Opponent wises up to repeats") | **Strikes into a clinch entry or the first step of a shot stop it (`COMING_IN`); Footwork helps break the clinch; fighters read the third shot in a minute better than the first; a fighter whose move keeps getting caught throws it less; the catch-kick is harder** | With good calls the Wrestler beat the Kicker 77–80% because the Kicker had no answer to extra grappling. The Wrestler grapples more on his own to stay even without calls (takedowns and the clinch count when he plans his range; double-leg tendency 1.2). `01` §21.8. |
 | D115 | What a call costs | **Calls pick the moment, they don't add work: a called takedown or clinch entry spends the fighter's own tries of that kind for 45 s; every call heard costs half a second of attention; a call needs the voice it costs; garbled calls are mostly ignored and cost trust** | Random calls every 1.5 s won 84–87% before; now spam does 8–36% worse than no calls in every pairing but Boxer vs Kicker (even). Good coaching of the Wrestler against the Kicker: +13% (D12). D5 holds: at the starting trust with a clear voice, ignores stay rare. `01` §22.5. |
+| D116 | How drilled rules work (#17, D82) | **Two slots set before a round; slot 1 goes first (the slot is the priority); reliability = drilled × Fight IQ × tired × hurt × how wise the opponent is; a cooldown per rule; opponents disguise a move a rule keeps catching (10% per fire at Fight IQ 100, at most half)** | The data's `priority` field went (rule@2): a player orders rules by the slot they put them in. Rules come in as `set_rule` commands so fights replay; no voice, no attention cost, and live calls still outrank them. Measured: the catch rule is about even against the Kicker (he stops body kicking and goes high), the sprawl rule costs the Kicker wins (it tires him). `01` §23. |
 
 ### Per-system design docs
 - [`01-fight-engine.md`](01-fight-engine.md): simulation, positions, coaching calls, tells, corner, scoring

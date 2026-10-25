@@ -100,7 +100,7 @@ func test_the_summary_has_a_block_per_pair_and_the_targets() -> void:
 	var text: String = _report([_row(), _row({ "red": "boxer", "blue": "boxer", "winner": "blue" })]).summary({ "kicker": "Kicker", "boxer": "Boxer" })
 	assert_string_contains(text, "Kicker (red) vs Boxer (blue): 1 fights")
 	assert_string_contains(text, "Boxer (red) vs Boxer (blue): 1 fights")
-	assert_string_contains(text, "Targets (all 2 fights; the engine's own on the 2 without calls)")
+	assert_string_contains(text, "Targets (all 2 fights; the engine's own on the 2 without calls or rules)")
 	assert_string_contains(text, "MET     Draws under 2%")
 
 
@@ -197,3 +197,19 @@ func test_a_bot_in_blues_corner_counts_for_the_fighter_it_coaches() -> void:
 	var c: Dictionary = _check(_report(rows), "Boxer coached against the Kicker: good coaching")
 	assert_eq(c.value, "+15.0% (50.0% → 65.0%, 20 and 20 fights)")
 	assert_eq(c.status, BalanceReport.MET)
+
+
+# --- Drilled rules (#17) --------------------------------------------------------------------
+
+func test_a_fighters_drilled_rules_are_reported_against_the_same_fights_without_them() -> void:
+	var rows: Array[Dictionary] = _coached(Corner.NONE, 10)
+	for n in 20:
+		rows.append(_row({ "seed": n + 1, "rules_red": "catch_kick_and_shoot@80", "fired_red": 4,
+			"winner": "red" if n < 14 else "blue", "winner_id": "kicker" if n < 14 else "boxer" }))
+	var report: BalanceReport = _report(rows)
+	var c: Dictionary = _check(report, "Kicker drilled (catch_kick_and_shoot@80) against the Boxer")
+	assert_eq(c.status, BalanceReport.INFO)
+	assert_eq(c.value, "+20.0% (50.0% → 70.0%, 20 and 20 fights)")
+	assert_eq(report.uncoached().size(), 20, "rules fights are kept out of the engine's own targets")
+	assert_eq(report.pairs(), ["kicker:boxer", "kicker:boxer red rules catch_kick_and_shoot@80"] as Array[String])
+	assert_string_contains(report.summary(), "Rules      kicker (red) drilled catch_kick_and_shoot@80, fired 4.0 times a fight")
