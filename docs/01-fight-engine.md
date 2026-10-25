@@ -30,6 +30,39 @@
 The simulation never reads frame time. Presentation interpolates between ticks. That keeps the simulation
 deterministic and lets it run headless at 1000× for balance tests.
 
+### 2.1 Speed budget and how it's checked (D105)
+
+A fight must simulate at least **1000× faster than fight time**: a 3 × 5:00 fight in under 900 ms, the 60-second self-check
+fight in under 60 ms. Two checks enforce it:
+
+| Check | Where | Budget |
+|---|---|---|
+| Full fight | `tests/sim/fight/test_fight_sim.gd`, `test_a_full_fight_runs_over_1000x_faster_than_fight_time` | 900 ms |
+| Self-check fight ("Runs over 1000x faster than fight time") | `game/sim_check.gd`: the debug console's **Run test fight**, also run in CI by `tests/game/test_sim_check.gd` (5 seeds) | 60 ms (`ROUND_SECONDS`) |
+
+**The rule (D105):** a timed fight that comes in over budget is simulated again, up to 3 runs in all, and the fastest run
+counts. A fight under budget on its first run is timed once. GitHub's shared test machines vary about 1.6× in speed and
+sometimes stall for a moment: on 2026-10-25 the same code ran the full fight in 967 ms on one machine and 380 ms on another.
+A sim that is really too slow is slow on every run, so it still fails. To change the number of runs, edit `TIMING_TRIES` in
+`game/sim_check.gd` and the `3` in the full-fight test; keep them the same.
+
+**Where the time goes** (profile of a full fight, 2026-10-25, about 0.6 s here): the AI's feet (`preferred_distance`) and
+choice (`choose`) each tick, `FighterState.effective_stat` (2–4 µs a call, about 30,000 calls a fight), walking (`_move`) and
+the cage checks. Speed-ups made with #14 (PR #40), about 20%, none of which changed a single fight:
+
+- `effective_stat`, `tired`, `hurt`, `max_stamina` and `regen_tick` read `stats` directly, and head hurt is worked out once
+  per `effective_stat` call (`is_panicking()` is the same test).
+- `Octagon.keep_inside` and `Octagon.proximity`, and the AI's fence check (`_fence_behind`), skip the eight fence-panel
+  checks for points well inside the cage (`Octagon.CLEAR_INSIDE`, `CLEAR_OF_NEAR`, `FighterAI.CLEAR_OF_FENCE`).
+- The sim works out the fighters' distance once per step and once per space update.
+- `FightView.band()`, `step()`, `distance()` and `roll()` read the sim reference directly.
+- The AI looks up all four style leanings once a second (`LEAN_EVERY`), and walking pace, the footwork contest and the
+  range plan are cached too (`FightSim.FEET_EVERY`, `FighterAI.PLAN_EVERY`).
+
+**Speed work must not change fights.** Run the same fights (same seeds and fighters) before and after, and compare a hash of
+each fight's event list (`JSON.stringify(sim.events_as_dicts()).md5_text()`). If any hash differs, the change altered
+behaviour: re-run the balance harness and treat it as a design change.
+
 ---
 
 ## 3. Spatial model (D2, D33)
@@ -407,3 +440,6 @@ To watch in the playtest: the Boxer gets the Kicker on the fence for a large sha
 Kicker still wins nearly half); the Boxer's hook is rare because a retreating Kicker is seldom still in the pocket when it would
 land; and two Boxers stand in the pocket and trade until one is stopped (every Boxer mirror ends inside the distance), which
 is as much the damage numbers (§18) as the AI.
+
+Speed: the AI made a full fight about 1.65× slower; the speed-ups in §2.1 won back about 20%. The speed budget and the timing
+checks are in §2.1 (D105).

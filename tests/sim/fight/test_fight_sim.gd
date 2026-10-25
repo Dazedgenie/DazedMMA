@@ -143,7 +143,7 @@ func test_every_event_reaches_listeners_in_order() -> void:
 func test_a_full_fight_runs_over_1000x_faster_than_fight_time() -> void:
 	# 3 x 5:00 = 900 s of fight time, so 1000x means under 900 ms. Shared CI machines
 	# stall now and then, so an over-budget fight gets up to three runs and the
-	# fastest counts (as in SimCheck): a slow sim is slow every time.
+	# fastest counts (as in SimCheck.TIMING_TRIES): a slow sim is slow every time (D105, docs/01 §2.1).
 	var fastest: float = INF
 	var runs: int = 0
 	while runs < 3 and fastest >= 900.0:

@@ -10,7 +10,7 @@ extends RefCounted
 const ROUND_SECONDS: int = 60
 ## A shared machine can stall for a moment, so a fight over the time budget is
 ## simulated again, up to this many runs in all, and the fastest counts: a slow
-## sim is slow every time.
+## sim is slow every time (D105, docs/01 §2.1). Keep in step with test_fight_sim.gd.
 const TIMING_TRIES: int = 3
 
 ## The fight that was checked, so the console can print its events.
