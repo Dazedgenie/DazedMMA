@@ -199,11 +199,19 @@ func _on_event(event: FightEvent) -> void:
 
 ## A move the player's call started that worked against the opponent's commitment (D52).
 func is_perfect_call(event: FightEvent) -> bool:
-	if event.actor != player or _started_by[player] != DecisionLayer.CALL:
+	return event.actor == player and counts_as_perfect(event, _started_by[player], sim.actions)
+
+
+## The rule for a perfect call, given who chose the actor's move: their corner's call, and
+## it worked (a takedown that lands, or a strike that lands in the opponent's wind-up or recovery).
+static func counts_as_perfect(event: FightEvent, started_by: String, actions: ActionLibrary) -> bool:
+	if started_by != DecisionLayer.CALL:
 		return false
 	if event.type == FightEvent.GRAPPLE_WON:
-		return event.data.get("result", "") == PositionLibrary.SUCCESS
-	return bool(event.data.get("counter", false))
+		var id: String = event.data.get("action_id", "")
+		return event.data.get("result", "") == PositionLibrary.SUCCESS and actions.has(id) \
+			and actions.get_action(id).category == "takedown"
+	return event.type == FightEvent.STRIKE_LANDED and bool(event.data.get("counter", false))
 
 
 func _slow_down(seconds: float, allowed: bool) -> void:
