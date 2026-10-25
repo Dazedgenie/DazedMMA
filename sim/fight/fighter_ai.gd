@@ -139,7 +139,8 @@ const PLAN_CAUTION_PER_LEANING: float = 0.3
 const PLAN_RANGE_BIAS: float = 0.35
 const PLAN_PACE_BIAS: float = 0.15
 const PLAN_STICKY: float = 0.1
-## A landed takedown counts like this much damage when planning where to stand (judges score them in #15).
+## A landed takedown counts like this much damage when planning where to stand (judges score them in #15),
+## and a clinch entry this much × how much the fighter likes the clinch (D114: grapplers plan for the range they grapple from).
 const TAKEDOWN_PLAN_VALUE: float = 16.0
 const CLINCH_PLAN_VALUE: float = 8.0
 ## Walking into the opponent's weapons while the opponent is free, fighters stalk: at
