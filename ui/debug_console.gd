@@ -6,8 +6,8 @@ extends PanelContainer
 ## - "Live fight" plays a full fight in real time at Normal speed (2x, docs/01 §2), between
 ##   the matchup picked next to it (Kicker vs Boxer, or the Wrestler against either, #15).
 ## - In a live fight, the call bar (or keys 1–9 and 0) makes Red's corner's calls (LiveCalls,
-##   docs/01 §22): the Prospect against the Kicker is the playtest matchup (calling the
-##   takedown during the kick). Calls can be made while paused; they land on the next tick.
+##   docs/01 §22): the Wrestler against the Kicker is the playtest matchup (calling the
+##   takedown during the kick, D112). Calls can be made while paused; they land on the next tick.
 ## - "Cage view" shows a TEMPORARY top-down map of the live fight (CageMap, D106) on the
 ##   left of the screen, to judge how the AI moves. It hides with the console.
 ## - Toggle the window with the ` key (left of 1). "Copy" puts the log on the clipboard
@@ -20,10 +20,8 @@ const LIVE_TICKS_PER_SECOND: float = 20.0
 const CAGE_VIEW_WIDTH: float = 780.0
 ## The matchups "Live fight" can play: [label, red id, blue id] from data/fighters.
 const MATCHUPS: Array = [
-	["Prospect vs Kicker", "prospect", "kicker"],
-	["Prospect vs Wrestler", "prospect", "wrestler"],
-	["Kicker vs Boxer", "kicker", "boxer"],
 	["Wrestler vs Kicker", "wrestler", "kicker"],
+	["Kicker vs Boxer", "kicker", "boxer"],
 	["Wrestler vs Boxer", "wrestler", "boxer"],
 ]
 

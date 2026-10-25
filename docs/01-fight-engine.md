@@ -717,15 +717,16 @@ drilled rule (#17) throws the catch-kick single.
 
 Every outcome is a `call_answered` event with a reason (A16): `accepted`, `ignored`, `infeasible`, `fired`, `missed`,
 `expired`, `replaced`. Each call itself is a `call_heard` event (voice left, garbled, delay, trust, spam). The debug console
-prints both: *"Prospect's corner: Takedown! (voice 80 left · acts in 0.6 s)"*, *"Prospect takes the Takedown! call:
+prints both: *"Wrestler's corner: Takedown! (voice 80 left · acts in 0.6 s)"*, *"Wrestler takes the Takedown! call:
 Catch-kick single leg (call after 6 ticks)"*.
 
 ### 22.3 The playtest fighter (D112)
-The player coaches the **Prospect** (`data/fighters/prospect.json`): an all-rounder with jab, cross, leg kick, double-leg and
-the catch-kick single, tuned to about even with the Kicker when nobody calls (100 fights, both corners: 48%). The Kicker and
-the Wrestler stay the two authored opponents (`10` §1).
+The player coaches the **Wrestler** against the Kicker (Kyle, 2026-10-25). The Wrestler now knows the catch-kick single
+(`techniques` in `data/fighters/wrestler.json`), which only a call or a drilled rule can make him throw (D103), so fights with
+no calls are unchanged: Wrestler vs Kicker stays about even without calls (50.5% over 800 fights, `01` §21.7). He is still one
+of the two authored opponents (`10` §1) when the Kicker is the one being coached.
 
-**To try it:** run the game, open the debug console (`), pick **Prospect vs Kicker**, press **Live fight**, and call with the
+**To try it:** run the game, open the debug console (`), pick **Wrestler vs Kicker**, press **Live fight**, and call with the
 buttons or keys 1–9 (0 = Catch the kick!). Calls work while paused and land on the next tick.
 
 ### 22.4 Gameplans
@@ -739,10 +740,11 @@ The AI corner's own calls (D68) and the ideal/spam caller bots for the harness (
 step. Habits from calls (D32) and leanings moved by accepted calls (`11` §4.2) come with the career. Crowd noise and coach
 level are fixed at 1.
 
-**Balance finding to tune next (2026-10-25).** Calls are far too strong against the Kicker before any tuning. Prospect vs
-Kicker, 40 fights (seeds 500–519, both corners): no calls 61%; "Catch the kick!" kept primed all fight 92% (about 30 reads
-fired and 17 catches landed a fight); Takedown! every 6 s 95%; four calls in turn every 1.5 s, voice spent and most calls
-garbled or ignored, still 90%. Takedowns decide fights against a striker, and the AI on its own shoots far less than it
+**Balance finding to tune next (2026-10-25).** Calls are far too strong against the Kicker before any tuning. Measured first
+with an all-rounder (the Prospect, dropped when Kyle chose the Wrestler), 40 fights (seeds 500–519, both corners): no calls
+61%; "Catch the kick!" kept primed all fight 92% (about 30 reads fired and 17 catches landed a fight); Takedown! every 6 s
+95%; four calls in turn every 1.5 s, voice spent and most calls garbled or ignored, still 90%. With the Wrestler coached, same seeds: no calls 52.5%; "Catch the kick!" kept primed 97.5% (about 14
+catches a fight); Takedown! every 6 s 100%. Takedowns decide fights against a striker, and the AI on its own shoots far less than it
 could, so any extra shot wins. D12 wants good coaching worth +10–20% and spam worse than none, so the bots' harness work will
 need to tune this: likely the opponent adapting to repeated shots and caught kicks (reading them more, kicking less after
 being caught), what a takedown is worth, and the catch-kick's odds.

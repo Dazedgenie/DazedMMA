@@ -395,7 +395,7 @@ func test_a_fight_with_no_calls_never_wakes_the_call_pipeline() -> void:
 func test_fights_with_every_kind_of_call_replay_exactly() -> void:
 	var pair := func() -> Array[FighterState]:
 		var roster := FighterLibrary.load_dir()
-		return roster.make_pair("prospect", "kicker")
+		return roster.make_pair("wrestler", "kicker")
 	var sim := FightSim.new(SEED, pair.call(), _actions)
 	var at: int = 50
 	for id: String in ["catch_the_kick", "pressure", "takedown", "defend_the_shot", "get_up", "survive", "clinch", "stay_safe"]:
