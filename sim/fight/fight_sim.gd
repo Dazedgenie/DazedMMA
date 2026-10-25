@@ -117,9 +117,12 @@ var _round_points: Array[float] = [0.0, 0.0]  # effective striking this round, b
 var _round_knockdowns: Array[int] = [0, 0]  # knockdowns scored this round
 var _round_aggression: Array[float] = [0.0, 0.0]  # attacks thrown + metres walked forward this round
 var _round_control: Array[int] = [0, 0]  # ticks this round the opponent spent pinned on the fence
-## Announced state for range ("band") and each fighter's cage proximity (0, 1):
-## key → {shown, candidate, held} (see _announce).
-var _space: Dictionary = {}
+## Announced state for range (slot 0) and each fighter's cage proximity (slots 1
+## and 2), see _announce: what was last announced, what it's turning into, and for
+## how many ticks. Arrays rather than dictionaries: this runs every tick.
+var _shown: Array[String] = ["", "", ""]
+var _candidate: Array[String] = ["", "", ""]
+var _held: Array[int] = [0, 0, 0]
 ## Each fighter's footwork the last time they moved: the distance they wanted, how
 ## much they circled (0–1) and which way (±1), and how hard they cut the cage off (0–1).
 var _wants: Array[float] = [0.0, 0.0]
@@ -299,6 +302,11 @@ func roll() -> float:
 	return _rng.randf()
 
 
+## The RNG behind roll(), for the fighters' views to draw from directly (FightView.roll).
+func rng_for_views() -> RandomNumberGenerator:
+	return _rng
+
+
 func _advance_fighter(i: int) -> void:
 	var f: FighterState = fighters[i]
 	f.regen_tick()
@@ -383,9 +391,11 @@ func _refresh_feet() -> void:
 	if now < _feet_at + FEET_EVERY and now >= _feet_at:
 		return
 	_feet_at = now
+	# As move_speed() and footwork_share(), with each fighter's Footwork worked out once.
+	var footwork: Array[float] = [fighters[0].effective_stat("footwork"), fighters[1].effective_stat("footwork")]
 	for i in fighters.size():
-		_step[i] = move_speed(fighters[i]) / FightClock.TICKS_PER_SECOND
-		_share[i] = footwork_share(i)
+		_step[i] = (MOVE_BASE + MOVE_PER_STAT * (footwork[i] + fighters[i].effective_stat("speed")) / 200.0) / FightClock.TICKS_PER_SECOND
+		_share[i] = Contest.chance(Contest.STRIKE_BASE, footwork[i], footwork[1 - i])
 		_feet_edge[i] = footwork_edge(_share[i])
 
 
@@ -479,26 +489,25 @@ static func way_toward_middle(me: Vector2, toward_opponent: Vector2) -> int:
 
 func _update_space() -> void:
 	var apart: float = distance()
-	_announce("band", Octagon.band(apart) if situation.is_standing() else Octagon.BAND_CLINCH, FightEvent.RANGE_CHANGED, FightEvent.NO_ACTOR, "band")
+	_announce(0, Octagon.band(apart) if situation.is_standing() else Octagon.BAND_CLINCH, FightEvent.RANGE_CHANGED, FightEvent.NO_ACTOR, "band")
 	for i in fighters.size():
 		var proximity: String = Octagon.proximity(fighters[i].pos, apart)
-		_announce(i, proximity, FightEvent.CAGE_CHANGED, i, "proximity")
+		_announce(1 + i, proximity, FightEvent.CAGE_CHANGED, i, "proximity")
 		if proximity == Octagon.CAGE_PINNED:
 			_round_control[1 - i] += 1
 
 
-func _announce(key: Variant, value: String, type: String, actor: int, field: String) -> void:
-	var s: Dictionary = _space[key]
-	if value == s.shown:
-		s.held = 0
+func _announce(slot: int, value: String, type: String, actor: int, field: String) -> void:
+	if value == _shown[slot]:
+		_held[slot] = 0
 		return
-	if value != s.candidate:
-		s.candidate = value
-		s.held = 0
-	s.held += 1
-	if s.held >= ANNOUNCE_AFTER_TICKS:
-		s.shown = value
-		s.held = 0
+	if value != _candidate[slot]:
+		_candidate[slot] = value
+		_held[slot] = 0
+	_held[slot] += 1
+	if _held[slot] >= ANNOUNCE_AFTER_TICKS:
+		_shown[slot] = value
+		_held[slot] = 0
 		_emit(type, actor, { field: value })
 
 
@@ -506,14 +515,13 @@ func _to_corners() -> void:
 	situation.reset()
 	_wants = [0.0, 0.0]
 	_circling = [0.0, 0.0]
+	_cutting = [0.0, 0.0]
 	_strides = [Vector2.ZERO, Vector2.ZERO]
 	for i in fighters.size():
 		fighters[i].pos = START_POSITIONS[i]
-	_space = { "band": _quiet(band()), 0: _quiet(cage_proximity(0)), 1: _quiet(cage_proximity(1)) }
-
-
-func _quiet(value: String) -> Dictionary:
-	return { "shown": value, "candidate": value, "held": 0 }
+	_shown = [band(), cage_proximity(0), cage_proximity(1)]
+	_candidate = _shown.duplicate()
+	_held = [0, 0, 0]
 
 
 # --- Positions: standing, clinch and ground (docs/01 §4, #34) -----------------

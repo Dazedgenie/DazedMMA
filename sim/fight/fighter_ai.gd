@@ -707,7 +707,7 @@ func preferred_distance(view: FightView, layer: DecisionLayer) -> float:
 	if not _follow.is_empty() and _follow.kind == TELL:
 		band = _nearest_band(view.actions.get_action(_follow.id).ranges, band)
 	var range_leaning: float = _lean(view, layer, StyleLeanings.RANGE)
-	var pace: float = _lean(view, layer, StyleLeanings.PACE)
+	var pace: float = _leanings[StyleLeanings.PACE]  # _lean just refreshed them all if due.
 	var want: float = band_spot(band, range_leaning, pace)
 	if view.now < _evade_until:
 		want += EVADE_STEP

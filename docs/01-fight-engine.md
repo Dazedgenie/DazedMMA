@@ -59,6 +59,15 @@ the cage checks. Speed-ups made with #14 (PR #40), about 20%, none of which chan
 - The AI looks up all four style leanings once a second (`LEAN_EVERY`), and walking pace, the footwork contest and the
   range plan are cached too (`FightSim.FEET_EVERY`, `FighterAI.PLAN_EVERY`).
 
+More with D107 (PR #42), which first made a fight about 4% slower and then ended up about 5% faster than before it, again
+without changing a fight (event hashes checked on 60 fights across every data/fighters pair):
+
+- Each tick's footwork is one call that fills one reused `FeetPlan` instead of separate calls for distance and circling.
+- `FightView.distance()`, `band()` and `roll()` work from the fighters, the position state and the RNG the view holds,
+  instead of going through the sim.
+- The sim's announce state for range and cage proximity is three small arrays instead of nested dictionaries.
+- The footwork refresh works out each fighter's Footwork once instead of three times.
+
 **Speed work must not change fights.** Run the same fights (same seeds and fighters) before and after, and compare a hash of
 each fight's event list (`JSON.stringify(sim.events_as_dicts()).md5_text()`). If any hash differs, the change altered
 behaviour: re-run the balance harness and treat it as a design change.
@@ -451,8 +460,8 @@ stamina about 30% of the tank, was 37%); and two Boxers stand in the pocket and 
 ends inside the distance), which is as much the damage numbers (§18) as the AI. Since D107 they do it on the fence more often
 (near it 36% of the time, was 26%): a fighter who doesn't lean outside plants on the fence and fights instead of circling off.
 
-Speed: the AI made a full fight about 1.65× slower; the speed-ups in §2.1 won back about 20%; D107's footwork costs about 4%
-back. The speed budget and the timing checks are in §2.1 (D105).
+Speed: the AI made a full fight about 1.65× slower; the speed-ups in §2.1 won back about 20%, and D107's came out about 5%
+faster again. The speed budget and the timing checks are in §2.1 (D105).
 
 ### 20.1 Watching the AI move: the top-down cage view (temporary, D106)
 A debug-only map of the cage seen from straight above, to judge by eye how the AI uses range, the fence and circling before
