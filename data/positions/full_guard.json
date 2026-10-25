@@ -7,5 +7,8 @@
 	"stamina_drain_per_s": { "top": 0.2, "bottom": 0.3 },
 	"control_score": { "top": 1.0, "bottom": 0.2 },
 	"strike_damage_multiplier": { "top": 1.0, "bottom": 0.4 },
-	"transitions": []
+	"transitions": [
+		{ "action": "get_up", "from_role": "bottom", "to": "standing", "roles": { "actor": "neutral", "opponent": "neutral" } },
+		{ "action": "get_up", "from_role": "bottom", "result": "partial", "to": "scramble", "roles": { "actor": "neutral", "opponent": "neutral" } }
+	]
 }

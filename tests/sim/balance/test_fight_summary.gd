@@ -96,3 +96,11 @@ func test_a_row_made_without_movement_counts_has_no_movement() -> void:
 	var row: Dictionary = FightSummary.of(sim)
 	assert_eq(row.chase, 0.0)
 	assert_eq(row.fence_red, 0.0)
+
+
+func test_grappling_columns_count_takedowns_and_time_tied_up() -> void:
+	var row: Dictionary = FightSummary.run(3, FighterLibrary.load_dir(), ActionLibrary.load_dir(), "wrestler", "boxer", 1, 120)
+	assert_gt(row.shots_red, 0, "the Wrestler shoots")
+	assert_lte(row.takedowns_red, row.shots_red)
+	assert_lte(row.top_red + row.top_blue, row.ground + 0.0001, "someone on top only on the ground (a scramble has nobody on top)")
+	assert_lte(row.ground + row.clinch, 1.0)

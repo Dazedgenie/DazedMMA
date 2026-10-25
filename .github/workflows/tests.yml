@@ -44,7 +44,7 @@ jobs:
       - name: Balance snapshot
         if: always()
         run: |
-          ~/godot/godot --headless --script res://tools/balance.gd -- --fights=40 --pairs=kicker:boxer,check_red:check_blue
+          ~/godot/godot --headless --script res://tools/balance.gd -- --fights=40 --pairs=kicker:boxer,wrestler:kicker,wrestler:boxer,check_red:check_blue
           {
             echo "## Balance snapshot (40 fights per pair, #18)"
             echo

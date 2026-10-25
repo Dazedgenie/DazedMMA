@@ -3,7 +3,7 @@
 	"id": "knee",
 	"name": "Knee",
 	"category": "strike",
-	"positions": ["standing"],
+	"positions": ["standing", "clinch"],
 	"ranges": ["pocket", "clinch"],
 	"phases_ms": { "telegraph": 200, "windup": 200, "active": 100, "recovery": 300 },
 	"stamina_cost": 5,
@@ -13,7 +13,7 @@
 	"strike": { "target": "body", "base_damage": 9 },
 	"stats": { "offense": ["clinch_striking", "power"], "defense": ["striking_defense"] },
 	"opportunities": [
-		{ "opponent_flag": "HEAD_LOW", "success_bonus": 0.25 }
+		{ "opponent_flag": "HEAD_LOW", "success_bonus": 0.25, "target": "head", "damage_multiplier": 1.5, "stops": true }
 	],
 	"requires_technique": null
 }

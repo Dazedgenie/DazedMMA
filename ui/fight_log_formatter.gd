@@ -49,7 +49,18 @@ static func _describe(event: FightEvent, sim: FightSim) -> String:
 			return "[color=%s]%s %s finished[/color]" % [DIM_COLOUR, who, _action_name(event.data.action_id, sim)]
 		FightEvent.STRIKE_LANDED:
 			var counter: String = "counter " if event.data.get("counter", false) else ""
-			return "%s's %s%s [b]LANDS[/b] (%s, %d damage)%s" % [who, counter, _action_name(event.data.action_id, sim), event.data.target, event.data.damage, _odds(event)]
+			var into: String = " into the %s" % _action_name(event.data.into, sim).to_lower() if event.data.has("into") else ""
+			return "%s's %s%s [b]LANDS[/b]%s (%s, %d damage)%s" % [who, counter, _action_name(event.data.action_id, sim), into, event.data.target, event.data.damage, _odds(event)]
+		FightEvent.GRAPPLE_WON:
+			if event.data.result == PositionLibrary.PARTIAL:
+				return "%s's %s [b]half works[/b]: they scramble%s" % [who, _action_name(event.data.action_id, sim), _odds(event)]
+			return "%s's %s [b]WORKS[/b]%s" % [who, _action_name(event.data.action_id, sim), _odds(event)]
+		FightEvent.GRAPPLE_STOPPED:
+			return "%s's %s %s" % [who, _action_name(event.data.action_id, sim), _stopped(event, sim)]
+		FightEvent.SPRAWLED:
+			if event.data.worked:
+				return "%s [b]SPRAWLS[/b] on it%s" % [who, _odds(event)]
+			return "%s's sprawl doesn't hold%s" % [who, _odds(event)]
 		FightEvent.STRIKE_MISSED:
 			if event.data.has("reason"):
 				return "%s's %s misses (%s)" % [who, _action_name(event.data.action_id, sim), event.data.reason]
@@ -57,6 +68,8 @@ static func _describe(event: FightEvent, sim: FightSim) -> String:
 		FightEvent.RANGE_CHANGED:
 			return "[color=%s]Range: %s[/color]" % [DIM_COLOUR, RANGE_NAMES.get(event.data.band, event.data.band)]
 		FightEvent.POSITION_CHANGED:
+			if event.data.action_id == "":
+				return "[b]They come apart → %s[/b]" % _position_name(event.data.position, sim)
 			return "[b]%s's %s → %s[/b]%s" % [who, _action_name(event.data.action_id, sim), _position_name(event.data.position, sim), _roles(event, sim)]
 		FightEvent.CAGE_CHANGED:
 			return "[color=%s]%s %s[/color]" % [DIM_COLOUR, who, CAGE_NAMES.get(event.data.proximity, event.data.proximity)]
@@ -99,6 +112,21 @@ static func condition_line(f: FighterState) -> String:
 	for trait_id in f.style.traits():
 		parts.append(StyleLeanings.TRAIT_NAMES[trait_id])
 	return " · ".join(parts)
+
+
+## Why a takedown, clinch or ground move didn't work (FightEvent.GRAPPLE_STOPPED), with
+## its odds when it got that far, e.g. "is SPRAWLED ON, stuck with the head low 45% (base 35 · stats +10)".
+static func _stopped(event: FightEvent, sim: FightSim) -> String:
+	match event.data.reason:
+		"defended":
+			return "is [b]DEFENDED[/b]%s" % _odds(event)
+		"sprawled on":
+			return "is [b]SPRAWLED ON[/b], stuck with the head low · the shot was%s" % _odds(event)
+		"stopped":
+			return "is [b]STOPPED[/b] by the %s" % _action_name(event.data.get("by_action", ""), sim).to_lower()
+		"nothing to catch":
+			return "finds nothing to catch%s" % _odds(event)
+	return "comes up short (%s)" % event.data.reason
 
 
 ## e.g. "Red wins by KO", "Blue wins by split decision (29-28, 28-29, 29-28)", "Draw (...)".

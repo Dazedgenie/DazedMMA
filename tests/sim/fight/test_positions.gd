@@ -17,15 +17,6 @@ func _sim() -> FightSim:
 	return FightSim.new(SEED, [red, blue], _actions, 2, 10)
 
 
-func _ground_library() -> PositionLibrary:
-	var library: PositionLibrary = PositionLibrary.load_dir()
-	var guard: Dictionary = library.get_position("full_guard").duplicate(true)
-	# get_up arrives with #15; sprawl stands in as "the bottom fighter's way out".
-	guard.transitions = [{ "action": "sprawl", "from_role": "bottom", "to": "standing", "roles": { "actor": "neutral", "opponent": "neutral" } }]
-	library.add(guard)
-	return library
-
-
 func test_both_fighters_share_one_situation_that_starts_standing() -> void:
 	var sim: FightSim = _sim()
 	assert_eq(sim.situation.position, "standing")
@@ -101,11 +92,10 @@ func test_nobody_walks_around_while_tied_up() -> void:
 
 func test_getting_back_up_separates_the_fighters_where_they_were() -> void:
 	var sim: FightSim = _sim()
-	sim.positions = _ground_library()
 	sim.fighters[0].pos = Vector2(4.1, 0.0)
 	sim.fighters[1].pos = Vector2(2.6, 0.0)
 	sim.apply_transition(1, "double_leg")
-	assert_true(sim.apply_transition(0, "sprawl"), "the bottom fighter's move from the data")
+	assert_true(sim.apply_transition(0, "get_up"), "the bottom fighter's move from the data")
 	assert_true(sim.situation.is_standing())
 	assert_eq(sim.role(0), "neutral")
 	assert_almost_eq(sim.distance(), Octagon.MIN_GAP, 0.0001)
@@ -114,9 +104,8 @@ func test_getting_back_up_separates_the_fighters_where_they_were() -> void:
 
 func test_the_top_fighter_cannot_use_the_bottom_fighters_way_out() -> void:
 	var sim: FightSim = _sim()
-	sim.positions = _ground_library()
 	sim.apply_transition(1, "double_leg")
-	assert_false(sim.apply_transition(1, "sprawl"))
+	assert_false(sim.apply_transition(1, "get_up"))
 	assert_eq(sim.situation.position, "full_guard")
 
 

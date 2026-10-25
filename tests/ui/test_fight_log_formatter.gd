@@ -89,3 +89,27 @@ func test_a_call_outcome_reads_naturally() -> void:
 func test_a_change_of_position_says_who_did_it_and_who_is_on_top() -> void:
 	var e := FightEvent.new(50, 1, FightEvent.POSITION_CHANGED, 1, { "action_id": "double_leg", "position": "full_guard", "phase": "ground", "roles": ["bottom", "top"] })
 	assert_eq(_plain(FightLogFormatter.line(e, _sim)), "R1 0:05.0  t50  Blue's Double-leg takedown → Full guard (Blue on top)")
+
+
+func test_takedowns_say_whether_they_worked_and_why() -> void:
+	var odds := { "base": 0.45, "attack": 60.0, "defense": 50.0, "stat_gap": 0.1, "bonuses": [{ "name": "BACK_TO_CAGE", "value": 0.15 }], "chance": 0.7 }
+	var won := FightEvent.new(10, 1, FightEvent.GRAPPLE_WON, 1, { "action_id": "double_leg", "result": "success", "chance": 0.7, "odds": odds })
+	assert_string_contains(_plain(FightLogFormatter.line(won, _sim)), "Blue's Double-leg takedown WORKS 70% (base 45 · stats +10 · BACK_TO_CAGE +15)")
+	var half := FightEvent.new(10, 1, FightEvent.GRAPPLE_WON, 1, { "action_id": "double_leg", "result": "partial", "chance": 0.7, "odds": odds })
+	assert_string_contains(_plain(FightLogFormatter.line(half, _sim)), "half works: they scramble")
+	var defended := FightEvent.new(10, 1, FightEvent.GRAPPLE_STOPPED, 1, { "action_id": "double_leg", "reason": "defended", "chance": 0.7, "odds": odds })
+	assert_string_contains(_plain(FightLogFormatter.line(defended, _sim)), "Blue's Double-leg takedown is DEFENDED 70%")
+
+
+func test_a_punished_shot_explains_what_punished_it() -> void:
+	var odds := { "base": 0.45, "attack": 50.0, "defense": 50.0, "stat_gap": 0.0, "bonuses": [], "chance": 0.45 }
+	var sprawled := FightEvent.new(10, 1, FightEvent.GRAPPLE_STOPPED, 0, { "action_id": "double_leg", "reason": "sprawled on", "chance": 0.45, "odds": odds })
+	assert_string_contains(_plain(FightLogFormatter.line(sprawled, _sim)), "Red's Double-leg takedown is SPRAWLED ON, stuck with the head low · the shot was 45%")
+	var knee := FightEvent.new(10, 1, FightEvent.STRIKE_LANDED, 1, { "action_id": "knee", "target": "head", "damage": 20, "into": "double_leg" })
+	assert_string_contains(_plain(FightLogFormatter.line(knee, _sim)), "Blue's Knee LANDS into the double-leg takedown (head, 20 damage)")
+	var stopped := FightEvent.new(10, 1, FightEvent.GRAPPLE_STOPPED, 0, { "action_id": "double_leg", "reason": "stopped", "by_action": "knee" })
+	assert_string_contains(_plain(FightLogFormatter.line(stopped, _sim)), "Red's Double-leg takedown is STOPPED by the knee")
+	var nothing := FightEvent.new(10, 1, FightEvent.GRAPPLE_STOPPED, 0, { "action_id": "catch_kick_single", "reason": "nothing to catch", "chance": 0.0, "odds": { "base": 0.2, "attack": 50.0, "defense": 50.0, "stat_gap": 0.0, "bonuses": [], "chance": 0.0, "missing": "ONE_LEG" } })
+	assert_string_contains(_plain(FightLogFormatter.line(nothing, _sim)), "finds nothing to catch 0% (base 20 · stats +0 · needs ONE_LEG)")
+	var sprawl := FightEvent.new(10, 1, FightEvent.SPRAWLED, 1, { "action_id": "sprawl", "against": "double_leg", "worked": true, "chance": 0.55, "odds": odds })
+	assert_string_contains(_plain(FightLogFormatter.line(sprawl, _sim)), "Blue SPRAWLS on it 55%")

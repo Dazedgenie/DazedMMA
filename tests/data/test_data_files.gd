@@ -141,6 +141,18 @@ func test_values_come_from_the_allowed_lists() -> void:
 		var push: Variant = action.get("strike", {}).get("push_m", 0.0) if action.get("strike") is Dictionary else 0.0
 		if not (push is float) or push < 0.0:
 			problems.append("action '%s': strike.push_m is metres pushed back, 0 or more" % id)
+		var category: String = action.get("category", "")
+		if category in ["takedown", "defense", "clinch", "ground"]:
+			var block: Variant = action.get(category)
+			if not block is Dictionary or not block.get("base_success") is float:
+				problems.append("action '%s': a %s move needs a '%s' block with base_success" % [id, category, category])
+			elif not block.get("partial_within", 0.0) is float or block.get("partial_within", 0.0) < 0.0:
+				problems.append("action '%s': %s.partial_within is a chance, 0 or more" % [id, category])
+		if action.has("basic") and not action.basic is bool:
+			problems.append("action '%s': basic is true or false" % id)
+		for r: Variant in action.get("roles", []):
+			if r not in ["neutral", "top", "bottom"]:
+				problems.append("action '%s': unknown role '%s'" % [id, r])
 	for id: String in _items("rulesets"):
 		var allows: Dictionary = _items("rulesets")[id].get("allows", {})
 		var keys: Array = allows.keys()
@@ -163,7 +175,13 @@ func test_references_point_to_things_that_exist() -> void:
 		for f: Dictionary in a.get("flags_self", []):
 			_expect_key(problems, where, "flag", f.get("flag"), flags)
 		for o: Dictionary in a.get("opportunities", []):
-			_expect_key(problems, where, "flag", o.get("opponent_flag"), flags)
+			if o.has("own_flag") == o.has("opponent_flag"):
+				problems.append("%s: each opportunity names one flag, opponent_flag or own_flag" % where)
+			_expect_key(problems, where, "flag", o.get("own_flag", o.get("opponent_flag")), flags)
+			if o.has("own_flag") and o.get("required", false):
+				problems.append("%s: only an opponent_flag opportunity can be required" % where)
+			if o.has("target") and o.target not in ["head", "body", "legs"]:
+				problems.append("%s: an opportunity's target is head, body or legs" % where)
 		for side: String in a.get("stats", {}):
 			for s: String in a.stats[side]:
 				_expect_key(problems, where, "stat", s, stats)
@@ -227,13 +245,17 @@ func test_position_transitions_lead_somewhere_real() -> void:
 			_expect_ids(problems, where, "positions", [t.get("to")])
 			if t.get("from_role") not in p.get("roles", []):
 				problems.append("%s: transition '%s' starts from role '%s', not one of %s" % [where, t.get("action"), t.get("from_role"), p.get("roles", [])])
-			var key: String = "%s/%s" % [t.get("action"), t.get("from_role")]
+			if t.get("result", "success") not in ["success", "partial"]:
+				problems.append("%s: transition '%s' has result '%s', not success or partial" % [where, t.get("action"), t.get("result")])
+			var key: String = "%s/%s/%s" % [t.get("action"), t.get("from_role"), t.get("result", "success")]
 			if seen.has(key):
-				problems.append("%s: '%s' from '%s' is listed twice" % [where, t.get("action"), t.get("from_role")])
+				problems.append("%s: '%s' from '%s' (%s) is listed twice" % [where, t.get("action"), t.get("from_role"), t.get("result", "success")])
 			seen[key] = true
 			var action: Dictionary = _items("actions").get(t.get("action"), {})
 			if not action.is_empty() and id not in action.get("positions", []):
 				problems.append("%s: transition '%s' uses an action that can't be done from here" % [where, t.get("action")])
+			if not action.is_empty() and action.has("roles") and t.get("from_role") not in action.roles:
+				problems.append("%s: transition '%s' starts from role '%s', which the action doesn't allow" % [where, t.get("action"), t.get("from_role")])
 			var target: Dictionary = positions.get(t.get("to"), {})
 			for side: String in ["actor", "opponent"]:
 				if not target.is_empty() and t.roles.get(side) not in target.get("roles", []):

@@ -24,11 +24,19 @@ extends RefCounted
 ## opponent's, tilted by the Range and Pace leanings. Outside fighters step back
 ## from strikes they read and reset after combinations; pressure fighters walk them down.
 ##
+## Tied up (clinch or ground, #15, docs/01 §21) there's no footwork and no range
+## plan: now and then the fighter works from where they are. In the clinch, strikers
+## look to break and grapplers knee or shoot; on the ground the fighter underneath
+## works to get up (the one on top holds, scoring control), and in a scramble each
+## goes for what they like: back to the feet, or the top.
+##
 ## Every number is a first guess, tuned with the balance harness (tools/balance.gd).
 
 const STRIKE := "strike"
 const TAKEDOWN := "takedown"
 const DEFENSE := "defense"
+const CLINCH := "clinch"
+const GROUND := "ground"
 const TELL := "tell"
 const COMBO := "combo"
 ## Far to close: the bands a standing fighter can plan to fight from.
@@ -86,6 +94,8 @@ const OFF_PLAN_RATE: float = 0.6
 ## Crowded: closer than they planned, in a band where the opponent out-threatens them
 ## (an outside fighter caught in the pocket). Getting out comes first, so leads × 0.35
 ## and combinations × 0.5. Closer than planned but not out-gunned, they fight from there.
+## Grapplers less so (#15): the leads go back toward full rate with the Base leaning (all of it
+## at +100), since a takedown or a tie-up is their way out.
 const CROWDED_RATE: float = 0.35
 const CROWDED_COMBO: float = 0.5
 const ROCKED_RATE: float = 0.3
@@ -186,6 +196,16 @@ const CUT_PER_RANGE: float = 0.4
 ## a move, or on a chance of ESCAPE_RATE × outside a tick.
 const ESCAPE_RATE: float = 0.5
 const ESCAPE_TICKS: int = 15
+## Tied up (#15): chance per free tick to work from the clinch (× the work rate), from
+## underneath in full guard (× the work rate), and in a scramble (flat: it's over fast).
+const CLINCH_RATE: float = 4.0
+const GROUND_RATE: float = 2.0
+const SCRAMBLE_RATE: float = 0.3
+## Who likes the clinch: Base / 100 + Range / 200 (0–1), and only with something to do
+## there (a strike or takedown that works from the clinch). Breaking it: weight
+## 1 − Base / 100 − Range / 200, at least CLINCH_BREAK_MIN.
+const CLINCH_BREAK_MIN: float = 0.05
+## In a scramble: back to the feet × (1 − Base / 100), the top × (1 + Base / 100).
 ## Switching direction (D107): away from the fence (further than SWITCH_FENCE), circling
 ## fighters think again every SWITCH_EVERY ticks and change direction on a chance of
 ## SWITCH_CHANCE, so they don't circle the same way all fight. Closer to the fence they
@@ -198,6 +218,11 @@ const CLEAR_OF_SWITCH: float = Octagon.APOTHEM - Octagon.BODY_MARGIN - SWITCH_FE
 
 var _triggers: TriggerLibrary
 var _ready_for: FighterState
+## The fighter's repertoire plus the moves everyone knows (ActionLibrary.basic_ids: get up,
+## sprawl, clinch entry and break), and whether any of them works from the clinch.
+var _moves: Array[String] = []
+var _moves_for: FighterState
+var _clinch_weapon: bool = false
 ## The profile's tells, by the event type that can set them off: type → [{trigger, action, chance, ticks, name}].
 var _tells: Dictionary = {}
 ## action id → the move it is set up with (a tell set off by the fighter's own move).
@@ -277,6 +302,8 @@ func choose(view: FightView, layer: DecisionLayer) -> Decision:
 	if f.repertoire.is_empty() or f.work_rate <= 0.0 or view.opponent.is_down():
 		return DecisionLayer.IDLE
 	_choice_ready = false
+	if not view.is_standing():
+		return _tied(view, layer)
 	if f.is_rocked():
 		# Covering up: only the odd desperate shot.
 		return _lead(view, layer) if _leads(view, layer) else DecisionLayer.IDLE
@@ -322,7 +349,8 @@ func lead_rate(view: FightView, layer: DecisionLayer) -> float:
 	if view.now < _reset_until or view.now < _evade_until:
 		rate *= RESET_RATE
 	elif crowded(view) and not view.opponent.is_rocked():
-		rate *= CROWDED_RATE
+		# A grappler caught in the pocket doesn't back out, he shoots or ties up (#15).
+		rate *= lerpf(CROWDED_RATE, 1.0, clampf(_leanings[StyleLeanings.BASE] / 100.0, 0.0, 1.0))
 	elif _plan_band != "" and BANDS.find(view.band()) < BANDS.find(_plan_band):
 		rate *= OFF_PLAN_RATE  # Still walking in.
 	var tank: float = f.stamina_fraction()
@@ -338,17 +366,19 @@ func lead_rate(view: FightView, layer: DecisionLayer) -> float:
 	return minf(rate, LEAD_RATE_CAP * f.work_rate)
 
 
-## Danger first (A2): a shot it read gets sprawled on. A fighter with no sprawl
-## treats the shot like any other move it read (a knee into the lowered head, or backing off).
+## Danger first (A2): a shot it read gets sprawled on. When the sprawl roll fails
+## (or there's no sprawl), the shot is treated like any other move it read: a knee into
+## the lowered head, or backing off.
 func _defend(view: FightView) -> Decision:
-	if not _registered(view) or _opp.category != TAKEDOWN:
+	if not _registered(view) or _opp.category != TAKEDOWN or _opp.get("sprawl_rolled", false):
 		return null
-	for id in view.me.repertoire:
+	_opp.sprawl_rolled = true
+	for id in _all_moves(view):
 		var action: Dictionary = view.actions.get_action(id)
 		if action.category == DEFENSE and action.defense.against_categories.has(TAKEDOWN) and _usable(view, action):
-			_opp.decided = true
 			var chance: float = SPRAWL_BASE + SPRAWL_PER_TDD * view.me.effective_stat("takedown_defense") / 100.0
 			if view.roll() < chance:
+				_opp.decided = true
 				return Decision.new(id, DecisionLayer.AI, "sprawls on the shot")
 			return null
 	return null
@@ -470,9 +500,9 @@ func _meet_advance(view: FightView, layer: DecisionLayer) -> Decision:
 func _lead(view: FightView, layer: DecisionLayer) -> Decision:
 	var options: Array[String] = []
 	var weights: Array[float] = []
-	for id in view.me.repertoire:
+	for id in _all_moves(view):
 		var action: Dictionary = view.actions.get_action(id)
-		if (action.category != STRIKE and action.category != TAKEDOWN) or not _usable(view, action):
+		if (action.category != STRIKE and action.category != TAKEDOWN and action.category != CLINCH) or not _usable(view, action):
 			continue
 		var b: OddsBreakdown = _odds(view, id)
 		var w: float = _score(view, layer, action, _seen_chance(view, action, b), _plain_chance(b), false)
@@ -488,6 +518,79 @@ func _lead(view: FightView, layer: DecisionLayer) -> Decision:
 	return Decision.new(id, DecisionLayer.AI, "swarms" if view.opponent.is_rocked() else "leads")
 
 
+## Tied up (#15): now and then, work from here. In the clinch: knees, a takedown or
+## a break, picked by weight (breaking by how little they like the clinch). Underneath
+## in full guard: get up. On top: hold (the judges score it). In a scramble: back to
+## the feet or the top, by Base. A shot it read gets sprawled on first.
+func _tied(view: FightView, layer: DecisionLayer) -> Decision:
+	var f: FighterState = view.me
+	var d: Decision = _defend(view)
+	if d != null:
+		return d
+	var position: String = view.position()
+	var rate: float = SCRAMBLE_RATE
+	if position == PositionLibrary.CLINCH:
+		rate = CLINCH_RATE * f.work_rate
+	elif view.my_role() == PositionLibrary.TOP:
+		return DecisionLayer.IDLE  # Holding: no ground strikes until after the playtest (D98).
+	elif position != PositionLibrary.SCRAMBLE:
+		rate = GROUND_RATE * f.work_rate
+	if view.roll() >= rate:
+		return DecisionLayer.IDLE
+	var base: float = _lean(view, layer, StyleLeanings.BASE) / 100.0
+	var range_leaning: float = _leanings[StyleLeanings.RANGE] / 100.0
+	var options: Array[String] = []
+	var weights: Array[float] = []
+	var reasons: Array[String] = []
+	for id in _all_moves(view):
+		var action: Dictionary = view.actions.get_action(id)
+		if action.category == DEFENSE or action.category == "movement" or not _usable(view, action):
+			continue
+		if f.is_rocked() and action.category == STRIKE:
+			continue  # Rocked in the clinch: get out.
+		var b: OddsBreakdown = _odds(view, id)
+		var w: float = _score(view, layer, action, _seen_chance(view, action, b), _plain_chance(b), false)
+		var reason: String = "works in the clinch"
+		match id:
+			"clinch_break":
+				w *= maxf(CLINCH_BREAK_MIN, 1.0 - base - range_leaning / 2.0)
+				reason = "breaks the clinch"
+			"get_up":
+				w *= maxf(0.0, 1.0 - base) if position == PositionLibrary.SCRAMBLE else 1.0
+				reason = "works back to the feet"
+			"scramble":
+				w *= 1.0 + base
+				reason = "scrambles for the top"
+			_:
+				if action.category == TAKEDOWN:
+					reason = "takes it down from the clinch"
+		if w > 0.0:
+			options.append(id)
+			weights.append(w)
+			reasons.append(reason)
+	if options.is_empty():
+		return DecisionLayer.IDLE
+	var k: int = _pick(view, weights)
+	return Decision.new(options[k], DecisionLayer.AI, reasons[k])
+
+
+## The fighter's repertoire plus the moves everyone knows (basic), worked out once a fighter.
+func _all_moves(view: FightView) -> Array[String]:
+	if _moves_for == view.me:
+		return _moves
+	_moves_for = view.me
+	_moves = view.me.repertoire.duplicate()
+	for id in view.actions.basic_ids():
+		if not _moves.has(id):
+			_moves.append(id)
+	_clinch_weapon = false
+	for id in _moves:
+		var action: Dictionary = view.actions.get_action(id)
+		if (action.category == STRIKE or action.category == TAKEDOWN) and action.positions.has(PositionLibrary.CLINCH):
+			_clinch_weapon = true
+	return _moves
+
+
 ## How much the fighter wants this move right now (0 = not at all).
 func _score(view: FightView, layer: DecisionLayer, action: Dictionary, chance: float, plain: float, counter: bool) -> float:
 	if chance <= 0.0:
@@ -497,6 +600,8 @@ func _score(view: FightView, layer: DecisionLayer, action: Dictionary, chance: f
 	if action.category == STRIKE:
 		w *= commitment(_lean(view, layer, StyleLeanings.RISK), view.actions.total_ticks(action.id), _danger.get(_band, DANGER_EVEN))
 		w *= _finishing(view, layer, action)
+	elif action.category == CLINCH and view.is_standing():
+		w *= clinch_liking(_lean(view, layer, StyleLeanings.BASE), _lean(view, layer, StyleLeanings.RANGE)) if _clinch_weapon else 0.0
 	w *= stamina_weight(f, action)
 	w *= _working_weight(view, action.id)
 	if plain > 0.0:
@@ -515,6 +620,12 @@ static func style_weight(base_leaning: float, action: Dictionary) -> float:
 		STRIKE:
 			return 1.0 - base / 2.0
 	return 1.0
+
+
+## How much a fighter likes tying up (0–1): Base / 100 + Range / 200. Grapplers and
+## inside fighters clinch; outside strikers don't.
+static func clinch_liking(base_leaning: float, range_leaning: float) -> float:
+	return clampf(base_leaning / 100.0 + range_leaning / 200.0, 0.0, 1.0)
 
 
 ## Long, committed strikes are thrown less by safe fighters and more by wild ones,
@@ -583,7 +694,7 @@ static func _plain_chance(b: OddsBreakdown) -> float:
 ## True for moves that only work with an opening a read has to spot (the catch-kick).
 static func _needs_opening(action: Dictionary) -> bool:
 	for opp: Dictionary in action.opportunities:
-		if opp.get("required", false) and not STATE_FLAGS.has(opp.opponent_flag):
+		if opp.get("required", false) and not STATE_FLAGS.has(opp.get("opponent_flag", "")):
 			return true
 	return false
 
@@ -609,7 +720,8 @@ func _usable(view: FightView, action: Dictionary) -> bool:
 	var id: String = action.id
 	if _reach.has(id):
 		return _reach[id]
-	var ok: bool = action.positions.has(view.position()) and view.ruleset.allows_action(action)
+	var ok: bool = action.positions.has(view.position()) and view.ruleset.allows_action(action) \
+		and ActionLibrary.allows_role(action, view.my_role())
 	if ok:
 		if view.position() != PositionLibrary.STANDING or (action.category != STRIKE and action.category != TAKEDOWN):
 			ok = action.ranges.has(_band)
@@ -1025,6 +1137,13 @@ func on_event(view: FightView, event: FightEvent, layer: DecisionLayer) -> void:
 				_round_dealt += Judging.KNOCKDOWN_POINTS if event.type == FightEvent.KNOCKDOWN else Judging.ROCKED_POINTS
 		FightEvent.ROUND_ENDED:
 			_new_round()
+		FightEvent.POSITION_CHANGED:
+			_moved_position()
+			if event.actor >= 0 and event.data.roles[event.actor] == PositionLibrary.TOP:
+				if event.actor == me:
+					_round_dealt += Judging.TAKEDOWN_POINTS
+				else:
+					_round_taken += Judging.TAKEDOWN_POINTS
 	if not _tells.has(event.type):
 		return
 	for tell: Dictionary in _tells[event.type]:
@@ -1107,6 +1226,21 @@ func _scored(event: FightEvent, me: int) -> void:
 		_round_dealt += points
 	else:
 		_round_taken += points
+
+
+## The fight moved (a takedown, a clinch, getting up): whatever was being read or
+## followed up is gone, and the feet start fresh.
+func _moved_position() -> void:
+	_opp = {}
+	_follow = {}
+	_chain = 0
+	_reset_until = -1
+	_evade_until = -1
+	_giving_ground = false
+	_escape_until = -1
+	_closing = 0.0
+	_seen_at = -1
+	_met_advance = false
 
 
 ## Between rounds: score the round on their own reckoning and start fresh.

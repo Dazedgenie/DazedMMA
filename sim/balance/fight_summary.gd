@@ -3,9 +3,10 @@ extends RefCounted
 ## One fight boiled down to one row of numbers for the balance harness (#18,
 ## docs/12 §3 item 5, D95): who won and how, when it ended, knockdowns, strikes,
 ## damage, stamina (at the bell and the lowest it got), 10-10 cards, how often
-## an exchange's odds hit the 5–95% clamp, and how the fighters moved (time on the
-## fence, who held the centre, how much of it was a chase). BalanceReport turns
-## rows into the CSV and the summary.
+## an exchange's odds hit the 5–95% clamp, how the fighters moved (time on the
+## fence, who held the centre, how much of it was a chase), and the grappling
+## (takedowns tried and landed, time in the clinch, on the ground and on top, #15).
+## BalanceReport turns rows into the CSV and the summary.
 
 ## Every key a row has, in CSV column order.
 const COLUMNS: Array[String] = [
@@ -16,6 +17,7 @@ const COLUMNS: Array[String] = [
 	"stamina_end_red", "stamina_low_red", "stamina_end_blue", "stamina_low_blue",
 	"round_cards", "even_cards", "exchanges", "clamped", "events",
 	"fence_red", "pinned_red", "centre_red", "fence_blue", "pinned_blue", "centre_blue", "chase",
+	"shots_red", "takedowns_red", "shots_blue", "takedowns_blue", "clinch", "ground", "top_red", "top_blue",
 ]
 const SIDES: Array[String] = ["red", "blue"]
 
@@ -33,7 +35,8 @@ const CHASE_STEP: float = 0.01
 static func run(fight_seed: int, roster: FighterLibrary, actions: ActionLibrary, red_id: String, blue_id: String, rules: Variant = null, round_seconds: int = 300) -> Dictionary:
 	var sim := FightSim.new(fight_seed, roster.make_pair(red_id, blue_id), actions, rules, round_seconds)
 	var lows: Array[float] = [1.0, 1.0]
-	var moves := { "standing": 0, "chase": 0, "fence": [0, 0], "pinned": [0, 0], "centre": [0, 0] }
+	var moves := { "standing": 0, "chase": 0, "fence": [0, 0], "pinned": [0, 0], "centre": [0, 0],
+		"ticks": 0, "clinch": 0, "ground": 0, "top": [0, 0] }
 	while not sim.is_over():
 		var before: Array[Vector2] = [sim.fighters[0].pos, sim.fighters[1].pos]
 		var round_before: int = sim.clock.current_round
@@ -46,8 +49,19 @@ static func run(fight_seed: int, roster: FighterLibrary, actions: ActionLibrary,
 
 
 ## Adds one tick to the movement counts: `before` is where the fighters stood before it.
+## Tied-up ticks count toward the clinch, ground and top shares instead.
 static func count_movement(sim: FightSim, before: Array[Vector2], moves: Dictionary) -> void:
-	if sim.is_over() or not sim.situation.is_standing() or sim.fighters[0].is_down() or sim.fighters[1].is_down():
+	if sim.is_over():
+		return
+	moves.ticks = moves.get("ticks", 0) + 1
+	if not sim.situation.is_standing():
+		var key: String = "clinch" if sim.situation.phase == PositionLibrary.CLINCH else "ground"
+		moves[key] = moves.get(key, 0) + 1
+		for i in 2:
+			if sim.role(i) == PositionLibrary.TOP:
+				moves.top[i] += 1
+		return
+	if sim.fighters[0].is_down() or sim.fighters[1].is_down():
 		return
 	moves.standing += 1
 	var steps: Array[float] = []
@@ -86,6 +100,9 @@ static func of(sim: FightSim, lows: Array[float] = [], moves: Dictionary = {}) -
 	}
 	var standing: int = moves.get("standing", 0)
 	row.chase = _share_of(moves.get("chase", 0), standing)
+	var ticks: int = moves.get("ticks", 0)
+	row.clinch = _share_of(moves.get("clinch", 0), ticks)
+	row.ground = _share_of(moves.get("ground", 0), ticks)
 	for i in 2:
 		var f: FighterState = sim.fighters[i]
 		var side: String = SIDES[i]
@@ -98,6 +115,9 @@ static func of(sim: FightSim, lows: Array[float] = [], moves: Dictionary = {}) -
 		row["leg_damage_" + side] = f.damage.legs
 		row["stamina_end_" + side] = snappedf(f.stamina_fraction(), 0.001)
 		row["stamina_low_" + side] = snappedf(minf(lows[i] if i < lows.size() else 1.0, f.stamina_fraction()), 0.001)
+		row["shots_" + side] = f.takedowns_tried
+		row["takedowns_" + side] = f.takedowns_landed
+		row["top_" + side] = _share_of(moves.get("top", [0, 0])[i], ticks)
 		for key: String in ["fence", "pinned", "centre"]:
 			row[key + "_" + side] = _share_of(moves.get(key, [0, 0])[i], standing)
 	for e in sim.events:
@@ -129,6 +149,6 @@ static func method_of(result: String) -> String:
 	return METHOD_DECISION
 
 
-## Ticks as a share of standing ticks, rounded for the CSV.
+## Ticks as a share of standing (or all) ticks, rounded for the CSV.
 static func _share_of(ticks: int, standing: int) -> float:
 	return snappedf(float(ticks) / standing, 0.001) if standing > 0 else 0.0

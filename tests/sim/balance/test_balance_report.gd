@@ -126,3 +126,22 @@ func test_harness_rows_from_real_fights_feed_the_report() -> void:
 	assert_eq(report.pairs(), ["check_red:check_blue"] as Array[String])
 	assert_eq(report.csv().strip_edges().split("\n").size(), 4)
 	assert_gt(report.checks().size(), 0)
+
+
+func test_the_wrestlers_pairings_are_reported_with_no_pass_mark() -> void:
+	var rows: Array[Dictionary] = [
+		_row({ "red": "wrestler", "blue": "kicker", "winner_id": "wrestler" }),
+		_row({ "red": "kicker", "blue": "wrestler", "winner_id": "kicker" }),
+		_row({ "red": "wrestler", "blue": "kicker", "winner_id": "wrestler" }),
+		_row({ "red": "kicker", "blue": "wrestler", "winner_id": "wrestler" }),
+	]
+	var c: Dictionary = _check(_report(rows), "Wrestler vs Kicker")
+	assert_eq(c.status, BalanceReport.INFO, "Kyle: report only until after the playtest (D109)")
+	assert_eq(c.value, "75.0%", "counted by fighter, whichever corner")
+	assert_true(_check(_report(rows), "Wrestler vs Boxer").is_empty(), "no Wrestler vs Boxer fights, no line")
+
+
+func test_the_summary_says_how_much_grappling_there_was() -> void:
+	var report: BalanceReport = _report([_row({ "red": "wrestler", "takedowns_red": 4, "shots_red": 9, "ground": 0.3, "top_red": 0.28, "clinch": 0.05 })])
+	var text: String = report.summary({ "wrestler": "Wrestler", "boxer": "Boxer" })
+	assert_string_contains(text, "Grappling  takedowns Wrestler (red) 4.0 of 9.0 a fight, Boxer (blue) 0.0 of 0.0 · clinch 5.0% of the fight · ground 30.0% (Wrestler (red) on top 28.0%")

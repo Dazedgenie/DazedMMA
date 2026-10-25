@@ -11,6 +11,9 @@ const EVEN_CARDS_UNDER: float = 0.02
 ## docs/12 §4: the showcase pair should be within 60/40 once the AI (#14) lands.
 const SHOWCASE: Array[String] = ["kicker", "boxer"]
 const SHOWCASE_WITHIN: float = 0.6
+## D104, D109: the Wrestler's pairings are reported with no pass mark until after the playtest.
+const WRESTLER := "wrestler"
+const WRESTLER_OPPONENTS: Array[String] = ["kicker", "boxer"]
 ## D96: someone who pushed or had the pace pushed on them ends at ~30–50% of the tank.
 const TIRED_BELOW: float = 0.5
 
@@ -129,6 +132,11 @@ func checks() -> Array[Dictionary]:
 		var best: float = maxf(fighter_win_share(showcase, SHOWCASE[0]), fighter_win_share(showcase, SHOWCASE[1]))
 		out.append(_check("Kicker vs Boxer within 60/40, the exit test for the AI", "#14, docs/12 §4",
 			"favourite wins %s" % _pct(best), best <= SHOWCASE_WITHIN))
+	for opponent in WRESTLER_OPPONENTS:
+		var pair: Array[Dictionary] = rows.filter(func(row: Dictionary) -> bool:
+			return [row.red, row.blue] == [WRESTLER, opponent] or [row.blue, row.red] == [WRESTLER, opponent])
+		if not pair.is_empty():
+			out.append(_info("Wrestler vs %s: the Wrestler wins" % opponent.capitalize(), "D109", _pct(fighter_win_share(pair, WRESTLER))))
 	out.append(_info("Fights where someone got tired (under 50% of the tank)", "D96", _pct(tired_share(rows))))
 	out.append(_info("Fights finished inside the distance", "docs/12 §4", _pct(finish_share(rows))))
 	out.append(_info("Exchanges that hit the 5–95% odds clamp", "docs/12 §4", _pct(clamped_share(rows))))
@@ -205,6 +213,9 @@ func _pair_lines(of_rows: Array[Dictionary], names: Dictionary) -> PackedStringA
 		red, _pct(average(of_rows, "fence_red")), _pct(average(of_rows, "pinned_red")),
 		blue, _pct(average(of_rows, "fence_blue")), _pct(average(of_rows, "pinned_blue")),
 		red, _pct(average(of_rows, "centre_red")), blue, _pct(average(of_rows, "centre_blue")), _pct(average(of_rows, "chase"))])
+	lines.append("  Grappling  takedowns %s %.1f of %.1f a fight, %s %.1f of %.1f · clinch %s of the fight · ground %s (%s on top %s, %s on top %s)" % [
+		red, average(of_rows, "takedowns_red"), average(of_rows, "shots_red"), blue, average(of_rows, "takedowns_blue"), average(of_rows, "shots_blue"),
+		_pct(average(of_rows, "clinch")), _pct(average(of_rows, "ground")), red, _pct(average(of_rows, "top_red")), blue, _pct(average(of_rows, "top_blue"))])
 	lines.append("  Tired      someone under 50%% of the tank in %s of fights" % _pct(tired_share(of_rows)))
 	lines.append("  Odds       %s of exchanges hit the 5–95%% clamp" % _pct(clamped_share(of_rows)))
 	return lines

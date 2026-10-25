@@ -9,6 +9,13 @@ const DEFAULT_DIR := "res://data/positions/"
 const STANDING := "standing"
 const NEUTRAL := "neutral"
 const PHASE_STANDING := "standing"
+const CLINCH := "clinch"
+const SCRAMBLE := "scramble"
+const TOP := "top"
+const BOTTOM := "bottom"
+## A transition's `result`: the move worked, or half worked.
+const SUCCESS := "success"
+const PARTIAL := "partial"
 
 static var _default: PositionLibrary
 
@@ -48,9 +55,11 @@ func get_position(id: String) -> Dictionary:
 
 ## Where `action_id` takes the fight when the fighter in `role` lands it from
 ## `from_id`: {action, from_role, to, roles: {actor, opponent}}, or {} when it
-## doesn't move the fight anywhere.
-func transition(from_id: String, role: String, action_id: String) -> Dictionary:
+## doesn't move the fight anywhere. `result` is "success", or "partial" for a move
+## that half worked (a shot that ends in a scramble, #15); entries without a
+## `result` are for success.
+func transition(from_id: String, role: String, action_id: String, result: String = SUCCESS) -> Dictionary:
 	for t: Dictionary in _positions[from_id].get("transitions", []):
-		if t.action == action_id and t.from_role == role:
+		if t.action == action_id and t.from_role == role and t.get("result", SUCCESS) == result:
 			return t
 	return {}

@@ -1,0 +1,17 @@
+{
+	"schema": "action@2",
+	"id": "scramble",
+	"name": "Scramble for the top",
+	"category": "ground",
+	"basic": true,
+	"positions": ["scramble"],
+	"roles": ["neutral"],
+	"ranges": ["clinch"],
+	"phases_ms": { "telegraph": 0, "windup": 200, "active": 300, "recovery": 200 },
+	"stamina_cost": 5,
+	"flags_self": [],
+	"ground": { "base_success": 0.45 },
+	"stats": { "offense": ["scrambles", "strength"], "defense": ["scrambles"] },
+	"opportunities": [],
+	"requires_technique": null
+}

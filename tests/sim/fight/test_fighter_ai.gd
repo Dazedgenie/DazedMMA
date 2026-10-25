@@ -169,7 +169,10 @@ func test_a_jab_that_falls_short_is_not_a_blocked_jab() -> void:
 
 func test_the_wrestler_shifts_his_stance_before_he_shoots() -> void:
 	var sim := FightSim.new(SEED, [_roster.make("wrestler"), _statue()], _actions)
-	_ticks(sim, 3000)
+	for k in 3000:
+		sim.tick()
+		if not sim.situation.is_standing():
+			sim._break_apart(1)  # The statue never gets up on its own: stand them up to see the next shot.
 	var starts: Array[Dictionary] = _starts(sim, 0)
 	var shots: int = 0
 	var after_shift: int = 0

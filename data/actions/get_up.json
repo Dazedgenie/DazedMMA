@@ -1,0 +1,19 @@
+{
+	"schema": "action@2",
+	"id": "get_up",
+	"name": "Get up",
+	"category": "ground",
+	"basic": true,
+	"positions": ["full_guard", "scramble"],
+	"roles": ["bottom", "neutral"],
+	"ranges": ["clinch"],
+	"phases_ms": { "telegraph": 200, "windup": 300, "active": 500, "recovery": 300 },
+	"stamina_cost": 4,
+	"flags_self": [],
+	"ground": { "base_success": 0.25, "partial_within": 0.1 },
+	"stats": { "offense": ["scrambles", "takedown_defense"], "defense": ["top_control"] },
+	"opportunities": [
+		{ "own_flag": "BACK_TO_CAGE", "success_bonus": 0.15 }
+	],
+	"requires_technique": null
+}

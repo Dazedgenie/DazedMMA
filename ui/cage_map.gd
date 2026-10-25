@@ -95,7 +95,11 @@ func header_lines() -> Array[String]:
 	for i in sim.fighters.size():
 		out.append(_fighter_line(i))
 	var band: String = sim.band()
-	out.append("%s   %.2f m apart: %s" % [sim.clock.display(), sim.distance(), FightLogFormatter.RANGE_NAMES.get(band, band)])
+	var where: String = FightLogFormatter.RANGE_NAMES.get(band, band)
+	if not sim.situation.is_standing():
+		var top: int = sim.situation.roles.find(PositionLibrary.TOP)
+		where = String(sim.positions.get_position(sim.situation.position).name) + (" (%s on top)" % sim.fighters[top].name if top >= 0 else "")
+	out.append("%s   %.2f m apart: %s" % [sim.clock.display(), sim.distance(), where])
 	return out
 
 
