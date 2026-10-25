@@ -160,6 +160,8 @@ const PRESSED_BY: float = 0.1
 ## Backing up with the fence behind them, fighters circle off it instead: from this far
 ## out, the closer the fence the less they back up and the harder they circle.
 const FENCE_SENSE: float = 1.5
+## Closer to the centre than this, no fence is within FENCE_SENSE (Octagon.CLEAR_INSIDE).
+const CLEAR_OF_FENCE: float = Octagon.APOTHEM - Octagon.BODY_MARGIN - FENCE_SENSE - 0.01
 
 var _triggers: TriggerLibrary
 var _ready_for: FighterState
@@ -693,11 +695,15 @@ func preferred_distance(view: FightView, layer: DecisionLayer) -> float:
 ## backing along it), 1 with their back on it.
 func _fence_behind(view: FightView) -> float:
 	var me: Vector2 = view.me.pos
+	if me.length_squared() < CLEAR_OF_FENCE * CLEAR_OF_FENCE:
+		return 0.0  # Open space: the fence is further than FENCE_SENSE whichever way they back up.
 	var away: Vector2 = me - view.opponent.pos
 	if away.length() <= 0.0:
 		return 0.0
-	var into: float = -away.normalized().dot(Octagon.inward(me))
 	var fence: float = Octagon.distance_to_fence(me) - Octagon.BODY_MARGIN
+	if fence >= FENCE_SENSE:
+		return 0.0
+	var into: float = -away.normalized().dot(Octagon.inward(me))
 	return clampf(1.0 - fence / FENCE_SENSE, 0.0, 1.0) * maxf(0.0, into)
 
 

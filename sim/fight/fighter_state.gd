@@ -118,22 +118,26 @@ func stat(id: String) -> int:
 	return int(stats.get(id, DEFAULT_STAT))
 
 
-## The number they fight at right now: stat × condition.
+## The number they fight at right now: stat × condition. Head hurt is worked out
+## once here (it runs thousands of times a fight); is_panicking() is the same test.
 func effective_stat(id: String) -> float:
 	var value: float = stat(id)
 	if not FATIGUE_EXEMPT.has(id):
 		value *= 1.0 - tired()
+	var head: float = -1.0
 	if HEAD_HURT_STATS.has(id):
-		value *= 1.0 - MAX_HURT_PENALTY * hurt("head")
+		head = hurt("head")
+		value *= 1.0 - MAX_HURT_PENALTY * head
 		if is_rocked():
 			value *= 1.0 - ROCKED_PENALTY
 	if LEG_HURT_STATS.has(id):
 		value *= 1.0 - MAX_HURT_PENALTY * hurt("legs")
-	if PANIC_DEFENSE_STATS.has(id):
-		if is_panicking():
-			value *= 1.0 - PANIC_DEFENSE_PENALTY
-	elif id == "power" and is_panicking():
-		value *= 1.0 + PANIC_POWER_BONUS
+	var defense: bool = PANIC_DEFENSE_STATS.has(id)
+	if defense or id == "power":
+		if head < 0.0:
+			head = hurt("head")
+		if head >= PANIC_BASE + stat("composure") / 200.0:
+			value *= (1.0 - PANIC_DEFENSE_PENALTY) if defense else (1.0 + PANIC_POWER_BONUS)
 	return value
 
 
@@ -154,7 +158,12 @@ func condition_reasons(id: String) -> Array[String]:
 
 
 func max_stamina() -> float:
-	return (TANK_BASE + TANK_PER_CARDIO * stat("cardio")) * (1.0 - MAX_BODY_DRAIN * hurt("body"))
+	return _fresh_tank() * (1.0 - MAX_BODY_DRAIN * hurt("body"))
+
+
+## The tank before body damage shrinks it.
+func _fresh_tank() -> float:
+	return TANK_BASE + TANK_PER_CARDIO * int(stats.get("cardio", DEFAULT_STAT))
 
 
 func stamina_fraction() -> float:
@@ -163,9 +172,10 @@ func stamina_fraction() -> float:
 
 ## 0 at half a tank or more, rising to MAX_TIRED_PENALTY when empty.
 func tired() -> float:
-	if stamina >= TANK_BASE + TANK_PER_CARDIO * stat("cardio"):
+	var tank: float = _fresh_tank()
+	if stamina >= tank:
 		return 0.0  # A full fresh tank: skip the maths.
-	var f: float = clampf(stamina_fraction(), 0.0, 1.0)
+	var f: float = clampf(stamina / (tank * (1.0 - MAX_BODY_DRAIN * hurt("body"))), 0.0, 1.0)
 	if f >= TIRED_BELOW:
 		return 0.0
 	return MAX_TIRED_PENALTY * (TIRED_BELOW - f) / TIRED_BELOW
@@ -173,7 +183,7 @@ func tired() -> float:
 
 ## 0 (fresh) to 1 (fully hurt) for "head", "body" or "legs".
 func hurt(area: String) -> float:
-	var toughness: float = stat("chin") if area == "head" else stat("durability")
+	var toughness: float = int(stats.get("chin" if area == "head" else "durability", DEFAULT_STAT))
 	return clampf(damage[area] / (HURT_SCALE * (toughness + 50.0)), 0.0, 1.0)
 
 

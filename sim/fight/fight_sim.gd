@@ -371,14 +371,15 @@ func _move(i: int, want: float, circle: float) -> void:
 	var o: FighterState = fighters[1 - i]
 	var from: Vector2 = f.pos
 	var gap: Vector2 = o.pos - f.pos
-	var toward: Vector2 = gap.normalized() if gap.length() > 0.0 else Vector2.RIGHT
+	var apart: float = gap.length()
+	var toward: Vector2 = gap.normalized() if apart > 0.0 else Vector2.RIGHT
 	var step: float = step_length(i)
-	var radial: float = clampf(gap.length() - want, -step, step)
+	var radial: float = clampf(apart - want, -step, step)
 	_wants[i] = want
 	_circling[i] = circle
 	var stride: Vector2 = toward * radial
 	if radial > 0.0 and _strides[1 - i] != Vector2.ZERO:
-		var ahead: Vector2 = o.pos + _strides[1 - i] * (gap.length() / step) * (1.0 - _share[1 - i])
+		var ahead: Vector2 = o.pos + _strides[1 - i] * (apart / step) * (1.0 - _share[1 - i])
 		if ahead != f.pos:
 			stride = (ahead - f.pos).normalized() * radial
 	if circle > 0.0:
@@ -399,7 +400,7 @@ func _move(i: int, want: float, circle: float) -> void:
 	if after.length() < Octagon.MIN_GAP:
 		f.pos = Octagon.keep_inside(o.pos + (after.normalized() if after.length() > 0.0 else -toward) * Octagon.MIN_GAP)
 	_strides[i] = f.pos - from
-	_round_aggression[i] += maxf(0.0, gap.length() - (o.pos - f.pos).length()) * Judging.AGGRESSION_PER_METRE
+	_round_aggression[i] += maxf(0.0, apart - (o.pos - f.pos).length()) * Judging.AGGRESSION_PER_METRE
 
 
 ## Shoves fighter k straight back from the opponent (a landed teep), up to the fence.
@@ -421,9 +422,10 @@ func _circle_side(k: int, toward_opponent: Vector2) -> Vector2:
 
 
 func _update_space() -> void:
-	_announce("band", band(), FightEvent.RANGE_CHANGED, FightEvent.NO_ACTOR, "band")
+	var apart: float = distance()
+	_announce("band", Octagon.band(apart) if situation.is_standing() else Octagon.BAND_CLINCH, FightEvent.RANGE_CHANGED, FightEvent.NO_ACTOR, "band")
 	for i in fighters.size():
-		var proximity: String = cage_proximity(i)
+		var proximity: String = Octagon.proximity(fighters[i].pos, apart)
 		_announce(i, proximity, FightEvent.CAGE_CHANGED, i, "proximity")
 		if proximity == Octagon.CAGE_PINNED:
 			_round_control[1 - i] += 1

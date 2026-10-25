@@ -31,16 +31,16 @@ func _init(p_sim: FightSim, p_index: int) -> void:
 
 
 func band() -> String:
-	return _sim().band()
+	return _sim_ref.get_ref().band()
 
 
 ## How fast this fighter walks right now, in metres per tick (legs hurt = slower).
 func step() -> float:
-	return _sim().step_length(index)
+	return _sim_ref.get_ref().step_length(index)
 
 
 func distance() -> float:
-	return _sim().distance()
+	return _sim_ref.get_ref().distance()
 
 
 ## The current position id (e.g. "standing", "full_guard"), its phase, and roles.
@@ -144,8 +144,9 @@ func why_not(action_id: String) -> String:
 
 
 func roll() -> float:
-	return _sim().roll()
+	return _sim_ref.get_ref().roll()
 
 
+## band(), step(), distance() and roll() run every tick, so they read _sim_ref directly.
 func _sim() -> FightSim:
 	return _sim_ref.get_ref()
