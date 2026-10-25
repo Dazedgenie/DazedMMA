@@ -47,6 +47,13 @@ sometimes stall for a moment: on 2026-10-25 the same code ran the full fight in 
 A sim that is really too slow is slow on every run, so it still fails. To change the number of runs, edit `TIMING_TRIES` in
 `game/sim_check.gd` and the `3` in the full-fight test; keep them the same.
 
+**The CI margin (D105, added with #19):** even the fastest of 3 runs can miss on a slow machine: two runs of PR #47 took
+60–66 ms, and the same balance fights took 120 s on those machines against 76 s on a green run. So on CI (where the `CI`
+environment variable is `true`, as on GitHub Actions) both budgets are 1.5× longer: 90 ms and 1350 ms. A sim that really got
+50% slower still fails; local runs and the in-game **Run test fight** keep the 1000× budget. The time is printed on every run
+(the full-fight test's line in the test log, the self-check's detail), so a creeping slowdown shows before it fails. To change
+the margin, edit `CI_MARGIN` in `game/sim_check.gd` (both checks use `SimCheck.budget_ms`).
+
 **Where the time goes** (profile of a full fight, 2026-10-25, about 0.6 s here): the AI's feet (`preferred_distance`) and
 choice (`choose`) each tick, `FighterState.effective_stat` (2–4 µs a call, about 30,000 calls a fight), walking (`_move`) and
 the cage checks. Speed-ups made with #14 (PR #40), about 20%, none of which changed a single fight:
