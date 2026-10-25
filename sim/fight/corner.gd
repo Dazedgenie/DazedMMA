@@ -10,8 +10,8 @@ extends RefCounted
 ##
 ## Styles:
 ##   none   never calls
-##   ideal  the "good coaching" bot (D12): sees every moment and calls the right thing
-##          almost at once, and never calls on a spent voice
+##   ideal  the "good coaching" bot (D12): a good player who sees every moment, calls the
+##          right thing 0.3 s later, and never calls on a spent voice
 ##   ai     the opponent's corner (D68): the same calls, slower, and it misses some moments
 ##   spam   calls something every 1.5 s, whatever is happening
 ##
@@ -20,10 +20,11 @@ extends RefCounted
 ##     Takedown! at once, so the call lands while the leg is up
 ##   - the opponent's scouted tell is set off (their jab blocked: a kick is coming): the read
 ##     call for that move (Catch the kick!), so the fighter is primed before the kick
-##   - the opponent's scouted tell for a shot (the Wrestler's stance shift): Defend the shot!
 ##   - this fighter rocked: Survive!; the opponent rocked: Pressure!
 ## It doesn't call Get up!: the fighter works to get up on their own, and a called try
-## only spends one of theirs (LiveCalls.SPENT_TICKS).
+## adds a tired try more than it helps. Nor Defend the shot! on the Wrestler's
+## stance shift: the shot comes within a second, before the call can land, and the fighter
+## already reads repeated shots better on their own (FighterAI.WISE_READ).
 
 const NONE := "none"
 const IDEAL := "ideal"
@@ -32,7 +33,7 @@ const SPAM := "spam"
 const STYLES: Array[String] = [NONE, IDEAL, AI, SPAM]
 
 ## Ticks from seeing a moment to the call leaving the coach's mouth.
-const IDEAL_REACTION: int = 2
+const IDEAL_REACTION: int = 3
 const AI_REACTION: int = 5
 ## Share of moments the AI corner notices (its coaching level, D15, later).
 const AI_NOTICE: float = 0.5
@@ -104,8 +105,6 @@ func on_event(view: FightView, event: FightEvent) -> void:
 						_decide(event.tick, "takedown")
 	for tell: Dictionary in _tells:
 		if _triggers.matches(tell.trigger, event, 1 - me):
-			if view.actions.has(tell.action) and view.actions.get_action(tell.action).category == FighterAI.TAKEDOWN:
-				_decide(event.tick, "defend_the_shot")
 			for read_id: String in _reads:
 				if _reads[read_id].has(tell.action):
 					_decide(event.tick, read_id)

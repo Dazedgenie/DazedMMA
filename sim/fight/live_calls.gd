@@ -46,9 +46,9 @@ const SPAM_TRUST_COST: float = 2.0
 const IGNORE_BASE: float = 0.03
 const IGNORE_PER_EGO: float = 0.10  # at Ego +100; Humble fighters take it off
 const IGNORE_PER_STUBBORN: float = 0.05  # at Stubborn (Coachable −100); Coachable takes it off
-const IGNORE_PER_DISTRUST: float = 0.10  # at trust 0; trust 100 takes it off
+const IGNORE_PER_DISTRUST: float = 0.40  # at trust 0; trust 100 takes it off
 const IGNORE_PANICKING: float = 0.25
-const IGNORE_GARBLED: float = 0.20
+const IGNORE_GARBLED: float = 0.50
 const IGNORE_MAX: float = 0.9
 
 ## An accepted attempt: the fighter keeps looking for the range or the opening this long.
@@ -56,8 +56,10 @@ const ATTEMPT_TICKS: int = 20
 ## Read calls primed at once (D67); a third replaces the oldest.
 const MAX_READS: int = 2
 ## A move started on a call takes the place of one the fighter would have tried: their own
-## tries of that move wait this long after it (calls pick the moment, they don't add work).
-const SPENT_TICKS: int = 300
+## tries of that kind of move from standing (takedowns, clinch entries) wait this long after
+## it. Calls pick the moment; they don't add work. Moves off the feet (getting up, breaking
+## the clinch) are never held back.
+const SPENT_TICKS: int = 450
 ## Every call heard takes the fighter's eyes off the opponent for a moment: this much
 ## off their striking and takedown defense (like a primed read, D67) for this long.
 const HEARD_ATTENTION: float = 0.2
@@ -98,7 +100,7 @@ var _voice_at: int = 0
 var _last_heard: Dictionary = {}  # call id → tick
 ## The read or attempt whose move the fighter just started (claimed_started logs it).
 var _claimed: Dictionary = {}
-## Action id → tick until which the fighter's own tries of it wait (SPENT_TICKS).
+## Move category → tick until which the fighter's own tries of that kind from standing wait (SPENT_TICKS).
 var _spent: Dictionary = {}
 ## Tick until which the last call heard has the fighter's attention (HEARD_TICKS).
 var _listening_until: int = -1
@@ -245,7 +247,9 @@ func claim(view: FightView) -> Decision:
 func claimed_started(view: FightView, decision: Decision) -> void:
 	if _claimed.is_empty():
 		return
-	_spent[decision.action_id] = view.now + SPENT_TICKS
+	var action: Dictionary = view.actions.get_action(decision.action_id)
+	if action.positions.has(PositionLibrary.STANDING):
+		_spent[action.category] = view.now + SPENT_TICKS
 	if reads.has(_claimed):
 		_answer(_claimed.call, FIRED, "%s, %d ticks after the %s started" % [decision.reason, view.now - _claimed.seen, _move_name(view, _claimed.move)], decision.action_id)
 		reads.erase(_claimed)
@@ -277,7 +281,7 @@ func adjust_leaning(_view: FightView, which: String, value: float) -> float:
 
 
 func adjust_weight(view: FightView, action: Dictionary, weight: float) -> float:
-	if not _spent.is_empty() and view.now < int(_spent.get(action.id, -1)):
+	if not _spent.is_empty() and view.now < int(_spent.get(action.category, -1)) and action.positions.has(PositionLibrary.STANDING):
 		return 0.0
 	if focus.is_empty():
 		return weight

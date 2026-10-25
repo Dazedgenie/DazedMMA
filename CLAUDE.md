@@ -17,5 +17,6 @@
 - Smoke-run the main scene: `godot --headless --quit-after 30`
 - Clinch, takedowns and the ground (how a shot resolves, sprawls, knees into shots, getting up, judges' grappling points, the AI tied up): `docs/01-fight-engine.md` §21 (D108).
 - How live coaching calls work (voice, delay, compliance, attempts/focus/reads) and where their numbers live: `docs/01-fight-engine.md` §22 (D111, D112).
+- Coaching bots and the AI corner (who calls what, the harness's `--corners`/`--coach`, the D12 coaching checks), what a call costs, and strikers' answers to grappling: `docs/01-fight-engine.md` §22.5–22.9 and §21.8 (D113–D115).
 - Speed budget (1000× fight time), the timing checks and how to speed things up without changing fights: `docs/01-fight-engine.md` §2.1 (D105).
 - Import/refresh the project cache: `godot --headless --import`

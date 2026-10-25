@@ -118,6 +118,27 @@ func test_a_read_registers_one_reaction_time_after_the_move_is_first_seen() -> v
 	assert_eq(blue._opp.notice, 7 + sim.fighters[1].reaction_ticks(), "Blue sees Red's move the tick it starts")
 
 
+func test_a_fighter_wises_up_to_shots_and_clinch_entries_repeated_within_a_minute() -> void:
+	# D114 (Kyle's pick): each grappling start seen in the last 60 s makes the next easier to read.
+	var sim: FightSim = _sim(FighterState.new("Reader", {}, ["jab"], 0.0001), _statue())
+	var ai: FighterAI = _ai(sim)
+	var start := func(tick: int, id: String) -> void:
+		sim.fighters[1].action_id = id
+		sim.fighters[1].phase = "telegraph"
+		sim.fighters[1].phase_ticks_left = 2
+		ai.on_event(sim.views[0], FightEvent.new(tick, 1, FightEvent.ACTION_PHASE, 1, { "action_id": id, "phase": "telegraph" }), sim.decisions[0])
+	assert_eq(ai.wise_bonus(0), 0.0, "the first shot is a surprise")
+	start.call(0, "double_leg")
+	start.call(100, "clinch_entry")
+	start.call(150, "jab")
+	assert_almost_eq(ai.wise_bonus(200), 2 * FighterAI.WISE_READ, 0.001, "a jab doesn't count")
+	start.call(200, "double_leg")
+	start.call(300, "double_leg")
+	assert_almost_eq(ai.wise_bonus(400), FighterAI.WISE_MAX, 0.001, "four in a minute: capped")
+	assert_almost_eq(ai.wise_bonus(750), 2 * FighterAI.WISE_READ, 0.001, "the first two are over a minute old")
+	assert_eq(ai.wise_bonus(2000), 0.0)
+
+
 func test_a_longer_telegraph_and_a_higher_fight_iq_are_read_more_often() -> void:
 	var reads: Array[int] = []
 	for iq in [20, 90]:

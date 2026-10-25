@@ -8,6 +8,7 @@
 	"phases_ms": { "telegraph": 300, "windup": 200, "active": 500, "recovery": 400 },
 	"stamina_cost": 10,
 	"flags_self": [
+		{ "flag": "COMING_IN", "from": "telegraph", "to": "windup" },
 		{ "flag": "HEAD_LOW", "from": "windup", "to": "active" }
 	],
 	"takedown": { "base_success": 0.45, "partial_within": 0.1 },

@@ -76,14 +76,6 @@ func test_the_ideal_corner_primes_catch_the_kick_when_the_kickers_scouted_tell_f
 	assert_eq(_due_after(corner, view, Corner.IDEAL_REACTION), ["catch_the_kick"] as Array[String], "the Kicker's jab got blocked: the body kick is coming")
 
 
-func test_the_kickers_corner_warns_of_the_wrestlers_stance_shift() -> void:
-	var sim: FightSim = _pair("kicker", "wrestler")
-	var corner := Corner.new(Corner.IDEAL, 1)
-	var view: FightView = sim.views[0]
-	corner.on_event(view, FightEvent.new(0, 1, FightEvent.ACTION_PHASE, 1, { "action_id": "stance_shift", "phase": "telegraph" }))
-	assert_eq(_due_after(corner, view, Corner.IDEAL_REACTION), ["defend_the_shot"] as Array[String])
-
-
 func test_survive_when_rocked_and_pressure_when_the_opponent_is() -> void:
 	var sim: FightSim = _pair("boxer", "boxer")
 	var corner := Corner.new(Corner.IDEAL, 1)
@@ -151,3 +143,11 @@ func test_a_fight_with_corners_replays_from_its_command_log_without_them() -> vo
 	assert_gt(_heard(sim, 0).size() + _heard(sim, 1).size(), 0, "the corners called")
 	var again: FightSim = FightSim.replay(SEED, _roster.make_pair("wrestler", "kicker"), _actions, sim.command_log_as_dicts(), 1, 60)
 	assert_eq(JSON.stringify(again.events_as_dicts()), JSON.stringify(sim.events_as_dicts()))
+
+
+func test_nothing_is_logged_after_the_fight_ends_even_a_call_answered_on_the_knockout_tick() -> void:
+	# Seed 28 (when written): the Boxer's corner calls Pressure! and it's answered on the tick his hook ends the fight.
+	var sim := FightSim.new(28, _roster.make_pair("wrestler", "boxer"), _actions, Ruleset.load_id("pro"), 300)
+	sim.corners[1] = Corner.new(Corner.IDEAL, FightSummary.corner_seed(28, 1))
+	sim.run_to_end()
+	assert_eq(sim.events[-1].type, FightEvent.FIGHT_ENDED)

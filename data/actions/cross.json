@@ -11,6 +11,7 @@
 	"strike": { "target": "head", "base_damage": 6 },
 	"stats": { "offense": ["boxing", "power"], "defense": ["striking_defense"] },
 	"opportunities": [
+		{ "opponent_flag": "COMING_IN", "success_bonus": 0.10, "stops": true },
 		{ "opponent_flag": "ONE_LEG", "success_bonus": 0.15 },
 		{ "opponent_flag": "LEANING", "success_bonus": 0.10 }
 	],

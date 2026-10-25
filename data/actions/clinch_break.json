@@ -10,7 +10,7 @@
 	"stamina_cost": 4,
 	"flags_self": [],
 	"clinch": { "base_success": 0.35 },
-	"stats": { "offense": ["clinch_control", "strength"], "defense": ["clinch_control"] },
+	"stats": { "offense": ["clinch_control", "strength", "footwork"], "defense": ["clinch_control"] },
 	"opportunities": [
 		{ "own_flag": "BACK_TO_CAGE", "success_bonus": -0.15 }
 	],

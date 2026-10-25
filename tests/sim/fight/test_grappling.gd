@@ -207,6 +207,27 @@ func test_a_knee_into_the_shot_can_drop_him_on_the_spot() -> void:
 	assert_gt(drops, 0)
 
 
+func test_a_jab_landed_as_they_come_in_stops_a_clinch_entry_or_the_start_of_a_shot() -> void:
+	# D114: COMING_IN through a clinch entry and a double leg's first step; the jab lands 0.2 s in.
+	for entry: String in ["clinch_entry", "double_leg"]:
+		var stopped: int = 0
+		for n in SEEDS:
+			var sim: FightSim = _pair({}, { "boxing": 100, "speed": 100 }, 1.2, SEED + n)
+			_queue(sim, 0, 0, entry)
+			_queue(sim, 0, 1, "jab")
+			_ticks(sim, 4)
+			var landed: Array[FightEvent] = _events(sim, FightEvent.STRIKE_LANDED, 1)
+			if landed.is_empty():
+				continue
+			assert_has(_bonus_names(landed[0].data.odds), "COMING_IN")
+			assert_eq(landed[0].data.get("into", ""), entry)
+			var why: Array[FightEvent] = _events(sim, FightEvent.GRAPPLE_STOPPED, 0)
+			assert_eq(why[0].data.by_action, "jab")
+			assert_true(sim.situation.is_standing())
+			stopped += 1
+		assert_gt(stopped, SEEDS / 2, "%s: most jabs land (%d of %d)" % [entry, stopped, SEEDS])
+
+
 func test_where_knees_to_the_head_are_banned_the_knee_into_a_shot_stays_on_the_body() -> void:
 	var sim: FightSim = _knee_into_a_shot(Ruleset.load_id("amateur_teen"))
 	assert_not_null(sim)

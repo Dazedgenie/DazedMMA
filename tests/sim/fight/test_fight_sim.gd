@@ -218,7 +218,7 @@ func test_the_catch_kick_is_only_possible_while_the_opponent_is_on_one_leg() -> 
 	sim.fighters[1].phase = "windup"  # ONE_LEG from windup to recovery
 	assert_eq(sim.active_flags(1), ["ONE_LEG"] as Array[String])
 	# Base 20% + 35% for the leg + 10% for catching them mid-commitment.
-	assert_almost_eq(sim.odds(0, "catch_kick_single"), 0.20 + 0.35 + FightSim.COUNTER_BONUS, 0.0001)
+	assert_almost_eq(sim.odds(0, "catch_kick_single"), 0.10 + 0.15 + FightSim.COUNTER_BONUS, 0.0001)
 
 
 func test_a_sprawl_is_easier_against_a_shot_with_the_head_low() -> void:

@@ -10,6 +10,8 @@
 	"flags_self": [],
 	"strike": { "target": "head", "base_damage": 3 },
 	"stats": { "offense": ["boxing", "speed"], "defense": ["striking_defense"] },
-	"opportunities": [],
+	"opportunities": [
+		{ "opponent_flag": "COMING_IN", "success_bonus": 0.10, "stops": true }
+	],
 	"requires_technique": null
 }

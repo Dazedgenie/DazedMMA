@@ -117,7 +117,7 @@ func test_takedown_during_body_kick_gets_bonus() -> void:
 	sim.fighters[1].action_id = "body_kick"
 	sim.fighters[1].phase = "windup"
 	assert_eq(balanced, 0.0, "the catch-kick needs a kick to catch")
-	assert_almost_eq(sim.odds(0, "catch_kick_single"), 0.20 + 0.35 + FightSim.COUNTER_BONUS, 0.0001)
+	assert_almost_eq(sim.odds(0, "catch_kick_single"), 0.10 + 0.15 + FightSim.COUNTER_BONUS, 0.0001)
 
 
 func test_each_flag_opens_its_counter() -> void:

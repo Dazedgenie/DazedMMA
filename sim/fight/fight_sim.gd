@@ -315,7 +315,12 @@ func _reject_reason(command: FightCommand) -> String:
 		FightCommand.QUEUE_ACTION:
 			return why_not(command.fighter, id)
 		FightCommand.LIVE_CALL:
-			return "" if not call_for(command).is_empty() else "unknown call"  # Feasibility is checked once the call is processed.
+			var call: Dictionary = call_for(command)
+			if call.is_empty():
+				return "unknown call"
+			if decisions[command.fighter].calls.voice(now) < float(call.voice_cost):
+				return "no voice left"  # D28: every call costs voice; feasibility is checked once it's processed.
+			return ""
 	return "unknown command"
 
 
@@ -1095,6 +1100,8 @@ func _average_stat(f: FighterState, ids: Array) -> float:
 ## Records an event, lets both fighters' decision steps hear it (tells, reads,
 ## and later read calls and drilled rules), then tells listeners.
 func _emit(type: String, actor: int = FightEvent.NO_ACTOR, data: Dictionary = {}) -> void:
+	if _fight_over and type != FightEvent.FIGHT_ENDED:
+		return  # Nothing happens after the end, even later in the same tick (a call answered as the KO lands).
 	var event := FightEvent.new(now, clock.current_round, type, actor, data)
 	events.append(event)
 	for k in decisions.size():

@@ -165,16 +165,16 @@ func _coaching(none_wins: int, style: String, wins: int) -> BalanceReport:
 
 
 func test_good_coaching_meets_the_target_when_it_adds_10_to_20_percent() -> void:
-	var c: Dictionary = _check(_coaching(10, Corner.IDEAL, 13), "Kicker vs Boxer: good coaching")
+	var c: Dictionary = _check(_coaching(10, Corner.IDEAL, 13), "Kicker coached against the Boxer: good coaching")
 	assert_eq(c.status, BalanceReport.MET)
-	assert_eq(c.value, "+15.0% (50.0% → 65.0%)")
-	assert_eq(_check(_coaching(10, Corner.IDEAL, 16), "Kicker vs Boxer: good coaching").status, BalanceReport.MISSED, "+30% is too much")
-	assert_eq(_check(_coaching(10, Corner.IDEAL, 11), "Kicker vs Boxer: good coaching").status, BalanceReport.MISSED, "+5% too little")
+	assert_eq(c.value, "+15.0% (50.0% → 65.0%, 20 and 20 fights)")
+	assert_eq(_check(_coaching(10, Corner.IDEAL, 16), "Kicker coached against the Boxer: good coaching").status, BalanceReport.MISSED, "+30% is too much")
+	assert_eq(_check(_coaching(10, Corner.IDEAL, 11), "Kicker coached against the Boxer: good coaching").status, BalanceReport.MISSED, "+5% too little")
 
 
 func test_spam_meets_the_target_only_when_it_wins_less_than_no_calls() -> void:
-	assert_eq(_check(_coaching(10, Corner.SPAM, 8), "Kicker vs Boxer: spam").status, BalanceReport.MET)
-	assert_eq(_check(_coaching(10, Corner.SPAM, 12), "Kicker vs Boxer: spam").status, BalanceReport.MISSED)
+	assert_eq(_check(_coaching(10, Corner.SPAM, 8), "Kicker coached against the Boxer: spam").status, BalanceReport.MET)
+	assert_eq(_check(_coaching(10, Corner.SPAM, 12), "Kicker coached against the Boxer: spam").status, BalanceReport.MISSED)
 
 
 func test_coached_fights_are_kept_out_of_the_engines_own_targets() -> void:
@@ -186,3 +186,14 @@ func test_coached_fights_are_kept_out_of_the_engines_own_targets() -> void:
 	assert_eq(_check(report, "Draws").status, BalanceReport.MET, "the spam fights' draws don't count")
 	assert_eq(report.pairs(), ["kicker:boxer", "kicker:boxer red corner spam"] as Array[String])
 	assert_string_contains(report.summary(), "Corner     kicker (red)'s corner: spam caller")
+
+
+func test_a_bot_in_blues_corner_counts_for_the_fighter_it_coaches() -> void:
+	# Red is the Kicker in every row: with the bot in blue's corner, it's the Boxer being coached.
+	var rows: Array[Dictionary] = _coached(Corner.NONE, 10)
+	for n in 20:
+		rows.append(_row({ "seed": n + 1, "corner_blue": Corner.IDEAL, "corner_red": Corner.NONE,
+			"winner": "blue" if n < 13 else "red", "winner_id": "boxer" if n < 13 else "kicker" }))
+	var c: Dictionary = _check(_report(rows), "Boxer coached against the Kicker: good coaching")
+	assert_eq(c.value, "+15.0% (50.0% → 65.0%, 20 and 20 fights)")
+	assert_eq(c.status, BalanceReport.MET)

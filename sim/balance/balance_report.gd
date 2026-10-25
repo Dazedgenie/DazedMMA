@@ -16,8 +16,8 @@ const WRESTLER := "wrestler"
 const WRESTLER_OPPONENTS: Array[String] = ["kicker", "boxer"]
 ## D96: someone who pushed or had the pace pushed on them ends at ~30–50% of the tank.
 const TIRED_BELOW: float = 0.5
-## D12, docs/10 §2: the ideal caller in red's corner adds +10–20% to red's wins over no calls;
-## the spam caller wins less than no calls (Corner styles, compared pair by pair).
+## D12, docs/10 §2: the ideal caller adds +10–20% to the coached fighter's wins over no calls;
+## the spam caller wins less than no calls (Corner styles, compared matchup by matchup).
 const COACHING_GAIN_MIN: float = 0.10
 const COACHING_GAIN_MAX: float = 0.20
 
@@ -174,43 +174,77 @@ func checks() -> Array[Dictionary]:
 	return out
 
 
-## For each pairing run both without calls and with a bot in red's corner (blue's empty):
-## what the bot did to red's wins. The ideal caller should add +10–20% (D12), the spam
+## For each fighter coached by a bot (in either corner, the other corner empty) against an
+## opponent, next to the same two fighters without calls (either way round): what the bot
+## did to the coached fighter's wins. The ideal caller should add +10–20% (D12), the spam
 ## caller should cost wins; the AI corner (D68) is reported.
 func coaching_checks() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
-	var seen: Array[String] = []
+	var coached: Dictionary = {}  # "id:opponent" → style → [scores]
 	for row in rows:
-		var fighters: String = fighters_key(row)
-		if fighters in seen:
+		var side: String = coached_side(row)
+		if side == "":
 			continue
-		seen.append(fighters)
-		var by_style: Dictionary = {}
-		for r in rows:
-			if fighters_key(r) == fighters and corner(r, "blue") == Corner.NONE:
-				var style: String = corner(r, "red")
-				if not by_style.has(style):
-					by_style[style] = [] as Array[Dictionary]
-				by_style[style].append(r)
-		if not by_style.has(Corner.NONE):
+		var key: String = "%s:%s" % [row[side], row[_other(side)]]
+		var by_style: Dictionary = coached.get_or_add(key, {})
+		by_style.get_or_add(corner(row, side), []).append(1.0 if row.winner == side else 0.0)
+	var plain: Array[Dictionary] = uncoached()
+	for key: String in coached:
+		var ids: PackedStringArray = key.split(":")
+		var base_scores: Array = []
+		for row in plain:
+			if [row.red, row.blue] == [ids[0], ids[1]] or [row.red, row.blue] == [ids[1], ids[0]]:
+				base_scores.append(_side_score(row, ids[0]))
+		if base_scores.is_empty():
 			continue
-		var base: float = win_share(by_style[Corner.NONE], "red")
-		var who: String = "%s vs %s" % [String(row.red).capitalize(), String(row.blue).capitalize()]
+		var base: float = _mean(base_scores)
+		var who: String = "%s coached against the %s" % [ids[0].capitalize(), ids[1].capitalize()]
 		for style: String in [Corner.IDEAL, Corner.SPAM, Corner.AI]:
-			if not by_style.has(style):
+			if not coached[key].has(style):
 				continue
-			var coached: float = win_share(by_style[style], "red")
-			var gain: float = coached - base
-			var value: String = "%+.1f%% (%s → %s)" % [gain * 100.0, _pct(base), _pct(coached)]
+			var with_bot: float = _mean(coached[key][style])
+			var gain: float = with_bot - base
+			var value: String = "%+.1f%% (%s → %s, %d and %d fights)" % [gain * 100.0, _pct(base), _pct(with_bot), base_scores.size(), coached[key][style].size()]
 			match style:
 				Corner.IDEAL:
-					out.append(_check("%s: good coaching in red's corner adds +10–20%% wins" % who, "D12", value,
+					out.append(_check("%s: good coaching adds +10–20%% wins" % who, "D12", value,
 						gain >= COACHING_GAIN_MIN and gain <= COACHING_GAIN_MAX))
 				Corner.SPAM:
-					out.append(_check("%s: spam calls in red's corner win less than no calls" % who, "D12", value, gain < 0.0))
+					out.append(_check("%s: spam calls win less than no calls" % who, "D12", value, gain < 0.0))
 				Corner.AI:
-					out.append(_info("%s: the AI corner in red's corner" % who, "D68", value))
+					out.append(_info("%s: the AI corner" % who, "D68", value))
 	return out
+
+
+## "red" or "blue" when exactly one corner has a coaching bot, else "".
+static func coached_side(row: Dictionary) -> String:
+	var red: bool = corner(row, "red") != Corner.NONE
+	var blue: bool = corner(row, "blue") != Corner.NONE
+	if red == blue:
+		return ""
+	return "red" if red else "blue"
+
+
+## 1 when the fighter with this id won the fight, 0 when not; in a mirror, half a win per side.
+static func _side_score(row: Dictionary, id: String) -> float:
+	var score: float = 0.0
+	var sides: int = 0
+	for side: String in FightSummary.SIDES:
+		if row[side] == id:
+			sides += 1
+			score += 1.0 if row.winner == side else 0.0
+	return score / sides if sides > 0 else 0.0
+
+
+static func _other(side: String) -> String:
+	return "blue" if side == "red" else "red"
+
+
+static func _mean(values: Array) -> float:
+	var total: float = 0.0
+	for v: float in values:
+		total += v
+	return total / values.size() if not values.is_empty() else 0.0
 
 
 static func _is_showcase(row: Dictionary) -> bool:
