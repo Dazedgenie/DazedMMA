@@ -333,6 +333,16 @@ func preferred_distance(i: int) -> float:
 	return decisions[i].preferred_distance(views[i])
 
 
+## The distance fighter i was walking toward, and how much they circled (0–1), the last
+## time they moved. Read-only, for the debug cage view (docs/01 §20.1); 0 before the first step.
+func last_wanted_distance(i: int) -> float:
+	return _wants[i]
+
+
+func last_circling(i: int) -> float:
+	return _circling[i]
+
+
 func move_speed(f: FighterState) -> float:
 	return MOVE_BASE + MOVE_PER_STAT * (f.effective_stat("footwork") + f.effective_stat("speed")) / 200.0
 
