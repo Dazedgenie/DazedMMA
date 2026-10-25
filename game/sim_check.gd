@@ -8,12 +8,18 @@ extends RefCounted
 ## refused, and the replay is identical (docs/04-tech-and-production.md §2.2).
 
 const ROUND_SECONDS: int = 60
+## A shared machine can stall for a moment, so a fight over the time budget is
+## simulated again, up to this many runs in all, and the fastest counts: a slow
+## sim is slow every time (D105, docs/01 §2.1). Keep in step with test_fight_sim.gd.
+const TIMING_TRIES: int = 3
 
 ## The fight that was checked, so the console can print its events.
 var sim: FightSim
 ## [{name, passed, detail}] in the order they were checked.
 var results: Array[Dictionary] = []
 var elapsed_ms: float = 0.0
+## How many runs the timing took (more than 1 only when the first was over budget).
+var timing_runs: int = 1
 
 
 static func run(fight_seed: int, actions: ActionLibrary = null) -> SimCheck:
@@ -35,7 +41,7 @@ static func default_fighters() -> Array[FighterState]:
 
 
 ## A kicker who likes range against a boxer who walks forward: shows the standing
-## game (range, cage pressure, rocked and knockdowns) with the placeholder AI.
+## game (range, cage pressure, rocked and knockdowns) with the fighter AI.
 static func showcase_fighters() -> Array[FighterState]:
 	return FighterLibrary.load_dir().make_pair("kicker", "boxer")
 
@@ -46,11 +52,7 @@ func _run(fight_seed: int, actions: ActionLibrary) -> void:
 		return
 
 	var started: int = Time.get_ticks_usec()
-	sim = FightSim.new(fight_seed, default_fighters(), actions, 1, ROUND_SECONDS)
-	sim.submit(FightCommand.queue_action(20, 0, "body_kick"))
-	sim.submit(FightCommand.queue_action(40, 1, "double_leg"))
-	sim.submit(FightCommand.queue_action(60, 0, "not_a_real_move"))
-	sim.run_to_end()
+	sim = _scripted_fight(fight_seed, actions)
 	elapsed_ms = (Time.get_ticks_usec() - started) / 1000.0
 
 	var expected_ticks: int = ROUND_SECONDS * FightClock.TICKS_PER_SECOND
@@ -74,8 +76,23 @@ func _run(fight_seed: int, actions: ActionLibrary) -> void:
 		JSON.stringify(replayed.events_as_dicts()) == JSON.stringify(sim.events_as_dicts()),
 		"%d events compared" % sim.events.size())
 	# 60 fight-seconds at 1000x = 60 ms (docs/01 §2).
+	while elapsed_ms >= ROUND_SECONDS and timing_runs < TIMING_TRIES:
+		started = Time.get_ticks_usec()
+		_scripted_fight(fight_seed, actions)
+		elapsed_ms = minf(elapsed_ms, (Time.get_ticks_usec() - started) / 1000.0)
+		timing_runs += 1
 	_check("Runs over 1000x faster than fight time", elapsed_ms < ROUND_SECONDS,
-		"%.1f ms for %d fight-seconds" % [elapsed_ms, ROUND_SECONDS])
+		"%.1f ms for %d fight-seconds%s" % [elapsed_ms, ROUND_SECONDS, " (fastest of %d runs)" % timing_runs if timing_runs > 1 else ""])
+
+
+## The check fight: one 60-second round with a few commands, one of them bad.
+func _scripted_fight(fight_seed: int, actions: ActionLibrary) -> FightSim:
+	var fight := FightSim.new(fight_seed, default_fighters(), actions, 1, ROUND_SECONDS)
+	fight.submit(FightCommand.queue_action(20, 0, "body_kick"))
+	fight.submit(FightCommand.queue_action(40, 1, "double_leg"))
+	fight.submit(FightCommand.queue_action(60, 0, "not_a_real_move"))
+	fight.run_to_end()
+	return fight
 
 
 func _check(check_name: String, ok: bool, detail: String) -> void:

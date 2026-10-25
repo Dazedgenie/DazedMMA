@@ -14,4 +14,5 @@
 - Run the headless sim: `godot --headless --script res://tools/run_sim.gd`
 - Run the balance harness: `godot --headless --script res://tools/balance.gd -- --fights=100 --pairs=kicker:boxer` (CSV + summary in `build/balance/`)
 - Smoke-run the main scene: `godot --headless --quit-after 30`
+- Speed budget (1000× fight time), the timing checks and how to speed things up without changing fights: `docs/01-fight-engine.md` §2.1 (D105).
 - Import/refresh the project cache: `godot --headless --import`

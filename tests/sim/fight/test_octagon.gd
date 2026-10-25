@@ -28,3 +28,11 @@ func test_pinned_means_at_the_fence_with_the_opponent_close() -> void:
 	assert_eq(Octagon.proximity(at_fence, 3.0), Octagon.CAGE_NEAR, "nobody pressing")
 	assert_eq(Octagon.proximity(Vector2(3.0, 0.0), 1.2), Octagon.CAGE_NEAR)
 	assert_eq(Octagon.proximity(Vector2.ZERO, 1.2), Octagon.CAGE_CENTRE)
+
+
+func test_inward_points_off_the_nearest_fence_panel() -> void:
+	assert_eq(Octagon.inward(Vector2(4.0, 0.3)), Vector2(-1, 0))
+	assert_eq(Octagon.inward(Vector2(0.2, -3.9)), Vector2(0, 1))
+	var diagonal: Vector2 = Octagon.inward(Vector2(3.0, 3.0))
+	assert_almost_eq(diagonal.x, -Octagon.D, 0.0001)
+	assert_almost_eq(diagonal.y, -Octagon.D, 0.0001)

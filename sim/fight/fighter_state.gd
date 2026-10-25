@@ -8,6 +8,9 @@ extends RefCounted
 ## for the balance harness (#18) to tune.
 
 const DEFAULT_STAT: int = 50
+## Chance per free tick to lead with something (FighterAI.lead_rate): about one lead
+## every 7 s, with combinations, counters and meeting advances on top.
+const DEFAULT_WORK_RATE: float = 0.015
 
 ## Stamina tank in points: 60 + 0.8 × Cardio (Cardio 50 → 100).
 const TANK_BASE: float = 60.0
@@ -49,15 +52,19 @@ const PANIC_DEFENSE_STATS := { "fight_iq": true, "striking_defense": true, "take
 var id: String = ""
 var name: String
 var stats: Dictionary  # stat id → 0–100; missing stats count as DEFAULT_STAT
-## Actions the placeholder AI picks from when nothing is queued (the profile's `techniques`).
+## Actions the AI picks from when nothing is queued (the profile's `techniques`).
 var repertoire: Array[String]
-## Chance per idle tick that the placeholder AI starts an action, before style and panic.
+## Chance per free tick that the AI leads with something, before style and the moment
+## (FighterAI.lead_rate). 0 = never starts anything on their own.
 var work_rate: float
 ## action id → how much more (or less) this fighter likes it than usual (1.0 = normal, docs/01 §7).
 var tendencies: Dictionary = {}
 var style: StyleLeanings
-## The rest of the profile (docs/09 fighter@1): frame, stance, personality, gifts,
-## flaws, tells. Kept for the AI (#14), the world and saves; the fight doesn't read them yet.
+## Habits an opponent can scout (docs/01 §7, D11): [{trigger, action, chance, within_ms}].
+## After the trigger, `chance` to throw `action` within `within_ms`. The AI follows them (#14).
+var tells: Array = []
+## The rest of the profile (docs/09 fighter@1): frame, stance, personality, gifts and
+## flaws. Kept for the world and saves; the fight doesn't read them yet.
 var profile: Dictionary = {}
 
 ## Where they stand in the cage, in metres from the centre (Octagon).
@@ -66,6 +73,8 @@ var damage: Dictionary = { "head": 0, "body": 0, "legs": 0 }
 ## Ticks left rocked, and ticks left on the canvas after a knockdown.
 var rocked_ticks: int = 0
 var down_ticks: int = 0
+## Ticks left flinching from a clean shot: the feet stop (FightSim.STAGGER_*).
+var stagger_ticks: int = 0
 var knockdowns: int = 0  # suffered this fight
 var knockdowns_this_round: int = 0
 var stamina: float
@@ -78,7 +87,7 @@ var phase_ticks_left: int = 0
 var queued_action_id: String = ""
 
 
-func _init(p_name: String, p_stats: Dictionary = {}, p_repertoire: Array[String] = ["jab"], p_work_rate: float = 0.03, p_style: StyleLeanings = null) -> void:
+func _init(p_name: String, p_stats: Dictionary = {}, p_repertoire: Array[String] = ["jab"], p_work_rate: float = DEFAULT_WORK_RATE, p_style: StyleLeanings = null) -> void:
 	name = p_name
 	stats = p_stats
 	repertoire = p_repertoire
@@ -92,9 +101,10 @@ static func from_profile(p: Dictionary) -> FighterState:
 	var reps: Array[String] = []
 	reps.assign(p.get("techniques", []))
 	var tend: Dictionary = p.get("tendencies", {})
-	var f := FighterState.new(p.name, p.get("stats", {}).duplicate(), reps, float(tend.get("work_rate", 0.03)), StyleLeanings.new(p.get("style", {})))
+	var f := FighterState.new(p.name, p.get("stats", {}).duplicate(), reps, float(tend.get("work_rate", DEFAULT_WORK_RATE)), StyleLeanings.new(p.get("style", {})))
 	f.id = p.get("id", "")
 	f.tendencies = tend.get("actions", {}).duplicate()
+	f.tells = p.get("tells", []).duplicate(true)
 	f.profile = p
 	return f
 
@@ -108,22 +118,27 @@ func stat(id: String) -> int:
 	return int(stats.get(id, DEFAULT_STAT))
 
 
-## The number they fight at right now: stat × condition.
+## The number they fight at right now: stat × condition. This and the stamina
+## maths run tens of thousands of times a fight, so they read `stats` directly
+## and work head hurt out once (is_panicking() is the same test).
 func effective_stat(id: String) -> float:
-	var value: float = stat(id)
+	var value: float = int(stats.get(id, DEFAULT_STAT))
 	if not FATIGUE_EXEMPT.has(id):
 		value *= 1.0 - tired()
+	var head: float = -1.0
 	if HEAD_HURT_STATS.has(id):
-		value *= 1.0 - MAX_HURT_PENALTY * hurt("head")
-		if is_rocked():
+		head = hurt("head")
+		value *= 1.0 - MAX_HURT_PENALTY * head
+		if rocked_ticks > 0:
 			value *= 1.0 - ROCKED_PENALTY
 	if LEG_HURT_STATS.has(id):
 		value *= 1.0 - MAX_HURT_PENALTY * hurt("legs")
-	if PANIC_DEFENSE_STATS.has(id):
-		if is_panicking():
-			value *= 1.0 - PANIC_DEFENSE_PENALTY
-	elif id == "power" and is_panicking():
-		value *= 1.0 + PANIC_POWER_BONUS
+	var defense: bool = PANIC_DEFENSE_STATS.has(id)
+	if defense or id == "power":
+		if head < 0.0:
+			head = hurt("head")
+		if head >= PANIC_BASE + int(stats.get("composure", DEFAULT_STAT)) / 200.0:
+			value *= (1.0 - PANIC_DEFENSE_PENALTY) if defense else (1.0 + PANIC_POWER_BONUS)
 	return value
 
 
@@ -144,7 +159,7 @@ func condition_reasons(id: String) -> Array[String]:
 
 
 func max_stamina() -> float:
-	return (TANK_BASE + TANK_PER_CARDIO * stat("cardio")) * (1.0 - MAX_BODY_DRAIN * hurt("body"))
+	return (TANK_BASE + TANK_PER_CARDIO * int(stats.get("cardio", DEFAULT_STAT))) * (1.0 - MAX_BODY_DRAIN * hurt("body"))
 
 
 func stamina_fraction() -> float:
@@ -153,9 +168,10 @@ func stamina_fraction() -> float:
 
 ## 0 at half a tank or more, rising to MAX_TIRED_PENALTY when empty.
 func tired() -> float:
-	if stamina >= TANK_BASE + TANK_PER_CARDIO * stat("cardio"):
+	var tank: float = TANK_BASE + TANK_PER_CARDIO * int(stats.get("cardio", DEFAULT_STAT))
+	if stamina >= tank:
 		return 0.0  # A full fresh tank: skip the maths.
-	var f: float = clampf(stamina_fraction(), 0.0, 1.0)
+	var f: float = clampf(stamina / (tank * (1.0 - MAX_BODY_DRAIN * hurt("body"))), 0.0, 1.0)
 	if f >= TIRED_BELOW:
 		return 0.0
 	return MAX_TIRED_PENALTY * (TIRED_BELOW - f) / TIRED_BELOW
@@ -163,7 +179,7 @@ func tired() -> float:
 
 ## 0 (fresh) to 1 (fully hurt) for "head", "body" or "legs".
 func hurt(area: String) -> float:
-	var toughness: float = stat("chin") if area == "head" else stat("durability")
+	var toughness: float = int(stats.get("chin" if area == "head" else "durability", DEFAULT_STAT))
 	return clampf(damage[area] / (HURT_SCALE * (toughness + 50.0)), 0.0, 1.0)
 
 
@@ -192,8 +208,10 @@ func spend_stamina(amount: float) -> void:
 
 ## One tick of breathing: Cardio decides how fast the tank refills.
 func regen_tick() -> void:
-	var per_second: float = REGEN_BASE + REGEN_PER_CARDIO * stat("cardio") / 100.0
-	stamina = minf(stamina + per_second / FightClock.TICKS_PER_SECOND, max_stamina())
+	var cardio: int = int(stats.get("cardio", DEFAULT_STAT))
+	var per_second: float = REGEN_BASE + REGEN_PER_CARDIO * cardio / 100.0
+	var tank: float = (TANK_BASE + TANK_PER_CARDIO * cardio) * (1.0 - MAX_BODY_DRAIN * hurt("body"))
+	stamina = minf(stamina + per_second / FightClock.TICKS_PER_SECOND, tank)
 
 
 ## The corner between rounds: Recovery decides how much of the missing tank comes back.

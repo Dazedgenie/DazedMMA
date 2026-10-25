@@ -26,6 +26,17 @@ func adjust_weight(_view: FightView, _action: Dictionary, weight: float) -> floa
 	return weight
 
 
+## A style leaning (StyleLeanings.PACE …) as the AI should read it for this fight,
+## e.g. a Pressure gameplan adds Pace. Unchanged by default.
+func adjust_leaning(_view: FightView, _leaning: String, value: float) -> float:
+	return value
+
+
+## Every fight event, as this fighter's side sees it (read calls and rules watch for triggers).
+func on_event(_view: FightView, _event: FightEvent) -> void:
+	pass
+
+
 ## Called by the sim once the fighter starts an action this source claimed.
 func claimed_started(_view: FightView, _decision: Decision) -> void:
 	pass

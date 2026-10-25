@@ -3,7 +3,7 @@ extends RefCounted
 ## Headless fight simulation core (docs/01-fight-engine.md §2, issue #12).
 ##
 ## Each tick() is 100 ms of fight time: apply that tick's commands, then advance
-## both fighters (action phases, placeholder AI), emitting FightEvents. All
+## both fighters (action phases, fighter AI), emitting FightEvents. All
 ## randomness comes from one seeded RNG, so the same seed + command log always
 ## produces the same fight (see FightSim.replay).
 ##
@@ -39,6 +39,9 @@ const START_POSITIONS: Array[Vector2] = [Vector2(-1.75, 0.0), Vector2(1.75, 0.0)
 ## Walking speed in m/s: 0.8 + 1.2 × average of Footwork and Speed / 100 (50/50 → 1.4).
 const MOVE_BASE: float = 0.8
 const MOVE_PER_STAT: float = 1.2
+## Moving costs stamina (D96): this much per second at full pace, × (share of full pace)²,
+## so walking in is cheap and running all night isn't.
+const MOVE_STAMINA_PER_S: float = 0.6
 ## Range and cage changes are announced once they've held this long (0.5 s), so
 ## shuffling across a line isn't news. Flags and odds always use the exact state.
 const ANNOUNCE_AFTER_TICKS: int = 5
@@ -48,6 +51,10 @@ const COUNTER_BONUS: float = 0.10
 const COUNTER_DAMAGE: float = 1.3
 ## Below a quarter tank the hands drop (docs/01 §5: HANDS_LOW from fatigue).
 const HANDS_LOW_BELOW: float = 0.25
+## A clean shot stops the feet for a moment: 1 tick + 1 per 4 damage (a jab 2, a
+## body kick 3, a head kick 4), so landing on someone who walks in stops the advance.
+const STAGGER_BASE: int = 1
+const STAGGER_PER_DAMAGE: float = 0.25
 
 ## Head shots: shock = damage × (1 + head hurt) / (6 + 0.12 × Chin).
 ## Rock chance = (shock − 0.6) × 0.5, up to 60%. Rocked again while rocked = knockdown.
@@ -70,6 +77,11 @@ const TKO_KNOCKDOWNS: int = 3
 ## Tied up (clinch or ground), the fighters' centres are this close, on the spot
 ## where the one being taken down or tied up stood.
 const TANGLED_GAP: float = 0.4
+## In open space a circling fighter keeps their direction unless one way is clearly
+## more open (by this much, in metres toward the middle).
+const CIRCLE_SIDE_DEADBAND: float = 0.3
+## Walking pace and the footwork contest are worked out again every this many ticks.
+const FEET_EVERY: int = 5
 
 const RESULT_KO := "ko"
 const RESULT_TKO := "tko"
@@ -98,9 +110,22 @@ var _pending: Array[FightCommand] = []
 var _fight_over: bool = false
 var _round_points: Array[float] = [0.0, 0.0]  # effective striking this round, by who scored it
 var _round_knockdowns: Array[int] = [0, 0]  # knockdowns scored this round
+var _round_aggression: Array[float] = [0.0, 0.0]  # attacks thrown + metres walked forward this round
+var _round_control: Array[int] = [0, 0]  # ticks this round the opponent spent pinned on the fence
 ## Announced state for range ("band") and each fighter's cage proximity (0, 1):
 ## key → {shown, candidate, held} (see _announce).
 var _space: Dictionary = {}
+## Each fighter's footwork the last time they moved: the distance they wanted, how
+## much they circled (0–1) and which way (±1).
+var _wants: Array[float] = [0.0, 0.0]
+var _circling: Array[float] = [0.0, 0.0]
+var _circle_sign: Array[float] = [1.0, 1.0]
+## How far each fighter moved on their last tick (zero when they stood still).
+var _strides: Array[Vector2] = [Vector2.ZERO, Vector2.ZERO]
+## Walking pace (m per tick) and footwork-contest share per fighter, as of _feet_at.
+var _feet_at: int = -FEET_EVERY
+var _step: Array[float] = [0.0, 0.0]
+var _share: Array[float] = [0.5, 0.5]
 
 
 ## `p_rules` is a Ruleset (null = pro rules), or a round count with
@@ -270,6 +295,7 @@ func roll() -> float:
 func _advance_fighter(i: int) -> void:
 	var f: FighterState = fighters[i]
 	f.regen_tick()
+	_strides[i] = Vector2.ZERO
 	if f.is_down():
 		f.down_ticks -= 1
 		if f.down_ticks == 0:
@@ -279,6 +305,8 @@ func _advance_fighter(i: int) -> void:
 		f.rocked_ticks -= 1
 		if f.rocked_ticks == 0:
 			_emit(FightEvent.RECOVERED, i)
+	if f.stagger_ticks > 0:
+		f.stagger_ticks -= 1
 	if not f.is_free():
 		f.phase_ticks_left -= 1
 		if f.phase_ticks_left <= 0:
@@ -286,10 +314,13 @@ func _advance_fighter(i: int) -> void:
 	if f.is_free():
 		var seen: FightView = views[i]
 		if situation.is_standing():
-			_move(i, decisions[i].preferred_distance(seen))
+			var want: float = decisions[i].preferred_distance(seen)
+			var circle: float = decisions[i].circling(seen)
+			if f.stagger_ticks <= 0:
+				_move(i, want, circle)
 		var decision: Decision = decisions[i].decide(seen)
 		if not decision.is_idle():
-			_start_action(i, decision.action_id)
+			_start_action(i, decision.action_id, decision)
 			decisions[i].started(seen, decision)
 		for n: Dictionary in decisions[i].take_notes():
 			_emit(n.type, i, n.data)
@@ -306,47 +337,98 @@ func move_speed(f: FighterState) -> float:
 	return MOVE_BASE + MOVE_PER_STAT * (f.effective_stat("footwork") + f.effective_stat("speed")) / 200.0
 
 
-## Share of the sideways footwork battle fighter i wins: circling off the fence
-## when backing up, cutting the cage off when pressing (Footwork vs Footwork).
+## Share of the footwork battle fighter i wins (Footwork vs Footwork): pressing,
+## how well they cut the cage off; on the move, how well they stop it being cut off.
 func footwork_share(i: int) -> float:
 	return Contest.chance(Contest.STRIKE_BASE, fighters[i].effective_stat("footwork"), fighters[1 - i].effective_stat("footwork"))
 
 
-## The feet: step toward the preferred distance. Backing up near
-## the fence turns into circling toward open space; pressing a fighter who is
-## circling mirrors them to cut the cage off.
-func _move(i: int, want: float) -> void:
+## Metres fighter i walks in one tick.
+func step_length(i: int) -> float:
+	_refresh_feet()
+	return _step[i]
+
+
+## Walking pace and the footwork contest change only with fatigue and damage, so
+## they're worked out every FEET_EVERY ticks rather than every tick.
+func _refresh_feet() -> void:
+	if now < _feet_at + FEET_EVERY and now >= _feet_at:
+		return
+	_feet_at = now
+	for i in fighters.size():
+		_step[i] = move_speed(fighters[i]) / FightClock.TICKS_PER_SECOND
+		_share[i] = footwork_share(i)
+
+
+## The feet: step toward the preferred distance and circle as much as the fighter
+## wants (0–1: outside fighters circle when pressed), never faster than their
+## walking pace. At the fence they slide along it toward open space instead of
+## walking into it. Pressing someone who is on the move, they aim where that
+## fighter is going, to cut the cage off: how far ahead is the presser's share of a
+## Footwork contest, so good feet get out and bad feet get trapped.
+func _move(i: int, want: float, circle: float) -> void:
 	var f: FighterState = fighters[i]
 	var o: FighterState = fighters[1 - i]
+	var from: Vector2 = f.pos
 	var gap: Vector2 = o.pos - f.pos
-	var toward: Vector2 = gap.normalized() if gap.length() > 0.0 else Vector2.RIGHT
-	var step: float = move_speed(f) / FightClock.TICKS_PER_SECOND
-	var radial: float = clampf(gap.length() - want, -step, step)
-	var side := Vector2.ZERO
-	if radial < 0.0 and _near_fence(f):
-		side = _open_side(f.pos, toward) * step * footwork_share(i)
-	elif radial > 0.0 and _near_fence(o) and o.is_free() and distance() < preferred_distance(1 - i):
-		side = _open_side(o.pos, -toward) * step * (1.0 - footwork_share(1 - i))
-	f.pos = Octagon.keep_inside(f.pos + toward * radial + side)
+	var apart: float = gap.length()
+	var toward: Vector2 = gap.normalized() if apart > 0.0 else Vector2.RIGHT
+	var step: float = step_length(i)
+	var radial: float = clampf(apart - want, -step, step)
+	_wants[i] = want
+	_circling[i] = circle
+	var stride: Vector2 = toward * radial
+	if radial > 0.0 and _strides[1 - i] != Vector2.ZERO:
+		var ahead: Vector2 = o.pos + _strides[1 - i] * (apart / step) * (1.0 - _share[1 - i])
+		if ahead != f.pos:
+			stride = (ahead - f.pos).normalized() * radial
+	if circle > 0.0:
+		stride += _circle_side(i, toward) * step * circle
+	if stride.length() > step:
+		stride = stride.normalized() * step
+	var length: float = stride.length()
+	var to: Vector2 = Octagon.keep_inside(f.pos + stride)
+	var slid: Vector2 = to - f.pos
+	if length > 0.0 and slid.length() < length * 0.999:
+		# The fence is in the way: slide along it at the same pace.
+		var along: Vector2 = slid if slid.length() > 0.2 * length else _circle_side(i, toward)
+		to = Octagon.keep_inside(f.pos + along.normalized() * length)
+	f.pos = to
+	var effort: float = length / step if step > 0.0 else 0.0
+	f.spend_stamina(MOVE_STAMINA_PER_S * effort * effort / FightClock.TICKS_PER_SECOND)
 	var after: Vector2 = f.pos - o.pos
 	if after.length() < Octagon.MIN_GAP:
 		f.pos = Octagon.keep_inside(o.pos + (after.normalized() if after.length() > 0.0 else -toward) * Octagon.MIN_GAP)
+	_strides[i] = f.pos - from
+	_round_aggression[i] += maxf(0.0, apart - (o.pos - f.pos).length()) * Judging.AGGRESSION_PER_METRE
 
 
-func _near_fence(f: FighterState) -> bool:
-	return Octagon.distance_to_fence(f.pos) - Octagon.BODY_MARGIN < Octagon.NEAR_WITHIN
+## Shoves fighter k straight back from the opponent (a landed teep), up to the fence.
+func _push(k: int, metres: float) -> void:
+	var away: Vector2 = fighters[k].pos - fighters[1 - k].pos
+	if away.length() > 0.0:
+		fighters[k].pos = Octagon.keep_inside(fighters[k].pos + away.normalized() * metres)
 
 
-## Sideways (relative to the opponent) toward the middle of the cage.
-func _open_side(p: Vector2, toward_opponent: Vector2) -> Vector2:
+## Which way fighter k circles: sideways (relative to the opponent) toward the
+## middle of the cage. In open space, where neither way is clearly better, they
+## keep going the way they were, so they don't jitter.
+func _circle_side(k: int, toward_opponent: Vector2) -> Vector2:
 	var side := Vector2(-toward_opponent.y, toward_opponent.x)
-	return side if side.dot(-p) >= 0.0 else -side
+	var lean: float = side.dot(-fighters[k].pos)
+	if absf(lean) > CIRCLE_SIDE_DEADBAND:
+		_circle_sign[k] = 1.0 if lean > 0.0 else -1.0
+	return side * _circle_sign[k]
 
 
 func _update_space() -> void:
-	_announce("band", band(), FightEvent.RANGE_CHANGED, FightEvent.NO_ACTOR, "band")
+	var apart: float = distance()
+	_announce("band", Octagon.band(apart) if situation.is_standing() else Octagon.BAND_CLINCH, FightEvent.RANGE_CHANGED, FightEvent.NO_ACTOR, "band")
 	for i in fighters.size():
-		_announce(i, cage_proximity(i), FightEvent.CAGE_CHANGED, i, "proximity")
+		var proximity: String = Octagon.proximity(fighters[i].pos, apart)
+		_announce(i, proximity, FightEvent.CAGE_CHANGED, i, "proximity")
+		if proximity == Octagon.CAGE_PINNED:
+			_round_control[1 - i] += 1
 
 
 func _announce(key: Variant, value: String, type: String, actor: int, field: String) -> void:
@@ -366,6 +448,9 @@ func _announce(key: Variant, value: String, type: String, actor: int, field: Str
 
 func _to_corners() -> void:
 	situation.reset()
+	_wants = [0.0, 0.0]
+	_circling = [0.0, 0.0]
+	_strides = [Vector2.ZERO, Vector2.ZERO]
 	for i in fighters.size():
 		fighters[i].pos = START_POSITIONS[i]
 	_space = { "band": _quiet(band()), 0: _quiet(cage_proximity(0)), 1: _quiet(cage_proximity(1)) }
@@ -420,14 +505,21 @@ func _place_bodies(i: int) -> void:
 # --- Choosing and running actions ---------------------------------------------
 
 
-func _start_action(i: int, id: String) -> void:
+## Starts an action. The telegraph event says which layer chose it and why
+## (`by`, `why`), so the log can explain every move (docs/01 §16 A16).
+func _start_action(i: int, id: String, decision: Decision = null) -> void:
 	var f: FighterState = fighters[i]
 	f.action_id = id
 	var action: Dictionary = actions.get_action(id)
 	f.spend_stamina(float(action.stamina_cost))
 	if action.category == "strike":
 		f.strikes_thrown += 1
-	_enter_phase(i, 0)
+	if action.category == "strike" or action.category == "takedown":
+		_round_aggression[i] += 1.0
+	var why: Dictionary = {}
+	if decision != null:
+		why = { "by": decision.layer, "why": decision.reason }
+	_enter_phase(i, 0, why)
 
 
 func _next_phase(i: int) -> void:
@@ -441,11 +533,14 @@ func _next_phase(i: int) -> void:
 
 
 ## Enters phase `at`, skipping zero-length phases (each still emits its event).
-func _enter_phase(i: int, at: int) -> void:
+## `why` (who chose the action and why) goes on the telegraph event.
+func _enter_phase(i: int, at: int, why: Dictionary = {}) -> void:
 	var f: FighterState = fighters[i]
 	f.phase = ActionLibrary.PHASES[at]
 	f.phase_ticks_left = phase_ticks(f, f.action_id, f.phase)
-	_emit(FightEvent.ACTION_PHASE, i, { "action_id": f.action_id, "phase": f.phase })
+	var data := { "action_id": f.action_id, "phase": f.phase }
+	data.merge(why)
+	_emit(FightEvent.ACTION_PHASE, i, data)
 	if f.phase == "active":
 		_resolve_active(i)
 	if f.phase_ticks_left <= 0:
@@ -484,6 +579,45 @@ func active_flags(i: int) -> Array[String]:
 	return out
 
 
+## Fighter i's flags `ahead` ticks from now if they carry on with their action:
+## the flags of the phase they'll be in, plus the ones that come from where they
+## stand and how they are (pinned, exhausted, rocked), as they are now.
+func flags_ahead(i: int, ahead: int) -> Array[String]:
+	if ahead <= 0:
+		return active_flags(i)
+	var f: FighterState = fighters[i]
+	var out: Array[String] = []
+	if cage_proximity(i) == Octagon.CAGE_PINNED:
+		out.append("BACK_TO_CAGE")
+	if f.stamina_fraction() < HANDS_LOW_BELOW or f.is_rocked():
+		out.append("HANDS_LOW")
+	var phase: String = phase_ahead(i, ahead)
+	if phase == "":
+		return out
+	var at: int = ActionLibrary.PHASES.find(phase)
+	for entry: Dictionary in actions.get_action(f.action_id).flags_self:
+		if ActionLibrary.PHASES.find(entry.from) <= at and at <= ActionLibrary.PHASES.find(entry.to):
+			out.append(entry.flag)
+	return out
+
+
+## Fighter i's phase `ahead` ticks from now if they carry on with their action
+## ("" when they're free or will be done by then). Committed moves can't be
+## cancelled, so this is what an opponent who read the move can count on.
+func phase_ahead(i: int, ahead: int) -> String:
+	var f: FighterState = fighters[i]
+	if f.is_free():
+		return ""
+	var at: int = ActionLibrary.PHASES.find(f.phase)
+	var left: int = f.phase_ticks_left - ahead
+	while left <= 0:
+		at += 1
+		if at >= ActionLibrary.PHASES.size():
+			return ""
+		left += phase_ticks(f, f.action_id, ActionLibrary.PHASES[at])
+	return ActionLibrary.PHASES[at]
+
+
 ## Fighter i's odds for this action against the opponent right now: the shared
 ## contest formula on effective stats, plus opportunity bonuses for flags the
 ## opponent carries and for catching them mid-commitment (a counter).
@@ -492,16 +626,26 @@ func odds(i: int, id: String) -> float:
 	return odds_breakdown(i, id).chance
 
 
+## Fighter i's odds for this action on stats alone: no flags, no counter (the AI's
+## range plan, #14). Cheaper than odds_breakdown.
+func plain_odds(i: int, id: String) -> float:
+	var action: Dictionary = actions.get_action(id)
+	return Contest.chance(Contest.base_for(action), _average_stat(fighters[i], action.stats.offense), _average_stat(fighters[1 - i], action.stats.defense))
+
+
 ## The same odds with every part named (OddsBreakdown), as strike events carry them.
-func odds_breakdown(i: int, id: String) -> OddsBreakdown:
+## With `ahead` > 0: the odds if the action lands that many ticks from now, with the
+## opponent carrying on with their action (the AI uses it to time counters, #14).
+func odds_breakdown(i: int, id: String, ahead: int = 0) -> OddsBreakdown:
 	var action: Dictionary = actions.get_action(id)
 	var b := OddsBreakdown.new(id)
 	b.base = Contest.base_for(action)
 	b.attack = _average_stat(fighters[i], action.stats.offense)
 	b.defense = _average_stat(fighters[1 - i], action.stats.defense)
-	if is_counter(i):
+	var countering: bool = is_counter(i) if ahead <= 0 else phase_ahead(1 - i, ahead) in COUNTER_PHASES
+	if countering:
 		b.add_bonus("counter", COUNTER_BONUS)
-	var opponent_flags: Array[String] = active_flags(1 - i)
+	var opponent_flags: Array[String] = active_flags(1 - i) if ahead <= 0 else flags_ahead(1 - i, ahead)
 	for opp: Dictionary in action.opportunities:
 		if opponent_flags.has(opp.opponent_flag):
 			b.add_bonus(opp.opponent_flag, float(opp.success_bonus))
@@ -539,8 +683,12 @@ func _resolve_active(i: int) -> void:
 		miss.odds = breakdown.to_dict()
 		_emit(FightEvent.STRIKE_MISSED, i, miss)
 		return
-	var dealt: int = maxi(1, roundi(float(action.strike.base_damage) * strike_power(attacker) * (COUNTER_DAMAGE if counter else 1.0) * ruleset.damage_multiplier))
+	var dealt: int = maxi(1, roundi(strike_damage(attacker, action.id) * (COUNTER_DAMAGE if counter else 1.0)))
 	defender.damage[target] += dealt
+	defender.stagger_ticks = maxi(defender.stagger_ticks, STAGGER_BASE + roundi(dealt * STAGGER_PER_DAMAGE))
+	var push: float = float(action.strike.get("push_m", 0.0))
+	if push > 0.0:
+		_push(1 - i, push)
 	attacker.strikes_landed += 1
 	_round_points[i] += dealt * Judging.TARGET_WEIGHTS[target]
 	_emit(FightEvent.STRIKE_LANDED, i, { "action_id": action.id, "target": target, "damage": dealt, "chance": chance, "counter": counter, "odds": breakdown.to_dict() })
@@ -551,6 +699,11 @@ func _resolve_active(i: int) -> void:
 ## Damage multiplier from Power: 0.5 + Power / 100 (Power 50 → ×1).
 func strike_power(f: FighterState) -> float:
 	return 0.5 + f.effective_stat("power") / 100.0
+
+
+## What this strike does when it lands clean (before the counter bonus and rounding).
+func strike_damage(f: FighterState, id: String) -> float:
+	return float(actions.get_action(id).strike.base_damage) * strike_power(f) * ruleset.damage_multiplier
 
 
 ## How hard a head shot landed relative to what fighter i's opponent can take.
@@ -611,9 +764,11 @@ func _end_round() -> void:
 	var cards: Array = []
 	for j in Judging.JUDGES:
 		var seen: Array[float] = []
+		var aggression: Array[float] = []
 		for i in 2:
 			seen.append(_round_points[i] * (1.0 + _rng.randf_range(-Judging.JUDGE_NOISE, Judging.JUDGE_NOISE)))
-		var card: Array[int] = Judging.round_card(seen, _round_knockdowns)
+			aggression.append(_round_aggression[i] * (1.0 + _rng.randf_range(-Judging.JUDGE_NOISE, Judging.JUDGE_NOISE)))
+		var card: Array[int] = Judging.round_card(seen, _round_knockdowns, [aggression, _round_control])
 		judge_totals[j][0] += card[0]
 		judge_totals[j][1] += card[1]
 		cards.append(card)
@@ -628,9 +783,12 @@ func _end_round() -> void:
 		f.recover_between_rounds()
 		f.rocked_ticks = 0
 		f.down_ticks = 0
+		f.stagger_ticks = 0
 		f.knockdowns_this_round = 0
 	_round_points = [0.0, 0.0]
 	_round_knockdowns = [0, 0]
+	_round_aggression = [0.0, 0.0]
+	_round_control = [0, 0]
 	clock.start_next_round()
 	_to_corners()
 
@@ -649,7 +807,11 @@ func _average_stat(f: FighterState, ids: Array) -> float:
 	return total / ids.size()
 
 
+## Records an event, lets both fighters' decision steps hear it (tells, reads,
+## and later read calls and drilled rules), then tells listeners.
 func _emit(type: String, actor: int = FightEvent.NO_ACTOR, data: Dictionary = {}) -> void:
 	var event := FightEvent.new(now, clock.current_round, type, actor, data)
 	events.append(event)
+	for k in decisions.size():
+		decisions[k].on_event(views[k], event)
 	event_emitted.emit(event)

@@ -1,7 +1,7 @@
 # Chin Check — Design Planning (v1)
 
 > Status: **v1: design signed off for Phase 0 wrap-up.** Working title **Chin Check** (D81); the repo stays `DazedMMA`.
-> Decisions D1–D102 are binding unless revisited on purpose. Anything still marked **[ASSUMPTION]**
+> Decisions D1–D105 are binding unless revisited on purpose. Anything still marked **[ASSUMPTION]**
 > in older sections has been superseded by the decisions log and the per-system docs.
 
 Inspiration: *Boxing School* (Steam app 939990). It's a management/coaching sim where you shape a
@@ -116,6 +116,9 @@ boxer between fights and influence bouts from the corner. Chin Check takes that 
 | D100 | World and career simulation | **Pure, in `sim/world/`** | Same rules as the fight engine (no scene tree, seeded), so 30-year world sims can run in CI (R6). The game layer only schedules it. |
 | D101 | Renderer | **Compatibility** | Switch before the grey-box view (#19). Smooth on most machines first, looks second. |
 | D102 | Pre-coding review | **Filed as `12-pre-coding-review.md`; priority items tracked as GitHub issues** | Structure work lands before #14–#17. |
+| D103 | Catch-kicks | **Only when called or drilled** | The fighter AI never throws a move that needs an opening (`required`) on its own, so the kick → takedown call in the playtest only works if the coach makes it (`01` §20, #14). |
+| D104 | The Wrestler | **In the data now, parked until #15** | Profile, stance-shift tell and the AI's set-up logic land with #14; he stays out of the showcase and the balance targets until takedowns resolve (#15). |
+| D105 | Speed checks | **An over-budget timed fight is run again, up to 3 runs; the fastest counts** | GitHub's shared test machines vary about 1.6× in speed and sometimes stall, which failed the 1000× checks on code that had just got faster. A sim that is really too slow still fails every run. Details, and where to change it: `01` §2.1. |
 
 ### Per-system design docs
 - [`01-fight-engine.md`](01-fight-engine.md): simulation, positions, coaching calls, tells, corner, scoring

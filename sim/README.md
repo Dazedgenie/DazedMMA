@@ -18,7 +18,8 @@ Rules (docs/04-tech-and-production.md §2.2):
 | `decision.gd` / `decision_source.gd` | A decision (action, layer, reason) and the base for layers that claim or bias it |
 | `live_calls.gd` | Live calls: delay in fight time, compliance and feasibility checks, `call_answered` events |
 | `gameplan.gd` | Multiplies the AI's weights per action or category |
-| `placeholder_ai.gd` | The fighter's own choices until the utility AI (#14): footwork target and what to throw |
+| `fighter_ai.gd` | The fighter's own choices with no calls (#14, `docs/01` §20): the range plan and footwork, reads, counters, combinations, tells and what to throw |
+| `trigger_library.gd` | Loads `data/triggers/*.json` and matches an event against a trigger, as one fighter sees it (tells now; read calls and rules later) |
 | `odds_breakdown.gd` | Where an exchange's odds came from; strike events carry it as `odds` |
 | `ruleset.gd` | Loads `data/rulesets/*.json`: rounds, round length, damage scaling, legal actions |
 | `fight_clock.gd` | Rounds and ticks |

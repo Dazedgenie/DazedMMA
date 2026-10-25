@@ -1,0 +1,8 @@
+{
+	"schema": "trigger@1",
+	"id": "own_jab_blocked",
+	"name": "Jab blocked",
+	"type": "event",
+	"event": "strike_missed",
+	"match": { "actor": "self", "action_ids": ["jab"], "defended": true }
+}

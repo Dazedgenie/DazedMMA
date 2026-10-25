@@ -54,6 +54,14 @@ static func normal(k: int) -> Vector2:
 	return NORMALS[k]
 
 
+## Every panel is at least APOTHEM − |p| from a point p (the cage's inner circle), so
+## points closer to the centre than these skip the panel checks: clear of the fence
+## for a body (keep_inside), and not near it (proximity). A centimetre short, so
+## rounding never changes an answer.
+const CLEAR_INSIDE: float = APOTHEM - BODY_MARGIN - 0.01
+const CLEAR_OF_NEAR: float = APOTHEM - BODY_MARGIN - NEAR_WITHIN - 0.01
+
+
 ## Metres from a point to the nearest fence panel (negative outside the cage).
 static func distance_to_fence(p: Vector2) -> float:
 	var nearest: float = INF
@@ -62,8 +70,22 @@ static func distance_to_fence(p: Vector2) -> float:
 	return nearest
 
 
+## Unit vector from the nearest fence panel into the cage: the way off the fence.
+static func inward(p: Vector2) -> Vector2:
+	var best: int = 0
+	var nearest: float = INF
+	for k in NORMALS.size():
+		var gap: float = APOTHEM - p.dot(NORMALS[k])
+		if gap < nearest:
+			nearest = gap
+			best = k
+	return -NORMALS[best]
+
+
 ## Pushes a point back inside the fence, keeping a fighter's body width.
 static func keep_inside(p: Vector2) -> Vector2:
+	if p.length_squared() < CLEAR_INSIDE * CLEAR_INSIDE:
+		return p
 	var out: Vector2 = p
 	for n in NORMALS:
 		var over: float = out.dot(n) - (APOTHEM - BODY_MARGIN)
@@ -73,6 +95,8 @@ static func keep_inside(p: Vector2) -> Vector2:
 
 
 static func proximity(p: Vector2, opponent_distance: float) -> String:
+	if p.length_squared() < CLEAR_OF_NEAR * CLEAR_OF_NEAR:
+		return CAGE_CENTRE
 	var fence: float = distance_to_fence(p) - BODY_MARGIN
 	if fence < PINNED_WITHIN and opponent_distance <= MID_WITHIN:
 		return CAGE_PINNED
