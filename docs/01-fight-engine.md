@@ -639,7 +639,24 @@ pocket is built on it). If the playtest wants a fighter who walks onto the oppon
 The Wrestler's pairings are reported in the harness with no pass mark until after the playtest (D109); Kicker vs Boxer within
 60/40 is still the only win check. Numbers from the harness, 100 fights a pairing, both corners:
 
-BALANCE_TABLE
+| Pairing (red vs blue) | Red wins · draws | Shots (takedowns) a fight | Clinch · ground (share of the fight) |
+|---|---|---|---|
+| Kicker vs Boxer | 50% · 1% | – | – |
+| Boxer vs Kicker | 50% · 0% | – | – |
+| Wrestler vs Kicker | 51% · 5% | 18.8 (9.0) | 1% · 34% |
+| Kicker vs Wrestler | 51% · 3% | 19.0 (9.2) | 1% · 33% |
+| Wrestler vs Boxer | 45% · 4% | 30.1 (14.7) | 4% · 55% |
+| Boxer vs Wrestler | 48% · 3% | 29.7 (14.6) | 4% · 55% |
+
+The Wrestler wins 48.5% against the Kicker and 47% against the Boxer. Striker fights are unchanged: with the Kicker's new knee
+taken out, Kicker vs Boxer plays out event for event as it did before this work. The knee itself costs the Kicker a little
+(56/44 for the Boxer at tendency 0.6), so it sits at 0.2 in `data/fighters/kicker.json`: there for the clinch and for a shot that
+comes in, but rarely thrown in the open. Mirrors as in §20 (Boxer 53/47, Kicker 40/60, the known blue lean). No 10-10 cards.
+
+Two things to look at next. **Draws** are 2.0% over the 800 fights (target: under 2%, D97); every one but one is a Wrestler
+fight, where a striker who stuffs every shot in a round wins it 10-8 (the Wrestler landed almost nothing) and loses the other
+two 10-9, so the cards finish 28-28. **The Wrestler against the Boxer** stands with their back on the fence 95% of the standing
+time; it was the same before this work (90% on main), so it comes from the movement rules (§20.2), not from the grappling.
 
 ### 21.8 To change it, and the tests
 - Move timings, odds, opportunities and `partial_within`: the move's file in `data/actions/` (`09` action@2).
