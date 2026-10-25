@@ -64,6 +64,7 @@ func test_the_header_names_both_fighters_and_the_range() -> void:
 	var lines: Array[String] = map.header_lines()
 	assert_string_contains(lines[0], sim.fighters[0].name)
 	assert_string_contains(lines[0], "wants")
+	assert_string_contains(lines[0], "cutting off")
 	assert_string_contains(lines[1], sim.fighters[1].name)
 	assert_string_contains(lines[2], "m apart")
 

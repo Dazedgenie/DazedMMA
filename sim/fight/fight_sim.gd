@@ -80,6 +80,11 @@ const TANGLED_GAP: float = 0.4
 ## In open space a circling fighter keeps their direction unless one way is clearly
 ## more open (by this much, in metres toward the middle).
 const CIRCLE_SIDE_DEADBAND: float = 0.3
+## Cutting off the cage (D107): the cut fades in as the opponent goes from CUT_FROM to
+## CUT_FULL metres out from the middle: it's the fence that traps them, so in open space
+## there's no way out to shut.
+const CUT_FROM: float = 3.0
+const CUT_FULL: float = 4.0
 ## Walking pace and the footwork contest are worked out again every this many ticks.
 const FEET_EVERY: int = 5
 
@@ -116,16 +121,18 @@ var _round_control: Array[int] = [0, 0]  # ticks this round the opponent spent p
 ## key → {shown, candidate, held} (see _announce).
 var _space: Dictionary = {}
 ## Each fighter's footwork the last time they moved: the distance they wanted, how
-## much they circled (0–1) and which way (±1).
+## much they circled (0–1) and which way (±1), and how hard they cut the cage off (0–1).
 var _wants: Array[float] = [0.0, 0.0]
 var _circling: Array[float] = [0.0, 0.0]
+var _cutting: Array[float] = [0.0, 0.0]
 var _circle_sign: Array[float] = [1.0, 1.0]
 ## How far each fighter moved on their last tick (zero when they stood still).
 var _strides: Array[Vector2] = [Vector2.ZERO, Vector2.ZERO]
-## Walking pace (m per tick) and footwork-contest share per fighter, as of _feet_at.
+## Walking pace (m per tick), footwork-contest share and footwork edge per fighter, as of _feet_at.
 var _feet_at: int = -FEET_EVERY
 var _step: Array[float] = [0.0, 0.0]
 var _share: Array[float] = [0.5, 0.5]
+var _feet_edge: Array[float] = [1.0, 1.0]
 
 
 ## `p_rules` is a Ruleset (null = pro rules), or a round count with
@@ -314,10 +321,9 @@ func _advance_fighter(i: int) -> void:
 	if f.is_free():
 		var seen: FightView = views[i]
 		if situation.is_standing():
-			var want: float = decisions[i].preferred_distance(seen)
-			var circle: float = decisions[i].circling(seen)
+			var feet: FeetPlan = decisions[i].plan_feet(seen)
 			if f.stagger_ticks <= 0:
-				_move(i, want, circle)
+				_move(i, feet.want, feet.circle, feet.cut, feet.way)
 		var decision: Decision = decisions[i].decide(seen)
 		if not decision.is_idle():
 			_start_action(i, decision.action_id, decision)
@@ -333,14 +339,19 @@ func preferred_distance(i: int) -> float:
 	return decisions[i].preferred_distance(views[i])
 
 
-## The distance fighter i was walking toward, and how much they circled (0–1), the last
-## time they moved. Read-only, for the debug cage view (docs/01 §20.1); 0 before the first step.
+## The distance fighter i was walking toward, how much they circled (0–1) and how hard
+## they cut the cage off (0–1), the last time they moved. Read-only, for the debug cage
+## view (docs/01 §20.1); 0 before the first step.
 func last_wanted_distance(i: int) -> float:
 	return _wants[i]
 
 
 func last_circling(i: int) -> float:
 	return _circling[i]
+
+
+func last_cutting(i: int) -> float:
+	return _cutting[i]
 
 
 func move_speed(f: FighterState) -> float:
@@ -359,6 +370,13 @@ func step_length(i: int) -> float:
 	return _step[i]
 
 
+## How much of a chase or a cut a fighter's feet get done against the opponent's
+## (D107), from their Footwork contest share: doubled and squared, at most 1. Even
+## feet get all of it; 50 against 70 (a 30% share) gets 0.36, and 70 against 50 all of it.
+static func footwork_edge(share: float) -> float:
+	return minf(1.0, pow(2.0 * share, 2.0))
+
+
 ## Walking pace and the footwork contest change only with fatigue and damage, so
 ## they're worked out every FEET_EVERY ticks rather than every tick.
 func _refresh_feet() -> void:
@@ -368,15 +386,19 @@ func _refresh_feet() -> void:
 	for i in fighters.size():
 		_step[i] = move_speed(fighters[i]) / FightClock.TICKS_PER_SECOND
 		_share[i] = footwork_share(i)
+		_feet_edge[i] = footwork_edge(_share[i])
 
 
 ## The feet: step toward the preferred distance and circle as much as the fighter
-## wants (0–1: outside fighters circle when pressed), never faster than their
-## walking pace. At the fence they slide along it toward open space instead of
-## walking into it. Pressing someone who is on the move, they aim where that
-## fighter is going, to cut the cage off: how far ahead is the presser's share of a
-## Footwork contest, so good feet get out and bad feet get trapped.
-func _move(i: int, want: float, circle: float) -> void:
+## wants (0–1) and which `way` (0 = toward the middle, see way_toward_middle), never
+## faster than their walking pace. The fence stops the part of a step that goes into
+## it; the rest slides along it. Pressing someone who is on the move, they aim where
+## that fighter is going: how far ahead is the presser's share of a Footwork contest.
+## Chasing someone who's getting away, they keep up only as well as their footwork
+## edge lets them, and cutting the cage off (`cut`, 0–1) they step sideways toward the
+## spot between the opponent and the middle, as much as the edge lets them (D107):
+## good feet get out, bad feet get trapped.
+func _move(i: int, want: float, circle: float, cut: float = 0.0, way: int = 0) -> void:
 	var f: FighterState = fighters[i]
 	var o: FighterState = fighters[1 - i]
 	var from: Vector2 = f.pos
@@ -385,26 +407,25 @@ func _move(i: int, want: float, circle: float) -> void:
 	var toward: Vector2 = gap.normalized() if apart > 0.0 else Vector2.RIGHT
 	var step: float = step_length(i)
 	var radial: float = clampf(apart - want, -step, step)
+	if radial > 0.0 and _strides[1 - i].dot(toward) > 0.0:
+		radial *= _feet_edge[i]  # Chasing someone who's getting away.
 	_wants[i] = want
 	_circling[i] = circle
+	_cutting[i] = cut
 	var stride: Vector2 = toward * radial
 	if radial > 0.0 and _strides[1 - i] != Vector2.ZERO:
 		var ahead: Vector2 = o.pos + _strides[1 - i] * (apart / step) * (1.0 - _share[1 - i])
 		if ahead != f.pos:
 			stride = (ahead - f.pos).normalized() * radial
 	if circle > 0.0:
-		stride += _circle_side(i, toward) * step * circle
+		stride += _circle_side(i, toward, way) * step * circle
+	if cut > 0.0 and o.pos.length_squared() > CUT_FROM * CUT_FROM:
+		stride += _cut_step(i, toward, apart, step) * cut * _share[i]
 	if stride.length() > step:
 		stride = stride.normalized() * step
-	var length: float = stride.length()
-	var to: Vector2 = Octagon.keep_inside(f.pos + stride)
-	var slid: Vector2 = to - f.pos
-	if length > 0.0 and slid.length() < length * 0.999:
-		# The fence is in the way: slide along it at the same pace.
-		var along: Vector2 = slid if slid.length() > 0.2 * length else _circle_side(i, toward)
-		to = Octagon.keep_inside(f.pos + along.normalized() * length)
-	f.pos = to
-	var effort: float = length / step if step > 0.0 else 0.0
+	# The fence stops the part of the step that goes into it; the rest slides along it.
+	f.pos = Octagon.keep_inside(f.pos + stride)
+	var effort: float = (f.pos - from).length() / step if step > 0.0 else 0.0
 	f.spend_stamina(MOVE_STAMINA_PER_S * effort * effort / FightClock.TICKS_PER_SECOND)
 	var after: Vector2 = f.pos - o.pos
 	if after.length() < Octagon.MIN_GAP:
@@ -420,15 +441,40 @@ func _push(k: int, metres: float) -> void:
 		fighters[k].pos = Octagon.keep_inside(fighters[k].pos + away.normalized() * metres)
 
 
-## Which way fighter k circles: sideways (relative to the opponent) toward the
-## middle of the cage. In open space, where neither way is clearly better, they
-## keep going the way they were, so they don't jitter.
-func _circle_side(k: int, toward_opponent: Vector2) -> Vector2:
+## The sideways step that puts fighter k between the opponent and the middle of the cage,
+## as far from them as now: at most a step, and nothing while the opponent is in the middle.
+func _cut_step(k: int, toward_opponent: Vector2, apart: float, step: float) -> Vector2:
+	var o: Vector2 = fighters[1 - k].pos
+	var out: float = o.length()
+	if out <= CUT_FROM:
+		return Vector2.ZERO
+	var spot: Vector2 = o - o / out * apart
 	var side := Vector2(-toward_opponent.y, toward_opponent.x)
-	var lean: float = side.dot(-fighters[k].pos)
-	if absf(lean) > CIRCLE_SIDE_DEADBAND:
-		_circle_sign[k] = 1.0 if lean > 0.0 else -1.0
+	return side * clampf((spot - fighters[k].pos).dot(side), -step, step) * clampf((out - CUT_FROM) / (CUT_FULL - CUT_FROM), 0.0, 1.0)
+
+
+## Which way fighter k circles: sideways (relative to the opponent), `way` if the
+## fighter picked one, else toward the middle of the cage. In open space, where
+## neither way is clearly better, they keep going the way they were, so they don't jitter.
+func _circle_side(k: int, toward_opponent: Vector2, way: int = 0) -> Vector2:
+	var side := Vector2(-toward_opponent.y, toward_opponent.x)
+	if way != 0:
+		_circle_sign[k] = float(way)
+	else:
+		var lean: float = side.dot(-fighters[k].pos)  # As in way_toward_middle.
+		if absf(lean) > CIRCLE_SIDE_DEADBAND:
+			_circle_sign[k] = 1.0 if lean > 0.0 else -1.0
 	return side * _circle_sign[k]
+
+
+## For someone at `me` facing along `toward_opponent`: +1 if sideways one way round
+## the opponent (the left-hand perpendicular) heads toward the middle of the cage, −1 if
+## the other way does, 0 if neither clearly does (by CIRCLE_SIDE_DEADBAND metres).
+static func way_toward_middle(me: Vector2, toward_opponent: Vector2) -> int:
+	var lean: float = Vector2(-toward_opponent.y, toward_opponent.x).dot(-me)
+	if absf(lean) <= CIRCLE_SIDE_DEADBAND:
+		return 0
+	return 1 if lean > 0.0 else -1
 
 
 func _update_space() -> void:

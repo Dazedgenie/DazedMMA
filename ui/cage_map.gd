@@ -108,6 +108,7 @@ func _fighter_line(i: int) -> String:
 		parts.append("ROCKED")
 	parts.append("wants %.1f m" % sim.last_wanted_distance(i))
 	parts.append("circling %d%%" % roundi(sim.last_circling(i) * 100.0))
+	parts.append("cutting off %d%%" % roundi(sim.last_cutting(i) * 100.0))
 	parts.append("%.1f m/s" % velocity(i).length())
 	var cage: String = sim.cage_proximity(i)
 	if cage != Octagon.CAGE_CENTRE:

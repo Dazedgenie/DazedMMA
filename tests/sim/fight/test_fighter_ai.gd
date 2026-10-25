@@ -217,17 +217,58 @@ func test_an_outside_fighter_circles_when_pressed_and_a_pressure_fighter_walks_s
 	assert_eq(sim.decisions[1].circling(sim.views[1]), 0.0, "the Boxer walks straight in")
 
 
-func test_a_fighter_backing_onto_the_fence_circles_off_it_instead() -> void:
+func test_a_fighter_backed_onto_the_fence_circles_out_when_the_opponent_commits() -> void:
 	var sim := FightSim.new(SEED, _roster.make_pair("kicker", "boxer"), _actions)
-	# The Kicker 0.3 m off the fence, the Boxer pressing straight in from the middle.
+	# The Kicker 0.3 m off the fence, the Boxer pressing straight in from the middle and throwing.
 	sim.fighters[0].pos = Vector2(3.9, 0.0)
 	sim.fighters[1].pos = Vector2(2.6, 0.0)
-	assert_lt(sim.preferred_distance(0), 2.0, "he doesn't try to back up through the fence to kicking range")
-	assert_gt(_ai(sim, 0).circling(sim.views[0], sim.decisions[0]), 0.7, "he circles off it")
-	# The same pressure in open space: he backs straight out to his range.
+	sim.fighters[1].action_id = "jab"
+	sim.fighters[1].phase = "windup"
+	var feet: FeetPlan = sim.decisions[0].plan_feet(sim.views[0])
+	assert_lt(feet.want, 2.0, "he doesn't try to back up through the fence to kicking range")
+	assert_eq(feet.circle, 1.0, "he circles out all he can while the Boxer is busy")
+	assert_ne(feet.way, 0, "and picks a way out")
+	# The same pressure in open space: he backs out to his range.
 	sim.fighters[0].pos = Vector2(0.65, 0.0)
 	sim.fighters[1].pos = Vector2(-0.65, 0.0)
 	assert_gt(sim.preferred_distance(0), Octagon.MID_WITHIN)
+
+
+func test_an_outside_fighter_holds_his_ground_where_the_opponent_cant_reach_him() -> void:
+	var sim := FightSim.new(SEED, _roster.make_pair("kicker", "boxer"), _actions)
+	# Long range: the Kicker's kicks reach, the Boxer's punches don't. He wants 2.8 m but stands.
+	sim.fighters[0].pos = Vector2(-1.25, 0.0)
+	sim.fighters[1].pos = Vector2(1.25, 0.0)
+	assert_almost_eq(sim.preferred_distance(0), 2.5, 0.001, "he holds at 2.5 m instead of backing up")
+	# In the pocket the Boxer's hands work: he gives ground back to his spot.
+	sim.fighters[0].pos = Vector2(-0.6, 0.0)
+	sim.fighters[1].pos = Vector2(0.6, 0.0)
+	assert_gt(sim.preferred_distance(0), Octagon.MID_WITHIN)
+
+
+func test_a_pressure_fighter_steps_across_to_cut_off_a_fighter_near_the_fence() -> void:
+	# A statue 0.4 m off the fence; the presser off to one side of the line from it to the middle.
+	var sim := _sim(FighterState.new("Presser", {}, ["jab"], 0.0, StyleLeanings.new({ "range": 100 })), _statue())
+	sim.fighters[0].pos = Vector2(2.6, 1.2)
+	sim.fighters[1].pos = Vector2(3.8, 0.0)
+	assert_gt(sim.decisions[0].plan_feet(sim.views[0]).cut, 0.9, "a Range +100 fighter cuts all he can")
+	for n in 10:
+		sim.tick()
+	assert_lt(absf(sim.fighters[0].pos.y), 0.6, "he has stepped across toward the line from the statue to the middle")
+
+
+func test_circling_fighters_change_direction_now_and_then() -> void:
+	var sim := FightSim.new(SEED, _roster.make_pair("kicker", "boxer"), _actions)
+	var ways: Array[int] = [0, 0]
+	var before: float = (sim.fighters[0].pos - sim.fighters[1].pos).angle()
+	for n in 900:
+		sim.tick()
+		var angle: float = (sim.fighters[0].pos - sim.fighters[1].pos).angle()
+		var turned: float = wrapf(angle - before, -PI, PI)
+		if absf(turned) > 0.01:
+			ways[0 if turned > 0.0 else 1] += 1
+		before = angle
+	assert_gt(mini(ways[0], ways[1]), 50, "ticks the Kicker went each way round the Boxer: %s" % [ways])
 
 
 func test_an_outside_fighter_caught_in_the_pocket_gets_out_instead_of_trading() -> void:
@@ -305,7 +346,8 @@ func test_the_kicker_and_the_boxer_fight_in_character() -> void:
 	var kicks: int = 0
 	for id in ["teep", "leg_kick", "body_kick", "head_kick"]:
 		kicks += thrown[0].get(id, 0)
-	assert_gt(kicks, thrown[0].get("jab", 0) * 2, "the Kicker kicks: %s" % [thrown[0]])
+	# He jabs a fair bit too: holding his ground (D107), he meets the Boxer's walk-ins, and the jab is the quickest stop.
+	assert_gt(kicks, thrown[0].get("jab", 0) * 1.5, "the Kicker kicks: %s" % [thrown[0]])
 	assert_gt(thrown[1].get("cross", 0) + thrown[1].get("hook", 0), 20, "the Boxer throws his power punches: %s" % [thrown[1]])
 	assert_gt(long_ticks, pocket_ticks, "the Kicker mostly keeps it at his range (long %d, pocket %d ticks)" % [long_ticks, pocket_ticks])
 	assert_gt(pocket_ticks, 1000, "but the Boxer gets inside now and then")

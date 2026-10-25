@@ -13,6 +13,7 @@
   CI (`.github/workflows/tests.yml`) runs them on every PR and posts a readable table in the run summary.
 - Run the headless sim: `godot --headless --script res://tools/run_sim.gd`
 - Run the balance harness: `godot --headless --script res://tools/balance.gd -- --fights=100 --pairs=kicker:boxer` (CSV + summary in `build/balance/`)
+- How fighters move round the cage (holding the centre, cutting off, getting off the fence) and the numbers to tune it: `docs/01-fight-engine.md` §20.2 (D107).
 - Smoke-run the main scene: `godot --headless --quit-after 30`
 - Speed budget (1000× fight time), the timing checks and how to speed things up without changing fights: `docs/01-fight-engine.md` §2.1 (D105).
 - Import/refresh the project cache: `godot --headless --import`

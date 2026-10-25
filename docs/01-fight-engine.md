@@ -74,8 +74,11 @@ behaviour: re-run the balance harness and treat it as a design change.
   - takedown odds (easier to finish against the cage, but cage-walking lets the defender get up),
   - escape odds (circling out is harder when cut off),
   - strike options (fence grab = foul, D20).
-- **Cutting off the cage:** a pressure fighter's lateral movement mirrors the opponent's to shrink
-  the space. Mechanically this is a "space" value that drops while you're under pressure without circling.
+- **Cutting off the cage (D107):** a pressure fighter steps sideways to stay between the opponent and the middle of the
+  cage, so the opponent's way out along the fence shuts. It only bites once the opponent is near the fence (in open space
+  there's no way out to shut), and how much of it gets done is a Footwork contest. This replaces the earlier idea of a
+  "space" value that drops while you're pressed without circling: the space is now the fighters' real positions. Built as
+  §20.2.
 
 ---
 
@@ -373,7 +376,7 @@ constants in `sim/fight/octagon.gd`, `sim/fight/fight_sim.gd`, `sim/fight/fighte
 | Distance bands | Out > 3.0 m · Long 2.2–3.0 · Mid 1.5–2.2 · Pocket < 1.5. Standing fighters can't get closer than 0.9 m until the clinch exists (#15) |
 | Reach | A strike only lands from the bands in its data. The AI only starts moves that reach; a commanded or interrupted move that no longer reaches *falls short* ("out of range") |
 | Movement | Walk at 0.8 + 1.2 × (Footwork + Speed)/200 m/s toward the distance the fighter's range plan wants (§20). Committed fighters don't move. Walking costs stamina (D96): 0.6 a second at full pace × (share of full pace)², so walking in is cheap and running all night isn't. A clean shot stops the feet for 1 tick + 1 per 4 damage; a landed teep shoves the opponent 0.5 m back (`push_m`) |
-| Cage | Near = within 1.5 m of the fence; pinned = within 0.5 m with the opponent in mid range or closer (`BACK_TO_CAGE`). A fighter who walks into the fence slides along it toward open space at the same pace. A presser aims where a moving opponent is going, to cut the cage off: how far ahead is the presser's share of a Footwork contest, so good feet get out and bad feet get trapped |
+| Cage | Near = within 1.5 m of the fence; pinned = within 0.5 m with the opponent in mid range or closer (`BACK_TO_CAGE`). The fence stops the part of a step that goes into it and the rest slides along it, so backing straight into the fence gets a fighter nowhere (D107). A presser aims where a moving opponent is going: how far ahead is the presser's share of a Footwork contest. Chasing someone who's getting away and cutting the cage off both depend on Footwork too (§20.2), so good feet get out and bad feet get trapped |
 | Flags | From action phases (data `flags_self`), plus `BACK_TO_CAGE` when pinned and `HANDS_LOW` below a quarter tank or while rocked |
 | Counters | Hitting a fighter in wind-up or recovery: +10% to land and ×1.3 damage |
 | Damage | Base damage × (0.5 + Power/100), at least 1 |
@@ -424,25 +427,32 @@ guess for the balance harness; stat effects are in `11` §3.5.
 | What's working | Each move's landing record moves its weight by up to ±40% at Fight IQ 50, ±80% at 100 |
 | Combinations | After a strike, another at (0.15 + 0.45 × the move's technique stat/100) × (1 + Pace/200), up to 3 more. Outside fighters then often reset: step out 0.6 m for 1–2 s (up to 70% at Range −100) |
 | Range plan | Every 2 s, per band: my threat − caution × theirs, over my best threat (threat = the best move's expected damage per second from there, plus a quarter of the rest); caution = 0.8 − 0.3 × (Pace + Risk)/100. Range ±0.35 and Pace ±0.15 tilt it toward the pocket or long range; the band it holds gets +0.1 so it doesn't flicker. It never plans to stand where none of its own moves reach |
-| Feet | Stand in the planned band (Range +100 0.25 m closer, Pace +100 another 0.15 m). Walking into the opponent's weapons while they're free, stalk: half pace (± a quarter for Pace, a tenth faster when losing on their own reckoning), scaled by the opponent's share of the threat there; full speed while the opponent is committed to a move. Outside fighters circle when pressed (0.8 of their pace at Range −100, 0.25 when not). Backing up with the fence within 1.5 m behind them, anyone circles off it instead. A fighter with nothing that reaches from anywhere holds their ground |
+| Feet | Stand in the planned band (Range +100 0.25 m closer, Pace +100 another 0.15 m). Walking into the opponent's weapons while they're free, stalk: half pace (± a quarter for Pace, a tenth faster when losing on their own reckoning), scaled by the opponent's share of the threat there; full speed while the opponent is committed to a move. Pressed by an opponent who can't do much from where they stand, they hold their ground; once the opponent is in range of their own weapons, they give ground back to their spot (D107). Outside fighters circle when giving ground (0.8 of their pace at Range −100, 0.25 when not), and pivot back toward the middle when they're further out than the opponent. Backing up with the fence within 1.5 m behind them, they back up less (none at the fence), and outside fighters circle out off it. Pressing, they cut the cage off. The details of all of this are in §20.2. A fighter with nothing that reaches from anywhere holds their ground |
 | Crowded | Closer than planned in a band where the opponent out-guns them (the Kicker caught in the pocket): getting out comes first, so leads × 0.35 and combinations × 0.5 |
 | Meeting the advance | When the opponent walks in faster than 0.4 m/s: one roll per advance at (0.2 + 0.5 for an outside fighter) × (0.5 + Fight IQ/100) to land a strike as they arrive |
 | Hurt | Rocked: cover up, get out and circle away; reads halved, leads × 0.3. Opponent rocked: swarm from the band of the best head shot, head shots weighted up by (0.5 + 0.5 × Risk/100) × (head hurt + 1) |
 | Tells and set-ups | From the profile's `tells` (`09`): when the trigger's event happens, follow with the action within the window, at the given chance. The Kicker: jab blocked → body kick, 70% within 1.5 s. A set-up is a tell set off by the fighter's own move: the Wrestler shifts his stance (a 0.2 s telegraph, the tell to watch for) and shoots a double-leg within 1 s, 90% |
 | Why | Every move the fighter starts says why (`why` on the telegraph event: leads, combination, counters the jab, opening: ONE_LEG, meets him coming in, swarms, tell: jab blocked); the fight log prints it |
 
-Balance on 2026-10-25 (harness, 100 fights a pairing): the Kicker beats the Boxer 46% of the time, 44% with the corners swapped
+Balance on 2026-10-25 before the movement work (harness, 100 fights a pairing): the Kicker beats the Boxer 46% of the time, 44% with the corners swapped
 (the #14 exit test is within 60/40); one draw in 500 fights and no 10-10 cards (D97); in Kicker vs Boxer someone ends up under half
 a tank in 82% of fights (D96). Mirror matches come out even (Kicker 53/47, Boxer 49/51). The Wrestler is tested but stays out of
 the targets until #15 (D104).
 
-To watch in the playtest: the Boxer gets the Kicker on the fence for a large share of the fight (his plan working, and the
-Kicker still wins nearly half); the Boxer's hook is rare because a retreating Kicker is seldom still in the pocket when it would
-land; and two Boxers stand in the pocket and trade until one is stopped (every Boxer mirror ends inside the distance), which
-is as much the damage numbers (§18) as the AI.
+After the movement work (D107, §20.2), same harness: the Kicker beats the Boxer 53% of the time, 48% with the corners swapped;
+one draw in 500 fights and no 10-10 cards; someone under half a tank in 87–94% of Kicker vs Boxer fights. Mirrors: Boxer 53/47,
+Kicker 41/59 on seeds 1–100 and 46/54 on seeds 101–200. The two Kickers are identical, so that's most likely seed noise
+(100 fights swing about ±10%), but blue was ahead both times: if it holds over more fights, look for a corner bias in the feet.
 
-Speed: the AI made a full fight about 1.65× slower; the speed-ups in §2.1 won back about 20%. The speed budget and the timing
-checks are in §2.1 (D105).
+To watch in the playtest: the Kicker is near the fence for a bit over half the fight (it was nearly all of it) and almost never
+pinned, but the Boxer still holds the centre (nearer it 98% of the time) and the Kicker mostly circles round him at range; the
+Boxer's hook is rare because the Kicker seldom stays in the pocket when it would land; the Kicker works harder for it (lowest
+stamina about 30% of the tank, was 37%); and two Boxers stand in the pocket and trade until one is stopped (every Boxer mirror
+ends inside the distance), which is as much the damage numbers (§18) as the AI. Since D107 they do it on the fence more often
+(near it 36% of the time, was 26%): a fighter who doesn't lean outside plants on the fence and fights instead of circling off.
+
+Speed: the AI made a full fight about 1.65× slower; the speed-ups in §2.1 won back about 20%; D107's footwork costs about 4%
+back. The speed budget and the timing checks are in §2.1 (D105).
 
 ### 20.1 Watching the AI move: the top-down cage view (temporary, D106)
 A debug-only map of the cage seen from straight above, to judge by eye how the AI uses range, the fence and circling before
@@ -459,10 +469,63 @@ plays out exactly as an unwatched one (tested in `tests/ui/test_cage_map.gd`).
 | Trail | The path of the last 4 s; it restarts when the fighters go back to their corners for a new round |
 | Ring | The distance each fighter is walking toward (their range plan, §20 "Feet"), drawn around the opponent in the walker's colour |
 | Line between them | Coloured by range: grey out, green long, yellow mid, orange pocket |
-| Text above | Per fighter: wanted distance, how much they're circling (0–100%), pace in m/s, near the fence or pinned, and the move they're in. Then the clock, the distance and the range |
+| Text above | Per fighter: wanted distance, how much they're circling (0–100%), how hard they're cutting the cage off (0–100%, §20.2), pace in m/s, near the fence or pinned, and the move they're in. Then the clock, the distance and the range |
 
 To change it: trail length, arrow length and the pace window are constants at the top of `ui/cage_map.gd` (`TRAIL_TICKS`,
 `ARROW_SECONDS`, `SPEED_WINDOW`); its size and place on screen are `CAGE_VIEW_WIDTH` and the offsets in `ui/debug_console.gd`.
-The sim gives it two read-only numbers, `FightSim.last_wanted_distance()` and `last_circling()`. To remove it once #19 is in:
-delete `ui/cage_map.gd`, its test and the **Cage view** lines in `ui/debug_console.gd`, those two `FightSim` functions, and
-this section; mark D106 as replaced.
+The sim gives it three read-only numbers, `FightSim.last_wanted_distance()`, `last_circling()` and `last_cutting()`. To remove
+it once #19 is in: delete `ui/cage_map.gd`, its test and the **Cage view** lines in `ui/debug_console.gd`, those three
+`FightSim` functions (and the `_wants`, `_circling` and `_cutting` arrays only they read), and this section; mark D106 as
+replaced.
+
+### 20.2 Moving round the cage (D107)
+Until D107 each fighter had one idea about movement: walk to the distance the range plan wants. The Kicker wants long range
+and the Boxer the pocket, so the Boxer walked forward, the Kicker walked back until the fence stopped him, and then slid
+along it at full pace. Watched in the cage view (§20.1), the Kicker just circled away and the Boxer just chased. The harness
+said the same: the Kicker was near the fence 97% of the fight and pinned 45%, the Boxer was nearer the centre 99% of the time,
+and one of them was chasing the other 80% of the time. Fighters now also care where they are in the cage.
+
+Each tick a free standing fighter makes one footwork plan, a `FeetPlan` (`sim/fight/feet_plan.gd`): how far apart they want
+to be, how much to circle and which way, and how hard to cut the cage off. `FighterAI.plan_feet` fills it and
+`FightSim._move` carries it out.
+
+| Behaviour | What the fighter does | To change it |
+|---|---|---|
+| Holding the centre | Pressed (the opponent is closer than they want), a fighter holds their ground while the opponent can do little from there: the opponent's share of the threat at this distance (the range plan, §20) is under 15%. Once it isn't, they give ground all the way back to their spot, then hold again. Stepping back from a strike and resetting after a combination work as before | `HOLD_DANGER` 0.15 in `sim/fight/fighter_ai.gd` |
+| Back toward the centre | An outside fighter (Range below 0) who is further from the middle than the opponent circles round the opponent toward it while giving ground or while the opponent is busy throwing, and pivots instead of backing off. Both grow with how much further out they are (all of it from 1 m further out) and with how far outside they lean (all of it at Range −100) | `CENTRE_PULL` 1.0, `CENTRE_PULL_OVER` 1.0 m and `PIVOT` 1.0 in `fighter_ai.gd` |
+| Off the fence | With the fence within 1.5 m behind them, everyone backs up less (not at all at the fence), so a pressure fighter who gets backed up plants and fights. Outside fighters also circle out: all they can for 1.5 s, toward the side nearer the middle (a coin flip when neither side is clearly more open), the moment the opponent commits to a move, or else on a chance of 50% × how far outside they lean, each tick | `FENCE_SENSE` 1.5 m, `ESCAPE_TICKS` 15 and `ESCAPE_RATE` 0.5 in `fighter_ai.gd` |
+| Changing direction | In open space (the fence more than 0.8 m away), circling fighters think again every 3 s and switch direction 40% of the time, so they don't circle the same way all fight. Closer to the fence they circle toward the middle | `SWITCH_EVERY` 30 ticks, `SWITCH_CHANCE` 0.4 and `SWITCH_FENCE` 0.8 m in `fighter_ai.gd` |
+| Cutting off the cage | Pressing or holding (not while giving ground, rocked, or swarming a hurt opponent), a fighter steps sideways toward the spot between the opponent and the middle, as far from the opponent as now. How hard: 0.6 at Range 0, ±0.4 at Range ±100. It fades in as the opponent goes from 3 m to 4 m out from the middle, because it's the fence that traps: in open space there's no way out to shut. The sideways step is × the presser's Footwork contest share | `CUT_BASE` 0.6 and `CUT_PER_RANGE` 0.4 in `fighter_ai.gd`; `CUT_FROM` 3.0 m and `CUT_FULL` 4.0 m in `sim/fight/fight_sim.gd` |
+| Chasing | Walking in on someone whose last step was away, a fighter keeps up only by their footwork edge = (2 × Footwork contest share)², at most 1. Even feet get all of the chase; the Boxer's 50 against the Kicker's 70 (a 30% share) gets about a third | `FightSim.footwork_edge()` in `fight_sim.gd` |
+| The fence | The fence stops the part of a step that goes into it, and the rest slides along it. Before D107 a fighter who walked into the fence slid along it at full pace, so backing straight up turned into a sprint along the fence. Walking costs stamina for the distance actually covered | `FightSim._move()` in `fight_sim.gd` |
+
+The harness reports movement for every pair (the **Feet** line: time near the fence and pinned, who was nearer the centre,
+how much of the fight was a chase) and two INFO lines for the whole run (`04` §2.3). Before and after D107, 100 fights a
+pairing:
+
+| | Before | After |
+|---|---|---|
+| Kicker vs Boxer: Kicker wins (Kicker red / Kicker blue) | 46% / 44% | 53% / 48% |
+| Kicker near the fence (pinned) | 97% (45%) | 59% (1%) |
+| Boxer near the fence (pinned) | 85% (12%) | 1% (0%) |
+| Nearer the centre: Kicker / Boxer | 1% / 99% | 2% / 98% |
+| One chasing the other | 80% | 36% |
+| Kicker mirror: near the fence, chasing | 31%, 10% | 33%, 9% |
+| Boxer mirror: near the fence (pinned), chasing | 26% (1%), 10% | 36% (9%), 10% |
+
+The harness had a bug that this work found: the 60/40 check counted wins by corner, so a pair run both ways round
+(`kicker:boxer,boxer:kicker`) always looked about 50/50, even when one fighter won 95% of the time. It now counts wins by
+fighter, whichever corner they were in (`BalanceReport.fighter_win_share`). The earlier numbers in §20 come from the per-pair
+lines, so they stand; the check itself said 50.5% before D107, when the real favourite (the Boxer) won 54.5%.
+
+Tested in `tests/sim/fight/test_fighter_ai.gd` (holds ground out of reach, circles out off the fence when the opponent commits,
+steps across to cut off, changes direction), `tests/sim/fight/test_standing_game.gd` (better footwork gets off the fence
+sooner, the footwork edge) and `tests/sim/balance/` (the movement numbers, the by-fighter check). After changing any of the
+numbers above, run the harness with both corners and the mirrors
+(`--pairs=kicker:boxer,boxer:kicker,kicker:kicker,boxer:boxer`), read the **Feet** lines next to the wins, and watch a few
+fights in the cage view, which shows how hard each fighter is cutting off.
+
+Tuning notes, so nobody walks the same dead ends: cutting off in open space, or at full strength whatever the Footwork,
+left the Kicker winning 2–20% of fights against the Boxer, and slowing the chaser with no cut at all had him winning about
+73%. The cut only near the fence and × the presser's share, plus the squared footwork edge on chases, is what landed near
+50%.

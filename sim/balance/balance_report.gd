@@ -56,6 +56,11 @@ static func win_share(of_rows: Array[Dictionary], side: String) -> float:
 	return share(of_rows, func(row: Dictionary) -> bool: return row.winner == side)
 
 
+## Share of these fights won by the fighter with this data/fighters id, whichever corner they were in.
+static func fighter_win_share(of_rows: Array[Dictionary], fighter_id: String) -> float:
+	return share(of_rows, func(row: Dictionary) -> bool: return row.winner_id == fighter_id)
+
+
 static func method_share(of_rows: Array[Dictionary], method: String) -> float:
 	return share(of_rows, func(row: Dictionary) -> bool: return row.method == method)
 
@@ -88,6 +93,16 @@ static func tired_share(of_rows: Array[Dictionary]) -> float:
 		return row.stamina_low_red < TIRED_BELOW or row.stamina_low_blue < TIRED_BELOW)
 
 
+## Average over fights of the bigger of the two fighters' time near the fence (FightSummary fence_*).
+static func fenced_share(of_rows: Array[Dictionary]) -> float:
+	if of_rows.is_empty():
+		return 0.0
+	var total: float = 0.0
+	for row in of_rows:
+		total += maxf(float(row.fence_red), float(row.fence_blue))
+	return total / of_rows.size()
+
+
 static func _ratio(of_rows: Array[Dictionary], part: String, whole: String) -> float:
 	var parts: float = 0.0
 	var wholes: float = 0.0
@@ -111,12 +126,14 @@ func checks() -> Array[Dictionary]:
 	out.append(_check("10-10 rounds very rare (under 2% of judges' cards)", "D97", _pct(even), even < EVEN_CARDS_UNDER))
 	var showcase: Array[Dictionary] = rows.filter(_is_showcase)
 	if not showcase.is_empty():
-		var best: float = maxf(win_share(showcase, "red"), win_share(showcase, "blue"))
+		var best: float = maxf(fighter_win_share(showcase, SHOWCASE[0]), fighter_win_share(showcase, SHOWCASE[1]))
 		out.append(_check("Kicker vs Boxer within 60/40, the exit test for the AI", "#14, docs/12 §4",
 			"favourite wins %s" % _pct(best), best <= SHOWCASE_WITHIN))
 	out.append(_info("Fights where someone got tired (under 50% of the tank)", "D96", _pct(tired_share(rows))))
 	out.append(_info("Fights finished inside the distance", "docs/12 §4", _pct(finish_share(rows))))
 	out.append(_info("Exchanges that hit the 5–95% odds clamp", "docs/12 §4", _pct(clamped_share(rows))))
+	out.append(_info("Standing time with one fighter chasing the other", "D107", _pct(average(rows, "chase"))))
+	out.append(_info("Standing time the more-fenced fighter spends near the fence", "D107", _pct(fenced_share(rows))))
 	return out
 
 
@@ -184,6 +201,10 @@ func _pair_lines(of_rows: Array[Dictionary], names: Dictionary) -> PackedStringA
 		lines.append("  %-10s lands %.0f of %.0f (%s) · head damage taken %.0f · stamina at the end %s, lowest %s" % [
 			who, landed, thrown, _pct(landed / thrown if thrown > 0.0 else 0.0), average(of_rows, "head_damage_" + side),
 			_pct(average(of_rows, "stamina_end_" + side)), _pct(average(of_rows, "stamina_low_" + side))])
+	lines.append("  Feet       near the fence: %s %s (pinned %s), %s %s (pinned %s) · nearer the centre: %s %s, %s %s · chasing %s" % [
+		red, _pct(average(of_rows, "fence_red")), _pct(average(of_rows, "pinned_red")),
+		blue, _pct(average(of_rows, "fence_blue")), _pct(average(of_rows, "pinned_blue")),
+		red, _pct(average(of_rows, "centre_red")), blue, _pct(average(of_rows, "centre_blue")), _pct(average(of_rows, "chase"))])
 	lines.append("  Tired      someone under 50%% of the tank in %s of fights" % _pct(tired_share(of_rows)))
 	lines.append("  Odds       %s of exchanges hit the 5–95%% clamp" % _pct(clamped_share(of_rows)))
 	return lines
