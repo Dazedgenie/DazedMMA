@@ -12,6 +12,9 @@ var layer: String = ""
 ## False while the source has nothing it could claim, so the layer can skip it
 ## cheaply (decide() runs every free tick). Rules leave it on; calls switch it.
 var may_claim: bool = true
+## True while the source wants a say in the feet (adjust_feet); off by default so the
+## layer skips it on the many ticks nobody does.
+var steers_feet: bool = false
 ## Outcomes to log (why a call was ignored, why a rule didn't fire): [{type, data}].
 var _notes: Array[Dictionary] = []
 
@@ -30,6 +33,23 @@ func adjust_weight(_view: FightView, _action: Dictionary, weight: float) -> floa
 ## e.g. a Pressure gameplan adds Pace. Unchanged by default.
 func adjust_leaning(_view: FightView, _leaning: String, value: float) -> float:
 	return value
+
+
+## The chance the fighter reads one of the opponent's moves as it starts (FighterAI), e.g.
+## "Defend the shot!" makes shots easier to read. Unchanged by default.
+func adjust_read(_view: FightView, _action: Dictionary, chance: float) -> float:
+	return chance
+
+
+## The chance the fighter sprawls on a shot they read (FighterAI). Unchanged by default.
+func adjust_sprawl(_view: FightView, chance: float) -> float:
+	return chance
+
+
+## This tick's footwork after the AI planned it, e.g. stepping in to shoot on a call.
+## Only asked of sources with `steers_feet` on.
+func adjust_feet(_view: FightView, _feet: FeetPlan) -> void:
+	pass
 
 
 ## Every fight event, as this fighter's side sees it (read calls and rules watch for triggers).

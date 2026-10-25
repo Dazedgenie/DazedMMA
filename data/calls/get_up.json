@@ -1,0 +1,14 @@
+{
+	"schema": "call@2",
+	"id": "get_up",
+	"name": "Get up!",
+	"kind": "now",
+	"tier": "intent",
+	"parent": null,
+	"hotkey": 7,
+	"voice_cost": 20,
+	"positions": ["full_guard", "scramble"],
+	"roles": ["bottom", "neutral"],
+	"actions": ["get_up"],
+	"requires_technique": null
+}

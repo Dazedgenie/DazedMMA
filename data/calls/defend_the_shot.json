@@ -1,0 +1,14 @@
+{
+	"schema": "call@2",
+	"id": "defend_the_shot",
+	"name": "Defend the shot!",
+	"kind": "now",
+	"tier": "intent",
+	"parent": null,
+	"hotkey": 6,
+	"voice_cost": 15,
+	"positions": ["standing", "clinch"],
+	"actions": [],
+	"focus": { "duration_ms": 15000, "leanings": { "range": -20 }, "weights": { "takedown": 0.5 }, "read_bonus": { "takedown": 0.5 }, "sprawl_bonus": 0.3 },
+	"requires_technique": null
+}

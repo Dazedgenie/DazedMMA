@@ -310,7 +310,7 @@ func choose(view: FightView, layer: DecisionLayer) -> Decision:
 	var registered: bool = _registered(view)
 	var d: Decision = null
 	if registered and _opp.category == TAKEDOWN:
-		d = _defend(view)
+		d = _defend(view, layer)
 	if d == null and not _follow.is_empty():
 		d = _follow_up(view, layer)
 	if d == null and registered and not _opp.decided:
@@ -369,7 +369,7 @@ func lead_rate(view: FightView, layer: DecisionLayer) -> float:
 ## Danger first (A2): a shot it read gets sprawled on. When the sprawl roll fails
 ## (or there's no sprawl), the shot is treated like any other move it read: a knee into
 ## the lowered head, or backing off.
-func _defend(view: FightView) -> Decision:
+func _defend(view: FightView, layer: DecisionLayer) -> Decision:
 	if not _registered(view) or _opp.category != TAKEDOWN or _opp.get("sprawl_rolled", false):
 		return null
 	_opp.sprawl_rolled = true
@@ -377,7 +377,7 @@ func _defend(view: FightView) -> Decision:
 		var action: Dictionary = view.actions.get_action(id)
 		if action.category == DEFENSE and action.defense.against_categories.has(TAKEDOWN) and _usable(view, action):
 			var chance: float = SPRAWL_BASE + SPRAWL_PER_TDD * view.me.effective_stat("takedown_defense") / 100.0
-			if view.roll() < chance:
+			if view.roll() < layer.sprawl_chance(view, chance):
 				_opp.decided = true
 				return Decision.new(id, DecisionLayer.AI, "sprawls on the shot")
 			return null
@@ -524,7 +524,7 @@ func _lead(view: FightView, layer: DecisionLayer) -> Decision:
 ## the feet or the top, by Base. A shot it read gets sprawled on first.
 func _tied(view: FightView, layer: DecisionLayer) -> Decision:
 	var f: FighterState = view.me
-	var d: Decision = _defend(view)
+	var d: Decision = _defend(view, layer)
 	if d != null:
 		return d
 	var position: String = view.position()
@@ -793,6 +793,13 @@ func _lean(view: FightView, layer: DecisionLayer, which: String) -> float:
 		for leaning: String in StyleLeanings.LEANINGS:
 			_leanings[leaning] = layer.leaning(view, leaning)
 	return _leanings[which]
+
+
+## A call changed how this fighter wants to fight (a focus started or ended): look at
+## the leanings and the range plan again now instead of at their next refresh.
+func rethink() -> void:
+	_lean_tick = -LEAN_EVERY
+	_plan_at = -PLAN_EVERY
 
 
 # --- The feet: the range plan ---------------------------------------------------
@@ -1120,7 +1127,7 @@ func on_event(view: FightView, event: FightEvent, layer: DecisionLayer) -> void:
 				if event.actor == me:
 					_chain = _chain if event.data.get("why", "") == "combination" else 0
 				else:
-					_saw_start(view, event)
+					_saw_start(view, event, layer)
 		FightEvent.ACTION_ENDED:
 			if event.actor == me:
 				_own_ended(view, event, layer)
@@ -1152,18 +1159,19 @@ func on_event(view: FightView, event: FightEvent, layer: DecisionLayer) -> void:
 
 
 ## The opponent started a move: does this fighter read it, and when does it register?
-func _saw_start(view: FightView, event: FightEvent) -> void:
+func _saw_start(view: FightView, event: FightEvent, layer: DecisionLayer) -> void:
 	var f: FighterState = view.me
 	var id: String = event.data.action_id
+	var action: Dictionary = view.actions.get_action(id)
 	var telegraph: int = view.opponent.phase_ticks_left if view.opponent.phase == "telegraph" else 0
 	var factor: float = clampf(1.0 + READ_PER_TELEGRAPH_TICK * (telegraph - READ_TELEGRAPH_NORMAL), READ_FACTOR_MIN, READ_FACTOR_MAX)
-	var chance: float = (READ_BASE + READ_PER_IQ * f.effective_stat("fight_iq") / 100.0) * factor
+	var chance: float = layer.read_chance(view, action, (READ_BASE + READ_PER_IQ * f.effective_stat("fight_iq") / 100.0) * factor)
 	if f.is_rocked():
 		chance *= ROCKED_READ
 	# Fighters step in turn each tick: a move started after this fighter's step is
 	# first seen next tick, so the reaction time counts from then (fair to both corners).
 	var seen: int = event.tick + (1 if event.actor > view.index else 0)
-	_opp = { "id": id, "category": view.actions.get_action(id).category, "at": event.tick,
+	_opp = { "id": id, "category": action.category, "at": event.tick,
 		"notice": seen + f.reaction_ticks(), "read": view.roll() < chance, "decided": false }
 
 

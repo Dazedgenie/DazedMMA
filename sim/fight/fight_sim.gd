@@ -107,6 +107,8 @@ const RESULT_TKO := "tko"
 var fight_seed: int
 var clock: FightClock
 var actions: ActionLibrary
+## The coach calls a live_call command can name (data/calls, #16).
+var calls: CallLibrary
 var ruleset: Ruleset
 var positions: PositionLibrary
 ## Where the fight is: phase, position and both roles (shared, docs/01 §4).
@@ -165,6 +167,7 @@ func _init(p_seed: int, p_fighters: Array[FighterState], p_actions: ActionLibrar
 	fighters = p_fighters
 	actions = p_actions
 	positions = PositionLibrary.shared()
+	calls = CallLibrary.shared()
 	if p_rules is Ruleset:
 		ruleset = p_rules
 	elif p_rules is int:
@@ -288,7 +291,10 @@ func _apply_commands() -> void:
 		if reason != "":
 			_emit(FightEvent.COMMAND_REJECTED, command.fighter, { "command": command.type, "reason": reason })
 		elif command.type == FightCommand.LIVE_CALL:
-			decisions[command.fighter].calls.hear(views[command.fighter], command.data.action_id)
+			var i: int = command.fighter
+			_emit(FightEvent.CALL_HEARD, i, decisions[i].hear_call(views[i], call_for(command)))
+			for n: Dictionary in decisions[i].take_notes():
+				_emit(n.type, i, n.data)
 		else:
 			fighters[command.fighter].queued_action_id = command.data.action_id
 		command_log.append(command)
@@ -302,8 +308,19 @@ func _reject_reason(command: FightCommand) -> String:
 		FightCommand.QUEUE_ACTION:
 			return why_not(command.fighter, id)
 		FightCommand.LIVE_CALL:
-			return "" if actions.has(id) else "unknown action"  # Feasibility is checked once the call is processed.
+			return "" if not call_for(command).is_empty() else "unknown call"  # Feasibility is checked once the call is processed.
 	return "unknown command"
+
+
+## The call a live_call command names: a data/calls id, or a move from data/actions
+## called straight (CallLibrary.bare: tests, the debug console). Empty when it's neither.
+func call_for(command: FightCommand) -> Dictionary:
+	var id: String = command.data.get("call_id", command.data.get("action_id", ""))
+	if calls.has(id):
+		return calls.get_call(id)
+	if actions.has(id):
+		return CallLibrary.bare(actions.get_action(id))
+	return {}
 
 
 ## "" when fighter i could start this action now, else why not.
@@ -346,6 +363,10 @@ func _advance_fighter(i: int) -> void:
 			_emit(FightEvent.RECOVERED, i)
 	if f.stagger_ticks > 0:
 		f.stagger_ticks -= 1
+	var calls_here: LiveCalls = decisions[i].calls
+	if calls_here.active:
+		decisions[i].update_calls(views[i])
+		f.attention = calls_here.attention
 	if not f.is_free():
 		f.phase_ticks_left -= 1
 		if f.phase_ticks_left <= 0:
@@ -360,8 +381,9 @@ func _advance_fighter(i: int) -> void:
 		if not decision.is_idle():
 			_start_action(i, decision.action_id, decision)
 			decisions[i].started(seen, decision)
-		for n: Dictionary in decisions[i].take_notes():
-			_emit(n.type, i, n.data)
+			f.attention = calls_here.attention
+	for n: Dictionary in decisions[i].take_notes():
+		_emit(n.type, i, n.data)
 
 
 # --- Space: moving, range and the cage (docs/01 §3) --------------------------

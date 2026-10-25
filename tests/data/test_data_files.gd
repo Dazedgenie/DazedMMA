@@ -21,6 +21,11 @@ const TRIGGER_EVENTS: Array[String] = [
 	FightEvent.ROCKED, FightEvent.KNOCKDOWN, FightEvent.GOT_UP, FightEvent.RECOVERED,
 	FightEvent.RANGE_CHANGED, FightEvent.CAGE_CHANGED, FightEvent.POSITION_CHANGED,
 ]
+const LEANINGS: Array[String] = ["pace", "range", "base", "risk"]
+const CATEGORIES: Array[String] = ["strike", "takedown", "defense", "movement", "clinch", "ground", "submission"]
+const ROLES: Array[String] = ["neutral", "top", "bottom"]
+## What a focus call (docs/09 call@2) may hold.
+const FOCUS_KEYS: Array[String] = ["duration_ms", "leanings", "weights", "read_bonus", "sprawl_bonus"]
 const ALLOWS: Array[String] = [
 	"elbows", "head_strikes_on_ground", "knees_to_head_standing",
 	"knees_to_head_grounded", "heel_hooks", "slams", "takedowns",
@@ -39,9 +44,12 @@ const SCHEMAS := {
 		"stamina_drain_per_s": TYPE_DICTIONARY, "control_score": TYPE_DICTIONARY,
 		"strike_damage_multiplier": TYPE_DICTIONARY, "transitions": TYPE_ARRAY,
 	} },
-	"call@1": { "folder": "calls", "fields": {
+	"call@2": { "folder": "calls", "fields": {
 		"name": TYPE_STRING, "kind": TYPE_STRING, "tier": TYPE_STRING, "voice_cost": TYPE_FLOAT,
 		"positions": TYPE_ARRAY, "actions": TYPE_ARRAY,
+	} },
+	"gameplan@1": { "folder": "gameplans", "fields": {
+		"name": TYPE_STRING, "leanings": TYPE_DICTIONARY, "weights": TYPE_DICTIONARY,
 	} },
 	"trigger@1": { "folder": "triggers", "fields": {
 		"name": TYPE_STRING, "type": TYPE_STRING, "match": TYPE_DICTIONARY,
@@ -124,7 +132,7 @@ func test_action_timings_are_whole_ticks() -> void:
 
 func test_values_come_from_the_allowed_lists() -> void:
 	var problems: Array[String] = []
-	_expect_in(problems, "action", "category", ["strike", "takedown", "defense", "movement", "clinch", "ground", "submission"])
+	_expect_in(problems, "action", "category", CATEGORIES)
 	_expect_in(problems, "call", "kind", ["now", "read"])
 	_expect_in(problems, "call", "tier", ["intent", "technique"])
 	_expect_in(problems, "trigger", "type", ["event", "state", "threshold"])
@@ -151,7 +159,7 @@ func test_values_come_from_the_allowed_lists() -> void:
 		if action.has("basic") and not action.basic is bool:
 			problems.append("action '%s': basic is true or false" % id)
 		for r: Variant in action.get("roles", []):
-			if r not in ["neutral", "top", "bottom"]:
+			if r not in ROLES:
 				problems.append("action '%s': unknown role '%s'" % [id, r])
 	for id: String in _items("rulesets"):
 		var allows: Dictionary = _items("rulesets")[id].get("allows", {})
@@ -190,6 +198,8 @@ func test_references_point_to_things_that_exist() -> void:
 		var where := "call '%s'" % id
 		_expect_ids(problems, where, "actions", c.get("actions", []))
 		_expect_ids(problems, where, "positions", c.get("positions", []))
+		if c.get("requires_technique") != null:
+			_expect_ids(problems, where, "actions", [c.requires_technique])
 		if c.get("parent") != null:
 			_expect_ids(problems, where, "calls", [c.parent])
 		if c.get("kind") == "read":
@@ -203,6 +213,58 @@ func test_references_point_to_things_that_exist() -> void:
 		var r: Dictionary = _items("rules")[id]
 		_expect_ids(problems, "rule '%s'" % id, "triggers", [r.get("trigger")])
 		_expect_ids(problems, "rule '%s'" % id, "actions", [r.get("action")])
+	_report(problems)
+
+
+func test_calls_are_an_attempt_a_focus_or_a_read() -> void:
+	var problems: Array[String] = []
+	var hotkeys: Dictionary = {}
+	for id: String in _items("calls"):
+		var c: Dictionary = _items("calls")[id]
+		var where := "call '%s'" % id
+		var key: Variant = c.get("hotkey")
+		if key != null:
+			if not key is float or key < 0 or key > 9 or fmod(key, 1.0) != 0.0:
+				problems.append("%s: hotkey is a digit 0–9 or null" % where)
+			elif hotkeys.has(key):
+				problems.append("%s: hotkey %d is taken by '%s'" % [where, key, hotkeys[key]])
+			else:
+				hotkeys[key] = id
+		for r: Variant in c.get("roles", []):
+			if r not in ROLES:
+				problems.append("%s: unknown role '%s'" % [where, r])
+		if c.has("priority_boost"):
+			problems.append("%s: priority_boost went with call@1; an accepted call claims the choice outright" % where)
+		var actions: Array = c.get("actions", [])
+		if c.get("kind") == "read":
+			if actions.is_empty() or c.has("focus"):
+				problems.append("%s: a read call names the actions it reacts with, and no focus" % where)
+			if c.get("read") is Dictionary:
+				_expect_ticks(problems, where, "read.duration_ms", c.read.get("duration_ms"))
+				var cost: Variant = c.read.get("attention_cost", 0.0)
+				if not cost is float or cost < 0.0 or cost > 0.5:
+					problems.append("%s: read.attention_cost is a share of defense from 0 to 0.5" % where)
+		elif actions.is_empty() == not c.has("focus"):
+			problems.append("%s: a now call has either actions (an attempt) or a focus block, not both" % where)
+		if c.has("focus"):
+			var focus: Variant = c.focus
+			if not focus is Dictionary:
+				problems.append("%s: focus is an object" % where)
+				continue
+			for k: Variant in focus:
+				if k not in FOCUS_KEYS:
+					problems.append("%s: focus has unknown key '%s'" % [where, k])
+			_expect_ticks(problems, where, "focus.duration_ms", focus.get("duration_ms"))
+			_expect_numbers(problems, where, "focus.leanings", focus.get("leanings", {}), LEANINGS, -100, 100)
+			_expect_weights(problems, where, "focus.weights", focus.get("weights", {}))
+			_expect_numbers(problems, where, "focus.read_bonus", focus.get("read_bonus", {}), CATEGORIES, 0, 1)
+			var sprawl: Variant = focus.get("sprawl_bonus", 0.0)
+			if not sprawl is float or sprawl < 0.0 or sprawl > 1.0:
+				problems.append("%s: focus.sprawl_bonus is a chance from 0 to 1" % where)
+	for id: String in _items("gameplans"):
+		var g: Dictionary = _items("gameplans")[id]
+		_expect_numbers(problems, "gameplan '%s'" % id, "leanings", g.get("leanings", {}), LEANINGS, -100, 100)
+		_expect_weights(problems, "gameplan '%s'" % id, "weights", g.get("weights", {}))
 	_report(problems)
 
 
@@ -354,6 +416,21 @@ func _expect_numbers(problems: Array[String], where: String, field: String, valu
 			problems.append("%s: %s has unknown key '%s'" % [where, field, key])
 		elif not (values[key] is float) or values[key] < lo or values[key] > hi:
 			problems.append("%s: %s.%s must be a number from %d to %d" % [where, field, key, lo, hi])
+
+
+## Weight multipliers keyed by an action id or a category, each 0–10.
+func _expect_weights(problems: Array[String], where: String, field: String, values: Variant) -> void:
+	if not values is Dictionary:
+		problems.append("%s: %s is an object" % [where, field])
+		return
+	var keys: Array = CATEGORIES.duplicate()
+	keys.append_array(_items("actions").keys())
+	_expect_numbers(problems, where, field, values, keys, 0, 10)
+
+
+func _expect_ticks(problems: Array[String], where: String, field: String, ms: Variant) -> void:
+	if not ms is float or ms <= 0.0 or fmod(ms, FightClock.TICK_MS) != 0.0:
+		problems.append("%s: %s must be a positive multiple of %d ms" % [where, field, FightClock.TICK_MS])
 
 
 func _expect_key(problems: Array[String], where: String, kind: String, key: Variant, known: Dictionary) -> void:

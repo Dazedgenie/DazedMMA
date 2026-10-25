@@ -1,0 +1,7 @@
+{
+	"schema": "gameplan@1",
+	"id": "conserve",
+	"name": "Conserve",
+	"leanings": { "pace": -50, "risk": -40 },
+	"weights": {}
+}
