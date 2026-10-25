@@ -641,18 +641,25 @@ pocket is built on it). If the playtest wants a fighter who walks onto the oppon
 
 ### 21.7 Balance
 The Wrestler's pairings are reported in the harness with no pass mark until after the playtest (D109); Kicker vs Boxer within
-60/40 is still the only win check. Numbers from the harness, 100 fights a pairing, both corners:
+60/40 is still the only win check. Numbers from the harness without calls, 100 fights a pairing, after the strikers'
+answers to grappling (D114, §21.8; the Wrestler vs Kicker rows are 200 fights, seeds 1 and 101):
 
 | Pairing (red vs blue) | Red wins · draws | Shots (takedowns) a fight | Clinch · ground (share of the fight) |
 |---|---|---|---|
 | Kicker vs Boxer | 51% · 0% | – | – |
 | Boxer vs Kicker | 50% · 0% | – | – |
-| Wrestler vs Kicker | 54% · 1% | 18.8 (9.0) | 1% · 34% |
-| Kicker vs Wrestler | 51% · 2% | 19.0 (9.2) | 1% · 33% |
-| Wrestler vs Boxer | 45% · 1% | 30.1 (14.7) | 4% · 55% |
-| Boxer vs Wrestler | 51% · 0% | 29.7 (14.6) | 4% · 55% |
+| Wrestler vs Kicker | 48.5% · 2% | 24.9 (9.5) | 0.3% · 37% |
+| Kicker vs Wrestler | 51% · 1% | 24.1 (9.6) | 0.3% · 35% |
+| Wrestler vs Boxer | 59% · 1% | 37.3 (14.6) | 2% · 57% |
+| Boxer vs Wrestler | 40% · 1% | 37.6 (14.7) | 2% · 57% |
 
-The Wrestler wins 50.5% against the Kicker and 47% against the Boxer (after D110, below). Striker fights are unchanged: with the Kicker's new knee
+The Wrestler wins 48% against the Kicker (was 50.5%) and **59% against the Boxer (was 47%)**: he shoots more since D114
+(about 25 shots a fight against the Kicker, was 19; 37 against the Boxer, was 30), and the Boxer, with only his jab and
+cross to stop an entry, gets taken down about as often as before but sees more shots. That's
+reported, not a pass mark (D109); bring it back if the playtest finds the Wrestler too strong against the Boxer (the
+Wrestler's `double_leg` tendency, then `TAKEDOWN_PLAN_VALUE`). Kicker vs Boxer is unchanged (51% and 50%), the Wrestler mirror
+56/43. Draws 0.9% over the 1,000 fights without calls. Before D114: the Wrestler won 50.5% against the Kicker and 47% against
+the Boxer (after D110, below). Striker fights are unchanged: with the Kicker's new knee
 taken out, Kicker vs Boxer plays out event for event as it did before this work. The knee itself costs the Kicker a little
 (56/44 for the Boxer at tendency 0.6), so it sits at 0.2 in `data/fighters/kicker.json`: there for the clinch and for a shot that
 comes in, but rarely thrown in the open. Mirrors as in §20 (Boxer 53/47, Kicker 40/60, the known blue lean). No 10-10 cards.
@@ -741,7 +748,7 @@ Catch-kick single leg (call after 6 ticks)"*.
 ### 22.3 The playtest fighter (D112)
 The player coaches the **Wrestler** against the Kicker (Kyle, 2026-10-25). The Wrestler now knows the catch-kick single
 (`techniques` in `data/fighters/wrestler.json`), which only a call or a drilled rule can make him throw (D103), so fights with
-no calls are unchanged: Wrestler vs Kicker stays about even without calls (50.5% over 800 fights, `01` §21.7). He is still one
+no calls are unchanged: Wrestler vs Kicker stays about even without calls (48% over 400 fights since D114, §21.7). He is still one
 of the two authored opponents (`10` §1) when the Kicker is the one being coached.
 
 **To try it:** run the game, open the debug console (`), pick **Wrestler vs Kicker**, press **Live fight**, and call with the
@@ -806,7 +813,34 @@ blue's (`--coach=red|blue|both`). The CSV says who was in each corner and how ma
 coaching adds +10–20% wins over the same fights without calls, and spam wins less than no calls (D12); the AI corner is
 reported (INFO). The engine checks (draws, 10-10s, Kicker vs Boxer) only read the fights without calls.
 
-{{BALANCE}}
+### 22.8 Balance with calls (D12, 2026-10-25)
+From the harness, 100 fights a pairing per corner, seeds 1–100 (and 101–200 for Wrestler vs Kicker); each line pools the coached
+fighter's wins over both corners and both orders, against the same fights without calls.
+
+| Coached fighter vs opponent | No calls | Good coaching (ideal) | AI corner | Spam |
+|---|---|---|---|---|
+| **Wrestler vs Kicker** (the playtest, D112) | 48% | **61%: +13%** (+9 and +17 on the two seed sets) | 58%: +7% (seeds 1–100) | 38%: −10% |
+| Kicker vs Wrestler | 50% | 54%: +4% | 49.5%: +2% (seeds 1–100) | 23%: −27% |
+| Wrestler vs Boxer | 59% | 55.5%: −3.5% | – | 40.5%: −18.5% |
+| Boxer vs Wrestler | 40% | 41.5%: +1.5% | – | 18.5%: −21.5% |
+| Kicker vs Boxer | 50.5% | 47%: −3.5% | – | 18.5%: −32% |
+| Boxer vs Kicker | 49.5% | 52%: +2.5% | – | 51%: +1.5% |
+| Mirrors (Kicker, Boxer, Wrestler) | 50% | 50%, 46.5%, 50% | – | 16.5%, 39.5%, 33.5% |
+
+**What it says.** Good coaching of the playtest fighter is worth +13% (the D12 band is +10–20%), and the AI corner about half
+of that. Spam loses everywhere except Boxer vs Kicker, where it's even (+1.5%, within
+the noise). Strikers' good coaching is worth about nothing: their corners only have Survive! and Pressure!
+(about 2 calls a fight), so the ideal bot has nothing to time. That's the next gap: give the striker's corner a read on the
+shot (a **Watch the shot!** read call, §22.6) and calls that move the fight (Circle out! off the fence), then hold every
+fighter to D12, not just the Wrestler.
+
+**Noise.** The same fights coached from the red corner or the blue corner differ a lot (the Wrestler with good coaching: +7
+red, +19 blue), and the Kicker's corner, making 2–3 calls a fight, moved his wins anywhere from −3 to +16 on 100 fights. A call shifts everything
+after it in the fight's random stream, so 100 fights is about ±5% each way; pool both corners and two seed sets before reading a
+number.
+
+**Before the call costs (§22.5) and the strikers' answers (§21.8)**, with the first bots: the Wrestler beat the Kicker 77–80%
+with good coaching, 71–74% with the AI corner and 84–87% with random calls every 1.5 s (Clinch! spammed: 100%).
 
 ### 22.9 To change it, and the tests
 - What a call does, its voice cost, hotkey, positions, focus tilt and read timing: its file in `data/calls/`.
