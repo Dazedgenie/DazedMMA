@@ -66,6 +66,27 @@ func test_fighters_never_catch_a_kick_on_their_own() -> void:
 		assert_ne(s.action_id, "catch_kick_single", "caught a kick unprompted at tick %d" % s.tick)
 
 
+func test_a_fighter_whose_kick_gets_caught_throws_it_less() -> void:
+	# #18: the Kicker doesn't keep feeding a kick the opponent keeps catching.
+	var counts := func(caught: int) -> Dictionary:
+		var kicker := FighterState.new("Kicker", {}, ["body_kick", "teep"], 0.3, StyleLeanings.new({ "range": -100 }))
+		var sim: FightSim = _sim(_statue(), kicker, 2.4)
+		for n in caught:
+			sim._emit(FightEvent.ACTION_PHASE, 1, { "action_id": "body_kick", "phase": "telegraph" })
+			sim._emit(FightEvent.GRAPPLE_WON, 0, { "action_id": "catch_kick_single", "result": "success" })
+		_ticks(sim, 3000)
+		var out := { "body_kick": 0, "teep": 0 }
+		for s in _starts(sim, 1):
+			out[s.action_id] = out.get(s.action_id, 0) + 1
+		return out
+	var fresh: Dictionary = counts.call(0)
+	var twice: Dictionary = counts.call(2)
+	var share := func(c: Dictionary) -> float: return float(c.body_kick) / (c.body_kick + c.teep)
+	assert_gt(fresh.body_kick, 20, "kicks to compare: %s" % [fresh])
+	assert_lt(share.call(twice), share.call(fresh) * 0.6, "caught twice: about a quarter as keen (%s vs %s)" % [twice, fresh])
+	assert_gt(twice.teep, fresh.teep, "the teep takes up the slack")
+
+
 func test_every_choice_says_why() -> void:
 	var sim := FightSim.new(SEED, _roster.make_pair("kicker", "boxer"), _actions)
 	_ticks(sim, 1500)

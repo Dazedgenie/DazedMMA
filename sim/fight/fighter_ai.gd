@@ -215,6 +215,10 @@ const SWITCH_CHANCE: float = 0.4
 const SWITCH_FENCE: float = 0.8
 ## Closer to the centre than this, the fence is further than SWITCH_FENCE.
 const CLEAR_OF_SWITCH: float = Octagon.APOTHEM - Octagon.BODY_MARGIN - SWITCH_FENCE - 0.01
+## Caught (#18): each time the opponent catches one of the fighter's moves with a catch
+## (a takedown that needs the opening that move gives, like the catch-kick single), the
+## fighter throws that move this much less for the rest of the fight.
+const CAUGHT_FADE: float = 0.5
 
 var _triggers: TriggerLibrary
 var _ready_for: FighterState
@@ -272,6 +276,9 @@ var _met_advance: bool = false
 ## action id → landing record (0–1).
 var _working: Dictionary = {}
 ## This round on the fighter's own reckoning (judge-weighted damage), and rounds won − lost so far.
+## Own move id → times the opponent caught it (CAUGHT_FADE), and the last move started.
+var _caught: Dictionary = {}
+var _last_move: String = ""
 var _round_dealt: float = 0.0
 var _round_taken: float = 0.0
 var _rounds_up: int = 0
@@ -604,6 +611,8 @@ func _score(view: FightView, layer: DecisionLayer, action: Dictionary, chance: f
 		w *= clinch_liking(_lean(view, layer, StyleLeanings.BASE), _lean(view, layer, StyleLeanings.RANGE)) if _clinch_weapon else 0.0
 	w *= stamina_weight(f, action)
 	w *= _working_weight(view, action.id)
+	if not _caught.is_empty():
+		w *= pow(CAUGHT_FADE, int(_caught.get(action.id, 0)))
 	if plain > 0.0:
 		w *= pow(chance / plain, OPENING_SHARPNESS)
 	if counter:
@@ -1123,6 +1132,8 @@ func on_event(view: FightView, event: FightEvent, layer: DecisionLayer) -> void:
 	var me: int = view.index
 	match event.type:
 		FightEvent.ACTION_PHASE:
+			if event.actor == me and (event.data.phase == "telegraph" or event.data.phase == "windup"):
+				_last_move = event.data.action_id
 			if event.data.phase == "telegraph":
 				if event.actor == me:
 					_chain = _chain if event.data.get("why", "") == "combination" else 0
@@ -1135,6 +1146,10 @@ func on_event(view: FightView, event: FightEvent, layer: DecisionLayer) -> void:
 				_opp = {}
 		FightEvent.STRIKE_LANDED, FightEvent.STRIKE_MISSED:
 			_scored(event, me)
+		FightEvent.GRAPPLE_WON:
+			if event.actor != me and _last_move != "" and _needs_opening(view.actions.get_action(event.data.action_id)):
+				_caught[_last_move] = int(_caught.get(_last_move, 0)) + 1
+				rethink()
 		FightEvent.ROCKED, FightEvent.KNOCKDOWN:
 			if event.actor == me:
 				_follow = {}

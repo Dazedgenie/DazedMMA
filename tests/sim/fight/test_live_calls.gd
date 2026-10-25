@@ -383,6 +383,42 @@ func test_no_more_than_two_reads_are_primed_at_once() -> void:
 	assert_eq(replaced[0].call_id, "catch_the_kick", "the oldest goes")
 
 
+# --- What a call costs (#18): calls pick the moment, they don't add work ---------------------
+
+func test_a_move_started_on_a_call_takes_the_place_of_the_fighters_own_tries_for_30_seconds() -> void:
+	var sim: FightSim = _sim()
+	sim.submit(FightCommand.live_call(0, 0, "takedown"))
+	_run(sim, 10)
+	assert_eq(_starts(sim), [[6, "double_leg"]])
+	var view: FightView = sim.views[0]
+	var double_leg: Dictionary = _actions.get_action("double_leg")
+	assert_eq(_calls(sim).adjust_weight(view, double_leg, 1.0), 0.0, "the AI holds off its own double-leg")
+	assert_eq(_calls(sim).adjust_weight(view, _actions.get_action("jab"), 1.0), 1.0, "everything else as before")
+	view.now = 6 + LiveCalls.SPENT_TICKS
+	assert_eq(_calls(sim).adjust_weight(view, double_leg, 1.0), 1.0, "30 s on, it's the fighter's own again")
+
+
+func test_every_call_heard_takes_the_fighters_eyes_off_the_opponent_for_half_a_second() -> void:
+	var sim: FightSim = _sim()
+	var f: FighterState = sim.fighters[0]
+	sim.submit(FightCommand.live_call(0, 0, "pressure"))
+	_run(sim, 1)
+	assert_almost_eq(f.effective_stat("striking_defense"), 50.0 * (1.0 - LiveCalls.HEARD_ATTENTION), 0.001)
+	assert_almost_eq(f.effective_stat("takedown_defense"), 50.0 * (1.0 - LiveCalls.HEARD_ATTENTION), 0.001)
+	_run(sim, LiveCalls.HEARD_TICKS)
+	assert_eq(f.effective_stat("striking_defense"), 50.0, "back on the opponent")
+
+
+func test_calls_on_a_spent_voice_count_as_spam_and_cost_trust() -> void:
+	var sim: FightSim = _sim()
+	for id: String in ["survive", "stay_safe", "pressure", "circle_out", "work_the_range"]:
+		sim.submit(FightCommand.live_call(0, 0, id))  # 25 + 15 + 20 + 20: 20 left before the fifth
+	_run(sim, 1)
+	var heard: Array[Dictionary] = _heard(sim)
+	assert_eq(heard.map(func(h: Dictionary) -> bool: return h.spam), [false, false, false, false, true])
+	assert_eq(_calls(sim).trust, LiveCalls.TRUST_START - LiveCalls.SPAM_TRUST_COST)
+
+
 # --- The fight log and replays ----------------------------------------------------------
 
 func test_a_fight_with_no_calls_never_wakes_the_call_pipeline() -> void:
