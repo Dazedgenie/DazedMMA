@@ -392,7 +392,7 @@ constants in `sim/fight/octagon.gd`, `sim/fight/fight_sim.gd`, `sim/fight/fighte
 | Rocked | Head shots only. Shock = damage × (1 + head hurt) / (6 + 0.12 × Chin). Rock chance = (shock − 0.6) × 0.5, up to 60%: a jab never rocks a fresh fighter, a clean hook or head kick can. Rocked lasts 4 s × (1.5 − Recovery/100): Speed, Striking defense, Fight IQ −30% more, hands drop, they back off and mostly cover up, and the opponent swarms (more with a Wild Risk leaning) |
 | Knockdown | Rocked again while rocked (or rocked by a knee into a shot, §21.2). Down for 2 s (nobody hits a downed fighter: no ground strikes until after the playtest), then up and rocked. A knockdown in the clinch separates the fighters |
 | KO / TKO | KO roll on each knockdown: 15% + (shock − 1) × 50%, 5–80%, × (1.5 − Heart/100). TKO on a third knockdown in a round, or a rock with the head fully hurt |
-| Judges | Three judges, 10-point must. A round's points = damage landed (head ×1, body ×0.8, legs ×0.6) + 8 per rock + 20 per knockdown + grappling (a takedown and control time, §21.4); each judge sees each fighter's points ±15%. Within 5%, the round goes to the busier fighter (aggression: strikes and takedowns started plus metres walked forward, each judge seeing it ±15%), then to whoever held the other on the fence longer (cage control); only a round where nothing separates them is 10-10 (D97). 10-8 for two more knockdowns or out-landing 3 to 1 in a busy round. Decision: unanimous / split / majority / draw |
+| Judges | Three judges, 10-point must. A round's points = damage landed (head ×1, body ×0.8, legs ×0.6) + 8 per rock + 20 per knockdown + grappling (a takedown and control time, §21.4); each judge sees each fighter's points ±15%. Within 5%, the round goes to the busier fighter (aggression: strikes and takedowns started plus metres walked forward, each judge seeing it ±15%), then to whoever held the other on the fence longer (cage control); only a round where nothing separates them is 10-10 (D97). 10-8 for two more knockdowns or out-landing 4 to 1 in a busy round (D110; `Judging.DOMINANT_SHARE` 0.25). Decision: unanimous / split / majority / draw |
 | Events | `range_changed`, `cage_changed` (announced once held for 0.5 s), `rocked`, `knockdown`, `got_up`, `recovered`; strikes carry `counter`, the `odds` breakdown (§19) and, when they fall short, a `reason` |
 
 Not yet: leg damage giving out, liver shots, cuts, judge personalities and fouls (D20). The clinch and the ground are §21.
@@ -641,21 +641,27 @@ The Wrestler's pairings are reported in the harness with no pass mark until afte
 
 | Pairing (red vs blue) | Red wins · draws | Shots (takedowns) a fight | Clinch · ground (share of the fight) |
 |---|---|---|---|
-| Kicker vs Boxer | 50% · 1% | – | – |
+| Kicker vs Boxer | 51% · 0% | – | – |
 | Boxer vs Kicker | 50% · 0% | – | – |
-| Wrestler vs Kicker | 51% · 5% | 18.8 (9.0) | 1% · 34% |
-| Kicker vs Wrestler | 51% · 3% | 19.0 (9.2) | 1% · 33% |
-| Wrestler vs Boxer | 45% · 4% | 30.1 (14.7) | 4% · 55% |
-| Boxer vs Wrestler | 48% · 3% | 29.7 (14.6) | 4% · 55% |
+| Wrestler vs Kicker | 54% · 1% | 18.8 (9.0) | 1% · 34% |
+| Kicker vs Wrestler | 51% · 2% | 19.0 (9.2) | 1% · 33% |
+| Wrestler vs Boxer | 45% · 1% | 30.1 (14.7) | 4% · 55% |
+| Boxer vs Wrestler | 51% · 0% | 29.7 (14.6) | 4% · 55% |
 
-The Wrestler wins 48.5% against the Kicker and 47% against the Boxer. Striker fights are unchanged: with the Kicker's new knee
+The Wrestler wins 50.5% against the Kicker and 47% against the Boxer (after D110, below). Striker fights are unchanged: with the Kicker's new knee
 taken out, Kicker vs Boxer plays out event for event as it did before this work. The knee itself costs the Kicker a little
 (56/44 for the Boxer at tendency 0.6), so it sits at 0.2 in `data/fighters/kicker.json`: there for the clinch and for a shot that
 comes in, but rarely thrown in the open. Mirrors as in §20 (Boxer 53/47, Kicker 40/60, the known blue lean). No 10-10 cards.
+Draws 0.5% over all 800 fights.
 
-Two things to look at next. **Draws** are 2.0% over the 800 fights (target: under 2%, D97); every one but one is a Wrestler
-fight, where a striker who stuffs every shot in a round wins it 10-8 (the Wrestler landed almost nothing) and loses the other
-two 10-9, so the cards finish 28-28. **The Wrestler against the Boxer** stands with their back on the fence 95% of the standing
+**Draws** were 2.0% over the 800 fights at first (target: under 2%, D97), all but one in Wrestler fights: a striker who stuffs
+every shot in a round won it 10-8 (the Wrestler landed almost nothing, under a third of the striker's points) and lost the other
+two 10-9, so the cards finished 28-28. A 10-8 now needs out-landing 4 to 1, not 3 to 1 (D110): draws 0.5%, the fights
+themselves unchanged (judging doesn't move the dice), Kicker vs Boxer 50.5%, the Wrestler 50.5% against the Kicker and 47% against
+the Boxer. To change it: `Judging.DOMINANT_SHARE` (the loser's share of the winner's points under which a round is 10-8), then
+re-run the harness and read the draws line.
+
+One thing to look at next: **the Wrestler against the Boxer** stands with their back on the fence 95% of the standing
 time; it was the same before this work (90% on main), so it comes from the movement rules (§20.2), not from the grappling.
 
 ### 21.8 To change it, and the tests

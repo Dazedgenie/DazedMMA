@@ -25,9 +25,9 @@ const JUDGE_NOISE: float = 0.15
 const EVEN_WITHIN: float = 0.05
 ## Aggression: attacks thrown, plus this much per metre walked toward the opponent.
 const AGGRESSION_PER_METRE: float = 1.0
-## 10-8: two more knockdowns, or out-landed over 3 to 1 in a busy round.
+## 10-8: two more knockdowns, or out-landed over 4 to 1 in a busy round (D110).
 const DOMINANT_KNOCKDOWNS: int = 2
-const DOMINANT_SHARE: float = 0.35
+const DOMINANT_SHARE: float = 0.25
 const DOMINANT_MIN_POINTS: float = 60.0
 
 const UNANIMOUS := "unanimous decision"

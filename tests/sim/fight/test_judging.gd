@@ -23,7 +23,8 @@ func test_even_striking_goes_to_aggression_then_cage_control() -> void:
 
 func test_two_knockdowns_or_a_beating_is_10_8() -> void:
 	assert_eq(Judging.round_card([60.0, 50.0], [2, 0]), [10, 8] as Array[int])
-	assert_eq(Judging.round_card([100.0, 30.0], [0, 0]), [10, 8] as Array[int])
+	assert_eq(Judging.round_card([100.0, 20.0], [0, 0]), [10, 8] as Array[int])
+	assert_eq(Judging.round_card([100.0, 30.0], [0, 0]), [10, 9] as Array[int], "3 to 1 is a clear round, not a beating (D110)")
 	assert_eq(Judging.round_card([50.0, 10.0], [0, 0]), [10, 9] as Array[int], "too quiet a round for 10-8")
 
 
