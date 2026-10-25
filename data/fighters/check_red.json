@@ -11,6 +11,6 @@
 	"gifts": [],
 	"flaws": [],
 	"techniques": ["jab"],
-	"tendencies": { "work_rate": 0.03, "actions": {} },
+	"tendencies": { "work_rate": 0.015, "actions": {} },
 	"tells": []
 }

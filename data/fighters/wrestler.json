@@ -1,0 +1,18 @@
+{
+	"schema": "fighter@1",
+	"id": "wrestler",
+	"name": "Wrestler",
+	"template": null,
+	"frame": { "height_cm": 178, "reach_cm": 180, "build": "stocky" },
+	"stance": "orthodox",
+	"stats": { "takedowns": 70, "takedown_defense": 65, "strength": 65, "cardio": 65, "top_control": 60, "boxing": 45, "power": 55, "chin": 60 },
+	"personality": { "ego": 0, "discipline": 20, "coachable": 0, "loyal": 0 },
+	"style": { "pace": 30, "range": 40, "base": 70, "risk": 0 },
+	"gifts": [],
+	"flaws": [],
+	"techniques": ["jab", "cross", "double_leg", "stance_shift"],
+	"tendencies": { "work_rate": 0.015, "actions": { "jab": 1.0, "cross": 0.8, "double_leg": 1.5 } },
+	"tells": [
+		{ "trigger": "own_stance_shift", "action": "double_leg", "chance": 0.9, "within_ms": 1000 }
+	]
+}

@@ -2,10 +2,11 @@ class_name Judging
 extends RefCounted
 ## Simple 10-point must scoring with three judges (docs/01-fight-engine.md §11,
 ## issue #13). A round goes to whoever did more effective striking: damage landed
-## (head counts most), plus big moments (rocking or dropping the opponent).
+## (head counts most), plus big moments (rocking or dropping the opponent). When
+## that's even, the judges look at aggression, then cage control, and only call it
+## 10-10 when nothing separates the fighters (D97).
 ## Each judge sees the round slightly differently, so close fights can be split.
-## Grappling, aggression and cage control join when those systems exist (#15),
-## and judge personalities come with D20.
+## Grappling joins with #15, and judge personalities come with D20.
 
 const JUDGES: int = 3
 ## Points per point of damage landed on each target.
@@ -14,8 +15,10 @@ const ROCKED_POINTS: float = 8.0
 const KNOCKDOWN_POINTS: float = 20.0
 ## How differently judges see the same round: each fighter's points ×(1 ± up to 15%).
 const JUDGE_NOISE: float = 0.15
-## Rounds this close (within 5%) are 10-10.
+## Effective striking this close (within 5%) is even: aggression decides, then cage control.
 const EVEN_WITHIN: float = 0.05
+## Aggression: attacks thrown, plus this much per metre walked toward the opponent.
+const AGGRESSION_PER_METRE: float = 1.0
 ## 10-8: two more knockdowns, or out-landed over 3 to 1 in a busy round.
 const DOMINANT_KNOCKDOWNS: int = 2
 const DOMINANT_SHARE: float = 0.35
@@ -27,12 +30,21 @@ const MAJORITY := "majority decision"
 const DRAW := "draw"
 
 
-## One judge's card for one round, e.g. [10, 9].
-static func round_card(points: Array[float], knockdowns: Array[int]) -> Array[int]:
+## One judge's card for one round, e.g. [10, 9]. `tie_breaks` are what the judge
+## looks at, in order, when effective striking is even: [[aggression red, blue],
+## [cage control red, blue]].
+static func round_card(points: Array[float], knockdowns: Array[int], tie_breaks: Array = []) -> Array[int]:
 	var best: float = maxf(points[0], points[1])
-	if best <= 0.0 or absf(points[0] - points[1]) <= EVEN_WITHIN * best:
+	var w: int = -1
+	if best > 0.0 and absf(points[0] - points[1]) > EVEN_WITHIN * best:
+		w = 0 if points[0] > points[1] else 1
+	else:
+		for pair: Array in tie_breaks:
+			if pair[0] != pair[1]:
+				w = 0 if pair[0] > pair[1] else 1
+				break
+	if w < 0:
 		return [10, 10]
-	var w: int = 0 if points[0] > points[1] else 1
 	var l: int = 1 - w
 	var dominant: bool = knockdowns[w] - knockdowns[l] >= DOMINANT_KNOCKDOWNS \
 		or (points[w] >= DOMINANT_MIN_POINTS and points[l] < DOMINANT_SHARE * points[w])

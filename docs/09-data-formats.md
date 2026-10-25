@@ -43,7 +43,7 @@ Rules:
 | `flags_self` | `[{flag, from, to}]` | Flags the *user* carries during those phases (`ONE_LEG` from windup to recovery) |
 | `stats` | `{offense: [stat], defense: [stat]}` | Attributes that decide the contest |
 | `opportunities` | `[{opponent_flag, success_bonus, required?}]` | Bonus when the *opponent* carries that flag; `required: true` = only possible then (catch-kick) |
-| `strike` / `takedown` / `defense` | object | Category-specific: `{target, base_damage}` · `{base_success}` · `{against_categories, base_success}`. Where a landed takedown takes the fight is in the position files |
+| `strike` / `takedown` / `defense` | object | Category-specific: `{target, base_damage, push_m?}` · `{base_success}` · `{against_categories, base_success}`. `push_m` (metres, optional): a landed strike shoves the opponent back that far (the teep, 0.5). Where a landed takedown takes the fight is in the position files. A `movement` move (the stance shift) has none: it only takes time and stamina, and can be a tell |
 | `requires_technique` | id or null | Needs this technique learned (`docs/02` §2.1) |
 
 ### position@2 (example: `standing.json`)
@@ -65,9 +65,13 @@ Versions: position@2 added `transitions`; action@2 moved a takedown's `on_succes
 `voice_cost`, `positions`, `actions` (what the fighter may attempt), `priority_boost` (now calls),
 `read: {trigger, duration_ms, attention_cost}` (read calls), `requires_technique`.
 
-### trigger@1 (example: `opp_kick_starts.json`)
-`name`, `type` (`event`/`state`/`threshold`), `event` (for event triggers, e.g. `action_phase`),
-`match` (e.g. `{actor: "opponent", action_ids: ["body_kick"], phase: "telegraph"}`). State/threshold match fields get defined in #16.
+### trigger@1 (examples: `opp_kick_starts.json`, `own_jab_blocked.json`)
+`name`, `type` (`event`/`state`/`threshold`), `event` (for event triggers: a fight event type such as `action_phase`,
+`strike_landed`, `strike_missed`, `rocked`, `range_changed`), `match` (e.g. `{actor: "opponent", action_ids: ["body_kick"], phase: "telegraph"}`).
+An event trigger matches one event as one fighter sees it; every `match` field is optional and all must hold:
+`actor` (`self` = the fighter whose tell, call or rule it is, `opponent` = the other one), `action_ids` (the event's action is one
+of these), `phase` (`action_phase` events), `defended` (`strike_missed` events: `true` = the opponent stopped it, not "out of
+range"). Loaded by `TriggerLibrary` (`sim/fight/trigger_library.gd`). State/threshold match fields get defined in #16.
 
 ### rule@1 (example: `catch_kick_and_shoot.json`)
 `name`, `trigger` (trigger id), `action` (action id), `priority`, `cooldown_ms`. Reliability comes from camp drilling at runtime, not data.
@@ -92,8 +96,8 @@ generated world fighters. Loaded by `FighterLibrary` (`sim/fight/fighter_library
 | `style` | `{pace, range, base, risk}` −100–100 | Style leanings (`docs/11` §4.2); ±60 earns the named trait |
 | `gifts` / `flaws` | ids from `enums/gifts` / `enums/flaws` | `docs/11` §4.3 |
 | `techniques` | action ids | The moves this fighter knows and the AI picks from |
-| `tendencies` | `{work_rate, actions: {action id: weight}}` | `work_rate`: chance per idle tick to start something (0–1). `actions`: how much they favour a move (1.0 = normal, 0–10), `docs/01` §7 |
-| `tells` | `[{trigger, action, chance, within_ms}]` | Habits an opponent can scout: after `trigger`, `chance` to throw `action` within `within_ms` (`docs/01` §7, D11). Read by the AI from #14 |
+| `tendencies` | `{work_rate, actions: {action id: weight}}` | `work_rate`: the chance per free tick to lead with something (0–1; 0.015 ≈ one lead every 7 s, with combinations, counters and meeting advances on top; `docs/01` §20). `actions`: how much they favour a move (1.0 = normal, 0–10), `docs/01` §7 |
+| `tells` | `[{trigger, action, chance, within_ms}]` | Habits an opponent can scout: after `trigger`, `chance` to throw `action` within `within_ms` (`docs/01` §7, D11). The AI follows them (`docs/01` §20). A tell on the fighter's own move starting is a set-up: the Wrestler's `own_stance_shift` → `double_leg` |
 
 Without a `template`, every field above must be present. A fight is saved and replayed as seed + fighter ids + ruleset +
 command log (`FightSim.record()` / `FightSim.from_record()`).
@@ -104,4 +108,4 @@ action timings are whole ticks · values come from the allowed lists · every re
 flags, stats) points to something that exists.
 
 ## 5. Not yet defined (comes with the issue that needs it)
-How the AI reads tells (#14), technique proficiency and the `techniques` link to `requires_technique` (D6), state/threshold trigger fields (#16), backgrounds/vignettes, techniques, promotions and names (Alpha).
+Technique proficiency and the `techniques` link to `requires_technique` (D6), state/threshold trigger fields (#16), backgrounds/vignettes, techniques, promotions and names (Alpha).

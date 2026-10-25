@@ -1,0 +1,14 @@
+{
+	"schema": "action@2",
+	"id": "stance_shift",
+	"name": "Stance shift",
+	"category": "movement",
+	"positions": ["standing"],
+	"ranges": ["long", "mid", "pocket"],
+	"phases_ms": { "telegraph": 200, "windup": 0, "active": 100, "recovery": 0 },
+	"stamina_cost": 1,
+	"flags_self": [],
+	"stats": { "offense": ["footwork"], "defense": [] },
+	"opportunities": [],
+	"requires_technique": null
+}

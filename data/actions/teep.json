@@ -10,7 +10,7 @@
 	"flags_self": [
 		{ "flag": "ONE_LEG", "from": "windup", "to": "active" }
 	],
-	"strike": { "target": "body", "base_damage": 4 },
+	"strike": { "target": "body", "base_damage": 4, "push_m": 0.5 },
 	"stats": { "offense": ["kicking", "speed"], "defense": ["striking_defense"] },
 	"opportunities": [],
 	"requires_technique": null

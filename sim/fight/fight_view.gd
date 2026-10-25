@@ -34,6 +34,11 @@ func band() -> String:
 	return _sim().band()
 
 
+## How fast this fighter walks right now, in metres per tick (legs hurt = slower).
+func step() -> float:
+	return _sim().step_length(index)
+
+
 func distance() -> float:
 	return _sim().distance()
 
@@ -69,6 +74,68 @@ func my_cage_proximity() -> String:
 
 func odds(action_id: String) -> OddsBreakdown:
 	return _sim().odds_breakdown(index, action_id)
+
+
+## My odds for this action if it lands `ahead` ticks from now, with the opponent
+## carrying on with what they're committed to (a counter into their recovery).
+func odds_ahead(action_id: String, ahead: int) -> OddsBreakdown:
+	return _sim().odds_breakdown(index, action_id, ahead)
+
+
+## The opponent's odds for one of their actions against me right now.
+## Odds on stats alone (no flags or counter): mine, or the opponent's against me.
+func plain_odds(action_id: String) -> float:
+	return _sim().plain_odds(index, action_id)
+
+
+func opponent_plain_odds(action_id: String) -> float:
+	return _sim().plain_odds(1 - index, action_id)
+
+
+func opponent_odds(action_id: String) -> OddsBreakdown:
+	return _sim().odds_breakdown(1 - index, action_id)
+
+
+## Ticks one phase of an action takes me (or the opponent) right now (Speed, fatigue).
+func phase_ticks(action_id: String, phase: String) -> int:
+	return _sim().phase_ticks(me, action_id, phase)
+
+
+func opponent_phase_ticks(action_id: String, phase: String) -> int:
+	return _sim().phase_ticks(opponent, action_id, phase)
+
+
+## Ticks from starting this action to its active phase (when it lands or not).
+func ticks_to_land(action_id: String) -> int:
+	return phase_ticks(action_id, "telegraph") + phase_ticks(action_id, "windup")
+
+
+## The opponent's phase `ahead` ticks from now if they carry on ("" once done).
+func opponent_phase_ahead(ahead: int) -> String:
+	return _sim().phase_ahead(1 - index, ahead)
+
+
+## What a fighter's (default: my) clean strikes multiply their base damage by (Power).
+func strike_power(fighter: FighterState = null) -> float:
+	return _sim().strike_power(fighter if fighter != null else me)
+
+
+## Damage this strike would do to the opponent if it landed clean (no counter).
+func strike_damage(action_id: String, fighter: FighterState = null) -> float:
+	return _sim().strike_damage(fighter if fighter != null else me, action_id)
+
+
+func round_number() -> int:
+	return _sim().clock.current_round
+
+
+func rounds() -> int:
+	return _sim().clock.rounds
+
+
+func ticks_left_in_round() -> int:
+	var c: FightClock = _sim().clock
+	return c.ticks_per_round() - c.tick_in_round
 
 
 ## "" when I could start this action right now, else why not (unknown, illegal, wrong position).

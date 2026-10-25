@@ -1,0 +1,8 @@
+{
+	"schema": "trigger@1",
+	"id": "own_stance_shift",
+	"name": "Stance shift",
+	"type": "event",
+	"event": "action_phase",
+	"match": { "actor": "self", "action_ids": ["stance_shift"], "phase": "telegraph" }
+}

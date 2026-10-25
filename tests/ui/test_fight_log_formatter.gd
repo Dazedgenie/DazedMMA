@@ -29,6 +29,11 @@ func test_only_the_start_of_a_move_is_shown_without_phase_details() -> void:
 	assert_true(FightLogFormatter.is_detail(windup))
 
 
+func test_the_start_of_a_move_says_why_the_fighter_chose_it() -> void:
+	var e := FightEvent.new(34, 1, FightEvent.ACTION_PHASE, 0, { "action_id": "body_kick", "phase": "telegraph", "by": "ai", "why": "tell: jab blocked" })
+	assert_eq(_plain(FightLogFormatter.line(e, _sim)), "R1 0:03.4  t34  Red starts a Body kick  (tell: jab blocked)")
+
+
 func test_a_strike_shows_the_odds_it_was_rolled_at() -> void:
 	var e := FightEvent.new(34, 1, FightEvent.STRIKE_MISSED, 1, { "action_id": "jab", "target": "head", "chance": 0.634 })
 	assert_eq(_plain(FightLogFormatter.line(e, _sim)), "R1 0:03.4  t34  Blue's Jab misses 63%")

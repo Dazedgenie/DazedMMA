@@ -1,0 +1,1016 @@
+class_name FighterAI
+extends RefCounted
+## The fighter's own choices when nobody is calling: a utility AI at the bottom of
+## the DecisionLayer stack (docs/01 §7, §16 A2, issue #14). It reads the fight only
+## through FightView and hears the fight's events, so it knows what a fighter in
+## the cage could know, one reaction time late (D93).
+##
+## Each free tick, in this order:
+##   1. Danger first (A2): rocked fighters cover up; a shot it read gets sprawled on.
+##   2. What it is following through with: a tell (the profile's habits, docs/01 §7,
+##      D11) or the next strike of a combination.
+##   3. An opening it read in time: a counter landing in the opponent's wind-up or
+##      recovery, or a flag such as LEANING. Fight IQ decides how often it reads a
+##      move; style decides how often it takes what it reads.
+##   4. Meeting an opponent who walks in: one roll per advance, mostly outside fighters.
+##   5. A lead: now and then (work rate × pace × the moment), its best move from here.
+## Strikes are only thrown when they will still reach as they land: the fighter
+## stops moving once committed, but a free opponent keeps walking.
+## Every candidate move is scored
+##   tendency × style × gameplan × commitment × stamina × what's working × opening
+## and picked by weighted chance, sharper with Fight IQ, so fighters vary but stay in character.
+##
+## The feet follow a range plan: the band where the fighter's own weapons beat the
+## opponent's, tilted by the Range and Pace leanings. Outside fighters step back
+## from strikes they read and reset after combinations; pressure fighters walk them down.
+##
+## Every number is a first guess, tuned with the balance harness (tools/balance.gd).
+
+const STRIKE := "strike"
+const TAKEDOWN := "takedown"
+const DEFENSE := "defense"
+const TELL := "tell"
+const COMBO := "combo"
+## Far to close: the bands a standing fighter can plan to fight from.
+const BANDS: Array[String] = [Octagon.BAND_LONG, Octagon.BAND_MID, Octagon.BAND_POCKET]
+## Inside each band, where a fighter may stand (between the band's edges, a little in).
+const BAND_SPOTS := {
+	Octagon.BAND_LONG: [Octagon.MID_WITHIN + 0.05, Octagon.LONG_WITHIN - 0.05],
+	Octagon.BAND_MID: [Octagon.POCKET_WITHIN + 0.05, Octagon.MID_WITHIN - 0.05],
+	Octagon.BAND_POCKET: [Octagon.MIN_GAP, Octagon.POCKET_WITHIN - 0.05],
+}
+## Flags that come from how a fighter is or where they stand, not from a move: anyone sees them.
+const STATE_FLAGS := { "HANDS_LOW": true, "BACK_TO_CAGE": true }
+
+## Reading a move: (0.15 + 0.5 × Fight IQ / 100) × telegraph factor, where a 2-tick
+## telegraph is normal and each tick longer or shorter is ±20% (docs/11 §3.3: a shorter
+## telegraph is harder to read). Rocked, half as likely.
+const READ_BASE: float = 0.15
+const READ_PER_IQ: float = 0.5
+const READ_TELEGRAPH_NORMAL: int = 2
+const READ_PER_TELEGRAPH_TICK: float = 0.2
+const READ_FACTOR_MIN: float = 0.5
+const READ_FACTOR_MAX: float = 1.5
+const ROCKED_READ: float = 0.5
+## Taking an opening it read: 75%, up to +20% for a patient fighter and −20% for an aggressive one.
+const TAKE_BASE: float = 0.75
+const TAKE_PER_PACE: float = 0.2
+## Moves that only exist with an opening (the catch-kick needs a kick to catch) are
+## left to the coach: the fighter's own weight for them is multiplied by this (Q1, #14).
+const OWN_REQUIRED_OPENINGS: float = 0.0
+## How much better odds pull the choice: weight × (odds now / plain odds)^2.
+const OPENING_SHARPNESS: float = 2.0
+## Sprawling on a shot it read: 60% + 30% × Takedown defense / 100.
+const SPRAWL_BASE: float = 0.6
+const SPRAWL_PER_TDD: float = 0.3
+## Outside fighters step back from a strike they read: up to 60% at Range −100, plus
+## 30% × head hurt for anyone. They aim this much further away until it's past.
+const EVADE_MAX: float = 0.6
+const EVADE_WHEN_HURT: float = 0.3
+const EVADE_STEP: float = 0.8
+## Combinations: after a strike, another at (0.15 + 0.45 × skill / 100) × pace, at most 3 more.
+## Skill is the move's technique stat (Boxing for punches, Kicking for kicks).
+const COMBO_BASE: float = 0.15
+const COMBO_PER_SKILL: float = 0.45
+const COMBO_MAX: int = 3
+const COMBO_WINDOW_TICKS: int = 2
+const TIRED_COMBO_BELOW: float = 0.3
+## Resets: when a combination ends, outside fighters step out 0.6 m for 1–2 s (up to 70% at Range −100).
+const RESET_MAX: float = 0.7
+const RESET_TICKS_MIN: int = 10
+const RESET_TICKS_MAX: int = 20
+const RESET_STEP: float = 0.6
+## The lead rate: work rate × (1 + Pace / 200), then × these for the moment.
+const RESET_RATE: float = 0.35
+const OFF_PLAN_RATE: float = 0.6
+## Crowded: closer than they planned, in a band where the opponent out-threatens them
+## (an outside fighter caught in the pocket). Getting out comes first, so leads × 0.35
+## and combinations × 0.5. Closer than planned but not out-gunned, they fight from there.
+const CROWDED_RATE: float = 0.35
+const CROWDED_COMBO: float = 0.5
+const ROCKED_RATE: float = 0.3
+const TIRED_RATE_BELOW: float = 0.5
+const TIRED_RATE_MIN: float = 0.6
+## Style leanings (with the gameplan) are looked up again every this many ticks.
+const LEAN_EVERY: int = 10
+## However the moment stacks up, never more than 4 × the work rate.
+const LEAD_RATE_CAP: float = 4.0
+## The last 15 s of a round: everyone picks it up a bit.
+const ROUND_END_TICKS: int = 150
+const ROUND_END_RATE: float = 1.25
+## Final round: behind on their own reckoning, 1.25× busier (± a quarter for Risk); ahead and Safe, they coast.
+const BEHIND_RATE: float = 1.25
+## A round counts as won or lost on their own reckoning when one side did 10% more.
+const ROUND_SENSE: float = 1.1
+## Commitment: strike weight × (ticks / 5)^−aversion, aversion (0.5 − 0.4 × Risk / 100)
+## × danger / 0.5, so safe fighters throw quick shots and wild ones throw big ones, and
+## everyone throws big ones more freely where the opponent can't punish them.
+const COMMIT_REF_TICKS: float = 5.0
+const COMMIT_AVERSION: float = 0.5
+const COMMIT_PER_RISK: float = 0.4
+const DANGER_EVEN: float = 0.5
+## Head shots on a hurt opponent: × (1 + finish × (head hurt + 1 if rocked)), finish 0.5 + 0.5 × Risk / 100.
+const FINISH_BASE: float = 0.5
+## Low stamina: expensive moves fade (a move costing 8 or more fades fully at an empty tank).
+const TIRED_COST_REF: float = 8.0
+const TIRED_MIN_WEIGHT: float = 0.1
+## What's working: each move's landing record (0–1, starting even) moves the weight by
+## up to ±40% at Fight IQ 50, ±80% at Fight IQ 100.
+const WORKING_START: float = 0.5
+const WORKING_MEMORY: float = 0.2
+const WORKING_PULL: float = 0.8
+## The range plan, re-thought every 2 s: per band, my threat − caution × theirs, over my
+## best threat; plus Range ±0.35 and Pace ±0.15 toward the pocket or long range. The
+## band it already holds gets +0.1 so it doesn't flicker.
+const PLAN_EVERY: int = 20
+const PLAN_OTHERS: float = 0.25
+const PLAN_CAUTION: float = 0.8
+const PLAN_CAUTION_PER_LEANING: float = 0.3
+const PLAN_RANGE_BIAS: float = 0.35
+const PLAN_PACE_BIAS: float = 0.15
+const PLAN_STICKY: float = 0.1
+## A landed takedown counts like this much damage when planning where to stand (judges score them in #15).
+const TAKEDOWN_PLAN_VALUE: float = 6.0
+## Walking into the opponent's weapons while the opponent is free, fighters stalk: at
+## half pace (± a quarter for Pace) where only the opponent's weapons reach, scaled by
+## the opponent's share of the threat in that band. They close at full speed while the
+## opponent is committed to a move.
+const STALK_BASE: float = 0.5
+const STALK_PER_PACE: float = 0.25
+## Losing the round or the fight on their own reckoning, they stalk in this much faster.
+const STALK_WHEN_LOSING: float = 0.1
+## Inside the band: Range +100 stands 0.25 m closer, Pace +100 another 0.15 m.
+const RANGE_SHIFT: float = 0.25
+const PACE_SHIFT: float = 0.15
+## Meeting the advance: when the opponent walks in faster than 0.4 m/s, one roll at
+## (0.2 + 0.5 for an outside fighter) × (0.5 + Fight IQ / 100) to meet them with a strike
+## that lands as they arrive.
+const INTERCEPT_CLOSING: float = 0.04
+const INTERCEPT_BASE: float = 0.2
+const INTERCEPT_OUTSIDE: float = 0.5
+## Nothing takes longer than this to land, so a walk-in further off than this many ticks can't be met yet.
+const REACH_LOOKAHEAD_TICKS: float = 12.0
+## How fast the opponent's approach is tracked (share of the newest step).
+const CLOSING_MEMORY: float = 0.5
+## Circling: outside fighters circle (Range −100 = all of it) when the opponent is closer than
+## they want, a little otherwise; rocked fighters circle away as hard as they can.
+const CIRCLE_PRESSED: float = 0.8
+const CIRCLE_FREE: float = 0.25
+const PRESSED_BY: float = 0.1
+## Backing up with the fence behind them, fighters circle off it instead: from this far
+## out, the closer the fence the less they back up and the harder they circle.
+const FENCE_SENSE: float = 1.5
+
+var _triggers: TriggerLibrary
+var _ready_for: FighterState
+## The profile's tells, by the event type that can set them off: type → [{trigger, action, chance, ticks, name}].
+var _tells: Dictionary = {}
+## action id → the move it is set up with (a tell set off by the fighter's own move).
+var _setups: Dictionary = {}
+
+## The opponent's current move as this fighter saw it:
+## {id, category, at, notice (tick it registers), read, decided, evade_rolled}, or empty.
+var _opp: Dictionary = {}
+## A move to follow with: {kind: TELL or COMBO, id, until, reason, last}, or empty.
+var _follow: Dictionary = {}
+var _chain: int = 0
+var _reset_until: int = -1
+var _evade_until: int = -1
+var _plan_band: String = ""
+var _plan_at: int = -PLAN_EVERY
+## Per band at the last plan: (my threat − caution × theirs) / my best threat. Below 0 = out-gunned there.
+var _band_scores: Dictionary = {}
+## FighterState → the moves it threatens with in the range plan (_plan_moves).
+var _plan_cache: Dictionary = {}
+## Per band at the last plan: the opponent's share of the threat there (0 = only mine reaches, 1 = only theirs).
+var _danger: Dictionary = {}
+## The distance the feet were last told to keep.
+var _last_want: float = 0.0
+## How hard the feet were told to circle off the fence (0–1, _fence_behind).
+var _off_fence: float = 0.0
+## What preferred_distance saw on tick _feet_at, for circling() on the same tick.
+var _feet_at: int = -1
+var _feet_gap: float = 0.0
+var _feet_outside: float = 0.0
+## How fast the opponent walks toward this fighter (m per tick, negative = away),
+## from where they were seen last; and whether this advance has been met already.
+var _closing: float = 0.0
+var _seen_at: int = -1
+var _seen_pos: Vector2 = Vector2.ZERO
+var _met_advance: bool = false
+## action id → landing record (0–1).
+var _working: Dictionary = {}
+## This round on the fighter's own reckoning (judge-weighted damage), and rounds won − lost so far.
+var _round_dealt: float = 0.0
+var _round_taken: float = 0.0
+var _rounds_up: int = 0
+## The style leanings as the layer reads them (gameplan included), looked up once a second.
+var _lean_tick: int = -1
+var _leanings: Dictionary = {}
+## Looked up once per choice (nothing changes while a fighter decides): the distance,
+## the band, and per move whether it will reach, when it lands and the odds now.
+var _gap: float = 0.0
+var _band: String = ""
+var _reach: Dictionary = {}
+var _land: Dictionary = {}
+var _odds_now: Dictionary = {}
+var _choice_ready: bool = false
+
+
+func _init(p_triggers: TriggerLibrary = null) -> void:
+	_triggers = p_triggers if p_triggers != null else TriggerLibrary.shared()
+
+
+# --- Choosing what to start -----------------------------------------------------
+
+## What to start this free tick, or DecisionLayer.IDLE to keep working the feet.
+## A fighter with no moves or a work rate of 0 never starts anything (a statue for tests).
+func choose(view: FightView, layer: DecisionLayer) -> Decision:
+	var f: FighterState = view.me
+	_prepare(f)
+	if f.repertoire.is_empty() or f.work_rate <= 0.0 or view.opponent.is_down():
+		return DecisionLayer.IDLE
+	_choice_ready = false
+	if f.is_rocked():
+		# Covering up: only the odd desperate shot.
+		return _lead(view, layer) if _leads(view, layer) else DecisionLayer.IDLE
+	var registered: bool = _registered(view)
+	var d: Decision = null
+	if registered and _opp.category == TAKEDOWN:
+		d = _defend(view)
+	if d == null and not _follow.is_empty():
+		d = _follow_up(view, layer)
+	if d == null and registered and not _opp.decided:
+		d = _opening(view, layer)
+	if d == null:
+		if _closing < INTERCEPT_CLOSING or not view.opponent.is_free():
+			_met_advance = false
+		elif not _met_advance:
+			d = _meet_advance(view, layer)
+	if d != null:
+		return d
+	if _leads(view, layer):
+		return _lead(view, layer)
+	return DecisionLayer.IDLE
+
+
+## One roll against the lead rate. Most ticks the roll is above any rate the moment
+## could give, so the rate is only worked out when it might matter.
+func _leads(view: FightView, layer: DecisionLayer) -> bool:
+	var r: float = view.roll()
+	return r < LEAD_RATE_CAP * view.me.work_rate and r < lead_rate(view, layer)
+
+
+## Chance per free tick to lead with something: work rate × (1 + Pace / 200) × the moment,
+## at most 8 × the work rate.
+func lead_rate(view: FightView, layer: DecisionLayer) -> float:
+	var f: FighterState = view.me
+	var risk: float = _lean(view, layer, StyleLeanings.RISK)
+	var rate: float = f.work_rate * (1.0 + _lean(view, layer, StyleLeanings.PACE) / 200.0)
+	if f.is_panicking():
+		rate *= 1.0 + FighterState.PANIC_WORK_RATE_BONUS
+	if f.is_rocked():
+		rate *= ROCKED_RATE
+	elif view.opponent.is_rocked():
+		rate *= 1.5 + risk / 200.0
+	if view.now < _reset_until or view.now < _evade_until:
+		rate *= RESET_RATE
+	elif crowded(view) and not view.opponent.is_rocked():
+		rate *= CROWDED_RATE
+	elif _plan_band != "" and BANDS.find(view.band()) < BANDS.find(_plan_band):
+		rate *= OFF_PLAN_RATE  # Still walking in.
+	var tank: float = f.stamina_fraction()
+	if tank < TIRED_RATE_BELOW:
+		rate *= lerpf(TIRED_RATE_MIN, 1.0, tank / TIRED_RATE_BELOW)
+	if view.ticks_left_in_round() <= ROUND_END_TICKS:
+		rate *= ROUND_END_RATE
+	if view.round_number() == view.rounds():
+		if _rounds_up < 0:
+			rate *= BEHIND_RATE + 0.25 * risk / 100.0
+		elif _rounds_up > 0 and risk < 0.0:
+			rate *= 1.0 + 0.25 * risk / 100.0
+	return minf(rate, LEAD_RATE_CAP * f.work_rate)
+
+
+## Danger first (A2): a shot it read gets sprawled on. A fighter with no sprawl
+## treats the shot like any other move it read (a knee into the lowered head, or backing off).
+func _defend(view: FightView) -> Decision:
+	if not _registered(view) or _opp.category != TAKEDOWN:
+		return null
+	for id in view.me.repertoire:
+		var action: Dictionary = view.actions.get_action(id)
+		if action.category == DEFENSE and action.defense.against_categories.has(TAKEDOWN) and _usable(view, action):
+			_opp.decided = true
+			var chance: float = SPRAWL_BASE + SPRAWL_PER_TDD * view.me.effective_stat("takedown_defense") / 100.0
+			if view.roll() < chance:
+				return Decision.new(id, DecisionLayer.AI, "sprawls on the shot")
+			return null
+	return null
+
+
+## A tell or the next strike of a combination.
+func _follow_up(view: FightView, layer: DecisionLayer) -> Decision:
+	if view.now > _follow.until:
+		_follow = {}
+		_chain = 0
+		return null
+	if _follow.kind == TELL:
+		var action: Dictionary = view.actions.get_action(_follow.id)
+		if not _usable(view, action):
+			return null  # Not in range yet: the feet are on their way (preferred_distance).
+		var reason: String = _follow.reason
+		_follow = {}
+		return Decision.new(action.id, DecisionLayer.AI, reason)
+	var last: String = _follow.last
+	_follow = {}
+	var options: Array[String] = []
+	var weights: Array[float] = []
+	for id in view.me.repertoire:
+		var action: Dictionary = view.actions.get_action(id)
+		if action.category != STRIKE or not _usable(view, action):
+			continue
+		var b: OddsBreakdown = _odds(view, id)
+		var w: float = _score(view, layer, action, _seen_chance(view, action, b), _plain_chance(b), false)
+		if id == last and id != "jab":
+			w *= 0.5  # Double jabs, yes; double hooks, rarely.
+		if w > 0.0:
+			options.append(id)
+			weights.append(w)
+	if options.is_empty():
+		_chain = 0
+		return null
+	_chain += 1
+	return Decision.new(options[_pick(view, weights)], DecisionLayer.AI, "combination")
+
+
+## An opening it read and registered in time: a counter or a flag to punish.
+func _opening(view: FightView, layer: DecisionLayer) -> Decision:
+	if not _registered(view):
+		return null
+	_ready_choice(view)
+	var theirs: Dictionary = view.actions.get_action(_opp.id)
+	if not bool(_opp.get("evade_rolled", false)):
+		_opp.evade_rolled = true
+		if (_opp.category == STRIKE or _opp.category == TAKEDOWN) and theirs.ranges.has(_band) \
+				and view.roll() < _evade_chance(view, layer):
+			_evade_until = view.now + _ticks_until_past(view)
+			_opp.decided = true
+			return null
+	var options: Array[String] = []
+	var weights: Array[float] = []
+	var reasons: Array[String] = []
+	for id in view.me.repertoire:
+		var action: Dictionary = view.actions.get_action(id)
+		if (action.category != STRIKE and action.category != TAKEDOWN) or not _usable(view, action):
+			continue
+		var b: OddsBreakdown = view.odds_ahead(id, _ticks_to_land(view, id))
+		if b.chance <= 0.0:
+			continue
+		var counter: bool = false
+		var flag: String = ""
+		for bonus: Dictionary in b.bonuses:
+			if bonus.name == "counter":
+				counter = true
+			elif not STATE_FLAGS.has(bonus.name):
+				flag = bonus.name
+		if not counter and flag == "":
+			continue
+		var w: float = _score(view, layer, action, b.chance, _plain_chance(b), counter and action.category == STRIKE)
+		if _needs_opening(action):
+			w *= OWN_REQUIRED_OPENINGS
+		if w > 0.0:
+			options.append(id)
+			weights.append(w)
+			reasons.append("opening: %s" % flag if flag != "" else "counters the %s" % String(theirs.name).to_lower())
+	if options.is_empty():
+		return null  # Nothing lands in time from here; their recovery may still give one.
+	_opp.decided = true
+	var take: float = clampf(TAKE_BASE - TAKE_PER_PACE * _lean(view, layer, StyleLeanings.PACE) / 100.0, 0.05, 0.95)
+	if view.roll() >= take:
+		return null
+	var k: int = _pick(view, weights)
+	return Decision.new(options[k], DecisionLayer.AI, reasons[k])
+
+
+## The opponent is walking in: meet them with something that lands as they arrive.
+func _meet_advance(view: FightView, layer: DecisionLayer) -> Decision:
+	_ready_choice(view)
+	if crowded(view, _band):
+		return null  # One roll per advance, as they come into range, not once they're on top of you.
+	if _gap - _closing * REACH_LOOKAHEAD_TICKS > Octagon.LONG_WITHIN:
+		return null  # Still too far for anything to land.
+	var options: Array[String] = []
+	var weights: Array[float] = []
+	for id in view.me.repertoire:
+		var action: Dictionary = view.actions.get_action(id)
+		if action.category != STRIKE or not _usable(view, action):
+			continue
+		var b: OddsBreakdown = _odds(view, id)
+		var w: float = _score(view, layer, action, _seen_chance(view, action, b), _plain_chance(b), false)
+		if w > 0.0:
+			options.append(id)
+			weights.append(w)
+	if options.is_empty():
+		return null  # Not in reach yet.
+	_met_advance = true
+	var outside: float = clampf(-_lean(view, layer, StyleLeanings.RANGE) / 100.0, 0.0, 1.0)
+	var chance: float = (INTERCEPT_BASE + INTERCEPT_OUTSIDE * outside) * (0.5 + view.me.effective_stat("fight_iq") / 100.0)
+	if view.roll() >= chance:
+		return null
+	return Decision.new(options[_pick(view, weights)], DecisionLayer.AI, "meets him coming in")
+
+
+## Its best move from here, set up with a tell's move when it has one.
+func _lead(view: FightView, layer: DecisionLayer) -> Decision:
+	var options: Array[String] = []
+	var weights: Array[float] = []
+	for id in view.me.repertoire:
+		var action: Dictionary = view.actions.get_action(id)
+		if (action.category != STRIKE and action.category != TAKEDOWN) or not _usable(view, action):
+			continue
+		var b: OddsBreakdown = _odds(view, id)
+		var w: float = _score(view, layer, action, _seen_chance(view, action, b), _plain_chance(b), false)
+		if w > 0.0:
+			options.append(id)
+			weights.append(w)
+	if options.is_empty():
+		return DecisionLayer.IDLE
+	var id: String = options[_pick(view, weights)]
+	var setup: String = _setups.get(id, "")
+	if setup != "" and view.me.repertoire.has(setup) and _usable(view, view.actions.get_action(setup)):
+		return Decision.new(setup, DecisionLayer.AI, "sets up the %s" % String(view.actions.get_action(id).name).to_lower())
+	return Decision.new(id, DecisionLayer.AI, "swarms" if view.opponent.is_rocked() else "leads")
+
+
+## How much the fighter wants this move right now (0 = not at all).
+func _score(view: FightView, layer: DecisionLayer, action: Dictionary, chance: float, plain: float, counter: bool) -> float:
+	if chance <= 0.0:
+		return 0.0
+	var f: FighterState = view.me
+	var w: float = float(f.tendencies.get(action.id, 1.0)) * style_weight(_lean(view, layer, StyleLeanings.BASE), action)
+	if action.category == STRIKE:
+		w *= commitment(_lean(view, layer, StyleLeanings.RISK), view.actions.total_ticks(action.id), _danger.get(_band, DANGER_EVEN))
+		w *= _finishing(view, layer, action)
+	w *= stamina_weight(f, action)
+	w *= _working_weight(view, action.id)
+	if plain > 0.0:
+		w *= pow(chance / plain, OPENING_SHARPNESS)
+	if counter:
+		w *= FightSim.COUNTER_DAMAGE
+	return layer.weight(view, action, w)
+
+
+## The Base leaning: +100 doubles takedowns and halves strikes, −100 never shoots.
+static func style_weight(base_leaning: float, action: Dictionary) -> float:
+	var base: float = base_leaning / 100.0
+	match action.category:
+		TAKEDOWN:
+			return maxf(0.0, 1.0 + base)
+		STRIKE:
+			return 1.0 - base / 2.0
+	return 1.0
+
+
+## Long, committed strikes are thrown less by safe fighters and more by wild ones,
+## and less where the opponent's weapons can punish them (`danger`: the opponent's
+## share of the threat in this band; 0.5 = even).
+static func commitment(risk_leaning: float, ticks: int, danger: float = DANGER_EVEN) -> float:
+	var aversion: float = (COMMIT_AVERSION - COMMIT_PER_RISK * risk_leaning / 100.0) * danger / DANGER_EVEN
+	return pow(maxf(1.0, float(ticks)) / COMMIT_REF_TICKS, -aversion)
+
+
+## Expensive moves fade as the tank empties below half.
+static func stamina_weight(f: FighterState, action: Dictionary) -> float:
+	var tank: float = f.stamina_fraction()
+	if tank >= TIRED_RATE_BELOW:
+		return 1.0
+	var tired: float = (TIRED_RATE_BELOW - tank) / TIRED_RATE_BELOW
+	return maxf(TIRED_MIN_WEIGHT, 1.0 - tired * minf(1.0, float(action.stamina_cost) / TIRED_COST_REF))
+
+
+func _finishing(view: FightView, layer: DecisionLayer, action: Dictionary) -> float:
+	if action.strike.target != "head":
+		return 1.0
+	var o: FighterState = view.opponent
+	var hurt: float = o.hurt("head") + (1.0 if o.is_rocked() else 0.0)
+	var finish: float = FINISH_BASE + FINISH_BASE * _lean(view, layer, StyleLeanings.RISK) / 100.0
+	return 1.0 + finish * hurt
+
+
+func _working_weight(view: FightView, id: String) -> float:
+	var record: float = _working.get(id, WORKING_START)
+	var iq: float = clampf(view.me.effective_stat("fight_iq") / 50.0, 0.0, 2.0)
+	return maxf(0.1, 1.0 + WORKING_PULL * (record - WORKING_START) * iq)
+
+
+## Weighted pick, sharper with Fight IQ: weights ^ (1 + Fight IQ / 100).
+func _pick(view: FightView, weights: Array[float]) -> int:
+	var sharp: float = 1.0 + view.me.effective_stat("fight_iq") / 100.0
+	var total: float = 0.0
+	var sharpened: Array[float] = []
+	for w in weights:
+		sharpened.append(pow(w, sharp))
+		total += sharpened[-1]
+	var roll: float = view.roll() * total
+	for n in sharpened.size():
+		roll -= sharpened[n]
+		if roll < 0.0:
+			return n
+	return sharpened.size() - 1
+
+
+## Odds with only what anyone can see (the opponent's state flags), no reads.
+func _seen_chance(_view: FightView, action: Dictionary, b: OddsBreakdown) -> float:
+	if _needs_opening(action):
+		return 0.0
+	var bonus: float = 0.0
+	for x: Dictionary in b.bonuses:
+		if STATE_FLAGS.has(x.name):
+			bonus += x.value
+	return Contest.chance(b.base, b.attack, b.defense, bonus)
+
+
+static func _plain_chance(b: OddsBreakdown) -> float:
+	return Contest.chance(b.base, b.attack, b.defense)
+
+
+## True for moves that only work with an opening a read has to spot (the catch-kick).
+static func _needs_opening(action: Dictionary) -> bool:
+	for opp: Dictionary in action.opportunities:
+		if opp.get("required", false) and not STATE_FLAGS.has(opp.opponent_flag):
+			return true
+	return false
+
+
+## Looks up the distance and band for this choice the first time a step needs them
+## (most free ticks need neither).
+func _ready_choice(view: FightView) -> void:
+	if _choice_ready:
+		return
+	_choice_ready = true
+	_gap = view.distance()
+	_band = view.band()
+	_reach.clear()
+	_land.clear()
+	_odds_now.clear()
+
+
+## The move is legal from this position (A2: never the impossible) and will reach
+## when it lands: this fighter stops moving once committed, a free opponent doesn't.
+## Only used while choosing (it reads that choice's distance and band).
+func _usable(view: FightView, action: Dictionary) -> bool:
+	_ready_choice(view)
+	var id: String = action.id
+	if _reach.has(id):
+		return _reach[id]
+	var ok: bool = action.positions.has(view.position()) and view.ruleset.allows_action(action)
+	if ok:
+		if view.position() != PositionLibrary.STANDING or (action.category != STRIKE and action.category != TAKEDOWN):
+			ok = action.ranges.has(_band)
+		else:
+			var gap: float = _gap
+			if view.opponent.is_free():
+				gap = maxf(Octagon.MIN_GAP, gap - _closing * _ticks_to_land(view, id))
+			ok = action.ranges.has(Octagon.band(gap))
+	_reach[id] = ok
+	return ok
+
+
+func _ticks_to_land(view: FightView, id: String) -> int:
+	_ready_choice(view)
+	if not _land.has(id):
+		_land[id] = view.ticks_to_land(id)
+	return _land[id]
+
+
+func _odds(view: FightView, id: String) -> OddsBreakdown:
+	_ready_choice(view)
+	if not _odds_now.has(id):
+		_odds_now[id] = view.odds(id)
+	return _odds_now[id]
+
+
+## Keeps track of how fast the opponent is walking toward this fighter.
+func _track(view: FightView) -> void:
+	var o: FighterState = view.opponent
+	if _seen_at >= 0 and view.now > _seen_at:
+		var step: Vector2 = (o.pos - _seen_pos) / float(view.now - _seen_at)
+		var to_me: Vector2 = view.me.pos - o.pos
+		var toward: float = step.dot(to_me.normalized()) if to_me.length() > 0.0 else 0.0
+		_closing = lerpf(_closing, toward, CLOSING_MEMORY)
+	_seen_at = view.now
+	_seen_pos = o.pos
+
+
+## True once the opponent's current move has registered with this fighter (read, a
+## reaction time after it started) and nothing has been decided about it yet.
+func _registered(view: FightView) -> bool:
+	if _opp.is_empty() or not _opp.read or _opp.decided or view.now < _opp.notice:
+		return false
+	if view.opponent.action_id != _opp.id:
+		_opp = {}
+		return false
+	return true
+
+
+func _evade_chance(view: FightView, layer: DecisionLayer) -> float:
+	var outside: float = clampf(-_lean(view, layer, StyleLeanings.RANGE) / 100.0, 0.0, 1.0)
+	return outside * EVADE_MAX + EVADE_WHEN_HURT * view.me.hurt("head")
+
+
+## Ticks until the opponent's move is past its active phase (recovering or done).
+func _ticks_until_past(view: FightView) -> int:
+	for ahead in range(1, 30):
+		var phase: String = view.opponent_phase_ahead(ahead)
+		if phase == "" or phase == "recovery":
+			return ahead
+	return 30
+
+
+## A style leaning as the layer reads it (the gameplan included), looked up again
+## every second: leanings only move when the gameplan or a call changes them.
+func _lean(view: FightView, layer: DecisionLayer, which: String) -> float:
+	if view.now >= _lean_tick + LEAN_EVERY or view.now < _lean_tick:
+		_lean_tick = view.now
+		_leanings.clear()
+	if not _leanings.has(which):
+		_leanings[which] = layer.leaning(view, which)
+	return _leanings[which]
+
+
+# --- The feet: the range plan ---------------------------------------------------
+
+## How far apart the fighter wants to be. Rocked fighters get out; a hurt opponent
+## gets swarmed; otherwise the range plan, nudged by evasions and resets. Walking in
+## through a band where the opponent out-guns them, they want only a little closer
+## each tick: the feet stalk instead of charging.
+func preferred_distance(view: FightView, layer: DecisionLayer) -> float:
+	var f: FighterState = view.me
+	_prepare(f)
+	_track(view)
+	if f.is_rocked():
+		_last_want = Octagon.LONG_WITHIN + 1.0
+		return _last_want
+	var o: FighterState = view.opponent
+	if o.is_rocked() or o.is_down():
+		_last_want = Octagon.BAND_CENTRES[_swarm_band(view)]
+		return _last_want
+	var band: String = plan(view, layer)
+	if _band_scores.is_empty():
+		_last_want = view.distance()  # Nothing reaches from anywhere: hold ground.
+		return _last_want
+	if not _follow.is_empty() and _follow.kind == TELL:
+		band = _nearest_band(view.actions.get_action(_follow.id).ranges, band)
+	var range_leaning: float = _lean(view, layer, StyleLeanings.RANGE)
+	var pace: float = _lean(view, layer, StyleLeanings.PACE)
+	var want: float = band_spot(band, range_leaning, pace)
+	if view.now < _evade_until:
+		want += EVADE_STEP
+	elif view.now < _reset_until:
+		want += RESET_STEP
+	var gap: float = view.distance()
+	_feet_at = view.now
+	_feet_gap = gap
+	_feet_outside = clampf(-range_leaning / 100.0, 0.0, 1.0)
+	var here: String = Octagon.band(gap)
+	if want < gap and o.is_free() and _danger.get(here, 0.0) > 0.0:
+		# Walking into their weapons: stalk, the more carefully the more they out-gun me
+		# here, and close fast when they commit.
+		var stalk: float = STALK_BASE + STALK_PER_PACE * pace / 100.0
+		if losing():
+			stalk += STALK_WHEN_LOSING  # Has to take risks to get inside.
+		stalk = clampf(stalk, 0.1, 1.0)
+		want = maxf(want, gap - (1.0 - (1.0 - stalk) * _danger[here]) * view.step())
+	_off_fence = 0.0
+	if want > gap:
+		_off_fence = _fence_behind(view)
+		want = lerpf(want, gap, _off_fence)
+	_last_want = clampf(want, Octagon.MIN_GAP, Octagon.LONG_WITHIN + 1.0)
+	return _last_want
+
+
+## How close the fence is behind this fighter as they back away: 0 in open space (or
+## backing along it), 1 with their back on it.
+func _fence_behind(view: FightView) -> float:
+	var me: Vector2 = view.me.pos
+	var away: Vector2 = me - view.opponent.pos
+	if away.length() <= 0.0:
+		return 0.0
+	var into: float = -away.normalized().dot(Octagon.inward(me))
+	var fence: float = Octagon.distance_to_fence(me) - Octagon.BODY_MARGIN
+	return clampf(1.0 - fence / FENCE_SENSE, 0.0, 1.0) * maxf(0.0, into)
+
+
+## How much to circle while moving (0–1): outside fighters circle off the opponent's
+## line, hard when pressed; rocked fighters circle away; everyone else walks straight.
+func circling(view: FightView, layer: DecisionLayer) -> float:
+	if view.me.is_rocked():
+		return 1.0
+	if view.opponent.is_rocked() or view.opponent.is_down():
+		return 0.0
+	if _feet_at != view.now:  # preferred_distance didn't get as far this tick.
+		_feet_gap = view.distance()
+		_feet_outside = clampf(-_lean(view, layer, StyleLeanings.RANGE) / 100.0, 0.0, 1.0)
+		_off_fence = 0.0
+	var pressed: bool = _feet_gap < _last_want - PRESSED_BY
+	return maxf(_feet_outside * (CIRCLE_PRESSED if pressed else CIRCLE_FREE), _off_fence)
+
+
+## Where in a band to stand: its centre, Range +100 0.25 m closer and Pace +100 0.15 m
+## closer, never outside the band.
+static func band_spot(band: String, range_leaning: float, pace_leaning: float) -> float:
+	var want: float = Octagon.BAND_CENTRES[band] - range_leaning / 100.0 * RANGE_SHIFT - pace_leaning / 100.0 * PACE_SHIFT
+	return clampf(want, BAND_SPOTS[band][0], BAND_SPOTS[band][1])
+
+
+## The band this fighter plans to fight from: where their weapons beat the
+## opponent's (per band: mine − caution × theirs, over my best), tilted by Range and Pace.
+## Thought again every 2 s.
+func plan(view: FightView, layer: DecisionLayer) -> String:
+	if _plan_band != "" and view.now < _plan_at + PLAN_EVERY:
+		return _plan_band
+	_plan_at = view.now
+	var range_leaning: float = _lean(view, layer, StyleLeanings.RANGE)
+	var pace: float = _lean(view, layer, StyleLeanings.PACE)
+	var risk: float = _lean(view, layer, StyleLeanings.RISK)
+	var caution: float = PLAN_CAUTION - PLAN_CAUTION_PER_LEANING * (pace + risk) / 100.0
+	var mine: Array[float] = threats(view, view.me, true, layer)
+	var theirs: Array[float] = threats(view, view.opponent, false, layer)
+	var top: float = mine.max()
+	if top <= 0.0:
+		_plan_band = Octagon.BAND_MID
+		_band_scores = {}
+		_danger = {}
+		return _plan_band
+	var best: String = ""
+	var best_score: float = -INF
+	for n in BANDS.size():
+		_band_scores[BANDS[n]] = (mine[n] - caution * theirs[n]) / top
+		_danger[BANDS[n]] = theirs[n] / (mine[n] + theirs[n]) if mine[n] + theirs[n] > 0.0 else 0.0
+		if mine[n] <= 0.0:
+			continue  # Never plan to stand where nothing reaches.
+		var lean: float = float(n - 1)  # long −1, mid 0, pocket +1
+		var score: float = _band_scores[BANDS[n]] + lean * (PLAN_RANGE_BIAS * range_leaning + PLAN_PACE_BIAS * pace) / 100.0
+		if BANDS[n] == _plan_band:
+			score += PLAN_STICKY
+		if score > best_score:
+			best_score = score
+			best = BANDS[n]
+	_plan_band = best
+	return _plan_band
+
+
+## How dangerous `f` is from each band (in BANDS order): their best move's expected
+## damage per second there (plain odds × damage × the judges' weight for the target,
+## × how much they like it), plus a quarter of the rest. `mine` = f is this fighter.
+func threats(view: FightView, f: FighterState, mine: bool, layer: DecisionLayer) -> Array[float]:
+	var risk: float = _lean(view, layer, StyleLeanings.RISK) if mine else f.style.value(StyleLeanings.RISK)
+	var base: float = _lean(view, layer, StyleLeanings.BASE) if mine else f.style.value(StyleLeanings.BASE)
+	var other: FighterState = view.opponent if mine else view.me
+	var power: float = view.strike_power(f)
+	# Plain odds (FightSim.plain_odds) with each effective stat worked out once.
+	var attack: Dictionary = {}
+	var defense: Dictionary = {}
+	var best: Array[float] = [0.0, 0.0, 0.0]
+	var total: Array[float] = [0.0, 0.0, 0.0]
+	for m: Dictionary in _plan_moves(view, f):
+		var action: Dictionary = m.action
+		var value: float = TAKEDOWN_PLAN_VALUE
+		if action.category == STRIKE:
+			value = m.damage * power * view.ruleset.damage_multiplier * m.weight * commitment(risk, m.ticks)
+		var odds: float = Contest.chance(m.base, _average(f, m.offense, attack), _average(other, m.defense, defense))
+		value *= odds * m.tendency * style_weight(base, action)
+		value /= m.seconds
+		for n: int in m.bands:
+			best[n] = maxf(best[n], value)
+			total[n] += value
+	var out: Array[float] = []
+	for n in BANDS.size():
+		out.append(best[n] + PLAN_OTHERS * (total[n] - best[n]))
+	return out
+
+
+## The average of these effective stats (as FightSim averages them), remembering each in `seen`.
+static func _average(f: FighterState, ids: Array, seen: Dictionary) -> float:
+	if ids.is_empty():
+		return FighterState.DEFAULT_STAT
+	var sum: float = 0.0
+	for id: String in ids:
+		if not seen.has(id):
+			seen[id] = f.effective_stat(id)
+		sum += seen[id]
+	return sum / ids.size()
+
+
+## The moves a fighter could threaten with in the range plan (legal strikes and
+## takedowns that don't need a read), with what doesn't change in a fight worked out once.
+func _plan_moves(view: FightView, f: FighterState) -> Array:
+	if _plan_cache.has(f):
+		return _plan_cache[f]
+	var out: Array = []
+	for id in f.repertoire:
+		var action: Dictionary = view.actions.get_action(id)
+		if (action.category != STRIKE and action.category != TAKEDOWN) or not view.ruleset.allows_action(action) or _needs_opening(action):
+			continue
+		var ticks: int = view.actions.total_ticks(id)
+		var bands: Array[int] = []
+		for n in BANDS.size():
+			if action.ranges.has(BANDS[n]):
+				bands.append(n)
+		var strike: bool = action.category == STRIKE
+		out.append({ "id": id, "action": action, "ticks": ticks, "bands": bands,
+			"seconds": maxf(float(ticks) / FightClock.TICKS_PER_SECOND, 0.1),
+			"weight": Judging.TARGET_WEIGHTS[action.strike.target] if strike else 1.0,
+			"damage": float(action.strike.base_damage) if strike else 0.0,
+			"base": Contest.base_for(action), "offense": action.stats.offense, "defense": action.stats.defense,
+			"tendency": float(f.tendencies.get(id, 1.0)) })
+	_plan_cache[f] = out
+	return out
+
+
+## Where to swarm a hurt opponent from: the closest band of the best head shot.
+func _swarm_band(view: FightView) -> String:
+	var best_id: String = ""
+	var best: float = 0.0
+	for id in view.me.repertoire:
+		var action: Dictionary = view.actions.get_action(id)
+		if action.category != STRIKE or action.strike.target != "head" or not view.ruleset.allows_action(action):
+			continue
+		var value: float = view.strike_damage(id) * view.plain_odds(id)
+		if value > best:
+			best = value
+			best_id = id
+	if best_id == "":
+		return Octagon.BAND_POCKET
+	return _nearest_band(view.actions.get_action(best_id).ranges, Octagon.BAND_POCKET)
+
+
+## Of these ranges, the band closest to `band` (ties go to the closer-in band).
+static func _nearest_band(ranges: Array, band: String) -> String:
+	if ranges.has(band):
+		return band
+	var at: int = BANDS.find(band)
+	var best: String = band
+	var gap: int = 99
+	for n in range(BANDS.size() - 1, -1, -1):
+		if ranges.has(BANDS[n]) and absi(n - at) < gap:
+			gap = absi(n - at)
+			best = BANDS[n]
+	return best
+
+
+# --- What the fighter sees and remembers -----------------------------------------
+
+## Every fight event, as this fighter sees it: the opponent's moves (read or not),
+## how their own moves went, their tells' triggers, and the rounds.
+func on_event(view: FightView, event: FightEvent, layer: DecisionLayer) -> void:
+	_prepare(view.me)
+	var me: int = view.index
+	match event.type:
+		FightEvent.ACTION_PHASE:
+			if event.data.phase == "telegraph":
+				if event.actor == me:
+					_chain = _chain if event.data.get("why", "") == "combination" else 0
+				else:
+					_saw_start(view, event)
+		FightEvent.ACTION_ENDED:
+			if event.actor == me:
+				_own_ended(view, event, layer)
+			elif not _opp.is_empty() and _opp.id == event.data.action_id:
+				_opp = {}
+		FightEvent.STRIKE_LANDED, FightEvent.STRIKE_MISSED:
+			_scored(event, me)
+		FightEvent.ROCKED, FightEvent.KNOCKDOWN:
+			if event.actor == me:
+				_follow = {}
+				_chain = 0
+				_round_taken += Judging.KNOCKDOWN_POINTS if event.type == FightEvent.KNOCKDOWN else Judging.ROCKED_POINTS
+			else:
+				_round_dealt += Judging.KNOCKDOWN_POINTS if event.type == FightEvent.KNOCKDOWN else Judging.ROCKED_POINTS
+		FightEvent.ROUND_ENDED:
+			_new_round()
+	for tell: Dictionary in _tells.get(event.type, []):
+		if _triggers.matches(tell.trigger, event, me) and not view.me.is_rocked() and view.roll() < tell.chance:
+			_follow = { "kind": TELL, "id": tell.action, "until": event.tick + tell.ticks, "reason": "tell: %s" % tell.name }
+
+
+## The opponent started a move: does this fighter read it, and when does it register?
+func _saw_start(view: FightView, event: FightEvent) -> void:
+	var f: FighterState = view.me
+	var id: String = event.data.action_id
+	var telegraph: int = view.opponent.phase_ticks_left if view.opponent.phase == "telegraph" else 0
+	var factor: float = clampf(1.0 + READ_PER_TELEGRAPH_TICK * (telegraph - READ_TELEGRAPH_NORMAL), READ_FACTOR_MIN, READ_FACTOR_MAX)
+	var chance: float = (READ_BASE + READ_PER_IQ * f.effective_stat("fight_iq") / 100.0) * factor
+	if f.is_rocked():
+		chance *= ROCKED_READ
+	# Fighters step in turn each tick: a move started after this fighter's step is
+	# first seen next tick, so the reaction time counts from then (fair to both corners).
+	var seen: int = event.tick + (1 if event.actor > view.index else 0)
+	_opp = { "id": id, "category": view.actions.get_action(id).category, "at": event.tick,
+		"notice": seen + f.reaction_ticks(), "read": view.roll() < chance, "decided": false }
+
+
+## One of its own moves finished: maybe the next strike of a combination, maybe a reset.
+func _own_ended(view: FightView, event: FightEvent, layer: DecisionLayer) -> void:
+	var f: FighterState = view.me
+	var action: Dictionary = view.actions.get_action(event.data.action_id)
+	if not _follow.is_empty() or action.category != STRIKE or f.is_rocked() or f.work_rate <= 0.0:
+		return
+	if _chain < COMBO_MAX and view.roll() < combo_chance(view, layer, action):
+		_follow = { "kind": COMBO, "until": event.tick + COMBO_WINDOW_TICKS, "last": action.id }
+		return
+	_chain = 0
+	var outside: float = clampf(-_lean(view, layer, StyleLeanings.RANGE) / 100.0, 0.0, 1.0)
+	if view.roll() < outside * RESET_MAX:
+		_reset_until = event.tick + RESET_TICKS_MIN + int(view.roll() * (RESET_TICKS_MAX - RESET_TICKS_MIN + 1))
+
+
+## Chance to chain another strike after this one: (0.15 + 0.45 × skill / 100) × (1 + Pace / 200).
+func combo_chance(view: FightView, layer: DecisionLayer, action: Dictionary) -> float:
+	var f: FighterState = view.me
+	var skill: float = 0.0
+	var count: int = 0
+	for stat: String in action.stats.offense:
+		if stat != "power" and stat != "speed":
+			skill += f.effective_stat(stat)
+			count += 1
+	skill = skill / count if count > 0 else float(FighterState.DEFAULT_STAT)
+	var chance: float = (COMBO_BASE + COMBO_PER_SKILL * skill / 100.0) * (1.0 + _lean(view, layer, StyleLeanings.PACE) / 200.0)
+	if f.stamina_fraction() < TIRED_COMBO_BELOW:
+		chance *= 0.5
+	if crowded(view) and not view.opponent.is_rocked():
+		chance *= CROWDED_COMBO
+	return chance
+
+
+## True when the fighter thinks they're losing: this round is going the other way, or
+## they're behind on the rounds so far.
+func losing() -> bool:
+	return _rounds_up < 0 or _round_taken > _round_dealt * ROUND_SENSE
+
+
+## True when the fighter is closer in than they plan to be, in a band where the
+## opponent's weapons beat theirs.
+func crowded(view: FightView, band: String = "") -> bool:
+	if band == "":
+		band = view.band()
+	return _plan_band != "" and BANDS.find(band) > BANDS.find(_plan_band) and _band_scores.get(band, 0.0) < 0.0
+
+
+## A strike landed or was defended: remember what's working, and keep score.
+func _scored(event: FightEvent, me: int) -> void:
+	if event.data.has("reason"):
+		return  # Fell short or nobody to hit: says nothing about the move.
+	var landed: bool = event.type == FightEvent.STRIKE_LANDED
+	var points: float = float(event.data.get("damage", 0)) * Judging.TARGET_WEIGHTS.get(event.data.target, 1.0)
+	if event.actor == me:
+		var record: float = _working.get(event.data.action_id, WORKING_START)
+		_working[event.data.action_id] = record + WORKING_MEMORY * ((1.0 if landed else 0.0) - record)
+		_round_dealt += points
+	else:
+		_round_taken += points
+
+
+## Between rounds: score the round on their own reckoning and start fresh.
+func _new_round() -> void:
+	if _round_dealt > _round_taken * ROUND_SENSE:
+		_rounds_up += 1
+	elif _round_taken > _round_dealt * ROUND_SENSE:
+		_rounds_up -= 1
+	_round_dealt = 0.0
+	_round_taken = 0.0
+	_opp = {}
+	_follow = {}
+	_chain = 0
+	_reset_until = -1
+	_evade_until = -1
+	_plan_band = ""
+	_band_scores = {}
+	_danger = {}
+	_closing = 0.0
+	_seen_at = -1
+	_met_advance = false
+
+
+## Reads the fighter's tells once: which events can set them off, and which moves they set up.
+func _prepare(f: FighterState) -> void:
+	if _ready_for == f:
+		return
+	_ready_for = f
+	_tells = {}
+	_setups = {}
+	_plan_cache = {}
+	for t: Dictionary in f.tells:
+		if not _triggers.has(t.trigger):
+			continue
+		var trigger: Dictionary = _triggers.get_trigger(t.trigger)
+		if trigger.type != TriggerLibrary.EVENT:
+			continue
+		var entry := { "trigger": t.trigger, "action": t.action, "chance": float(t.chance),
+			"ticks": int(t.within_ms) / FightClock.TICK_MS, "name": String(trigger.name).to_lower() }
+		if not _tells.has(trigger.event):
+			_tells[trigger.event] = []
+		_tells[trigger.event].append(entry)
+		var setup: String = _triggers.own_start_action(t.trigger)
+		if setup != "":
+			_setups[t.action] = setup

@@ -240,23 +240,27 @@ func test_speed_shortens_telegraph_and_windup_and_fatigue_stretches_them() -> vo
 
 func test_an_aggressive_pace_leaning_throws_more_than_a_patient_one() -> void:
 	var sim := FightSim.new(SEED, [
-		FighterState.new("Aggressive", {}, ["jab"], 0.08, StyleLeanings.new({ "pace": 100 })),
-		FighterState.new("Patient", {}, ["jab"], 0.08, StyleLeanings.new({ "pace": -100 })),
+		FighterState.new("Aggressive", {}, ["jab"], FighterState.DEFAULT_WORK_RATE, StyleLeanings.new({ "pace": 100 })),
+		FighterState.new("Patient", {}, ["jab"], FighterState.DEFAULT_WORK_RATE, StyleLeanings.new({ "pace": -100 })),
 	], _actions)
 	sim.run_to_end()
-	assert_gt(sim.fighters[0].strikes_thrown, int(sim.fighters[1].strikes_thrown * 1.5))
+	assert_gt(sim.fighters[0].strikes_thrown, int(sim.fighters[1].strikes_thrown * 1.5), "the patient one still counters, so not 3×")
 
 
 func test_a_grappler_leaning_shoots_more_and_a_pure_striker_never_shoots() -> void:
 	var repertoire: Array[String] = ["jab", "double_leg"]
 	var sim := FightSim.new(SEED, [
-		FighterState.new("Grappler", {}, repertoire, 0.08, StyleLeanings.new({ "base": 100 })),
-		FighterState.new("Striker", {}, repertoire, 0.08, StyleLeanings.new({ "base": -100 })),
+		FighterState.new("Grappler", {}, repertoire, FighterState.DEFAULT_WORK_RATE, StyleLeanings.new({ "base": 100 })),
+		FighterState.new("Striker", {}, repertoire, FighterState.DEFAULT_WORK_RATE, StyleLeanings.new({ "base": -100 })),
 	], _actions)
 	sim.run_to_end()
 	var shots: Array[int] = [0, 0]
+	var jab_leads: int = 0
 	for e in sim.events:
-		if e.type == FightEvent.ACTION_PHASE and e.data.phase == "telegraph" and e.data.action_id == "double_leg":
-			shots[e.actor] += 1
-	assert_gt(shots[0], sim.fighters[0].strikes_thrown, "a +100 grappler shoots four times as often as they jab")
+		if e.type == FightEvent.ACTION_PHASE and e.data.phase == "telegraph":
+			if e.data.action_id == "double_leg":
+				shots[e.actor] += 1
+			elif e.actor == 0 and e.data.get("why", "") == "leads":
+				jab_leads += 1
+	assert_gt(shots[0], jab_leads * 3, "a +100 grappler leads with the shot (4× the weight), jabbing to counter")
 	assert_eq(shots[1], 0)

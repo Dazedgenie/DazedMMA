@@ -225,6 +225,8 @@ A **utility AI**: each tick the fighter scores the available actions:
   "when down on the scorecards → shoot more often, with a longer telegraph".
 - Calls temporarily override or boost scores for one intent.
 
+In the engine: §20.
+
 ---
 
 ## 8. Damage, stamina, state
@@ -330,26 +332,25 @@ but happen often enough that an underdog always has a chance.
 
 ## 18. Standing game v1 in the engine (#13)
 What `sim/` does today for §3, §5, §8 and §11. Every number is a first guess for the balance harness (#18); they are named
-constants in `sim/fight/octagon.gd`, `sim/fight/fight_sim.gd`, `sim/fight/placeholder_ai.gd` and `sim/fight/judging.gd`. Stat effects are in `11` §3.5.
+constants in `sim/fight/octagon.gd`, `sim/fight/fight_sim.gd`, `sim/fight/fighter_ai.gd` (§20) and `sim/fight/judging.gd`. Stat effects are in `11` §3.5.
 
 | Piece | Rule |
 |---|---|
 | Cage | Regular octagon, 4.5 m from the centre to each panel (30 ft across). Fighters start 3.5 m apart and go back to their corners each round |
 | Distance bands | Out > 3.0 m · Long 2.2–3.0 · Mid 1.5–2.2 · Pocket < 1.5. Standing fighters can't get closer than 0.9 m until the clinch exists (#15) |
 | Reach | A strike only lands from the bands in its data. The AI only starts moves that reach; a commanded or interrupted move that no longer reaches *falls short* ("out of range") |
-| Movement | Walk at 0.8 + 1.2 × (Footwork + Speed)/200 m/s toward the distance where your moves work, shifted by the Range (±0.5 m) and Pace (±0.3 m) leanings. Committed fighters don't move |
-| Cage | Near = within 1.5 m of the fence; pinned = within 0.5 m with the opponent in mid range or closer (`BACK_TO_CAGE`). Backing up near the fence turns into circling toward open space; the presser mirrors to cut it off. Who wins the sideways battle is a Footwork contest |
+| Movement | Walk at 0.8 + 1.2 × (Footwork + Speed)/200 m/s toward the distance the fighter's range plan wants (§20). Committed fighters don't move. Walking costs stamina (D96): 0.6 a second at full pace × (share of full pace)², so walking in is cheap and running all night isn't. A clean shot stops the feet for 1 tick + 1 per 4 damage; a landed teep shoves the opponent 0.5 m back (`push_m`) |
+| Cage | Near = within 1.5 m of the fence; pinned = within 0.5 m with the opponent in mid range or closer (`BACK_TO_CAGE`). A fighter who walks into the fence slides along it toward open space at the same pace. A presser aims where a moving opponent is going, to cut the cage off: how far ahead is the presser's share of a Footwork contest, so good feet get out and bad feet get trapped |
 | Flags | From action phases (data `flags_self`), plus `BACK_TO_CAGE` when pinned and `HANDS_LOW` below a quarter tank or while rocked |
 | Counters | Hitting a fighter in wind-up or recovery: +10% to land and ×1.3 damage |
 | Damage | Base damage × (0.5 + Power/100), at least 1 |
 | Rocked | Head shots only. Shock = damage × (1 + head hurt) / (6 + 0.12 × Chin). Rock chance = (shock − 0.6) × 0.5, up to 60%: a jab never rocks a fresh fighter, a clean hook or head kick can. Rocked lasts 4 s × (1.5 − Recovery/100): Speed, Striking defense, Fight IQ −30% more, hands drop, they back off and mostly cover up, and the opponent swarms (more with a Wild Risk leaning) |
 | Knockdown | Rocked again while rocked. Down for 2 s (nobody hits a downed fighter until the ground game exists), then up and rocked |
 | KO / TKO | KO roll on each knockdown: 15% + (shock − 1) × 50%, 5–80%, × (1.5 − Heart/100). TKO on a third knockdown in a round, or a rock with the head fully hurt |
-| Judges | Three judges, 10-point must. A round's points = damage landed (head ×1, body ×0.8, legs ×0.6) + 8 per rock + 20 per knockdown; each judge sees each fighter's points ±15%. Within 5% = 10-10 (too generous: D97 wants 10-10 rounds very rare and draws under 2%); 10-8 for two more knockdowns or out-landing 3 to 1 in a busy round. Decision: unanimous / split / majority / draw |
+| Judges | Three judges, 10-point must. A round's points = damage landed (head ×1, body ×0.8, legs ×0.6) + 8 per rock + 20 per knockdown; each judge sees each fighter's points ±15%. Within 5%, the round goes to the busier fighter (aggression: strikes and takedowns started plus metres walked forward, each judge seeing it ±15%), then to whoever held the other on the fence longer (cage control); only a round where nothing separates them is 10-10 (D97). 10-8 for two more knockdowns or out-landing 3 to 1 in a busy round. Decision: unanimous / split / majority / draw |
 | Events | `range_changed`, `cage_changed` (announced once held for 0.5 s), `rocked`, `knockdown`, `got_up`, `recovered`; strikes carry `counter`, the `odds` breakdown (§19) and, when they fall short, a `reason` |
 
-Not yet: leg damage giving out, liver shots, cuts, aggression and cage control on the cards, judge personalities and fouls (D20),
-and anything clinch or ground (#15). Fatigue never shows with the current costs (D96, `12` §4).
+Not yet: leg damage giving out, liver shots, cuts, judge personalities and fouls (D20), and anything clinch or ground (#15).
 
 ## 19. Decision layer in the engine (#33)
 How §6.0 and §7 plug into the code (`12` §3 item 2). The fight loop (`sim/fight/fight_sim.gd`) owns time, movement and
@@ -361,7 +362,7 @@ the fight through a read-only **view** and walks one priority stack. The first l
 | 1 | **Command** | An action queued from outside (tests, bots, the debug console). Always obeyed if possible |
 | 2 | **Live call** | A `live_call` command waits out the call delay in fight time (base 0.6 s = 6 ticks, D92), then a compliance check (always complies until #16 adds the roll, D5) and a feasibility check (legal, possible from this position). Every outcome is logged as `call_answered`: accepted, ignored or infeasible, with the reason (A16) |
 | 3 | **Drilled rule** | Slot reserved; rules arrive with #17 |
-| 4 | **Fighter AI** | The placeholder AI (`sim/fight/placeholder_ai.gd`) until #14. Gameplans only multiply its weights per action or category, so the fighter never silently replaces the gameplan (§16 A2) |
+| 4 | **Fighter AI** | The fighter AI (`sim/fight/fighter_ai.gd`, §20). Gameplans only multiply its weights per action or category and shift its style leanings, so the fighter never silently replaces the gameplan (§16 A2) |
 
 - **Reaction time** (D93) is one number on the fighter, shared by read calls, rules and the AI: 3 − 0.02 × Speed ticks
   (3 at Speed 0, 2 at 50, 1 at 100), stretched by fatigue up to +30%, at least 1 tick.
@@ -371,3 +372,38 @@ the fight through a read-only **view** and walks one priority stack. The first l
 - **Rulesets** (`08`): the fight takes a ruleset (pro by default) for rounds, round length, damage scaling from gear and which
   actions are legal. Banned actions are refused as commands and calls and never picked by the AI. Today only `takedowns` maps to
   actions; elbows, knees to a grounded opponent, ground strikes to the head and slams map as those actions arrive (#15).
+
+## 20. Fighter AI in the engine (#14)
+What a fighter does when nobody is calling (`sim/fight/fighter_ai.gd`), the bottom of the §19 stack. It sees the fight only
+through the read-only view and the fight's events, so it knows what a fighter in the cage could know, one reaction time late
+(D93). The aim is §7: believable, varied and true to style with no calls at all. Every number is a named constant and a first
+guess for the balance harness; stat effects are in `11` §3.5.
+
+| Piece | Rule |
+|---|---|
+| Each free tick | In order: (1) danger first (A2): a rocked fighter covers up and gets out; a shot it read gets sprawled on (60% + 30% × Takedown defense). (2) Follow through: a tell, or the next strike of a combination. (3) An opening it read in time. (4) Meeting an opponent who walks in. (5) Now and then, a lead |
+| Reads | A move registers one reaction time after the fighter first sees it start. Read chance = (0.15 + 0.5 × Fight IQ/100) × a telegraph factor (a 2-tick telegraph is normal, each tick longer or shorter ±20%, 0.5–1.5×); half when rocked. A read gets used 75% of the time, ±20% for Pace (patient fighters take more). Fighters step in turn each tick, so a move that starts after your step is first seen next tick (fair to both corners) |
+| Counters and openings | A counter is timed to land in the opponent's wind-up or recovery (+10%, ×1.3 damage, §18); an opening is timed to land while the opponent's flag is up (`ONE_LEG` during a kick, `LEANING` after a hook). Outside fighters may step back instead: up to 60% at Range −100, plus 30% × head hurt for anyone |
+| Catch-kicks | Never on their own (D103): a move that needs an opening (`required`) gets no weight from the AI. Only a call or a drilled rule throws it |
+| Leads | Per tick: work rate (0.015, about one lead every 7 s) × (1 + Pace/200); × (1.5 + Risk/200) against a rocked opponent; × 0.35 while resetting or crowded; × 0.6 while still walking in; fading below half a tank; × 1.25 in the last 15 s of a round and when behind going into the final round. Never more than 4× the work rate |
+| Picking a move | Only moves that will still reach as they land. Weight = tendency × style (Base +100: takedowns ×2, strikes ×½; −100 never shoots) × gameplan × commitment × stamina × what's working × (odds now / plain odds)², picked by weighted chance that is sharper with Fight IQ (weights to the power 1 + IQ/100) |
+| Commitment | Strike weight × (ticks / 5)^−aversion, aversion = (0.5 − 0.4 × Risk/100) × danger/0.5: safe fighters throw quick shots, wild ones throw big ones, and everyone throws big ones more freely where the opponent can't punish them |
+| What's working | Each move's landing record moves its weight by up to ±40% at Fight IQ 50, ±80% at 100 |
+| Combinations | After a strike, another at (0.15 + 0.45 × the move's technique stat/100) × (1 + Pace/200), up to 3 more. Outside fighters then often reset: step out 0.6 m for 1–2 s (up to 70% at Range −100) |
+| Range plan | Every 2 s, per band: my threat − caution × theirs, over my best threat (threat = the best move's expected damage per second from there, plus a quarter of the rest); caution = 0.8 − 0.3 × (Pace + Risk)/100. Range ±0.35 and Pace ±0.15 tilt it toward the pocket or long range; the band it holds gets +0.1 so it doesn't flicker. It never plans to stand where none of its own moves reach |
+| Feet | Stand in the planned band (Range +100 0.25 m closer, Pace +100 another 0.15 m). Walking into the opponent's weapons while they're free, stalk: half pace (± a quarter for Pace, a tenth faster when losing on their own reckoning), scaled by the opponent's share of the threat there; full speed while the opponent is committed to a move. Outside fighters circle when pressed (0.8 of their pace at Range −100, 0.25 when not). Backing up with the fence within 1.5 m behind them, anyone circles off it instead. A fighter with nothing that reaches from anywhere holds their ground |
+| Crowded | Closer than planned in a band where the opponent out-guns them (the Kicker caught in the pocket): getting out comes first, so leads × 0.35 and combinations × 0.5 |
+| Meeting the advance | When the opponent walks in faster than 0.4 m/s: one roll per advance at (0.2 + 0.5 for an outside fighter) × (0.5 + Fight IQ/100) to land a strike as they arrive |
+| Hurt | Rocked: cover up, get out and circle away; reads halved, leads × 0.3. Opponent rocked: swarm from the band of the best head shot, head shots weighted up by (0.5 + 0.5 × Risk/100) × (head hurt + 1) |
+| Tells and set-ups | From the profile's `tells` (`09`): when the trigger's event happens, follow with the action within the window, at the given chance. The Kicker: jab blocked → body kick, 70% within 1.5 s. A set-up is a tell set off by the fighter's own move: the Wrestler shifts his stance (a 0.2 s telegraph, the tell to watch for) and shoots a double-leg within 1 s, 90% |
+| Why | Every move the fighter starts says why (`why` on the telegraph event: leads, combination, counters the jab, opening: ONE_LEG, meets him coming in, swarms, tell: jab blocked); the fight log prints it |
+
+Balance on 2026-10-25 (harness, 100 fights a pairing): the Kicker beats the Boxer 46% of the time, 44% with the corners swapped
+(the #14 exit test is within 60/40); one draw in 500 fights and no 10-10 cards (D97); in Kicker vs Boxer someone ends up under half
+a tank in 82% of fights (D96). Mirror matches come out even (Kicker 53/47, Boxer 49/51). The Wrestler is tested but stays out of
+the targets until #15 (D104).
+
+To watch in the playtest: the Boxer gets the Kicker on the fence for a large share of the fight (his plan working, and the
+Kicker still wins nearly half); the Boxer's hook is rare because a retreating Kicker is seldom still in the pocket when it would
+land; and two Boxers stand in the pocket and trade until one is stopped (every Boxer mirror ends inside the distance), which
+is as much the damage numbers (§18) as the AI.

@@ -35,7 +35,7 @@ static func default_fighters() -> Array[FighterState]:
 
 
 ## A kicker who likes range against a boxer who walks forward: shows the standing
-## game (range, cage pressure, rocked and knockdowns) with the placeholder AI.
+## game (range, cage pressure, rocked and knockdowns) with the fighter AI.
 static func showcase_fighters() -> Array[FighterState]:
 	return FighterLibrary.load_dir().make_pair("kicker", "boxer")
 

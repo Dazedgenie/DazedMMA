@@ -41,7 +41,9 @@ static func _describe(event: FightEvent, sim: FightSim) -> String:
 	match event.type:
 		FightEvent.ACTION_PHASE:
 			if event.data.phase == "telegraph":
-				return "%s starts a %s" % [who, _action_name(event.data.action_id, sim)]
+				var why: String = String(event.data.get("why", ""))
+				var reason: String = "  [color=%s](%s)[/color]" % [DIM_COLOUR, why] if why != "" else ""
+				return "%s starts a %s%s" % [who, _action_name(event.data.action_id, sim), reason]
 			return "[color=%s]%s %s → %s[/color]" % [DIM_COLOUR, who, _action_name(event.data.action_id, sim), event.data.phase]
 		FightEvent.ACTION_ENDED:
 			return "[color=%s]%s %s finished[/color]" % [DIM_COLOUR, who, _action_name(event.data.action_id, sim)]

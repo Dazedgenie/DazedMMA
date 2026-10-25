@@ -14,6 +14,13 @@ const FIGHTER_FIELDS := {
 	"style": TYPE_DICTIONARY, "gifts": TYPE_ARRAY, "flaws": TYPE_ARRAY, "techniques": TYPE_ARRAY,
 	"tendencies": TYPE_DICTIONARY, "tells": TYPE_ARRAY,
 }
+## What an event trigger may match on (docs/09 trigger@1, TriggerLibrary).
+const TRIGGER_MATCH_KEYS: Array[String] = ["actor", "action_ids", "phase", "defended"]
+const TRIGGER_EVENTS: Array[String] = [
+	FightEvent.ACTION_PHASE, FightEvent.ACTION_ENDED, FightEvent.STRIKE_LANDED, FightEvent.STRIKE_MISSED,
+	FightEvent.ROCKED, FightEvent.KNOCKDOWN, FightEvent.GOT_UP, FightEvent.RECOVERED,
+	FightEvent.RANGE_CHANGED, FightEvent.CAGE_CHANGED, FightEvent.POSITION_CHANGED,
+]
 const ALLOWS: Array[String] = [
 	"elbows", "head_strikes_on_ground", "knees_to_head_standing",
 	"knees_to_head_grounded", "heel_hooks", "slams", "takedowns",
@@ -131,6 +138,9 @@ func test_values_come_from_the_allowed_lists() -> void:
 		for f: Dictionary in action.get("flags_self", []):
 			if f.get("from") not in PHASES or f.get("to") not in PHASES:
 				problems.append("action '%s': flag phases must be one of %s" % [id, PHASES])
+		var push: Variant = action.get("strike", {}).get("push_m", 0.0) if action.get("strike") is Dictionary else 0.0
+		if not (push is float) or push < 0.0:
+			problems.append("action '%s': strike.push_m is metres pushed back, 0 or more" % id)
 	for id: String in _items("rulesets"):
 		var allows: Dictionary = _items("rulesets")[id].get("allows", {})
 		var keys: Array = allows.keys()
@@ -175,6 +185,30 @@ func test_references_point_to_things_that_exist() -> void:
 		var r: Dictionary = _items("rules")[id]
 		_expect_ids(problems, "rule '%s'" % id, "triggers", [r.get("trigger")])
 		_expect_ids(problems, "rule '%s'" % id, "actions", [r.get("action")])
+	_report(problems)
+
+
+func test_event_triggers_say_what_they_match() -> void:
+	var problems: Array[String] = []
+	for id: String in _items("triggers"):
+		var t: Dictionary = _items("triggers")[id]
+		var where := "trigger '%s'" % id
+		if t.get("type") != "event":
+			continue  # State and threshold match fields come with #16.
+		if t.get("event") not in TRIGGER_EVENTS:
+			problems.append("%s: event '%s' is not one of %s" % [where, t.get("event"), TRIGGER_EVENTS])
+		var m: Dictionary = t.get("match", {}) if t.get("match") is Dictionary else {}
+		for key: String in m:
+			if key not in TRIGGER_MATCH_KEYS:
+				problems.append("%s: can't match on '%s' (only %s)" % [where, key, TRIGGER_MATCH_KEYS])
+		if m.has("actor") and m.actor not in ["self", "opponent"]:
+			problems.append("%s: actor is 'self' or 'opponent'" % where)
+		if m.has("phase") and m.phase not in PHASES:
+			problems.append("%s: phase must be one of %s" % [where, PHASES])
+		if m.has("defended") and not m.defended is bool:
+			problems.append("%s: defended is true or false" % where)
+		if m.has("action_ids") and not m.action_ids is Array:
+			problems.append("%s: action_ids is a list" % where)
 	_report(problems)
 
 

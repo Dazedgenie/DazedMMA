@@ -36,9 +36,9 @@ func _answers(sim: FightSim) -> Array[Dictionary]:
 	return out
 
 
-func test_the_placeholder_ai_lives_outside_the_fight_sim() -> void:
+func test_the_fighter_ai_lives_outside_the_fight_sim() -> void:
 	var sim: FightSim = _sim()
-	assert_true(sim.decisions[0].ai is PlaceholderAI)
+	assert_true(sim.decisions[0].ai is FighterAI)
 	assert_false(sim.has_method("choice_weight"), "action choice belongs to the decision layer")
 	assert_false(sim.has_method("idle_work_rate"))
 

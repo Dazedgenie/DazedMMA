@@ -8,6 +8,9 @@ extends RefCounted
 ## for the balance harness (#18) to tune.
 
 const DEFAULT_STAT: int = 50
+## Chance per free tick to lead with something (FighterAI.lead_rate): about one lead
+## every 7 s, with combinations, counters and meeting advances on top.
+const DEFAULT_WORK_RATE: float = 0.015
 
 ## Stamina tank in points: 60 + 0.8 × Cardio (Cardio 50 → 100).
 const TANK_BASE: float = 60.0
@@ -49,15 +52,19 @@ const PANIC_DEFENSE_STATS := { "fight_iq": true, "striking_defense": true, "take
 var id: String = ""
 var name: String
 var stats: Dictionary  # stat id → 0–100; missing stats count as DEFAULT_STAT
-## Actions the placeholder AI picks from when nothing is queued (the profile's `techniques`).
+## Actions the AI picks from when nothing is queued (the profile's `techniques`).
 var repertoire: Array[String]
-## Chance per idle tick that the placeholder AI starts an action, before style and panic.
+## Chance per free tick that the AI leads with something, before style and the moment
+## (FighterAI.lead_rate). 0 = never starts anything on their own.
 var work_rate: float
 ## action id → how much more (or less) this fighter likes it than usual (1.0 = normal, docs/01 §7).
 var tendencies: Dictionary = {}
 var style: StyleLeanings
-## The rest of the profile (docs/09 fighter@1): frame, stance, personality, gifts,
-## flaws, tells. Kept for the AI (#14), the world and saves; the fight doesn't read them yet.
+## Habits an opponent can scout (docs/01 §7, D11): [{trigger, action, chance, within_ms}].
+## After the trigger, `chance` to throw `action` within `within_ms`. The AI follows them (#14).
+var tells: Array = []
+## The rest of the profile (docs/09 fighter@1): frame, stance, personality, gifts and
+## flaws. Kept for the world and saves; the fight doesn't read them yet.
 var profile: Dictionary = {}
 
 ## Where they stand in the cage, in metres from the centre (Octagon).
@@ -66,6 +73,8 @@ var damage: Dictionary = { "head": 0, "body": 0, "legs": 0 }
 ## Ticks left rocked, and ticks left on the canvas after a knockdown.
 var rocked_ticks: int = 0
 var down_ticks: int = 0
+## Ticks left flinching from a clean shot: the feet stop (FightSim.STAGGER_*).
+var stagger_ticks: int = 0
 var knockdowns: int = 0  # suffered this fight
 var knockdowns_this_round: int = 0
 var stamina: float
@@ -78,7 +87,7 @@ var phase_ticks_left: int = 0
 var queued_action_id: String = ""
 
 
-func _init(p_name: String, p_stats: Dictionary = {}, p_repertoire: Array[String] = ["jab"], p_work_rate: float = 0.03, p_style: StyleLeanings = null) -> void:
+func _init(p_name: String, p_stats: Dictionary = {}, p_repertoire: Array[String] = ["jab"], p_work_rate: float = DEFAULT_WORK_RATE, p_style: StyleLeanings = null) -> void:
 	name = p_name
 	stats = p_stats
 	repertoire = p_repertoire
@@ -92,9 +101,10 @@ static func from_profile(p: Dictionary) -> FighterState:
 	var reps: Array[String] = []
 	reps.assign(p.get("techniques", []))
 	var tend: Dictionary = p.get("tendencies", {})
-	var f := FighterState.new(p.name, p.get("stats", {}).duplicate(), reps, float(tend.get("work_rate", 0.03)), StyleLeanings.new(p.get("style", {})))
+	var f := FighterState.new(p.name, p.get("stats", {}).duplicate(), reps, float(tend.get("work_rate", DEFAULT_WORK_RATE)), StyleLeanings.new(p.get("style", {})))
 	f.id = p.get("id", "")
 	f.tendencies = tend.get("actions", {}).duplicate()
+	f.tells = p.get("tells", []).duplicate(true)
 	f.profile = p
 	return f
 

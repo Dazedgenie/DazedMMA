@@ -62,6 +62,18 @@ static func distance_to_fence(p: Vector2) -> float:
 	return nearest
 
 
+## Unit vector from the nearest fence panel into the cage: the way off the fence.
+static func inward(p: Vector2) -> Vector2:
+	var best: int = 0
+	var nearest: float = INF
+	for k in NORMALS.size():
+		var gap: float = APOTHEM - p.dot(NORMALS[k])
+		if gap < nearest:
+			nearest = gap
+			best = k
+	return -NORMALS[best]
+
+
 ## Pushes a point back inside the fence, keeping a fighter's body width.
 static func keep_inside(p: Vector2) -> Vector2:
 	var out: Vector2 = p
