@@ -100,7 +100,7 @@ func test_the_summary_has_a_block_per_pair_and_the_targets() -> void:
 	var text: String = _report([_row(), _row({ "red": "boxer", "blue": "boxer", "winner": "blue" })]).summary({ "kicker": "Kicker", "boxer": "Boxer" })
 	assert_string_contains(text, "Kicker (red) vs Boxer (blue): 1 fights")
 	assert_string_contains(text, "Boxer (red) vs Boxer (blue): 1 fights")
-	assert_string_contains(text, "Targets (all 2 fights)")
+	assert_string_contains(text, "Targets (all 2 fights; the engine's own on the 2 without calls)")
 	assert_string_contains(text, "MET     Draws under 2%")
 
 
@@ -145,3 +145,55 @@ func test_the_summary_says_how_much_grappling_there_was() -> void:
 	var report: BalanceReport = _report([_row({ "red": "wrestler", "takedowns_red": 4, "shots_red": 9, "ground": 0.3, "top_red": 0.28, "clinch": 0.05 })])
 	var text: String = report.summary({ "wrestler": "Wrestler", "boxer": "Boxer" })
 	assert_string_contains(text, "Grappling  takedowns Wrestler (red) 4.0 of 9.0 a fight, Boxer (blue) 0.0 of 0.0 · clinch 5.0% of the fight · ground 30.0% (Wrestler (red) on top 28.0%")
+
+
+# --- Coaching bots (D12, D68) ---------------------------------------------------------------
+
+## `wins` of `of` fights won by red, with this bot in red's corner.
+func _coached(style: String, wins: int, of: int = 20) -> Array[Dictionary]:
+	var rows: Array[Dictionary] = []
+	for n in of:
+		rows.append(_row({ "seed": n + 1, "corner_red": style, "corner_blue": Corner.NONE,
+			"winner": "red" if n < wins else "blue", "winner_id": "kicker" if n < wins else "boxer" }))
+	return rows
+
+
+func _coaching(none_wins: int, style: String, wins: int) -> BalanceReport:
+	var rows: Array[Dictionary] = _coached(Corner.NONE, none_wins)
+	rows.append_array(_coached(style, wins))
+	return _report(rows)
+
+
+func test_good_coaching_meets_the_target_when_it_adds_10_to_20_percent() -> void:
+	var c: Dictionary = _check(_coaching(10, Corner.IDEAL, 13), "Kicker coached against the Boxer: good coaching")
+	assert_eq(c.status, BalanceReport.MET)
+	assert_eq(c.value, "+15.0% (50.0% → 65.0%, 20 and 20 fights)")
+	assert_eq(_check(_coaching(10, Corner.IDEAL, 16), "Kicker coached against the Boxer: good coaching").status, BalanceReport.MISSED, "+30% is too much")
+	assert_eq(_check(_coaching(10, Corner.IDEAL, 11), "Kicker coached against the Boxer: good coaching").status, BalanceReport.MISSED, "+5% too little")
+
+
+func test_spam_meets_the_target_only_when_it_wins_less_than_no_calls() -> void:
+	assert_eq(_check(_coaching(10, Corner.SPAM, 8), "Kicker coached against the Boxer: spam").status, BalanceReport.MET)
+	assert_eq(_check(_coaching(10, Corner.SPAM, 12), "Kicker coached against the Boxer: spam").status, BalanceReport.MISSED)
+
+
+func test_coached_fights_are_kept_out_of_the_engines_own_targets() -> void:
+	var rows: Array[Dictionary] = _coached(Corner.NONE, 10)
+	for row in _coached(Corner.SPAM, 0):
+		rows.append(row.merged({ "winner": "draw", "winner_id": "", "method": FightSummary.METHOD_DRAW }, true))
+	var report: BalanceReport = _report(rows)
+	assert_eq(report.uncoached().size(), 20)
+	assert_eq(_check(report, "Draws").status, BalanceReport.MET, "the spam fights' draws don't count")
+	assert_eq(report.pairs(), ["kicker:boxer", "kicker:boxer red corner spam"] as Array[String])
+	assert_string_contains(report.summary(), "Corner     kicker (red)'s corner: spam caller")
+
+
+func test_a_bot_in_blues_corner_counts_for_the_fighter_it_coaches() -> void:
+	# Red is the Kicker in every row: with the bot in blue's corner, it's the Boxer being coached.
+	var rows: Array[Dictionary] = _coached(Corner.NONE, 10)
+	for n in 20:
+		rows.append(_row({ "seed": n + 1, "corner_blue": Corner.IDEAL, "corner_red": Corner.NONE,
+			"winner": "blue" if n < 13 else "red", "winner_id": "boxer" if n < 13 else "kicker" }))
+	var c: Dictionary = _check(_report(rows), "Boxer coached against the Kicker: good coaching")
+	assert_eq(c.value, "+15.0% (50.0% → 65.0%, 20 and 20 fights)")
+	assert_eq(c.status, BalanceReport.MET)

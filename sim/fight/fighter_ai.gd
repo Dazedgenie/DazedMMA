@@ -139,8 +139,10 @@ const PLAN_CAUTION_PER_LEANING: float = 0.3
 const PLAN_RANGE_BIAS: float = 0.35
 const PLAN_PACE_BIAS: float = 0.15
 const PLAN_STICKY: float = 0.1
-## A landed takedown counts like this much damage when planning where to stand (judges score them in #15).
-const TAKEDOWN_PLAN_VALUE: float = 6.0
+## A landed takedown counts like this much damage when planning where to stand (judges score them in #15),
+## and a clinch entry this much × how much the fighter likes the clinch (D114: grapplers plan for the range they grapple from).
+const TAKEDOWN_PLAN_VALUE: float = 16.0
+const CLINCH_PLAN_VALUE: float = 8.0
 ## Walking into the opponent's weapons while the opponent is free, fighters stalk: at
 ## half pace (± a quarter for Pace) where only the opponent's weapons reach, scaled by
 ## the opponent's share of the threat in that band. They close at full speed while the
@@ -215,6 +217,16 @@ const SWITCH_CHANCE: float = 0.4
 const SWITCH_FENCE: float = 0.8
 ## Closer to the centre than this, the fence is further than SWITCH_FENCE.
 const CLEAR_OF_SWITCH: float = Octagon.APOTHEM - Octagon.BODY_MARGIN - SWITCH_FENCE - 0.01
+## Caught (#18): each time the opponent catches one of the fighter's moves with a catch
+## (a takedown that needs the opening that move gives, like the catch-kick single), the
+## fighter throws that move this much less for the rest of the fight.
+const CAUGHT_FADE: float = 0.7
+## Wise to it (#18, Kyle's pick): every takedown or clinch entry the opponent started in
+## the last WISE_TICKS adds WISE_READ to the chance to read the next one, up to WISE_MAX.
+## The third shot in a minute is easier to see coming than the first.
+const WISE_TICKS: int = 600
+const WISE_READ: float = 0.15
+const WISE_MAX: float = 0.45
 
 var _triggers: TriggerLibrary
 var _ready_for: FighterState
@@ -272,6 +284,11 @@ var _met_advance: bool = false
 ## action id → landing record (0–1).
 var _working: Dictionary = {}
 ## This round on the fighter's own reckoning (judge-weighted damage), and rounds won − lost so far.
+## Own move id → times the opponent caught it (CAUGHT_FADE), and the last move started.
+var _caught: Dictionary = {}
+var _last_move: String = ""
+## Ticks the opponent started grappling moves (takedowns, clinch entries), oldest first.
+var _grapples_seen: Array[int] = []
 var _round_dealt: float = 0.0
 var _round_taken: float = 0.0
 var _rounds_up: int = 0
@@ -604,6 +621,8 @@ func _score(view: FightView, layer: DecisionLayer, action: Dictionary, chance: f
 		w *= clinch_liking(_lean(view, layer, StyleLeanings.BASE), _lean(view, layer, StyleLeanings.RANGE)) if _clinch_weapon else 0.0
 	w *= stamina_weight(f, action)
 	w *= _working_weight(view, action.id)
+	if not _caught.is_empty():
+		w *= caught_fade(action.id)
 	if plain > 0.0:
 		w *= pow(chance / plain, OPENING_SHARPNESS)
 	if counter:
@@ -1031,7 +1050,9 @@ func threats(view: FightView, f: FighterState, mine: bool, layer: DecisionLayer)
 	for m: Dictionary in _plan_moves(view, f):
 		var action: Dictionary = m.action
 		var value: float = TAKEDOWN_PLAN_VALUE
-		if action.category == STRIKE:
+		if action.category == CLINCH:
+			value = CLINCH_PLAN_VALUE * clinch_liking(base, f.style.value(StyleLeanings.RANGE))
+		elif action.category == STRIKE:
 			value = m.damage * power * view.ruleset.damage_multiplier * m.weight * commitment(risk, m.ticks)
 		var odds: float = Contest.chance(m.base, _average(f, m.offense, attack), _average(other, m.defense, defense))
 		value *= odds * m.tendency * style_weight(base, action)
@@ -1063,9 +1084,19 @@ func _plan_moves(view: FightView, f: FighterState) -> Array:
 	if _plan_cache.has(f):
 		return _plan_cache[f]
 	var out: Array = []
+	var ids: Array[String] = f.repertoire.duplicate()
+	var clinch_weapon: bool = false
 	for id in f.repertoire:
+		var a: Dictionary = view.actions.get_action(id)
+		clinch_weapon = clinch_weapon or ((a.category == STRIKE or a.category == TAKEDOWN) and a.positions.has(PositionLibrary.CLINCH))
+	if clinch_weapon:
+		for id in view.actions.basic_ids():
+			if view.actions.get_action(id).category == CLINCH and not ids.has(id):
+				ids.append(id)
+	for id in ids:
 		var action: Dictionary = view.actions.get_action(id)
-		if (action.category != STRIKE and action.category != TAKEDOWN) or not view.ruleset.allows_action(action) or _needs_opening(action):
+		if (action.category != STRIKE and action.category != TAKEDOWN and action.category != CLINCH) \
+				or not view.ruleset.allows_action(action) or _needs_opening(action) or not action.positions.has(PositionLibrary.STANDING):
 			continue
 		var ticks: int = view.actions.total_ticks(id)
 		var bands: Array[int] = []
@@ -1123,6 +1154,8 @@ func on_event(view: FightView, event: FightEvent, layer: DecisionLayer) -> void:
 	var me: int = view.index
 	match event.type:
 		FightEvent.ACTION_PHASE:
+			if event.actor == me and (event.data.phase == "telegraph" or event.data.phase == "windup"):
+				_last_move = event.data.action_id
 			if event.data.phase == "telegraph":
 				if event.actor == me:
 					_chain = _chain if event.data.get("why", "") == "combination" else 0
@@ -1135,6 +1168,10 @@ func on_event(view: FightView, event: FightEvent, layer: DecisionLayer) -> void:
 				_opp = {}
 		FightEvent.STRIKE_LANDED, FightEvent.STRIKE_MISSED:
 			_scored(event, me)
+		FightEvent.GRAPPLE_WON, FightEvent.GRAPPLE_STOPPED:
+			if event.actor != me and _last_move != "" and _timed_on_me(view, event):
+				_caught[_last_move] = int(_caught.get(_last_move, 0)) + 1
+				rethink()
 		FightEvent.ROCKED, FightEvent.KNOCKDOWN:
 			if event.actor == me:
 				_follow = {}
@@ -1154,7 +1191,7 @@ func on_event(view: FightView, event: FightEvent, layer: DecisionLayer) -> void:
 	if not _tells.has(event.type):
 		return
 	for tell: Dictionary in _tells[event.type]:
-		if _triggers.matches(tell.trigger, event, me) and not view.me.is_rocked() and view.roll() < tell.chance:
+		if _triggers.matches(tell.trigger, event, me) and not view.me.is_rocked() and view.roll() < tell.chance * caught_fade(tell.action):
 			_follow = { "kind": TELL, "id": tell.action, "until": event.tick + tell.ticks, "reason": "tell: %s" % tell.name }
 
 
@@ -1166,6 +1203,9 @@ func _saw_start(view: FightView, event: FightEvent, layer: DecisionLayer) -> voi
 	var telegraph: int = view.opponent.phase_ticks_left if view.opponent.phase == "telegraph" else 0
 	var factor: float = clampf(1.0 + READ_PER_TELEGRAPH_TICK * (telegraph - READ_TELEGRAPH_NORMAL), READ_FACTOR_MIN, READ_FACTOR_MAX)
 	var chance: float = layer.read_chance(view, action, (READ_BASE + READ_PER_IQ * f.effective_stat("fight_iq") / 100.0) * factor)
+	if action.category == TAKEDOWN or action.category == CLINCH:
+		chance += wise_bonus(event.tick)
+		_grapples_seen.append(event.tick)
 	if f.is_rocked():
 		chance *= ROCKED_READ
 	# Fighters step in turn each tick: a move started after this fighter's step is
@@ -1173,6 +1213,32 @@ func _saw_start(view: FightView, event: FightEvent, layer: DecisionLayer) -> voi
 	var seen: int = event.tick + (1 if event.actor > view.index else 0)
 	_opp = { "id": id, "category": action.category, "at": event.tick,
 		"notice": seen + f.reaction_ticks(), "read": view.roll() < chance, "decided": false }
+
+
+## How keen the fighter still is on this move after the opponent kept timing shots on it (CAUGHT_FADE).
+func caught_fade(id: String) -> float:
+	return pow(CAUGHT_FADE, int(_caught.get(id, 0))) if not _caught.is_empty() else 1.0
+
+
+## A takedown that worked because of the move this fighter was in: a catch (it needed the
+## opening that move gives) or a shot timed into its wind-up or recovery (a counter).
+func _timed_on_me(view: FightView, event: FightEvent) -> bool:
+	var action: Dictionary = view.actions.get_action(event.data.action_id)
+	if action.category != TAKEDOWN:
+		return false
+	if _needs_opening(action):
+		return true
+	for bonus: Dictionary in event.data.get("odds", {}).get("bonuses", []):
+		if bonus.name == "counter":
+			return true
+	return false
+
+
+## The extra chance to read a grappling move started at `tick`, from the ones seen before it.
+func wise_bonus(tick: int) -> float:
+	while not _grapples_seen.is_empty() and _grapples_seen[0] < tick - WISE_TICKS:
+		_grapples_seen.pop_front()
+	return minf(WISE_MAX, WISE_READ * _grapples_seen.size())
 
 
 ## One of its own moves finished: maybe the next strike of a combination, maybe a reset.

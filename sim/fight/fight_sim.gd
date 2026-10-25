@@ -117,6 +117,9 @@ var fighters: Array[FighterState]
 ## Each fighter's decision step, and the view of the fight it reads.
 var decisions: Array[DecisionLayer] = []
 var views: Array[FightView] = []
+## Each fighter's corner when it makes its own calls (the AI corner, the harness's coaching
+## bots); null for a corner that only passes on the player's calls (docs/01 §22.7).
+var corners: Array[Corner] = [null, null]
 ## Ticks processed since the opening bell. The next tick() processes tick `now`.
 var now: int = 0
 var events: Array[FightEvent] = []
@@ -234,6 +237,10 @@ func tick() -> void:
 		return
 	for v in views:
 		v.now = now
+	for i in corners.size():
+		if corners[i] != null:
+			for id: String in corners[i].due(views[i], decisions[i].calls.voice(now)):
+				submit(FightCommand.live_call(now, i, id))
 	_apply_commands()
 	for i in fighters.size():
 		_advance_fighter(i)
@@ -308,7 +315,12 @@ func _reject_reason(command: FightCommand) -> String:
 		FightCommand.QUEUE_ACTION:
 			return why_not(command.fighter, id)
 		FightCommand.LIVE_CALL:
-			return "" if not call_for(command).is_empty() else "unknown call"  # Feasibility is checked once the call is processed.
+			var call: Dictionary = call_for(command)
+			if call.is_empty():
+				return "unknown call"
+			if decisions[command.fighter].calls.voice(now) < float(call.voice_cost):
+				return "no voice left"  # D28: every call costs voice; feasibility is checked once it's processed.
+			return ""
 	return "unknown command"
 
 
@@ -1088,8 +1100,12 @@ func _average_stat(f: FighterState, ids: Array) -> float:
 ## Records an event, lets both fighters' decision steps hear it (tells, reads,
 ## and later read calls and drilled rules), then tells listeners.
 func _emit(type: String, actor: int = FightEvent.NO_ACTOR, data: Dictionary = {}) -> void:
+	if _fight_over and type != FightEvent.FIGHT_ENDED:
+		return  # Nothing happens after the end, even later in the same tick (a call answered as the KO lands).
 	var event := FightEvent.new(now, clock.current_round, type, actor, data)
 	events.append(event)
 	for k in decisions.size():
 		decisions[k].on_event(views[k], event)
+		if corners[k] != null:
+			corners[k].on_event(views[k], event)
 	event_emitted.emit(event)

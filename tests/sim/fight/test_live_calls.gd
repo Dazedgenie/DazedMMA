@@ -82,20 +82,31 @@ func test_a_call_costs_voice_and_the_voice_refills_in_fight_time() -> void:
 
 func test_a_call_on_a_spent_voice_is_garbled_slower_and_less_likely_to_be_followed() -> void:
 	var sim: FightSim = _sim()
-	for n in 4:
-		sim.submit(FightCommand.live_call(0, 0, "survive"))  # 25 each: 100 → 0
+	for n in 3:
+		sim.submit(FightCommand.live_call(0, 0, "survive"))  # 25 each: 100 → 25
 	sim.submit(FightCommand.live_call(0, 0, "stay_safe"))
 	_run(sim, 1)
 	var heard: Array[Dictionary] = _heard(sim)
 	assert_false(heard[2].garbled, "50 left before the third call")
 	assert_true(heard[3].garbled, "25 left before the fourth: under 30")
-	assert_true(heard[4].garbled)
-	assert_eq(heard[4].delay, roundi(LiveCalls.BASE_DELAY_TICKS * LiveCalls.GARBLED_DELAY))
+	assert_eq(heard[3].delay, roundi(LiveCalls.BASE_DELAY_TICKS * LiveCalls.GARBLED_DELAY))
 	var view: FightView = sim.views[0]
 	sim.fighters[0].profile = {}
 	_calls(sim).trust = LiveCalls.TRUST_START
 	assert_almost_eq(_calls(sim).ignore_odds(view, true).chance - _calls(sim).ignore_odds(view, false).chance,
 		LiveCalls.IGNORE_GARBLED, 0.001)
+
+
+func test_a_call_needs_the_voice_it_costs_or_it_isnt_heard() -> void:
+	# D115: 4 × Survive! (25 each) spends the voice; the fifth has nothing to be shouted with.
+	var sim: FightSim = _sim()
+	for n in 5:
+		sim.submit(FightCommand.live_call(0, 0, "survive"))
+	_run(sim, 1)
+	assert_eq(_heard(sim).size(), 4)
+	var rejected: Array = sim.events.filter(func(e: FightEvent) -> bool: return e.type == FightEvent.COMMAND_REJECTED)
+	assert_eq(rejected.size(), 1)
+	assert_eq(rejected[0].data.reason, "no voice left")
 
 
 func test_the_same_call_again_within_three_seconds_is_spam_and_costs_trust() -> void:
@@ -148,8 +159,8 @@ func test_ego_stubbornness_distrust_and_panic_make_a_fighter_ignore_calls_more()
 func test_an_ignored_call_says_why() -> void:
 	var sim: FightSim = _sim()
 	sim.fighters[0].profile = { "personality": { "ego": 100 } }
-	_calls(sim).trust = 0.0
-	sim.fighters[0].damage.head = 1000  # Panicking too: 3% + 10% + 10% + 25% = 48% to ignore.
+	_calls(sim).trust = 25.0
+	sim.fighters[0].damage.head = 1000  # Panicking too: 3% + 10% + 20% + 25% = 58% to ignore.
 	for n in 20:
 		sim.submit(FightCommand.live_call(n * 40, 0, "stay_safe"))
 	_run(sim, 20 * 40)
@@ -381,6 +392,53 @@ func test_no_more_than_two_reads_are_primed_at_once() -> void:
 	var replaced: Array[Dictionary] = _answers(sim).filter(func(a: Dictionary) -> bool: return a.outcome == LiveCalls.REPLACED)
 	assert_eq(replaced.size(), 1)
 	assert_eq(replaced[0].call_id, "catch_the_kick", "the oldest goes")
+
+
+# --- What a call costs (#18): calls pick the moment, they don't add work ---------------------
+
+func test_a_move_started_on_a_call_takes_the_place_of_the_fighters_own_tries_of_that_kind_for_45_seconds() -> void:
+	var sim: FightSim = _sim()
+	sim.submit(FightCommand.live_call(0, 0, "takedown"))
+	_run(sim, 10)
+	assert_eq(_starts(sim), [[6, "double_leg"]])
+	var view: FightView = sim.views[0]
+	var double_leg: Dictionary = _actions.get_action("double_leg")
+	assert_eq(_calls(sim).adjust_weight(view, double_leg, 1.0), 0.0, "the AI holds off its own double-leg")
+	assert_eq(_calls(sim).adjust_weight(view, _actions.get_action("catch_kick_single"), 1.0), 0.0, "and any other takedown")
+	assert_eq(_calls(sim).adjust_weight(view, _actions.get_action("jab"), 1.0), 1.0, "everything else as before")
+	view.now = 6 + LiveCalls.SPENT_TICKS
+	assert_eq(_calls(sim).adjust_weight(view, double_leg, 1.0), 1.0, "45 s on, it's the fighter's own again")
+
+
+func test_a_called_clinch_holds_back_clinch_entries_but_never_breaking_the_clinch() -> void:
+	var sim: FightSim = _sim()
+	sim.submit(FightCommand.live_call(0, 0, "clinch"))
+	_run(sim, 40)
+	assert_true(_starts(sim).has([_starts(sim)[0][0], "clinch_entry"]), "the call's clinch entry")
+	var view: FightView = sim.views[0]
+	assert_eq(_calls(sim).adjust_weight(view, _actions.get_action("clinch_entry"), 1.0), 0.0)
+	assert_eq(_calls(sim).adjust_weight(view, _actions.get_action("clinch_break"), 1.0), 1.0, "moves off the feet aren't held back")
+
+
+func test_every_call_heard_takes_the_fighters_eyes_off_the_opponent_for_half_a_second() -> void:
+	var sim: FightSim = _sim()
+	var f: FighterState = sim.fighters[0]
+	sim.submit(FightCommand.live_call(0, 0, "pressure"))
+	_run(sim, 1)
+	assert_almost_eq(f.effective_stat("striking_defense"), 50.0 * (1.0 - LiveCalls.HEARD_ATTENTION), 0.001)
+	assert_almost_eq(f.effective_stat("takedown_defense"), 50.0 * (1.0 - LiveCalls.HEARD_ATTENTION), 0.001)
+	_run(sim, LiveCalls.HEARD_TICKS)
+	assert_eq(f.effective_stat("striking_defense"), 50.0, "back on the opponent")
+
+
+func test_calls_on_a_spent_voice_count_as_spam_and_cost_trust() -> void:
+	var sim: FightSim = _sim()
+	for id: String in ["survive", "stay_safe", "pressure", "circle_out", "work_the_range"]:
+		sim.submit(FightCommand.live_call(0, 0, id))  # 25 + 15 + 20 + 20: 20 left before the fifth
+	_run(sim, 1)
+	var heard: Array[Dictionary] = _heard(sim)
+	assert_eq(heard.map(func(h: Dictionary) -> bool: return h.spam), [false, false, false, false, true])
+	assert_eq(_calls(sim).trust, LiveCalls.TRUST_START - LiveCalls.SPAM_TRUST_COST)
 
 
 # --- The fight log and replays ----------------------------------------------------------

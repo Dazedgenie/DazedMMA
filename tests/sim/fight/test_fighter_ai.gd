@@ -66,6 +66,27 @@ func test_fighters_never_catch_a_kick_on_their_own() -> void:
 		assert_ne(s.action_id, "catch_kick_single", "caught a kick unprompted at tick %d" % s.tick)
 
 
+func test_a_fighter_whose_kick_gets_caught_throws_it_less() -> void:
+	# #18: the Kicker doesn't keep feeding a kick the opponent keeps catching.
+	var counts := func(caught: int) -> Dictionary:
+		var kicker := FighterState.new("Kicker", {}, ["body_kick", "teep"], 0.3, StyleLeanings.new({ "range": -100 }))
+		var sim: FightSim = _sim(_statue(), kicker, 2.4)
+		for n in caught:
+			sim._emit(FightEvent.ACTION_PHASE, 1, { "action_id": "body_kick", "phase": "telegraph" })
+			sim._emit(FightEvent.GRAPPLE_WON, 0, { "action_id": "catch_kick_single", "result": "success" })
+		_ticks(sim, 3000)
+		var out := { "body_kick": 0, "teep": 0 }
+		for s in _starts(sim, 1):
+			out[s.action_id] = out.get(s.action_id, 0) + 1
+		return out
+	var fresh: Dictionary = counts.call(0)
+	var twice: Dictionary = counts.call(2)
+	var share := func(c: Dictionary) -> float: return float(c.body_kick) / (c.body_kick + c.teep)
+	assert_gt(fresh.body_kick, 20, "kicks to compare: %s" % [fresh])
+	assert_lt(share.call(twice), share.call(fresh) * 0.6, "caught twice: about a quarter as keen (%s vs %s)" % [twice, fresh])
+	assert_gt(twice.teep, fresh.teep, "the teep takes up the slack")
+
+
 func test_every_choice_says_why() -> void:
 	var sim := FightSim.new(SEED, _roster.make_pair("kicker", "boxer"), _actions)
 	_ticks(sim, 1500)
@@ -95,6 +116,27 @@ func test_a_read_registers_one_reaction_time_after_the_move_is_first_seen() -> v
 	var blue: FighterAI = _ai(sim, 1)
 	blue.on_event(sim.views[1], FightEvent.new(7, 1, FightEvent.ACTION_PHASE, 0, { "action_id": "jab", "phase": "telegraph" }), sim.decisions[1])
 	assert_eq(blue._opp.notice, 7 + sim.fighters[1].reaction_ticks(), "Blue sees Red's move the tick it starts")
+
+
+func test_a_fighter_wises_up_to_shots_and_clinch_entries_repeated_within_a_minute() -> void:
+	# D114 (Kyle's pick): each grappling start seen in the last 60 s makes the next easier to read.
+	var sim: FightSim = _sim(FighterState.new("Reader", {}, ["jab"], 0.0001), _statue())
+	var ai: FighterAI = _ai(sim)
+	var start := func(tick: int, id: String) -> void:
+		sim.fighters[1].action_id = id
+		sim.fighters[1].phase = "telegraph"
+		sim.fighters[1].phase_ticks_left = 2
+		ai.on_event(sim.views[0], FightEvent.new(tick, 1, FightEvent.ACTION_PHASE, 1, { "action_id": id, "phase": "telegraph" }), sim.decisions[0])
+	assert_eq(ai.wise_bonus(0), 0.0, "the first shot is a surprise")
+	start.call(0, "double_leg")
+	start.call(100, "clinch_entry")
+	start.call(150, "jab")
+	assert_almost_eq(ai.wise_bonus(200), 2 * FighterAI.WISE_READ, 0.001, "a jab doesn't count")
+	start.call(200, "double_leg")
+	start.call(300, "double_leg")
+	assert_almost_eq(ai.wise_bonus(400), FighterAI.WISE_MAX, 0.001, "four in a minute: capped")
+	assert_almost_eq(ai.wise_bonus(750), 2 * FighterAI.WISE_READ, 0.001, "the first two are over a minute old")
+	assert_eq(ai.wise_bonus(2000), 0.0)
 
 
 func test_a_longer_telegraph_and_a_higher_fight_iq_are_read_more_often() -> void:

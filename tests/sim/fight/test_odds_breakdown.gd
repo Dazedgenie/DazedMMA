@@ -33,7 +33,7 @@ func test_a_catch_kick_names_the_opening_and_the_counter() -> void:
 	sim.fighters[1].phase = "windup"
 	var b: OddsBreakdown = sim.odds_breakdown(0, "catch_kick_single")
 	assert_eq(b.missing, "")
-	assert_eq(b.bonuses, [{ "name": "counter", "value": FightSim.COUNTER_BONUS }, { "name": "ONE_LEG", "value": 0.35 }] as Array[Dictionary])
+	assert_eq(b.bonuses, [{ "name": "counter", "value": FightSim.COUNTER_BONUS }, { "name": "ONE_LEG", "value": 0.15 }] as Array[Dictionary])
 
 
 func test_the_clamp_is_flagged_when_it_cuts_the_odds() -> void:

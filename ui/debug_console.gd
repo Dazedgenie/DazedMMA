@@ -128,6 +128,8 @@ func _toggle_live() -> void:
 	var fight_seed: int = randi()
 	var pick: Array = MATCHUPS[maxi(0, _matchup.selected)]
 	_live_sim = FightSim.new(fight_seed, FighterLibrary.load_dir().make_pair(pick[1], pick[2]), _actions)
+	# Blue's corner coaches too (D68): its calls show in the log as "<Blue>'s corner: …".
+	_live_sim.corners[1] = Corner.new(Corner.AI, fight_seed)
 	_live_sim.event_emitted.connect(_on_live_event)
 	_cage_map.watch(_live_sim)
 	_cage_map.sample()
@@ -136,6 +138,8 @@ func _toggle_live() -> void:
 	_live_button.text = "Pause"
 	write("")
 	write("[b]▶ Live fight[/b]  %s, seed %d, 3 rounds of 5:00 at 2x speed" % [pick[0], fight_seed])
+	write("[color=%s]You're %s's corner (keys 1–9, 0). %s's corner is the AI and calls too.[/color]" % [
+		FightLogFormatter.DIM_COLOUR, _live_sim.fighters[0].name, _live_sim.fighters[1].name])
 
 
 func _stop_live() -> void:
@@ -146,14 +150,16 @@ func _stop_live() -> void:
 	_live_button.text = "Live fight"
 
 
-## The call bar is live only in a live fight; the label shows Red's corner's voice and trust.
+## The call bar is live only in a live fight; the label shows both corners' voice and trust.
 func _show_corner() -> void:
 	var live: bool = _live()
 	for b in _call_buttons:
 		b.disabled = not live
 	if live:
 		var calls: LiveCalls = _live_sim.decisions[0].calls
-		_voice_label.text = "Red's corner · voice %d · trust %d" % [roundi(calls.voice(_live_sim.now)), roundi(calls.trust)]
+		var theirs: LiveCalls = _live_sim.decisions[1].calls
+		_voice_label.text = "Red's corner · voice %d · trust %d   (Blue's AI corner · voice %d)" % [
+			roundi(calls.voice(_live_sim.now)), roundi(calls.trust), roundi(theirs.voice(_live_sim.now))]
 	else:
 		_voice_label.text = "Calls (live fight only):"
 

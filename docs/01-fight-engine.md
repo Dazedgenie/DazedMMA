@@ -155,6 +155,7 @@ Each phase can set **state flags** that counters look for:
 | `ONE_LEG` | Body/head kick, teep, knee | Catch-kick single leg, sweep, counter cross |
 | `HANDS_LOW` | Lazy jab return, shot attempt, fatigue | Overhand, head kick, knee |
 | `HEAD_LOW` | Level change, shot | Knee, guillotine, front headlock, uppercut |
+| `COMING_IN` | Clinch entry (until it ties up), the first step of a double leg | Jab, cross, teep, knee: a strike that lands into it stops the entry (D114) |
 | `LEANING` | Overcommitted hook/overhand | Counter hook, trip, level change |
 | `BACK_TO_CAGE` | Pinned position | Double leg against the cage, knees in the clinch |
 | `POSTURE_BROKEN` | Clinch control, being pulled into guard | Subs from the bottom, sweeps |
@@ -565,14 +566,14 @@ nobody is ever stuck on the bottom with no way up.
 
 | Move | Timing (telegraph · wind-up · active · recovery) | Odds (base + attack − defense stats) | Notes |
 |---|---|---|---|
-| Double leg | 0.3 · 0.2 · 0.5 · 0.4 s | 45% + (Takedowns, Speed) − Takedown defense | From standing (mid or pocket) or the clinch. +15% on someone pinned on the fence, +10% on someone `LEANING`. Head low from wind-up to the end of the drive. Within 10% past the odds it half works: a scramble |
-| Catch-kick single | 0 · 0.1 · 0.4 · 0.3 s | 20% + (Takedowns, Speed) − (Takedown defense, Kicking), +35% for `ONE_LEG` | Only possible while the opponent is on one leg (`required`). Never thrown by the AI on its own (D103) |
+| Double leg | 0.3 · 0.2 · 0.5 · 0.4 s | 45% + (Takedowns, Speed) − Takedown defense | From standing (mid or pocket) or the clinch. +15% on someone pinned on the fence, +10% on someone `LEANING`. `COMING_IN` during the telegraph (§21.8), head low from wind-up to the end of the drive. Within 10% past the odds it half works: a scramble |
+| Catch-kick single | 0 · 0.1 · 0.4 · 0.3 s | 10% + (Takedowns, Speed) − (Takedown defense, Kicking), +15% for `ONE_LEG` | Only possible while the opponent is on one leg (`required`). Never thrown by the AI on its own (D103) |
 | Sprawl (*everyone*) | 0 · 0.1 · 0.3 · 0.3 s | 45% + (Takedown defense, Speed) − Takedowns, +10% against a head-low shot | §21.2 |
-| Clinch entry (*everyone*) | 0.2 · 0.2 · 0.2 · 0.3 s | 50% + (Clinch control, Strength) − (Clinch control, Footwork) | From the pocket. +15% on someone pinned, +10% on someone `LEANING` |
-| Clinch break (*everyone*) | 0 · 0.2 · 0.2 · 0.2 s | 35% + (Clinch control, Strength) − Clinch control | −15% with your own back on the fence |
+| Clinch entry (*everyone*) | 0.2 · 0.2 · 0.2 · 0.3 s | 50% + (Clinch control, Strength) − (Clinch control, Footwork) | From the pocket. +15% on someone pinned, +10% on someone `LEANING`. `COMING_IN` until it ties up (§21.8) |
+| Clinch break (*everyone*) | 0 · 0.2 · 0.2 · 0.2 s | 35% + (Clinch control, Strength, Footwork) − Clinch control | −15% with your own back on the fence |
 | Get up (*everyone*) | 0.2 · 0.3 · 0.5 · 0.3 s | 25% + (Scrambles, Takedown defense) − Top control | Bottom of full guard, or a scramble. +15% with your own back on the fence (wall-walking). Within 10% past the odds: a scramble |
 | Scramble for the top (*everyone*) | 0 · 0.2 · 0.3 · 0.2 s | 45% + (Scrambles, Strength) − Scrambles | Only in a scramble |
-| Knee | 0.2 · 0.2 · 0.1 · 0.3 s | as any strike | Now also in the clinch. Into a head-low shot: +25%, to the head, ×1.5 damage, and it stops the shot (§21.2) |
+| Knee | 0.2 · 0.2 · 0.1 · 0.3 s | as any strike | Now also in the clinch. Into a head-low shot: +25%, to the head, ×1.5 damage, and it stops the shot (§21.2). Into someone `COMING_IN`: +15% and it stops the entry (§21.8) |
 
 ### 21.2 How a takedown resolves
 Takedowns, clinch moves and ground moves all work the same way, so the log can explain every one (A16):
@@ -627,6 +628,7 @@ footwork and no range plan:
 | Clinch entry (standing) | Weight × how much they like the clinch: Base/100 + Range/200, 0 to 1, and only if they have something to do there (a strike or takedown that works from the clinch). The Wrestler likes it (0.9); the Kicker (Range −60) never clinches; the Boxer has nothing to do there, so he doesn't either | `FighterAI.clinch_liking()` in `sim/fight/fighter_ai.gd` |
 | Crowded grappler | The leads slow-down for being crowded (× 0.35, §20) fades with the Base leaning: × 0.35 at Base 0, nothing at +100 | `lead_rate()` in `fighter_ai.gd` |
 | In the clinch | A chance of 4 × work rate per tick (about every 1.7 s) to do something: knees, a double leg, or a break. Break weight = 1 − Base/100 − Range/200 (at least 0.05), so the Kicker wants out and the Wrestler stays to shoot. Rocked, they only look to break | `CLINCH_RATE` 4.0, `CLINCH_BREAK_MIN` 0.05 |
+| Planning where to stand (§20.2) | A landed takedown counts as 16 damage, a clinch entry as 8 × how much they like the clinch, so a grappler wants the range he can grapple from. The Wrestler's `double_leg` tendency is 1.2 | `TAKEDOWN_PLAN_VALUE`, `CLINCH_PLAN_VALUE`; `data/fighters/wrestler.json` |
 | Full guard, bottom | A chance of 2 × work rate per tick (about every 3.3 s) to try to get up | `GROUND_RATE` 2.0 |
 | Full guard, top | Holds (D108). Ground strikes come after the playtest | `_tied()` in `fighter_ai.gd` |
 | Scramble | 30% a tick, so it's over fast. Get up × (1 − Base/100), go for the top × (1 + Base/100) | `SCRAMBLE_RATE` 0.3 |
@@ -639,18 +641,25 @@ pocket is built on it). If the playtest wants a fighter who walks onto the oppon
 
 ### 21.7 Balance
 The Wrestler's pairings are reported in the harness with no pass mark until after the playtest (D109); Kicker vs Boxer within
-60/40 is still the only win check. Numbers from the harness, 100 fights a pairing, both corners:
+60/40 is still the only win check. Numbers from the harness without calls, 100 fights a pairing, after the strikers'
+answers to grappling (D114, §21.8; the Wrestler vs Kicker rows are 200 fights, seeds 1 and 101):
 
 | Pairing (red vs blue) | Red wins · draws | Shots (takedowns) a fight | Clinch · ground (share of the fight) |
 |---|---|---|---|
 | Kicker vs Boxer | 51% · 0% | – | – |
 | Boxer vs Kicker | 50% · 0% | – | – |
-| Wrestler vs Kicker | 54% · 1% | 18.8 (9.0) | 1% · 34% |
-| Kicker vs Wrestler | 51% · 2% | 19.0 (9.2) | 1% · 33% |
-| Wrestler vs Boxer | 45% · 1% | 30.1 (14.7) | 4% · 55% |
-| Boxer vs Wrestler | 51% · 0% | 29.7 (14.6) | 4% · 55% |
+| Wrestler vs Kicker | 48.5% · 2% | 24.9 (9.5) | 0.3% · 37% |
+| Kicker vs Wrestler | 51% · 1% | 24.1 (9.6) | 0.3% · 35% |
+| Wrestler vs Boxer | 59% · 1% | 37.3 (14.6) | 2% · 57% |
+| Boxer vs Wrestler | 40% · 1% | 37.6 (14.7) | 2% · 57% |
 
-The Wrestler wins 50.5% against the Kicker and 47% against the Boxer (after D110, below). Striker fights are unchanged: with the Kicker's new knee
+The Wrestler wins 48% against the Kicker (was 50.5%) and **59% against the Boxer (was 47%)**: he shoots more since D114
+(about 25 shots a fight against the Kicker, was 19; 37 against the Boxer, was 30), and the Boxer, with only his jab and
+cross to stop an entry, gets taken down about as often as before but sees more shots. That's
+reported, not a pass mark (D109); bring it back if the playtest finds the Wrestler too strong against the Boxer (the
+Wrestler's `double_leg` tendency, then `TAKEDOWN_PLAN_VALUE`). Kicker vs Boxer is unchanged (51% and 50%), the Wrestler mirror
+56/43. Draws 0.9% over the 1,000 fights without calls. Before D114: the Wrestler won 50.5% against the Kicker and 47% against
+the Boxer (after D110, below). Striker fights are unchanged: with the Kicker's new knee
 taken out, Kicker vs Boxer plays out event for event as it did before this work. The knee itself costs the Kicker a little
 (56/44 for the Boxer at tendency 0.6), so it sits at 0.2 in `data/fighters/kicker.json`: there for the clinch and for a shot that
 comes in, but rarely thrown in the open. Mirrors as in §20 (Boxer 53/47, Kicker 40/60, the known blue lean). No 10-10 cards.
@@ -666,18 +675,34 @@ re-run the harness and read the draws line.
 One thing to look at next: **the Wrestler against the Boxer** stands with their back on the fence 95% of the standing
 time; it was the same before this work (90% on main), so it comes from the movement rules (§20.2), not from the grappling.
 
-### 21.8 To change it, and the tests
+### 21.8 Strikers' answers to grappling (D114)
+With coaching bots in the harness (§22.7), the extra shots good calls bring decided every Wrestler vs Kicker fight: the Kicker
+had no way to make grappling cost the Wrestler anything. Kyle chose to give strikers real answers in the same PR (2026-10-25):
+
+| Answer | How it works | To change it |
+|---|---|---|
+| **Strikes into the entry** | A clinch entry (until it ties up) and the first step of a double leg (its telegraph) set `COMING_IN`. A jab or cross (+10%), teep or knee (+15%) that lands into it **stops** the entry, like the knee into a head-low shot (§21.2); a head shot that would rock them drops them, as there. The AI's counters already look for it | the `COMING_IN` opportunity in `data/actions/{jab,cross,teep,knee}.json`; the flag spans in `clinch_entry.json`, `double_leg.json` |
+| **Footwork breaks** | Footwork counts toward breaking the clinch, as it already did toward stopping the entry | `stats.offense` in `data/actions/clinch_break.json` |
+| **Wises up** (Kyle's pick) | Every takedown or clinch entry the opponent started in the last 60 s adds +15% to the chance to read the next one (up to +45%), so the third shot in a minute is easier to see coming than the first | `FighterAI.WISE_TICKS` 600, `WISE_READ` 0.15, `WISE_MAX` 0.45 |
+| **Kicks less after being caught** | Each time the opponent times a takedown on one of the fighter's moves (a catch that needed its opening, or a shot timed into its wind-up or recovery), the fighter throws that move ×0.7 as often for the rest of the fight, and its tells fire ×0.7 as often | `FighterAI.CAUGHT_FADE` 0.7 |
+| **The catch is harder** | The catch-kick single is 10% + 15% for `ONE_LEG` (was 20% + 35%) | `data/actions/catch_kick_single.json` |
+
+The Wrestler grapples more on his own to make up for the Kicker's answers: he plans his range around takedowns and the clinch
+(§21.5) and his double-leg tendency is 1.2 (was 0.6). Without calls the matchup stays about even (§21.7).
+
+### 21.9 To change it, and the tests
 - Move timings, odds, opportunities and `partial_within`: the move's file in `data/actions/` (`09` action@2).
 - Where a move takes the fight, stamina drain, control score, strike multipliers: the position's file in `data/positions/`.
 - Sprawl stuck time: `FightSim.SPRAWL_STUCK_TICKS` (5 ticks); the knee into a shot: the HEAD_LOW opportunity in
   `data/actions/knee.json` (`target`, `damage_multiplier`, `stops`).
 - Judges: `Judging.TAKEDOWN_POINTS` (10) and `Judging.CONTROL_POINTS_PER_S` (0.3) in `sim/fight/judging.gd`.
-- The AI: the constants in §21.5, at the top of `sim/fight/fighter_ai.gd`.
+- The AI: the constants in §21.5 and §21.8, at the top of `sim/fight/fighter_ai.gd`.
 
 Tested in `tests/sim/fight/test_grappling.gd` (the catch-kick in and out of the `ONE_LEG` window, contact and roll, sprawls in
 time and too early, the knee into the shot and the flash knockdown, teen rules, only the bottom fighter gets up, wall-walking,
 scrambles, position drain and control, the judges, the clinch, and the AI tied up), `tests/sim/fight/test_positions.gd` and
-`tests/ui/test_fight_log_formatter.gd`. After changing any number, run the harness with the Wrestler both ways round
+`tests/ui/test_fight_log_formatter.gd`. The answers to grappling (§21.8): the jab into an entry in `test_grappling.gd`, wising up and
+kicking less after being caught in `tests/sim/fight/test_fighter_ai.gd`. After changing any number, run the harness with the Wrestler both ways round
 (`--pairs=wrestler:kicker,kicker:wrestler,wrestler:boxer,boxer:wrestler`) and the Kicker vs Boxer pairs, and read the
 **Grappling** lines next to the wins.
 
@@ -690,11 +715,11 @@ before #16 (event hashes checked on 60 fights across every data/fighters pair).
 ### 22.1 The pipeline
 | Step | Rule |
 |---|---|
-| Voice (D28) | 100 at the bell, refills 8 a fight-second. Each call costs its `voice_cost` (15–25). A call made with under 30 left is **garbled**: 50% longer delay and 20 points more likely to be ignored. The voice never stops a call |
-| Spam | The same call again within 3 s of fight time costs 2 points of coach trust |
+| Voice (D28) | 100 at the bell, refills 8 a fight-second. Each call costs its `voice_cost` (15–25), and a call needs that much voice left: with less, it isn't heard at all (the command is refused, *"no voice left"*, D115). A call made with under 30 left is **garbled**: 50% longer delay, 50 points more likely to be ignored, and it costs trust like spam |
+| Spam | The same call again within 3 s of fight time, or any garbled call, costs 2 points of coach trust |
 | Coach trust | 0–100, 50 at the bell until the career relationship exists (D15) |
 | Delay (D92) | 6 ticks × (1 ∓ 25% for Fight IQ 100 / 0) × (1 ∓ 20% for trust 100 / 0) × (1 + the tired penalty, up to 30%, + 30% × head hurt) × crowd noise × coach level (both 1 for now) × 1.5 if garbled; never shorter than the fighter's reaction time (D93). A neutral fighter acts 0.6 s after the call |
-| Compliance (D5) | Chance to ignore: 3% + 10% × Ego/100 − 5% × Coachable/100 + 10% × (50 − trust)/50 + 25% panicking or rocked + 20% garbled, 0–90%. An ignored call says the biggest reason (*"ignores the Takedown! call (panicking)"*) |
+| Compliance (D5) | Chance to ignore: 3% + 10% × Ego/100 − 5% × Coachable/100 + 40% × (50 − trust)/50 + 25% panicking or rocked + 50% garbled, 0–90%. At the starting trust (50) with a clear voice, ignores stay rare; a coach who shouts through a spent voice loses the fighter fast (D115). An ignored call says the biggest reason (*"ignores the Takedown! call (panicking)"*) |
 | Feasibility | Right position and role (Get up only from underneath), allowed by the rules, a move the fighter knows (their techniques, or a `basic` move), and for a read call, its technique learned |
 
 A new call replaces one of the same kind still being processed (logged as `replaced`).
@@ -723,7 +748,7 @@ Catch-kick single leg (call after 6 ticks)"*.
 ### 22.3 The playtest fighter (D112)
 The player coaches the **Wrestler** against the Kicker (Kyle, 2026-10-25). The Wrestler now knows the catch-kick single
 (`techniques` in `data/fighters/wrestler.json`), which only a call or a drilled rule can make him throw (D103), so fights with
-no calls are unchanged: Wrestler vs Kicker stays about even without calls (50.5% over 800 fights, `01` §21.7). He is still one
+no calls are unchanged: Wrestler vs Kicker stays about even without calls (48% over 400 fights since D114, §21.7). He is still one
 of the two authored opponents (`10` §1) when the Kicker is the one being coached.
 
 **To try it:** run the game, open the debug console (`), pick **Wrestler vs Kicker**, press **Live fight**, and call with the
@@ -735,29 +760,108 @@ weights: **Pressure** Pace +40, Range +30; **Counter** Pace −40, Risk −20; *
 takedowns ×1.5; **Conserve** Pace −50, Risk −40. `Gameplan.load_id("pressure")`, added to a fighter's decision layer
 (`sim.decisions[i].add_source(...)`). Picking one in the corner comes with the fight screen (#19).
 
-### 22.5 Not yet
-The AI corner's own calls (D68) and the ideal/spam caller bots for the harness (#18, the D12 +10–20% check) are the next
-step. Habits from calls (D32) and leanings moved by accepted calls (`11` §4.2) come with the career. Crowd noise and coach
-level are fixed at 1.
+### 22.5 What a call costs (D115)
+A call should pick the moment, not add work: the coach chooses *when* the fighter shoots, the fighter doesn't shoot twice as
+often. Before these rules any call won (the Wrestler beat the Kicker 77–80% with good calls and 84–87% with random calls every
+1.5 s, 97–100% with Takedown! or Clinch! spammed), because each called move came on top of the AI's own tries. Now:
 
-**Balance finding to tune next (2026-10-25).** Calls are far too strong against the Kicker before any tuning. Measured first
-with an all-rounder (the Prospect, dropped when Kyle chose the Wrestler), 40 fights (seeds 500–519, both corners): no calls
-61%; "Catch the kick!" kept primed all fight 92% (about 30 reads fired and 17 catches landed a fight); Takedown! every 6 s
-95%; four calls in turn every 1.5 s, voice spent and most calls garbled or ignored, still 90%. With the Wrestler coached, same seeds: no calls 52.5%; "Catch the kick!" kept primed 97.5% (about 14
-catches a fight); Takedown! every 6 s 100%. Takedowns decide fights against a striker, and the AI on its own shoots far less than it
-could, so any extra shot wins. D12 wants good coaching worth +10–20% and spam worse than none, so the bots' harness work will
-need to tune this: likely the opponent adapting to repeated shots and caught kicks (reading them more, kicking less after
-being caught), what a takedown is worth, and the catch-kick's odds.
+| Rule | What it does | Number |
+|---|---|---|
+| **Spent** | A takedown or clinch entry started on a call takes the place of one the fighter would have tried: their own tries of that kind of move from standing wait 45 s of fight time. Moves off the feet (getting up, breaking the clinch) are never held back | `LiveCalls.SPENT_TICKS` 450 |
+| **Heard** | Every call heard takes the fighter's eyes off the opponent: Striking and Takedown defense −20% for half a second (counted with a primed read's attention, D67) | `HEARD_ATTENTION` 0.2, `HEARD_TICKS` 5 |
+| **No voice, no call** | A call needs the voice it costs (D28). Shouting all fight leaves the voice spent, so most calls never arrive | `FightSim._reject_reason` |
+| **Garbled and distrust** | A garbled call is 50 points more likely to be ignored and costs trust like spam; distrust adds up to 40 points | `IGNORE_GARBLED` 0.5, `IGNORE_PER_DISTRUST` 0.4, `SPAM_TRUST_COST` 2 |
 
-### 22.6 To change it, and the tests
+Fights with no calls are untouched by all four. A call answered on the tick the fight ends isn't logged after the end (nothing
+is: `FightSim._emit`).
+
+### 22.6 Not yet
+Habits from calls (D32) and leanings moved by accepted calls (`11` §4.2) come with the career. Crowd noise and coach level are
+fixed at 1, and the AI corner's coaching level (D15, D68) is one fixed setting. A **Watch the shot!** read call (primed for the
+Wrestler's shot, the counterpart of Catch the kick!) would give the striker's corner a real answer to the Wrestler: the
+Defend the shot! focus mostly comes too late for a shot that follows its tell within a second (§22.8).
+
+### 22.7 Corners that call on their own: the AI corner and the coaching bots (D113)
+`sim/fight/corner.gd`. A `Corner` sits in `FightSim.corners[i]`, watches the fight's events like a coach at the cage, and
+shouts calls as `live_call` commands, so they go through the fighter's whole pipeline (voice, delay, compliance) and the fight
+replays from its command log without the corner. It draws from its own seeded RNG, never the fight's: a corner that never
+calls leaves the fight as it was.
+
+| Style | Who | What it does |
+|---|---|---|
+| `none` | The engine on its own | Never calls |
+| `ideal` | The "good coaching" bot (D12): a good player | Sees every moment, calls 0.3 s after it, never on a spent voice (it waits rather than garble) |
+| `ai` | The opponent's corner (D68) | The same calls, 0.5 s after the moment, and it notices half of them (its coaching level, later D15) |
+| `spam` | The "spam" bot (D12) | A random call every 1.5 s, whatever is happening, whatever voice is left |
+
+What the ideal and AI corners call (only calls their fighter can act on: a known move or a learned technique):
+- the opponent starts a move one of the fighter's read calls is for (a kick, for Catch the kick!): **Takedown!** at once, so it
+  lands while the leg is up (§22.2);
+- the opponent's scouted tell fires (the Kicker's jab gets blocked: a body kick is coming): the read call for that move,
+  **Catch the kick!**, so the fighter is primed before the kick;
+- their fighter rocked: **Survive!**; the opponent rocked: **Pressure!**
+
+They don't call Get up! (the fighter works to get up on their own) or Defend the shot! on the Wrestler's stance shift (the
+shot follows within a second, before the call lands; the fighter reads repeated shots better on their own, §21.8).
+
+**In the game:** the debug console's live fight puts the AI corner in the Kicker's (blue) corner, and its calls appear in the
+log like the player's (*"Kicker's corner: Survive!"*); the voice label shows its voice too.
+
+**In the harness:** `--corners=none,ideal,spam,ai` runs every pair once per bot, with the bot in red's corner and then in
+blue's (`--coach=red|blue|both`). The CSV says who was in each corner and how many calls they made (`corner_red`,
+`calls_red`…). The summary checks, for each coached fighter and opponent, pooled over both corners and both orders: good
+coaching adds +10–20% wins over the same fights without calls, and spam wins less than no calls (D12); the AI corner is
+reported (INFO). The engine checks (draws, 10-10s, Kicker vs Boxer) only read the fights without calls.
+
+### 22.8 Balance with calls (D12, 2026-10-25)
+From the harness, 100 fights a pairing per corner, seeds 1–100 (and 101–200 for Wrestler vs Kicker); each line pools the coached
+fighter's wins over both corners and both orders, against the same fights without calls.
+
+| Coached fighter vs opponent | No calls | Good coaching (ideal) | AI corner | Spam |
+|---|---|---|---|---|
+| **Wrestler vs Kicker** (the playtest, D112) | 48% | **61%: +13%** (+9 and +17 on the two seed sets) | 58%: +7% (seeds 1–100) | 38%: −10% |
+| Kicker vs Wrestler | 50% | 54%: +4% | 49.5%: +2% (seeds 1–100) | 23%: −27% |
+| Wrestler vs Boxer | 59% | 55.5%: −3.5% | – | 40.5%: −18.5% |
+| Boxer vs Wrestler | 40% | 41.5%: +1.5% | – | 18.5%: −21.5% |
+| Kicker vs Boxer | 50.5% | 47%: −3.5% | – | 18.5%: −32% |
+| Boxer vs Kicker | 49.5% | 52%: +2.5% | – | 51%: +1.5% |
+| Mirrors (Kicker, Boxer, Wrestler) | 50% | 50%, 46.5%, 50% | – | 16.5%, 39.5%, 33.5% |
+
+**What it says.** Good coaching of the playtest fighter is worth +13% (the D12 band is +10–20%), and the AI corner about half
+of that. Spam loses everywhere except Boxer vs Kicker, where it's even (+1.5%, within
+the noise). Strikers' good coaching is worth about nothing: their corners only have Survive! and Pressure!
+(about 2 calls a fight), so the ideal bot has nothing to time. That's the next gap: give the striker's corner a read on the
+shot (a **Watch the shot!** read call, §22.6) and calls that move the fight (Circle out! off the fence), then hold every
+fighter to D12, not just the Wrestler.
+
+**Noise.** The same fights coached from the red corner or the blue corner differ a lot (the Wrestler with good coaching: +7
+red, +19 blue), and the Kicker's corner, making 2–3 calls a fight, moved his wins anywhere from −3 to +16 on 100 fights. A call shifts everything
+after it in the fight's random stream, so 100 fights is about ±5% each way; pool both corners and two seed sets before reading a
+number.
+
+**Before the call costs (§22.5) and the strikers' answers (§21.8)**, with the first bots: the Wrestler beat the Kicker 77–80%
+with good coaching, 71–74% with the AI corner and 84–87% with random calls every 1.5 s (Clinch! spammed: 100%).
+
+### 22.9 To change it, and the tests
 - What a call does, its voice cost, hotkey, positions, focus tilt and read timing: its file in `data/calls/`.
 - What sets off Catch the kick!: `data/triggers/opp_kick_starts.json`.
 - Voice, trust, delay, compliance, the 2 s attempt window and the 2-read limit: the constants at the top of
   `sim/fight/live_calls.gd` (`BASE_DELAY_TICKS`, `DELAY_PER_*`, `VOICE_*`, `GARBLED_*`, `TRUST_START`, `SPAM_*`, `IGNORE_*`,
   `ATTEMPT_TICKS`, `MAX_READS`).
 - Which stats a primed read lowers: `FighterState.ATTENTION_STATS`.
+- What a call costs (§22.5): `SPENT_TICKS`, `HEARD_ATTENTION`, `HEARD_TICKS`, `IGNORE_GARBLED`, `IGNORE_PER_DISTRUST` in
+  `sim/fight/live_calls.gd`; the no-voice rule in `FightSim._reject_reason`.
+- The corners (§22.7): `IDEAL_REACTION` (3 ticks), `AI_REACTION` (5), `AI_NOTICE` (0.5), `SPAM_EVERY` (15), `SAVE_VOICE` and
+  what each one watches for (`on_event`) at the top of `sim/fight/corner.gd`; the D12 band in `BalanceReport.COACHING_GAIN_MIN`
+  and `COACHING_GAIN_MAX` (`sim/balance/balance_report.gd`).
 
 Tested in `tests/sim/fight/test_live_calls.gd` (voice and garbling, spam and trust, the delay modifiers, compliance, every
 kind of call and outcome, the catch-kick from a Takedown! call in and out of the kick, the read with slow and quick fighters,
-attention, two reads at most, replays), `tests/sim/fight/test_decision_layer.gd`, `tests/data/test_data_files.gd` (call@2,
+attention, two reads at most, replays, and what a call costs), `tests/sim/fight/test_corner.gd` (what each corner calls and
+when, the voice it saves, replays without it), `tests/sim/balance/` (the corner columns and the coaching checks),
+`tests/sim/fight/test_decision_layer.gd`, `tests/data/test_data_files.gd` (call@2,
 gameplan@1) and `tests/ui/` (the log lines, the call bar).
+
+After changing any of it, run the harness with the bots on the Wrestler both ways round and read the **Coaching** lines:
+`--fights=100 --pairs=wrestler:kicker,kicker:wrestler --corners=none,ideal,spam,ai`. Coaching is noisy: 100 fights a side is
+about ±5% on each corner, so pool both corners and a second seed (`--seed=101`) before moving a number.

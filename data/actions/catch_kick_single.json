@@ -8,10 +8,10 @@
 	"phases_ms": { "telegraph": 0, "windup": 100, "active": 400, "recovery": 300 },
 	"stamina_cost": 8,
 	"flags_self": [],
-	"takedown": { "base_success": 0.20 },
+	"takedown": { "base_success": 0.10 },
 	"stats": { "offense": ["takedowns", "speed"], "defense": ["takedown_defense", "kicking"] },
 	"opportunities": [
-		{ "opponent_flag": "ONE_LEG", "success_bonus": 0.35, "required": true }
+		{ "opponent_flag": "ONE_LEG", "success_bonus": 0.15, "required": true }
 	],
 	"requires_technique": "catch_kick_single"
 }

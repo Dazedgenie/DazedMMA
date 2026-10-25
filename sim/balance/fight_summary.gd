@@ -5,12 +5,13 @@ extends RefCounted
 ## damage, stamina (at the bell and the lowest it got), 10-10 cards, how often
 ## an exchange's odds hit the 5–95% clamp, how the fighters moved (time on the
 ## fence, who held the centre, how much of it was a chase), and the grappling
-## (takedowns tried and landed, time in the clinch, on the ground and on top, #15).
+## (takedowns tried and landed, time in the clinch, on the ground and on top, #15),
+## and each corner's coaching bot and how many calls it made (Corner, D12, D68).
 ## BalanceReport turns rows into the CSV and the summary.
 
 ## Every key a row has, in CSV column order.
 const COLUMNS: Array[String] = [
-	"seed", "ruleset", "red", "blue", "winner", "winner_id", "result", "method", "end_round", "end_second",
+	"seed", "ruleset", "red", "blue", "corner_red", "corner_blue", "winner", "winner_id", "result", "method", "end_round", "end_second",
 	"knockdowns_red", "knockdowns_blue", "rocked_red", "rocked_blue",
 	"thrown_red", "landed_red", "thrown_blue", "landed_blue",
 	"head_damage_red", "body_damage_red", "leg_damage_red", "head_damage_blue", "body_damage_blue", "leg_damage_blue",
@@ -18,6 +19,7 @@ const COLUMNS: Array[String] = [
 	"round_cards", "even_cards", "exchanges", "clamped", "events",
 	"fence_red", "pinned_red", "centre_red", "fence_blue", "pinned_blue", "centre_blue", "chase",
 	"shots_red", "takedowns_red", "shots_blue", "takedowns_blue", "clinch", "ground", "top_red", "top_blue",
+	"calls_red", "calls_blue",
 ]
 const SIDES: Array[String] = ["red", "blue"]
 
@@ -32,8 +34,12 @@ const CHASE_STEP: float = 0.01
 
 ## Runs one fight between two data/fighters ids and summarises it. `rules` is
 ## whatever FightSim takes (a Ruleset, a round count for short tests, or null for pro).
-static func run(fight_seed: int, roster: FighterLibrary, actions: ActionLibrary, red_id: String, blue_id: String, rules: Variant = null, round_seconds: int = 300) -> Dictionary:
+## `corners` is each corner's coaching bot, a Corner style ([] or "none" = no calls).
+static func run(fight_seed: int, roster: FighterLibrary, actions: ActionLibrary, red_id: String, blue_id: String, rules: Variant = null, round_seconds: int = 300, corners: Array[String] = []) -> Dictionary:
 	var sim := FightSim.new(fight_seed, roster.make_pair(red_id, blue_id), actions, rules, round_seconds)
+	for i in corners.size():
+		if corners[i] != Corner.NONE:
+			sim.corners[i] = Corner.new(corners[i], corner_seed(fight_seed, i))
 	var lows: Array[float] = [1.0, 1.0]
 	var moves := { "standing": 0, "chase": 0, "fence": [0, 0], "pinned": [0, 0], "centre": [0, 0],
 		"ticks": 0, "clinch": 0, "ground": 0, "top": [0, 0] }
@@ -46,6 +52,11 @@ static func run(fight_seed: int, roster: FighterLibrary, actions: ActionLibrary,
 		if sim.clock.current_round == round_before:  # Not the tick they went back to their corners.
 			count_movement(sim, before, moves)
 	return of(sim, lows, moves)
+
+
+## The seed of a coaching bot's own RNG: fixed by the fight's seed and its corner.
+static func corner_seed(fight_seed: int, side: int) -> int:
+	return hash([fight_seed, side, "corner"])
 
 
 ## Adds one tick to the movement counts: `before` is where the fighters stood before it.
@@ -92,6 +103,7 @@ static func of(sim: FightSim, lows: Array[float] = [], moves: Dictionary = {}) -
 	var row := {
 		"seed": sim.fight_seed, "ruleset": sim.ruleset.id,
 		"red": sim.fighters[0].id, "blue": sim.fighters[1].id,
+		"corner_red": _style(sim.corners[0]), "corner_blue": _style(sim.corners[1]), "calls_red": 0, "calls_blue": 0,
 		"winner": "draw" if winner < 0 else SIDES[winner],
 		"winner_id": "" if winner < 0 else sim.fighters[winner].id,
 		"result": end.data.result, "method": method_of(end.data.result),
@@ -124,6 +136,8 @@ static func of(sim: FightSim, lows: Array[float] = [], moves: Dictionary = {}) -
 		match e.type:
 			FightEvent.ROCKED:
 				row["rocked_" + SIDES[e.actor]] += 1
+			FightEvent.CALL_HEARD:
+				row["calls_" + SIDES[e.actor]] += 1
 			FightEvent.ROUND_ENDED:
 				for card: Array in e.data.cards:
 					row.round_cards += 1
@@ -147,6 +161,10 @@ static func method_of(result: String) -> String:
 		Judging.DRAW:
 			return METHOD_DRAW
 	return METHOD_DECISION
+
+
+static func _style(corner: Corner) -> String:
+	return corner.style if corner != null else Corner.NONE
 
 
 ## Ticks as a share of standing (or all) ticks, rounded for the CSV.

@@ -12,6 +12,8 @@
 	],
 	"strike": { "target": "body", "base_damage": 4, "push_m": 0.5 },
 	"stats": { "offense": ["kicking", "speed"], "defense": ["striking_defense"] },
-	"opportunities": [],
+	"opportunities": [
+		{ "opponent_flag": "COMING_IN", "success_bonus": 0.15, "stops": true }
+	],
 	"requires_technique": null
 }

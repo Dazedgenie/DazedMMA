@@ -104,3 +104,13 @@ func test_grappling_columns_count_takedowns_and_time_tied_up() -> void:
 	assert_lte(row.takedowns_red, row.shots_red)
 	assert_lte(row.top_red + row.top_blue, row.ground + 0.0001, "someone on top only on the ground (a scramble has nobody on top)")
 	assert_lte(row.ground + row.clinch, 1.0)
+
+
+func test_a_coaching_bot_in_a_corner_is_in_the_row_with_its_calls() -> void:
+	var coached: Dictionary = FightSummary.run(3, _roster, _actions, "wrestler", "kicker", 1, 60, ["spam", "none"] as Array[String])
+	assert_eq([coached.corner_red, coached.corner_blue], ["spam", "none"])
+	assert_between(coached.calls_red, 20, 60 * FightClock.TICKS_PER_SECOND / Corner.SPAM_EVERY - 1, "one every 1.5 s after the bell, while the voice lasts")
+	assert_eq(coached.calls_blue, 0)
+	var plain: Dictionary = FightSummary.run(3, _roster, _actions, "wrestler", "kicker", 1, 60)
+	assert_eq([plain.corner_red, plain.corner_blue, plain.calls_red], ["none", "none", 0])
+

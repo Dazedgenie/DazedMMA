@@ -4,8 +4,12 @@ extends MainLoop
 ## targets marked as met or missed (BalanceReport).
 ##
 ## Usage:
-##   godot --headless --script res://tools/balance.gd [-- --fights=100 --seed=1 --pairs=kicker:boxer,check_red:check_blue --ruleset=pro --out=build/balance]
+##   godot --headless --script res://tools/balance.gd [-- --fights=100 --seed=1 --pairs=kicker:boxer,check_red:check_blue --ruleset=pro --out=build/balance --corners=none,ideal,spam]
 ##
+## --corners runs every pair once per coaching bot (Corner styles: none, ideal, ai, spam),
+## on the same seeds, with the bot in red's corner, then in blue's (--coach=red or blue for
+## one side only; the other corner makes no calls), so the report can check what good
+## coaching and spam do to the coached fighter's wins (D12).
 ## Writes <out>/balance.csv (one line per fight) and <out>/summary.txt, and prints the summary.
 ## A 3-round fight takes about half a second, so 100 fights per pair is ~1 minute.
 
@@ -16,6 +20,8 @@ func _initialize() -> void:
 	var pairs: PackedStringArray = ["kicker:boxer"]
 	var ruleset_id: String = Ruleset.DEFAULT_ID
 	var out_dir: String = "build/balance"
+	var corners: PackedStringArray = [Corner.NONE]
+	var coach_sides: Array[int] = [0, 1]
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--seed="):
 			first_seed = int(arg.trim_prefix("--seed="))
@@ -27,6 +33,11 @@ func _initialize() -> void:
 			ruleset_id = arg.trim_prefix("--ruleset=")
 		elif arg.begins_with("--out="):
 			out_dir = arg.trim_prefix("--out=")
+		elif arg.begins_with("--corners="):
+			corners = arg.trim_prefix("--corners=").split(",")
+		elif arg.begins_with("--coach="):
+			var side: String = arg.trim_prefix("--coach=")
+			coach_sides = [0] if side == "red" else ([1] if side == "blue" else [0, 1])
 	var actions := ActionLibrary.load_dir()
 	var roster := FighterLibrary.load_dir()
 	var names: Dictionary = {}
@@ -39,14 +50,23 @@ func _initialize() -> void:
 		if pair.split(":").size() != 2:
 			printerr("A pair is two fighter ids joined by a colon, e.g. kicker:boxer (got '%s')" % pair)
 			return
+	for style in corners:
+		if style not in Corner.STYLES:
+			printerr("No coaching bot '%s' (have: %s)" % [style, ", ".join(Corner.STYLES)])
+			return
 	var rules: Ruleset = Ruleset.load_id(ruleset_id)
 	var report := BalanceReport.new()
 	var started: int = Time.get_ticks_msec()
 	for pair in pairs:
 		var ids: PackedStringArray = pair.split(":")
-		for n in fights:
-			report.add(FightSummary.run(first_seed + n, roster, actions, ids[0], ids[1], rules))
-		print("%s: %d fights done (%.0f s so far)" % [pair, fights, (Time.get_ticks_msec() - started) / 1000.0])
+		for style in corners:
+			for side in ([0] if style == Corner.NONE else coach_sides):
+				var both: Array[String] = [Corner.NONE, Corner.NONE]
+				both[side] = style
+				for n in fights:
+					report.add(FightSummary.run(first_seed + n, roster, actions, ids[0], ids[1], rules, 300, both))
+				var label: String = pair if style == Corner.NONE else "%s, %s caller in %s's corner" % [pair, style, ["red", "blue"][side]]
+				print("%s: %d fights done (%.0f s so far)" % [label, fights, (Time.get_ticks_msec() - started) / 1000.0])
 	var summary: String = report.summary(names)
 	var dir: String = ProjectSettings.globalize_path("res://").path_join(out_dir) if out_dir.is_relative_path() else out_dir
 	DirAccess.make_dir_recursive_absolute(dir)

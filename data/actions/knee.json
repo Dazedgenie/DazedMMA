@@ -13,6 +13,7 @@
 	"strike": { "target": "body", "base_damage": 9 },
 	"stats": { "offense": ["clinch_striking", "power"], "defense": ["striking_defense"] },
 	"opportunities": [
+		{ "opponent_flag": "COMING_IN", "success_bonus": 0.15, "stops": true },
 		{ "opponent_flag": "HEAD_LOW", "success_bonus": 0.25, "target": "head", "damage_multiplier": 1.5, "stops": true }
 	],
 	"requires_technique": null

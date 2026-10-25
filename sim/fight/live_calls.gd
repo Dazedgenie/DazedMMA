@@ -46,15 +46,24 @@ const SPAM_TRUST_COST: float = 2.0
 const IGNORE_BASE: float = 0.03
 const IGNORE_PER_EGO: float = 0.10  # at Ego +100; Humble fighters take it off
 const IGNORE_PER_STUBBORN: float = 0.05  # at Stubborn (Coachable −100); Coachable takes it off
-const IGNORE_PER_DISTRUST: float = 0.10  # at trust 0; trust 100 takes it off
+const IGNORE_PER_DISTRUST: float = 0.40  # at trust 0; trust 100 takes it off
 const IGNORE_PANICKING: float = 0.25
-const IGNORE_GARBLED: float = 0.20
+const IGNORE_GARBLED: float = 0.50
 const IGNORE_MAX: float = 0.9
 
 ## An accepted attempt: the fighter keeps looking for the range or the opening this long.
 const ATTEMPT_TICKS: int = 20
 ## Read calls primed at once (D67); a third replaces the oldest.
 const MAX_READS: int = 2
+## A move started on a call takes the place of one the fighter would have tried: their own
+## tries of that kind of move from standing (takedowns, clinch entries) wait this long after
+## it. Calls pick the moment; they don't add work. Moves off the feet (getting up, breaking
+## the clinch) are never held back.
+const SPENT_TICKS: int = 450
+## Every call heard takes the fighter's eyes off the opponent for a moment: this much
+## off their striking and takedown defense (like a primed read, D67) for this long.
+const HEARD_ATTENTION: float = 0.2
+const HEARD_TICKS: int = 5
 
 const ATTEMPT := "attempt"
 const FOCUS := "focus"
@@ -91,6 +100,10 @@ var _voice_at: int = 0
 var _last_heard: Dictionary = {}  # call id → tick
 ## The read or attempt whose move the fighter just started (claimed_started logs it).
 var _claimed: Dictionary = {}
+## Move category → tick until which the fighter's own tries of that kind from standing wait (SPENT_TICKS).
+var _spent: Dictionary = {}
+## Tick until which the last call heard has the fighter's attention (HEARD_TICKS).
+var _listening_until: int = -1
 
 
 func _init(p_triggers: TriggerLibrary = null) -> void:
@@ -117,7 +130,7 @@ func hear(view: FightView, call: Dictionary) -> Dictionary:
 	var garbled: bool = before < GARBLED_BELOW
 	_voice = maxf(0.0, before - float(call.voice_cost))
 	_voice_at = view.now
-	var spam: bool = _last_heard.has(call.id) and view.now - int(_last_heard[call.id]) <= SPAM_TICKS
+	var spam: bool = garbled or (_last_heard.has(call.id) and view.now - int(_last_heard[call.id]) <= SPAM_TICKS)
 	if spam:
 		trust = maxf(0.0, trust - SPAM_TRUST_COST)
 	_last_heard[call.id] = view.now
@@ -127,6 +140,8 @@ func hear(view: FightView, call: Dictionary) -> Dictionary:
 			if shape(pending[n].call) == kind:
 				_answer(pending[n].call, REPLACED, "%s came first" % call.name)
 				pending.remove_at(n)
+	_listening_until = view.now + HEARD_TICKS
+	_count_attention(view.now)
 	var delay: int = delay_ticks(view, garbled)
 	pending.append({ "call": call, "heard": view.now, "ready_at": view.now + delay, "garbled": garbled })
 	active = true
@@ -183,6 +198,9 @@ func refusal(view: FightView, heard: Dictionary) -> String:
 ## Moves on the clock: processes calls whose delay is up, ends focuses and reads that
 ## ran out and attempts that found nothing. The sim calls it every tick while `active`.
 func update(view: FightView) -> void:
+	if _listening_until >= 0 and view.now >= _listening_until:
+		_listening_until = -1
+		_count_attention(view.now)
 	var n: int = 0
 	while n < pending.size():
 		if view.now < pending[n].ready_at:
@@ -203,7 +221,7 @@ func update(view: FightView) -> void:
 		if view.now >= read.until:
 			_answer(read.call, EXPIRED, "nothing came in %d s" % roundi(float(read.call.read.duration_ms) / 1000.0))
 			reads.remove_at(k)
-			_count_attention()
+			_count_attention(view.now)
 	if not attempt.is_empty() and view.now >= attempt.until:
 		_answer(attempt.call, INFEASIBLE, attempt.why if attempt.why != "" else "busy until it was too late")
 		attempt = {}
@@ -229,10 +247,13 @@ func claim(view: FightView) -> Decision:
 func claimed_started(view: FightView, decision: Decision) -> void:
 	if _claimed.is_empty():
 		return
+	var action: Dictionary = view.actions.get_action(decision.action_id)
+	if action.positions.has(PositionLibrary.STANDING):
+		_spent[action.category] = view.now + SPENT_TICKS
 	if reads.has(_claimed):
 		_answer(_claimed.call, FIRED, "%s, %d ticks after the %s started" % [decision.reason, view.now - _claimed.seen, _move_name(view, _claimed.move)], decision.action_id)
 		reads.erase(_claimed)
-		_count_attention()
+		_count_attention(view.now)
 	else:
 		_answer(_claimed.call, ACCEPTED, decision.reason, decision.action_id)
 		attempt = {}
@@ -259,7 +280,9 @@ func adjust_leaning(_view: FightView, which: String, value: float) -> float:
 	return value + float(focus.call.focus.get("leanings", {}).get(which, 0.0))
 
 
-func adjust_weight(_view: FightView, action: Dictionary, weight: float) -> float:
+func adjust_weight(view: FightView, action: Dictionary, weight: float) -> float:
+	if not _spent.is_empty() and view.now < int(_spent.get(action.category, -1)) and action.positions.has(PositionLibrary.STANDING):
+		return 0.0
 	if focus.is_empty():
 		return weight
 	return Gameplan.scale_weight(focus.call.focus.get("weights", {}), action, weight)
@@ -352,7 +375,7 @@ func _process(view: FightView, heard: Dictionary) -> void:
 				_answer(reads[0].call, REPLACED, "two reads at most")
 				reads.remove_at(0)
 			reads.append(read)
-			_count_attention()
+			_count_attention(view.now)
 			_answer(call, ACCEPTED, "watching for it for %d s" % roundi(float(call.read.duration_ms) / 1000.0))
 		FOCUS:
 			if not focus.is_empty():
@@ -388,8 +411,8 @@ func _knows(f: FighterState, action: Dictionary) -> bool:
 	return action.get("basic", false) or f.repertoire.has(action.id)
 
 
-func _count_attention() -> void:
-	attention = 0.0
+func _count_attention(now: int) -> void:
+	attention = HEARD_ATTENTION if now < _listening_until else 0.0
 	for read: Dictionary in reads:
 		attention += float(read.call.read.get("attention_cost", 0.0))
 
@@ -400,7 +423,7 @@ func _settle() -> void:
 		armed = armed or read.notice >= 0
 	may_claim = armed or not attempt.is_empty()
 	steers_feet = not attempt.is_empty()
-	active = may_claim or not pending.is_empty() or not focus.is_empty() or not reads.is_empty()
+	active = may_claim or not pending.is_empty() or not focus.is_empty() or not reads.is_empty() or _listening_until >= 0
 
 
 static func _move_name(view: FightView, id: String) -> String:
