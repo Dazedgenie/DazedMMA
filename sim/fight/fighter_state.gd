@@ -118,17 +118,18 @@ func stat(id: String) -> int:
 	return int(stats.get(id, DEFAULT_STAT))
 
 
-## The number they fight at right now: stat × condition. Head hurt is worked out
-## once here (it runs thousands of times a fight); is_panicking() is the same test.
+## The number they fight at right now: stat × condition. This and the stamina
+## maths run tens of thousands of times a fight, so they read `stats` directly
+## and work head hurt out once (is_panicking() is the same test).
 func effective_stat(id: String) -> float:
-	var value: float = stat(id)
+	var value: float = int(stats.get(id, DEFAULT_STAT))
 	if not FATIGUE_EXEMPT.has(id):
 		value *= 1.0 - tired()
 	var head: float = -1.0
 	if HEAD_HURT_STATS.has(id):
 		head = hurt("head")
 		value *= 1.0 - MAX_HURT_PENALTY * head
-		if is_rocked():
+		if rocked_ticks > 0:
 			value *= 1.0 - ROCKED_PENALTY
 	if LEG_HURT_STATS.has(id):
 		value *= 1.0 - MAX_HURT_PENALTY * hurt("legs")
@@ -136,7 +137,7 @@ func effective_stat(id: String) -> float:
 	if defense or id == "power":
 		if head < 0.0:
 			head = hurt("head")
-		if head >= PANIC_BASE + stat("composure") / 200.0:
+		if head >= PANIC_BASE + int(stats.get("composure", DEFAULT_STAT)) / 200.0:
 			value *= (1.0 - PANIC_DEFENSE_PENALTY) if defense else (1.0 + PANIC_POWER_BONUS)
 	return value
 
@@ -158,12 +159,7 @@ func condition_reasons(id: String) -> Array[String]:
 
 
 func max_stamina() -> float:
-	return _fresh_tank() * (1.0 - MAX_BODY_DRAIN * hurt("body"))
-
-
-## The tank before body damage shrinks it.
-func _fresh_tank() -> float:
-	return TANK_BASE + TANK_PER_CARDIO * int(stats.get("cardio", DEFAULT_STAT))
+	return (TANK_BASE + TANK_PER_CARDIO * int(stats.get("cardio", DEFAULT_STAT))) * (1.0 - MAX_BODY_DRAIN * hurt("body"))
 
 
 func stamina_fraction() -> float:
@@ -172,7 +168,7 @@ func stamina_fraction() -> float:
 
 ## 0 at half a tank or more, rising to MAX_TIRED_PENALTY when empty.
 func tired() -> float:
-	var tank: float = _fresh_tank()
+	var tank: float = TANK_BASE + TANK_PER_CARDIO * int(stats.get("cardio", DEFAULT_STAT))
 	if stamina >= tank:
 		return 0.0  # A full fresh tank: skip the maths.
 	var f: float = clampf(stamina / (tank * (1.0 - MAX_BODY_DRAIN * hurt("body"))), 0.0, 1.0)
@@ -212,8 +208,10 @@ func spend_stamina(amount: float) -> void:
 
 ## One tick of breathing: Cardio decides how fast the tank refills.
 func regen_tick() -> void:
-	var per_second: float = REGEN_BASE + REGEN_PER_CARDIO * stat("cardio") / 100.0
-	stamina = minf(stamina + per_second / FightClock.TICKS_PER_SECOND, max_stamina())
+	var cardio: int = int(stats.get("cardio", DEFAULT_STAT))
+	var per_second: float = REGEN_BASE + REGEN_PER_CARDIO * cardio / 100.0
+	var tank: float = (TANK_BASE + TANK_PER_CARDIO * cardio) * (1.0 - MAX_BODY_DRAIN * hurt("body"))
+	stamina = minf(stamina + per_second / FightClock.TICKS_PER_SECOND, tank)
 
 
 ## The corner between rounds: Recovery decides how much of the missing tank comes back.

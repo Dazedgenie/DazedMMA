@@ -207,7 +207,7 @@ var _round_dealt: float = 0.0
 var _round_taken: float = 0.0
 var _rounds_up: int = 0
 ## The style leanings as the layer reads them (gameplan included), looked up once a second.
-var _lean_tick: int = -1
+var _lean_tick: int = -LEAN_EVERY
 var _leanings: Dictionary = {}
 ## Looked up once per choice (nothing changes while a fighter decides): the distance,
 ## the band, and per move whether it will reach, when it lands and the odds now.
@@ -634,9 +634,8 @@ func _ticks_until_past(view: FightView) -> int:
 func _lean(view: FightView, layer: DecisionLayer, which: String) -> float:
 	if view.now >= _lean_tick + LEAN_EVERY or view.now < _lean_tick:
 		_lean_tick = view.now
-		_leanings.clear()
-	if not _leanings.has(which):
-		_leanings[which] = layer.leaning(view, which)
+		for leaning: String in StyleLeanings.LEANINGS:
+			_leanings[leaning] = layer.leaning(view, leaning)
 	return _leanings[which]
 
 
@@ -895,7 +894,9 @@ func on_event(view: FightView, event: FightEvent, layer: DecisionLayer) -> void:
 				_round_dealt += Judging.KNOCKDOWN_POINTS if event.type == FightEvent.KNOCKDOWN else Judging.ROCKED_POINTS
 		FightEvent.ROUND_ENDED:
 			_new_round()
-	for tell: Dictionary in _tells.get(event.type, []):
+	if not _tells.has(event.type):
+		return
+	for tell: Dictionary in _tells[event.type]:
 		if _triggers.matches(tell.trigger, event, me) and not view.me.is_rocked() and view.roll() < tell.chance:
 			_follow = { "kind": TELL, "id": tell.action, "until": event.tick + tell.ticks, "reason": "tell: %s" % tell.name }
 
