@@ -23,8 +23,6 @@ static func chance(base: float, attack: float, defense: float, bonus: float = 0.
 ## The action's starting odds before stats: strike 50%, takedowns and defenses from their data.
 static func base_for(action: Dictionary) -> float:
 	match action.category:
-		"takedown":
-			return float(action.takedown.base_success)
-		"defense":
-			return float(action.defense.base_success)
+		"takedown", "defense", "clinch", "ground":
+			return float(action[action.category].base_success)
 	return STRIKE_BASE

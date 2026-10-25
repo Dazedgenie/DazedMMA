@@ -53,3 +53,11 @@ func allows_action(action: Dictionary) -> bool:
 	if action.category == "takedown":
 		return bool(allows.get("takedowns", true))
 	return true
+
+
+## True when this strike may go to `target` here: a knee only goes to the head where
+## knees to the head are allowed (an opening such as HEAD_LOW can send it there, #15).
+func allows_target(action: Dictionary, target: String) -> bool:
+	if target == "head" and String(action.id).begins_with("knee"):
+		return bool(allows.get("knees_to_head_standing", true))
+	return true

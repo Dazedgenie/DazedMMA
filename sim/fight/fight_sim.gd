@@ -13,9 +13,8 @@ extends RefCounted
 ## must by three judges (Judging).
 ##
 ## Every contest uses Contest.chance on effective stats (docs/11 §3), and Speed
-## and Kicking change how long telegraphs and wind-ups last (§3.3). Strike events
-## carry an OddsBreakdown saying where the odds came from. Takedowns get their
-## odds from odds() but land with #15.
+## and Kicking change how long telegraphs and wind-ups last (§3.3). Strike,
+## takedown and sprawl events carry an OddsBreakdown saying where the odds came from.
 ##
 ## The sim owns time, movement and resolution; what each fighter tries comes from
 ## their DecisionLayer (commands → live calls → drilled rules → AI, docs/01 §6.0),
@@ -25,7 +24,13 @@ extends RefCounted
 ## fight is (phase, named position, each fighter's role). Moves between positions
 ## come from the position data (PositionLibrary), and the fighters' cage spot
 ## carries through, so a takedown on the fence lands on the fence.
-
+##
+## Clinch, takedowns and the trimmed ground game (#15, docs/01 §21): a takedown,
+## clinch or ground move makes contact as its active phase starts (range, a
+## required opening such as ONE_LEG, and its odds are fixed then) and is rolled as
+## the active phase ends; in between the defender can sprawl on it or knee into it.
+## A win moves the fight by the position data; a near miss can end in a scramble.
+## Each position drains stamina, scores control for the judges and scales strikes.
 signal event_emitted(event: FightEvent)
 
 ## Speed (and Kicking, for kick telegraphs) shortens or stretches telegraph and
@@ -45,6 +50,8 @@ const MOVE_STAMINA_PER_S: float = 0.6
 ## Range and cage changes are announced once they've held this long (0.5 s), so
 ## shuffling across a line isn't news. Flags and odds always use the exact state.
 const ANNOUNCE_AFTER_TICKS: int = 5
+## A strike that `stops` a move (a knee into a shot) stops it in these phases, before it's done.
+const STOPPABLE_PHASES: Array[String] = ["telegraph", "windup", "active"]
 ## Hitting someone mid-commitment (wind-up or recovery, docs/01 §5) is a counter.
 const COUNTER_PHASES: Array[String] = ["windup", "recovery"]
 const COUNTER_BONUS: float = 0.10
@@ -77,6 +84,12 @@ const TKO_KNOCKDOWNS: int = 3
 ## Tied up (clinch or ground), the fighters' centres are this close, on the spot
 ## where the one being taken down or tied up stood.
 const TANGLED_GAP: float = 0.4
+## Sprawled on, the shooter is stuck under the sprawl, head low, for this many ticks
+## on top of the shot's recovery (D29: a stuffed shot gets punished).
+const SPRAWL_STUCK_TICKS: int = 5
+## Takedowns, clinch and ground moves: they make contact when their active phase starts
+## and are rolled when it ends.
+const GRAPPLES := { "takedown": true, "clinch": true, "ground": true }
 ## In open space a circling fighter keeps their direction unless one way is clearly
 ## more open (by this much, in metres toward the middle).
 const CIRCLE_SIDE_DEADBAND: float = 0.3
@@ -117,6 +130,11 @@ var _round_points: Array[float] = [0.0, 0.0]  # effective striking this round, b
 var _round_knockdowns: Array[int] = [0, 0]  # knockdowns scored this round
 var _round_aggression: Array[float] = [0.0, 0.0]  # attacks thrown + metres walked forward this round
 var _round_control: Array[int] = [0, 0]  # ticks this round the opponent spent pinned on the fence
+## What the current position does to each fighter every tick (its data, worked out
+## when the position changes): stamina drained, judges' control points, strike damage ×.
+var _drain: Array[float] = [0.0, 0.0]
+var _control: Array[float] = [0.0, 0.0]
+var _damage_scale: Array[float] = [1.0, 1.0]
 ## Announced state for range (slot 0) and each fighter's cage proximity (slots 1
 ## and 2), see _announce: what was last announced, what it's turning into, and for
 ## how many ticks. Arrays rather than dictionaries: this runs every tick.
@@ -219,6 +237,9 @@ func tick() -> void:
 		if _fight_over:
 			now += 1
 			return
+	if not situation.is_standing():
+		_round_points[0] += _control[0]
+		_round_points[1] += _control[1]
 	_update_space()
 	if clock.tick():
 		_end_round()
@@ -294,6 +315,8 @@ func why_not(i: int, id: String) -> String:
 		return "not allowed under %s rules" % ruleset.name
 	if not action.positions.has(situation.position):
 		return "not possible from this position"
+	if not ActionLibrary.allows_role(action, situation.role(i)):
+		return "not possible from the %s" % situation.role(i)
 	return ""
 
 
@@ -310,6 +333,7 @@ func rng_for_views() -> RandomNumberGenerator:
 func _advance_fighter(i: int) -> void:
 	var f: FighterState = fighters[i]
 	f.regen_tick()
+	f.spend_stamina(_drain[i])
 	_strides[i] = Vector2.ZERO
 	if f.is_down():
 		f.down_ticks -= 1
@@ -513,6 +537,7 @@ func _announce(slot: int, value: String, type: String, actor: int, field: String
 
 func _to_corners() -> void:
 	situation.reset()
+	_position_effects()
 	_wants = [0.0, 0.0]
 	_circling = [0.0, 0.0]
 	_cutting = [0.0, 0.0]
@@ -531,27 +556,57 @@ func role(i: int) -> String:
 	return situation.role(i)
 
 
-## The transition fighter i would make by landing this action from here, or {}.
-func transition_for(i: int, action_id: String) -> Dictionary:
-	return positions.transition(situation.position, situation.role(i), action_id)
+## The transition fighter i would make by landing this action from here (or half
+## landing it, `result` "partial"), or {}.
+func transition_for(i: int, action_id: String, result: String = PositionLibrary.SUCCESS) -> Dictionary:
+	return positions.transition(situation.position, situation.role(i), action_id, result)
 
 
 ## Moves the fight to where fighter i's action takes it (from the position data).
 ## Returns false, changing nothing, when the action doesn't move the fight from
 ## here. The fight stays on the spot where the opponent stood, so the cage carries
 ## over: tied up on the fence stays on the fence, and getting up separates there.
-## Resolution (#15) calls this when a takedown, clinch entry or get-up succeeds.
-func apply_transition(i: int, action_id: String) -> bool:
-	var t: Dictionary = transition_for(i, action_id)
+## Whatever either fighter was in the middle of stops. Ending up on top scores a
+## takedown with the judges (Judging.TAKEDOWN_POINTS). Grapple resolution calls this
+## when a takedown, clinch move or get-up works.
+func apply_transition(i: int, action_id: String, result: String = PositionLibrary.SUCCESS) -> bool:
+	var t: Dictionary = transition_for(i, action_id, result)
 	if t.is_empty():
 		return false
+	var was_top: bool = situation.role(i) == PositionLibrary.TOP
 	var roles: Array[String] = ["", ""]
 	roles[i] = t.roles.actor
 	roles[1 - i] = t.roles.opponent
 	situation.set_to(positions.get_position(t.to), roles)
+	_position_effects()
+	for f in fighters:
+		f.clear_action()
 	_place_bodies(i)
 	_emit(FightEvent.POSITION_CHANGED, i, { "action_id": action_id, "position": situation.position, "phase": situation.phase, "roles": roles.duplicate() })
+	if roles[i] == PositionLibrary.TOP and not was_top:
+		_round_points[i] += Judging.TAKEDOWN_POINTS
+		if actions.has(action_id) and actions.get_action(action_id).category == "takedown":
+			fighters[i].takedowns_landed += 1
 	return true
+
+
+## Back to standing without anyone's move (a knockdown in the clinch): the fighters
+## come apart where they are, a standing gap apart.
+func _break_apart(i: int) -> void:
+	situation.reset()
+	_position_effects()
+	_place_bodies(i)
+	_emit(FightEvent.POSITION_CHANGED, i, { "action_id": "", "position": situation.position, "phase": situation.phase, "roles": situation.roles.duplicate() })
+
+
+## Reads what the current position does to each fighter per tick from its data.
+func _position_effects() -> void:
+	var def: Dictionary = positions.get_position(situation.position)
+	for i in fighters.size():
+		var r: String = situation.role(i)
+		_drain[i] = float(def.stamina_drain_per_s.get(r, 0.0)) / FightClock.TICKS_PER_SECOND
+		_control[i] = float(def.control_score.get(r, 0.0)) * Judging.CONTROL_POINTS_PER_S / FightClock.TICKS_PER_SECOND
+		_damage_scale[i] = float(def.strike_damage_multiplier.get(r, 1.0))
 
 
 ## Puts fighter i next to the opponent: tangled when tied up, a standing gap apart otherwise.
@@ -578,7 +633,9 @@ func _start_action(i: int, id: String, decision: Decision = null) -> void:
 	f.spend_stamina(float(action.stamina_cost))
 	if action.category == "strike":
 		f.strikes_thrown += 1
-	if action.category == "strike" or action.category == "takedown":
+	elif action.category == "takedown":
+		f.takedowns_tried += 1
+	if action.category == "strike" or action.category == "takedown" or (action.category == "clinch" and situation.is_standing()):
 		_round_aggression[i] += 1.0
 	var why: Dictionary = {}
 	if decision != null:
@@ -587,6 +644,8 @@ func _start_action(i: int, id: String, decision: Decision = null) -> void:
 
 
 func _next_phase(i: int) -> void:
+	if fighters[i].grip != null and fighters[i].phase == "active" and _finish_grip(i):
+		return  # It worked: the fight moved and both fighters' moves are over.
 	var at: int = ActionLibrary.PHASES.find(fighters[i].phase) + 1
 	if at >= ActionLibrary.PHASES.size():
 		var id: String = fighters[i].action_id
@@ -607,6 +666,8 @@ func _enter_phase(i: int, at: int, why: Dictionary = {}) -> void:
 	_emit(FightEvent.ACTION_PHASE, i, data)
 	if f.phase == "active":
 		_resolve_active(i)
+		if f.action_id == "":
+			return  # A knockdown on the ground or in the clinch broke them apart and ended the move.
 	if f.phase_ticks_left <= 0:
 		_next_phase(i)
 
@@ -626,7 +687,8 @@ func phase_ticks(f: FighterState, id: String, phase: String) -> int:
 
 
 ## Flags fighter i carries right now: from their current action's phase (docs/09
-## flags_self), BACK_TO_CAGE when pinned, HANDS_LOW when exhausted or rocked.
+## flags_self), BACK_TO_CAGE when pinned, HANDS_LOW when exhausted or rocked,
+## HEAD_LOW while stuck under a sprawl.
 func active_flags(i: int) -> Array[String]:
 	var f: FighterState = fighters[i]
 	var out: Array[String] = []
@@ -636,6 +698,8 @@ func active_flags(i: int) -> Array[String]:
 		out.append("HANDS_LOW")
 	if f.is_free():
 		return out
+	if f.sprawled:
+		out.append("HEAD_LOW")
 	var at: int = ActionLibrary.PHASES.find(f.phase)
 	for entry: Dictionary in actions.get_action(f.action_id).flags_self:
 		if ActionLibrary.PHASES.find(entry.from) <= at and at <= ActionLibrary.PHASES.find(entry.to):
@@ -658,6 +722,8 @@ func flags_ahead(i: int, ahead: int) -> Array[String]:
 	var phase: String = phase_ahead(i, ahead)
 	if phase == "":
 		return out
+	if f.sprawled:
+		out.append("HEAD_LOW")
 	var at: int = ActionLibrary.PHASES.find(phase)
 	for entry: Dictionary in actions.get_action(f.action_id).flags_self:
 		if ActionLibrary.PHASES.find(entry.from) <= at and at <= ActionLibrary.PHASES.find(entry.to):
@@ -700,6 +766,8 @@ func plain_odds(i: int, id: String) -> float:
 ## The same odds with every part named (OddsBreakdown), as strike events carry them.
 ## With `ahead` > 0: the odds if the action lands that many ticks from now, with the
 ## opponent carrying on with their action (the AI uses it to time counters, #14).
+## Opportunities can also come from fighter i's own flags (`own_flag`: getting up
+## with your back on the fence is easier, wall-walking), as they are now.
 func odds_breakdown(i: int, id: String, ahead: int = 0) -> OddsBreakdown:
 	var action: Dictionary = actions.get_action(id)
 	var b := OddsBreakdown.new(id)
@@ -710,8 +778,14 @@ func odds_breakdown(i: int, id: String, ahead: int = 0) -> OddsBreakdown:
 	if countering:
 		b.add_bonus("counter", COUNTER_BONUS)
 	var opponent_flags: Array[String] = active_flags(1 - i) if ahead <= 0 else flags_ahead(1 - i, ahead)
+	var own_flags: Array[String] = []
 	for opp: Dictionary in action.opportunities:
-		if opponent_flags.has(opp.opponent_flag):
+		if opp.has("own_flag"):
+			if own_flags.is_empty():
+				own_flags = active_flags(i)
+			if own_flags.has(opp.own_flag):
+				b.add_bonus("own " + String(opp.own_flag), float(opp.success_bonus))
+		elif opponent_flags.has(opp.opponent_flag):
 			b.add_bonus(opp.opponent_flag, float(opp.success_bonus))
 		elif opp.get("required", false) and b.missing == "":
 			b.missing = opp.opponent_flag
@@ -725,8 +799,16 @@ func is_counter(i: int) -> bool:
 
 func _resolve_active(i: int) -> void:
 	var action: Dictionary = actions.get_action(fighters[i].action_id)
-	if action.category != "strike":
-		return  # Takedowns and the rest resolve from #15.
+	match action.category:
+		"strike":
+			_land_strike(i, action)
+		"defense":
+			_meet_shot(i)
+		"takedown", "clinch", "ground":
+			_make_contact(i, action)
+
+
+func _land_strike(i: int, action: Dictionary) -> void:
 	var attacker: FighterState = fighters[i]
 	var defender: FighterState = fighters[1 - i]
 	var target: String = action.strike.target
@@ -747,7 +829,20 @@ func _resolve_active(i: int) -> void:
 		miss.odds = breakdown.to_dict()
 		_emit(FightEvent.STRIKE_MISSED, i, miss)
 		return
-	var dealt: int = maxi(1, roundi(strike_damage(attacker, action.id) * (COUNTER_DAMAGE if counter else 1.0)))
+	# An opening can change what the strike does (D29: a knee into a shot goes to the
+	# lowered head, harder, and stops the shot): `target`, `damage_multiplier`, `stops`.
+	var scale: float = (COUNTER_DAMAGE if counter else 1.0) * _damage_scale[i]
+	var stops: bool = false
+	if not breakdown.bonuses.is_empty():
+		for opp: Dictionary in action.opportunities:
+			if not opp.has("opponent_flag") or not _has_bonus(breakdown, opp.opponent_flag):
+				continue
+			if opp.has("target") and ruleset.allows_target(action, opp.target):
+				target = opp.target
+			scale *= float(opp.get("damage_multiplier", 1.0))
+			stops = stops or bool(opp.get("stops", false))
+	var into: String = defender.action_id if stops and defender.phase in STOPPABLE_PHASES else ""
+	var dealt: int = maxi(1, roundi(strike_damage(attacker, action.id) * scale))
 	defender.damage[target] += dealt
 	defender.stagger_ticks = maxi(defender.stagger_ticks, STAGGER_BASE + roundi(dealt * STAGGER_PER_DAMAGE))
 	var push: float = float(action.strike.get("push_m", 0.0))
@@ -755,9 +850,101 @@ func _resolve_active(i: int) -> void:
 		_push(1 - i, push)
 	attacker.strikes_landed += 1
 	_round_points[i] += dealt * Judging.TARGET_WEIGHTS[target]
-	_emit(FightEvent.STRIKE_LANDED, i, { "action_id": action.id, "target": target, "damage": dealt, "chance": chance, "counter": counter, "odds": breakdown.to_dict() })
+	var landed := { "action_id": action.id, "target": target, "damage": dealt, "chance": chance, "counter": counter, "odds": breakdown.to_dict() }
+	if into != "":
+		landed.into = into
+	_emit(FightEvent.STRIKE_LANDED, i, landed)
+	if into != "":
+		_emit(FightEvent.GRAPPLE_STOPPED, 1 - i, { "action_id": into, "reason": "stopped", "by_action": action.id })
+		_to_recovery(1 - i)
 	if target == "head":
-		_head_impact(i, dealt)
+		_head_impact(i, dealt, into != "")
+
+
+static func _has_bonus(b: OddsBreakdown, bonus_name: String) -> bool:
+	for x: Dictionary in b.bonuses:
+		if x.name == bonus_name:
+			return true
+	return false
+
+
+## Cuts fighter i's move short: straight into its recovery, nothing more to roll.
+func _to_recovery(i: int) -> void:
+	fighters[i].grip = null
+	_enter_phase(i, ActionLibrary.PHASES.find("recovery"))
+
+
+# --- Takedowns, clinch and ground moves (docs/01 §21, #15) ---------------------
+
+## A takedown, clinch or ground move reaches its active phase: contact. It needs the
+## range, and a required opening (the catch-kick needs the kick) has to be there now.
+## Its odds are fixed here (the opening may be gone by the time it's rolled) and
+## rolled as the active phase ends (_finish_grip); until then the defender can
+## sprawl on it or knee into it.
+func _make_contact(i: int, action: Dictionary) -> void:
+	var stopped := { "action_id": action.id }
+	if fighters[1 - i].is_down():
+		stopped.reason = "opponent down"
+	elif not action.ranges.has(band()):
+		stopped.reason = "out of range"
+	else:
+		var b: OddsBreakdown = odds_breakdown(i, action.id)
+		if b.missing == "":
+			fighters[i].grip = b
+			_meet_shot(1 - i)  # Already sprawling as it arrives?
+			return
+		stopped.reason = "nothing to catch"
+		stopped.chance = 0.0
+		stopped.odds = b.to_dict()
+	_emit(FightEvent.GRAPPLE_STOPPED, i, stopped)
+	_to_recovery(i)
+
+
+## Fighter k's sprawl (a defense against the opponent's category of move) meets the
+## opponent's shot, if the sprawl is in its active phase while the shot has contact.
+## One roll: it works, and the shooter is stuck under it, head low, for longer; or
+## it doesn't, and the shot goes on to its own roll. Either way the sprawl is spent.
+func _meet_shot(k: int) -> void:
+	var d: FighterState = fighters[k]
+	var s: FighterState = fighters[1 - k]
+	if d.phase != "active" or s.grip == null:
+		return
+	var sprawl: Dictionary = actions.get_action(d.action_id)
+	if sprawl.category != "defense" or not sprawl.defense.against_categories.has(actions.get_action(s.action_id).category):
+		return
+	var b: OddsBreakdown = odds_breakdown(k, sprawl.id)
+	var worked: bool = _rng.randf() < b.chance
+	_emit(FightEvent.SPRAWLED, k, { "action_id": sprawl.id, "against": s.action_id, "worked": worked, "chance": b.chance, "odds": b.to_dict() })
+	_to_recovery(k)
+	if not worked:
+		return
+	_emit(FightEvent.GRAPPLE_STOPPED, 1 - k, { "action_id": s.action_id, "reason": "sprawled on", "chance": s.grip.chance, "odds": s.grip.to_dict() })
+	_to_recovery(1 - k)
+	s.phase_ticks_left += SPRAWL_STUCK_TICKS
+	s.sprawled = true
+
+
+## The roll at the end of a grapple's active phase, on the odds fixed at contact.
+## Under the odds it works; within the move's `partial_within` above them it half
+## works, if the position data says where that goes (a scramble). Returns true when
+## the fight moved.
+func _finish_grip(i: int) -> bool:
+	var f: FighterState = fighters[i]
+	var b: OddsBreakdown = f.grip
+	f.grip = null
+	var action: Dictionary = actions.get_action(f.action_id)
+	var roll: float = _rng.randf()
+	var result: String = ""
+	if roll < b.chance:
+		result = PositionLibrary.SUCCESS
+	elif roll < b.chance + float(action[action.category].get("partial_within", 0.0)) \
+			and not transition_for(i, action.id, PositionLibrary.PARTIAL).is_empty():
+		result = PositionLibrary.PARTIAL
+	if result == "" or transition_for(i, action.id, result).is_empty():
+		_emit(FightEvent.GRAPPLE_STOPPED, i, { "action_id": action.id, "reason": "defended", "chance": b.chance, "odds": b.to_dict() })
+		return false
+	_emit(FightEvent.GRAPPLE_WON, i, { "action_id": action.id, "result": result, "chance": b.chance, "odds": b.to_dict() })
+	return apply_transition(i, action.id, result)
 
 
 ## Damage multiplier from Power: 0.5 + Power / 100 (Power 50 → ×1).
@@ -785,13 +972,15 @@ func ko_chance(shock: float, f: FighterState) -> float:
 	return clampf(KO_BASE + (shock - 1.0) * KO_SLOPE, KO_MIN, KO_MAX) * heart
 
 
-func _head_impact(i: int, dealt: int) -> void:
+## A head shot's rock roll. `flash`: it caught them coming in (a knee into a shot,
+## D29), so a rock drops them straight away.
+func _head_impact(i: int, dealt: int, flash: bool = false) -> void:
 	var shock: float = head_shock(i, dealt)
 	var chance: float = rock_chance(shock)
 	if chance <= 0.0 or _rng.randf() >= chance:
 		return
 	var d: FighterState = fighters[1 - i]
-	if d.is_rocked():
+	if d.is_rocked() or flash:
 		_knockdown(i, shock)
 		return
 	d.rocked_ticks = rocked_duration(d)
@@ -816,6 +1005,9 @@ func _knockdown(i: int, shock: float) -> void:
 	_round_points[i] += Judging.KNOCKDOWN_POINTS
 	_round_knockdowns[i] += 1
 	_emit(FightEvent.KNOCKDOWN, 1 - i, { "by": i })
+	if not situation.is_standing():
+		fighters[i].clear_action()
+		_break_apart(i)
 	if _rng.randf() < ko_chance(shock, d):
 		_finish(i, RESULT_KO)
 	elif d.knockdowns_this_round >= TKO_KNOCKDOWNS:

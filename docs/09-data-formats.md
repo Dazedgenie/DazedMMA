@@ -37,13 +37,15 @@ Rules:
 | `name` | string | Display name |
 | `category` | `strike` · `takedown` · `defense` · `movement` · `clinch` · `ground` · `submission` | |
 | `positions` | position ids | Where it can be used |
+| `roles` (optional) | `neutral` · `top` · `bottom` | Which roles may use it there (get up: `bottom` or `neutral`, so the fighter on top can't). Left out = any role |
+| `basic` (optional) | bool | `true` = every fighter knows it, whatever their `techniques` (sprawl, clinch entry and break, get up, scramble) |
 | `ranges` | `long` · `mid` · `pocket` · `clinch` | Distance bands it works from |
 | `phases_ms` | `{telegraph, windup, active, recovery}` | Commitment model timings (`docs/01` §5) |
 | `stamina_cost` | number | Stamina spent |
 | `flags_self` | `[{flag, from, to}]` | Flags the *user* carries during those phases (`ONE_LEG` from windup to recovery) |
 | `stats` | `{offense: [stat], defense: [stat]}` | Attributes that decide the contest |
-| `opportunities` | `[{opponent_flag, success_bonus, required?}]` | Bonus when the *opponent* carries that flag; `required: true` = only possible then (catch-kick) |
-| `strike` / `takedown` / `defense` | object | Category-specific: `{target, base_damage, push_m?}` · `{base_success}` · `{against_categories, base_success}`. `push_m` (metres, optional): a landed strike shoves the opponent back that far (the teep, 0.5). Where a landed takedown takes the fight is in the position files. A `movement` move (the stance shift) has none: it only takes time and stamina, and can be a tell |
+| `opportunities` | `[{opponent_flag \| own_flag, success_bonus, required?, target?, damage_multiplier?, stops?}]` | Bonus when the *opponent* carries that flag; `required: true` = only possible then (catch-kick). `own_flag` instead: when the user carries it (get up with your back on the fence, +0.15; a negative bonus makes it harder). For strikes, when the opening is there: `target` sends it there instead (a knee into a shot goes to the head), `damage_multiplier` scales it, `stops: true` stops the opponent's move (`docs/01` §21.2) |
+| `strike` / `takedown` / `defense` / `clinch` / `ground` | object | Category-specific: `{target, base_damage, push_m?}` · `{base_success, partial_within?}` · `{against_categories, base_success}` · `{base_success, partial_within?}` · `{base_success, partial_within?}`. `partial_within` (a chance, optional): a roll that misses the odds by less than this half works, and goes where the position's `partial` transition says (a scramble). `push_m` (metres, optional): a landed strike shoves the opponent back that far (the teep, 0.5). Where a landed takedown takes the fight is in the position files. A `movement` move (the stance shift) has none: it only takes time and stamina, and can be a tell |
 | `requires_technique` | id or null | Needs this technique learned (`docs/02` §2.1) |
 
 ### position@2 (example: `standing.json`)
@@ -51,11 +53,12 @@ Rules:
 `stamina_drain_per_s`, `control_score` (judging), `strike_damage_multiplier`.
 
 `transitions`: how the fight leaves this position (`docs/01` §4.1). Each entry is
-`{action, from_role, to, roles: {actor, opponent}}`: when the fighter in `from_role` lands `action` here, the fight moves to
-position `to`, with the actor and the opponent in those roles. Example from `standing.json`:
+`{action, from_role, result?, to, roles: {actor, opponent}}`: when the fighter in `from_role` lands `action` here, the fight moves to
+position `to`, with the actor and the opponent in those roles. `result` is `success` (the default) or `partial`: where the move
+goes when it only half works (`partial_within`, a scramble). Example from `standing.json`:
 `{ "action": "double_leg", "from_role": "neutral", "to": "full_guard", "roles": { "actor": "top", "opponent": "bottom" } }`.
 An action with no entry doesn't move the fight. The validator checks that the action exists and can be used here, `from_role`
-is one of this position's roles, `to` exists and has both roles, and no action/role pair is listed twice.
+is one of this position's roles (and one the action allows), `to` exists and has both roles, and no action/role/result is listed twice.
 Loaded by `PositionLibrary` (`sim/fight/position_library.gd`).
 
 Versions: position@2 added `transitions`; action@2 moved a takedown's `on_success` into them (no saved data needed migrating).

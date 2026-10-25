@@ -7,6 +7,8 @@ const DEFAULT_DIR := "res://data/actions/"
 const PHASES: Array[String] = ["telegraph", "windup", "active", "recovery"]
 
 var _actions: Dictionary = {}  # id → action Dictionary
+## Moves every fighter knows whatever their techniques (`basic: true`: get up, sprawl, clinch entry and break, #15).
+var _basic: Array[String] = []
 
 
 static func load_dir(dir_path: String = DEFAULT_DIR) -> ActionLibrary:
@@ -23,6 +25,19 @@ static func load_dir(dir_path: String = DEFAULT_DIR) -> ActionLibrary:
 
 func add(action: Dictionary) -> void:
 	_actions[action.id] = action
+	if action.get("basic", false) and not _basic.has(action.id):
+		_basic.append(action.id)
+		_basic.sort()  # Same order whatever order the files loaded in.
+
+
+## The moves every fighter knows (`basic: true`), sorted by id.
+func basic_ids() -> Array[String]:
+	return _basic
+
+
+## True when a fighter in `role` may use this action (the action's `roles`; none listed = anyone).
+static func allows_role(action: Dictionary, role: String) -> bool:
+	return not action.has("roles") or action.roles.has(role)
 
 
 func has(id: String) -> bool:

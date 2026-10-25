@@ -139,7 +139,7 @@ in `sim/fight/fighter_state.gd`, `sim/fight/fight_sim.gd` and `sim/fight/contest
 
 | Piece | Rule |
 |---|---|
-| Contest formula (§3.1) | `Contest.chance`, used for every strike. `FightSim.odds()` gives takedowns and sprawls their odds the same way (base from data, opportunity bonuses from the opponent's flags, 0 if a `required` opportunity is missing); applying a takedown's result waits for #15 |
+| Contest formula (§3.1) | `Contest.chance`, used for every strike, takedown, sprawl, clinch move and get-up (base from data, opportunity bonuses from the opponent's flags or your own, 0 if a `required` opportunity is missing). Takedowns, the clinch and the ground resolve with #15 (`01` §21): Takedowns, Takedown defense, Clinch control, Strength, Scrambles and Top control all have jobs now |
 | Stamina tank | 60 + 0.8 × Cardio points (Cardio 50 = 100). Refills 0.6 + 1.2 × Cardio/100 per second. Every move costs its `stamina_cost` when it starts |
 | Corner | Wins back 30% + Recovery/2 % of the missing stamina (Recovery 50 = 55%). Rocked ends; damage stays (D99) |
 | Tired | Below half a tank, physical and technique stats fall linearly to −30% at empty. Cardio, Recovery, Durability, Chin and the mental stats don't |
@@ -242,4 +242,4 @@ Each fighter rolls **0–2 gifts and 0–1 flaw**, weighted by frame and backgro
 ## 6. Follow-up work
 - Done with D85–D90: `00` decisions, `02` §1.3/§2, `data/enums/stats.json`, and the Double leg and Sprawl actions (Explosiveness → Speed).
 - Done with #32: attributes, frame, stance, personality, style leanings and gifts/flaws are in the fighter profile format (`09` fighter@1).
-- Engine: effective stats, the shared contest formula, timing and style leanings are in (§3.5). Still to come: takedown results (#15), rocked/knockdowns (#13), style trait effects, and leaning pushes from training and calls.
+- Engine: effective stats, the shared contest formula, timing and style leanings are in (§3.5). Still to come: rocked/knockdowns (#13), style trait effects, and leaning pushes from training and calls.

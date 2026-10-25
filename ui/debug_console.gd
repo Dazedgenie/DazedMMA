@@ -3,7 +3,8 @@ extends PanelContainer
 ## Developer console: shows what the fight engine is doing, line by line.
 ##
 ## - "Run test fight" plays a short check fight instantly and reports pass/fail (SimCheck).
-## - "Live fight" plays a full fight in real time at Normal speed (2x, docs/01 §2).
+## - "Live fight" plays a full fight in real time at Normal speed (2x, docs/01 §2), between
+##   the matchup picked next to it (Kicker vs Boxer, or the Wrestler against either, #15).
 ## - "Cage view" shows a TEMPORARY top-down map of the live fight (CageMap, D106) on the
 ##   left of the screen, to judge how the AI moves. It hides with the console.
 ## - Toggle the window with the ` key (left of 1). "Copy" puts the log on the clipboard
@@ -14,6 +15,12 @@ const TOGGLE_KEY: Key = KEY_QUOTELEFT
 ## Normal speed: 2x fight time, so 20 ticks per real second.
 const LIVE_TICKS_PER_SECOND: float = 20.0
 const CAGE_VIEW_WIDTH: float = 780.0
+## The matchups "Live fight" can play: [label, red id, blue id] from data/fighters.
+const MATCHUPS: Array = [
+	["Kicker vs Boxer", "kicker", "boxer"],
+	["Wrestler vs Kicker", "wrestler", "kicker"],
+	["Wrestler vs Boxer", "wrestler", "boxer"],
+]
 
 ## Also print every line to Godot's Output panel (and the terminal).
 var echo_to_output: bool = true
@@ -21,6 +28,7 @@ var echo_to_output: bool = true
 var _log: RichTextLabel
 var _live_button: Button
 var _details_toggle: CheckBox
+var _matchup: OptionButton
 var _cage_toggle: CheckBox
 var _cage_map: CageMap
 var _actions: ActionLibrary
@@ -92,7 +100,8 @@ func _toggle_live() -> void:
 		write("[color=%s]%s[/color]" % [FightLogFormatter.DIM_COLOUR, "Paused" if _live_paused else "Resumed"])
 		return
 	var fight_seed: int = randi()
-	_live_sim = FightSim.new(fight_seed, SimCheck.showcase_fighters(), _actions)
+	var pick: Array = MATCHUPS[maxi(0, _matchup.selected)]
+	_live_sim = FightSim.new(fight_seed, FighterLibrary.load_dir().make_pair(pick[1], pick[2]), _actions)
 	_live_sim.event_emitted.connect(_on_live_event)
 	_cage_map.watch(_live_sim)
 	_cage_map.sample()
@@ -100,7 +109,7 @@ func _toggle_live() -> void:
 	_tick_budget = 0.0
 	_live_button.text = "Pause"
 	write("")
-	write("[b]▶ Live fight[/b]  seed %d, 3 rounds of 5:00 at 2x speed" % fight_seed)
+	write("[b]▶ Live fight[/b]  %s, seed %d, 3 rounds of 5:00 at 2x speed" % [pick[0], fight_seed])
 
 
 func _stop_live() -> void:
@@ -148,6 +157,10 @@ func _build() -> void:
 	column.add_child(bar)
 	_add_button(bar, "Run test fight", run_test_fight)
 	_live_button = _add_button(bar, "Live fight", _toggle_live)
+	_matchup = OptionButton.new()
+	for m: Array in MATCHUPS:
+		_matchup.add_item(m[0])
+	bar.add_child(_matchup)
 	_details_toggle = CheckBox.new()
 	_details_toggle.text = "Phase details"
 	bar.add_child(_details_toggle)

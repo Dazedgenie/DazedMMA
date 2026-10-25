@@ -1,0 +1,19 @@
+{
+	"schema": "action@2",
+	"id": "clinch_entry",
+	"name": "Clinch entry",
+	"category": "clinch",
+	"basic": true,
+	"positions": ["standing"],
+	"ranges": ["pocket"],
+	"phases_ms": { "telegraph": 200, "windup": 200, "active": 200, "recovery": 300 },
+	"stamina_cost": 4,
+	"flags_self": [],
+	"clinch": { "base_success": 0.5 },
+	"stats": { "offense": ["clinch_control", "strength"], "defense": ["clinch_control", "footwork"] },
+	"opportunities": [
+		{ "opponent_flag": "BACK_TO_CAGE", "success_bonus": 0.15 },
+		{ "opponent_flag": "LEANING", "success_bonus": 0.10 }
+	],
+	"requires_technique": null
+}

@@ -227,7 +227,7 @@ func test_a_sprawl_is_easier_against_a_shot_with_the_head_low() -> void:
 	sim.fighters[0].action_id = "double_leg"
 	sim.fighters[0].phase = "active"  # HEAD_LOW from windup to active
 	assert_almost_eq(sim.odds(1, "sprawl") - early, 0.10, 0.0001)
-	assert_almost_eq(sim.odds(0, "double_leg"), 0.35, 0.0001)
+	assert_almost_eq(sim.odds(0, "double_leg"), 0.45, 0.0001)
 
 
 func test_speed_shortens_telegraph_and_windup_and_fatigue_stretches_them() -> void:

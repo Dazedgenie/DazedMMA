@@ -114,19 +114,19 @@ control it scores for the judges, and its striking damage multipliers.
 ### 4.1 The model in the engine (#34, `12` §3 item 4)
 - **One shared situation.** Positions are relational (one fighter is on top), so the fight holds a single **situation** both
   fighters read (`sim/fight/situation.gd`): the phase (standing / clinch / ground), the named position (`standing`,
-  `full_guard`, …) and each fighter's **role** in it (`neutral` standing, `top` / `bottom` on the ground; clinch positions name
-  their own roles). Fighters no longer carry their own position. Every round starts standing.
+  `full_guard`, …) and each fighter's **role** in it (`neutral` standing, in the clinch and in a scramble, `top` / `bottom` in
+  full guard). Fighters no longer carry their own position. Every round starts standing.
 - **Transitions are data.** Each position file lists how the fight leaves it: *this action, landed by the fighter in this role,
-  takes the fight to that position with these roles* (`09` position@2). Today: a landed double leg or catch-kick single from
-  standing → full guard, shooter on top. The code only applies what the data says (`FightSim.apply_transition`); resolution
-  calls it when a takedown, clinch entry or get-up succeeds (#15). Adding a position is a content change, not a code change.
+  takes the fight to that position with these roles* (`09` position@2), and optionally where it goes when the move only half
+  works (a scramble). The code only applies what the data says (`FightSim.apply_transition`); resolution calls it when a
+  takedown, clinch move or get-up works (§21). Adding a position is a content change, not a code change.
 - **The cage carries through.** Where the fight is in the cage stays with the fighters' own spots. Tying up or taking someone
   down happens on the spot where the opponent stood, so a takedown on the fence stays on the fence, the bottom fighter keeps
   `BACK_TO_CAGE` (wall-walking), and getting up separates the fighters right there, a standing gap apart.
 - While tied up (clinch or ground) nobody walks, and the range reads `clinch` whatever the distance.
-- **Still to come with #15:** actions say which roles may use them (so only the bottom fighter can get up), clinch entry,
-  get up and scramble as actions, and removing the standing minimum gap (`Octagon.MIN_GAP`) once the clinch exists. Each
-  position's stamina drain, control score and damage multipliers are in the data but not yet applied.
+- **Done with #15 (§21):** actions say which roles may use them (only the bottom fighter gets up), clinch entry, clinch break,
+  get up and scramble are actions with their transitions in the data, and each position's stamina drain, control score and
+  strike damage multipliers are applied. The standing minimum gap (`Octagon.MIN_GAP`) stays: see §21.6.
 
 ### 4.2 Playtest scope (D98)
 The Phase 1 playtest ships a trimmed ground game (#15):
@@ -382,7 +382,7 @@ constants in `sim/fight/octagon.gd`, `sim/fight/fight_sim.gd`, `sim/fight/fighte
 | Piece | Rule |
 |---|---|
 | Cage | Regular octagon, 4.5 m from the centre to each panel (30 ft across). Fighters start 3.5 m apart and go back to their corners each round |
-| Distance bands | Out > 3.0 m · Long 2.2–3.0 · Mid 1.5–2.2 · Pocket < 1.5. Standing fighters can't get closer than 0.9 m until the clinch exists (#15) |
+| Distance bands | Out > 3.0 m · Long 2.2–3.0 · Mid 1.5–2.2 · Pocket < 1.5. Standing fighters can't get closer than 0.9 m: closer than that is the clinch, which takes a clinch entry (§21.6) |
 | Reach | A strike only lands from the bands in its data. The AI only starts moves that reach; a commanded or interrupted move that no longer reaches *falls short* ("out of range") |
 | Movement | Walk at 0.8 + 1.2 × (Footwork + Speed)/200 m/s toward the distance the fighter's range plan wants (§20). Committed fighters don't move. Walking costs stamina (D96): 0.6 a second at full pace × (share of full pace)², so walking in is cheap and running all night isn't. A clean shot stops the feet for 1 tick + 1 per 4 damage; a landed teep shoves the opponent 0.5 m back (`push_m`) |
 | Cage | Near = within 1.5 m of the fence; pinned = within 0.5 m with the opponent in mid range or closer (`BACK_TO_CAGE`). The fence stops the part of a step that goes into it and the rest slides along it, so backing straight into the fence gets a fighter nowhere (D107). A presser aims where a moving opponent is going: how far ahead is the presser's share of a Footwork contest. Chasing someone who's getting away and cutting the cage off both depend on Footwork too (§20.2), so good feet get out and bad feet get trapped |
@@ -390,12 +390,12 @@ constants in `sim/fight/octagon.gd`, `sim/fight/fight_sim.gd`, `sim/fight/fighte
 | Counters | Hitting a fighter in wind-up or recovery: +10% to land and ×1.3 damage |
 | Damage | Base damage × (0.5 + Power/100), at least 1 |
 | Rocked | Head shots only. Shock = damage × (1 + head hurt) / (6 + 0.12 × Chin). Rock chance = (shock − 0.6) × 0.5, up to 60%: a jab never rocks a fresh fighter, a clean hook or head kick can. Rocked lasts 4 s × (1.5 − Recovery/100): Speed, Striking defense, Fight IQ −30% more, hands drop, they back off and mostly cover up, and the opponent swarms (more with a Wild Risk leaning) |
-| Knockdown | Rocked again while rocked. Down for 2 s (nobody hits a downed fighter until the ground game exists), then up and rocked |
+| Knockdown | Rocked again while rocked (or rocked by a knee into a shot, §21.2). Down for 2 s (nobody hits a downed fighter: no ground strikes until after the playtest), then up and rocked. A knockdown in the clinch separates the fighters |
 | KO / TKO | KO roll on each knockdown: 15% + (shock − 1) × 50%, 5–80%, × (1.5 − Heart/100). TKO on a third knockdown in a round, or a rock with the head fully hurt |
-| Judges | Three judges, 10-point must. A round's points = damage landed (head ×1, body ×0.8, legs ×0.6) + 8 per rock + 20 per knockdown; each judge sees each fighter's points ±15%. Within 5%, the round goes to the busier fighter (aggression: strikes and takedowns started plus metres walked forward, each judge seeing it ±15%), then to whoever held the other on the fence longer (cage control); only a round where nothing separates them is 10-10 (D97). 10-8 for two more knockdowns or out-landing 3 to 1 in a busy round. Decision: unanimous / split / majority / draw |
+| Judges | Three judges, 10-point must. A round's points = damage landed (head ×1, body ×0.8, legs ×0.6) + 8 per rock + 20 per knockdown + grappling (a takedown and control time, §21.4); each judge sees each fighter's points ±15%. Within 5%, the round goes to the busier fighter (aggression: strikes and takedowns started plus metres walked forward, each judge seeing it ±15%), then to whoever held the other on the fence longer (cage control); only a round where nothing separates them is 10-10 (D97). 10-8 for two more knockdowns or out-landing 4 to 1 in a busy round (D110; `Judging.DOMINANT_SHARE` 0.25). Decision: unanimous / split / majority / draw |
 | Events | `range_changed`, `cage_changed` (announced once held for 0.5 s), `rocked`, `knockdown`, `got_up`, `recovered`; strikes carry `counter`, the `odds` breakdown (§19) and, when they fall short, a `reason` |
 
-Not yet: leg damage giving out, liver shots, cuts, judge personalities and fouls (D20), and anything clinch or ground (#15).
+Not yet: leg damage giving out, liver shots, cuts, judge personalities and fouls (D20). The clinch and the ground are §21.
 
 ## 19. Decision layer in the engine (#33)
 How §6.0 and §7 plug into the code (`12` §3 item 2). The fight loop (`sim/fight/fight_sim.gd`) owns time, movement and
@@ -413,10 +413,12 @@ the fight through a read-only **view** and walks one priority stack. The first l
   (3 at Speed 0, 2 at 50, 1 at 100), stretched by fatigue up to +30%, at least 1 tick.
 - **Odds breakdown** (A16): every rolled strike event carries `odds` = base, the stat gap on effective stats, and each bonus by
   name (`counter`, the opponent's flag such as `ONE_LEG`), plus `clamped` when the 5–95% cap cut it. The debug console prints it:
-  *"Jab LANDS (head, 3 damage) 65% (base 50 · stats +5 · counter +10)"*. Takedowns get the same breakdown when they resolve (#15).
+  *"Jab LANDS (head, 3 damage) 65% (base 50 · stats +5 · counter +10)"*. Takedowns, clinch and ground moves and sprawls carry the
+  same breakdown (§21).
 - **Rulesets** (`08`): the fight takes a ruleset (pro by default) for rounds, round length, damage scaling from gear and which
   actions are legal. Banned actions are refused as commands and calls and never picked by the AI. Today only `takedowns` maps to
-  actions; elbows, knees to a grounded opponent, ground strikes to the head and slams map as those actions arrive (#15).
+  actions, plus `knees_to_head_standing`: where it's off (teen amateurs), a knee into a shot stays on the body (§21.2). Elbows,
+  knees to a grounded opponent, ground strikes to the head and slams map as those actions arrive.
 
 ## 20. Fighter AI in the engine (#14)
 What a fighter does when nobody is calling (`sim/fight/fighter_ai.gd`), the bottom of the §19 stack. It sees the fight only
@@ -538,3 +540,141 @@ Tuning notes, so nobody walks the same dead ends: cutting off in open space, or 
 left the Kicker winning 2–20% of fights against the Boxer, and slowing the chaser with no cut at all had him winning about
 73%. The cut only near the fence and × the presser's share, plus the squared footwork edge on chases, is what landed near
 50%.
+
+## 21. Clinch, takedowns and the ground in the engine (#15, D98, D108, D109)
+What `sim/` does for §4, §5.1 and D29 in the Phase 1 playtest. The scope is the trimmed one (D98): one clinch position, the
+double leg, the catch-kick single, the sprawl, full guard top and bottom, getting up and the scramble. There are no ground
+strikes yet: in full guard the fighter on top holds and the judges score the control (D108). Every number is a first guess
+for the balance harness; each one is a named constant or a field in `data/`, listed under "To change it".
+
+### 21.1 Positions and the moves between them
+Where the fight can go, all from `data/positions/` (§4.1). Roles: `neutral` standing, in the clinch and in a scramble; `top`
+and `bottom` in full guard.
+
+| Position | Ways out (the transitions in its file) | Each second (stamina drain · judges' control score) |
+|---|---|---|
+| Standing | Double leg → full guard, shooter on top; half working → scramble. Catch-kick single → full guard. Clinch entry → clinch | Nothing extra (0 · 0): moves and walking already cost stamina (D96) |
+| Clinch | Clinch break → standing. Double leg → full guard, or half working → scramble. Knees work here; punches and kicks don't | 0.4 each · 0 (cage control still counts, §18) |
+| Full guard | Get up (bottom only) → standing, or half working → scramble. The top fighter holds | top 0.2, bottom 0.3 · top 1.0, bottom 0.2 |
+| Scramble | Get up → standing. Scramble for the top → full guard, whoever wins it on top | 0.8 each · 0 |
+
+The moves (`data/actions/`). The ones marked *everyone* are `basic`: every fighter knows them whatever their techniques, so
+nobody is ever stuck on the bottom with no way up.
+
+| Move | Timing (telegraph · wind-up · active · recovery) | Odds (base + attack − defense stats) | Notes |
+|---|---|---|---|
+| Double leg | 0.3 · 0.2 · 0.5 · 0.4 s | 45% + (Takedowns, Speed) − Takedown defense | From standing (mid or pocket) or the clinch. +15% on someone pinned on the fence, +10% on someone `LEANING`. Head low from wind-up to the end of the drive. Within 10% past the odds it half works: a scramble |
+| Catch-kick single | 0 · 0.1 · 0.4 · 0.3 s | 20% + (Takedowns, Speed) − (Takedown defense, Kicking), +35% for `ONE_LEG` | Only possible while the opponent is on one leg (`required`). Never thrown by the AI on its own (D103) |
+| Sprawl (*everyone*) | 0 · 0.1 · 0.3 · 0.3 s | 45% + (Takedown defense, Speed) − Takedowns, +10% against a head-low shot | §21.2 |
+| Clinch entry (*everyone*) | 0.2 · 0.2 · 0.2 · 0.3 s | 50% + (Clinch control, Strength) − (Clinch control, Footwork) | From the pocket. +15% on someone pinned, +10% on someone `LEANING` |
+| Clinch break (*everyone*) | 0 · 0.2 · 0.2 · 0.2 s | 35% + (Clinch control, Strength) − Clinch control | −15% with your own back on the fence |
+| Get up (*everyone*) | 0.2 · 0.3 · 0.5 · 0.3 s | 25% + (Scrambles, Takedown defense) − Top control | Bottom of full guard, or a scramble. +15% with your own back on the fence (wall-walking). Within 10% past the odds: a scramble |
+| Scramble for the top (*everyone*) | 0 · 0.2 · 0.3 · 0.2 s | 45% + (Scrambles, Strength) − Scrambles | Only in a scramble |
+| Knee | 0.2 · 0.2 · 0.1 · 0.3 s | as any strike | Now also in the clinch. Into a head-low shot: +25%, to the head, ×1.5 damage, and it stops the shot (§21.2) |
+
+### 21.2 How a takedown resolves
+Takedowns, clinch moves and ground moves all work the same way, so the log can explain every one (A16):
+
+1. **Contact** when the move's active phase starts. It needs the range (a double leg from long range comes up short), and a
+   required opening has to be there right then: a catch-kick that arrives before the kick leaves the ground, or after the foot
+   is back down, *finds nothing to catch*. The odds are fixed at contact, with every bonus the opponent shows then (`ONE_LEG`,
+   pinned, `LEANING`, a counter into their wind-up or recovery).
+2. **The drive**: the active phase (half a second for a double leg). Now the defender can answer it:
+   - **Sprawl.** A sprawl whose active phase overlaps contact gets one roll (it's then spent). If it works, the shot is
+     *sprawled on*: the shooter goes straight to recovery, stuck under the sprawl 0.5 s longer with the head low, which is what
+     knees look for. If it fails, the shot goes on to its own roll. A sprawl that's over before the shot arrives does nothing.
+   - **A knee into the shot (D29).** A knee that lands while the shooter's head is low goes to the head for 1.5× damage, and
+     stops the shot. If that head shot would rock them, it drops them on the spot (a flash knockdown, with the usual KO roll).
+     Where knees to the head are banned (teen amateur rules), it stays on the body.
+3. **The roll** as the active phase ends, on the odds from contact. Under them it works and the fight moves (the position
+   data says where); within the move's `partial_within` past them it half works and goes to a scramble; otherwise it's
+   *defended*. Whatever either fighter was doing stops when the fight moves.
+
+The catch-kick window: the body kick is on one leg from its wind-up to the end of its recovery, 0.9 s of fight time
+(`data/actions/body_kick.json`), and the catch makes contact 0.1 s after it starts. So a catch started from the kick's
+first instant on one leg to 0.1 s before the foot comes down works through the window; one started during the kick's
+telegraph, or late, finds nothing. A *Takedown!* call arrives after the 0.6 s call delay (§19), so the coach has to call it as
+the kick starts, or read it coming.
+
+Events, all with the odds breakdown where there was a roll: `grapple_won` (`result` success or partial), `grapple_stopped`
+(`reason`: out of range, nothing to catch, defended, sprawled on, stopped by a strike), `sprawled` (`worked`), and a
+`strike_landed` that stopped a shot says so (`into`). The debug console prints them, e.g. *"Wrestler's Double-leg takedown is
+SPRAWLED ON, stuck with the head low · the shot was 55% (base 45 · stats +10)"* or *"Kicker's Knee LANDS into the double-leg
+takedown (head, 14 damage)"*.
+
+### 21.3 What the positions do each tick
+Each position's file gives, per role, a stamina drain per second, a control score for the judges and a strike damage multiplier
+(`09` position@2), and the sim applies all three while the fight is there. Standing drains nothing (it used to say 0.1 a
+second, never applied; setting it to 0 kept standing fights exactly as they were). The clinch costs both fighters 0.4 a second,
+the bottom of full guard 0.3 and the top 0.2, a scramble 0.8. The strike multipliers are 1.0 standing and in the clinch;
+full guard's (top 1.0, bottom 0.4) wait for ground strikes after the playtest.
+
+### 21.4 Judges
+Grappling counts in the same round points as striking (§11: "effective striking/grappling"): 10 points for ending up on top
+(a takedown, or winning a scramble), plus 0.3 points a second × the position's control score (full guard top 1.0, bottom 0.2).
+For scale, a clean cross from a 60-Power fighter is about 7 points; a takedown and 20 seconds on top is 16.
+
+### 21.5 The fighter AI tied up
+Standing, the AI works as in §20, with three additions: everyone sprawls on a shot they read (sprawl is basic now), and if the
+sprawl roll fails they may still take the opening (a knee into the lowered head); fighters who like the clinch lead with clinch
+entries; and a grappler crowded in the pocket doesn't slow down to get out, he shoots or ties up instead. Tied up there's no
+footwork and no range plan:
+
+| Where | What the fighter does | To change it |
+|---|---|---|
+| Clinch entry (standing) | Weight × how much they like the clinch: Base/100 + Range/200, 0 to 1, and only if they have something to do there (a strike or takedown that works from the clinch). The Wrestler likes it (0.9); the Kicker (Range −60) never clinches; the Boxer has nothing to do there, so he doesn't either | `FighterAI.clinch_liking()` in `sim/fight/fighter_ai.gd` |
+| Crowded grappler | The leads slow-down for being crowded (× 0.35, §20) fades with the Base leaning: × 0.35 at Base 0, nothing at +100 | `lead_rate()` in `fighter_ai.gd` |
+| In the clinch | A chance of 4 × work rate per tick (about every 1.7 s) to do something: knees, a double leg, or a break. Break weight = 1 − Base/100 − Range/200 (at least 0.05), so the Kicker wants out and the Wrestler stays to shoot. Rocked, they only look to break | `CLINCH_RATE` 4.0, `CLINCH_BREAK_MIN` 0.05 |
+| Full guard, bottom | A chance of 2 × work rate per tick (about every 3.3 s) to try to get up | `GROUND_RATE` 2.0 |
+| Full guard, top | Holds (D108). Ground strikes come after the playtest | `_tied()` in `fighter_ai.gd` |
+| Scramble | 30% a tick, so it's over fast. Get up × (1 − Base/100), go for the top × (1 + Base/100) | `SCRAMBLE_RATE` 0.3 |
+
+### 21.6 The standing gap stays (a note on #15)
+Issue #15 (and §4.1 before it) said to remove the standing minimum gap (`Octagon.MIN_GAP`, 0.9 m) once the clinch existed. It
+stays, with a new meaning: it's as close as two standing fighters get, and closer than that is the clinch, which takes a clinch
+entry. Removing it would let fighters walk through each other, and lowering it would change every standing fight (the Boxer's
+pocket is built on it). If the playtest wants a fighter who walks onto the opponent to tie up on contact, that's a new decision.
+
+### 21.7 Balance
+The Wrestler's pairings are reported in the harness with no pass mark until after the playtest (D109); Kicker vs Boxer within
+60/40 is still the only win check. Numbers from the harness, 100 fights a pairing, both corners:
+
+| Pairing (red vs blue) | Red wins · draws | Shots (takedowns) a fight | Clinch · ground (share of the fight) |
+|---|---|---|---|
+| Kicker vs Boxer | 51% · 0% | – | – |
+| Boxer vs Kicker | 50% · 0% | – | – |
+| Wrestler vs Kicker | 54% · 1% | 18.8 (9.0) | 1% · 34% |
+| Kicker vs Wrestler | 51% · 2% | 19.0 (9.2) | 1% · 33% |
+| Wrestler vs Boxer | 45% · 1% | 30.1 (14.7) | 4% · 55% |
+| Boxer vs Wrestler | 51% · 0% | 29.7 (14.6) | 4% · 55% |
+
+The Wrestler wins 50.5% against the Kicker and 47% against the Boxer (after D110, below). Striker fights are unchanged: with the Kicker's new knee
+taken out, Kicker vs Boxer plays out event for event as it did before this work. The knee itself costs the Kicker a little
+(56/44 for the Boxer at tendency 0.6), so it sits at 0.2 in `data/fighters/kicker.json`: there for the clinch and for a shot that
+comes in, but rarely thrown in the open. Mirrors as in §20 (Boxer 53/47, Kicker 40/60, the known blue lean). No 10-10 cards.
+Draws 0.5% over all 800 fights.
+
+**Draws** were 2.0% over the 800 fights at first (target: under 2%, D97), all but one in Wrestler fights: a striker who stuffs
+every shot in a round won it 10-8 (the Wrestler landed almost nothing, under a third of the striker's points) and lost the other
+two 10-9, so the cards finished 28-28. A 10-8 now needs out-landing 4 to 1, not 3 to 1 (D110): draws 0.5%, the fights
+themselves unchanged (judging doesn't move the dice), Kicker vs Boxer 50.5%, the Wrestler 50.5% against the Kicker and 47% against
+the Boxer. To change it: `Judging.DOMINANT_SHARE` (the loser's share of the winner's points under which a round is 10-8), then
+re-run the harness and read the draws line.
+
+One thing to look at next: **the Wrestler against the Boxer** stands with their back on the fence 95% of the standing
+time; it was the same before this work (90% on main), so it comes from the movement rules (§20.2), not from the grappling.
+
+### 21.8 To change it, and the tests
+- Move timings, odds, opportunities and `partial_within`: the move's file in `data/actions/` (`09` action@2).
+- Where a move takes the fight, stamina drain, control score, strike multipliers: the position's file in `data/positions/`.
+- Sprawl stuck time: `FightSim.SPRAWL_STUCK_TICKS` (5 ticks); the knee into a shot: the HEAD_LOW opportunity in
+  `data/actions/knee.json` (`target`, `damage_multiplier`, `stops`).
+- Judges: `Judging.TAKEDOWN_POINTS` (10) and `Judging.CONTROL_POINTS_PER_S` (0.3) in `sim/fight/judging.gd`.
+- The AI: the constants in §21.5, at the top of `sim/fight/fighter_ai.gd`.
+
+Tested in `tests/sim/fight/test_grappling.gd` (the catch-kick in and out of the `ONE_LEG` window, contact and roll, sprawls in
+time and too early, the knee into the shot and the flash knockdown, teen rules, only the bottom fighter gets up, wall-walking,
+scrambles, position drain and control, the judges, the clinch, and the AI tied up), `tests/sim/fight/test_positions.gd` and
+`tests/ui/test_fight_log_formatter.gd`. After changing any number, run the harness with the Wrestler both ways round
+(`--pairs=wrestler:kicker,kicker:wrestler,wrestler:boxer,boxer:wrestler`) and the Kicker vs Boxer pairs, and read the
+**Grappling** lines next to the wins.

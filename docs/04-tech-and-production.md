@@ -58,7 +58,9 @@ Key rules:
   60/40 (#14's exit test, `12` §4, counted by fighter whichever corner they were in). Fatigue (D96), finish rate and how
   often the odds clamp bites are reported without a pass mark yet, and so is movement (D107): per pair, each fighter's
   share of standing time near the fence and pinned, who was nearer the centre, and how much of the fight was one fighter
-  chasing the other. Coaching bots (ideal / spam / none) join with live calls (#16).
+  chasing the other. Grappling too (#15): per pair, takedowns landed and tried, time in the clinch, on the ground and on
+  top, and the Wrestler's win share against the Kicker and the Boxer (D109, no pass mark until after the playtest).
+  Coaching bots (ideal / spam / none) join with live calls (#16).
 - **CI**: GitHub Actions running headless Godot tests on every PR.
 - **Debug overlay** in the fight view: raw stats, flags, action phases, AI scores.
 

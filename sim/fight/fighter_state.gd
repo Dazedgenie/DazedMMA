@@ -80,11 +80,18 @@ var knockdowns_this_round: int = 0
 var stamina: float
 var strikes_landed: int = 0
 var strikes_thrown: int = 0
+var takedowns_tried: int = 0
+var takedowns_landed: int = 0
 
 var action_id: String = ""  # "" = free to act
 var phase: String = ""
 var phase_ticks_left: int = 0
 var queued_action_id: String = ""
+## A takedown, clinch or ground move that has made contact: its odds, locked in when its
+## active phase starts and rolled when it ends (FightSim, #15). null otherwise.
+var grip: OddsBreakdown = null
+## Sprawled on: stuck under the sprawl, head low, for the rest of this move's recovery.
+var sprawled: bool = false
 
 
 func _init(p_name: String, p_stats: Dictionary = {}, p_repertoire: Array[String] = ["jab"], p_work_rate: float = DEFAULT_WORK_RATE, p_style: StyleLeanings = null) -> void:
@@ -233,3 +240,5 @@ func clear_action() -> void:
 	action_id = ""
 	phase = ""
 	phase_ticks_left = 0
+	grip = null
+	sprawled = false

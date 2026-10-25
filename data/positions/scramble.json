@@ -1,0 +1,14 @@
+{
+	"schema": "position@2",
+	"id": "scramble",
+	"name": "Scramble",
+	"phase": "ground",
+	"roles": ["neutral"],
+	"stamina_drain_per_s": { "neutral": 0.8 },
+	"control_score": { "neutral": 0.0 },
+	"strike_damage_multiplier": { "neutral": 0.0 },
+	"transitions": [
+		{ "action": "get_up", "from_role": "neutral", "to": "standing", "roles": { "actor": "neutral", "opponent": "neutral" } },
+		{ "action": "scramble", "from_role": "neutral", "to": "full_guard", "roles": { "actor": "top", "opponent": "bottom" } }
+	]
+}
