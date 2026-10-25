@@ -739,6 +739,14 @@ The AI corner's own calls (D68) and the ideal/spam caller bots for the harness (
 step. Habits from calls (D32) and leanings moved by accepted calls (`11` §4.2) come with the career. Crowd noise and coach
 level are fixed at 1.
 
+**Balance finding to tune next (2026-10-25).** Calls are far too strong against the Kicker before any tuning. Prospect vs
+Kicker, 40 fights (seeds 500–519, both corners): no calls 61%; "Catch the kick!" kept primed all fight 92% (about 30 reads
+fired and 17 catches landed a fight); Takedown! every 6 s 95%; four calls in turn every 1.5 s, voice spent and most calls
+garbled or ignored, still 90%. Takedowns decide fights against a striker, and the AI on its own shoots far less than it
+could, so any extra shot wins. D12 wants good coaching worth +10–20% and spam worse than none, so the bots' harness work will
+need to tune this: likely the opponent adapting to repeated shots and caught kicks (reading them more, kicking less after
+being caught), what a takedown is worth, and the catch-kick's odds.
+
 ### 22.6 To change it, and the tests
 - What a call does, its voice cost, hotkey, positions, focus tilt and read timing: its file in `data/calls/`.
 - What sets off Catch the kick!: `data/triggers/opp_kick_starts.json`.
