@@ -1,0 +1,77 @@
+name: Playtest build
+
+# The Windows build for the playtest (#20, D118, docs/playtests/README.md). Every push to
+# main (and every PR, to prove it still exports) builds it; download it from the run's
+# "Artifacts" list. A Linux export of the same project runs the self-check fight first,
+# which proves data/ shipped inside the build (#35).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  GODOT_VERSION: 4.7.2
+
+jobs:
+  export:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot
+        id: cache-godot
+        uses: actions/cache@v4
+        with:
+          path: ~/godot
+          key: godot-${{ env.GODOT_VERSION }}
+
+      - name: Download Godot
+        if: steps.cache-godot.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/godot
+          curl -sSL -o godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q godot.zip -d ~/godot
+          mv ~/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64 ~/godot/godot
+
+      # The full template download is 1.3 GB; only the Windows and Linux release templates are kept (about 180 MB).
+      - name: Cache export templates
+        id: cache-templates
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/godot/export_templates/${{ env.GODOT_VERSION }}.stable
+          key: godot-templates-${{ env.GODOT_VERSION }}
+
+      - name: Download export templates
+        if: steps.cache-templates.outputs.cache-hit != 'true'
+        run: |
+          dir=~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+          mkdir -p "$dir"
+          curl -sSL -o templates.tpz "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          unzip -j -o templates.tpz templates/windows_release_x86_64.exe templates/linux_release.x86_64 templates/version.txt -d "$dir"
+          rm templates.tpz
+
+      - name: Import project
+        run: ~/godot/godot --headless --import
+
+      - name: Export
+        run: |
+          mkdir -p build/export/windows build/export/linux
+          ~/godot/godot --headless --export-release "Linux" build/export/linux/ChinCheck.x86_64
+          ~/godot/godot --headless --export-release "Windows Desktop" build/export/windows/ChinCheck.exe
+          test -s build/export/windows/ChinCheck.exe
+
+      - name: Self-check the exported build
+        run: build/export/linux/ChinCheck.x86_64 --headless -- --self-check
+
+      - name: Add the testers' read-me
+        run: cp docs/playtests/tester-readme.txt build/export/windows/README.txt
+
+      # GitHub zips the folder: the download is ChinCheck-windows-<commit>.zip with ChinCheck.exe and README.txt inside.
+      - name: Upload the Windows build
+        uses: actions/upload-artifact@v4
+        with:
+          name: ChinCheck-windows-${{ github.sha }}
+          path: build/export/windows/
+          retention-days: 30

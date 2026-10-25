@@ -29,3 +29,9 @@ The CSV columns are listed in `sim/balance/fight_summary.gd` (`FightSummary.COLU
 centre than the opponent, and `chase` one fighter stepping back while the other steps in. `corner_red`/`corner_blue` name the bot in each corner
 and `calls_red`/`calls_blue` count the calls it made; `rules_red`/`rules_blue` name each fighter's drilled rules and
 `fired_red`/`fired_blue` count how often they fired.
+
+`playtest_report.gd` adds up the playtest's saved fights (#20, D118, `docs/playtests/README.md` §3): one CSV line per fight
+(`game/playtest_report.gd`, `PlaytestReport.COLUMNS`) and a summary per playtest fight and per speed, with every fight
+re-run from its file to check it replays:
+
+    godot --headless --script res://tools/playtest_report.gd -- --dir=/path/to/all/fights --out=build/playtest

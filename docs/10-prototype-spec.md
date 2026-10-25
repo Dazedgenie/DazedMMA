@@ -63,7 +63,7 @@ Merged acceptance tests from the Foundation doc (A13):
 | 5 | Call processor + voice meter | |
 | 6 | Balance harness | CSV + summary printout |
 | 7 | Grey-box isometric view + slow-mo + call buttons/hotkeys | Built in #19 (D117): `06` §6 |
-| 8 | Playtest build + playtest checklist | |
+| 8 | Playtest build + playtest checklist | Built in #20 (D118): the Windows download, the playtest fights, saved fights and the report, and the script, form and write-up template in `docs/playtests/` |
 
 ---
 
@@ -85,7 +85,7 @@ Merged acceptance tests from the Foundation doc (A13):
 - **Active pause** behind an "Easy" toggle (D50).
 - **Keyboard + mouse**: hotkeys 1–9 + clickable call bar (D54).
 - **Speed control first** (D91): the playtest compares 1× and 2× fight speed before D9's 2× is confirmed.
-- **Playtest build**: Windows export + a feedback form for friends and the Discord (D62).
+- **Playtest build**: Windows export + a feedback form for friends and the Discord (D62). How to run one: `docs/playtests/README.md` (D118).
 
 ## 6. Approval checklist
 - [x] S1: now/read call split confirmed (D49)

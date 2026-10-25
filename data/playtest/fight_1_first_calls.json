@@ -1,0 +1,12 @@
+{
+	"schema": "playtest@1",
+	"id": "fight_1_first_calls",
+	"name": "Playtest 1: your first calls",
+	"order": 1,
+	"red": "wrestler",
+	"blue": "boxer",
+	"calls": ["pressure", "circle_out", "takedown"],
+	"rules": [],
+	"tell_cue": false,
+	"tip": "You're in the Wrestler's corner and he fights on his own: press 4 (Takedown!) when you see a chance, or 1 (Pressure!) and 2 (Circle out!) to change how he fights for 15 seconds. Every call costs voice, so pick your moments."
+}

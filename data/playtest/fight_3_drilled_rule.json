@@ -1,0 +1,12 @@
+{
+	"schema": "playtest@1",
+	"id": "fight_3_drilled_rule",
+	"name": "Playtest 3: a drilled rule",
+	"order": 3,
+	"red": "wrestler",
+	"blue": "kicker",
+	"calls": [],
+	"rules": [["catch_kick_and_shoot", 80]],
+	"tell_cue": true,
+	"tip": "Your Wrestler drilled a rule in camp: when the Kicker kicks, he catches and shoots on his own (the panel on the left shows how sharp the rule is). Every call is open now, including Get up (7) and Survive (8) on the ground."
+}

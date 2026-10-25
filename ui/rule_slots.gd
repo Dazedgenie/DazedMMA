@@ -56,7 +56,7 @@ func show_rules(rules: Array) -> void:
 	for entry: Array in rules:
 		var slot: int = int(entry[0]) - 1
 		if slot >= 0 and slot < _pickers.size():
-			_pickers[slot].selected = _ids.find(String(entry[1])) + 1
+			_pickers[slot].selected = maxi(0, _ids.find(String(entry[1])) + 1)
 		if String(entry[1]) != "":
 			_drilled.value = float(entry[2])
 
