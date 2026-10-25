@@ -1,0 +1,14 @@
+{
+	"schema": "call@2",
+	"id": "pressure",
+	"name": "Pressure!",
+	"kind": "now",
+	"tier": "intent",
+	"parent": null,
+	"hotkey": 1,
+	"voice_cost": 20,
+	"positions": ["standing"],
+	"actions": [],
+	"focus": { "duration_ms": 15000, "leanings": { "pace": 60, "range": 50 } },
+	"requires_technique": null
+}

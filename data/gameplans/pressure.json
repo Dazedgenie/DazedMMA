@@ -1,0 +1,7 @@
+{
+	"schema": "gameplan@1",
+	"id": "pressure",
+	"name": "Pressure",
+	"leanings": { "pace": 40, "range": 30 },
+	"weights": {}
+}

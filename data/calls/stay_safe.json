@@ -1,0 +1,14 @@
+{
+	"schema": "call@2",
+	"id": "stay_safe",
+	"name": "Stay safe!",
+	"kind": "now",
+	"tier": "intent",
+	"parent": null,
+	"hotkey": 9,
+	"voice_cost": 15,
+	"positions": ["standing", "clinch", "full_guard", "scramble"],
+	"actions": [],
+	"focus": { "duration_ms": 15000, "leanings": { "risk": -60, "pace": -30 }, "weights": { "takedown": 0.5 } },
+	"requires_technique": null
+}

@@ -137,3 +137,13 @@ func test_an_action_id_in_a_gameplan_beats_its_category() -> void:
 class _Stubborn extends LiveCalls:
 	func refusal(_view: FightView, _call: Dictionary) -> String:
 		return "doesn't trust the corner"
+
+
+func test_the_gameplan_presets_load_from_data_and_shift_the_leanings() -> void:
+	var sim: FightSim = _sim()
+	var layer: DecisionLayer = sim.decisions[0]
+	layer.add_source(Gameplan.load_id("wrestle_heavy"))
+	assert_eq(layer.leaning(sim.views[0], StyleLeanings.BASE), 60.0)
+	assert_eq(layer.weight(sim.views[0], _actions.get_action("double_leg"), 1.0), 1.5)
+	for id: String in ["pressure", "counter", "range", "conserve"]:
+		assert_false(Gameplan.load_id(id).leanings.is_empty(), id)

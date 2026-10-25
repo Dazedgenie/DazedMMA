@@ -23,7 +23,8 @@ Rules:
 | `data/enums/` | `enum@1` | Fixed vocabularies: `flags` (state flags, `docs/01` §5), `stats` (attributes, `docs/02` §2), `gifts` and `flaws` (`docs/11` §4.3) |
 | `data/actions/` | `action@2` | Everything a fighter can do: strikes, takedowns, defenses, ground moves |
 | `data/positions/` | `position@2` | Standing, clinch and ground positions (`docs/01` §4) |
-| `data/calls/` | `call@1` | Coach calls: now/read, intent/technique (`docs/01` §6) |
+| `data/calls/` | `call@2` | Coach calls: now/read, intent/technique (`docs/01` §6, §22) |
+| `data/gameplans/` | `gameplan@1` | Gameplan presets: Pressure, Counter, Range, Wrestle-heavy, Conserve (`docs/01` §6.0, §22.4) |
 | `data/triggers/` | `trigger@1` | Building blocks for read calls and drilled rules ("opponent starts a kick") |
 | `data/rules/` | `rule@1` | Drilled-rule presets: trigger → action (`docs/01` §6.0) |
 | `data/rulesets/` | `ruleset@1` | Amateur/pro rules (`docs/08`) |
@@ -63,10 +64,25 @@ Loaded by `PositionLibrary` (`sim/fight/position_library.gd`).
 
 Versions: position@2 added `transitions`; action@2 moved a takedown's `on_success` into them (no saved data needed migrating).
 
-### call@1 (examples: `takedown.json` now/intent, `catch_the_kick.json` read/technique)
-`name`, `kind` (`now`/`read`), `tier` (`intent`/`technique`), `parent` (intent call it unlocks under), `hotkey` (1–9 or null),
-`voice_cost`, `positions`, `actions` (what the fighter may attempt), `priority_boost` (now calls),
-`read: {trigger, duration_ms, attention_cost}` (read calls), `requires_technique`.
+### call@2 (examples: `takedown.json` attempt, `pressure.json` focus, `catch_the_kick.json` read)
+`name` (as shouted, "Takedown!"), `kind` (`now`/`read`), `tier` (`intent`/`technique`), `parent` (intent call it unlocks under),
+`hotkey` (a digit 0–9, each used once, or null), `voice_cost`, `positions` (where it can be acted on), `roles` (optional:
+`neutral`/`top`/`bottom`), `actions`, `requires_technique` (an action id the fighter must know, or null).
+A now call is one of two kinds (`docs/01` §22.2):
+- an **attempt**: `actions` lists the moves to try, in order (the first that would work right now is used), and no `focus`;
+- a **focus**: `actions` is empty and `focus: {duration_ms, leanings, weights, read_bonus, sprawl_bonus}` says how the fighter
+  fights for that long: `leanings` adds points to Pace/Range/Base/Risk (−100 to 100), `weights` multiplies the AI's weight for
+  an action id or category (0–10), `read_bonus` adds to the chance to read the opponent's moves of a category (0–1),
+  `sprawl_bonus` to the chance to sprawl on a shot (0–1). All optional except `duration_ms`.
+
+A read call has `actions` (what the fighter reacts with) and `read: {trigger, duration_ms, attention_cost}`: primed for
+`duration_ms`, it reacts to the trigger once; while primed, Striking and Takedown defense drop by `attention_cost` (0–0.5).
+Loaded by `CallLibrary` (`sim/fight/call_library.gd`). call@2 replaced call@1's `priority_boost` with the attempt/focus split
+(an accepted call claims the choice outright, `docs/01` §19); the two call@1 files were migrated.
+
+### gameplan@1 (example: `pressure.json`)
+`name`, `leanings` (points added to Pace/Range/Base/Risk for the fight, −100 to 100), `weights` (action id or category →
+multiplier, 0–10). Loaded by `Gameplan.load_id` (`sim/fight/gameplan.gd`).
 
 ### trigger@1 (examples: `opp_kick_starts.json`, `own_jab_blocked.json`)
 `name`, `type` (`event`/`state`/`threshold`), `event` (for event triggers: a fight event type such as `action_phase`,

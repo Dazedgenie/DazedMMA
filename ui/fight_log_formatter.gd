@@ -11,7 +11,10 @@ const DIM_COLOUR := "#8a8f98"
 const RANGE_NAMES := { "out": "out of range", "long": "long (kicking range)", "mid": "mid (punching range)", "pocket": "in the pocket" }
 const CAGE_NAMES := { "centre": "is back in open space", "near": "is near the fence", "pinned": "is PINNED against the cage" }
 const RESULT_NAMES := { "ko": "KO", "tko": "TKO" }
-const CALL_OUTCOMES := { "accepted": "takes", "ignored": "ignores", "infeasible": "can't do" }
+const CALL_OUTCOMES := {
+	"accepted": "takes", "ignored": "[b]IGNORES[/b]", "infeasible": "can't do", "fired": "goes on the read of",
+	"missed": "misses with the read of", "expired": "is done with", "replaced": "drops",
+}
 const CONDITION_STATS: Array[String] = ["boxing", "kicking", "power", "speed", "striking_defense", "footwork", "takedowns", "takedown_defense", "fight_iq"]
 
 
@@ -81,9 +84,22 @@ static func _describe(event: FightEvent, sim: FightSim) -> String:
 			return "%s beats the count and gets back up" % who
 		FightEvent.RECOVERED:
 			return "[color=%s]%s has shaken it off[/color]" % [DIM_COLOUR, who]
+		FightEvent.CALL_HEARD:
+			var extra: String = ""
+			if event.data.garbled:
+				extra += " · [b]garbled[/b]"
+			if event.data.spam:
+				extra += " · spam: trust %d" % event.data.trust
+			return "%s's corner: [b]%s[/b]  [color=%s](voice %d left · acts in %.1f s%s)[/color]" % [
+				who, _call_name(event.data.call_id, sim), DIM_COLOUR, event.data.voice, event.data.delay / float(FightClock.TICKS_PER_SECOND), extra]
 		FightEvent.CALL_ANSWERED:
 			var outcome: String = CALL_OUTCOMES.get(event.data.outcome, event.data.outcome)
-			return "[color=%s]%s %s the %s call (%s)[/color]" % [DIM_COLOUR, who, outcome, _action_name(event.data.action_id, sim), event.data.reason]
+			var id: String = event.data.get("call_id", event.data.get("action_id", ""))
+			var move: String = ""
+			if event.data.has("call_id") and event.data.has("action_id") and event.data.action_id != id:
+				move = ": %s" % _action_name(event.data.action_id, sim)
+			var colour: String = FAIL_COLOUR if event.data.outcome == "ignored" else DIM_COLOUR
+			return "[color=%s]%s %s the %s call%s (%s)[/color]" % [colour, who, outcome, _call_name(id, sim), move, event.data.reason]
 		FightEvent.COMMAND_REJECTED:
 			return "[color=%s]Command refused for %s: %s[/color]" % [FAIL_COLOUR, who, event.data.reason]
 		FightEvent.ROUND_ENDED:
@@ -189,6 +205,11 @@ static func _roles(event: FightEvent, sim: FightSim) -> String:
 	var roles: Array = event.data.get("roles", [])
 	var top: int = roles.find("top")
 	return " (%s on top)" % _fighter(top, sim) if top != -1 else ""
+
+
+## A call's name from data/calls ("Takedown!"), or the move's for a bare call.
+static func _call_name(id: String, sim: FightSim) -> String:
+	return String(sim.calls.get_call(id).name) if sim.calls.has(id) else _action_name(id, sim)
 
 
 static func _action_name(id: String, sim: FightSim) -> String:

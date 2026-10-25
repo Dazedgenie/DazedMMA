@@ -251,6 +251,8 @@ voice meter. Ignored calls get a clear animation and a text feed line.
 
 Context-sensitivity: only calls that are possible in the current position appear prominently, and the rest are dimmed.
 
+In the engine (what each call does, the numbers, and how to try them): §22.
+
 ### 6.5 Habits from calls (D32)
 - Track how often the player calls an intent in a given situation (e.g. "Takedown after opponent kicks").
 - A fighter with **Adaptive** or **Coachable** traits gradually adds a small AI weight toward that response, up to a cap.
@@ -405,7 +407,7 @@ the fight through a read-only **view** and walks one priority stack. The first l
 | Priority | Layer | Today |
 |---|---|---|
 | 1 | **Command** | An action queued from outside (tests, bots, the debug console). Always obeyed if possible |
-| 2 | **Live call** | A `live_call` command waits out the call delay in fight time (base 0.6 s = 6 ticks, D92), then a compliance check (always complies until #16 adds the roll, D5) and a feasibility check (legal, possible from this position). Every outcome is logged as `call_answered`: accepted, ignored or infeasible, with the reason (A16) |
+| 2 | **Live call** | A `live_call` command costs voice, waits out the call delay in fight time (base 0.6 s = 6 ticks, D92), then a compliance roll (D5) and a feasibility check (legal, possible from this position, a move the fighter knows). Attempts, focus calls and read calls: §22. Every outcome is logged as `call_answered` with the reason (A16) |
 | 3 | **Drilled rule** | Slot reserved; rules arrive with #17 |
 | 4 | **Fighter AI** | The fighter AI (`sim/fight/fighter_ai.gd`, §20). Gameplans only multiply its weights per action or category and shift its style leanings, so the fighter never silently replaces the gameplan (§16 A2) |
 
@@ -678,3 +680,84 @@ scrambles, position drain and control, the judges, the clinch, and the AI tied u
 `tests/ui/test_fight_log_formatter.gd`. After changing any number, run the harness with the Wrestler both ways round
 (`--pairs=wrestler:kicker,kicker:wrestler,wrestler:boxer,boxer:wrestler`) and the Kicker vs Boxer pairs, and read the
 **Grappling** lines next to the wins.
+
+## 22. Live calls in the engine (#16, D111, D112)
+How §6.1–6.4 work in the code (`sim/fight/live_calls.gd`, one per fighter's corner, second in the §19 stack). The corner's
+calls are data in `data/calls/` (`09` call@2); a call arrives as a `live_call` command, so a fight with calls still replays
+exactly from its seed and command log. A fight with no calls never wakes any of this: fights without calls are identical to
+before #16 (event hashes checked on 60 fights across every data/fighters pair).
+
+### 22.1 The pipeline
+| Step | Rule |
+|---|---|
+| Voice (D28) | 100 at the bell, refills 8 a fight-second. Each call costs its `voice_cost` (15–25). A call made with under 30 left is **garbled**: 50% longer delay and 20 points more likely to be ignored. The voice never stops a call |
+| Spam | The same call again within 3 s of fight time costs 2 points of coach trust |
+| Coach trust | 0–100, 50 at the bell until the career relationship exists (D15) |
+| Delay (D92) | 6 ticks × (1 ∓ 25% for Fight IQ 100 / 0) × (1 ∓ 20% for trust 100 / 0) × (1 + the tired penalty, up to 30%, + 30% × head hurt) × crowd noise × coach level (both 1 for now) × 1.5 if garbled; never shorter than the fighter's reaction time (D93). A neutral fighter acts 0.6 s after the call |
+| Compliance (D5) | Chance to ignore: 3% + 10% × Ego/100 − 5% × Coachable/100 + 10% × (50 − trust)/50 + 25% panicking or rocked + 20% garbled, 0–90%. An ignored call says the biggest reason (*"ignores the Takedown! call (panicking)"*) |
+| Feasibility | Right position and role (Get up only from underneath), allowed by the rules, a move the fighter knows (their techniques, or a `basic` move), and for a read call, its technique learned |
+
+A new call replaces one of the same kind still being processed (logged as `replaced`).
+
+### 22.2 Three kinds of call
+| Kind | Calls | What the fighter does |
+|---|---|---|
+| **Attempt** | Takedown!, Clinch!, Get up! | Goes for the first of the call's moves that would work right now: in range, the stamina for it, and the opening it needs there when it lands. *Takedown!* lists the catch-kick single first, so a Takedown! call that lands while the opponent's leg is up (or will be as the catch lands) becomes the catch-kick (§5.1); otherwise the double-leg. Out of range, the fighter steps straight in to the nearest band one of the moves reaches from, for up to **2 s**, then gives up (`infeasible`, *"couldn't get in range"*) |
+| **Focus** | Pressure!, Circle out!, Work the range!, Defend the shot!, Survive!, Stay safe! | For **15 s** the fighter's style leanings and move weights tilt, like a short gameplan, then it's back to the gameplan (`expired`). Calling it again starts the 15 s again; a different focus replaces it. The AI looks at its leanings and range plan again straight away when a focus starts or ends |
+| **Read** (D49) | Catch the kick! | Primed for 6 s. When the trigger comes (`opp_kick_starts`: the opponent starts a body kick or teep), the fighter reacts with their own reaction time (D93) and catches as the leg comes up (a quick fighter waits for it). It fires once (`fired`), and comes back as `missed` if the kick was over first. While primed it costs attention: Striking and Takedown defense −15% (`attention_cost`). Up to 2 reads at once (D67), costs added; a third replaces the oldest |
+
+What each focus does (`focus` in each call's file): **Pressure** Pace +60, Range +50 (walks the opponent down, cuts the cage).
+**Circle out** Range −80, Pace −20 (gets out and circles off the fence). **Work the range** Range −50, Pace +30 (busy at
+distance). **Defend the shot** Range −20, takedowns ×0.5, shots 50 points easier to read and 30 points more likely to be
+sprawled on. **Survive** Risk −80, Pace −50, Range −30, strikes ×0.6, clinching ×2 (tie up and hold on). **Stay safe** (D31)
+Risk −60, Pace −30, takedowns ×0.5 (coast, no risks).
+
+The fighter AI still never catches a kick on its own (D103): only "Catch the kick!", a Takedown! call during the kick, or a
+drilled rule (#17) throws the catch-kick single.
+
+Every outcome is a `call_answered` event with a reason (A16): `accepted`, `ignored`, `infeasible`, `fired`, `missed`,
+`expired`, `replaced`. Each call itself is a `call_heard` event (voice left, garbled, delay, trust, spam). The debug console
+prints both: *"Wrestler's corner: Takedown! (voice 80 left · acts in 0.6 s)"*, *"Wrestler takes the Takedown! call:
+Catch-kick single leg (call after 6 ticks)"*.
+
+### 22.3 The playtest fighter (D112)
+The player coaches the **Wrestler** against the Kicker (Kyle, 2026-10-25). The Wrestler now knows the catch-kick single
+(`techniques` in `data/fighters/wrestler.json`), which only a call or a drilled rule can make him throw (D103), so fights with
+no calls are unchanged: Wrestler vs Kicker stays about even without calls (50.5% over 800 fights, `01` §21.7). He is still one
+of the two authored opponents (`10` §1) when the Kicker is the one being coached.
+
+**To try it:** run the game, open the debug console (`), pick **Wrestler vs Kicker**, press **Live fight**, and call with the
+buttons or keys 1–9 (0 = Catch the kick!). Calls work while paused and land on the next tick.
+
+### 22.4 Gameplans
+The five presets in `data/gameplans/` (`09` gameplan@1) shift the style leanings for the whole fight and can scale move
+weights: **Pressure** Pace +40, Range +30; **Counter** Pace −40, Risk −20; **Range** Range −50; **Wrestle-heavy** Base +60,
+takedowns ×1.5; **Conserve** Pace −50, Risk −40. `Gameplan.load_id("pressure")`, added to a fighter's decision layer
+(`sim.decisions[i].add_source(...)`). Picking one in the corner comes with the fight screen (#19).
+
+### 22.5 Not yet
+The AI corner's own calls (D68) and the ideal/spam caller bots for the harness (#18, the D12 +10–20% check) are the next
+step. Habits from calls (D32) and leanings moved by accepted calls (`11` §4.2) come with the career. Crowd noise and coach
+level are fixed at 1.
+
+**Balance finding to tune next (2026-10-25).** Calls are far too strong against the Kicker before any tuning. Measured first
+with an all-rounder (the Prospect, dropped when Kyle chose the Wrestler), 40 fights (seeds 500–519, both corners): no calls
+61%; "Catch the kick!" kept primed all fight 92% (about 30 reads fired and 17 catches landed a fight); Takedown! every 6 s
+95%; four calls in turn every 1.5 s, voice spent and most calls garbled or ignored, still 90%. With the Wrestler coached, same seeds: no calls 52.5%; "Catch the kick!" kept primed 97.5% (about 14
+catches a fight); Takedown! every 6 s 100%. Takedowns decide fights against a striker, and the AI on its own shoots far less than it
+could, so any extra shot wins. D12 wants good coaching worth +10–20% and spam worse than none, so the bots' harness work will
+need to tune this: likely the opponent adapting to repeated shots and caught kicks (reading them more, kicking less after
+being caught), what a takedown is worth, and the catch-kick's odds.
+
+### 22.6 To change it, and the tests
+- What a call does, its voice cost, hotkey, positions, focus tilt and read timing: its file in `data/calls/`.
+- What sets off Catch the kick!: `data/triggers/opp_kick_starts.json`.
+- Voice, trust, delay, compliance, the 2 s attempt window and the 2-read limit: the constants at the top of
+  `sim/fight/live_calls.gd` (`BASE_DELAY_TICKS`, `DELAY_PER_*`, `VOICE_*`, `GARBLED_*`, `TRUST_START`, `SPAM_*`, `IGNORE_*`,
+  `ATTEMPT_TICKS`, `MAX_READS`).
+- Which stats a primed read lowers: `FighterState.ATTENTION_STATS`.
+
+Tested in `tests/sim/fight/test_live_calls.gd` (voice and garbling, spam and trust, the delay modifiers, compliance, every
+kind of call and outcome, the catch-kick from a Takedown! call in and out of the kick, the read with slow and quick fighters,
+attention, two reads at most, replays), `tests/sim/fight/test_decision_layer.gd`, `tests/data/test_data_files.gd` (call@2,
+gameplan@1) and `tests/ui/` (the log lines, the call bar).

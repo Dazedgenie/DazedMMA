@@ -5,6 +5,9 @@ extends PanelContainer
 ## - "Run test fight" plays a short check fight instantly and reports pass/fail (SimCheck).
 ## - "Live fight" plays a full fight in real time at Normal speed (2x, docs/01 §2), between
 ##   the matchup picked next to it (Kicker vs Boxer, or the Wrestler against either, #15).
+## - In a live fight, the call bar (or keys 1–9 and 0) makes Red's corner's calls (LiveCalls,
+##   docs/01 §22): the Wrestler against the Kicker is the playtest matchup (calling the
+##   takedown during the kick, D112). Calls can be made while paused; they land on the next tick.
 ## - "Cage view" shows a TEMPORARY top-down map of the live fight (CageMap, D106) on the
 ##   left of the screen, to judge how the AI moves. It hides with the console.
 ## - Toggle the window with the ` key (left of 1). "Copy" puts the log on the clipboard
@@ -17,8 +20,8 @@ const LIVE_TICKS_PER_SECOND: float = 20.0
 const CAGE_VIEW_WIDTH: float = 780.0
 ## The matchups "Live fight" can play: [label, red id, blue id] from data/fighters.
 const MATCHUPS: Array = [
-	["Kicker vs Boxer", "kicker", "boxer"],
 	["Wrestler vs Kicker", "wrestler", "kicker"],
+	["Kicker vs Boxer", "kicker", "boxer"],
 	["Wrestler vs Boxer", "wrestler", "boxer"],
 ]
 
@@ -31,7 +34,10 @@ var _details_toggle: CheckBox
 var _matchup: OptionButton
 var _cage_toggle: CheckBox
 var _cage_map: CageMap
+var _call_buttons: Array[Button] = []
+var _voice_label: Label
 var _actions: ActionLibrary
+var _calls: CallLibrary
 var _live_sim: FightSim
 var _live_paused: bool = false
 var _tick_budget: float = 0.0
@@ -39,18 +45,38 @@ var _tick_budget: float = 0.0
 
 func _ready() -> void:
 	_actions = ActionLibrary.load_dir()
+	_calls = CallLibrary.shared()
 	_build()
 	write("[b]Debug console[/b]  (press ` to hide/show)")
 	write("Loaded %d moves from data/actions." % _actions.ids().size())
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventKey and event.pressed and not event.echo and event.keycode == TOGGLE_KEY:
+	if not event is InputEventKey or not event.pressed or event.echo:
+		return
+	if event.keycode == TOGGLE_KEY:
 		visible = not visible
 		get_viewport().set_input_as_handled()
+	elif _live() and event.keycode >= KEY_0 and event.keycode <= KEY_9:
+		for id in _calls.ids():
+			var key: Variant = _calls.get_call(id).get("hotkey")
+			if key != null and int(key) == event.keycode - KEY_0:
+				make_call(id)
+				get_viewport().set_input_as_handled()
+
+
+## Red's corner makes a call in the live fight (lands on the next tick, paused or not).
+func make_call(id: String) -> void:
+	if _live():
+		_live_sim.submit(FightCommand.live_call(_live_sim.now, 0, id))
+
+
+func _live() -> bool:
+	return _live_sim != null and not _live_sim.is_over()
 
 
 func _process(delta: float) -> void:
+	_show_corner()
 	if _live_sim == null or _live_paused or _live_sim.is_over():
 		return
 	_tick_budget += delta * LIVE_TICKS_PER_SECOND
@@ -120,6 +146,18 @@ func _stop_live() -> void:
 	_live_button.text = "Live fight"
 
 
+## The call bar is live only in a live fight; the label shows Red's corner's voice and trust.
+func _show_corner() -> void:
+	var live: bool = _live()
+	for b in _call_buttons:
+		b.disabled = not live
+	if live:
+		var calls: LiveCalls = _live_sim.decisions[0].calls
+		_voice_label.text = "Red's corner · voice %d · trust %d" % [roundi(calls.voice(_live_sim.now)), roundi(calls.trust)]
+	else:
+		_voice_label.text = "Calls (live fight only):"
+
+
 func _on_live_event(event: FightEvent) -> void:
 	_write_event(event, _live_sim)
 
@@ -171,6 +209,17 @@ func _build() -> void:
 	bar.add_child(_cage_toggle)
 	_add_button(bar, "Copy", func() -> void: DisplayServer.clipboard_set(_log.get_parsed_text()))
 	_add_button(bar, "Clear", func() -> void: _log.clear())
+
+	var call_bar := HFlowContainer.new()
+	column.add_child(call_bar)
+	_voice_label = Label.new()
+	call_bar.add_child(_voice_label)
+	for id in _calls.ids():
+		var call: Dictionary = _calls.get_call(id)
+		var key: Variant = call.get("hotkey")
+		var label: String = String(call.name).trim_suffix("!")
+		_call_buttons.append(_add_button(call_bar, "%d %s" % [int(key), label] if key != null else label, make_call.bind(id)))
+	_show_corner()
 
 	_log = RichTextLabel.new()
 	_log.bbcode_enabled = true

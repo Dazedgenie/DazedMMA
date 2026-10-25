@@ -1,5 +1,5 @@
 {
-	"schema": "call@1",
+	"schema": "call@2",
 	"id": "takedown",
 	"name": "Takedown!",
 	"kind": "now",
@@ -7,8 +7,7 @@
 	"parent": null,
 	"hotkey": 4,
 	"voice_cost": 20,
-	"positions": ["standing"],
-	"actions": ["double_leg", "catch_kick_single"],
-	"priority_boost": 3.0,
+	"positions": ["standing", "clinch"],
+	"actions": ["catch_kick_single", "double_leg"],
 	"requires_technique": null
 }

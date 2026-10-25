@@ -1,0 +1,7 @@
+{
+	"schema": "gameplan@1",
+	"id": "counter",
+	"name": "Counter",
+	"leanings": { "pace": -40, "risk": -20 },
+	"weights": {}
+}

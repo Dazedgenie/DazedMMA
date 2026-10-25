@@ -5,7 +5,7 @@ extends RefCounted
 ## start, and the answer comes from one priority stack (docs/01 §6.0, §7):
 ##
 ##   1. COMMAND  an action queued from outside (tests, bots, the debug console)
-##   2. CALL     a live call the fighter heard, processed and accepted (#16)
+##   2. CALL     a live call the fighter heard, processed and accepted (LiveCalls, #16)
 ##   3. RULE     a drilled rule whose trigger fired (#17)
 ##   4. AI       the fighter's own choice (FighterAI, #14), weighted by the gameplan and habits
 ##
@@ -66,7 +66,30 @@ func circling(view: FightView) -> float:
 ## circling and which way, and cutting the cage off. The same FeetPlan comes back every time.
 func plan_feet(view: FightView) -> FeetPlan:
 	ai.plan_feet(view, self, feet)
+	for source in sources:
+		if source.steers_feet:
+			source.adjust_feet(view, feet)
 	return feet
+
+
+## The corner makes a call (FightSim applies the live_call command). Returns what the
+## call_heard event says (LiveCalls.hear).
+func hear_call(view: FightView, call: Dictionary) -> Dictionary:
+	var heard: Dictionary = calls.hear(view, call)
+	_notes.append_array(calls.take_notes())
+	return heard
+
+
+## Moves the calls on by a tick (the sim asks while calls.active): processes calls whose
+## delay is up and ends the ones that ran out. When a focus starts or ends, the AI
+## looks at its leanings and range plan again straight away.
+func update_calls(view: FightView) -> void:
+	calls.update(view)
+	if calls.has_notes():
+		_notes.append_array(calls.take_notes())
+	if calls.retilt:
+		calls.retilt = false
+		ai.rethink()
 
 
 func decide(view: FightView) -> Decision:
@@ -100,6 +123,20 @@ func leaning(view: FightView, which: String) -> float:
 	for source in sources:
 		v = source.adjust_leaning(view, which, v)
 	return clampf(v, -100.0, 100.0)
+
+
+## The chance to read one of the opponent's moves as it starts, after every source's say.
+func read_chance(view: FightView, action: Dictionary, chance: float) -> float:
+	for source in sources:
+		chance = source.adjust_read(view, action, chance)
+	return chance
+
+
+## The chance to sprawl on a shot the fighter read, after every source's say.
+func sprawl_chance(view: FightView, chance: float) -> float:
+	for source in sources:
+		chance = source.adjust_sprawl(view, chance)
+	return chance
 
 
 ## Every fight event, for the AI and every source (FightSim calls it as events happen).

@@ -1,0 +1,7 @@
+{
+	"schema": "gameplan@1",
+	"id": "wrestle_heavy",
+	"name": "Wrestle-heavy",
+	"leanings": { "base": 60 },
+	"weights": { "takedown": 1.5 }
+}

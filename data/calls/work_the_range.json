@@ -1,0 +1,14 @@
+{
+	"schema": "call@2",
+	"id": "work_the_range",
+	"name": "Work the range!",
+	"kind": "now",
+	"tier": "intent",
+	"parent": null,
+	"hotkey": 3,
+	"voice_cost": 20,
+	"positions": ["standing"],
+	"actions": [],
+	"focus": { "duration_ms": 15000, "leanings": { "range": -50, "pace": 30 } },
+	"requires_technique": null
+}

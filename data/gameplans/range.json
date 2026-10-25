@@ -1,0 +1,7 @@
+{
+	"schema": "gameplan@1",
+	"id": "range",
+	"name": "Range",
+	"leanings": { "range": -50 },
+	"weights": {}
+}

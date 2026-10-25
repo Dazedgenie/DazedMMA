@@ -1,8 +1,8 @@
 {
 	"schema": "trigger@1",
 	"id": "opp_kick_starts",
-	"name": "Opponent starts a kick",
+	"name": "Opponent starts a body kick or teep",
 	"type": "event",
 	"event": "action_phase",
-	"match": { "actor": "opponent", "action_ids": ["body_kick"], "phase": "telegraph" }
+	"match": { "actor": "opponent", "action_ids": ["body_kick", "teep"], "phase": "telegraph" }
 }

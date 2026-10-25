@@ -27,7 +27,13 @@ const KNOCKDOWN := "knockdown"  # actor got knocked down. data: {by}
 const GOT_UP := "got_up"  # actor is back up after a knockdown
 const RECOVERED := "recovered"  # actor is no longer rocked
 const COMMAND_REJECTED := "command_rejected"  # data: {command, reason}
-const CALL_ANSWERED := "call_answered"  # what actor did with a live call. data: {action_id, outcome: accepted/ignored/infeasible, reason}
+## The actor's corner made a call (LiveCalls.hear, #16). data: {call_id, voice (left after it), garbled,
+## delay (ticks before the fighter acts on it), trust, spam (the same call again within 3 s)}
+const CALL_HEARD := "call_heard"
+## What the actor did with a live call (LiveCalls). data: {call_id, outcome, reason, action_id?}
+## outcome: accepted (the move started, the focus or read began) / ignored (compliance) / infeasible /
+## fired (a read went off; action_id says with what) / missed (a read came too late) / expired / replaced
+const CALL_ANSWERED := "call_answered"
 const ROUND_ENDED := "round_ended"  # data: {cards: per judge [red, blue]}
 const FIGHT_ENDED := "fight_ended"  # data: {result, winner (-1 = draw), cards? (judges' totals)}
 

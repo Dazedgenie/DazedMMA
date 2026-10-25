@@ -46,6 +46,8 @@ const REACTION_TICKS_PER_SPEED: float = 0.02
 const FATIGUE_EXEMPT := { "cardio": true, "recovery": true, "durability": true, "chin": true, "fight_iq": true, "composure": true, "heart": true }
 const HEAD_HURT_STATS := { "speed": true, "striking_defense": true, "fight_iq": true }
 const LEG_HURT_STATS := { "footwork": true, "speed": true, "kicking": true }
+## Primed read calls take attention from the rest of the defense (docs/01 §6.1, D67).
+const ATTENTION_STATS := { "striking_defense": true, "takedown_defense": true }
 const PANIC_DEFENSE_STATS := { "fight_iq": true, "striking_defense": true, "takedown_defense": true, "submission_defense": true }
 
 ## The data/fighters id this fighter was made from ("" when built in code, e.g. in tests).
@@ -92,6 +94,8 @@ var queued_action_id: String = ""
 var grip: OddsBreakdown = null
 ## Sprawled on: stuck under the sprawl, head low, for the rest of this move's recovery.
 var sprawled: bool = false
+## Share of Striking and Takedown defense the primed read calls take away (0 = none, LiveCalls).
+var attention: float = 0.0
 
 
 func _init(p_name: String, p_stats: Dictionary = {}, p_repertoire: Array[String] = ["jab"], p_work_rate: float = DEFAULT_WORK_RATE, p_style: StyleLeanings = null) -> void:
@@ -140,6 +144,8 @@ func effective_stat(id: String) -> float:
 			value *= 1.0 - ROCKED_PENALTY
 	if LEG_HURT_STATS.has(id):
 		value *= 1.0 - MAX_HURT_PENALTY * hurt("legs")
+	if attention > 0.0 and ATTENTION_STATS.has(id):
+		value *= 1.0 - attention
 	var defense: bool = PANIC_DEFENSE_STATS.has(id)
 	if defense or id == "power":
 		if head < 0.0:
@@ -160,6 +166,8 @@ func condition_reasons(id: String) -> Array[String]:
 		out.append("rocked")
 	if id in LEG_HURT_STATS and hurt("legs") > 0.0:
 		out.append("legs hurt")
+	if attention > 0.0 and id in ATTENTION_STATS:
+		out.append("watching for a read")
 	if is_panicking() and (id in PANIC_DEFENSE_STATS or id == "power"):
 		out.append("panicking")
 	return out

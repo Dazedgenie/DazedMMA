@@ -1,0 +1,13 @@
+{
+	"schema": "call@2",
+	"id": "clinch",
+	"name": "Clinch!",
+	"kind": "now",
+	"tier": "intent",
+	"parent": null,
+	"hotkey": 5,
+	"voice_cost": 20,
+	"positions": ["standing"],
+	"actions": ["clinch_entry"],
+	"requires_technique": null
+}
