@@ -224,9 +224,11 @@ func _on_fight_over(event: FightEvent) -> void:
 	state = OVER
 	var sim: FightSim = driver.sim
 	var lines: Array[String] = [FightLogFormatter.result_text(event, sim), ""]
-	for f in sim.fighters:
+	for i in sim.fighters.size():
+		var f: FighterState = sim.fighters[i]
 		lines.append("%s: landed %d of %d strikes, %d of %d takedowns, damage taken head %d · body %d · legs %d" % [f.name,
 			f.strikes_landed, f.strikes_thrown, f.takedowns_landed, f.takedowns_tried, f.damage.head, f.damage.body, f.damage.legs])
+		lines.append("  " + FightLogFormatter.movement_line(sim, i))
 	lines.append("")
 	lines.append("[color=#8a8f98]Seed %d (type it in the setup to replay this fight's start)[/color]" % sim.fight_seed)
 	hud.show_dialog("Fight over", "\n".join(lines), [["Fight again", func() -> void: start_fight(settings)], ["Change setup", _back_to_setup]])

@@ -539,6 +539,40 @@ left the Kicker winning 2–20% of fights against the Boxer, and slowing the cha
 73%. The cut only near the fence and × the presser's share, plus the squared footwork edge on chases, is what landed near
 50%.
 
+### 20.3 How long each fighter circled and cut off the cage (D119)
+When a fight ends, each fighter's time circling and cutting off the cage is reported as fight time and a share of the fight,
+e.g. `Kicker circled 8:22 (56% of the fight) · cut off the cage 0:00 (0% of the fight)`. It counts what the feet in §20.2
+already do and changes nothing in the fight: the balance CSV of 160 fights was identical, number for number, before and after.
+
+| Counted as | When a tick counts | To change it |
+|---|---|---|
+| Circling | The fighter steps, and at least 40% of the step goes round the opponent: circling off a fighter in their face, back toward the middle, out off the fence, or away while rocked. An outside fighter's everyday drift sideways (0.25 × how far outside they lean, 0.15 of a step for the Kicker) doesn't count | `CIRCLING_FROM` 0.4 in `sim/fight/fight_sim.gd` |
+| Cutting off the cage | The fighter steps while pressing or holding, with the cut working: the opponent more than 3 m out from the middle (`CUT_FROM`, §20.2). It counts while they're already in the way and don't need to step across | The `cut > 0.0` branch in `FightSim._move()` |
+
+Both are counted in `FightSim._move()` into `FightSim.circling_ticks` and `cutting_ticks` (one per fighter, ticks of fight
+time). Ticks a fighter doesn't move (throwing, staggered, tied up, down) count as neither.
+
+Where it shows:
+- **Debug console**: under each fighter's summary at the end of the test fight and of the fight on screen
+  (`FightLogFormatter.movement_line`).
+- **Headless sim** (`tools/run_sim.gd`): the same lines at the end of a single fight.
+- **Balance harness**: a **Circling** line per pair (average m:ss a fight and the share of all fight time), and CSV columns
+  `circling_red`, `cutting_red`, `circling_blue`, `cutting_blue` (fight seconds) with `fight_seconds` (how long the fight
+  lasted).
+- **Fight screen** (#19): on the result screen, under each fighter's strikes and takedowns (`game/main.gd` `_on_fight_over`).
+
+Measured on 40 fights a pairing (pro rules):
+
+| Pairing | Circling | Cutting off the cage |
+|---|---|---|
+| Kicker vs Boxer | Kicker 7:20 a fight (51%), Boxer 0:11 (1%) | Kicker 0:00 (0%), Boxer 2:42 (19%) |
+| Wrestler vs Kicker | Wrestler 0:06 (1%), Kicker 4:50 (32%) | Wrestler 1:48 (12%), Kicker 0:00 (0%) |
+| Wrestler vs Boxer | Wrestler 0:06 (1%), Boxer 0:00 (0%) | Wrestler 2:49 (19%), Boxer 4:07 (28%) |
+
+Only outside fighters (Range below 0) circle unless they're rocked, so the Boxer and the Wrestler circle only when hurt.
+The Kicker never cuts off: he cuts only while pressing or holding with the opponent out by the fence, and the Boxer holds
+the centre (§20.2). Tested in `tests/sim/fight/test_fighter_ai.gd`, `tests/sim/balance/` and `tests/ui/`.
+
 ## 21. Clinch, takedowns and the ground in the engine (#15, D98, D108, D109)
 What `sim/` does for §4, §5.1 and D29 in the Phase 1 playtest. The scope is the trimmed one (D98): one clinch position, the
 double leg, the catch-kick single, the sprawl, full guard top and bottom, getting up and the scramble. There are no ground

@@ -96,6 +96,8 @@ func _print_summary(sim: FightSim) -> void:
 		write("  %s landed %d of %d strikes, damage taken: head %d, body %d, legs %d" % [
 			f.name, f.strikes_landed, f.strikes_thrown, f.damage.head, f.damage.body, f.damage.legs])
 		write("  [color=%s]%s[/color]" % [FightLogFormatter.DIM_COLOUR, FightLogFormatter.condition_line(f)])
+	for i in sim.fighters.size():
+		write("  " + FightLogFormatter.movement_line(sim, i))
 
 
 func _build() -> void:

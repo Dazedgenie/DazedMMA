@@ -11,6 +11,8 @@ func test_run_test_fight_prints_the_fight_and_a_pass_verdict() -> void:
 	assert_true(check.passed())
 	assert_string_contains(text, "Test fight")
 	assert_string_contains(text, "End of round 1")
+	assert_string_contains(text, "circled")  # How long each fighter circled and cut off the cage (D119).
+	assert_string_contains(text, "cut off the cage")
 	assert_string_contains(text, "All %d checks passed." % check.results.size())
 
 

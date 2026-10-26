@@ -72,6 +72,7 @@ func test_a_full_three_round_fight_plays_through_the_bell_to_the_result() -> voi
 	var sim: FightSim = _main.driver.sim
 	assert_true(sim.is_over())
 	assert_eq(_main.hud.dialog_title(), "Fight over")
+	assert_string_contains(_main.hud._dialog_body.get_parsed_text(), "cut off the cage", "how long each fighter circled and cut off (D119)")
 	if sim.events[-1].data.result in [FightSim.RESULT_KO, FightSim.RESULT_TKO]:
 		pass_test("finished inside the distance after %d breaks" % breaks)
 	else:

@@ -98,6 +98,10 @@ const CIRCLE_SIDE_DEADBAND: float = 0.3
 ## there's no way out to shut.
 const CUT_FROM: float = 3.0
 const CUT_FULL: float = 4.0
+## What counts as circling for the time reported after a fight (D119): a step where at
+## least this much of it goes round the opponent (an outside fighter's everyday drift
+## sideways, 0.25 × how far outside they lean, doesn't count).
+const CIRCLING_FROM: float = 0.4
 ## Walking pace and the footwork contest are worked out again every this many ticks.
 const FEET_EVERY: int = 5
 
@@ -154,6 +158,11 @@ var _wants: Array[float] = [0.0, 0.0]
 var _circling: Array[float] = [0.0, 0.0]
 var _cutting: Array[float] = [0.0, 0.0]
 var _circle_sign: Array[float] = [1.0, 1.0]
+## Fight time (ticks) each fighter spent circling (a step at least CIRCLING_FROM round
+## the opponent) and cutting off the cage (pressing or holding with the cut working: the
+## opponent out past CUT_FROM), reported after the fight (D119). Read-only; never changes the fight.
+var circling_ticks: Array[int] = [0, 0]
+var cutting_ticks: Array[int] = [0, 0]
 ## How far each fighter moved on their last tick (zero when they stood still).
 var _strides: Array[Vector2] = [Vector2.ZERO, Vector2.ZERO]
 ## Walking pace (m per tick), footwork-contest share and footwork edge per fighter, as of _feet_at.
@@ -508,8 +517,11 @@ func _move(i: int, want: float, circle: float, cut: float = 0.0, way: int = 0) -
 			stride = (ahead - f.pos).normalized() * radial
 	if circle > 0.0:
 		stride += _circle_side(i, toward, way) * step * circle
+		if circle >= CIRCLING_FROM:
+			circling_ticks[i] += 1
 	if cut > 0.0 and o.pos.length_squared() > CUT_FROM * CUT_FROM:
 		stride += _cut_step(i, toward, apart, step) * cut * _share[i]
+		cutting_ticks[i] += 1
 	if stride.length() > step:
 		stride = stride.normalized() * step
 	# The fence stops the part of the step that goes into it; the rest slides along it.

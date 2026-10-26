@@ -90,6 +90,14 @@ func test_movement_columns_are_shares_of_standing_time() -> void:
 	assert_lte(row.centre_red + row.centre_blue, 1.001, "only one fighter can be nearer the centre at a time")
 
 
+func test_circling_and_cutting_off_are_in_fight_seconds() -> void:
+	var row: Dictionary = _row()
+	assert_almost_eq(float(row.fight_seconds), 60.0, 0.01, "one 60-second round (or less, if it's stopped)")
+	for column: String in ["circling_red", "cutting_red", "circling_blue", "cutting_blue"]:
+		assert_between(float(row[column]), 0.0, float(row.fight_seconds), column)
+	assert_gt(row.circling_red, row.circling_blue, "the Kicker does the circling")
+
+
 func test_a_row_made_without_movement_counts_has_no_movement() -> void:
 	var sim := FightSim.new(SEED, _roster.make_pair("kicker", "boxer"), _actions, 1, 60)
 	sim.run_to_end()
