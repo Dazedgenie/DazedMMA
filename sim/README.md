@@ -40,6 +40,7 @@ Rules (docs/04-tech-and-production.md §2.2):
 | `fight_summary.gd` | One finished fight as one row of numbers: result, method, knockdowns, strikes, damage, stamina at the end and its lowest, 10-10 cards, clamped odds |
 | `balance_report.gd` | Rows in; CSV, a readable summary and the balance targets (met / missed / info) out. Run by `tools/balance.gd` (#18) |
 | `golden_fights.gd` | The golden fights (#35, D122, `docs/01` §2.2): plays the fights pinned in `tests/golden/golden_fights.json` and says what changed. Run by `tests/sim/balance/test_golden_fights.gd` and `tools/golden.gd` |
+| `harness_jobs.gd` | The harness's fights as a list, shared out between several Godot processes and put back in order (#35, D123, `docs/01` §2.3). Used by `tools/balance.gd` |
 
 ## world/
 Empty for now: the career and world simulation (D100) starts here.

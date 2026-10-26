@@ -8,7 +8,9 @@ and prints a summary; `--fights=N` runs N seeds and counts how they ended:
 
 `balance.gd` is the balance harness (#18): many seeded fights for one or more pairs from `data/fighters/`, written to
 `build/balance/balance.csv` (one line per fight) and `build/balance/summary.txt`, with the balance targets (D96, D97,
-`docs/12` §4) marked MET, MISSED or INFO. 100 fights per pair takes about a minute:
+`docs/12` §4) marked MET, MISSED or INFO. It plays the fights in one Godot process per CPU core (`--jobs=N` for N,
+`--jobs=1` for one; the CSV and summary are the same either way, D123, `docs/01` §2.3). 100 fights per pair takes about
+1.5 minutes on one core, so well under a minute on four:
 
     godot --headless --script res://tools/balance.gd -- --fights=200 --pairs=kicker:boxer,check_red:check_blue
     godot --headless --script res://tools/balance.gd -- --seed=500 --ruleset=amateur_adult --out=build/amateur

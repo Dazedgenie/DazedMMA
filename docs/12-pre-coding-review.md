@@ -91,7 +91,7 @@ Priority 1 lands before #14–#17. Priority 2 is cheap now and painful later. Pr
     scheduling it. Free while there are ten files.
 
 ### Priority 3
-12. **Quiet mode and parallel runs.** A flag that skips keeping events, and worker threads for harness fights. Measure first.
+12. **Quiet mode and parallel runs.** A flag that skips keeping events, and worker threads for harness fights. Measure first. Measured with #35: no quiet mode, harness fights in one process per core (D123, `01` §2.3).
 13. **Export preset.** `export_presets.cfg` doesn't exist yet and `data/**/*.json` must be in its non-resource filter (`09` §1),
     or the first playtest build (#20) ships without content.
 
