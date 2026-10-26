@@ -119,6 +119,31 @@ styles, `rules` as `[red, blue]` lists of `"rule_id@drilled"`) or add one in the
 balance harness sets them up (`FightSummary.setup`). The four fights take about 3 s to play, run twice in the test (once
 played, once replayed).
 
+### 2.3 Running the harness on every core (D123, #35)
+
+The balance harness (`tools/balance.gd`) plays its fights in several Godot processes at once: by default one per CPU core,
+or `--jobs=N` for N (`--jobs=1` plays them all in one process, as before). The first process starts the others with the
+same arguments plus `--worker=k`; process k plays fights k, k+N, k+2N… of the run's list, so every process gets some of every
+pair and corner, writes its rows to a file in the output folder, and the first process puts them back in the run's order.
+The CSV and summary are byte for byte the same whatever N is (checked with 1, 3 and 4 processes against the harness before
+this change). The list and the sharing out are `sim/balance/harness_jobs.gd`, with tests in
+`tests/sim/balance/test_harness_jobs.gd`.
+
+**What was measured first** (2026-10-26, 4 cores, Kicker vs Boxer, about 0.85 s a fight on one core):
+
+| Idea | Result | Kept? |
+|---|---|---|
+| Quiet mode: don't keep the fight's event list | Under 2% faster, within run-to-run noise. Events are still made for the AI and corners, so only the list is saved | No |
+| Threads inside one Godot process | 1.6× on 4 cores (32 fights: 29.6 s → 18.2 s), the same with a copy of the data per thread | No |
+| Separate Godot processes | 3.9× on 4 cores; a 35-fight run with corners and rules went from 31 s to 10 s | Yes |
+
+**Exact numbers:** rows come back from the other processes as Godot's binary format (`FileAccess.store_var`), not as text:
+as text some values lose their last digit (21.900000000000002 came back as 21.9), which could tip a summary figure.
+
+**To change it:** the default number of processes is `OS.get_processor_count()` in `tools/balance.gd`; how fights are shared
+out is `HarnessJobs.share`. If a process fails, the harness says which one and writes nothing. CI's balance snapshot uses
+the default, so it runs on all of the test machine's cores.
+
 ---
 
 ## 3. Spatial model (D2, D33)
