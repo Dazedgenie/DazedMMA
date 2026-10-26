@@ -1,0 +1,12 @@
+{
+	"schema": "playtest@1",
+	"id": "fight_2_catch_the_kick",
+	"name": "Playtest 2: catch the kick",
+	"order": 2,
+	"red": "wrestler",
+	"blue": "kicker",
+	"calls": ["pressure", "circle_out", "takedown", "ground_and_pound", "catch_the_kick"],
+	"rules": [],
+	"tell_cue": true,
+	"tip": "The Kicker throws a body kick right after his jab gets blocked, and his leg glows when it's coming. Press Q (Catch the kick!) before it lands and your Wrestler catches the leg and takes him down; Space slows the fight if you need time."
+}

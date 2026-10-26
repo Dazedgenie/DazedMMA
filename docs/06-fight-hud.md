@@ -84,6 +84,8 @@ screen; **Start fight** plays three rounds with the player as the **red corner**
 ### 6.1 The setup screen
 | Setting | What it does |
 |---|---|
+| Playtest | Free fight, or one of the playtest's fights (D118, `docs/playtests/`): it sets the fight, the calls on the bar, the drilled rules and the tell cue, and opens on a tip |
+| Your name | Saved with each fight for the playtest write-up (optional) |
 | Fight | Wrestler vs Kicker (the playtest matchup, D112), Kicker vs Boxer, Wrestler vs Boxer, Boxer vs Kicker. You coach the first-named fighter |
 | Speed | Normal is 2× fight time (D9), or 1× for the playtest's comparison (D91) |
 | Difficulty | Normal, or Easy: P pauses the fight (D50) |
@@ -106,7 +108,7 @@ screen; **Start fight** plays three rounds with the player as the **red corner**
 | Call bar | 1–9 intent calls and Q/E read calls, clickable (key 1 is Pressure! standing and Ground and pound! on top, D121: the key makes whichever works from here); a call that can't be made from here is dimmed with the reason as its tooltip (no voice, not from this position, not learned). Pressing a dimmed call's key puts the reason in the feed. The call being acted on is tinted green | `fight_hud.gd` |
 | Perfect call (D52) | A move your call started that works as a counter (a takedown that lands, a strike that lands in the opponent's wind-up or recovery): "PERFECT CALL" in the middle, a feed line and 1.2 s of slow-mo | `FightDriver.is_perfect_call` |
 | Between rounds | The bell stops the fight: each judge's card for the round, the totals, both fighters' stamina and damage, and your rule slots to change for the next round | `game/main.gd` |
-| Result | How it ended, the cards, strikes and takedowns, the seed; Fight again or Change setup | `game/main.gd` |
+| Result | How it ended, the cards, strikes and takedowns, the seed, your corner's calls and where the fight was saved (D118); Next (in a playtest), Fight again, Change setup, Open saved fights | `game/main.gd` |
 | Debug overlay (F3) | Seed, tick, fps, distance, range, position, and per fighter: the move and phase, flags, stamina, damage, hurt, wanted distance, circling, cutting off, cage, voice and trust. The 3D view adds the near-the-fence and pinned lines and each fighter's wanted-distance ring (what the old cage view showed, D106) | `ui/debug_overlay.gd` |
 | Debug console (`) | The full log of the fight on screen with every odds breakdown, plus "Run test fight" | `ui/debug_console.gd` |
 

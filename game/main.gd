@@ -4,6 +4,10 @@ extends Node3D
 ## (FightHud), the speed controls (FightDriver) and the hotkeys of docs/06 §3. Blue's
 ## corner is the AI corner (D68). The bell holds the fight between rounds so the
 ## drilled rules can be changed; the result screen offers a rematch.
+##
+## For the playtest (#20, D118): a playtest fight opens on its tip card and limits the
+## call bar to its calls; every fight is saved as a FightRecord in user://fights/ for the
+## write-up; `-- --self-check` runs the self-check fight and quits (the export check in CI).
 
 ## Smallest window the UI still fits in (the game opens windowed and resizable).
 const MIN_WINDOW_SIZE := Vector2i(960, 540)
@@ -19,6 +23,10 @@ var overlay: DebugOverlay
 var driver: FightDriver
 var state: String = SETUP
 var settings: Dictionary = {}
+## Where finished fights are saved ("" = don't save).
+var record_dir: String = FightRecord.DIR
+## The last fight's saved record ("" when it wasn't saved).
+var last_record_path: String = ""
 
 var _actions: ActionLibrary
 var _roster: FighterLibrary
@@ -27,6 +35,9 @@ var _break_rules: RuleSlots
 
 
 func _ready() -> void:
+	if "--self-check" in OS.get_cmdline_user_args():
+		_self_check.call_deferred()
+		return
 	get_window().min_size = MIN_WINDOW_SIZE
 	_actions = ActionLibrary.load_dir()
 	_roster = FighterLibrary.load_dir()
@@ -72,12 +83,24 @@ func start_fight(p_settings: Dictionary) -> void:
 	arena.tell_cues = bool(settings.get("tell_cues", true))
 	arena.watch(driver)
 	hud.pause_allowed = bool(settings.get("easy", false))
+	hud.allowed_calls = Array(settings.get("calls", []))
 	hud.watch(driver)
 	hud.visible = true
 	overlay.driver = driver
 	_console.watch(sim, "%s, seed %d" % [settings.get("label", ""), fight_seed])
 	setup.visible = false
 	state = FIGHT
+	last_record_path = ""
+	if String(settings.get("tip", "")) != "":
+		driver.held = true
+		hud.show_dialog(String(settings.get("label", "")), String(settings.tip), [["Fight!", _start_after_tip]])
+	else:
+		hud.show_banner("Round 1")
+
+
+func _start_after_tip() -> void:
+	hud.hide_dialog()
+	driver.held = false
 	hud.show_banner("Round 1")
 
 
@@ -88,7 +111,7 @@ func _process(delta: float) -> void:
 
 ## The player's corner makes a call (call bar, keys 1–9 and Q/E). Calls go in while paused.
 func make_call(id: String) -> void:
-	if driver == null or state != FIGHT or not driver.sim.calls.has(id):
+	if driver == null or state != FIGHT or not driver.sim.calls.has(id) or not hud.is_allowed(id):
 		return
 	var why: String = FightHud.call_problem(driver.sim, driver.player, driver.sim.calls.get_call(id))
 	if why != "":
@@ -135,7 +158,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				var on_key: Array[String] = []
 				for id in driver.sim.calls.ids():
 					var hotkey: Variant = driver.sim.calls.get_call(id).get("hotkey")
-					if hotkey != null and int(hotkey) == key - KEY_0:
+					if hotkey != null and int(hotkey) == key - KEY_0 and hud.is_allowed(id):
 						on_key.append(id)
 				for id in on_key:
 					if FightHud.call_problem(driver.sim, driver.player, driver.sim.calls.get_call(id)) == "" or id == on_key[-1]:
@@ -230,15 +253,42 @@ func _current_rules() -> Array:
 func _on_fight_over(event: FightEvent) -> void:
 	state = OVER
 	var sim: FightSim = driver.sim
+	var record: Dictionary = FightRecord.build(sim, settings, driver.player)
+	if record_dir != "":
+		last_record_path = FightRecord.save(record, record_dir)
 	var lines: Array[String] = [FightLogFormatter.result_text(event, sim), ""]
 	for i in sim.fighters.size():
 		var f: FighterState = sim.fighters[i]
 		lines.append("%s: landed %d of %d strikes, %d of %d takedowns, damage taken head %d · body %d · legs %d" % [f.name,
 			f.strikes_landed, f.strikes_thrown, f.takedowns_landed, f.takedowns_tried, f.damage.head, f.damage.body, f.damage.legs])
 		lines.append("  " + FightLogFormatter.movement_line(sim, i))
+	var stats: Dictionary = record.stats
+	lines.append("Your corner: %d calls (%d ignored), %d perfect, takedowns from your calls %d, from your rules %d" % [
+		stats.calls_made, stats.calls_ignored, stats.perfect_calls, stats.takedowns_by_call, stats.takedowns_by_rule])
 	lines.append("")
 	lines.append("[color=#8a8f98]Seed %d (type it in the setup to replay this fight's start)[/color]" % sim.fight_seed)
-	hud.show_dialog("Fight over", "\n".join(lines), [["Fight again", func() -> void: start_fight(settings)], ["Change setup", _back_to_setup]])
+	if last_record_path != "":
+		lines.append("[color=#8a8f98]Saved for the playtest notes: %s[/color]" % ProjectSettings.globalize_path(last_record_path))
+	var buttons: Array = []
+	var next: Dictionary = Playtest.next_step(String(settings.get("step", ""))) if settings.get("step", "") != "" else {}
+	if not next.is_empty():
+		buttons.append(["Next: %s" % next.name, func() -> void: start_fight(Playtest.settings_for(next, settings))])
+	buttons.append(["Fight again", func() -> void: start_fight(settings)])
+	buttons.append(["Change setup", _back_to_setup])
+	if last_record_path != "":
+		buttons.append(["Open saved fights", func() -> void: OS.shell_open(ProjectSettings.globalize_path(record_dir))])
+	hud.show_dialog("Fight over", "\n".join(lines), buttons)
+
+
+## `-- --self-check`: the self-check fight from the debug console, printed, then quit with
+## 0 when it passed (CI runs it on the exported build to prove data/ shipped, #35).
+func _self_check() -> void:
+	var check: SimCheck = SimCheck.run(1)
+	print("Self-check: %d moves, %d fighters, %d calls, %d playtest fights loaded" % [ActionLibrary.load_dir().ids().size(),
+		FighterLibrary.load_dir().ids().size(), CallLibrary.load_dir().ids().size(), Playtest.steps().size()])
+	for r in check.results:
+		print("%s %s (%s)" % ["PASS" if r.passed else "FAIL", r.name, r.detail])
+	get_tree().quit(0 if check.passed() and Playtest.steps().size() > 0 else 1)
 
 
 func _back_to_setup() -> void:

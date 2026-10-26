@@ -14,7 +14,7 @@ Rules:
 - `id` = file name = how other files refer to it. ids are `snake_case`; enum values (flags) are `UPPER_SNAKE`.
 - Every file has `"schema": "<type>@<version>"`. When a format changes, bump the version and migrate old files (save files follow the same idea).
 - **Units:** time in **milliseconds of fight time**, always a multiple of 100 (one tick, `FightClock.TICK_MS`). Probabilities `0.0–1.0`. Stats `0–100`.
-- **Exports:** add `*.json` to the export preset's *non-resource files* filter, or data won't ship in builds (needed from the first playtest build, #20).
+- **Exports:** `*.json` is in the export preset's *non-resource files* filter (`include_filter="data/*.json"` in `export_presets.cfg`), or data wouldn't ship in builds; CI self-checks the exported game (D118).
 
 ## 2. Folder map
 
@@ -29,6 +29,7 @@ Rules:
 | `data/rules/` | `rule@2` | Drilled-rule presets: trigger → action (`docs/01` §6.0) |
 | `data/rulesets/` | `ruleset@1` | Amateur/pro rules (`docs/08`) |
 | `data/fighters/` | `fighter@1` | Fighter profiles: authored fighters, archetype templates and (later) generated fighters (D94) |
+| `data/playtest/` | `playtest@1` | The playtest's fights in order (D118, `docs/playtests/`) |
 
 ## 3. Schemas
 
@@ -122,6 +123,34 @@ generated world fighters. Loaded by `FighterLibrary` (`sim/fight/fighter_library
 
 Without a `template`, every field above must be present. A fight is saved and replayed as seed + fighter ids + ruleset +
 command log (`FightSim.record()` / `FightSim.from_record()`).
+
+### playtest@1 (examples: `fight_1_first_calls.json`, `fight_2_catch_the_kick.json`)
+One fight of the playtest (D118), picked from the setup screen's **Playtest** list. Loaded by `Playtest` (`game/playtest.gd`).
+
+| Field | Type | Meaning |
+|---|---|---|
+| `name` | string | As the Playtest list and the result screen's "Next" button show it |
+| `order` | number | Where it comes in the playtest (1 first) |
+| `red` / `blue` | fighter ids | The matchup; the player is red |
+| `calls` | call ids | The calls on the call bar; empty means every call |
+| `rules` | `[[rule id, drilled 0–100], …]` | Drilled rules already in the slots, slot 1 first (at most 2) |
+| `tell_cue` | bool | Show the scouted-tell cue (D51) |
+| `tip` | string | The tip card before the fight (`07` §2: two sentences at most) |
+
+### fight_record@1 (saved by the game, not in `data/`)
+What a fight on the fight screen leaves behind, one file per fight in the player's `user://fights/` folder (on Windows
+`%APPDATA%\Godot\app_userdata\Chin Check\fights`). Built by `FightRecord` (`game/fight_record.gd`); added up by
+`tools/playtest_report.gd` (`docs/playtests/README.md` §3).
+
+| Field | Meaning |
+|---|---|
+| `saved_at`, `game` | When, and the game name and Godot version |
+| `settings` | The setup it was played with: `label`, `step` (playtest id or ""), `tester`, `normal_rate` (1 or 2), `easy`, `tell_cues`, `auto_slow`, `flourishes` |
+| `player` | The player's corner (0 = red) |
+| `result`, `won`, `rounds_played` | The `FIGHT_ENDED` event's data (`winner`, `result`, `stopped_by`, cards), and whether the player won |
+| `stats` | The player's coaching: `calls_made`, `calls_ignored`, `calls_by_id`, `perfect_calls`, takedowns that worked split by who chose them (`takedowns_by_call`, `takedowns_by_rule`, `takedowns_own`), `catch_kicks_landed`, `rules_fired` |
+| `fighters` | Each fighter's id, name, strikes and takedowns landed and tried, damage |
+| `replay` | `FightSim.record()` plus `ticks`: the fight replays from it to the same ending |
 
 ## 4. What the validator checks
 Valid JSON with a known schema · id matches file name and folder · required fields present with the right types ·

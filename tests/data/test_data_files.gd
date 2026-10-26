@@ -64,6 +64,10 @@ const SCHEMAS := {
 		"weigh_in": TYPE_STRING, "paid": TYPE_BOOL,
 	} },
 	"fighter@1": { "folder": "fighters", "fields": { "name": TYPE_STRING } },
+	"playtest@1": { "folder": "playtest", "fields": {
+		"name": TYPE_STRING, "order": TYPE_FLOAT, "red": TYPE_STRING, "blue": TYPE_STRING, "calls": TYPE_ARRAY,
+		"rules": TYPE_ARRAY, "tell_cue": TYPE_BOOL, "tip": TYPE_STRING,
+	} },
 }
 
 var _files: Dictionary = {}  # res:// path → parsed Dictionary (or null if unparseable)
@@ -214,6 +218,19 @@ func test_references_point_to_things_that_exist() -> void:
 		var r: Dictionary = _items("rules")[id]
 		_expect_ids(problems, "rule '%s'" % id, "triggers", [r.get("trigger")])
 		_expect_ids(problems, "rule '%s'" % id, "actions", [r.get("action")])
+	for id: String in _items("playtest"):
+		var p: Dictionary = _items("playtest")[id]
+		var where := "playtest step '%s'" % id
+		_expect_ids(problems, where, "fighters", [p.get("red"), p.get("blue")])
+		_expect_ids(problems, where, "calls", p.get("calls", []))
+		var rules: Array = p.get("rules", [])
+		if rules.size() > 2:
+			problems.append("%s: there are two rule slots" % where)
+		for entry: Variant in rules:
+			if not entry is Array or entry.size() != 2 or not entry[1] is float or entry[1] < 0.0 or entry[1] > 100.0:
+				problems.append("%s: each rule is [rule id, drilled 0–100]" % where)
+			else:
+				_expect_ids(problems, where, "rules", [entry[0]])
 	_report(problems)
 
 

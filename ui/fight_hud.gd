@@ -60,6 +60,8 @@ var _bubble_left: float = 0.0
 var _banner_left: float = 0.0
 var _flash_left: Array[float] = [0.0, 0.0]  # per rule slot
 var _plan_every: float = 0.0
+## The calls the call bar offers ([] = all): a playtest fight starts with a few (D118, docs/07 §1).
+var allowed_calls: Array = []
 ## Easy difficulty: the Pause button is live (D50).
 var pause_allowed: bool = false:
 	set(value):
@@ -110,6 +112,11 @@ static func call_problem(sim: FightSim, i: int, call: Dictionary) -> String:
 	if technique != null and not sim.fighters[i].repertoire.has(technique):
 		return "not learned"
 	return ""
+
+
+## Is this call on the call bar in this fight?
+func is_allowed(id: String) -> bool:
+	return allowed_calls.is_empty() or allowed_calls.has(id)
 
 
 ## The judges' rough score for the round so far (docs/06 §2), e.g. "≈ 10-9 Wrestler".
@@ -307,6 +314,8 @@ func _build_calls(sim: FightSim) -> void:
 	_call_buttons.clear()
 	_read_ids.clear()
 	for id in sim.calls.ids():
+		if not is_allowed(id):
+			continue
 		var call: Dictionary = sim.calls.get_call(id)
 		if call.get("kind", "now") == LiveCalls.READ:
 			_read_ids.append(id)
@@ -507,8 +516,8 @@ func _build() -> void:
 
 	_dialog = _panel(Color(0.08, 0.09, 0.11, 0.96))
 	_dialog.set_anchors_preset(Control.PRESET_CENTER)
-	_dialog.offset_left = -440.0
-	_dialog.offset_right = 440.0
+	_dialog.offset_left = -520.0
+	_dialog.offset_right = 520.0
 	_dialog.offset_top = -260.0
 	_dialog.offset_bottom = 260.0
 	add_child(_dialog)
