@@ -18,6 +18,9 @@ var title_rounds: int
 var allows: Dictionary
 ## Protective gear: damage dealt × this (pro 1.0, teen amateur 0.6).
 var damage_multiplier: float
+## How much sooner the referee stops a fight (0 in the pros, 0.3 adult amateur, 0.5 teen):
+## FightSim's stoppage line moves up by this × STOP_BIAS_HEALTH (D120).
+var early_stoppage_bias: float
 
 
 static func load_id(ruleset_id: String = DEFAULT_ID, dir_path: String = DEFAULT_DIR) -> Ruleset:
@@ -35,6 +38,7 @@ static func from_dict(d: Dictionary) -> Ruleset:
 	r.round_seconds = int(d.round_seconds)
 	r.allows = d.get("allows", {})
 	r.damage_multiplier = float(d.get("damage_multiplier", 1.0))
+	r.early_stoppage_bias = float(d.get("early_stoppage_bias", 0.0))
 	return r
 
 
@@ -47,17 +51,30 @@ static func pro_with(p_rounds: int, p_round_seconds: int) -> Ruleset:
 
 
 ## True when this action may be used under these rules. Takedowns can be switched
-## off (a kickboxing bout, docs/08 §3); elbows, knees to a grounded opponent,
-## ground strikes to the head and slams join here as those actions arrive (#15).
+## off (a kickboxing bout, docs/08 §3), and elbows (D121); knees to a grounded
+## opponent and slams join here as those actions arrive.
 func allows_action(action: Dictionary) -> bool:
 	if action.category == "takedown":
 		return bool(allows.get("takedowns", true))
+	if String(action.id).contains("elbow"):
+		return bool(allows.get("elbows", true))
 	return true
 
 
 ## True when this strike may go to `target` here: a knee only goes to the head where
-## knees to the head are allowed (an opening such as HEAD_LOW can send it there, #15).
+## knees to the head are allowed (an opening such as HEAD_LOW can send it there, #15),
+## and a ground strike only where head strikes on the ground are (amateur rules: the
+## body, docs/08, D121).
 func allows_target(action: Dictionary, target: String) -> bool:
-	if target == "head" and String(action.id).begins_with("knee"):
+	if target != "head":
+		return true
+	if String(action.id).begins_with("knee"):
 		return bool(allows.get("knees_to_head_standing", true))
+	if is_ground_strike(action):
+		return bool(allows.get("head_strikes_on_ground", true))
 	return true
+
+
+## A strike thrown only from the ground (ground and pound, D121).
+static func is_ground_strike(action: Dictionary) -> bool:
+	return action.category == "strike" and not action.positions.has("standing") and not action.positions.has("clinch")

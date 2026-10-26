@@ -8,6 +8,7 @@
 		"COMING_IN": "Stepping in to tie up or shoot, hands busy (clinch entry, the start of a shot). Exploited by jabs, crosses, teeps and knees, which stop the entry (#18).",
 		"LEANING": "Weight overcommitted forward (wild hook/overhand). Exploited by counter hooks, trips, level changes.",
 		"BACK_TO_CAGE": "Pinned against the fence. Exploited by cage takedowns and clinch knees.",
-		"POSTURE_BROKEN": "Posture pulled down in the clinch or guard. Exploited by bottom submissions and sweeps."
+		"POSTURE_BROKEN": "Posture pulled down in the clinch or guard (tied up from the bottom). No ground strikes until it wears off; later exploited by bottom submissions and sweeps.",
+		"POSTURED_UP": "Sitting up in guard to throw a ground strike. Exploited by get-ups and tie-ups from the bottom."
 	}
 }

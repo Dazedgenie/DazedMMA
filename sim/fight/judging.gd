@@ -17,15 +17,16 @@ const ROCKED_POINTS: float = 8.0
 const KNOCKDOWN_POINTS: float = 20.0
 ## Grappling (#15): a takedown, and per second × the position's control score for the role
 ## (full guard: top 1.0, bottom 0.2, data/positions).
-const TAKEDOWN_POINTS: float = 10.0
-const CONTROL_POINTS_PER_S: float = 0.3
+const TAKEDOWN_POINTS: float = 6.0
+const CONTROL_POINTS_PER_S: float = 0.15
 ## How differently judges see the same round: each fighter's points ×(1 ± up to 15%).
 const JUDGE_NOISE: float = 0.15
 ## Effective striking this close (within 5%) is even: aggression decides, then cage control.
 const EVEN_WITHIN: float = 0.05
 ## Aggression: attacks thrown, plus this much per metre walked toward the opponent.
 const AGGRESSION_PER_METRE: float = 1.0
-## 10-8: two more knockdowns, or out-landed over 4 to 1 in a busy round (D110).
+## 10-8: two more knockdowns, or out-landed over 4 to 1 in a busy round (D110) with real
+## damage done: the winner rocked or dropped the loser at least once (impact, D120).
 const DOMINANT_KNOCKDOWNS: int = 2
 const DOMINANT_SHARE: float = 0.25
 const DOMINANT_MIN_POINTS: float = 60.0
@@ -38,8 +39,9 @@ const DRAW := "draw"
 
 ## One judge's card for one round, e.g. [10, 9]. `tie_breaks` are what the judge
 ## looks at, in order, when effective striking is even: [[aggression red, blue],
-## [cage control red, blue]].
-static func round_card(points: Array[float], knockdowns: Array[int], tie_breaks: Array = []) -> Array[int]:
+## [cage control red, blue]]. `impact` is each fighter's rocks and knockdowns scored this
+## round (FightSim.round_impact); without it, out-landing alone can make a 10-8.
+static func round_card(points: Array[float], knockdowns: Array[int], tie_breaks: Array = [], impact: Array = []) -> Array[int]:
 	var best: float = maxf(points[0], points[1])
 	var w: int = -1
 	if best > 0.0 and absf(points[0] - points[1]) > EVEN_WITHIN * best:
@@ -53,7 +55,7 @@ static func round_card(points: Array[float], knockdowns: Array[int], tie_breaks:
 		return [10, 10]
 	var l: int = 1 - w
 	var dominant: bool = knockdowns[w] - knockdowns[l] >= DOMINANT_KNOCKDOWNS \
-		or (points[w] >= DOMINANT_MIN_POINTS and points[l] < DOMINANT_SHARE * points[w])
+		or (points[w] >= DOMINANT_MIN_POINTS and points[l] < DOMINANT_SHARE * points[w] and (impact.is_empty() or int(impact[w]) > 0))
 	var card: Array[int] = [0, 0]
 	card[w] = 10
 	card[l] = 8 if dominant else 9

@@ -22,7 +22,7 @@ const GRAPPLE_STOPPED := "grapple_stopped"
 ## Actor's sprawl met the opponent's shot. data: {action_id (the sprawl), against (the shot), worked, chance, odds}
 const SPRAWLED := "sprawled"
 const CAGE_CHANGED := "cage_changed"  # actor's cage proximity. data: {proximity}
-const ROCKED := "rocked"  # actor got rocked. data: {by}
+const ROCKED := "rocked"  # actor got rocked. data: {by, again? (rocked again on the ground, D121)}
 const KNOCKDOWN := "knockdown"  # actor got knocked down. data: {by}
 const GOT_UP := "got_up"  # actor is back up after a knockdown
 const RECOVERED := "recovered"  # actor is no longer rocked
@@ -40,7 +40,7 @@ const CALL_ANSWERED := "call_answered"
 ## too tired, rocked, no opening …) / missed (busy until the moment had gone)
 const RULE_ANSWERED := "rule_answered"
 const ROUND_ENDED := "round_ended"  # data: {cards: per judge [red, blue]}
-const FIGHT_ENDED := "fight_ended"  # data: {result, winner (-1 = draw), cards? (judges' totals), stopped_by? ("towel")}
+const FIGHT_ENDED := "fight_ended"  # data: {result, winner (-1 = draw), cards? (judges' totals), stopped_by? ("towel"), why? (the referee's reason: "health", "unanswered", "knockdowns", D120)}
 
 const NO_ACTOR: int = -1
 

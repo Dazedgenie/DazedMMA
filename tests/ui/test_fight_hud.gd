@@ -35,10 +35,10 @@ func test_the_judges_estimate_reads_the_round_so_far() -> void:
 	assert_eq(FightHud.judges_estimate(sim), "Judges: ≈ even")
 
 
-func test_damage_pips_go_green_yellow_red() -> void:
-	assert_eq(FightHud.pip_colour(0.0), FightHud.PIP_COLOURS[0])
-	assert_eq(FightHud.pip_colour(0.1), FightHud.PIP_COLOURS[1])
-	assert_eq(FightHud.pip_colour(0.5), FightHud.PIP_COLOURS[2])
+func test_health_bars_go_green_yellow_red() -> void:
+	assert_eq(FightHud.health_colour(1.0), FightHud.PIP_COLOURS[0])
+	assert_eq(FightHud.health_colour(0.5), FightHud.PIP_COLOURS[1])
+	assert_eq(FightHud.health_colour(0.2), FightHud.PIP_COLOURS[2])
 
 
 func test_the_plan_panel_shows_rules_calls_and_reads_with_their_timers() -> void:
@@ -73,3 +73,18 @@ func test_the_hud_follows_a_fight_and_its_buttons_make_calls() -> void:
 	assert_true(hud.call_button("get_up").disabled, "Get up! is dimmed standing")
 	assert_false(hud.call_button("takedown").disabled)
 	assert_eq(hud._clock.text, "R1 5:00")
+
+
+func test_the_top_bar_shows_each_fighters_health_from_their_head_damage() -> void:
+	var sim: FightSim = _sim()
+	var hud := FightHud.new()
+	add_child_autofree(hud)
+	hud.watch(FightDriver.new(sim))
+	sim.fighters[1].damage.head = 500  # The Kicker: Chin 50, so half his health.
+	sim.fighters[1].rocked_ticks = 10
+	hud._refresh(0.0)
+	assert_almost_eq(hud._health[1].value, 0.5, 0.0001)
+	assert_eq(hud._health_label[1].text, "HEALTH 50%  ROCKED")
+	assert_eq(hud._health_fill[1].bg_color, FightHud.PIP_COLOURS[1])
+	assert_eq(hud._health_label[0].text, "HEALTH 100%")
+

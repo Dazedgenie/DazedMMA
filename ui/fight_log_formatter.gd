@@ -11,6 +11,12 @@ const DIM_COLOUR := "#8a8f98"
 const RANGE_NAMES := { "out": "out of range", "long": "long (kicking range)", "mid": "mid (punching range)", "pocket": "in the pocket" }
 const CAGE_NAMES := { "centre": "is back in open space", "near": "is near the fence", "pinned": "is PINNED against the cage" }
 const RESULT_NAMES := { "ko": "KO", "tko": "TKO" }
+## How the referee's stoppages read (FIGHT_ENDED `why`, D120).
+const STOP_REASONS := {
+	"health": "the referee stops it: nothing left",
+	"unanswered": "the referee stops it: taking shots and not answering",
+	"knockdowns": "the referee stops it: three knockdowns in a round",
+}
 const CALL_OUTCOMES := {
 	"accepted": "takes", "ignored": "[b]IGNORES[/b]", "infeasible": "can't do", "fired": "goes on the read of",
 	"missed": "misses with the read of", "expired": "is done with", "replaced": "drops",
@@ -64,6 +70,8 @@ static func _describe(event: FightEvent, sim: FightSim) -> String:
 			var into: String = " into the %s" % _action_name(event.data.into, sim).to_lower() if event.data.has("into") else ""
 			return "%s's %s%s [b]LANDS[/b]%s (%s, %d damage)%s" % [who, counter, _action_name(event.data.action_id, sim), into, event.data.target, event.data.damage, _odds(event)]
 		FightEvent.GRAPPLE_WON:
+			if event.data.result == "tied_up":
+				return "%s [b]TIES HIM UP[/b] from the bottom: no ground strikes for a few seconds%s" % [who, _odds(event)]
 			if event.data.result == PositionLibrary.PARTIAL:
 				return "%s's %s [b]half works[/b]: they scramble%s" % [who, _action_name(event.data.action_id, sim), _odds(event)]
 			return "%s's %s [b]WORKS[/b]%s" % [who, _action_name(event.data.action_id, sim), _odds(event)]
@@ -86,6 +94,8 @@ static func _describe(event: FightEvent, sim: FightSim) -> String:
 		FightEvent.CAGE_CHANGED:
 			return "[color=%s]%s %s[/color]" % [DIM_COLOUR, who, CAGE_NAMES.get(event.data.proximity, event.data.proximity)]
 		FightEvent.ROCKED:
+			if event.data.get("again", false):
+				return "[b]%s is ROCKED again underneath![/b]" % who
 			return "[b]%s is ROCKED![/b]" % who
 		FightEvent.KNOCKDOWN:
 			return "[b]%s goes DOWN![/b]" % who
@@ -178,6 +188,8 @@ static func result_text(event: FightEvent, sim: FightSim) -> String:
 	var how: String = RESULT_NAMES.get(result, result)
 	if event.data.get("stopped_by", "") == FightSim.STOPPED_BY_TOWEL:
 		how += " (the corner threw in the towel)"
+	elif STOP_REASONS.has(event.data.get("why", "")):
+		how += " (%s)" % STOP_REASONS[event.data.why]
 	var cards: String = " (%s)" % _cards(event.data.cards) if event.data.has("cards") else ""
 	var winner: int = int(event.data.get("winner", -1))
 	if winner < 0:

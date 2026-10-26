@@ -240,7 +240,7 @@ func test_only_the_fighter_underneath_can_get_up() -> void:
 	var sim: FightSim = _on_the_ground()
 	assert_eq(sim.why_not(0, "get_up"), "not possible from the top")
 	assert_eq(sim.why_not(1, "get_up"), "")
-	assert_eq(sim.why_not(1, "jab"), "not possible from this position", "no ground strikes until after the playtest (D98)")
+	assert_eq(sim.why_not(1, "jab"), "not possible from this position", "the jab is a standing strike; ground strikes are thrown from the top (D121)")
 
 
 func test_getting_up_stands_them_up_a_gap_apart() -> void:
@@ -359,16 +359,17 @@ func _starts(sim: FightSim, actor: int) -> Array[String]:
 	return out
 
 
-func test_the_fighter_underneath_works_to_get_up_and_the_one_on_top_holds() -> void:
+func test_the_fighter_underneath_works_to_get_up_and_the_one_on_top_grounds_and_pounds() -> void:
 	var sim := FightSim.new(SEED, [FighterState.new("Top", {}, [], 0.0), _fighter("Bottom", {}, ["jab"])], _actions, 1, 300)
 	sim.apply_transition(0, "double_leg")
 	_ticks(sim, 600)
 	assert_has(_starts(sim, 1), "get_up", "everyone knows how to get up, whatever their techniques")
-	var holder := FightSim.new(SEED, [_fighter("Top", {}, ["jab", "double_leg"]), FighterState.new("Bottom", {}, [], 0.0)], _actions, 1, 300)
-	holder.apply_transition(0, "double_leg")
-	_ticks(holder, 600)
-	assert_eq(_starts(holder, 0), [] as Array[String], "on top they hold: no ground strikes until after the playtest")
-	assert_eq(holder.situation.position, "full_guard")
+	var pounder := FightSim.new(SEED, [_fighter("Top", {}, ["jab", "double_leg"]), FighterState.new("Bottom", {}, [], 0.0)], _actions, 1, 300)
+	pounder.apply_transition(0, "double_leg")
+	_ticks(pounder, 600)
+	assert_gt(_starts(pounder, 0).size(), 0, "on top they ground and pound (D121)")
+	for id in _starts(pounder, 0):
+		assert_eq(id, "ground_punch", "everyone knows the ground punch; the jab is for standing")
 
 
 func test_strikers_break_the_clinch_and_grapplers_work_in_it() -> void:

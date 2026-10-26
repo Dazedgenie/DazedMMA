@@ -58,7 +58,9 @@ func test_the_ideal_corner_calls_takedown_as_the_kick_starts_and_the_fighter_cat
 	sim.submit(FightCommand.queue_action(20, 1, "body_kick"))
 	for n in 40:
 		sim.tick()
-	assert_eq(_heard(sim), [[20 + Corner.IDEAL_REACTION, "takedown"]], "a coach's reaction time after the kick started")
+	assert_eq(_heard(sim)[0], [20 + Corner.IDEAL_REACTION, "takedown"], "a coach's reaction time after the kick started")
+	assert_eq(_heard(sim).size(), 2)
+	assert_eq(_heard(sim)[1][1], "ground_and_pound", "and once the catch puts Red on top: Ground and pound! (D121)")
 	var started: Array = []
 	for e in sim.events:
 		if e.type == FightEvent.ACTION_PHASE and e.actor == 0 and e.data.phase == "windup":
@@ -84,6 +86,19 @@ func test_survive_when_rocked_and_pressure_when_the_opponent_is() -> void:
 	assert_eq(_due_after(corner, view, Corner.IDEAL_REACTION), ["survive"] as Array[String])
 	corner.on_event(view, FightEvent.new(view.now, 1, FightEvent.ROCKED, 1, { "by": "hook" }))
 	assert_eq(_due_after(corner, view, Corner.IDEAL_REACTION), ["pressure"] as Array[String])
+
+
+func test_on_top_the_corner_calls_ground_and_pound() -> void:
+	var sim: FightSim = _pair("wrestler", "boxer")
+	var corner := Corner.new(Corner.IDEAL, 1)
+	var view: FightView = sim.views[0]
+	sim.apply_transition(0, "double_leg")
+	corner.on_event(view, FightEvent.new(0, 1, FightEvent.POSITION_CHANGED, 0, { "action_id": "double_leg", "roles": ["top", "bottom"] }))
+	assert_eq(_due_after(corner, view, Corner.IDEAL_REACTION), ["ground_and_pound"] as Array[String], "the Wrestler landed on top")
+	corner.on_event(view, FightEvent.new(view.now, 1, FightEvent.ROCKED, 1, { "by": 0 }))
+	assert_eq(_due_after(corner, view, Corner.IDEAL_REACTION), ["ground_and_pound"] as Array[String], "the opponent rocked underneath: not Pressure!, which is for standing")
+	corner.on_event(view, FightEvent.new(view.now, 1, FightEvent.POSITION_CHANGED, 1, { "action_id": "get_up", "roles": ["neutral", "neutral"] }))
+	assert_eq(_due_after(corner, view, Corner.IDEAL_REACTION), [] as Array[String], "nothing when they get back up")
 
 
 func test_a_corner_only_calls_what_its_fighter_can_act_on() -> void:

@@ -13,7 +13,8 @@
 	"ground": { "base_success": 0.25, "partial_within": 0.1 },
 	"stats": { "offense": ["scrambles", "takedown_defense"], "defense": ["top_control"] },
 	"opportunities": [
-		{ "own_flag": "BACK_TO_CAGE", "success_bonus": 0.15 }
+		{ "own_flag": "BACK_TO_CAGE", "success_bonus": 0.15 },
+		{ "opponent_flag": "POSTURED_UP", "success_bonus": 0.20 }
 	],
 	"requires_technique": null
 }

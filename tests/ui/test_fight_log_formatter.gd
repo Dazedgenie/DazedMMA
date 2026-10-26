@@ -105,6 +105,22 @@ func test_a_drilled_rule_says_what_it_did_and_why() -> void:
 	assert_eq(_plain(FightLogFormatter.line(cooling, _sim)), "R1 0:06.0  t60  Red holds the rule \"When he kicks → catch & shoot\" (fired 4 s ago)")
 
 
+func test_a_referee_stoppage_says_why_it_was_stopped() -> void:
+	var tko := FightEvent.new(400, 1, FightEvent.FIGHT_ENDED, FightEvent.NO_ACTOR, { "result": FightSim.RESULT_TKO, "winner": 1, "why": FightSim.STOP_SHOTS })
+	assert_eq(_plain(FightLogFormatter.result_text(tko, _sim)), "Blue wins by TKO (the referee stops it: taking shots and not answering)")
+	tko.data.why = FightSim.STOP_HEALTH
+	assert_eq(_plain(FightLogFormatter.result_text(tko, _sim)), "Blue wins by TKO (the referee stops it: nothing left)")
+
+
+func test_ground_and_pound_and_the_answers_to_it_read_naturally() -> void:
+	var punch := FightEvent.new(50, 1, FightEvent.STRIKE_LANDED, 0, { "action_id": "ground_punch", "target": "head", "damage": 3 })
+	assert_eq(_plain(FightLogFormatter.line(punch, _sim)), "R1 0:05.0  t50  Red's Ground punch LANDS (head, 3 damage)")
+	var tied := FightEvent.new(50, 1, FightEvent.GRAPPLE_WON, 1, { "action_id": "tie_up", "result": "tied_up" })
+	assert_string_contains(_plain(FightLogFormatter.line(tied, _sim)), "Blue TIES HIM UP from the bottom")
+	var again := FightEvent.new(50, 1, FightEvent.ROCKED, 1, { "by": 0, "again": true })
+	assert_string_contains(_plain(FightLogFormatter.line(again, _sim)), "Blue is ROCKED again underneath!")
+
+
 func test_a_change_of_position_says_who_did_it_and_who_is_on_top() -> void:
 	var e := FightEvent.new(50, 1, FightEvent.POSITION_CHANGED, 1, { "action_id": "double_leg", "position": "full_guard", "phase": "ground", "roles": ["bottom", "top"] })
 	assert_eq(_plain(FightLogFormatter.line(e, _sim)), "R1 0:05.0  t50  Blue's Double-leg takedown → Full guard (Blue on top)")

@@ -27,8 +27,8 @@ extends RefCounted
 ## Tied up (clinch or ground, #15, docs/01 §21) there's no footwork and no range
 ## plan: now and then the fighter works from where they are. In the clinch, strikers
 ## look to break and grapplers knee or shoot; on the ground the fighter underneath
-## works to get up (the one on top holds, scoring control), and in a scramble each
-## goes for what they like: back to the feet, or the top.
+## works to get up or tie the top fighter up, the one on top grounds and pounds (D121),
+## and in a scramble each goes for what they like: back to the feet, or the top.
 ##
 ## Every number is a first guess, tuned with the balance harness (tools/balance.gd).
 
@@ -207,6 +207,17 @@ const SCRAMBLE_RATE: float = 0.3
 ## there (a strike or takedown that works from the clinch). Breaking it: weight
 ## 1 − Base / 100 − Range / 200, at least CLINCH_BREAK_MIN.
 const CLINCH_BREAK_MIN: float = 0.05
+## Ground and pound (D121): on top, a chance of GNP_RATE × work rate × (1 + Pace / 100)
+## per free tick to throw a ground strike, more against a rocked fighter (as standing),
+## less when tired. Tied up (posture broken) they hold until it wears off.
+const GNP_RATE: float = 1.2
+## Underneath: while the top fighter is throwing, works GROUND_UNDER_FIRE × as often.
+## Tying up is weighted TIE_UP_CALM normally, TIE_UP_PRESSED under fire or rocked;
+## a rocked fighter's get-ups are weighted ROCKED_GET_UP.
+const GROUND_UNDER_FIRE: float = 3.0
+const TIE_UP_CALM: float = 0.3
+const TIE_UP_PRESSED: float = 1.5
+const ROCKED_GET_UP: float = 0.3
 ## In a scramble: back to the feet × (1 − Base / 100), the top × (1 + Base / 100).
 ## Switching direction (D107): away from the fence (further than SWITCH_FENCE), circling
 ## fighters think again every SWITCH_EVERY ticks and change direction on a chance of
@@ -549,9 +560,12 @@ func _tied(view: FightView, layer: DecisionLayer) -> Decision:
 	if position == PositionLibrary.CLINCH:
 		rate = CLINCH_RATE * f.work_rate
 	elif view.my_role() == PositionLibrary.TOP:
-		return DecisionLayer.IDLE  # Holding: no ground strikes until after the playtest (D98).
+		return _pound(view, layer)
 	elif position != PositionLibrary.SCRAMBLE:
 		rate = GROUND_RATE * f.work_rate
+	var pressed: bool = f.is_rocked() or under_fire(view)
+	if position != PositionLibrary.SCRAMBLE and position != PositionLibrary.CLINCH and pressed:
+		rate *= GROUND_UNDER_FIRE
 	if view.roll() >= rate:
 		return DecisionLayer.IDLE
 	var base: float = _lean(view, layer, StyleLeanings.BASE) / 100.0
@@ -574,10 +588,15 @@ func _tied(view: FightView, layer: DecisionLayer) -> Decision:
 				reason = "breaks the clinch"
 			"get_up":
 				w *= maxf(0.0, 1.0 - base) if position == PositionLibrary.SCRAMBLE else 1.0
+				if f.is_rocked():
+					w *= ROCKED_GET_UP
 				reason = "works back to the feet"
 			"scramble":
 				w *= 1.0 + base
 				reason = "scrambles for the top"
+			"tie_up":
+				w *= TIE_UP_PRESSED if pressed else TIE_UP_CALM
+				reason = "ties him up to stop the punches" if pressed else "ties him up"
 			_:
 				if action.category == TAKEDOWN:
 					reason = "takes it down from the clinch"
@@ -589,6 +608,42 @@ func _tied(view: FightView, layer: DecisionLayer) -> Decision:
 		return DecisionLayer.IDLE
 	var k: int = _pick(view, weights)
 	return Decision.new(options[k], DecisionLayer.AI, reasons[k])
+
+
+## On top (D121): now and then a ground strike, picked like any strike; held while tied up.
+func _pound(view: FightView, layer: DecisionLayer) -> Decision:
+	var f: FighterState = view.me
+	if f.tied_up_ticks > 0:
+		return DecisionLayer.IDLE
+	var rate: float = GNP_RATE * f.work_rate * maxf(0.0, 1.0 + _lean(view, layer, StyleLeanings.PACE) / 100.0)
+	if view.opponent.is_rocked():
+		rate *= 1.5 + _lean(view, layer, StyleLeanings.RISK) / 200.0
+	var tank: float = f.stamina_fraction()
+	if tank < TIRED_RATE_BELOW:
+		rate *= lerpf(TIRED_RATE_MIN, 1.0, tank / TIRED_RATE_BELOW)
+	if view.roll() >= rate:
+		return DecisionLayer.IDLE
+	var options: Array[String] = []
+	var weights: Array[float] = []
+	for id in _all_moves(view):
+		var action: Dictionary = view.actions.get_action(id)
+		if action.category != STRIKE or not _usable(view, action):
+			continue
+		var b: OddsBreakdown = _odds(view, id)
+		var w: float = _score(view, layer, action, _seen_chance(view, action, b), _plain_chance(b), false)
+		if w > 0.0:
+			options.append(id)
+			weights.append(w)
+	if options.is_empty():
+		return DecisionLayer.IDLE
+	var k: int = _pick(view, weights)
+	return Decision.new(options[k], DecisionLayer.AI, "pounds the rocked fighter" if view.opponent.is_rocked() else "ground and pound")
+
+
+## True while the opponent is throwing a strike at this fighter (on the ground: ground and pound).
+static func under_fire(view: FightView) -> bool:
+	var o: FighterState = view.opponent
+	return not o.is_free() and view.actions.get_action(o.action_id).category == STRIKE
 
 
 ## The fighter's repertoire plus the moves everyone knows (basic), worked out once a fighter.

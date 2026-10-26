@@ -1,7 +1,7 @@
 class_name FightHud
 extends Control
-## HUD v0 for the fight screen (#19, docs/06 §1–§2): the top bar (names, stamina,
-## damage pips, round clock, speed, the judges' rough estimate), the plan panel
+## HUD v0 for the fight screen (#19, docs/06 §1–§2): the top bar (names, health,
+## stamina, body and leg damage, round clock, speed, the judges' rough estimate), the plan panel
 ## (drilled rules with reliability and cooldown, the call being acted on, primed
 ## reads), the opponent corner's speech bubble (D68), the feed, the voice meter and
 ## the call bar. One dialog in the middle serves the bell, the result, the menu and
@@ -16,9 +16,11 @@ signal control_pressed(which: String)
 const PANEL := Color(0.06, 0.07, 0.09, 0.82)
 const FIGHTER_COLOURS: Array[Color] = [Color("#ff6b6b"), Color("#5fa8ff")]
 const PIP_COLOURS: Array[Color] = [Color("#51cf66"), Color("#fcc419"), Color("#ff6b6b")]
-## Damage pips: yellow from this hurt (0–1, FighterState.hurt), red from the next.
-const PIP_STEPS: Array[float] = [0.08, 0.2]
-const AREAS: Array[String] = ["head", "body", "legs"]
+## The health bar (D120, FighterState.health) and the body and leg bars (1 − hurt) go
+## yellow under the first of these and red under the second.
+const HEALTH_STEPS: Array[float] = [0.6, 0.3]
+## The small bars under the health bar.
+const AREAS: Array[String] = ["body", "legs"]
 ## Real seconds the opponent corner's call stays up, a fired rule flashes, the banner shows.
 const BUBBLE_SECONDS: float = 3.0
 const FLASH_SECONDS: float = 1.2
@@ -31,7 +33,11 @@ var feed: FightFeed
 
 var _names: Array[Label] = []
 var _stamina: Array[ProgressBar] = []
-var _pips: Array = [[], []]  # per fighter: [head, body, legs] ColorRects
+var _health: Array[ProgressBar] = []
+var _health_fill: Array[StyleBoxFlat] = []
+var _health_label: Array[Label] = []
+var _areas: Array = [[], []]  # per fighter: [body, legs] ProgressBars
+var _area_fill: Array = [[], []]  # their fill styles
 var _clock: Label
 var _speed: Label
 var _judges: Label
@@ -111,18 +117,18 @@ static func judges_estimate(sim: FightSim) -> String:
 	var points: Array[float] = sim.round_points()
 	if points[0] + points[1] < 1.0:
 		return "Judges: nothing in it yet"
-	var card: Array[int] = Judging.round_card(points, [0, 0])
+	var card: Array[int] = Judging.round_card(points, [0, 0], [], sim.round_impact())
 	if card[0] == card[1]:
 		return "Judges: ≈ even"
 	var w: int = 0 if card[0] > card[1] else 1
 	return "Judges: ≈ %d-%d %s" % [card[w], card[1 - w], sim.fighters[w].name]
 
 
-## The colour of a damage pip for this much hurt (0–1).
-static func pip_colour(hurt: float) -> Color:
-	if hurt >= PIP_STEPS[1]:
+## The colour of a health bar (or a body or leg bar) this full (1 = fresh, 0 = finished).
+static func health_colour(health: float) -> Color:
+	if health < HEALTH_STEPS[1]:
 		return PIP_COLOURS[2]
-	return PIP_COLOURS[1] if hurt >= PIP_STEPS[0] else PIP_COLOURS[0]
+	return PIP_COLOURS[1] if health < HEALTH_STEPS[0] else PIP_COLOURS[0]
 
 
 ## The plan panel's text (BBCode): rules, the call being acted on, primed reads.
@@ -232,8 +238,14 @@ func _refresh(delta: float) -> void:
 		var f: FighterState = sim.fighters[i]
 		_stamina[i].max_value = f.max_stamina()
 		_stamina[i].value = f.stamina
+		var health: float = f.health()
+		_health[i].value = health
+		_health_fill[i].bg_color = health_colour(health)
+		_health_label[i].text = "HEALTH %d%%" % roundi(health * 100.0) + ("  ROCKED" if f.is_rocked() else "")
 		for a in AREAS.size():
-			(_pips[i][a] as ColorRect).color = pip_colour(f.hurt(AREAS[a]))
+			var left: float = 1.0 - f.hurt(AREAS[a])
+			(_areas[i][a] as ProgressBar).value = left
+			(_area_fill[i][a] as StyleBoxFlat).bg_color = health_colour(left)
 	_clock.text = sim.clock.display()
 	_speed.text = "⏵ " + driver.label()
 	_judges.text = judges_estimate(sim)
@@ -314,6 +326,23 @@ func _build_calls(sim: FightSim) -> void:
 			_call_bar.add_child(empty)
 
 
+## A top-bar meter, filling from the fighter's own side: red from the left, blue from the right.
+func _bar(i: int, height: float, colour: Color, max_value: float) -> ProgressBar:
+	var bar := ProgressBar.new()
+	bar.show_percentage = false
+	bar.max_value = max_value
+	bar.value = max_value
+	bar.custom_minimum_size = Vector2(0.0, height)
+	bar.fill_mode = ProgressBar.FILL_BEGIN_TO_END if i == 0 else ProgressBar.FILL_END_TO_BEGIN
+	var fill := StyleBoxFlat.new()
+	fill.bg_color = colour
+	bar.add_theme_stylebox_override("fill", fill)
+	var back := StyleBoxFlat.new()
+	back.bg_color = Color(1, 1, 1, 0.1)
+	bar.add_theme_stylebox_override("background", back)
+	return bar
+
+
 func _add_call_button(id: String, label: String) -> void:
 	var b := Button.new()
 	b.text = label
@@ -332,7 +361,7 @@ func _build() -> void:
 	top.offset_left = 16.0
 	top.offset_right = -16.0
 	top.offset_top = 12.0
-	top.offset_bottom = 112.0
+	top.offset_bottom = 150.0
 	add_child(top)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 24)
@@ -346,33 +375,38 @@ func _build() -> void:
 		name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT if i == 0 else HORIZONTAL_ALIGNMENT_RIGHT
 		block.add_child(name_label)
 		_names.append(name_label)
-		var bar := ProgressBar.new()
-		bar.show_percentage = false
-		bar.custom_minimum_size = Vector2(0.0, 18.0)
-		bar.fill_mode = ProgressBar.FILL_BEGIN_TO_END if i == 0 else ProgressBar.FILL_END_TO_BEGIN
-		var fill := StyleBoxFlat.new()
-		fill.bg_color = FIGHTER_COLOURS[i]
-		bar.add_theme_stylebox_override("fill", fill)
-		var back := StyleBoxFlat.new()
-		back.bg_color = Color(1, 1, 1, 0.1)
-		bar.add_theme_stylebox_override("background", back)
+		var health: ProgressBar = _bar(i, 26.0, PIP_COLOURS[0], 1.0)
+		health.tooltip_text = "health: the head damage they can still take; at 0 the referee stops it"
+		_health_fill.append(health.get_theme_stylebox("fill") as StyleBoxFlat)
+		var health_label := Label.new()
+		health_label.add_theme_font_size_override("font_size", 17)
+		health_label.set_anchors_preset(Control.PRESET_FULL_RECT)
+		health_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		health_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		health.add_child(health_label)
+		block.add_child(health)
+		_health.append(health)
+		_health_label.append(health_label)
+		var bar: ProgressBar = _bar(i, 12.0, FIGHTER_COLOURS[i], 100.0)
 		bar.tooltip_text = "stamina"
 		block.add_child(bar)
 		_stamina.append(bar)
-		var pips := HBoxContainer.new()
-		pips.alignment = BoxContainer.ALIGNMENT_BEGIN if i == 0 else BoxContainer.ALIGNMENT_END
+		var areas := HBoxContainer.new()
+		areas.alignment = BoxContainer.ALIGNMENT_BEGIN if i == 0 else BoxContainer.ALIGNMENT_END
+		areas.add_theme_constant_override("separation", 8)
 		for area in AREAS:
 			var tag := Label.new()
 			tag.text = area
 			tag.add_theme_font_size_override("font_size", 16)
-			pips.add_child(tag)
-			var pip := ColorRect.new()
-			pip.custom_minimum_size = Vector2(16.0, 16.0)
-			pip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-			pip.tooltip_text = "%s damage: green, yellow, red" % area
-			pips.add_child(pip)
-			_pips[i].append(pip)
-		block.add_child(pips)
+			areas.add_child(tag)
+			var area_bar: ProgressBar = _bar(i, 10.0, PIP_COLOURS[0], 1.0)
+			area_bar.custom_minimum_size.x = 120.0
+			area_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			area_bar.tooltip_text = "%s damage: body shots shrink the stamina tank, leg kicks slow the feet" % area if area == "body" else "%s damage: slows footwork, speed and kicks" % area
+			areas.add_child(area_bar)
+			_areas[i].append(area_bar)
+			_area_fill[i].append(area_bar.get_theme_stylebox("fill"))
+		block.add_child(areas)
 		if i == 1:
 			row.add_child(_centre_block())
 		row.add_child(block)
@@ -380,7 +414,7 @@ func _build() -> void:
 	# Plan panel (left).
 	var plan_panel: PanelContainer = _panel()
 	plan_panel.offset_left = 16.0
-	plan_panel.offset_top = 128.0
+	plan_panel.offset_top = 166.0
 	plan_panel.offset_right = 376.0
 	add_child(plan_panel)
 	_plan = RichTextLabel.new()
@@ -398,7 +432,7 @@ func _build() -> void:
 	_bubble.anchor_right = 1.0
 	_bubble.offset_left = -496.0
 	_bubble.offset_right = -16.0
-	_bubble.offset_top = 128.0
+	_bubble.offset_top = 166.0
 	add_child(_bubble)
 	_bubble_label = Label.new()
 	_bubble_label.add_theme_color_override("font_color", Color("#212529"))
@@ -415,7 +449,7 @@ func _build() -> void:
 	feed.anchor_bottom = 1.0
 	feed.offset_left = -496.0
 	feed.offset_right = -16.0
-	feed.offset_top = 200.0
+	feed.offset_top = 238.0
 	feed.offset_bottom = -164.0
 	add_child(feed)
 
@@ -461,7 +495,7 @@ func _build() -> void:
 	# Middle: the banner and the dialog.
 	_banner = Label.new()
 	_banner.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	_banner.offset_top = 170.0
+	_banner.offset_top = 200.0
 	_banner.offset_left = -500.0
 	_banner.offset_right = 500.0
 	_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
