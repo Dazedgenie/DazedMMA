@@ -23,4 +23,5 @@
 - Health, the referee's stoppages and ground and pound (the health bar, what stops a fight, ground punches, elbows and tie-ups, the "Ground and pound!" call, the numbers to tune finishes): `docs/01-fight-engine.md` §24 (D120, D121).
 - Drilled rules (two slots, reliability, cooldown, opponents adapting, the presets, `--rules` in the harness): `docs/01-fight-engine.md` §23 (D116).
 - Speed budget (1000× fight time), the timing checks and how to speed things up without changing fights: `docs/01-fight-engine.md` §2.1 (D105).
+- Golden fights: four pinned fights that fail a test whenever a change alters a fight. If the change is meant to, re-pin with `godot --headless --script res://tools/golden.gd -- --update`, commit `tests/golden/golden_fights.json` and say why in the PR: `docs/01-fight-engine.md` §2.2 (D122).
 - Import/refresh the project cache: `godot --headless --import`

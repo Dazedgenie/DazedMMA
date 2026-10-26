@@ -40,6 +40,12 @@ const CHASE_STEP: float = 0.01
 ## `corners` is each corner's coaching bot, a Corner style ([] or "none" = no calls).
 ## `drilled` is each fighter's drilled rules, slot 1 first, as "rule_id@percent" ([] = none).
 static func run(fight_seed: int, roster: FighterLibrary, actions: ActionLibrary, red_id: String, blue_id: String, rules: Variant = null, round_seconds: int = 300, corners: Array[String] = [], drilled: Array = []) -> Dictionary:
+	return play(setup(fight_seed, roster, actions, red_id, blue_id, rules, round_seconds, corners, drilled))
+
+
+## The fight run() plays, set up but not started: the same arguments as run().
+## The golden fights (GoldenFights, D122) use it to keep the finished fight.
+static func setup(fight_seed: int, roster: FighterLibrary, actions: ActionLibrary, red_id: String, blue_id: String, rules: Variant = null, round_seconds: int = 300, corners: Array[String] = [], drilled: Array = []) -> FightSim:
 	var sim := FightSim.new(fight_seed, roster.make_pair(red_id, blue_id), actions, rules, round_seconds)
 	for i in drilled.size():
 		var slot: int = 1
@@ -50,6 +56,12 @@ static func run(fight_seed: int, roster: FighterLibrary, actions: ActionLibrary,
 	for i in corners.size():
 		if corners[i] != Corner.NONE:
 			sim.corners[i] = Corner.new(corners[i], corner_seed(fight_seed, i))
+	return sim
+
+
+## Plays a set-up fight to the end, tracking stamina lows and movement tick by
+## tick, and summarises it.
+static func play(sim: FightSim) -> Dictionary:
 	var lows: Array[float] = [1.0, 1.0]
 	var moves := { "standing": 0, "chase": 0, "fence": [0, 0], "pinned": [0, 0], "centre": [0, 0],
 		"ticks": 0, "clinch": 0, "ground": 0, "top": [0, 0] }

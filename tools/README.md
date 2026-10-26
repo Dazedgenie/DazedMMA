@@ -29,3 +29,10 @@ The CSV columns are listed in `sim/balance/fight_summary.gd` (`FightSummary.COLU
 centre than the opponent, and `chase` one fighter stepping back while the other steps in. `corner_red`/`corner_blue` name the bot in each corner
 and `calls_red`/`calls_blue` count the calls it made; `rules_red`/`rules_blue` name each fighter's drilled rules and
 `fired_red`/`fired_blue` count how often they fired.
+
+`golden.gd` plays the golden fights (#35, D122, `docs/01` §2.2), the four fights pinned in
+`tests/golden/golden_fights.json`, and says which ones changed and how. With `--update` it pins the new results: do that
+only when a change is meant to change fights, commit the file and say why in the PR.
+
+    godot --headless --script res://tools/golden.gd
+    godot --headless --script res://tools/golden.gd -- --update

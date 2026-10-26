@@ -78,7 +78,46 @@ without changing a fight (event hashes checked on 60 fights across every data/fi
 
 **Speed work must not change fights.** Run the same fights (same seeds and fighters) before and after, and compare a hash of
 each fight's event list (`JSON.stringify(sim.events_as_dicts()).md5_text()`). If any hash differs, the change altered
-behaviour: re-run the balance harness and treat it as a design change.
+behaviour: re-run the balance harness and treat it as a design change. The golden fights (§2.2) make the same check on every
+PR for four fights.
+
+### 2.2 Golden fights (D122, #35)
+
+A few whole fights are pinned so that a change which alters fights can't slip through unnoticed (risk R9 in `04`): a
+balance number, the AI, a coaching bot or a drilled rule that changes any of them fails the tests until the new results are
+pinned on purpose, and the PR then shows the old and new numbers side by side.
+
+| Fight | Covers |
+|---|---|
+| Kicker vs Boxer, no corners (seed 35002) | The striking engine and judges on their own: a decision |
+| Wrestler vs Kicker, ideal corner vs AI corner, Wrestler drilled on catch-kick-and-shoot at 80% (seed 35006) | Calls, a drilled rule firing, takedowns, ground and pound: a TKO |
+| Wrestler vs Boxer, AI corner for the Boxer, Boxer drilled on sprawl-on-the-shot at 80% (seed 35007) | Sprawls, the opponent's corner and rules: a TKO the other way |
+| The check fighters, amateur adult rules (seed 35001) | A ruleset other than pro: 3 × 3:00, a split decision |
+
+**What's pinned:** each fight's winner, result, the round and second it ended, the number of events, knockdowns, strikes
+thrown and landed, takedowns, calls made and drilled rules fired, and a hash of the whole event list (the same hash as §2.1).
+The numbers are there so a failure reads in plain words ("landed_red was 111, now 92"); the hash catches everything else.
+
+**The checks** (`tests/sim/balance/test_golden_fights.gd`):
+- Every golden fight plays out exactly as pinned.
+- Every golden fight replays from its saved seed and command log (`FightSim.record()`) to the same event hash, coaching bots
+  and drilled rules included.
+- Between them the golden fights still have live calls, a drilled rule firing, takedowns, a KO or TKO, a decision and a
+  non-pro ruleset; if a re-pin loses one, pick another seed.
+
+**When a change is meant to change fights:** run
+
+    godot --headless --script res://tools/golden.gd -- --update
+
+commit `tests/golden/golden_fights.json`, and say in the PR what changed and why. Without `--update` the tool only prints which
+fights changed and how. If two PRs both re-pin, the second one to merge re-runs the update after merging main instead of
+merging the file by hand. Speed work (§2.1) must leave the pins alone.
+
+**To change the set:** edit the setup of an entry (`name`, `seed`, `red`, `blue`, `ruleset`, `corners` as `[red, blue]` bot
+styles, `rules` as `[red, blue]` lists of `"rule_id@drilled"`) or add one in the same shape, then run the update. Never edit the
+`pinned` numbers by hand. The pinned columns are `PINNED` in `sim/balance/golden_fights.gd`; the fights are set up the way the
+balance harness sets them up (`FightSummary.setup`). The four fights take about 3 s to play, run twice in the test (once
+played, once replayed).
 
 ---
 
