@@ -84,7 +84,7 @@ Priority 1 lands before #14–#17. Priority 2 is cheap now and painful later. Pr
    the console all need the same thing: feed ticks at Normal, Fast or slow-mo, pause, pass commands in (D91). One `FightRunner`
    node keeps "slow-mo never changes the result" true in one place.
 9. **Golden replay tests.** Pin three seeds' results and an event hash so any change to a balance constant or the AI shows up in
-   the PR as a deliberate test update. Cheapest guard against AI-written code drifting silently (R9).
+   the PR as a deliberate test update. Cheapest guard against AI-written code drifting silently (R9). Built with #35: D122, `01` §2.2.
 10. **Pass the ruleset into the fight.** Rulesets are data but the sim takes round counts as numbers and ignores `allows`.
     Taking a ruleset object means #15 removes illegal actions from the same source the amateur fights (`08`) use.
 11. **Split `sim/` into `fight/` and `world/` (D100).** Keep the career and world simulation pure, with the game layer only
