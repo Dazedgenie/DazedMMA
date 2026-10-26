@@ -139,6 +139,19 @@ static func condition_line(f: FighterState) -> String:
 	return " · ".join(parts)
 
 
+## How long fighter i spent circling and cutting off the cage (D119), e.g.
+## "Kicker circled 7:12 (48% of the fight) · cut off the cage 0:00 (0%)".
+static func movement_line(sim: FightSim, i: int) -> String:
+	return "%s circled %s · cut off the cage %s" % [_fighter(i, sim), _fight_time(sim.circling_ticks[i], sim.now), _fight_time(sim.cutting_ticks[i], sim.now)]
+
+
+## Ticks as m:ss of fight time and a share of `total` ticks, e.g. "7:12 (48% of the fight)".
+static func _fight_time(ticks: int, total: int) -> String:
+	var seconds: int = ticks / FightClock.TICKS_PER_SECOND
+	var share: int = roundi(100.0 * ticks / total) if total > 0 else 0
+	return "%d:%02d (%d%% of the fight)" % [seconds / 60, seconds % 60, share]
+
+
 ## Why a takedown, clinch or ground move didn't work (FightEvent.GRAPPLE_STOPPED), with
 ## its odds when it got that far, e.g. "is SPRAWLED ON, stuck with the head low 45% (base 35 · stats +10)".
 static func _stopped(event: FightEvent, sim: FightSim) -> String:

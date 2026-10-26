@@ -132,3 +132,11 @@ func test_a_punished_shot_explains_what_punished_it() -> void:
 	assert_string_contains(_plain(FightLogFormatter.line(nothing, _sim)), "finds nothing to catch 0% (base 20 · stats +0 · needs ONE_LEG)")
 	var sprawl := FightEvent.new(10, 1, FightEvent.SPRAWLED, 1, { "action_id": "sprawl", "against": "double_leg", "worked": true, "chance": 0.55, "odds": odds })
 	assert_string_contains(_plain(FightLogFormatter.line(sprawl, _sim)), "Blue SPRAWLS on it 55%")
+
+
+func test_the_movement_line_says_how_long_each_fighter_circled_and_cut_off() -> void:
+	_sim.now = 9000
+	_sim.circling_ticks[0] = 4320
+	_sim.cutting_ticks[1] = 905
+	assert_eq(_plain(FightLogFormatter.movement_line(_sim, 0)), "%s circled 7:12 (48%% of the fight) · cut off the cage 0:00 (0%% of the fight)" % _sim.fighters[0].name)
+	assert_string_contains(_plain(FightLogFormatter.movement_line(_sim, 1)), "cut off the cage 1:30 (10% of the fight)")

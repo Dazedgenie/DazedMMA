@@ -117,6 +117,17 @@ func test_the_summary_says_how_the_fighters_moved() -> void:
 	assert_string_contains(text, "chasing 40.0%")
 
 
+func test_the_summary_says_how_long_each_fighter_circled_and_cut_off_the_cage() -> void:
+	var rows: Array[Dictionary] = [
+		_row({ "fight_seconds": 900.0, "circling_red": 372.0, "cutting_blue": 90.0 }),
+		_row({ "fight_seconds": 300.0, "circling_red": 108.0, "cutting_blue": 30.0, "circling_blue": 12.0 }),
+	]
+	assert_almost_eq(BalanceReport.time_share(rows, "circling_red"), 0.4, 0.0001, "480 of 1200 fight seconds")
+	var text: String = _report(rows).summary({ "kicker": "Kicker", "boxer": "Boxer" })
+	assert_string_contains(text, "Circling   Kicker (red) 4:00 a fight (40%), Boxer (blue) 0:06 a fight (1%)")
+	assert_string_contains(text, "cutting off the cage: Kicker (red) 0:00 a fight (0%), Boxer (blue) 1:00 a fight (10%)")
+
+
 func test_harness_rows_from_real_fights_feed_the_report() -> void:
 	var actions := ActionLibrary.load_dir()
 	var roster := FighterLibrary.load_dir()
