@@ -938,6 +938,20 @@ number.
 **Before the call costs (§22.5) and the strikers' answers (§21.8)**, with the first bots: the Wrestler beat the Kicker 77–80%
 with good coaching, 71–74% with the AI corner and 84–87% with random calls every 1.5 s (Clinch! spammed: 100%).
 
+**After health and ground and pound** (D120/D121; the Playtest numbers run of 2026-10-26, D124, seeds 1–100 and 101–200 for
+Wrestler vs Kicker, pooled as above):
+
+| Coached fighter vs opponent | No calls | Good coaching (ideal) | AI corner | Spam |
+|---|---|---|---|---|
+| **Wrestler vs Kicker** (the playtest) | 67% | **82%: +15%** (+19.5 and +11) | 72%: +10% (seeds 1–100) | 61.5%: −5% (−2 and −8.5) |
+| Kicker vs Wrestler | 32% | 28.5%: −3% | 33%: −2.5% | 13%: −19% |
+| Wrestler vs Boxer | 52% | 62%: +10% | 60%: +8% | 49.5%: −2.5% |
+| Boxer vs Wrestler | 47.5% | 51%: +3.5% | 48%: +0.5% | 27%: −20.5% |
+
+Good coaching still pays the Wrestler (D12 met against both), but spam calling the Wrestler costs much less than before (it
+was −10%). A likely reason, not yet checked: his spammed calls now include Ground and pound!, which helps whenever he's on
+top. Worth watching if testers find mashing the keys works.
+
 ### 22.9 To change it, and the tests
 - What a call does, its voice cost, hotkey, positions, focus tilt and read timing: its file in `data/calls/`.
 - What sets off Catch the kick!: `data/triggers/opp_kick_starts.json`.

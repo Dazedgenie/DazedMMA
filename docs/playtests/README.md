@@ -59,6 +59,20 @@ went for on his own). A **perfect call** is the flourish (D52): a called move th
 Copy [`write-up-template.md`](write-up-template.md) to `YYYY-MM-DD-<name>.md`, fill in every row, and pick **go**, **adjust**
 or **rethink** with the reasons. Then add the decision row to `00` §0 and close or update issue #20.
 
+**The harness numbers** (tests 3, Tactical value, Fairness, Autonomy, and the finishes in §2b) come from the **Playtest
+numbers** workflow (`.github/workflows/playtest-numbers.yml`, D124), so nobody needs Godot installed to get them:
+
+1. On GitHub, open **Actions → Playtest numbers → Run workflow**, pick the branch the playtest build came from (usually `main`)
+   and leave **fights** at 100. It takes about 15 minutes (the four parts run side by side).
+2. Open the run. Its page shows four summaries: **1** no calls (every pairing both ways round, and the mirrors), **2** the
+   coaching bots on the Wrestler's two playtest matchups, **3** a second set of seeds for Wrestler vs Kicker, **4** Playtest
+   3's drilled rule. Each part's CSV is under **Artifacts**.
+3. In the write-up, a coaching number is the `Targets` line *"Wrestler coached against the Kicker: good coaching adds…"*;
+   average parts 2 and 3 for the Wrestler vs Kicker numbers (100 fights is about ±5% each way, `01` §22.8).
+
+The template comes filled in with the numbers from the run on the commit that last changed it; re-run the workflow on the
+playtest build's commit if fights have changed since (a golden-fight re-pin, D122, is the sign).
+
 ## 5. Changing the playtest
 
 | To change | Edit |
@@ -68,6 +82,7 @@ or **rethink** with the reasons. Then add the decision row to `00` §0 and close
 | The report's columns, groups and the "2+ well-timed takedowns" line | `game/playtest_report.gd` (`COLUMNS`, `LEARNED_TAKEDOWNS`) |
 | What ships in the build | `export_presets.cfg` (`include_filter`, `exclude_filter`) |
 | The download (name, how long it's kept) | `.github/workflows/playtest-build.yml` |
+| Which harness runs the write-up gets, and how many fights | `.github/workflows/playtest-numbers.yml` (the `matrix` list: each part's harness arguments) |
 | The script, form or write-up | The files in this folder |
 
 Tests: `tests/game/test_playtest.gd` (steps, settings, records, the report), `tests/game/test_main_scene.gd` (a playtest

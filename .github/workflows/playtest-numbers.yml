@@ -4,7 +4,7 @@ name: Playtest numbers
 # no calls, the coaching bots, and the playtest's drilled rule, on the commit you pick. Run it
 # from Actions → Playtest numbers → Run workflow (pick the playtest build's branch or commit);
 # each part's summary shows on the run's page and in its "Artifacts" list. It also runs on a
-# pull request that changes this file. Four parts run side by side, about 15–25 minutes in all.
+# pull request that changes this file. Four parts run side by side, about 15 minutes in all.
 
 on:
   workflow_dispatch:
@@ -74,7 +74,7 @@ jobs:
           {
             echo "## ${{ matrix.title }}"
             echo
-            echo "Commit \`${{ github.sha }}\`, ${FIGHTS} fights per pairing and corner: \`${{ matrix.args }}\`"
+            echo "Commit \`${{ github.event.pull_request.head.sha || github.sha }}\`, ${FIGHTS} fights per pairing and corner: \`${{ matrix.args }}\`"
             echo
             echo '```'
             cat build/numbers/${{ matrix.part }}/summary.txt
