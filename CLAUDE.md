@@ -14,6 +14,7 @@
 - Run the headless sim: `godot --headless --script res://tools/run_sim.gd`
 - Run the balance harness: `godot --headless --script res://tools/balance.gd -- --fights=100 --pairs=kicker:boxer` (CSV + summary in `build/balance/`)
 - How fighters move round the cage (holding the centre, cutting off, getting off the fence) and the numbers to tune it: `docs/01-fight-engine.md` §20.2 (D107).
+- How long each fighter circled and cut off the cage, reported after every fight (what counts, the numbers to change it): `docs/01-fight-engine.md` §20.3 (D119).
 - Smoke-run the main scene: `godot --headless --quit-after 30`
 - Clinch, takedowns and the ground (how a shot resolves, sprawls, knees into shots, getting up, judges' grappling points, the AI tied up): `docs/01-fight-engine.md` §21 (D108).
 - How live coaching calls work (voice, delay, compliance, attempts/focus/reads) and where their numbers live: `docs/01-fight-engine.md` §22 (D111, D112).

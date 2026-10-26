@@ -316,6 +316,48 @@ func test_circling_fighters_change_direction_now_and_then() -> void:
 	assert_gt(mini(ways[0], ways[1]), 50, "ticks the Kicker went each way round the Boxer: %s" % [ways])
 
 
+func test_the_time_spent_cutting_off_counts_only_ticks_with_the_cut_working() -> void:
+	# The cut-off setup above: the presser cuts while the statue is out by the fence.
+	var sim := _sim(FighterState.new("Presser", {}, ["jab"], 0.0, StyleLeanings.new({ "range": 100 })), _statue())
+	sim.fighters[0].pos = Vector2(2.6, 1.2)
+	sim.fighters[1].pos = Vector2(3.8, 0.0)
+	_ticks(sim, 10)
+	assert_gt(sim.cutting_ticks[0], 0, "stepping across to cut off counts (D119)")
+	assert_eq(sim.circling_ticks[0], 0, "a Range +100 fighter walks straight, he doesn't circle")
+	assert_eq(sim.circling_ticks[1], 0, "a Range 0 fighter who isn't hurt doesn't circle either")
+	# With the statue in the middle there's no exit to shut, so the cut isn't working.
+	var open := _sim(FighterState.new("Presser", {}, ["jab"], 0.0, StyleLeanings.new({ "range": 100 })), _statue())
+	open.fighters[0].pos = Vector2(-2.0, 1.0)
+	open.fighters[1].pos = Vector2(0.0, 0.0)
+	_ticks(open, 10)
+	assert_eq(open.cutting_ticks[0], 0, "no cutting off in open space")
+
+
+func test_the_time_spent_circling_counts_real_circling_not_the_everyday_drift() -> void:
+	# Pressed in the pocket the Kicker circles (over 0.4 of a step); at range he only drifts (0.15).
+	var sim := FightSim.new(SEED, _roster.make_pair("kicker", "boxer"), _actions)
+	sim.fighters[0].pos = Vector2(-0.6, 0.0)
+	sim.fighters[1].pos = Vector2(0.6, 0.0)
+	_ticks(sim, 1)
+	assert_eq(sim.circling_ticks[0], 1, "circling off a Boxer in his face counts")
+	assert_eq(sim.circling_ticks[1], 0, "the Boxer walks straight in")
+	var drifting := FightSim.new(SEED, _roster.make_pair("kicker", "boxer"), _actions)
+	drifting.fighters[0].pos = Vector2(-1.25, 0.0)
+	drifting.fighters[1].pos = Vector2(1.25, 0.0)
+	drifting.preferred_distance(0)
+	assert_between(drifting.decisions[0].circling(drifting.views[0]), 0.01, FightSim.CIRCLING_FROM - 0.01, "a drift sideways, not circling")
+
+
+func test_over_a_fight_the_kicker_circles_and_the_boxer_cuts_off_the_cage() -> void:
+	var sim := FightSim.new(SEED, _roster.make_pair("kicker", "boxer"), _actions, 1, 300)
+	sim.run_to_end()
+	for i in 2:
+		assert_lte(sim.circling_ticks[i] + sim.cutting_ticks[i], sim.now, "never more than the fight's time")
+	assert_gt(sim.circling_ticks[0], sim.now / 5, "the Kicker circles a good part of the round: %d of %d ticks" % [sim.circling_ticks[0], sim.now])
+	assert_gt(sim.cutting_ticks[1], sim.cutting_ticks[0], "the Boxer does the cutting off")
+	assert_gt(sim.circling_ticks[0], sim.circling_ticks[1], "and the Kicker the circling")
+
+
 func test_an_outside_fighter_caught_in_the_pocket_gets_out_instead_of_trading() -> void:
 	var sim := FightSim.new(SEED, _roster.make_pair("kicker", "boxer"), _actions)
 	var ai: FighterAI = _ai(sim)

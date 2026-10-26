@@ -369,12 +369,31 @@ func _pair_lines(of_rows: Array[Dictionary], names: Dictionary) -> PackedStringA
 		red, _pct(average(of_rows, "fence_red")), _pct(average(of_rows, "pinned_red")),
 		blue, _pct(average(of_rows, "fence_blue")), _pct(average(of_rows, "pinned_blue")),
 		red, _pct(average(of_rows, "centre_red")), blue, _pct(average(of_rows, "centre_blue")), _pct(average(of_rows, "chase"))])
+	lines.append("  Circling   %s %s, %s %s · cutting off the cage: %s %s, %s %s" % [
+		red, _time_line(of_rows, "circling_red"), blue, _time_line(of_rows, "circling_blue"),
+		red, _time_line(of_rows, "cutting_red"), blue, _time_line(of_rows, "cutting_blue")])
 	lines.append("  Grappling  takedowns %s %.1f of %.1f a fight, %s %.1f of %.1f · clinch %s of the fight · ground %s (%s on top %s, %s on top %s)" % [
 		red, average(of_rows, "takedowns_red"), average(of_rows, "shots_red"), blue, average(of_rows, "takedowns_blue"), average(of_rows, "shots_blue"),
 		_pct(average(of_rows, "clinch")), _pct(average(of_rows, "ground")), red, _pct(average(of_rows, "top_red")), blue, _pct(average(of_rows, "top_blue"))])
 	lines.append("  Tired      someone under 50%% of the tank in %s of fights" % _pct(tired_share(of_rows)))
 	lines.append("  Odds       %s of exchanges hit the 5–95%% clamp" % _pct(clamped_share(of_rows)))
 	return lines
+
+
+## A fight-seconds column as "m:ss a fight (share of fight time)", e.g. "6:12 a fight (41%)" (D119).
+static func _time_line(of_rows: Array[Dictionary], key: String) -> String:
+	var seconds: int = roundi(average(of_rows, key))
+	return "%d:%02d a fight (%.0f%%)" % [seconds / 60, seconds % 60, time_share(of_rows, key) * 100.0]
+
+
+## A fight-seconds column (circling_red, cutting_blue, ...) as a share of all the fight time in these rows.
+static func time_share(of_rows: Array[Dictionary], key: String) -> float:
+	var part: float = 0.0
+	var total: float = 0.0
+	for row in of_rows:
+		part += float(row[key])
+		total += float(row.fight_seconds)
+	return part / total if total > 0.0 else 0.0
 
 
 static func _pct(fraction: float) -> String:

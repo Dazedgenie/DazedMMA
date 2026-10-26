@@ -4,7 +4,8 @@ extends RefCounted
 ## docs/12 §3 item 5, D95): who won and how, when it ended, knockdowns, strikes,
 ## damage, stamina (at the bell and the lowest it got), 10-10 cards, how often
 ## an exchange's odds hit the 5–95% clamp, how the fighters moved (time on the
-## fence, who held the centre, how much of it was a chase), and the grappling
+## fence, who held the centre, how much of it was a chase, how long each one circled
+## and cut off the cage, D119), and the grappling
 ## (takedowns tried and landed, time in the clinch, on the ground and on top, #15),
 ## each corner's coaching bot and how many calls it made (Corner, D12, D68), and each
 ## fighter's drilled rules and how often they fired (DrilledRules, #17).
@@ -12,13 +13,14 @@ extends RefCounted
 
 ## Every key a row has, in CSV column order.
 const COLUMNS: Array[String] = [
-	"seed", "ruleset", "red", "blue", "corner_red", "corner_blue", "rules_red", "rules_blue", "winner", "winner_id", "result", "method", "end_round", "end_second",
+	"seed", "ruleset", "red", "blue", "corner_red", "corner_blue", "rules_red", "rules_blue", "winner", "winner_id", "result", "method", "end_round", "end_second", "fight_seconds",
 	"knockdowns_red", "knockdowns_blue", "rocked_red", "rocked_blue",
 	"thrown_red", "landed_red", "thrown_blue", "landed_blue",
 	"head_damage_red", "body_damage_red", "leg_damage_red", "head_damage_blue", "body_damage_blue", "leg_damage_blue",
 	"stamina_end_red", "stamina_low_red", "stamina_end_blue", "stamina_low_blue",
 	"round_cards", "even_cards", "exchanges", "clamped", "events",
 	"fence_red", "pinned_red", "centre_red", "fence_blue", "pinned_blue", "centre_blue", "chase",
+	"circling_red", "cutting_red", "circling_blue", "cutting_blue",
 	"shots_red", "takedowns_red", "shots_blue", "takedowns_blue", "clinch", "ground", "top_red", "top_blue",
 	"calls_red", "calls_blue", "fired_red", "fired_blue",
 ]
@@ -117,6 +119,7 @@ static func of(sim: FightSim, lows: Array[float] = [], moves: Dictionary = {}) -
 		"winner_id": "" if winner < 0 else sim.fighters[winner].id,
 		"result": end.data.result, "method": method_of(end.data.result),
 		"end_round": end.round_number, "end_second": sim.clock.tick_in_round / FightClock.TICKS_PER_SECOND,
+		"fight_seconds": _seconds(sim.now),
 		"round_cards": 0, "even_cards": 0, "exchanges": 0, "clamped": 0, "events": sim.events.size(),
 	}
 	var standing: int = moves.get("standing", 0)
@@ -139,6 +142,8 @@ static func of(sim: FightSim, lows: Array[float] = [], moves: Dictionary = {}) -
 		row["shots_" + side] = f.takedowns_tried
 		row["takedowns_" + side] = f.takedowns_landed
 		row["top_" + side] = _share_of(moves.get("top", [0, 0])[i], ticks)
+		row["circling_" + side] = _seconds(sim.circling_ticks[i])
+		row["cutting_" + side] = _seconds(sim.cutting_ticks[i])
 		for key: String in ["fence", "pinned", "centre"]:
 			row[key + "_" + side] = _share_of(moves.get(key, [0, 0])[i], standing)
 	for e in sim.events:
@@ -180,6 +185,11 @@ static func method_of(result: String) -> String:
 
 static func _style(corner: Corner) -> String:
 	return corner.style if corner != null else Corner.NONE
+
+
+## Ticks as fight seconds, to a tenth.
+static func _seconds(ticks: int) -> float:
+	return snappedf(float(ticks) / FightClock.TICKS_PER_SECOND, 0.1)
 
 
 ## Ticks as a share of standing (or all) ticks, rounded for the CSV.

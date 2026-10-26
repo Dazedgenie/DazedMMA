@@ -47,6 +47,8 @@ func _initialize() -> void:
 		print("  %-6s landed %3d / %3d strikes, damage taken: head %d, body %d, legs %d" % [
 			f.name, f.strikes_landed, f.strikes_thrown, f.damage.head, f.damage.body, f.damage.legs])
 		print("         " + FightLogFormatter.condition_line(f))
+	for i in sim.fighters.size():
+		print("  " + _plain(FightLogFormatter.movement_line(sim, i)))
 
 
 ## N fights on consecutive seeds: the balance harness summary (who wins, how, stamina, targets).
