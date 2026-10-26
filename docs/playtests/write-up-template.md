@@ -3,7 +3,8 @@
 > Copy this file to `docs/playtests/YYYY-MM-DD-<name>.md` and fill in every row. Every test from `10` §2 is here, each with
 > where its answer comes from: the testers (the [feedback form](feedback-form.md) and the host's notes), the saved fights
 > (`tools/playtest_report.gd`, [`README.md`](README.md) §3), or the balance harness and the tests. Rows from the harness and the
-> tests are filled in with the numbers as of D118; re-run them on the playtest build's commit and update them if anything moved.
+> tests are filled in with the numbers from before health and ground and pound (D120, D121), so re-run the harness
+> (`01` §22.8) on the playtest build's commit and update them first.
 
 **Build:** `ChinCheck-windows-<commit>`  **Host:** ______  **Testers:** __ (T1 … T5; who started fight 2 at 2×: T1, T3, T5)
 **Report:** `build/playtest/summary.txt` from __ saved fights (paste it under §3)

@@ -20,7 +20,7 @@ func after_each() -> void:
 func test_the_playtest_fights_follow_the_onboarding_order() -> void:
 	var steps: Array[Dictionary] = Playtest.steps()
 	assert_eq(steps.map(func(s: Dictionary) -> String: return s.id), ["fight_1_first_calls", "fight_2_catch_the_kick", "fight_3_drilled_rule"])
-	assert_eq(steps[0].calls, ["pressure", "circle_out", "takedown"], "three calls first (docs/07 step 4)")
+	assert_eq(steps[0].calls, ["pressure", "circle_out", "takedown", "ground_and_pound"], "three call keys first (docs/07 step 4; Ground and pound! shares key 1)")
 	assert_true(steps[1].calls.has("catch_the_kick"), "then the read call against the Kicker (step 7)")
 	assert_eq(steps[2].calls, [], "then the full call bar (step 9)")
 	assert_eq(Playtest.next_step("fight_1_first_calls").id, "fight_2_catch_the_kick")
@@ -50,7 +50,7 @@ func test_a_fight_record_counts_the_coaching_and_replays_the_fight() -> void:
 	var sim: FightSim = _played()
 	var record: Dictionary = FightRecord.build(sim, { "step": "fight_3_drilled_rule", "tester": "Sam", "normal_rate": 2.0, "seed": 4 })
 	var st: Dictionary = record.stats
-	assert_gt(st.calls_made, 10)
+	assert_gt(st.calls_made, 0, "calls until the fight ended (it can end early, D120)")
 	assert_eq(st.calls_by_id.catch_the_kick, st.calls_made)
 	assert_gt(st.takedowns_by_call + st.takedowns_by_rule, 0, "the read and the rule catch kicks")
 	assert_gt(st.catch_kicks_landed, 0)

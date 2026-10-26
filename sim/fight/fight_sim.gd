@@ -78,8 +78,17 @@ const KO_BASE: float = 0.15
 const KO_SLOPE: float = 0.5
 const KO_MIN: float = 0.05
 const KO_MAX: float = 0.8
-## The referee stops it: three knockdowns in a round, or rocked with nothing left (head fully hurt).
+## The referee stops it (D120): three knockdowns in a round; health gone (head fully hurt);
+## or a rocked fighter taking this many clean head shots without answering.
 const TKO_KNOCKDOWNS: int = 3
+const STOP_UNANSWERED: int = 2
+## Underneath on the ground, a fighter who isn't answering the ground and pound is
+## stopped too, sooner the more hurt they are: after STOP_UNANSWERED + GROUND_STOP_PER_HEALTH
+## × health clean head shots in a row (16 fresh, 9 at half health, 5 at 20%).
+const GROUND_STOP_PER_HEALTH: float = 14.0
+## Amateur referees step in sooner: the health line rises by early_stoppage_bias × this
+## (adult amateur 0.3 → at 15% health), and they wait for one shot fewer.
+const STOP_BIAS_HEALTH: float = 0.5
 
 ## Tied up (clinch or ground), the fighters' centres are this close, on the spot
 ## where the one being taken down or tied up stood.
@@ -109,6 +118,10 @@ const RESULT_KO := "ko"
 const RESULT_TKO := "tko"
 ## How a TKO came about when it wasn't the referee: the corner threw in the towel (D31).
 const STOPPED_BY_TOWEL := "towel"
+## Why the referee stopped it (FIGHT_ENDED `why`, D120).
+const STOP_HEALTH := "health"
+const STOP_SHOTS := "unanswered"
+const STOP_KNOCKDOWNS := "knockdowns"
 
 var fight_seed: int
 var clock: FightClock
@@ -139,6 +152,7 @@ var _pending: Array[FightCommand] = []
 var _fight_over: bool = false
 var _round_points: Array[float] = [0.0, 0.0]  # effective striking this round, by who scored it
 var _round_knockdowns: Array[int] = [0, 0]  # knockdowns scored this round
+var _round_impact: Array[int] = [0, 0]  # rocks and knockdowns scored this round (Judging: a 10-8 needs one)
 var _round_aggression: Array[float] = [0.0, 0.0]  # attacks thrown + metres walked forward this round
 var _round_control: Array[int] = [0, 0]  # ticks this round the opponent spent pinned on the fence
 ## What the current position does to each fighter every tick (its data, worked out
@@ -402,7 +416,10 @@ func _advance_fighter(i: int) -> void:
 	if f.is_rocked():
 		f.rocked_ticks -= 1
 		if f.rocked_ticks == 0:
+			f.unanswered = 0
 			_emit(FightEvent.RECOVERED, i)
+	if f.tied_up_ticks > 0:
+		f.tied_up_ticks -= 1
 	if f.stagger_ticks > 0:
 		f.stagger_ticks -= 1
 	var calls_here: LiveCalls = decisions[i].calls
@@ -648,6 +665,8 @@ func apply_transition(i: int, action_id: String, result: String = PositionLibrar
 	_position_effects()
 	for f in fighters:
 		f.clear_action()
+		f.tied_up_ticks = 0
+		f.unanswered = 0
 	_place_bodies(i)
 	_emit(FightEvent.POSITION_CHANGED, i, { "action_id": action_id, "position": situation.position, "phase": situation.phase, "roles": roles.duplicate() })
 	if roles[i] == PositionLibrary.TOP and not was_top:
@@ -661,6 +680,9 @@ func apply_transition(i: int, action_id: String, result: String = PositionLibrar
 ## come apart where they are, a standing gap apart.
 func _break_apart(i: int) -> void:
 	situation.reset()
+	for f in fighters:
+		f.tied_up_ticks = 0
+		f.unanswered = 0
 	_position_effects()
 	_place_bodies(i)
 	_emit(FightEvent.POSITION_CHANGED, i, { "action_id": "", "position": situation.position, "phase": situation.phase, "roles": situation.roles.duplicate() })
@@ -755,7 +777,7 @@ func phase_ticks(f: FighterState, id: String, phase: String) -> int:
 
 ## Flags fighter i carries right now: from their current action's phase (docs/09
 ## flags_self), BACK_TO_CAGE when pinned, HANDS_LOW when exhausted or rocked,
-## HEAD_LOW while stuck under a sprawl.
+## POSTURE_BROKEN while tied up from the bottom, HEAD_LOW while stuck under a sprawl.
 func active_flags(i: int) -> Array[String]:
 	var f: FighterState = fighters[i]
 	var out: Array[String] = []
@@ -763,6 +785,8 @@ func active_flags(i: int) -> Array[String]:
 		out.append("BACK_TO_CAGE")
 	if f.stamina_fraction() < HANDS_LOW_BELOW or f.is_rocked():
 		out.append("HANDS_LOW")
+	if f.tied_up_ticks > 0:
+		out.append("POSTURE_BROKEN")
 	if f.is_free():
 		return out
 	if f.sprawled:
@@ -786,6 +810,8 @@ func flags_ahead(i: int, ahead: int) -> Array[String]:
 		out.append("BACK_TO_CAGE")
 	if f.stamina_fraction() < HANDS_LOW_BELOW or f.is_rocked():
 		out.append("HANDS_LOW")
+	if f.tied_up_ticks > ahead:
+		out.append("POSTURE_BROKEN")
 	var phase: String = phase_ahead(i, ahead)
 	if phase == "":
 		return out
@@ -888,6 +914,12 @@ func _land_strike(i: int, action: Dictionary) -> void:
 		miss.reason = "out of range"
 		_emit(FightEvent.STRIKE_MISSED, i, miss)
 		return
+	if attacker.tied_up_ticks > 0 and Ruleset.is_ground_strike(action):
+		miss.reason = "tied up"
+		_emit(FightEvent.STRIKE_MISSED, i, miss)
+		return
+	if not ruleset.allows_target(action, target):
+		target = "body"  # Amateur rules: ground strikes to the body only (docs/08, D121).
 	var counter: bool = is_counter(i)
 	var breakdown: OddsBreakdown = odds_breakdown(i, action.id)
 	var chance: float = breakdown.chance
@@ -910,7 +942,9 @@ func _land_strike(i: int, action: Dictionary) -> void:
 			stops = stops or bool(opp.get("stops", false))
 	var into: String = defender.action_id if stops and defender.phase in STOPPABLE_PHASES else ""
 	var dealt: int = maxi(1, roundi(strike_damage(attacker, action.id) * scale))
+	var was_rocked: bool = defender.is_rocked()
 	defender.damage[target] += dealt
+	attacker.unanswered = 0  # Landing anything back answers (D120).
 	defender.stagger_ticks = maxi(defender.stagger_ticks, STAGGER_BASE + roundi(dealt * STAGGER_PER_DAMAGE))
 	var push: float = float(action.strike.get("push_m", 0.0))
 	if push > 0.0:
@@ -926,6 +960,7 @@ func _land_strike(i: int, action: Dictionary) -> void:
 		_to_recovery(1 - i)
 	if target == "head":
 		_head_impact(i, dealt, into != "")
+		_referee(i, was_rocked)
 
 
 static func _has_bonus(b: OddsBreakdown, bonus_name: String) -> bool:
@@ -1007,11 +1042,25 @@ func _finish_grip(i: int) -> bool:
 	elif roll < b.chance + float(action[action.category].get("partial_within", 0.0)) \
 			and not transition_for(i, action.id, PositionLibrary.PARTIAL).is_empty():
 		result = PositionLibrary.PARTIAL
+	if result == PositionLibrary.SUCCESS and action[action.category].has("ties_up_ms"):
+		_tie_up(i, action, b)
+		return false  # The fight stays where it is; the move goes on to its recovery.
 	if result == "" or transition_for(i, action.id, result).is_empty():
 		_emit(FightEvent.GRAPPLE_STOPPED, i, { "action_id": action.id, "reason": "defended", "chance": b.chance, "odds": b.to_dict() })
 		return false
 	_emit(FightEvent.GRAPPLE_WON, i, { "action_id": action.id, "result": result, "chance": b.chance, "odds": b.to_dict() })
 	return apply_transition(i, action.id, result)
+
+
+## A tie-up from the bottom works (D121): the top fighter's posture is broken, the ground
+## strike they were throwing is smothered, and they can't throw another until it wears off.
+func _tie_up(i: int, action: Dictionary, b: OddsBreakdown) -> void:
+	var o: FighterState = fighters[1 - i]
+	o.tied_up_ticks = int(action[action.category].ties_up_ms) / FightClock.TICK_MS
+	fighters[i].unanswered = 0
+	if not o.is_free() and actions.get_action(o.action_id).category == "strike":
+		o.clear_action()
+	_emit(FightEvent.GRAPPLE_WON, i, { "action_id": action.id, "result": "tied_up", "chance": b.chance, "odds": b.to_dict() })
 
 
 ## Damage multiplier from Power: 0.5 + Power / 100 (Power 50 → ×1).
@@ -1047,15 +1096,53 @@ func _head_impact(i: int, dealt: int, flash: bool = false) -> void:
 	if chance <= 0.0 or _rng.randf() >= chance:
 		return
 	var d: FighterState = fighters[1 - i]
-	if d.is_rocked() or flash:
+	var grounded: bool = situation.phase == PositionLibrary.PHASE_GROUND
+	if (d.is_rocked() or flash) and not grounded:
 		_knockdown(i, shock)
 		return
+	var again: bool = d.is_rocked()
 	d.rocked_ticks = rocked_duration(d)
 	d.clear_action()
 	_round_points[i] += Judging.ROCKED_POINTS
-	_emit(FightEvent.ROCKED, 1 - i, { "by": i })
-	if d.hurt("head") >= 1.0:
-		_finish(i, RESULT_TKO)
+	_round_impact[i] += 1
+	_emit(FightEvent.ROCKED, 1 - i, { "by": i, "again": again } if again else { "by": i })
+	if again and _rng.randf() < ko_chance(shock, d):
+		_finish(i, RESULT_KO)  # Rocked again on the ground: nowhere to fall, so it's the KO roll (D121).
+
+
+## The referee watches every clean head shot (D120): health gone, or a rocked
+## fighter taking STOP_UNANSWERED of them (counted from the second, `was_rocked`)
+## without answering, and it's stopped. Pinned underneath, it's more shots the healthier
+## they are (GROUND_STOP_PER_HEALTH). Answering is landing anything,
+## tying the top fighter up or getting out from under (any change of position).
+## Amateur referees are quicker.
+func _referee(i: int, was_rocked: bool) -> void:
+	if _fight_over:
+		return
+	var d: FighterState = fighters[1 - i]
+	if d.health() <= stop_health():
+		_finish(i, RESULT_TKO, "", STOP_HEALTH)
+		return
+	var limit: int = stop_unanswered()
+	if was_rocked and d.is_rocked():
+		d.unanswered += 1
+	elif situation.role(1 - i) == PositionLibrary.BOTTOM:
+		d.unanswered += 1
+		limit += roundi(GROUND_STOP_PER_HEALTH * d.health())
+	else:
+		return
+	if d.unanswered >= limit:
+		_finish(i, RESULT_TKO, "", STOP_SHOTS)
+
+
+## The health at or under which the referee stops it: 0 in the pros.
+func stop_health() -> float:
+	return STOP_BIAS_HEALTH * ruleset.early_stoppage_bias
+
+
+## Clean head shots a rocked fighter may take unanswered before the referee steps in.
+func stop_unanswered() -> int:
+	return maxi(1, STOP_UNANSWERED - roundi(2.0 * ruleset.early_stoppage_bias))
 
 
 func rocked_duration(f: FighterState) -> int:
@@ -1066,11 +1153,13 @@ func _knockdown(i: int, shock: float) -> void:
 	var d: FighterState = fighters[1 - i]
 	d.knockdowns += 1
 	d.knockdowns_this_round += 1
+	d.unanswered = 0
 	d.clear_action()
 	d.down_ticks = DOWN_TICKS
 	d.rocked_ticks = rocked_duration(d)
 	_round_points[i] += Judging.KNOCKDOWN_POINTS
 	_round_knockdowns[i] += 1
+	_round_impact[i] += 1
 	_emit(FightEvent.KNOCKDOWN, 1 - i, { "by": i })
 	if not situation.is_standing():
 		fighters[i].clear_action()
@@ -1078,7 +1167,7 @@ func _knockdown(i: int, shock: float) -> void:
 	if _rng.randf() < ko_chance(shock, d):
 		_finish(i, RESULT_KO)
 	elif d.knockdowns_this_round >= TKO_KNOCKDOWNS:
-		_finish(i, RESULT_TKO)
+		_finish(i, RESULT_TKO, "", STOP_KNOCKDOWNS)
 
 
 # --- Rounds, judges and the result --------------------------------------------
@@ -1091,7 +1180,7 @@ func _end_round() -> void:
 		for i in 2:
 			seen.append(_round_points[i] * (1.0 + _rng.randf_range(-Judging.JUDGE_NOISE, Judging.JUDGE_NOISE)))
 			aggression.append(_round_aggression[i] * (1.0 + _rng.randf_range(-Judging.JUDGE_NOISE, Judging.JUDGE_NOISE)))
-		var card: Array[int] = Judging.round_card(seen, _round_knockdowns, [aggression, _round_control])
+		var card: Array[int] = Judging.round_card(seen, _round_knockdowns, [aggression, _round_control], _round_impact)
 		judge_totals[j][0] += card[0]
 		judge_totals[j][1] += card[1]
 		cards.append(card)
@@ -1107,20 +1196,25 @@ func _end_round() -> void:
 		f.rocked_ticks = 0
 		f.down_ticks = 0
 		f.stagger_ticks = 0
+		f.tied_up_ticks = 0
+		f.unanswered = 0
 		f.knockdowns_this_round = 0
 	_round_points = [0.0, 0.0]
 	_round_knockdowns = [0, 0]
+	_round_impact = [0, 0]
 	_round_aggression = [0.0, 0.0]
 	_round_control = [0, 0]
 	clock.start_next_round()
 	_to_corners()
 
 
-func _finish(winner: int, result: String, stopped_by: String = "") -> void:
+func _finish(winner: int, result: String, stopped_by: String = "", why: String = "") -> void:
 	_fight_over = true
 	var data := { "result": result, "winner": winner }
 	if stopped_by != "":
 		data.stopped_by = stopped_by
+	if why != "":
+		data.why = why
 	_emit(FightEvent.FIGHT_ENDED, FightEvent.NO_ACTOR, data)
 
 
@@ -1128,6 +1222,11 @@ func _finish(winner: int, result: String, stopped_by: String = "") -> void:
 ## judges add them up before their own noise (Judging): for the HUD's rough estimate.
 func round_points() -> Array[float]:
 	return _round_points.duplicate()
+
+
+## Each fighter's rocks and knockdowns scored this round (a 10-8 for out-landing needs one, D120).
+func round_impact() -> Array[int]:
+	return _round_impact.duplicate()
 
 
 func _average_stat(f: FighterState, ids: Array) -> float:

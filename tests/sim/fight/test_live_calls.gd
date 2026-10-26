@@ -64,7 +64,7 @@ func _calls(sim: FightSim) -> LiveCalls:
 
 func test_every_call_in_the_catalogue_loads_with_its_hotkey() -> void:
 	var library: CallLibrary = CallLibrary.shared()
-	assert_eq(library.ids(), ["pressure", "circle_out", "work_the_range", "takedown", "clinch", "defend_the_shot",
+	assert_eq(library.ids(), ["ground_and_pound", "pressure", "circle_out", "work_the_range", "takedown", "clinch", "defend_the_shot",
 		"get_up", "survive", "stay_safe", "catch_the_kick"] as Array[String])
 	assert_eq(LiveCalls.shape(library.get_call("takedown")), LiveCalls.ATTEMPT)
 	assert_eq(LiveCalls.shape(library.get_call("pressure")), LiveCalls.FOCUS)

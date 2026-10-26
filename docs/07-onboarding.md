@@ -40,9 +40,10 @@ each opening on a tip card of two sentences (§2):
 
 | Playtest fight | Step | Calls open | Also |
 |---|---|---|---|
-| 1: your first calls (Wrestler vs Boxer) | 4 | Pressure, Circle out, Takedown | Voice meter, speed controls |
+| 1: your first calls (Wrestler vs Boxer) | 4 | Pressure, Circle out, Takedown, and Ground and pound! on top | Voice meter, speed controls |
 | 2: catch the kick (Wrestler vs Kicker) | 6–7 | + Catch the kick! (Q) | Tell cue on; the perfect-call flourish |
 | 3: a drilled rule (Wrestler vs Kicker) | 8–9 | Every call, Get up and Survive for the ground | Catch & shoot drilled at 80% |
 
 The corner screen (step 5) is the between-rounds panel with the rule slots; there's no film study yet, so the tell is
-shown by the cue from fight 2. The host's script: `docs/playtests/script.md`. To change a fight, edit its JSON file.
+shown by the cue from fight 2. Ground and pound! (D121) came after step 4 was written; it's open from fight 1 because it
+shares key 1 with Pressure! (standing vs on top), so the first fight still has three keys to learn. The host's script: `docs/playtests/script.md`. To change a fight, edit its JSON file.

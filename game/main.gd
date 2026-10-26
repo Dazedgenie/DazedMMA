@@ -153,11 +153,18 @@ func _unhandled_input(event: InputEvent) -> void:
 		_:
 			handled = false
 			if key >= KEY_0 and key <= KEY_9:
+				# Calls can share a key when they're for different positions (1: Pressure!
+				# standing, Ground and pound! on top, D121): make the one that works from here.
+				var on_key: Array[String] = []
 				for id in driver.sim.calls.ids():
 					var hotkey: Variant = driver.sim.calls.get_call(id).get("hotkey")
-					if hotkey != null and int(hotkey) == key - KEY_0:
+					if hotkey != null and int(hotkey) == key - KEY_0 and hud.is_allowed(id):
+						on_key.append(id)
+				for id in on_key:
+					if FightHud.call_problem(driver.sim, driver.player, driver.sim.calls.get_call(id)) == "" or id == on_key[-1]:
 						make_call(id)
 						handled = true
+						break
 	if handled:
 		get_viewport().set_input_as_handled()
 

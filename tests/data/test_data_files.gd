@@ -159,6 +159,8 @@ func test_values_come_from_the_allowed_lists() -> void:
 				problems.append("action '%s': a %s move needs a '%s' block with base_success" % [id, category, category])
 			elif not block.get("partial_within", 0.0) is float or block.get("partial_within", 0.0) < 0.0:
 				problems.append("action '%s': %s.partial_within is a chance, 0 or more" % [id, category])
+			elif block.has("ties_up_ms") and (category != "ground" or not block.ties_up_ms is float or block.ties_up_ms <= 0.0):
+				problems.append("action '%s': ties_up_ms (how long a tie-up stops ground strikes) is a ground move's, in ms" % id)
 		if action.has("basic") and not action.basic is bool:
 			problems.append("action '%s': basic is true or false" % id)
 		for r: Variant in action.get("roles", []):
@@ -242,10 +244,17 @@ func test_calls_are_an_attempt_a_focus_or_a_read() -> void:
 		if key != null:
 			if not key is float or key < 0 or key > 9 or fmod(key, 1.0) != 0.0:
 				problems.append("%s: hotkey is a digit 0–9 or null" % where)
-			elif hotkeys.has(key):
-				problems.append("%s: hotkey %d is taken by '%s'" % [where, key, hotkeys[key]])
 			else:
-				hotkeys[key] = id
+				# Two calls can share a key when they're never possible in the same position
+				# (1 is Pressure! standing and Ground and pound! on top, D121).
+				for other: String in hotkeys.get(key, []):
+					var theirs: Array = _items("calls")[other].get("positions", [])
+					var mine: Array = c.get("positions", [])
+					if mine.is_empty() or theirs.is_empty() or mine.any(func(p: Variant) -> bool: return theirs.has(p)):
+						problems.append("%s: hotkey %d is taken by '%s' in the same position" % [where, key, other])
+				if not hotkeys.has(key):
+					hotkeys[key] = []
+				hotkeys[key].append(id)
 		for r: Variant in c.get("roles", []):
 			if r not in ROLES:
 				problems.append("%s: unknown role '%s'" % [where, r])

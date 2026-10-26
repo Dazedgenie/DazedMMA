@@ -35,3 +35,10 @@ and `calls_red`/`calls_blue` count the calls it made; `rules_red`/`rules_blue` n
 re-run from its file to check it replays:
 
     godot --headless --script res://tools/playtest_report.gd -- --dir=/path/to/all/fights --out=build/playtest
+
+`golden.gd` plays the golden fights (#35, D122, `docs/01` §2.2), the four fights pinned in
+`tests/golden/golden_fights.json`, and says which ones changed and how. With `--update` it pins the new results: do that
+only when a change is meant to change fights, commit the file and say why in the PR.
+
+    godot --headless --script res://tools/golden.gd
+    godot --headless --script res://tools/golden.gd -- --update
