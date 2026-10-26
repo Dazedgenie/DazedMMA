@@ -1,0 +1,15 @@
+{
+	"schema": "call@2",
+	"id": "ground_and_pound",
+	"name": "Ground and pound!",
+	"kind": "now",
+	"tier": "intent",
+	"parent": null,
+	"hotkey": 1,
+	"voice_cost": 20,
+	"positions": ["full_guard"],
+	"roles": ["top"],
+	"actions": [],
+	"focus": { "duration_ms": 15000, "leanings": { "pace": 80, "risk": 40 } },
+	"requires_technique": null
+}

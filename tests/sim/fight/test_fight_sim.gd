@@ -270,7 +270,7 @@ func test_a_grappler_leaning_shoots_more_and_a_pure_striker_never_shoots() -> vo
 				shots[e.actor] += 1
 			elif e.actor == 0 and e.data.get("why", "") == "leads":
 				jab_leads += 1
-	assert_gt(shots[0], jab_leads * 3, "a +100 grappler leads with the shot (4× the weight), jabbing to counter")
+	assert_gt(shots[0], jab_leads * 2, "a +100 grappler leads with the shot (4× the weight), jabbing to counter; time on top pounding takes some of the fight (D121)")
 	assert_eq(shots[1], 0)
 
 

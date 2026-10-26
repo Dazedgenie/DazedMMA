@@ -77,6 +77,11 @@ var rocked_ticks: int = 0
 var down_ticks: int = 0
 ## Ticks left flinching from a clean shot: the feet stop (FightSim.STAGGER_*).
 var stagger_ticks: int = 0
+## Ticks left with their posture broken: tied up from the bottom, so no ground strikes (D121).
+var tied_up_ticks: int = 0
+## Clean head shots taken while rocked without answering (landing anything back):
+## the referee steps in at FightSim.STOP_UNANSWERED (D120).
+var unanswered: int = 0
 var knockdowns: int = 0  # suffered this fight
 var knockdowns_this_round: int = 0
 var stamina: float
@@ -196,6 +201,12 @@ func tired() -> float:
 func hurt(area: String) -> float:
 	var toughness: float = int(stats.get("chin" if area == "head" else "durability", DEFAULT_STAT))
 	return clampf(damage[area] / (HURT_SCALE * (toughness + 50.0)), 0.0, 1.0)
+
+
+## What's left before the referee stops it, 1 (fresh) to 0 (finished): the head
+## damage they can still take, as the HUD's health bar shows it (D120).
+func health() -> float:
+	return 1.0 - hurt("head")
 
 
 ## Composure broken: defense and Fight IQ drop, power and output go up (wild swings).

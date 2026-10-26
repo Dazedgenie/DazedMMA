@@ -141,7 +141,7 @@ The Phase 1 playtest ships a trimmed ground game (#15):
 
 | In the playtest | After the playtest |
 |---|---|
-| Clinch (one clinch position), double leg, catch-kick single, sprawl, full guard top/bottom, get up, scramble | Half guard, side control, mount, back, north-south, turtle, guard passing, sweeps, ground-and-pound, submissions (§9) |
+| Clinch (one clinch position), double leg, catch-kick single, sprawl, full guard top/bottom, get up, scramble; ground-and-pound and tie-ups from full guard (added early, D121, §24) | Half guard, side control, mount, back, north-south, turtle, guard passing, sweeps, submissions (§9) |
 
 ---
 
@@ -575,9 +575,10 @@ the centre (§20.2). Tested in `tests/sim/fight/test_fighter_ai.gd`, `tests/sim/
 
 ## 21. Clinch, takedowns and the ground in the engine (#15, D98, D108, D109)
 What `sim/` does for §4, §5.1 and D29 in the Phase 1 playtest. The scope is the trimmed one (D98): one clinch position, the
-double leg, the catch-kick single, the sprawl, full guard top and bottom, getting up and the scramble. There are no ground
-strikes yet: in full guard the fighter on top holds and the judges score the control (D108). Every number is a first guess
-for the balance harness; each one is a named constant or a field in `data/`, listed under "To change it".
+double leg, the catch-kick single, the sprawl, full guard top and bottom, getting up and the scramble. Ground-and-pound came
+in after this (D121, §24): the fighter on top of full guard strikes and the one underneath ties up or gets up; where this
+section and §24 differ, §24 is current. Every number is a first guess for the balance harness; each one is a named constant
+or a field in `data/`, listed under "To change it".
 
 ### 21.1 Positions and the moves between them
 Where the fight can go, all from `data/positions/` (§4.1). Roles: `neutral` standing, in the clinch and in a scramble; `top`
@@ -587,7 +588,7 @@ and `bottom` in full guard.
 |---|---|---|
 | Standing | Double leg → full guard, shooter on top; half working → scramble. Catch-kick single → full guard. Clinch entry → clinch | Nothing extra (0 · 0): moves and walking already cost stamina (D96) |
 | Clinch | Clinch break → standing. Double leg → full guard, or half working → scramble. Knees work here; punches and kicks don't | 0.4 each · 0 (cage control still counts, §18) |
-| Full guard | Get up (bottom only) → standing, or half working → scramble. The top fighter holds | top 0.2, bottom 0.3 · top 1.0, bottom 0.2 |
+| Full guard | Get up (bottom only) → standing, or half working → scramble. The top fighter grounds and pounds; the bottom fighter can tie him up (§24) | top 0.2, bottom 0.3 · top 1.0, bottom 0.2 |
 | Scramble | Get up → standing. Scramble for the top → full guard, whoever wins it on top | 0.8 each · 0 |
 
 The moves (`data/actions/`). The ones marked *everyone* are `basic`: every fighter knows them whatever their techniques, so
@@ -639,12 +640,14 @@ Each position's file gives, per role, a stamina drain per second, a control scor
 (`09` position@2), and the sim applies all three while the fight is there. Standing drains nothing (it used to say 0.1 a
 second, never applied; setting it to 0 kept standing fights exactly as they were). The clinch costs both fighters 0.4 a second,
 the bottom of full guard 0.3 and the top 0.2, a scramble 0.8. The strike multipliers are 1.0 standing and in the clinch;
-full guard's (top 1.0, bottom 0.4) wait for ground strikes after the playtest.
+in full guard the top fighter's ground strikes do × 0.8 (the guard takes some sting out, D121) and the bottom's 0.4 waits
+for strikes from the bottom.
 
 ### 21.4 Judges
-Grappling counts in the same round points as striking (§11: "effective striking/grappling"): 10 points for ending up on top
-(a takedown, or winning a scramble), plus 0.3 points a second × the position's control score (full guard top 1.0, bottom 0.2).
-For scale, a clean cross from a 60-Power fighter is about 7 points; a takedown and 20 seconds on top is 16.
+Grappling counts in the same round points as striking (§11: "effective striking/grappling"): 6 points for ending up on top
+(a takedown, or winning a scramble), plus 0.15 points a second × the position's control score (full guard top 1.0, bottom
+0.2). They were 10 and 0.3 until ground strikes scored on their own (D120, §24.4). For scale, a clean cross from a 60-Power
+fighter is about 7 points; a takedown and 20 seconds on top is 9, before any ground strikes.
 
 ### 21.5 The fighter AI tied up
 Standing, the AI works as in §20, with three additions: everyone sprawls on a shot they read (sprawl is basic now), and if the
@@ -658,8 +661,8 @@ footwork and no range plan:
 | Crowded grappler | The leads slow-down for being crowded (× 0.35, §20) fades with the Base leaning: × 0.35 at Base 0, nothing at +100 | `lead_rate()` in `fighter_ai.gd` |
 | In the clinch | A chance of 4 × work rate per tick (about every 1.7 s) to do something: knees, a double leg, or a break. Break weight = 1 − Base/100 − Range/200 (at least 0.05), so the Kicker wants out and the Wrestler stays to shoot. Rocked, they only look to break | `CLINCH_RATE` 4.0, `CLINCH_BREAK_MIN` 0.05 |
 | Planning where to stand (§20.2) | A landed takedown counts as 16 damage, a clinch entry as 8 × how much they like the clinch, so a grappler wants the range he can grapple from. The Wrestler's `double_leg` tendency is 1.2 | `TAKEDOWN_PLAN_VALUE`, `CLINCH_PLAN_VALUE`; `data/fighters/wrestler.json` |
-| Full guard, bottom | A chance of 2 × work rate per tick (about every 3.3 s) to try to get up | `GROUND_RATE` 2.0 |
-| Full guard, top | Holds (D108). Ground strikes come after the playtest | `_tied()` in `fighter_ai.gd` |
+| Full guard, bottom | A chance of 2 × work rate per tick (about every 3.3 s) to try to get up or tie up; 3 × as often while the top fighter is throwing or they're rocked (§24.3) | `GROUND_RATE` 2.0, `GROUND_UNDER_FIRE` 3.0 |
+| Full guard, top | Grounds and pounds (D121, §24.3); was holding (D108) | `_pound()` in `fighter_ai.gd` |
 | Scramble | 30% a tick, so it's over fast. Get up × (1 − Base/100), go for the top × (1 + Base/100) | `SCRAMBLE_RATE` 0.3 |
 
 ### 21.6 The standing gap stays (a note on #15)
@@ -959,3 +962,108 @@ the opponent's adaptation leaning on the rule's reliability (already in) more th
 Tested in `tests/sim/fight/test_drilled_rules.gd` (firing with reaction time, reliability, cooldown, slot order, out of range,
 rocked, busy, setting rules, adaptation, untouched fights, replays), `tests/sim/balance/` (the rules columns and lines) and
 `tests/ui/test_fight_log_formatter.gd`.
+
+---
+
+## 24. Health, the referee and ground and pound (D120, D121)
+Kyle tried the playtest build (2026-10-26): "kind of pointless with no health system and no ground and pound". The engine
+already tracked head, body and leg damage, but it hardly showed: only 3% of fights ended early, and the Wrestler spent 35–55%
+of his fights on top doing nothing but holding (D108). Kyle picked **about 30% of fights ending early, like real MMA**. Every
+number below is a first guess for the harness; each is a named constant or a data field, listed in §24.6.
+
+### 24.1 Health (D120)
+A fighter's **health** is the head damage they can still take: `1 − head hurt`, where 10 × (Chin + 50) of head damage is all of
+it (Chin 50: 1,000). It doesn't come back between rounds (D99). It was always there underneath (hurt fighters are slower, defend
+worse and get rocked more easily, §8, `11` §3.2); now it has a bar and an end. The HUD's top bar shows each fighter's health as a
+big bar (green, yellow under 60%, red under 30%, with the percentage and ROCKED when they are), their stamina under it, and
+small body and leg bars (body damage shrinks the tank, leg damage slows the feet). `FighterState.health()`.
+
+### 24.2 The referee (D120)
+The referee watches every clean head shot and stops the fight (a TKO, with the reason on the result) when:
+
+| Stoppage | When | Feed |
+|---|---|---|
+| **Nothing left** | Health reaches 0 | "the referee stops it: nothing left" |
+| **Taking shots, standing or down** | A rocked fighter takes 2 more clean head shots (counted after the one that rocked them) without answering | "taking shots and not answering" |
+| **Taking shots underneath** | A fighter on the bottom takes 2 + 14 × health clean head shots in a row without answering: 16 fresh, 9 at half health, 5 at 20% | the same |
+| **Three knockdowns** | Three knockdowns in a round (as before) | "three knockdowns in a round" |
+
+**Answering** is landing anything back, tying the top fighter up, or getting out from under (any change of position); the count
+also clears when a rock wears off, at a knockdown, and between rounds. Before, a TKO only came from three knockdowns or a head
+fully hurt while rocked. Amateur referees step in sooner (the ruleset's `early_stoppage_bias`, `08`): the health line moves up by
+bias × 0.5 (adult amateur 15%, teen 25%) and they stop after one shot fewer.
+
+### 24.3 Ground and pound (D121)
+In full guard the fighter on top strikes and the fighter underneath answers:
+
+| Move | Who | Timing (telegraph · wind-up · active · recovery) | Odds and damage | Notes |
+|---|---|---|---|---|
+| Ground punch (*everyone*) | Top | 0.1 · 0.2 · 0.1 · 0.3 s | 50% + (Top control, Boxing) − Guard, +10% on `HANDS_LOW`; 4 to the head × Power × 0.8 (full guard top) | `POSTURED_UP` from wind-up to the end |
+| Ground elbow | Top, a technique (the Wrestler has it) | 0.2 · 0.3 · 0.1 · 0.4 s | 50% + (Top control, Power) − Guard; 7 to the head | Not where elbows are banned (amateur rules) |
+| Tie up (*everyone*) | Bottom | 0 · 0.2 · 0.3 · 0.2 s | 45% + (Guard, Strength) − Top control, +15% on `POSTURED_UP` | Works: the top fighter's posture is broken (`POSTURE_BROKEN`) for 3 s, the strike he was winding up is smothered, and no ground strikes until it wears off. The fight stays in full guard |
+| Get up (as §21.1) | Bottom | | +20% on `POSTURED_UP` | Posturing up to strike gives the space to get up |
+
+- **Rocked again on the ground** is the KO roll (§8) instead of a knockdown: there's nowhere to fall. The feed says "ROCKED again
+  underneath".
+- **Amateur rules** (`08`: no head strikes on the ground) send ground strikes to the body; elbows aren't allowed at all.
+- **The AI on top** (`FighterAI._pound`): a chance of 1.2 × work rate × (1 + Pace / 100) a tick to throw a ground strike (the
+  Wrestler: one about every 2.5 s), × (1.5 + Risk / 200) against a rocked fighter, less when tired; tied up, it holds until the
+  posture is back. Punch or elbow is picked like any strike (tendency, commitment, the finish).
+- **The AI underneath**: tries 3 × as often while the top fighter is throwing or they're rocked; tying up is weighted 1.5 then
+  (0.3 otherwise), and a rocked fighter's get-ups 0.3.
+- **The call**: *Ground and pound!* (key 1, voice 20) is a focus call from the top of full guard: Pace +80 and Risk +40 for
+  15 s, so the fighter throws about twice as often. It shares key 1 with *Pressure!*, which is only for standing; the key makes
+  whichever works from where the fight is (`data/calls/`: two calls may share a key only if they're never possible in the same
+  position). The AI corner (and the harness's coaching bots) call it when their fighter lands on top, and when the opponent is
+  rocked underneath (instead of *Pressure!*).
+
+### 24.4 Judges (D120)
+Ground strikes score like any strike. With them scoring, ending up on top dropped to 6 points (was 10) and control to 0.15 a
+second (was 0.3), or the Wrestler won 75–85% of fights on points. And a **10-8 for out-landing** (4 to 1 in a busy round, D110)
+now also needs the winner to have rocked or dropped the loser that round: a striker who stuffed every shot, or a Wrestler who
+held and tapped, was getting 10-8s and 28-28 draws (4% of Wrestler vs Kicker fights). Two more knockdowns is still a 10-8. The
+HUD's estimate uses the same rule (`FightSim.round_impact()`).
+
+### 24.5 Balance (2026-10-26)
+The harness without calls, 100 fights a pairing (seed 1, pro rules), and with the ideal coaching bot in the Wrestler's corner:
+
+| Pairing (red vs blue) | Red wins · draws | Finished early (KO · TKO) | Ground (Wrestler on top) | Before (main) |
+|---|---|---|---|---|
+| Kicker vs Boxer | 44% · 0% | 25% (4 · 21) | – | 51% · 3% finished |
+| Boxer vs Kicker | 55% · 0% | 33% (9 · 24) | – | 50% |
+| Wrestler vs Kicker | 60% · 3% | 20% (2 · 18) | 35% (33%) | 50% · 1% finished |
+| Kicker vs Wrestler | 34% · 2% | 15% (2 · 13) | 38% (35%) | 51% |
+| Wrestler vs Boxer | 49% · 0% | 60% (2 · 58) | 52% (49%) | 59% · 5% finished |
+| Boxer vs Wrestler | 44% · 1% | 54% (0 · 54) | 54% (51%) | 40% |
+| Wrestler (coached) vs Kicker | 78% · 0% | 47% | 44% | +18% for coaching (D12 met) |
+| Wrestler (coached) vs Boxer | 60% · 0% | 74% | 53% | +11% (D12 met) |
+
+- **Finishes**: about a third of the cross-style fights end early (26% striker vs striker, 18% Wrestler vs Kicker, 57%
+  Wrestler vs Boxer; average 34%), against 3% before. Mirrors: Kicker 14%, Wrestler 4%; the Boxer mirror was already all
+  finishes (100%, unchanged).
+- **Targets**: draws 1% (under 2%, D97), no 10-10 cards, Kicker vs Boxer 55/45 (within 60/40). The Wrestler wins 60–64% against
+  the Kicker and 49–55% against the Boxer (report only, D109).
+- **What to watch in the playtest**: Wrestler vs Boxer finishes a lot (the Boxer has nothing for the clinch and tires under
+  ground and pound; he also stops the Wrestler standing more than before). If ground and pound feels too strong, lower
+  `FighterAI.GNP_RATE`, then the full guard top `strike_damage_multiplier`; if fights end too often, raise
+  `FightSim.GROUND_STOP_PER_HEALTH` or `STOP_UNANSWERED`.
+- Speed: the timing checks (§2.1) pass; ground strikes add a few events a second on the ground.
+
+### 24.6 To change it, and the tests
+- Health: `FighterState.HURT_SCALE` (10; it also sets how fast damage slows a fighter down, so it moves every fight).
+- The referee: `FightSim.STOP_UNANSWERED` (2), `GROUND_STOP_PER_HEALTH` (14), `STOP_BIAS_HEALTH` (0.5) and each ruleset's
+  `early_stoppage_bias`.
+- Ground strikes and the tie-up: `data/actions/ground_punch.json`, `ground_elbow.json`, `tie_up.json` (`ground.ties_up_ms`, `09`);
+  the get-up bonus: the `POSTURED_UP` opportunity in `get_up.json`; the full guard top multiplier: `data/positions/full_guard.json`.
+- The AI: `FighterAI.GNP_RATE` (1.2), `GROUND_UNDER_FIRE` (3.0), `TIE_UP_CALM` (0.3), `TIE_UP_PRESSED` (1.5), `ROCKED_GET_UP` (0.3).
+- The call: `data/calls/ground_and_pound.json`. Judges: `Judging.TAKEDOWN_POINTS`, `CONTROL_POINTS_PER_S`, and `round_card`'s
+  impact rule.
+- The HUD: `HEALTH_STEPS` and the colours at the top of `ui/fight_hud.gd`.
+
+Tested in `tests/sim/fight/test_ground_and_pound.gd` (health, every stoppage and what answers it, amateur referees, the ground
+punch, who can strike, amateur rules, posturing up, the tie-up, the KO roll on the ground, the AI on top and underneath, the
+10-8 impact rule), `tests/sim/fight/test_corner.gd` (the corner's call on top), `tests/ui/test_fight_hud.gd` (the health
+bars), `tests/ui/test_fight_log_formatter.gd` (the feed lines) and `tests/data/test_data_files.gd` (`ties_up_ms`, shared keys).
+After changing a number, run the harness with all six cross-style pairings
+(`--pairs=kicker:boxer,boxer:kicker,wrestler:kicker,kicker:wrestler,wrestler:boxer,boxer:wrestler`) and read the **How** lines
+(finishes) next to the wins and draws.

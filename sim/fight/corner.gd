@@ -21,6 +21,7 @@ extends RefCounted
 ##   - the opponent's scouted tell is set off (their jab blocked: a kick is coming): the read
 ##     call for that move (Catch the kick!), so the fighter is primed before the kick
 ##   - this fighter rocked: Survive!; the opponent rocked: Pressure!
+##   - this fighter ends up on top: Ground and pound! (D121)
 ## It doesn't call Get up!: the fighter works to get up on their own, and a called try
 ## adds a tired try more than it helps. Nor Defend the shot! on the Wrestler's
 ## stance shift: the shot comes within a second, before the call can land, and the fighter
@@ -97,7 +98,13 @@ func on_event(view: FightView, event: FightEvent) -> void:
 	var me: int = view.index
 	match event.type:
 		FightEvent.ROCKED:
-			_decide(event.tick, "survive" if event.actor == me else "pressure")
+			if event.actor == me:
+				_decide(event.tick, "survive")
+			else:
+				_decide(event.tick, "ground_and_pound" if view.my_role() == PositionLibrary.TOP else "pressure")
+		FightEvent.POSITION_CHANGED:
+			if event.data.roles[me] == PositionLibrary.TOP:
+				_decide(event.tick, "ground_and_pound")
 		FightEvent.ACTION_PHASE:
 			if event.data.phase == "telegraph" and event.actor != me:
 				for read_id: String in _reads:

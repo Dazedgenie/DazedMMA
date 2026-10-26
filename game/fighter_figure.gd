@@ -108,6 +108,10 @@ func pose_for(sim: FightSim, i: int) -> Dictionary:
 		p.leg_rear = 0.9
 		p.arm_lead = 1.2
 		p.arm_rear = 1.2
+		if f.tied_up_ticks > 0:  # Pulled down into the guard (D121).
+			p.lean = -1.1
+			p.arm_lead = 0.6
+			p.arm_rear = 0.6
 	elif sim.situation.position == PositionLibrary.SCRAMBLE:
 		p.hip_y = 0.6
 		p.lean = -0.6
@@ -179,6 +183,18 @@ func pose_for(sim: FightSim, i: int) -> Dictionary:
 		"get_up":
 			p.lie = lerpf(p.lie, 0.0, reach)
 			p.hip_y = lerpf(p.hip_y, HIP_HEIGHT, reach)
+		"ground_punch":  # Postures up, then drives the rear hand down (D121).
+			p.lean = lerpf(p.lean, -0.4, reach)
+			p.arm_rear = lerpf(p.arm_rear, 0.5, reach)
+			p.reach_rear = lerpf(1.0, 1.35, reach)
+		"ground_elbow":
+			p.lean = lerpf(p.lean, -0.35, reach)
+			p.arm_rear = lerpf(p.arm_rear, 2.7 if f.phase == "telegraph" or f.phase == "windup" else 0.5, reach)
+		"tie_up":
+			p.arm_lead = lerpf(p.arm_lead, 3.0, reach)
+			p.arm_rear = lerpf(p.arm_rear, 3.0, reach)
+			p.reach_lead = lerpf(1.0, 1.3, reach)
+			p.reach_rear = lerpf(1.0, 1.3, reach)
 		_:
 			if action.category == "strike":
 				p.arm_lead = lerpf(p.arm_lead, 1.57, reach)
@@ -190,7 +206,7 @@ static func limb_for(action_id: String) -> String:
 	match action_id:
 		"jab", "hook":
 			return "lead_arm"
-		"cross":
+		"cross", "ground_punch", "ground_elbow":
 			return "rear_arm"
 		"teep":
 			return "lead_leg"

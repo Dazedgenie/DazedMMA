@@ -46,7 +46,7 @@ Rules:
 | `flags_self` | `[{flag, from, to}]` | Flags the *user* carries during those phases (`ONE_LEG` from windup to recovery) |
 | `stats` | `{offense: [stat], defense: [stat]}` | Attributes that decide the contest |
 | `opportunities` | `[{opponent_flag \| own_flag, success_bonus, required?, target?, damage_multiplier?, stops?}]` | Bonus when the *opponent* carries that flag; `required: true` = only possible then (catch-kick). `own_flag` instead: when the user carries it (get up with your back on the fence, +0.15; a negative bonus makes it harder). For strikes, when the opening is there: `target` sends it there instead (a knee into a shot goes to the head), `damage_multiplier` scales it, `stops: true` stops the opponent's move (`docs/01` §21.2) |
-| `strike` / `takedown` / `defense` / `clinch` / `ground` | object | Category-specific: `{target, base_damage, push_m?}` · `{base_success, partial_within?}` · `{against_categories, base_success}` · `{base_success, partial_within?}` · `{base_success, partial_within?}`. `partial_within` (a chance, optional): a roll that misses the odds by less than this half works, and goes where the position's `partial` transition says (a scramble). `push_m` (metres, optional): a landed strike shoves the opponent back that far (the teep, 0.5). Where a landed takedown takes the fight is in the position files. A `movement` move (the stance shift) has none: it only takes time and stamina, and can be a tell |
+| `strike` / `takedown` / `defense` / `clinch` / `ground` | object | Category-specific: `{target, base_damage, push_m?}` · `{base_success, partial_within?}` · `{against_categories, base_success}` · `{base_success, partial_within?}` · `{base_success, partial_within?}`. `partial_within` (a chance, optional): a roll that misses the odds by less than this half works, and goes where the position's `partial` transition says (a scramble). `ties_up_ms` (a `ground` move's, optional, D121): when it works the fight stays put and the opponent's posture is broken for this long (no ground strikes, `POSTURE_BROKEN`), as the tie-up from the bottom of full guard. `push_m` (metres, optional): a landed strike shoves the opponent back that far (the teep, 0.5). Where a landed takedown takes the fight is in the position files. A `movement` move (the stance shift) has none: it only takes time and stamina, and can be a tell |
 | `requires_technique` | id or null | Needs this technique learned (`docs/02` §2.1) |
 
 ### position@2 (example: `standing.json`)
@@ -66,7 +66,7 @@ Versions: position@2 added `transitions`; action@2 moved a takedown's `on_succes
 
 ### call@2 (examples: `takedown.json` attempt, `pressure.json` focus, `catch_the_kick.json` read)
 `name` (as shouted, "Takedown!"), `kind` (`now`/`read`), `tier` (`intent`/`technique`), `parent` (intent call it unlocks under),
-`hotkey` (a digit 0–9, each used once, or null), `voice_cost`, `positions` (where it can be acted on), `roles` (optional:
+`hotkey` (a digit 0–9, or null; two calls may share a digit only if their `positions` never overlap, e.g. 1 for Pressure! standing and Ground and pound! in full guard, D121), `voice_cost`, `positions` (where it can be acted on), `roles` (optional:
 `neutral`/`top`/`bottom`), `actions`, `requires_technique` (an action id the fighter must know, or null).
 A now call is one of two kinds (`docs/01` §22.2):
 - an **attempt**: `actions` lists the moves to try, in order (the first that would work right now is used), and no `focus`;

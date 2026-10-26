@@ -94,16 +94,16 @@ screen; **Start fight** plays three rounds with the player as the **red corner**
 ### 6.2 What's on screen (v0)
 | Element | v0 | Code |
 |---|---|---|
-| Cage and fighters | Grey-box octagon and fence, orthographic isometric camera that follows the fighters and moves in for the clinch and closer still for the ground (D80). Fighters are capsule bodies with stick limbs that act out the move: punches reach out, kicks lift the leg (the rear one, the lead one for a teep), shots and sprawls drop the hips, the bottom fighter lies on their back. They slide between ticks | `game/arena_view.gd`, `game/fighter_figure.gd` |
+| Cage and fighters | Grey-box octagon and fence, orthographic isometric camera that follows the fighters and moves in for the clinch and closer still for the ground (D80). Fighters are capsule bodies with stick limbs that act out the move: punches reach out, kicks lift the leg (the rear one, the lead one for a teep), shots and sprawls drop the hips, the bottom fighter lies on their back, the top fighter postures up and drives down ground punches and elbows (pulled down flat while tied up), and the bottom fighter reaches up to tie up (D121). They slide between ticks | `game/arena_view.gd`, `game/fighter_figure.gd` |
 | Over each fighter | The move's name, coloured by phase (telegraph yellow, wind-up orange, active red, recovery grey); the **delay ring** while a call is being processed, shrinking as the fighter gets to it; **nah** when a call is ignored; **READ** while a read call is primed; stars when rocked | `fighter_figure.gd` |
 | Tell cue (D51) | When a scouted tell shows (the Kicker's jab blocked, the Wrestler's stance shift), the limb the move will come from glows and a **!** shows over the fighter, until the move starts or the tell's window runs out. Shape and colour, so it reads without colour | `arena_view.gd` `_on_event` |
 | Ground tag | Under the fighters: the range standing (Out of range / Long / Mid / Pocket), the position tied up ("Full guard · Wrestler on top"). It grows when it changes, then settles | `ArenaView.tag_text` |
-| Top bar | Names, stamina bars, damage pips per area (green, yellow from 8% hurt, red from 20%), round clock, speed, and the judges' rough estimate of the round so far ("≈ 10-9 Wrestler", from `FightSim.round_points()` with no judge noise) | `ui/fight_hud.gd` |
+| Top bar | Names; a big **health** bar per fighter (the head damage they can still take, D120: green, yellow under 60%, red under 30%, with the percentage and ROCKED when they are); stamina under it; small body and leg bars (same colours); round clock, speed, and the judges' rough estimate of the round so far ("≈ 10-9 Wrestler", from `FightSim.round_points()` with no judge noise). The damage pips of the first v0 became these bars | `ui/fight_hud.gd` |
 | Plan panel | Each rule slot with how sharp it is right now (its reliability) and its cooldown, flashing green when it fires; the call being heard, the attempt in progress, the focus call with seconds left, primed reads with seconds left | `FightHud.plan_text` |
 | Opponent corner | A speech bubble with the AI corner's call, 3 s | `fight_hud.gd` |
 | Feed | Every event in words with the round clock; filter: All / Key moments / Explanations (why a takedown, call or rule didn't work, A16) | `ui/fight_feed.gd` |
 | Voice meter | Your voice with the garbled zone (under 30) marked; it shakes when you repeat a call within 3 s (spam), and trust shows next to it | `ui/voice_meter.gd` |
-| Call bar | 1–9 intent calls and Q/E read calls, clickable; a call that can't be made from here is dimmed with the reason as its tooltip (no voice, not from this position, not learned). Pressing a dimmed call's key puts the reason in the feed. The call being acted on is tinted green | `fight_hud.gd` |
+| Call bar | 1–9 intent calls and Q/E read calls, clickable (key 1 is Pressure! standing and Ground and pound! on top, D121: the key makes whichever works from here); a call that can't be made from here is dimmed with the reason as its tooltip (no voice, not from this position, not learned). Pressing a dimmed call's key puts the reason in the feed. The call being acted on is tinted green | `fight_hud.gd` |
 | Perfect call (D52) | A move your call started that works as a counter (a takedown that lands, a strike that lands in the opponent's wind-up or recovery): "PERFECT CALL" in the middle, a feed line and 1.2 s of slow-mo | `FightDriver.is_perfect_call` |
 | Between rounds | The bell stops the fight: each judge's card for the round, the totals, both fighters' stamina and damage, and your rule slots to change for the next round | `game/main.gd` |
 | Result | How it ended, the cards, strikes and takedowns, the seed; Fight again or Change setup | `game/main.gd` |
@@ -126,7 +126,7 @@ changes and pauses against the same fight run headless).
 | Held | 0 | The bell between rounds, the Esc menu, the towel question |
 
 ### 6.4 Keys (as built)
-1–9 intent calls · Q / E read calls (Q is Catch the kick!; E is empty until a second read call exists) · Space slow-mo ·
+1–9 intent calls (1 is Pressure! standing, Ground and pound! on top) · Q / E read calls (Q is Catch the kick!; E is empty until a second read call exists) · Space slow-mo ·
 F fast · P pause (Easy) · T throw in the towel (asks first; a TKO loss, D31) · Esc menu (pauses on every difficulty) ·
 Enter presses the dialog's first button · F3 debug overlay · ` debug console.
 

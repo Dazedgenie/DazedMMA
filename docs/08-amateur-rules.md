@@ -21,7 +21,9 @@
 | Weigh-ins | Same day, no big cuts | Same day | Day before (allows weight cuts, D23) |
 
 **Simulation impact:** each rule is a flag in a `Ruleset` data file the fight engine reads (illegal actions removed from the AI
-and the call bar; protective gear multiplies damage and cut chances). Same engine, different data.
+and the call bar; protective gear multiplies damage and cut chances). Same engine, different data. In the engine now (D120,
+D121, `01` §24): elbows are illegal and ground strikes go to the body under both amateur rulesets, and `early_stoppage_bias`
+(adult 0.3, teen 0.5) makes the referee stop it sooner: at 15% / 25% health instead of 0, and one unanswered shot sooner.
 
 ## 2. Teen amateur stage (D83)
 
