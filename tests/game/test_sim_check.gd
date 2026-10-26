@@ -14,3 +14,12 @@ func test_the_self_check_fails_when_no_moves_load() -> void:
 	var check: SimCheck = SimCheck.run(1, ActionLibrary.new())
 	assert_false(check.passed())
 	assert_eq(check.results[0].name, "Moves load from data/actions")
+
+
+func test_ci_machines_get_the_slow_machine_margin_and_others_dont() -> void:
+	var was: String = OS.get_environment("CI")
+	OS.set_environment("CI", "true")
+	assert_almost_eq(SimCheck.budget_ms(60.0), 60.0 * SimCheck.CI_MARGIN, 0.001)
+	OS.set_environment("CI", "")
+	assert_almost_eq(SimCheck.budget_ms(60.0), 60.0, 0.001)
+	OS.set_environment("CI", was)

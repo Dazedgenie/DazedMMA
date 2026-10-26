@@ -62,7 +62,7 @@ Merged acceptance tests from the Foundation doc (A13):
 | 4 | Fighter AI (utility) + tendency/tell rules | |
 | 5 | Call processor + voice meter | |
 | 6 | Balance harness | CSV + summary printout |
-| 7 | Grey-box isometric view + slow-mo + call buttons/hotkeys | |
+| 7 | Grey-box isometric view + slow-mo + call buttons/hotkeys | Built in #19 (D117): `06` §6 |
 | 8 | Playtest build + playtest checklist | |
 
 ---

@@ -28,7 +28,8 @@
 | Active pause | Optional setting | Calls can be queued while paused; opponent AI is frozen too, so it's fair |
 
 The simulation never reads frame time. Presentation interpolates between ticks. That keeps the simulation
-deterministic and lets it run headless at 1000× for balance tests.
+deterministic and lets it run headless at 1000× for balance tests. In the game, `game/fight_driver.gd` feeds the ticks at the
+chosen speed (Normal, Fast, slow-mo, auto slow-mo, pause): `06` §6.3 (D117).
 
 ### 2.1 Speed budget and how it's checked (D105)
 
@@ -45,6 +46,13 @@ counts. A fight under budget on its first run is timed once. GitHub's shared tes
 sometimes stall for a moment: on 2026-10-25 the same code ran the full fight in 967 ms on one machine and 380 ms on another.
 A sim that is really too slow is slow on every run, so it still fails. To change the number of runs, edit `TIMING_TRIES` in
 `game/sim_check.gd` and the `3` in the full-fight test; keep them the same.
+
+**The CI margin (D105, added with #19):** even the fastest of 3 runs can miss on a slow machine: two runs of PR #47 took
+60–66 ms, and the same balance fights took 120 s on those machines against 76 s on a green run. So on CI (where the `CI`
+environment variable is `true`, as on GitHub Actions) both budgets are 1.5× longer: 90 ms and 1350 ms. A sim that really got
+50% slower still fails; local runs and the in-game **Run test fight** keep the 1000× budget. The time is printed on every run
+(the full-fight test's line in the test log, the self-check's detail), so a creeping slowdown shows before it fails. To change
+the margin, edit `CI_MARGIN` in `game/sim_check.gd` (both checks use `SimCheck.budget_ms`).
 
 **Where the time goes** (profile of a full fight, 2026-10-25, about 0.6 s here): the AI's feet (`preferred_distance`) and
 choice (`choose`) each tick, `FighterState.effective_stat` (2–4 µs a call, about 30,000 calls a fight), walking (`_move`) and
@@ -317,7 +325,8 @@ but happen often enough that an underdog always has a chance.
   - **Tactical instruction** (pick up to 2): gives a next-round bias, e.g. "He drops his hand after the jab" (reveals a tell
     and adds a read-call bonus), "Go to the body", "Take him down early", "Win this round: you're down"
   - **Motivation** (pick 1 tone): Calm / Fire up / Tough love. The effect depends on personality and trust
-- **Throw in the towel** (D31): available any time, and at the corner as a dedicated button with a confirmation.
+- **Throw in the towel** (D31): available any time, and at the corner as a dedicated button with a confirmation. In the engine
+  it's a `throw_towel` command: the fight ends on that tick as a TKO for the other corner (`stopped_by: "towel"`), so it replays (D117).
 
 ---
 
@@ -469,29 +478,14 @@ ends inside the distance), which is as much the damage numbers (§18) as the AI.
 Speed: the AI made a full fight about 1.65× slower; the speed-ups in §2.1 won back about 20%, and D107's came out about 5%
 faster again. The speed budget and the timing checks are in §2.1 (D105).
 
-### 20.1 Watching the AI move: the top-down cage view (temporary, D106)
-A debug-only map of the cage seen from straight above, to judge by eye how the AI uses range, the fence and circling before
-the grey-box fight view (#19) exists. It lives in `ui/cage_map.gd` and is switched on and off with the **Cage view** box in the
-debug console (the ` key); it follows **Live fight** and hides with the console. It only reads the fight, so a watched fight
-plays out exactly as an unwatched one (tested in `tests/ui/test_cage_map.gd`).
+### 20.1 Watching the AI move (D106, replaced by D117)
+The temporary top-down cage view (D106) was removed when the grey-box fight view landed (#19). To judge the AI's movement now,
+play a fight and press **F3**: the debug overlay prints each fighter's wanted distance, how much they're circling, how hard
+they're cutting the cage off, their cage proximity and pace, and the 3D view draws the near-the-fence (1.5 m) and pinned
+(0.5 m) lines and each fighter's wanted-distance ring around the opponent (`06` §6.2). The sim still gives the three
+read-only numbers it needs, `FightSim.last_wanted_distance()`, `last_circling()` and `last_cutting()`.
 
-| On the map | What it shows |
-|---|---|
-| Octagon | The fence (`Octagon.APOTHEM`, 4.5 m to each panel); two faint lines inside it mark where "near the fence" (1.5 m) and "pinned" (0.5 m) start, measured from a fighter's body |
-| Dots | Each fighter (red, blue) at body width; a white halo when pinned, a purple one when rocked, dimmed when down |
-| White point | The way the fighter faces. The engine has no separate facing yet (§3 says fighters have one): both always face each other, so this points at the opponent |
-| Arrow | Where the fighter is heading: their last 0.5 s of movement, drawn as 1 s at that pace |
-| Trail | The path of the last 4 s; it restarts when the fighters go back to their corners for a new round |
-| Ring | The distance each fighter is walking toward (their range plan, §20 "Feet"), drawn around the opponent in the walker's colour |
-| Line between them | Coloured by range: grey out, green long, yellow mid, orange pocket |
-| Text above | Per fighter: wanted distance, how much they're circling (0–100%), how hard they're cutting the cage off (0–100%, §20.2), pace in m/s, near the fence or pinned, and the move they're in. Then the clock, the distance and the range |
-
-To change it: trail length, arrow length and the pace window are constants at the top of `ui/cage_map.gd` (`TRAIL_TICKS`,
-`ARROW_SECONDS`, `SPEED_WINDOW`); its size and place on screen are `CAGE_VIEW_WIDTH` and the offsets in `ui/debug_console.gd`.
-The sim gives it three read-only numbers, `FightSim.last_wanted_distance()`, `last_circling()` and `last_cutting()`. To remove
-it once #19 is in: delete `ui/cage_map.gd`, its test and the **Cage view** lines in `ui/debug_console.gd`, those three
-`FightSim` functions (and the `_wants`, `_circling` and `_cutting` arrays only they read), and this section; mark D106 as
-replaced.
+The engine still has no separate facing (§3 says fighters have one): both fighters always face each other.
 
 ### 20.2 Moving round the cage (D107)
 Until D107 each fighter had one idea about movement: walk to the distance the range plan wants. The Kicker wants long range
@@ -559,13 +553,13 @@ Both are counted in `FightSim._move()` into `FightSim.circling_ticks` and `cutti
 time). Ticks a fighter doesn't move (throwing, staggered, tied up, down) count as neither.
 
 Where it shows:
-- **Debug console**: under each fighter's summary at the end of the test fight and the live fight
+- **Debug console**: under each fighter's summary at the end of the test fight and of the fight on screen
   (`FightLogFormatter.movement_line`).
 - **Headless sim** (`tools/run_sim.gd`): the same lines at the end of a single fight.
 - **Balance harness**: a **Circling** line per pair (average m:ss a fight and the share of all fight time), and CSV columns
   `circling_red`, `cutting_red`, `circling_blue`, `cutting_blue` (fight seconds) with `fight_seconds` (how long the fight
   lasted).
-- **Fight screen** (#19): not yet; its result screen can add `FightLogFormatter.movement_line` once it's on main.
+- **Fight screen** (#19): on the result screen, under each fighter's strikes and takedowns (`game/main.gd` `_on_fight_over`).
 
 Measured on 40 fights a pairing (pro rules):
 
@@ -786,8 +780,8 @@ The player coaches the **Wrestler** against the Kicker (Kyle, 2026-10-25). The W
 no calls are unchanged: Wrestler vs Kicker stays about even without calls (48% over 400 fights since D114, §21.7). He is still one
 of the two authored opponents (`10` §1) when the Kicker is the one being coached.
 
-**To try it:** run the game, open the debug console (`), pick **Wrestler vs Kicker**, press **Live fight**, and call with the
-buttons or keys 1–9 (0 = Catch the kick!). Calls work while paused and land on the next tick.
+**To try it:** run the game, pick **Wrestler vs Kicker** on the setup screen, press **Start fight**, and call with the call bar
+or keys 1–9 (Q = Catch the kick!; 0 still works too). Calls work while paused (Easy) and land on the next tick (`06` §6).
 
 ### 22.4 Gameplans
 The five presets in `data/gameplans/` (`09` gameplan@1) shift the style leanings for the whole fight and can scale move
@@ -839,8 +833,8 @@ What the ideal and AI corners call (only calls their fighter can act on: a known
 They don't call Get up! (the fighter works to get up on their own) or Defend the shot! on the Wrestler's stance shift (the
 shot follows within a second, before the call lands; the fighter reads repeated shots better on their own, §21.8).
 
-**In the game:** the debug console's live fight puts the AI corner in the Kicker's (blue) corner, and its calls appear in the
-log like the player's (*"Kicker's corner: Survive!"*); the voice label shows its voice too.
+**In the game:** the fight screen puts the AI corner in blue's corner; its calls show in a speech bubble and in the feed
+(*"Kicker's corner: Survive!"*), and the F3 overlay shows its voice and trust (`06` §6.2).
 
 **In the harness:** `--corners=none,ideal,spam,ai` runs every pair once per bot, with the bot in red's corner and then in
 blue's (`--coach=red|blue|both`). The CSV says who was in each corner and how many calls they made (`corner_red`,
@@ -930,7 +924,8 @@ body kick started)"*, *"Wrestler holds the rule "When he kicks → catch & shoot
 | When he kicks → catch & shoot | The opponent starts a body kick or teep | Catch-kick single | Fighters who learned the catch (the Wrestler, D112). The only way besides a call that the catch is ever thrown (D103) |
 | When he shoots → sprawl | The opponent starts a double leg | Sprawl | Everyone (the sprawl is basic) |
 
-**To try it:** in the debug console, pick rules for Red under *Rule 1* / *Rule 2*, set *Drilled*, then press **Live fight**.
+**To try it:** on the setup screen, pick your fighter's rules under *Rule 1* / *Rule 2*, set *Drilled*, then press **Start fight**;
+they can be changed at the bell between rounds, and the plan panel shows how sharp each one is and its cooldown (`06` §6).
 
 ### 23.3 Balance (2026-10-25)
 From the harness, Wrestler vs Kicker both ways round, 100 fights a side per seed set, against the same fights without rules:

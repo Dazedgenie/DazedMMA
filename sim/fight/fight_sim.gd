@@ -107,6 +107,8 @@ const FEET_EVERY: int = 5
 
 const RESULT_KO := "ko"
 const RESULT_TKO := "tko"
+## How a TKO came about when it wasn't the referee: the corner threw in the towel (D31).
+const STOPPED_BY_TOWEL := "towel"
 
 var fight_seed: int
 var clock: FightClock
@@ -251,6 +253,9 @@ func tick() -> void:
 			for id: String in corners[i].due(views[i], decisions[i].calls.voice(now)):
 				submit(FightCommand.live_call(now, i, id))
 	_apply_commands()
+	if _fight_over:  # The towel came in.
+		now += 1
+		return
 	for i in fighters.size():
 		_advance_fighter(i)
 		if _fight_over:
@@ -316,6 +321,10 @@ func _apply_commands() -> void:
 			decisions[i].set_rule(views[i], int(command.data.slot), String(command.data.rule_id), float(command.data.drilled))
 			for n: Dictionary in decisions[i].take_notes():
 				_emit(n.type, i, n.data)
+		elif command.type == FightCommand.THROW_TOWEL:
+			command_log.append(command)
+			_finish(1 - command.fighter, RESULT_TKO, STOPPED_BY_TOWEL)
+			return
 		else:
 			fighters[command.fighter].queued_action_id = command.data.action_id
 		command_log.append(command)
@@ -334,6 +343,8 @@ func _reject_reason(command: FightCommand) -> String:
 				return "unknown call"
 			if decisions[command.fighter].calls.voice(now) < float(call.voice_cost):
 				return "no voice left"  # D28: every call costs voice; feasibility is checked once it's processed.
+			return ""
+		FightCommand.THROW_TOWEL:
 			return ""
 		FightCommand.SET_RULE:
 			if clock.tick_in_round != 0:
@@ -1105,9 +1116,18 @@ func _end_round() -> void:
 	_to_corners()
 
 
-func _finish(winner: int, result: String) -> void:
+func _finish(winner: int, result: String, stopped_by: String = "") -> void:
 	_fight_over = true
-	_emit(FightEvent.FIGHT_ENDED, FightEvent.NO_ACTOR, { "result": result, "winner": winner })
+	var data := { "result": result, "winner": winner }
+	if stopped_by != "":
+		data.stopped_by = stopped_by
+	_emit(FightEvent.FIGHT_ENDED, FightEvent.NO_ACTOR, data)
+
+
+## Each fighter's effective striking and grappling points so far this round, as the
+## judges add them up before their own noise (Judging): for the HUD's rough estimate.
+func round_points() -> Array[float]:
+	return _round_points.duplicate()
 
 
 func _average_stat(f: FighterState, ids: Array) -> float:

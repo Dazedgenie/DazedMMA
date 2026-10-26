@@ -1,6 +1,6 @@
 # 06 — Fight Screen & HUD
 
-> Related decisions: D1, D28, D49–D54, D67–D69, D80, D82. Status: **v1 spec**.
+> Related decisions: D1, D28, D49–D54, D67–D69, D80, D82, D117. Status: **v1 spec; HUD v0 built (#19), see §6**.
 > Goal: the player can read **range, position, current action, the opening, and their own resources** at a glance
 > (Foundation doc readability test), without the screen feeling like a cockpit.
 
@@ -74,3 +74,79 @@
 - Every outcome that matters gets a feed explanation line (A16).
 - The ground camera zooms in and adds a **position overlay** (simple top/bottom silhouette diagram) for ground readability (R5).
 - Colour-blind modes; text size scaling; flashing can be reduced.
+
+---
+
+## 6. HUD v0 in the game (#19, D117)
+The main scene (`game/main.tscn`, run it from the editor or `godot`) is the playable fight prototype. It opens on a setup
+screen; **Start fight** plays three rounds with the player as the **red corner** and the AI corner calling for blue (D68).
+
+### 6.1 The setup screen
+| Setting | What it does |
+|---|---|
+| Fight | Wrestler vs Kicker (the playtest matchup, D112), Kicker vs Boxer, Wrestler vs Boxer, Boxer vs Kicker. You coach the first-named fighter |
+| Speed | Normal is 2× fight time (D9), or 1× for the playtest's comparison (D91) |
+| Difficulty | Normal, or Easy: P pauses the fight (D50) |
+| Tell cue, Auto slow-mo, Perfect-call flourish | On/off, so the playtest can compare (D51–D53) |
+| Drilled rules | Your fighter's two slots and the Drilled slider (`01` §23). Only rules whose move your fighter knows are offered |
+| Seed | Blank for a random fight; type a number to get the same opening again (the result screen shows it) |
+
+### 6.2 What's on screen (v0)
+| Element | v0 | Code |
+|---|---|---|
+| Cage and fighters | Grey-box octagon and fence, orthographic isometric camera that follows the fighters and moves in for the clinch and closer still for the ground (D80). Fighters are capsule bodies with stick limbs that act out the move: punches reach out, kicks lift the leg (the rear one, the lead one for a teep), shots and sprawls drop the hips, the bottom fighter lies on their back. They slide between ticks | `game/arena_view.gd`, `game/fighter_figure.gd` |
+| Over each fighter | The move's name, coloured by phase (telegraph yellow, wind-up orange, active red, recovery grey); the **delay ring** while a call is being processed, shrinking as the fighter gets to it; **nah** when a call is ignored; **READ** while a read call is primed; stars when rocked | `fighter_figure.gd` |
+| Tell cue (D51) | When a scouted tell shows (the Kicker's jab blocked, the Wrestler's stance shift), the limb the move will come from glows and a **!** shows over the fighter, until the move starts or the tell's window runs out. Shape and colour, so it reads without colour | `arena_view.gd` `_on_event` |
+| Ground tag | Under the fighters: the range standing (Out of range / Long / Mid / Pocket), the position tied up ("Full guard · Wrestler on top"). It grows when it changes, then settles | `ArenaView.tag_text` |
+| Top bar | Names, stamina bars, damage pips per area (green, yellow from 8% hurt, red from 20%), round clock, speed, and the judges' rough estimate of the round so far ("≈ 10-9 Wrestler", from `FightSim.round_points()` with no judge noise) | `ui/fight_hud.gd` |
+| Plan panel | Each rule slot with how sharp it is right now (its reliability) and its cooldown, flashing green when it fires; the call being heard, the attempt in progress, the focus call with seconds left, primed reads with seconds left | `FightHud.plan_text` |
+| Opponent corner | A speech bubble with the AI corner's call, 3 s | `fight_hud.gd` |
+| Feed | Every event in words with the round clock; filter: All / Key moments / Explanations (why a takedown, call or rule didn't work, A16) | `ui/fight_feed.gd` |
+| Voice meter | Your voice with the garbled zone (under 30) marked; it shakes when you repeat a call within 3 s (spam), and trust shows next to it | `ui/voice_meter.gd` |
+| Call bar | 1–9 intent calls and Q/E read calls, clickable; a call that can't be made from here is dimmed with the reason as its tooltip (no voice, not from this position, not learned). Pressing a dimmed call's key puts the reason in the feed. The call being acted on is tinted green | `fight_hud.gd` |
+| Perfect call (D52) | A move your call started that works as a counter (a takedown that lands, a strike that lands in the opponent's wind-up or recovery): "PERFECT CALL" in the middle, a feed line and 1.2 s of slow-mo | `FightDriver.is_perfect_call` |
+| Between rounds | The bell stops the fight: each judge's card for the round, the totals, both fighters' stamina and damage, and your rule slots to change for the next round | `game/main.gd` |
+| Result | How it ended, the cards, strikes and takedowns, the seed; Fight again or Change setup | `game/main.gd` |
+| Debug overlay (F3) | Seed, tick, fps, distance, range, position, and per fighter: the move and phase, flags, stamina, damage, hurt, wanted distance, circling, cutting off, cage, voice and trust. The 3D view adds the near-the-fence and pinned lines and each fighter's wanted-distance ring (what the old cage view showed, D106) | `ui/debug_overlay.gd` |
+| Debug console (`) | The full log of the fight on screen with every odds breakdown, plus "Run test fight" | `ui/debug_console.gd` |
+
+### 6.3 Speed (D9, D50, D52, D53, D91)
+The fight screen feeds the sim whole ticks at the chosen speed (`game/fight_driver.gd`); it never changes what a tick does, so
+the same seed and commands give the same fight at any speed (tested: a full fight played with random frame times, speed
+changes and pauses against the same fight run headless).
+
+| Speed | Fight seconds per real second | How |
+|---|---|---|
+| Normal | 2 (or 1, from the setup) | Default |
+| Fast | 4 | F, or the button |
+| Slow-mo | half of Normal | Space (toggle), or the button |
+| Auto slow-mo | half of Normal for 1.5 s | A fighter rocked or knocked down, or a scramble (D53) |
+| Flourish | half of Normal for 1.2 s | A perfect call (D52) |
+| Pause | 0 | P on Easy only (D50). Calls still go in and land on the next tick |
+| Held | 0 | The bell between rounds, the Esc menu, the towel question |
+
+### 6.4 Keys (as built)
+1–9 intent calls · Q / E read calls (Q is Catch the kick!; E is empty until a second read call exists) · Space slow-mo ·
+F fast · P pause (Easy) · T throw in the towel (asks first; a TKO loss, D31) · Esc menu (pauses on every difficulty) ·
+Enter presses the dialog's first button · F3 debug overlay · ` debug console.
+
+### 6.5 Not in v0 yet
+- **Technique wheel (Tab, D6):** the only technique call is Catch the kick!, already on Q.
+- **Gameplan picker:** live fights have no gameplan yet, so the plan panel says "own game".
+- **Scouting grades (D24):** the opponent's numbers show exactly; **cuts** don't exist in the engine yet.
+- **Judges' estimate on Hard / the coach's Reading skill:** there's no Hard and no coach skills yet; the estimate ignores judge noise and tie-breaks.
+- **Sound** (the flourish's sting) and **colour-blind modes, text size, reduced flashing** (§5).
+- **The corner screen (§4):** between rounds shows the cards and the rule slots only (no cutman, D30 is out of the prototype's scope, `10` §1).
+- **Max 3 attention-grabbers (§5)** isn't enforced; the ground **position overlay** is the tag's text for now.
+
+### 6.6 To change it, and the tests
+- Speeds and slow-mo lengths: `FAST_RATE`, `NORMAL_RATES`, `SLOW_SHARE`, `AUTO_SLOW_SECONDS`, `FLOURISH_SECONDS` at the top of
+  `game/fight_driver.gd`. What counts as a perfect call: `FightDriver.is_perfect_call`.
+- Camera zoom and follow: `ZOOM_STANDING`, `ZOOM_CLINCH`, `ZOOM_GROUND`, `CAMERA_SPEED`, `FOLLOW_SHARE` in `game/arena_view.gd`.
+- Body sizes, poses and phase colours: the constants and `pose_for` in `game/fighter_figure.gd`.
+- Pip colours, bubble and flash times: the constants at the top of `ui/fight_hud.gd`. What the feed calls a key moment: `FightFeed.kind_of`.
+- The matchups on the setup screen: `FightSetup.MATCHUPS`.
+- Tests: `tests/game/test_fight_driver.gd` (speeds, pause, the bell, auto slow-mo, perfect calls, sliding, the towel, and
+  speed never changing the fight), `tests/game/test_main_scene.gd` (a full three-round fight from setup to result, hotkeys,
+  pause on Easy, the menu and the towel), `tests/game/test_arena_view.gd`, `tests/ui/test_fight_hud.gd`,
+  `tests/ui/test_fight_feed.gd`, and the towel in `tests/sim/fight/test_fight_sim.gd`.

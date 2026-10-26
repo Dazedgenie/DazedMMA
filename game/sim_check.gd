@@ -12,6 +12,10 @@ const ROUND_SECONDS: int = 60
 ## simulated again, up to this many runs in all, and the fastest counts: a slow
 ## sim is slow every time (D105, docs/01 §2.1). Keep in step with test_fight_sim.gd.
 const TIMING_TRIES: int = 3
+## GitHub's shared test machines run up to about 1.6× slower than usual, so on CI (the
+## CI environment variable is "true") a timed fight may take this much longer than
+## its budget. A sim that really got 50% slower still fails (D105, docs/01 §2.1).
+const CI_MARGIN: float = 1.5
 
 ## The fight that was checked, so the console can print its events.
 var sim: FightSim
@@ -76,13 +80,20 @@ func _run(fight_seed: int, actions: ActionLibrary) -> void:
 		JSON.stringify(replayed.events_as_dicts()) == JSON.stringify(sim.events_as_dicts()),
 		"%d events compared" % sim.events.size())
 	# 60 fight-seconds at 1000x = 60 ms (docs/01 §2).
-	while elapsed_ms >= ROUND_SECONDS and timing_runs < TIMING_TRIES:
+	var budget: float = budget_ms(ROUND_SECONDS)
+	while elapsed_ms >= budget and timing_runs < TIMING_TRIES:
 		started = Time.get_ticks_usec()
 		_scripted_fight(fight_seed, actions)
 		elapsed_ms = minf(elapsed_ms, (Time.get_ticks_usec() - started) / 1000.0)
 		timing_runs += 1
-	_check("Runs over 1000x faster than fight time", elapsed_ms < ROUND_SECONDS,
-		"%.1f ms for %d fight-seconds%s" % [elapsed_ms, ROUND_SECONDS, " (fastest of %d runs)" % timing_runs if timing_runs > 1 else ""])
+	_check("Runs over 1000x faster than fight time", elapsed_ms < budget,
+		"%.1f ms for %d fight-seconds%s%s" % [elapsed_ms, ROUND_SECONDS, " (fastest of %d runs)" % timing_runs if timing_runs > 1 else "",
+		" (CI budget %.0f ms)" % budget if budget > ROUND_SECONDS else ""])
+
+
+## A timing budget for this machine: as given, or CI_MARGIN times it on CI.
+static func budget_ms(ms: float) -> float:
+	return ms * (CI_MARGIN if OS.get_environment("CI") == "true" else 1.0)
 
 
 ## The check fight: one 60-second round with a few commands, one of them bad.

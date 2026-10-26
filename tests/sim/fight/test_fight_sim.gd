@@ -143,16 +143,18 @@ func test_every_event_reaches_listeners_in_order() -> void:
 func test_a_full_fight_runs_over_1000x_faster_than_fight_time() -> void:
 	# 3 x 5:00 = 900 s of fight time, so 1000x means under 900 ms. Shared CI machines
 	# stall now and then, so an over-budget fight gets up to three runs and the
-	# fastest counts (as in SimCheck.TIMING_TRIES): a slow sim is slow every time (D105, docs/01 §2.1).
+	# fastest counts (as in SimCheck.TIMING_TRIES): a slow sim is slow every time. On CI the
+	# budget has SimCheck's slow-machine margin (D105, docs/01 §2.1).
+	var budget: float = SimCheck.budget_ms(900.0)
 	var fastest: float = INF
 	var runs: int = 0
-	while runs < 3 and fastest >= 900.0:
+	while runs < 3 and fastest >= budget:
 		var started: int = Time.get_ticks_usec()
 		_run(SEED, _commands())
 		fastest = minf(fastest, (Time.get_ticks_usec() - started) / 1000.0)
 		runs += 1
-	gut.p("Full fight simulated in %.1f ms%s" % [fastest, " (fastest of %d runs)" % runs if runs > 1 else ""])
-	assert_lt(fastest, 900.0)
+	gut.p("Full fight simulated in %.1f ms%s (budget %.0f ms)" % [fastest, " (fastest of %d runs)" % runs if runs > 1 else "", budget])
+	assert_lt(fastest, budget)
 
 
 ## Two fighters who do nothing unless told, standing at `gap` metres (default: mid range).
@@ -270,3 +272,30 @@ func test_a_grappler_leaning_shoots_more_and_a_pure_striker_never_shoots() -> vo
 				jab_leads += 1
 	assert_gt(shots[0], jab_leads * 3, "a +100 grappler leads with the shot (4× the weight), jabbing to counter")
 	assert_eq(shots[1], 0)
+
+
+func test_throwing_in_the_towel_ends_the_fight_there_as_a_tko_for_the_other_corner() -> void:
+	var sim := FightSim.new(SEED, _fighters(), _actions)
+	sim.submit(FightCommand.throw_towel(400, 0))
+	sim.run_to_end()
+	var last: FightEvent = sim.events[-1]
+	assert_eq(last.type, FightEvent.FIGHT_ENDED)
+	assert_eq(last.tick, 400, "the fight ends on the towel's tick")
+	assert_eq(last.data.result, FightSim.RESULT_TKO)
+	assert_eq(last.data.winner, 1)
+	assert_eq(last.data.stopped_by, FightSim.STOPPED_BY_TOWEL)
+	var again: FightSim = FightSim.replay(SEED, _fighters(), _actions, sim.command_log_as_dicts())
+	assert_eq(again.events_as_dicts(), sim.events_as_dicts(), "a towel replays from the command log")
+
+
+func test_the_round_so_far_is_readable_without_changing_the_fight() -> void:
+	var watched := FightSim.new(SEED, _fighters(), _actions)
+	var plain := FightSim.new(SEED, _fighters(), _actions)
+	var seen_points: bool = false
+	while not watched.is_over():
+		watched.tick()
+		var points: Array[float] = watched.round_points()
+		seen_points = seen_points or points[0] + points[1] > 0.0
+	plain.run_to_end()
+	assert_true(seen_points, "points add up during a round")
+	assert_eq(watched.events_as_dicts(), plain.events_as_dicts())
