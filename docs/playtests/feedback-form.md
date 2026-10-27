@@ -24,7 +24,8 @@
 
 8. During a fight, could you tell: (tick the ones that were easy)
    ☐ how far apart they were (the range) ☐ who was on top or against the fence (the position)
-   ☐ what each fighter was doing right now ☐ when there was a chance to make a call *(Readability)*
+   ☐ what each fighter was doing right now ☐ when there was a chance to make a call
+   ☐ how hurt each fighter was (the health bars) *(Readability)*
 9. Without any calls from you, did your fighter still fight sensibly? **Yes / Mostly / No** *(Autonomy)*
 10. Did the fights feel fair, or did the Kicker or Boxer seem to cheat or get lucky? *(Fairness)*
 
@@ -40,3 +41,11 @@
 15. If this were a full game (create a fighter, train them, take them through a career), would you play it? **Yes / Maybe / No** *(Fun)*
 16. The best moment, and the most confusing moment: ______
 17. One thing you'd change: ______
+
+## F. Getting hurt and finishes
+
+18. When a fight was stopped early (a knockout or the referee stepping in), **did you see it coming?** **Yes / Sometimes / No / It
+    never happened** Did the stoppage feel fair? *(Health and the referee, D120)*
+19. When your Wrestler was on top, did you call **Ground and pound!**? **Never / Once or twice / A lot** Did it seem to do
+    anything? *(Ground and pound, D121)*
+20. Did fights end too often before the final bell, too rarely, or about right? **Too often / About right / Too rarely** *(D120's "about a third")*

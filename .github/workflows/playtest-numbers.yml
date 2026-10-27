@@ -1,0 +1,89 @@
+name: Playtest numbers
+
+# The balance harness runs the playtest write-up needs (#20, D124, docs/playtests/README.md §4):
+# no calls, the coaching bots, and the playtest's drilled rule, on the commit you pick. Run it
+# from Actions → Playtest numbers → Run workflow (pick the playtest build's branch or commit);
+# each part's summary shows on the run's page and in its "Artifacts" list. It also runs on a
+# pull request that changes this file. Four parts run side by side, about 15 minutes in all.
+
+on:
+  workflow_dispatch:
+    inputs:
+      fights:
+        description: Fights per pairing and corner (100 is about ±5% on a win share)
+        default: "100"
+  pull_request:
+    paths:
+      - .github/workflows/playtest-numbers.yml
+
+env:
+  GODOT_VERSION: 4.7.2
+  FIGHTS: ${{ inputs.fights || '100' }}
+
+jobs:
+  numbers:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Autonomy (10 §2): every pairing both ways round and the mirrors, no calls.
+          - part: 1-no-calls
+            title: No calls (every pairing, both ways round, and the mirrors)
+            args: --seed=1 --pairs=kicker:boxer,boxer:kicker,wrestler:kicker,kicker:wrestler,wrestler:boxer,boxer:wrestler,kicker:kicker,boxer:boxer,wrestler:wrestler
+          # Impact, Tactical value, Fairness (10 §2): the coaching bots on the Wrestler's two playtest fights.
+          - part: 2-coaching
+            title: Coaching bots, seeds from 1 (Wrestler vs Kicker and vs Boxer, each fighter coached)
+            args: --seed=1 --pairs=wrestler:kicker,kicker:wrestler,wrestler:boxer,boxer:wrestler --corners=none,ideal,spam,ai
+          # A second seed set for the playtest fight itself, so the +x% isn't one set's noise (01 §22.8).
+          - part: 3-coaching-second-seeds
+            title: Coaching bots, second seed set (Wrestler vs Kicker)
+            args: --seed=101 --pairs=wrestler:kicker,kicker:wrestler --corners=none,ideal,spam
+          # Playtest 3's drilled rule (data/playtest/fight_3_drilled_rule.json).
+          - part: 4-drilled-rule
+            title: Playtest 3's drilled rule (Wrestler catch & shoot at 80% vs Kicker)
+            args: --seed=1 --pairs=wrestler:kicker,kicker:wrestler --rules=wrestler:catch_kick_and_shoot@80
+    name: ${{ matrix.part }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot
+        id: cache-godot
+        uses: actions/cache@v4
+        with:
+          path: ~/godot
+          key: godot-${{ env.GODOT_VERSION }}
+
+      - name: Download Godot
+        if: steps.cache-godot.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/godot
+          curl -sSL -o godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q godot.zip -d ~/godot
+          mv ~/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64 ~/godot/godot
+
+      - name: Import project
+        run: ~/godot/godot --headless --import
+
+      - name: Run the harness
+        run: ~/godot/godot --headless --script res://tools/balance.gd -- --fights=${FIGHTS} ${{ matrix.args }} --out=build/numbers/${{ matrix.part }}
+
+      - name: Summary
+        run: |
+          test -s build/numbers/${{ matrix.part }}/summary.txt
+          {
+            echo "## ${{ matrix.title }}"
+            echo
+            echo "Commit \`${{ github.event.pull_request.head.sha || github.sha }}\`, ${FIGHTS} fights per pairing and corner: \`${{ matrix.args }}\`"
+            echo
+            echo '```'
+            cat build/numbers/${{ matrix.part }}/summary.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the CSV and summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: playtest-numbers-${{ matrix.part }}
+          path: build/numbers/${{ matrix.part }}/
+          retention-days: 30
