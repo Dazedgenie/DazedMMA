@@ -1218,8 +1218,8 @@ CI's balance snapshot on PR #56 (40 fights a pairing, seed 1, pro rules; small s
 Across all 160 fights: draws 0.6%, 10-10 cards 0%, 31.3% finished inside the distance (D121 target about 30%).
 Submissions end 5% of Wrestler vs Kicker fights, the bottom of the 5–10% aim. The Kicker locks a hold most fights but
 the Wrestler (Submission defense 65, Top control 60) usually fights out of it: only about one lock in thirty taps. To make
-holds more dangerous, raise `start_danger` in the holds' files or lower `STRUGGLE_BEATS`' escape chance by raising
-`STRUGGLE_STEP` (§25.6), then re-pin the golden fights (§2.2).
+holds more dangerous, raise `start_danger` in the holds' files or `FightSim.STRUGGLE_BASE` (the attacker's share of
+each beat before stats, §25.6), then re-pin the golden fights (§2.2).
 
 ### 25.6 To change it, and the tests
 - The holds: `data/actions/guillotine.json`, `triangle.json`, `armbar.json` (`submission.base_success`, `partial_within`,
