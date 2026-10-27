@@ -1207,7 +1207,19 @@ Submissions 45 and Submission defense 65; the Boxer Submissions 35 and Submissio
 since it also defends ground punches and ties up (§24.3).
 
 ### 25.5 Balance
-Numbers to come from the harness (§2.3).
+CI's balance snapshot on PR #56 (40 fights a pairing, seed 1, pro rules; small samples, so read them as rough):
+
+| Pairing | Subs tried / locked a fight | Ended by submission | Finishes | Wins |
+|---|---|---|---|---|
+| Kicker vs Boxer | 0 / 0 | 0% | 35% | Boxer 57.5% (unchanged: its golden fight plays out exactly as before) |
+| Wrestler vs Kicker | Kicker 5.4 / 1.6 | 5.0% | 30% | Wrestler 67.5%, draw 2.5% |
+| Wrestler vs Boxer | Boxer 0.8 / 0.2 | 0% | 60% | Wrestler 52.5% |
+
+Across all 160 fights: draws 0.6%, 10-10 cards 0%, 31.3% finished inside the distance (D121 target about 30%).
+Submissions end 5% of Wrestler vs Kicker fights, the bottom of the 5–10% aim. The Kicker locks a hold most fights but
+the Wrestler (Submission defense 65, Top control 60) usually fights out of it: only about one lock in thirty taps. To make
+holds more dangerous, raise `start_danger` in the holds' files or lower `STRUGGLE_BEATS`' escape chance by raising
+`STRUGGLE_STEP` (§25.6), then re-pin the golden fights (§2.2).
 
 ### 25.6 To change it, and the tests
 - The holds: `data/actions/guillotine.json`, `triangle.json`, `armbar.json` (`submission.base_success`, `partial_within`,
