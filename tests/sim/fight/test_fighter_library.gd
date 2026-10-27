@@ -19,7 +19,7 @@ func test_the_showcase_fighters_load_from_data() -> void:
 	assert_eq(kicker.name, "Kicker")
 	assert_eq(kicker.stat("kicking"), 70)
 	assert_eq(kicker.stat("chin"), FighterState.DEFAULT_STAT, "unlisted stats are average")
-	assert_eq(kicker.repertoire, ["jab", "teep", "leg_kick", "body_kick", "head_kick", "knee"] as Array[String])
+	assert_eq(kicker.repertoire, ["jab", "teep", "leg_kick", "body_kick", "head_kick", "knee", "triangle", "armbar"] as Array[String])
 	assert_almost_eq(kicker.work_rate, 0.015, 0.0001)
 	assert_eq(kicker.style.value(StyleLeanings.RANGE), -60.0)
 	assert_eq(kicker.profile.stance, "orthodox")
