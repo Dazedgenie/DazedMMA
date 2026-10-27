@@ -104,7 +104,7 @@ func _report(before: Dictionary, camp: TrainingCamp, reports: Array[Dictionary],
 	moved.sort_custom(func(a: Array, b: Array) -> bool: return a[2] - a[1] > b[2] - b[1])
 	for m: Array in moved:
 		lines.append("  %-20s %5.1f → %5.1f  (%+.1f)  %s → %s%s" % [STAT_NAMES[m[0]], m[1], m[2], m[2] - m[1],
-			_grade(m[1]), _grade(m[2]), "  (fights see %d → %d)" % [int(m[1]), int(m[2])] if int(m[1]) != int(m[2]) else ""])
+			_grade(m[1]), _grade(m[2]), "  (fights see %d → %d)" % [roundi(m[1]), roundi(m[2])] if roundi(m[1]) != roundi(m[2]) else ""])
 	if moved.is_empty():
 		lines.append("  none")
 	lines.append("")

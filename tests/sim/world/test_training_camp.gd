@@ -214,3 +214,10 @@ func test_the_trained_profile_still_fights() -> void:
 	assert_gt(float(trained.stats.takedowns), 70.0)
 	var row: Dictionary = FightSummary.run(1, roster, ActionLibrary.load_dir(), "wrestler_trained", "kicker")
 	assert_has(["red", "blue", "draw"], row.winner)
+
+
+func test_fights_read_a_trained_stat_to_the_nearest_whole_point() -> void:
+	var f := FighterState.from_profile({ "name": "Trained", "stats": { "takedowns": 70.8, "chin": 59.7, "boxing": 45.4 } })
+	assert_eq(f.stat("takedowns"), 71)
+	assert_eq(f.stat("chin"), 60)
+	assert_eq(f.stat("boxing"), 45)

@@ -70,8 +70,9 @@ const SLOW_HEALER: float = 1.5
 const SKIP_PER_PARTY_POINT: float = 1.0 / 400.0
 
 ## Style pushes (docs/11 §4.2): a session's own `leanings` per session, plus the week's instruction
-## (a gameplan) at its leanings / INSTRUCTION_DIVISOR per session ("Push the pace" all week ≈ +3 Pace).
-const INSTRUCTION_DIVISOR: float = 160.0
+## (a gameplan): its strongest leaning moves INSTRUCTION_PUSH a session and the others in proportion
+## ("Push the pace" all week ≈ +3 Pace).
+const INSTRUCTION_PUSH: float = 0.25
 ## Coachable +100 changes style × 1.5, Stubborn −100 × 0.5; from STYLE_SETS_AT a style sets: × STYLE_SET.
 const STYLE_COACHABLE_PER_POINT: float = 1.0 / 200.0
 const STYLE_SETS_AT: int = 30
@@ -255,7 +256,7 @@ func _run_slot(id: String, day: int, quality: float, variety: float, instruction
 	for leaning: String in session.get("leanings", {}):
 		_push(leaning, float(session.leanings[leaning]) * speed, week)
 	for leaning: String in instruction:
-		_push(leaning, float(instruction[leaning]) / INSTRUCTION_DIVISOR * speed, week)
+		_push(leaning, float(instruction[leaning]) * speed, week)
 	return DONE
 
 
@@ -280,9 +281,17 @@ func _groups_trained(plan: Dictionary) -> int:
 	return groups.size()
 
 
+## The instruction's push per session for each leaning (its strongest at INSTRUCTION_PUSH).
 func _instruction(gameplan_id: Variant) -> Dictionary:
 	if gameplan_id == null or gameplan_id == "":
 		return {}
 	if not _instructions.has(gameplan_id):
-		_instructions[gameplan_id] = Gameplan.load_id(gameplan_id).leanings
+		var leanings: Dictionary = Gameplan.load_id(gameplan_id).leanings
+		var strongest: float = 0.0
+		for leaning: String in leanings:
+			strongest = maxf(strongest, absf(float(leanings[leaning])))
+		var push: Dictionary = {}
+		for leaning: String in leanings:
+			push[leaning] = INSTRUCTION_PUSH * float(leanings[leaning]) / strongest
+		_instructions[gameplan_id] = push
 	return _instructions[gameplan_id]

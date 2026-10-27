@@ -180,13 +180,15 @@ a point costs × e^(points past that / 8) more, so × 3.5 at the potential itsel
 raises the ceiling for Speed and Strength by 10, Heavy hands for Power. **The soft cap per camp**: once an attribute has
 gained 3 points in one camp, the rest of that camp's points for it count half.
 
-What that comes to: a 17-year-old with 30 in their wrestling stats gains about 3–4 Takedowns in an 8-week wrestling camp;
-the Wrestler (70 Takedowns, 25 years old, potential 75) about 1. Fights read whole points (`FighterState` rounds down), so
-the camp keeps fractions and a gain shows in fights once it crosses a whole number.
+What that comes to: a teenager with 30 in their wrestling stats gains a few points of Takedowns in an 8-week wrestling camp;
+the Wrestler at 19 with potential 80 (CI's camp snapshot) gains under a point in each main stat and about 2 Fight IQ from
+the film study. The camp keeps fractions of a point; fights read each stat to the nearest whole point (`FighterState`), so
+a gain shows in fights once it rounds up. Every fighter in `data/fighters/` has whole-number stats, so that changes no fight.
 
 **Fatigue** (0–100, §3.1). A session adds its fatigue × (1.25 − Recovery / 200), so × 1 at Recovery 50; rest and recovery
-take theirs off. Every night keeps 60% of the fatigue and Sunday keeps 40% of what's left. A Balanced week peaks around 50;
-All out peaks around 65 and the fighter learns about a tenth less. A Taper week brings the fighter in fresh.
+take theirs off. Every night keeps 60% of the fatigue and Sunday keeps 40% of what's left. A Balanced or Wrestler week peaks around 53;
+All out peaks around 65, where XP is × 0.8, and over 8 weeks it costs about 1.5 Chin from the hard sparring. A Taper week
+brings the fighter in fresh.
 
 **Camp injuries** (`03` §5). Each session rolls its injury risk × (1 + (fatigue / 30)²) × (1.5 − Durability / 100): at
 fatigue 60 that is 5 times the fresh risk. An injury keeps the fighter out 2–10 days (Slow healer × 1.5), and every slot
@@ -194,8 +196,8 @@ until then becomes rest. About a quarter of sensible 8-week camps have one minor
 in three. **Party animals skip sessions**: a chance of −Discipline / 400 a session (25% at −100); a disciplined fighter
 never does. A skipped session gives nothing and costs nothing.
 
-**Style** (`11` §4.2). Each session's style push and the week's instruction (the gameplan's leanings / 160 a session, so a
-week of Push the pace is about +3 Pace) move the fighter's leanings through `StyleLeanings`, which earns and fades the named
+**Style** (`11` §4.2). Each session's style push and the week's instruction (the gameplan's strongest leaning moves 0.25 a
+session and its others in proportion, so a week of Push the pace is about +3 Pace and +2 Range) move the fighter's leanings through `StyleLeanings`, which earns and fades the named
 traits. Pushes are × (1 + Coachable / 200), and × 0.4 from age 30 (a style sets). **Hard sparring wears the Chin** 0.05 a
 session (`03` §5); nothing trains it back up.
 
@@ -205,8 +207,8 @@ phases, the planner screen, scouting and the weight cut, and saving a career (`0
 
 **What to change:** every number above is a named constant at the top of `sim/world/training_camp.gd` (`XP_PER_POINT`,
 `XP_CURVE`, `CEILING_SOFT`, `CEILING_SCALE`, `AGE_LEARNING`, `CAMP_SOFT_CAP`, `NIGHT_KEEPS`, `SUNDAY_KEEPS`, `FATIGUE_FREE`,
-`INJURY_FATIGUE`, `SKIP_PER_PARTY_POINT`, `INSTRUCTION_DIVISOR` …); sessions and plans are their JSON files. Fights don't
-change, so the golden fights don't need re-pinning. Check a change with `tools/camp.gd` and
+`INJURY_FATIGUE`, `SKIP_PER_PARTY_POINT`, `INSTRUCTION_PUSH` …); sessions and plans are their JSON files. Fights don't
+change, so the golden fights don't need re-pinning (unless a fighter file gets fractional stats). Check a change with `tools/camp.gd` and
 `tests/sim/world/test_training_camp.gd`, then update this section and D125.
 
 ---
