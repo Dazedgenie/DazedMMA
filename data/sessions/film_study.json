@@ -1,0 +1,12 @@
+{
+	"schema": "session@1",
+	"id": "film_study",
+	"name": "Film study",
+	"trains": { "fight_iq": 1.0 },
+	"xp": 8,
+	"fatigue": 2,
+	"injury_risk": 0.0,
+	"leanings": {},
+	"chin_wear": 0,
+	"minigame": "film_study"
+}

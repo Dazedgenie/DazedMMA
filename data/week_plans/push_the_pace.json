@@ -1,0 +1,14 @@
+{
+	"schema": "week_plan@1",
+	"id": "push_the_pace",
+	"name": "Push the pace",
+	"instruction": "pressure",
+	"days": [
+		["boxing_drill", "roadwork"],
+		["thai_pads", "strength_conditioning"],
+		["heavy_bag", "light_sparring"],
+		["sprawl_drill", "film_study"],
+		["boxing_drill", "hard_sparring"],
+		["thai_pads", "rest"]
+	]
+}

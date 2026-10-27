@@ -1,0 +1,12 @@
+{
+	"schema": "session@1",
+	"id": "meditation",
+	"name": "Meditation",
+	"trains": { "composure": 0.6, "heart": 0.4 },
+	"xp": 8,
+	"fatigue": -4,
+	"injury_risk": 0.0,
+	"leanings": {},
+	"chin_wear": 0,
+	"minigame": "meditation"
+}

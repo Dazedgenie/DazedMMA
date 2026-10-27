@@ -26,6 +26,11 @@ const CATEGORIES: Array[String] = ["strike", "takedown", "defense", "movement", 
 const ROLES: Array[String] = ["neutral", "top", "bottom"]
 ## What a focus call (docs/09 call@2) may hold.
 const FOCUS_KEYS: Array[String] = ["duration_ms", "leanings", "weights", "read_bonus", "sprawl_bonus"]
+## The minigames a session can be played as (D38, docs/02 §3.2).
+const MINIGAMES: Array[String] = [
+	"mitt_work", "heavy_bag", "thai_pads", "wrestling_chain", "sprawl_reflex",
+	"rolling_puzzle", "roadwork", "film_study", "hard_sparring", "meditation",
+]
 const ALLOWS: Array[String] = [
 	"elbows", "head_strikes_on_ground", "knees_to_head_standing",
 	"knees_to_head_grounded", "heel_hooks", "slams", "takedowns",
@@ -68,6 +73,11 @@ const SCHEMAS := {
 		"name": TYPE_STRING, "order": TYPE_FLOAT, "red": TYPE_STRING, "blue": TYPE_STRING, "calls": TYPE_ARRAY,
 		"rules": TYPE_ARRAY, "tell_cue": TYPE_BOOL, "tip": TYPE_STRING,
 	} },
+	"session@1": { "folder": "sessions", "fields": {
+		"name": TYPE_STRING, "trains": TYPE_DICTIONARY, "xp": TYPE_FLOAT, "fatigue": TYPE_FLOAT,
+		"injury_risk": TYPE_FLOAT, "leanings": TYPE_DICTIONARY, "chin_wear": TYPE_FLOAT,
+	} },
+	"week_plan@1": { "folder": "week_plans", "fields": { "name": TYPE_STRING, "days": TYPE_ARRAY } },
 }
 
 var _files: Dictionary = {}  # res:// path → parsed Dictionary (or null if unparseable)
@@ -394,6 +404,13 @@ func test_fighter_profiles_are_complete_and_in_range() -> void:
 		else:
 			_expect_ids(problems, where, "actions", weights.keys())
 			_expect_numbers(problems, where, "tendencies.actions", weights, weights.keys(), 0, 10)
+		for field: String in ["age", "potential"]:
+			if f.has(field) and not f[field] is float:
+				problems.append("%s: '%s' is a number" % [where, field])
+		if f.get("age", 25.0) is float and (f.get("age", 25.0) < 14.0 or f.get("age", 25.0) > 45.0 or fmod(f.get("age", 25.0), 1.0) != 0.0):
+			problems.append("%s: age is whole years from 14 to 45" % where)
+		if f.get("potential", 75.0) is float and (f.get("potential", 75.0) < 0.0 or f.get("potential", 75.0) > 100.0):
+			problems.append("%s: potential is 0–100" % where)
 		for t: Variant in f.get("tells", []):
 			if not t is Dictionary or not (t.get("chance") is float) or not (t.get("within_ms") is float):
 				problems.append("%s: each tell needs {trigger, action, chance, within_ms}" % where)
@@ -402,6 +419,56 @@ func test_fighter_profiles_are_complete_and_in_range() -> void:
 			_expect_ids(problems, where, "actions", [t.get("action")])
 			if t.chance < 0.0 or t.chance > 1.0 or fmod(t.within_ms, FightClock.TICK_MS) != 0:
 				problems.append("%s: a tell's chance is 0–1 and within_ms a multiple of %d" % [where, FightClock.TICK_MS])
+	_report(problems)
+
+
+func test_training_sessions_train_real_stats_in_shares_that_add_up() -> void:
+	var problems: Array[String] = []
+	var stats: Dictionary = _items("enums").get("stats", {}).get("values", {})
+	for id: String in _items("sessions"):
+		var s: Dictionary = _items("sessions")[id]
+		var where := "session '%s'" % id
+		var trains: Variant = s.get("trains", {})
+		if not trains is Dictionary:
+			continue  # The type check reports it.
+		_expect_numbers(problems, where, "trains", trains, stats.keys(), 0, 1)
+		var total: float = 0.0
+		for stat: Variant in trains:
+			total += float(trains[stat]) if trains[stat] is float else 0.0
+		if not trains.is_empty() and absf(total - 1.0) > 0.001:
+			problems.append("%s: the shares in trains add up to %s, not 1" % [where, total])
+		if s.get("xp") is float and (s.xp < 0.0 or (s.xp > 0.0) == trains.is_empty()):
+			problems.append("%s: xp is 0 or more, and only a session that trains something has any" % where)
+		if s.get("fatigue") is float and (s.fatigue < -100.0 or s.fatigue > 100.0):
+			problems.append("%s: fatigue is −100 to 100 (negative takes it away)" % where)
+		if s.get("injury_risk") is float and (s.injury_risk < 0.0 or s.injury_risk > 0.05):
+			problems.append("%s: injury_risk is a chance per session from 0 to 0.05" % where)
+		if s.get("chin_wear") is float and (s.chin_wear < 0.0 or s.chin_wear > 1.0):
+			problems.append("%s: chin_wear is Chin points lost per session, 0 to 1" % where)
+		_expect_numbers(problems, where, "leanings", s.get("leanings", {}), LEANINGS, -1, 1)
+		var minigame: Variant = s.get("minigame")
+		if minigame != null and minigame not in MINIGAMES:
+			problems.append("%s: minigame '%s' is null or one of %s" % [where, minigame, MINIGAMES])
+	_report(problems)
+
+
+func test_week_plans_fill_six_days_of_two_sessions() -> void:
+	var problems: Array[String] = []
+	for id: String in _items("week_plans"):
+		var p: Dictionary = _items("week_plans")[id]
+		var where := "week plan '%s'" % id
+		var days: Variant = p.get("days", [])
+		if not days is Array or days.size() != TrainingCamp.DAYS:
+			problems.append("%s: days lists Monday to Saturday (%d days)" % [where, TrainingCamp.DAYS])
+			continue
+		for day: Variant in days:
+			if not day is Array or day.size() != TrainingCamp.SLOTS_PER_DAY:
+				problems.append("%s: each day is [morning, evening]" % where)
+			else:
+				_expect_ids(problems, where, "sessions", day)
+		var instruction: Variant = p.get("instruction")
+		if instruction != null:
+			_expect_ids(problems, where, "gameplans", [instruction])
 	_report(problems)
 
 

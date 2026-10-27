@@ -1,0 +1,12 @@
+{
+	"schema": "session@1",
+	"id": "recovery",
+	"name": "Recovery (stretching, ice, massage)",
+	"trains": {},
+	"xp": 0,
+	"fatigue": -15,
+	"injury_risk": 0.0,
+	"leanings": {},
+	"chin_wear": 0,
+	"minigame": null
+}

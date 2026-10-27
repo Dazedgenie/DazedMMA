@@ -1,6 +1,6 @@
 # 02 — Fighter Creation, Attributes & Training
 
-> Related decisions: D8, D13, D14, D23, D24, D34–D40. Status: **design draft**.
+> Related decisions: D8, D13, D14, D23, D24, D34–D40, D125. Status: **design draft**; §3.5 is built.
 
 ---
 
@@ -125,6 +125,89 @@ Design rules for every minigame:
 - Gyms have a roster of persistent partners with their own stats and careers.
 - Partners can turn pro, get signed by your organisation, and become rivals (D22).
 - Hard sparring with a better partner = more XP + more injury risk.
+
+### 3.5 The camp in the sim (D125, #54)
+
+The first working piece of training, as pure logic in `sim/world/` (D100): `TrainingCamp` (`sim/world/training_camp.gd`)
+runs week plans of sessions and turns them into attribute points, fatigue, style pushes, chin wear and camp injuries. It is
+seeded, so the same fighter, plans and seed always train the same way. Nothing here touches the fight engine, which is why it
+could be built while the Phase 1 playtest runs. The planner screen, the minigames and save/load come later.
+
+**Try it:** `godot --headless --script res://tools/camp.gd -- --fighter=wrestler --plan=wrestler --weeks=8 --fights=100`
+prints each week, the injuries, the stats that moved (with grades), the style pushes and how fresh the fighter is for the
+fight, then plays 100 fights against the Kicker before and after the camp. CI prints two camps in every run's summary
+("Camp snapshot"). Options: `tools/README.md`.
+
+**A week** is Monday to Saturday, a morning and an evening slot each (12 slots; Sunday is always off). That is the "~10–12
+sessions" of §3.1 with two slots a day, not three. A week plan (`data/week_plans/`, `docs/09` week_plan@1) fills every slot
+with a session, and may name an **instruction**: a gameplan (`data/gameplans/`) whose style leanings every session pushes a
+little. The presets: Balanced, Striker, Push the pace (Striker with the Pressure instruction), Wrestler (with Wrestle-heavy),
+All out (12 hard sessions, no rest: the overtraining example) and Taper (fight week).
+
+**Sessions** (`data/sessions/`, `docs/09` session@1) say what they train (shares of their XP per attribute), their XP, the
+fatigue they add (or take away), their injury risk, any style push, any chin wear and the minigame that will play them:
+
+| Session | Trains | XP | Fatigue | Injury risk | Style push |
+|---|---|---|---|---|---|
+| Boxing drills (mitt work) | Boxing 50%, Footwork 25%, Striking defense 25% | 10 | 8 | 0.1% | Base −0.1 |
+| Heavy bag | Power 50%, Boxing 30%, Strength 20% | 10 | 10 | 0.1% | Base −0.1 |
+| Thai pads | Kicking 50%, Clinch striking 30%, Power 20% | 10 | 10 | 0.1% | Base −0.1 |
+| Wrestling drills (wrestling chain) | Takedowns 50%, Scrambles 30%, Clinch control 20% | 10 | 12 | 0.15% | Base +0.1 |
+| Sprawl drills (sprawl reflex) | Takedown defense 60%, Scrambles 20%, Speed 20% | 10 | 10 | 0.1% | Base −0.05 |
+| Clinch work | Clinch control 50%, Clinch striking 30%, Strength 20% | 10 | 10 | 0.1% | Range +0.1 |
+| Rolling (rolling puzzle) | Top control 30%, Guard 30%, Submissions 20%, Submission defense 20% | 10 | 10 | 0.1% | Base +0.1 |
+| Strength & conditioning | Strength 50%, Speed 25%, Durability 25% | 10 | 12 | 0.1% | |
+| Roadwork | Cardio 70%, Recovery 30% | 10 | 10 | 0.05% | |
+| Film study | Fight IQ | 8 | 2 | | |
+| Meditation | Composure 60%, Heart 40% | 8 | −4 | | |
+| Light sparring | Striking defense 25%, Composure 20%, Boxing 15%, Footwork 15%, Fight IQ 15%, Kicking 10% | 12 | 10 | 0.15% | |
+| Hard sparring | Composure 30%, Heart 20%, Striking defense 20%, Fight IQ 20%, Durability 10% | 20 | 18 | 0.6% | Risk +0.05; Chin −0.05 |
+| Recovery (stretching, ice, massage) | | | −15 | | |
+| Rest | | | −20 | | |
+
+**Points from XP** (§3.3, D13). Each session's XP is split by its shares, and one point of an attribute costs
+**10 × e^(attribute / 25)** XP: about 33 at 30, 74 at 50 and 164 at 70, so every 25 points costs e (≈2.7) times as much. The
+XP is then multiplied by:
+- **Session quality**: 1.0 when it auto-resolves; a session played as a minigame scores 0.8 (bad) to 1.5 (great). Auto is
+  the baseline, never a gate (A5), and about two thirds of a great session (D14).
+- **Age**: × 1.2 up to 23, × 1.0 to 29, × 0.8 to 33, × 0.6 after.
+- **Coachable** (`11` §4.1): × (1 + Coachable / 400), so × 1.25 at +100 and × 0.75 at Stubborn −100. **Fast learner** × 1.15.
+- **Fatigue**: full up to 40, then down in a line to × 0.5 at 100.
+- **Variety**: × 1.1 for the whole week when its plan trains attributes from at least 3 of the 5 groups (§2).
+
+Then two brakes. **Potential** (`11` §2.3; `potential` in the fighter file, 75 if it has none): from 10 points under it,
+a point costs × e^(points past that / 8) more, so × 3.5 at the potential itself and × 12 ten points past it. Freak athlete
+raises the ceiling for Speed and Strength by 10, Heavy hands for Power. **The soft cap per camp**: once an attribute has
+gained 3 points in one camp, the rest of that camp's points for it count half.
+
+What that comes to: a 17-year-old with 30 in their wrestling stats gains about 3–4 Takedowns in an 8-week wrestling camp;
+the Wrestler (70 Takedowns, 25 years old, potential 75) about 1. Fights read whole points (`FighterState` rounds down), so
+the camp keeps fractions and a gain shows in fights once it crosses a whole number.
+
+**Fatigue** (0–100, §3.1). A session adds its fatigue × (1.25 − Recovery / 200), so × 1 at Recovery 50; rest and recovery
+take theirs off. Every night keeps 60% of the fatigue and Sunday keeps 40% of what's left. A Balanced week peaks around 50;
+All out peaks around 65 and the fighter learns about a tenth less. A Taper week brings the fighter in fresh.
+
+**Camp injuries** (`03` §5). Each session rolls its injury risk × (1 + (fatigue / 30)²) × (1.5 − Durability / 100): at
+fatigue 60 that is 5 times the fresh risk. An injury keeps the fighter out 2–10 days (Slow healer × 1.5), and every slot
+until then becomes rest. About a quarter of sensible 8-week camps have one minor knock; All out gets one in about two camps
+in three. **Party animals skip sessions**: a chance of −Discipline / 400 a session (25% at −100); a disciplined fighter
+never does. A skipped session gives nothing and costs nothing.
+
+**Style** (`11` §4.2). Each session's style push and the week's instruction (the gameplan's leanings / 160 a session, so a
+week of Push the pace is about +3 Pace) move the fighter's leanings through `StyleLeanings`, which earns and fades the named
+traits. Pushes are × (1 + Coachable / 200), and × 0.4 from age 30 (a style sets). **Hard sparring wears the Chin** 0.05 a
+session (`03` §5); nothing trains it back up.
+
+**Not yet** (they change how fights feel, so they wait for the playtest): fatigue and injuries carried into the fight
+("enter the ring broken"), the minigames (`played` scores are already taken), rule drilling in the middle of a camp (A6), camp
+phases, the planner screen, scouting and the weight cut, and saving a career (`04` §11).
+
+**What to change:** every number above is a named constant at the top of `sim/world/training_camp.gd` (`XP_PER_POINT`,
+`XP_CURVE`, `CEILING_SOFT`, `CEILING_SCALE`, `AGE_LEARNING`, `CAMP_SOFT_CAP`, `NIGHT_KEEPS`, `SUNDAY_KEEPS`, `FATIGUE_FREE`,
+`INJURY_FATIGUE`, `SKIP_PER_PARTY_POINT`, `INSTRUCTION_DIVISOR` …); sessions and plans are their JSON files. Fights don't
+change, so the golden fights don't need re-pinning. Check a change with `tools/camp.gd` and
+`tests/sim/world/test_training_camp.gd`, then update this section and D125.
 
 ---
 

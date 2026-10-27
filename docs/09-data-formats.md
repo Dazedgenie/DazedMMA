@@ -30,6 +30,8 @@ Rules:
 | `data/rulesets/` | `ruleset@1` | Amateur/pro rules (`docs/08`) |
 | `data/fighters/` | `fighter@1` | Fighter profiles: authored fighters, archetype templates and (later) generated fighters (D94) |
 | `data/playtest/` | `playtest@1` | The playtest's fights in order (D118, `docs/playtests/`) |
+| `data/sessions/` | `session@1` | Training sessions: drills, sparring, conditioning, rest (`docs/02` §3.5, D125) |
+| `data/week_plans/` | `week_plan@1` | Week plans: a session in each of the 12 slots of a training week (`docs/02` §3.5) |
 
 ## 3. Schemas
 
@@ -119,6 +121,8 @@ generated world fighters. Loaded by `FighterLibrary` (`sim/fight/fighter_library
 | `gifts` / `flaws` | ids from `enums/gifts` / `enums/flaws` | `docs/11` §4.3 |
 | `techniques` | action ids | The moves this fighter knows and the AI picks from |
 | `tendencies` | `{work_rate, actions: {action id: weight}}` | `work_rate`: the chance per free tick to lead with something (0–1; 0.015 ≈ one lead every 7 s, with combinations, counters and meeting advances on top; `docs/01` §20). `actions`: how much they favour a move (1.0 = normal, 0–10), `docs/01` §7 |
+| `age` | whole years, 14–45 (optional) | Training learns faster when young and styles set from 30 (`docs/02` §3.5); 25 if left out |
+| `potential` | 0–100 (optional) | Where training slows right down (`docs/11` §2.3, `docs/02` §3.5); 75 if left out |
 | `tells` | `[{trigger, action, chance, within_ms}]` | Habits an opponent can scout: after `trigger`, `chance` to throw `action` within `within_ms` (`docs/01` §7, D11). The AI follows them (`docs/01` §20). A tell on the fighter's own move starting is a set-up: the Wrestler's `own_stance_shift` → `double_leg` |
 
 Without a `template`, every field above must be present. A fight is saved and replayed as seed + fighter ids + ruleset +
@@ -136,6 +140,29 @@ One fight of the playtest (D118), picked from the setup screen's **Playtest** li
 | `rules` | `[[rule id, drilled 0–100], …]` | Drilled rules already in the slots, slot 1 first (at most 2) |
 | `tell_cue` | bool | Show the scouted-tell cue (D51) |
 | `tip` | string | The tip card before the fight (`07` §2: two sentences at most) |
+
+### session@1 (examples: `boxing_drill.json`, `hard_sparring.json`, `rest.json`)
+One kind of training session (`docs/02` §3.5, D125). Loaded by `TrainingLibrary` (`sim/world/training_library.gd`); `TrainingCamp` runs it.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `name` | string | As the planner and the camp report show it |
+| `trains` | `{stat: share}` | Which attributes its XP goes to; shares add up to 1. Empty for rest and recovery |
+| `xp` | number ≥ 0 | XP for a session at quality 1.0; 0 exactly when it trains nothing |
+| `fatigue` | −100–100 | Fatigue it adds (× the Recovery factor); negative takes fatigue away (rest, recovery, meditation) |
+| `injury_risk` | 0–0.05 | Chance of a camp injury per session when fresh (fatigue and Durability scale it) |
+| `leanings` | `{leaning: −1–1}` | Style push per session (`docs/11` §4.2) |
+| `chin_wear` | 0–1 | Chin points lost per session (hard sparring) |
+| `minigame` | minigame id or null | The minigame that will play it (D38): `mitt_work`, `heavy_bag`, `thai_pads`, `wrestling_chain`, `sprawl_reflex`, `rolling_puzzle`, `roadwork`, `film_study`, `hard_sparring`, `meditation` |
+
+### week_plan@1 (examples: `balanced.json`, `wrestler.json`, `taper.json`)
+A training week (`docs/02` §3.5). Loaded by `TrainingLibrary`.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `name` | string | As the planner and the camp report show it |
+| `instruction` | gameplan id or null | A gameplan whose style leanings every session pushes a little (Pressure → "push the pace") |
+| `days` | 6 × `[morning, evening]` session ids | Monday to Saturday; Sunday is always off |
 
 ### fight_record@1 (saved by the game, not in `data/`)
 What a fight on the fight screen leaves behind, one file per fight in the player's `user://fights/` folder (on Windows
@@ -155,7 +182,8 @@ What a fight on the fight screen leaves behind, one file per fight in the player
 ## 4. What the validator checks
 Valid JSON with a known schema · id matches file name and folder · required fields present with the right types ·
 action timings are whole ticks · values come from the allowed lists · every reference (positions, actions, calls, triggers,
-flags, stats) points to something that exists.
+flags, stats, sessions, gameplans) points to something that exists · a session's shares add up to 1 · a week plan has 6 days
+of 2 sessions.
 
 ## 5. Not yet defined (comes with the issue that needs it)
-Technique proficiency and the `techniques` link to `requires_technique` (D6), state/threshold trigger fields (#16), backgrounds/vignettes, techniques, promotions and names (Alpha).
+Technique proficiency and the `techniques` link to `requires_technique` (D6), state/threshold trigger fields (#16), backgrounds/vignettes, techniques, promotions and names (Alpha), the career save (`docs/04` §11).

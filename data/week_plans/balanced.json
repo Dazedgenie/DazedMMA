@@ -1,0 +1,14 @@
+{
+	"schema": "week_plan@1",
+	"id": "balanced",
+	"name": "Balanced",
+	"instruction": null,
+	"days": [
+		["boxing_drill", "wrestling_drill"],
+		["strength_conditioning", "light_sparring"],
+		["thai_pads", "rolling"],
+		["roadwork", "film_study"],
+		["sprawl_drill", "hard_sparring"],
+		["heavy_bag", "rest"]
+	]
+}

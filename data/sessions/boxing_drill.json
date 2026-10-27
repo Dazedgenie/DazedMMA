@@ -1,0 +1,12 @@
+{
+	"schema": "session@1",
+	"id": "boxing_drill",
+	"name": "Boxing drills",
+	"trains": { "boxing": 0.5, "footwork": 0.25, "striking_defense": 0.25 },
+	"xp": 10,
+	"fatigue": 8,
+	"injury_risk": 0.001,
+	"leanings": { "base": -0.1 },
+	"chin_wear": 0,
+	"minigame": "mitt_work"
+}
