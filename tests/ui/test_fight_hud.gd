@@ -88,3 +88,11 @@ func test_the_top_bar_shows_each_fighters_health_from_their_head_damage() -> voi
 	assert_eq(hud._health_fill[1].bg_color, FightHud.PIP_COLOURS[1])
 	assert_eq(hud._health_label[0].text, "HEALTH 100%")
 
+
+
+func test_the_danger_meter_names_the_hold_while_one_is_locked_in() -> void:
+	var sim: FightSim = _sim()
+	assert_eq(FightHud.danger_text(sim), "", "no hold, no meter")
+	sim.apply_transition(0, "double_leg")
+	assert_true(sim._lock_in(1, _actions.get_action("triangle")))
+	assert_eq(FightHud.danger_text(sim), "Kicker's TRIANGLE CHOKE on Wrestler · danger 38", "40 + 0.5 × (57.5 − 62.5)")

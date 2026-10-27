@@ -1,0 +1,18 @@
+{
+	"schema": "action@2",
+	"id": "armbar",
+	"name": "Armbar",
+	"category": "submission",
+	"positions": ["full_guard"],
+	"roles": ["bottom"],
+	"ranges": ["clinch"],
+	"phases_ms": { "telegraph": 0, "windup": 200, "active": 300, "recovery": 400 },
+	"stamina_cost": 6,
+	"flags_self": [],
+	"submission": { "base_success": 0.25, "partial_within": 0.15, "start_danger": 40, "escape_to": "scramble" },
+	"stats": { "offense": ["submissions", "guard"], "defense": ["submission_defense", "strength"] },
+	"opportunities": [
+		{ "opponent_flag": "POSTURED_UP", "success_bonus": 0.20 }
+	],
+	"requires_technique": null
+}

@@ -94,6 +94,9 @@ func pose_for(sim: FightSim, i: int) -> Dictionary:
 	var f: FighterState = sim.fighters[i]
 	var p: Dictionary = _rest_pose()
 	var role: String = sim.situation.role(i)
+	var hold: Dictionary = sim.hold()
+	if not hold.is_empty():
+		role = String(hold.from_roles[i])  # In a submission (D126): posed as where it was locked from.
 	if f.is_down() or role == PositionLibrary.BOTTOM:
 		p.lie = 1.0
 		p.hip_y = 0.22
@@ -117,6 +120,10 @@ func pose_for(sim: FightSim, i: int) -> Dictionary:
 		p.lean = -0.6
 		p.leg_lead = 0.9
 		p.leg_rear = 0.5
+	elif not hold.is_empty():
+		p.lean = -0.9 if int(hold.attacker) != i else -0.3  # The guillotine: head trapped under the arm.
+		p.arm_lead = 1.75
+		p.arm_rear = 1.75
 	elif sim.situation.position == PositionLibrary.CLINCH:
 		p.lean = -0.3
 		p.arm_lead = 1.75

@@ -1,0 +1,19 @@
+{
+	"schema": "action@2",
+	"id": "guillotine",
+	"name": "Guillotine",
+	"category": "submission",
+	"basic": true,
+	"positions": ["standing", "clinch"],
+	"roles": ["neutral"],
+	"ranges": ["mid", "pocket", "clinch"],
+	"phases_ms": { "telegraph": 0, "windup": 100, "active": 300, "recovery": 400 },
+	"stamina_cost": 5,
+	"flags_self": [],
+	"submission": { "base_success": 0.35, "start_danger": 40, "escape_to": "back" },
+	"stats": { "offense": ["submissions", "strength"], "defense": ["submission_defense", "scrambles"] },
+	"opportunities": [
+		{ "opponent_flag": "HEAD_LOW", "required": true, "success_bonus": 0.10 }
+	],
+	"requires_technique": null
+}

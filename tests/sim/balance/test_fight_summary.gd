@@ -73,9 +73,10 @@ func test_every_strike_that_rolled_odds_counts_as_an_exchange() -> void:
 	assert_lte(row.clamped, row.exchanges)
 
 
-func test_results_sort_into_ko_tko_decision_or_draw() -> void:
+func test_results_sort_into_ko_tko_submission_decision_or_draw() -> void:
 	assert_eq(FightSummary.method_of(FightSim.RESULT_KO), FightSummary.METHOD_KO)
 	assert_eq(FightSummary.method_of(FightSim.RESULT_TKO), FightSummary.METHOD_TKO)
+	assert_eq(FightSummary.method_of(FightSim.RESULT_SUB), FightSummary.METHOD_SUB)
 	assert_eq(FightSummary.method_of(Judging.DRAW), FightSummary.METHOD_DRAW)
 	for verdict: String in [Judging.UNANIMOUS, Judging.SPLIT, Judging.MAJORITY]:
 		assert_eq(FightSummary.method_of(verdict), FightSummary.METHOD_DECISION)

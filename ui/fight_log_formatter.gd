@@ -10,7 +10,7 @@ const DIM_COLOUR := "#8a8f98"
 ## Stats the debug summary shows when condition has moved them (docs/11 §3.2).
 const RANGE_NAMES := { "out": "out of range", "long": "long (kicking range)", "mid": "mid (punching range)", "pocket": "in the pocket" }
 const CAGE_NAMES := { "centre": "is back in open space", "near": "is near the fence", "pinned": "is PINNED against the cage" }
-const RESULT_NAMES := { "ko": "KO", "tko": "TKO" }
+const RESULT_NAMES := { "ko": "KO", "tko": "TKO", "submission": "submission" }
 ## How the referee's stoppages read (FIGHT_ENDED `why`, D120).
 const STOP_REASONS := {
 	"health": "the referee stops it: nothing left",
@@ -88,9 +88,19 @@ static func _describe(event: FightEvent, sim: FightSim) -> String:
 		FightEvent.RANGE_CHANGED:
 			return "[color=%s]Range: %s[/color]" % [DIM_COLOUR, RANGE_NAMES.get(event.data.band, event.data.band)]
 		FightEvent.POSITION_CHANGED:
+			if event.data.get("escaped", false):
+				return "[b]%s is out of the %s → %s[/b]%s" % [who, _action_name(event.data.action_id, sim).to_lower(), _position_name(event.data.position, sim), _roles(event, sim)]
 			if event.data.action_id == "":
 				return "[b]They come apart → %s[/b]" % _position_name(event.data.position, sim)
 			return "[b]%s's %s → %s[/b]%s" % [who, _action_name(event.data.action_id, sim), _position_name(event.data.position, sim), _roles(event, sim)]
+		FightEvent.SUBMISSION_LOCKED:
+			return "[b]%s LOCKS IN the %s![/b] danger %d" % [who, _action_name(event.data.action_id, sim).to_lower(), event.data.danger]
+		FightEvent.SUBMISSION_BEAT:
+			var way: String = "squeezes" if event.data.gained else "loses ground"
+			return "%s %s on the %s: danger [b]%d[/b]  [color=%s](%d%% to win the beat)[/color]" % [
+				who, way, _action_name(event.data.action_id, sim).to_lower(), event.data.danger, DIM_COLOUR, roundi(float(event.data.chance) * 100.0)]
+		FightEvent.SUBMISSION_ESCAPED:
+			return "[b]%s ESCAPES the %s[/b] (danger %d after %d s)" % [who, _action_name(event.data.action_id, sim).to_lower(), event.data.danger, event.data.beats]
 		FightEvent.CAGE_CHANGED:
 			return "[color=%s]%s %s[/color]" % [DIM_COLOUR, who, CAGE_NAMES.get(event.data.proximity, event.data.proximity)]
 		FightEvent.ROCKED:
@@ -190,6 +200,8 @@ static func result_text(event: FightEvent, sim: FightSim) -> String:
 		how += " (the corner threw in the towel)"
 	elif STOP_REASONS.has(event.data.get("why", "")):
 		how += " (%s)" % STOP_REASONS[event.data.why]
+	elif result == FightSim.RESULT_SUB and event.data.has("why"):
+		how += " (%s)" % _action_name(event.data.why, sim).to_lower()
 	var cards: String = " (%s)" % _cards(event.data.cards) if event.data.has("cards") else ""
 	var winner: int = int(event.data.get("winner", -1))
 	if winner < 0:

@@ -9,6 +9,9 @@
 	"strike_damage_multiplier": { "top": 0.8, "bottom": 0.4 },
 	"transitions": [
 		{ "action": "get_up", "from_role": "bottom", "to": "standing", "roles": { "actor": "neutral", "opponent": "neutral" } },
-		{ "action": "get_up", "from_role": "bottom", "result": "partial", "to": "scramble", "roles": { "actor": "neutral", "opponent": "neutral" } }
+		{ "action": "get_up", "from_role": "bottom", "result": "partial", "to": "scramble", "roles": { "actor": "neutral", "opponent": "neutral" } },
+		{ "action": "triangle", "from_role": "bottom", "to": "submission", "roles": { "actor": "attacker", "opponent": "defender" } },
+		{ "action": "armbar", "from_role": "bottom", "to": "submission", "roles": { "actor": "attacker", "opponent": "defender" } },
+		{ "action": "armbar", "from_role": "bottom", "result": "partial", "to": "scramble", "roles": { "actor": "neutral", "opponent": "neutral" } }
 	]
 }

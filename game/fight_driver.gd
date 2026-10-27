@@ -11,7 +11,8 @@ extends RefCounted
 ##
 ## Speeds (D9, D91): Normal is 2× fight time (1× for the D91 playtest comparison),
 ## Fast is 4×, slow-mo is half of Normal. On top of the player's choice:
-## - auto slow-mo (D53): a fighter rocked or knocked down, or a scramble, slows the
+## - auto slow-mo (D53): a fighter rocked or knocked down, a scramble, or a submission
+##   locked in (each beat of the struggle, D126) slows the
 ##   fight for AUTO_SLOW_SECONDS;
 ## - the perfect-call flourish (D52): a move the player's call started that works
 ##   as a counter (a takedown off a caught kick, a strike into the opponent's
@@ -185,6 +186,8 @@ func _on_event(event: FightEvent) -> void:
 		FightEvent.POSITION_CHANGED:
 			if event.data.get("position", "") == PositionLibrary.SCRAMBLE:
 				_slow_down(AUTO_SLOW_SECONDS, auto_slow)
+		FightEvent.SUBMISSION_LOCKED, FightEvent.SUBMISSION_BEAT:
+			_slow_down(AUTO_SLOW_SECONDS, auto_slow)  # Slow for the whole struggle (D53, D126).
 		FightEvent.GRAPPLE_WON, FightEvent.STRIKE_LANDED:
 			if is_perfect_call(event):
 				_slow_down(FLOURISH_SECONDS, flourishes)

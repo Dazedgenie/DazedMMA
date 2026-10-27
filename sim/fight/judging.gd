@@ -19,6 +19,8 @@ const KNOCKDOWN_POINTS: float = 20.0
 ## (full guard: top 1.0, bottom 0.2, data/positions).
 const TAKEDOWN_POINTS: float = 6.0
 const CONTROL_POINTS_PER_S: float = 0.15
+## Locking in a submission (D126), like a near takedown; the hold then scores control as any position.
+const SUB_LOCK_POINTS: float = 4.0
 ## How differently judges see the same round: each fighter's points ×(1 ± up to 15%).
 const JUDGE_NOISE: float = 0.15
 ## Effective striking this close (within 5%) is even: aggression decides, then cage control.

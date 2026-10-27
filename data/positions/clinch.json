@@ -10,6 +10,8 @@
 	"transitions": [
 		{ "action": "clinch_break", "from_role": "neutral", "to": "standing", "roles": { "actor": "neutral", "opponent": "neutral" } },
 		{ "action": "double_leg", "from_role": "neutral", "to": "full_guard", "roles": { "actor": "top", "opponent": "bottom" } },
-		{ "action": "double_leg", "from_role": "neutral", "result": "partial", "to": "scramble", "roles": { "actor": "neutral", "opponent": "neutral" } }
+		{ "action": "double_leg", "from_role": "neutral", "result": "partial", "to": "scramble", "roles": { "actor": "neutral", "opponent": "neutral" } },
+		{ "action": "guillotine", "from_role": "neutral", "to": "submission", "roles": { "actor": "attacker", "opponent": "defender" } },
+		{ "action": "guillotine", "from_role": "neutral", "result": "failed", "to": "full_guard", "roles": { "actor": "bottom", "opponent": "top" } }
 	]
 }

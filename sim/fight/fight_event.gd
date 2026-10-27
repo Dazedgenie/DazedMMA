@@ -21,6 +21,15 @@ const GRAPPLE_WON := "grapple_won"
 const GRAPPLE_STOPPED := "grapple_stopped"
 ## Actor's sprawl met the opponent's shot. data: {action_id (the sprawl), against (the shot), worked, chance, odds}
 const SPRAWLED := "sprawled"
+## Submissions (D126). The actor's hold locked in (a grapple_won and a position_changed into the
+## submission position come first). data: {action_id, danger (0–100, where the struggle starts)}
+const SUBMISSION_LOCKED := "submission_locked"
+## One beat of the struggle; the actor is the attacker. data: {action_id, danger (after the beat), gained (the
+## attacker won the beat), chance (the attacker's chance to win it)}. Danger 100 is the tap: a fight_ended follows.
+const SUBMISSION_BEAT := "submission_beat"
+## The actor (the defender) got out of the hold. data: {action_id, danger, beats}; a position_changed
+## (escaped: true) follows, back where it was locked from or into a scramble.
+const SUBMISSION_ESCAPED := "submission_escaped"
 const CAGE_CHANGED := "cage_changed"  # actor's cage proximity. data: {proximity}
 const ROCKED := "rocked"  # actor got rocked. data: {by, again? (rocked again on the ground, D121)}
 const KNOCKDOWN := "knockdown"  # actor got knocked down. data: {by}
@@ -40,7 +49,7 @@ const CALL_ANSWERED := "call_answered"
 ## too tired, rocked, no opening …) / missed (busy until the moment had gone)
 const RULE_ANSWERED := "rule_answered"
 const ROUND_ENDED := "round_ended"  # data: {cards: per judge [red, blue]}
-const FIGHT_ENDED := "fight_ended"  # data: {result, winner (-1 = draw), cards? (judges' totals), stopped_by? ("towel"), why? (the referee's reason: "health", "unanswered", "knockdowns", D120)}
+const FIGHT_ENDED := "fight_ended"  # data: {result, winner (-1 = draw), cards? (judges' totals), stopped_by? ("towel"), why? (the referee's reason: "health", "unanswered", "knockdowns", D120; for a submission, the hold's action id, D126)}
 
 const NO_ACTOR: int = -1
 
