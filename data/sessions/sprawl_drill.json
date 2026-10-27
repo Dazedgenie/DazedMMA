@@ -1,0 +1,12 @@
+{
+	"schema": "session@1",
+	"id": "sprawl_drill",
+	"name": "Sprawl drills",
+	"trains": { "takedown_defense": 0.6, "scrambles": 0.2, "speed": 0.2 },
+	"xp": 10,
+	"fatigue": 10,
+	"injury_risk": 0.001,
+	"leanings": { "base": -0.05 },
+	"chin_wear": 0,
+	"minigame": "sprawl_reflex"
+}

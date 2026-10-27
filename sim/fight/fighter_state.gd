@@ -117,7 +117,11 @@ static func from_profile(p: Dictionary) -> FighterState:
 	var reps: Array[String] = []
 	reps.assign(p.get("techniques", []))
 	var tend: Dictionary = p.get("tendencies", {})
-	var f := FighterState.new(p.name, p.get("stats", {}).duplicate(), reps, float(tend.get("work_rate", DEFAULT_WORK_RATE)), StyleLeanings.new(p.get("style", {})))
+	# A trained fighter keeps fractions of a point (docs/02 §3.5); fights read the nearest whole point.
+	var whole: Dictionary = {}
+	for id: String in p.get("stats", {}):
+		whole[id] = float(roundi(float(p.stats[id])))
+	var f := FighterState.new(p.name, whole, reps, float(tend.get("work_rate", DEFAULT_WORK_RATE)), StyleLeanings.new(p.get("style", {})))
 	f.id = p.get("id", "")
 	f.tendencies = tend.get("actions", {}).duplicate()
 	f.tells = p.get("tells", []).duplicate(true)

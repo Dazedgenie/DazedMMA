@@ -1,0 +1,14 @@
+{
+	"schema": "week_plan@1",
+	"id": "taper",
+	"name": "Taper (fight week)",
+	"instruction": null,
+	"days": [
+		["film_study", "rest"],
+		["meditation", "light_sparring"],
+		["roadwork", "rest"],
+		["boxing_drill", "recovery"],
+		["film_study", "rest"],
+		["rest", "rest"]
+	]
+}

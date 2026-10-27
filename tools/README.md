@@ -38,6 +38,15 @@ re-run from its file to check it replays:
 
     godot --headless --script res://tools/playtest_report.gd -- --dir=/path/to/all/fights --out=build/playtest
 
+`camp.gd` runs a training camp on a fighter (#54, D125, `docs/02` §3.5): `--plan` is a `data/week_plans/` id for every
+week, `--taper=N` swaps the last N weeks for the taper plan (default 1), and `--age`/`--potential` stand in for a fighter
+file that doesn't give them. It prints each week (sessions done, skipped and missed hurt, peak and Sunday fatigue, biggest
+gains), the injuries, the stats that moved with their grades, the style pushes and the fight-night fatigue. With
+`--fights=N` it also plays N fights against `--opponent` (default the Kicker) as the fighter was and as the camp left them:
+
+    godot --headless --script res://tools/camp.gd -- --fighter=wrestler --plan=wrestler --weeks=8 --fights=100
+    godot --headless --script res://tools/camp.gd -- --fighter=kicker --plan=all_out --weeks=8 --taper=0 --seed=4
+
 `golden.gd` plays the golden fights (#35, D122, `docs/01` §2.2), the four fights pinned in
 `tests/golden/golden_fights.json`, and says which ones changed and how. With `--update` it pins the new results: do that
 only when a change is meant to change fights, commit the file and say why in the PR.

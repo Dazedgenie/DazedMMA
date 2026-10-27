@@ -1,0 +1,14 @@
+{
+	"schema": "week_plan@1",
+	"id": "wrestler",
+	"name": "Wrestler",
+	"instruction": "wrestle_heavy",
+	"days": [
+		["wrestling_drill", "strength_conditioning"],
+		["rolling", "roadwork"],
+		["wrestling_drill", "light_sparring"],
+		["clinch_work", "film_study"],
+		["wrestling_drill", "hard_sparring"],
+		["rolling", "rest"]
+	]
+}

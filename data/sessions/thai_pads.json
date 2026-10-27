@@ -1,0 +1,12 @@
+{
+	"schema": "session@1",
+	"id": "thai_pads",
+	"name": "Thai pads",
+	"trains": { "kicking": 0.5, "clinch_striking": 0.3, "power": 0.2 },
+	"xp": 10,
+	"fatigue": 10,
+	"injury_risk": 0.001,
+	"leanings": { "base": -0.1 },
+	"chin_wear": 0,
+	"minigame": "thai_pads"
+}

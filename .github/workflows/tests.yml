@@ -52,3 +52,19 @@ jobs:
             cat build/balance/summary.txt
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Camp snapshot
+        if: always()
+        run: |
+          mkdir -p build/camp
+          ~/godot/godot --headless --script res://tools/camp.gd -- --fighter=wrestler --plan=wrestler --weeks=8 --age=19 --potential=80 --fights=100 | tee build/camp/wrestler.txt
+          ~/godot/godot --headless --script res://tools/camp.gd -- --fighter=kicker --plan=all_out --weeks=8 --taper=0 | tee build/camp/all_out.txt
+          {
+            echo "## Camp snapshot (training camp, #54)"
+            echo
+            echo '```'
+            cat build/camp/wrestler.txt
+            echo
+            cat build/camp/all_out.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

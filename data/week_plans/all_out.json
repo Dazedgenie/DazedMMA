@@ -1,0 +1,14 @@
+{
+	"schema": "week_plan@1",
+	"id": "all_out",
+	"name": "All out (no rest)",
+	"instruction": null,
+	"days": [
+		["hard_sparring", "strength_conditioning"],
+		["wrestling_drill", "hard_sparring"],
+		["heavy_bag", "strength_conditioning"],
+		["hard_sparring", "wrestling_drill"],
+		["thai_pads", "hard_sparring"],
+		["strength_conditioning", "wrestling_drill"]
+	]
+}

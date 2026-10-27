@@ -1,7 +1,7 @@
 # sim/ — simulation core
 
 Pure GDScript (`RefCounted` classes). The fight engine, AI, coaching and judging live in `fight/`; the balance harness's numbers in `balance/`; the career and world
-simulation will live in `world/` under the same rules (D100).
+simulation lives in `world/` under the same rules (D100), starting with the training camp.
 
 Rules (docs/04-tech-and-production.md §2.2):
 - **No Node or scene-tree dependencies.** Nothing here may extend `Node` or use `get_tree()`, `$`, or autoloads.
@@ -43,4 +43,9 @@ Rules (docs/04-tech-and-production.md §2.2):
 | `harness_jobs.gd` | The harness's fights as a list, shared out between several Godot processes and put back in order (#35, D123, `docs/01` §2.3). Used by `tools/balance.gd` |
 
 ## world/
-Empty for now: the career and world simulation (D100) starts here.
+The career and world simulation (D100), starting with training (`docs/02` §3.5, D125).
+
+| File | Role |
+|---|---|
+| `training_library.gd` | Loads `data/sessions/*.json` and `data/week_plans/*.json` |
+| `training_camp.gd` | A fighter in training: runs week plans of sessions into attribute points, fatigue, style pushes, chin wear and camp injuries; `profile()` is the trained fighter@1 profile. Run by `tools/camp.gd` |

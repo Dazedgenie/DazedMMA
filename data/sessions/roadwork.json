@@ -1,0 +1,12 @@
+{
+	"schema": "session@1",
+	"id": "roadwork",
+	"name": "Roadwork",
+	"trains": { "cardio": 0.7, "recovery": 0.3 },
+	"xp": 10,
+	"fatigue": 10,
+	"injury_risk": 0.0005,
+	"leanings": {},
+	"chin_wear": 0,
+	"minigame": "roadwork"
+}

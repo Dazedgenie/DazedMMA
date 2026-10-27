@@ -1,0 +1,12 @@
+{
+	"schema": "session@1",
+	"id": "rest",
+	"name": "Rest",
+	"trains": {},
+	"xp": 0,
+	"fatigue": -20,
+	"injury_risk": 0.0,
+	"leanings": {},
+	"chin_wear": 0,
+	"minigame": null
+}

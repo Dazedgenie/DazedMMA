@@ -1,0 +1,12 @@
+{
+	"schema": "session@1",
+	"id": "strength_conditioning",
+	"name": "Strength & conditioning",
+	"trains": { "strength": 0.5, "speed": 0.25, "durability": 0.25 },
+	"xp": 10,
+	"fatigue": 12,
+	"injury_risk": 0.001,
+	"leanings": {},
+	"chin_wear": 0,
+	"minigame": null
+}
