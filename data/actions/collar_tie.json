@@ -1,0 +1,18 @@
+{
+	"schema": "action@2",
+	"id": "collar_tie",
+	"name": "Collar tie",
+	"category": "clinch",
+	"positions": ["clinch"],
+	"ranges": ["clinch"],
+	"phases_ms": { "telegraph": 0, "windup": 200, "active": 200, "recovery": 200 },
+	"stamina_cost": 4,
+	"flags_self": [],
+	"clinch": { "base_success": 0.45, "ties_up_ms": 4000 },
+	"stats": { "offense": ["clinch_control", "strength"], "defense": ["clinch_control", "strength"] },
+	"opportunities": [
+		{ "opponent_flag": "HANDS_LOW", "success_bonus": 0.10 },
+		{ "own_flag": "POSTURE_BROKEN", "success_bonus": -0.15 }
+	],
+	"requires_technique": null
+}

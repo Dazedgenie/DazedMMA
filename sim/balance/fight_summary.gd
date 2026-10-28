@@ -25,6 +25,8 @@ const COLUMNS: Array[String] = [
 	"shots_red", "takedowns_red", "shots_blue", "takedowns_blue", "clinch", "ground", "top_red", "top_blue",
 	"subs_red", "locked_red", "subs_blue", "locked_blue",
 	"throws_red", "throws_landed_red", "throws_blue", "throws_landed_blue",
+	"collar_ties_red", "collar_ties_won_red", "clinch_knees_red", "tied_knees_red",
+	"collar_ties_blue", "collar_ties_won_blue", "clinch_knees_blue", "tied_knees_blue",
 	"calls_red", "calls_blue", "fired_red", "fired_blue",
 ]
 const SIDES: Array[String] = ["red", "blue"]
@@ -161,6 +163,10 @@ static func of(sim: FightSim, lows: Array[float] = [], moves: Dictionary = {}) -
 		row["locked_" + side] = f.subs_locked
 		row["throws_" + side] = f.throws_tried
 		row["throws_landed_" + side] = f.throws_landed
+		row["collar_ties_" + side] = f.collar_ties_tried
+		row["collar_ties_won_" + side] = f.collar_ties_won
+		row["clinch_knees_" + side] = f.clinch_knees_landed
+		row["tied_knees_" + side] = f.tied_knees_landed
 		row["top_" + side] = _share_of(moves.get("top", [0, 0])[i], ticks)
 		row["circling_" + side] = _seconds(sim.circling_ticks[i])
 		row["cutting_" + side] = _seconds(sim.cutting_ticks[i])

@@ -171,8 +171,8 @@ func test_values_come_from_the_allowed_lists() -> void:
 				problems.append("action '%s': a %s move needs a '%s' block with base_success" % [id, category, category])
 			elif not block.get("partial_within", 0.0) is float or block.get("partial_within", 0.0) < 0.0:
 				problems.append("action '%s': %s.partial_within is a chance, 0 or more" % [id, category])
-			elif block.has("ties_up_ms") and (category != "ground" or not block.ties_up_ms is float or block.ties_up_ms <= 0.0):
-				problems.append("action '%s': ties_up_ms (how long a tie-up stops ground strikes) is a ground move's, in ms" % id)
+			elif block.has("ties_up_ms") and ((category != "ground" and category != "clinch") or not block.ties_up_ms is float or block.ties_up_ms <= 0.0):
+				problems.append("action '%s': ties_up_ms (how long a tie-up breaks the opponent's posture) is a ground or clinch move's, in ms (D121, D129)" % id)
 			elif (block.has("throw") or block.has("landing_damage")) and (category != "takedown" or not block.get("throw", false) is bool \
 					or not block.get("landing_damage", 0.0) is float or block.get("landing_damage", 0.0) < 0.0):
 				problems.append("action '%s': throw (true or false) and landing_damage (0 or more) are a takedown's (D128)" % id)

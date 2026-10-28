@@ -172,6 +172,19 @@ func test_the_summary_counts_throws() -> void:
 	assert_string_contains(text, "Throws     Judoka (red) 2.0 of 6.0 a fight landed · Boxer (blue) 0.0 of 0.0 (D128)")
 
 
+func test_the_muay_thai_fighter_is_reported_with_no_pass_mark() -> void:
+	var rows: Array[Dictionary] = [_row({ "red": "muay_thai", "blue": "wrestler", "winner_id": "muay_thai" })]
+	var line: Dictionary = _check(_report(rows), "Muay Thai fighter vs Wrestler")
+	assert_eq(line.status, BalanceReport.INFO, "report only (D129)")
+	assert_eq(line.value, "100.0%")
+
+
+func test_the_summary_counts_collar_ties_and_clinch_knees() -> void:
+	var report: BalanceReport = _report([_row({ "red": "muay_thai", "collar_ties_red": 5, "collar_ties_won_red": 3, "clinch_knees_red": 8, "tied_knees_red": 4 })])
+	var text: String = report.summary({ "muay_thai": "Muay Thai", "boxer": "Boxer" })
+	assert_string_contains(text, "Clinch     Muay Thai (red) collar ties 3.0 of 5.0 won, knees landed 8.0 (4.0 from the tie) · Boxer (blue) 0.0 of 0.0, 0.0 (0.0) (D129)")
+
+
 func test_the_summary_says_how_much_grappling_there_was() -> void:
 	var report: BalanceReport = _report([_row({ "red": "wrestler", "takedowns_red": 4, "shots_red": 9, "ground": 0.3, "top_red": 0.28, "clinch": 0.05 })])
 	var text: String = report.summary({ "wrestler": "Wrestler", "boxer": "Boxer" })

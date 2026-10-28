@@ -70,6 +70,8 @@ static func _describe(event: FightEvent, sim: FightSim) -> String:
 			var into: String = " into the %s" % _action_name(event.data.into, sim).to_lower() if event.data.has("into") else ""
 			return "%s's %s%s [b]LANDS[/b]%s (%s, %d damage)%s" % [who, counter, _action_name(event.data.action_id, sim), into, event.data.target, event.data.damage, _odds(event)]
 		FightEvent.GRAPPLE_WON:
+			if event.data.result == "tied_up" and event.data.action_id == FightSim.COLLAR_TIE:
+				return "%s gets the [b]COLLAR TIE[/b]: his head is pulled down for the knees%s" % [who, _odds(event)]
 			if event.data.result == "tied_up":
 				return "%s [b]TIES HIM UP[/b] from the bottom: no ground strikes for a few seconds%s" % [who, _odds(event)]
 			if event.data.result == PositionLibrary.PARTIAL:

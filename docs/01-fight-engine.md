@@ -645,7 +645,7 @@ the centre (§20.2). Tested in `tests/sim/fight/test_fighter_ai.gd`, `tests/sim/
 What `sim/` does for §4, §5.1 and D29 in the Phase 1 playtest. The scope is the trimmed one (D98): one clinch position, the
 double leg, the catch-kick single, the sprawl, full guard top and bottom, getting up and the scramble. Ground-and-pound came
 in after this (D121, §24): the fighter on top of full guard strikes and the one underneath ties up or gets up; where this
-section and §24 differ, §24 is current. Throws, the guard pull and the sweep came later still (D128, §26). Every number is a first guess for the balance harness; each one is a named constant
+section and §24 differ, §24 is current. Throws, the guard pull and the sweep came later still (D128, §26). The collar tie and knees to the head from it came after that (D129, §27). Every number is a first guess for the balance harness; each one is a named constant
 or a field in `data/`, listed under "To change it".
 
 ### 21.1 Positions and the moves between them
@@ -655,7 +655,7 @@ and `bottom` in full guard.
 | Position | Ways out (the transitions in its file) | Each second (stamina drain · judges' control score) |
 |---|---|---|
 | Standing | Double leg → full guard, shooter on top; half working → scramble. Catch-kick single → full guard. Clinch entry → clinch | Nothing extra (0 · 0): moves and walking already cost stamina (D96) |
-| Clinch | Clinch break → standing. Double leg → full guard, or half working → scramble. Knees work here; punches and kicks don't | 0.4 each · 0 (cage control still counts, §18) |
+| Clinch | Clinch break → standing. Double leg → full guard, or half working → scramble. Knees work here; punches and kicks don't. A collar tie pulls the head down for knees to the head (D129, §27) | 0.4 each · 0 (cage control still counts, §18) |
 | Full guard | Get up (bottom only) → standing, or half working → scramble. The top fighter grounds and pounds; the bottom fighter can tie him up (§24) | top 0.2, bottom 0.3 · top 1.0, bottom 0.2 |
 | Scramble | Get up → standing. Scramble for the top → full guard, whoever wins it on top | 0.8 each · 0 |
 
@@ -1322,3 +1322,88 @@ fence for and against, the slam and amateur rules, a failed hip throw leaning, t
 nothing, the sweep, the AI not sprawling, taking the foot sweep, the Judoka throwing and the BJJ fighter pulling guard and
 sweeping, the *Takedown!* call, and both fighters in real fights), `tests/sim/balance/test_balance_report.gd` (the report
 lines), `tests/ui/test_fight_log_formatter.gd` ("slammed down") and `tests/data/test_data_files.gd` (the new fields).
+
+## 27. Clinch knees and the collar tie (D129)
+Kyle asked for clinch knees and collar ties for Muay Thai (2026-10-28). The clinch stays one position (D98's trim): the collar
+tie is a grip *inside* it, not a new position, so it uses the posture-broken timer the tie-up from the bottom already has
+(D121, §24.3). A Muay Thai test fighter comes with it. It's the first of the *Clinch* call's unlocks in §6.4 ("Collar tie, Thai
+plum knees"). Every number is a first guess for the harness; each is a named constant or a data field, listed in §27.5.
+
+### 27.1 The move and what it does
+| Move | Who, from where | Timing (telegraph · wind-up · active · recovery) | Odds (base + attack − defense stats) | What it does |
+|---|---|---|---|---|
+| Collar tie (a technique: the Muay Thai fighter) | Clinch | 0 · 0.2 · 0.2 · 0.2 s | 45% + (Clinch control, Strength) − (Clinch control, Strength). +10% on someone with their hands low; −15% with your own head tied | The opponent's posture is broken (`POSTURE_BROKEN`) for **4 s**: his head is pulled down. The fight stays in the clinch. A knee he was throwing is smothered |
+
+While the tie is on:
+
+| | What changes | Where it lives |
+|---|---|---|
+| **Knees from the tie** | The holder's knee is +15%, goes **to the head** and does **×1.2** damage, so a few in a row can rock him. Where knees to the head are banned (teen amateur rules, `08`) it stays on the body | the `POSTURE_BROKEN` opportunity in `data/actions/knee.json` |
+| **Getting out is harder** | The one tied up breaks the clinch at −10% and knees back at −15% | the `own_flag` `POSTURE_BROKEN` opportunities in `clinch_break.json` and `knee.json` |
+| **Winning the tie back** | A collar tie of his own (at −15%) frees his head and ties up the other one's; it's the only way out other than the break or waiting out the 4 s | `FightSim._tie_up()`; `collar_tie.json` |
+| **The clinch ends** | Any change of position (a break, a takedown, a knockdown) takes the tie off | `FightSim.apply_transition()`, `_break_apart()` |
+
+The judges score nothing for the tie itself; the knees score as strikes (a head knee counts more than a body one, §11), and
+cage control still counts as before. In the 3D view the fighter whose head is tied bends over and the holder's hands go up
+behind his head. The log says *"Muay Thai gets the COLLAR TIE: his head is pulled down for the knees"*.
+
+### 27.2 The call
+A new *Collar tie!* call (voice 15) on **key 5**, which it shares with *Clinch!*: Clinch! standing, Collar tie! in the clinch (as
+Pressure! and Ground and pound! share key 1). It only lights up for a fighter who knows the collar tie, so the playtest fights
+(the Wrestler, D112) don't change: none of them has it. The AI corner and the coaching bots don't call it yet; the random caller
+(the spam bot) can, so its harness numbers shift a little.
+
+### 27.3 The fighter AI
+| Where | What the fighter does | To change it |
+|---|---|---|
+| In the clinch, holding the tie | Works twice as often while it's on, so the knees come in a burst; the knee's +15% sways the pick toward knees (the usual opening weighting, §20). Never ties up a head that's already tied | `FighterAI.COLLAR_RATE` (2.0) |
+| In the clinch, head tied | Also works twice as often, and weights the break and a collar tie of his own ×3: he wants out. His knees are weighted down by their −15% | `FighterAI.COLLARED_ESCAPE` (3.0) |
+| In the clinch, free | The collar tie is picked like any clinch move, by its tendency and odds | `collar_tie` in a fighter's `tendencies` |
+
+### 27.4 The Muay Thai fighter and balance
+A new test fighter in `data/fighters/muay_thai.json`, on the setup screen as Muay Thai vs Boxer, vs Wrestler and vs Kicker:
+
+| Fighter | Stats | Style (pace · range · base · risk) | Moves |
+|---|---|---|---|
+| **Muay Thai** | Clinch striking 75, Clinch control 70, Strength and Chin 60; Power, Striking defense, Cardio and Takedown defense 55; Kicking, Boxing and Footwork 50 | 10 · 20 · 30 · 10 | Jab, cross, teep, leg kick, body kick, knee, collar tie. He wants the clinch: clinch entry 2.5, knee 1.5, collar tie 1.5, and his kicks sit low (teep 0.5, leg and body kick 0.6) |
+
+Reported with no pass mark, like the Wrestler and the throwers (D109, D128): the harness prints "Muay Thai fighter vs …" against
+the Kicker, the Boxer and the Wrestler, and a **Clinch** line for every pairing (collar ties tried and won, knees landed in the
+clinch and how many of those came from the tie). CI's balance snapshot runs all three. Nobody who fought before knows the collar
+tie, and nothing else changes for them (a broken posture never came up in the clinch until now), so every other pairing and the
+four golden fights (§2.2) play out exactly as before; only the random caller's numbers move (the new call is in its pool).
+
+Harness, no calls, 100 fights each way round (seed 1, pro rules):
+
+| Pairing | Wins | How it ends | Clinch and grappling a fight |
+|---|---|---|---|
+| Muay Thai vs Kicker | Muay Thai 79% | 81% decisions | Clinch 3% of the fight; 3.4 collar ties won of 4.4, 6 knees landed (4 from the tie) |
+| Muay Thai vs Boxer | Muay Thai 56.5% | 76% TKO, 16% KO | Clinch 27% of the fight; 13.6 collar ties won of 21, 26 knees landed (16 from the tie) |
+| Muay Thai vs Wrestler | Muay Thai 56.5% | 38% KO (knees into the Wrestler's shots, §21.2), 7.5% subs (guillotines), draws 2.5% | The Wrestler lands 15 takedowns of 43 and is on top 41% of the fight; 3.2 collar ties won of 6.7 |
+
+Across all 600 fights: draws 0.8%, no 10-10 cards.
+
+What it says: **against the Boxer the clinch is the Muay Thai fighter's fight** (about a quarter of the fight in the clinch,
+some 13 collar ties a fight and 25 knees, more than half of them from the tie), and it's about even. The Wrestler is about
+even too: he spends 40% of the fight on top, but his shots walk into the Muay Thai fighter's knees (most of those fights
+that finish are knockouts) and the odd guillotine. **The Kicker loses most of his fights to him**, and not in the clinch (the Kicker keeps it to 3% of the fight):
+a fighter who also kicks takes away the Kicker's range, which is how he beats the Boxer. With no kicks at all the Muay Thai
+fighter wins 35% of those; first tuning stopped with his kicks thrown about half as often. If the playtest wants it closer, the
+levers are his kick tendencies and his Kicking, then `COLLAR_RATE`. To read it again, run the harness with
+`--pairs=muay_thai:kicker,kicker:muay_thai,muay_thai:boxer,boxer:muay_thai,muay_thai:wrestler,wrestler:muay_thai` and read
+the **Clinch** lines.
+
+### 27.5 To change it, and the tests
+- The tie: `data/actions/collar_tie.json` (`clinch.ties_up_ms` is how long the head stays tied, 4000; `09` action@2).
+- Knees from the tie and getting out: the `POSTURE_BROKEN` opportunities in `data/actions/knee.json` and `clinch_break.json`.
+- Winning the tie back: `FightSim._tie_up()`. The call: `data/calls/collar_tie.json`.
+- The AI: `FighterAI.COLLAR_RATE` (2.0), `COLLARED_ESCAPE` (3.0). The fighter: `data/fighters/muay_thai.json`.
+- The harness: `BalanceReport.CLINCH_FIGHTERS`, the `collar_ties_*`, `clinch_knees_*` and `tied_knees_*` columns in `FightSummary`.
+
+Tested in `tests/sim/fight/test_collar_tie.gd` (the tie breaks his posture for 4 s and stays in the clinch, knees from it go
+to the head harder, teen rules keep them on the body, breaking, kneeing back and tying back are harder, winning a tie of your
+own frees your head, the tie comes off with the clinch, the AI knees from the tie and never ties twice, the AI wants out when
+tied, the call only in the clinch and only for a fighter who knows it, the Muay Thai fighter in real fights, and nobody else
+knowing it), `tests/sim/balance/test_balance_report.gd` (the report lines), `tests/ui/test_fight_log_formatter.gd` ("COLLAR
+TIE"), `tests/game/test_arena_view.gd` (the pose), `tests/sim/fight/test_live_calls.gd` (the call catalogue) and
+`tests/data/test_data_files.gd` (`ties_up_ms` on a clinch move).
