@@ -27,7 +27,7 @@
 - Throws and the guard game (the outside trip, hip throw and foot sweep, why a sprawl can't stop them, the guard pull and the sweep, the Judoka and BJJ test fighters, the numbers to tune them): `docs/01-fight-engine.md` §26 (D128).
 - Clinch knees and the collar tie (the plum: how long it holds, knees to the head from it, getting out, the *Collar tie!* call on key 5, the Muay Thai test fighter, the numbers to tune them): `docs/01-fight-engine.md` §27 (D129).
 - Ground positions (half guard, side control, mount and the back: passes, escapes, taking the back, the rear-naked choke and arm-triangle, the *Pass!* call on key 4, the judges' points for a better position, the numbers to tune them): `docs/01-fight-engine.md` §28 (D130).
-- Feints and blind shots (the feint and the bite, what makes a takedown blind and what it costs, grapplers setting their shots up, the numbers to tune them): `docs/01-fight-engine.md` §29 (D131).
+- Feints and blind shots (the feint and the bite, what makes a takedown blind and what it costs, grapplers setting their shots up, the *Feint!* call on key 7, the numbers to tune them): `docs/01-fight-engine.md` §29 (D131).
 - Drilled rules (two slots, reliability, cooldown, opponents adapting, the presets, `--rules` in the harness): `docs/01-fight-engine.md` §23 (D116).
 - Speed budget (1000× fight time), the timing checks and how to speed things up without changing fights: `docs/01-fight-engine.md` §2.1 (D105).
 - Golden fights: four pinned fights that fail a test whenever a change alters a fight. If the change is meant to, re-pin with `godot --headless --script res://tools/golden.gd -- --update`, commit `tests/golden/golden_fights.json` and say why in the PR: `docs/01-fight-engine.md` §2.2 (D122).

@@ -831,7 +831,7 @@ A new call replaces one of the same kind still being processed (logged as `repla
 ### 22.2 Three kinds of call
 | Kind | Calls | What the fighter does |
 |---|---|---|
-| **Attempt** | Takedown!, Clinch!, Get up! | Goes for the first of the call's moves that would work right now: in range, the stamina for it, and the opening it needs there when it lands. *Takedown!* lists the catch-kick single first, so a Takedown! call that lands while the opponent's leg is up (or will be as the catch lands) becomes the catch-kick (§5.1); otherwise the double-leg. Out of range, the fighter steps straight in to the nearest band one of the moves reaches from, for up to **2 s**, then gives up (`infeasible`, *"couldn't get in range"*) |
+| **Attempt** | Takedown!, Clinch!, Get up!, Feint! | Goes for the first of the call's moves that would work right now: in range, the stamina for it, and the opening it needs there when it lands. *Takedown!* lists the catch-kick single first, so a Takedown! call that lands while the opponent's leg is up (or will be as the catch lands) becomes the catch-kick (§5.1); otherwise the double-leg. Out of range, the fighter steps straight in to the nearest band one of the moves reaches from, for up to **2 s**, then gives up (`infeasible`, *"couldn't get in range"*). An attempt with a `then` list (*Feint!*, §29.3a) goes on once its first move is over: straight into the first of the `then` moves that would work |
 | **Focus** | Pressure!, Circle out!, Work the range!, Defend the shot!, Survive!, Stay safe! | For **15 s** the fighter's style leanings and move weights tilt, like a short gameplan, then it's back to the gameplan (`expired`). Calling it again starts the 15 s again; a different focus replaces it. The AI looks at its leanings and range plan again straight away when a focus starts or ends |
 | **Read** (D49) | Catch the kick! | Primed for 6 s. When the trigger comes (`opp_kick_starts`: the opponent starts a body kick or teep), the fighter reacts with their own reaction time (D93) and catches as the leg comes up (a quick fighter waits for it). It fires once (`fired`), and comes back as `missed` if the kick was over first. While primed it costs attention: Striking and Takedown defense −15% (`attention_cost`). Up to 2 reads at once (D67), costs added; a third replaces the oldest |
 
@@ -1554,8 +1554,8 @@ grapplers' pairings and read the **Positions**, **Subs** and **How** lines next 
 Kyle asked for feints to fix the wrestling vs striking problem (2026-10-28: "Grapplers should be punished for not feinting or
 for shooting blind takedowns"). After D130 the grapplers beat the strikers 72–78% of the time, mostly by shooting whenever
 they liked. Now a shot needs setting up: a feint the opponent bites on, a strike just before it, or an opening to shoot into.
-A shot with none of those is a **blind shot**, and it's punished. It's the first of three scopes put to Kyle (this; this plus a
-*Feint!* call for the player; the blind-shot penalty with no feint move). Every number is a first guess for the harness; each
+A shot with none of those is a **blind shot**, and it's punished. Kyle picked the second of three scopes (the feint and the blind-shot
+penalty; **that plus a *Feint!* call for the player**; the blind-shot penalty with no feint move), 2026-10-28. Every number is a first guess for the harness; each
 is a named constant or a data field, listed in §29.6.
 
 ### 29.1 The feint
@@ -1601,7 +1601,25 @@ most of the rest are timed into the Kicker's kicks, which is a set-up.
 | Habits | A tell that leads straight into a shot (the Wrestler's stance shift, then the double leg) isn't a set-up: that shot is blind | the fighter's `tells` |
 
 The player's *Takedown!* call shoots straight away, as before: a called shot with nothing before it is blind too. Call it off
-your fighter's jab, into a kick, or right after one of his feints. There's no *Feint!* call yet (the second scope on the card).
+your fighter's jab or into a kick, or call *Feint!* instead (§29.4).
+
+### 29.3a The *Feint!* call
+*Feint!* (key **7** standing; 7 is *Get up!* on the ground) sets a shot up for you: the fighter feints, then goes straight into a
+shot off it, one call. It's an attempt (§22.2) with a `then` list (`data/calls/feint.json`): `actions: ["feint"]` first, and once
+the feint is over the first of `then: ["double_leg", "clinch_entry"]` that would work right now, within 0.3 s
+(`LiveCalls.THEN_TICKS`, 3 ticks, inside the feint's 0.5 s set-up), so **the shot is never blind**, and if he bit it gets his +10%.
+A fighter who knows no double leg ties up instead (everyone knows the clinch entry). Two separate calls (*Feint!* then
+*Takedown!*) wouldn't work: the second would land 0.6 s later, after the bite and the set-up were over. It costs 20 voice, like
+*Takedown!*, and holds back the fighter's own feints and shots for 45 s like any called move (`SPENT_TICKS`, §22.5).
+
+The feed reads "Wrestler takes the Feint! call: Feint (call after 6 ticks)", then "Wrestler takes the Feint! call: Double-leg
+takedown (off the feint)". If the shot no longer reaches when the feint ends, the call ends `infeasible` (*"couldn't get in
+range"*). No corner bot calls it yet: the ideal and AI corners (§22.7) call moments, and a shot set up is the player's call.
+
+What it's worth (scratch check, 60 fights, Wrestler vs Boxer, the Wrestler's corner calling once every 10 s while standing at mid
+range or closer): no calls 29 wins; *Takedown!* every time 5 wins (15% of shots land, nearly all of them blind); *Feint!*
+every time **40 wins** (35% land, almost none blind). Called at random it's the better call by far; *Takedown!* is for the
+kick (the catch) and the moment after a jab.
 
 ### 29.4 On screen and in the harness
 - The feed: "Wrestler feints and Boxer BITES: hands up, weight back 42% (base 40 · stats +2)", "Wrestler feints; Boxer doesn't
@@ -1649,6 +1667,8 @@ too weak, the levers in order: the double leg's `base_success`, `BLIND_SHOT` in 
   (5); the `BLIND_SHOT` opportunities in `double_leg.json` and `sprawl.json`; the double leg's `base_success` (0.35).
 - The flags: `BIT_ON_FEINT` and `BLIND_SHOT` in `data/enums/flags.json`.
 - The AI: `FighterAI.SETUP_BASE`, `SETUP_PER_IQ`, `FEINT_FOLLOW_TICKS`, `BLIND_READ`, `BIT_READ`.
+- The *Feint!* call: `data/calls/feint.json` (`then`, `voice_cost`, `hotkey`), `LiveCalls.THEN_TICKS` (3). If it's too strong
+  for the player, raise its `voice_cost` or lower the bite's +10% on the double leg.
 - The harness: the `feints_*` and `blind_*` columns in `FightSummary`, the Feints line in `BalanceReport`.
 
 Tested in `tests/sim/fight/test_feints.gd` (everyone can feint, the bite and how long it lasts, out of range, feinting again,
@@ -1656,6 +1676,8 @@ a blind double leg and its odds, a jab just before and long before, a shot off a
 shot up, a shot timed into a kick and one at a fighter on the fence, catches, throws and the clinch never blind, clinch entries
 never blind but finding a bitten opponent, a blind shot sprawled on and defended costing more, the Wrestler feinting and
 shooting off it, Fight IQ, strikers never feinting, reading a blind shot and reading while bitten),
+`tests/sim/fight/test_live_calls.gd` (*Feint!*: the feint then the shot inside the set-up, never blind; the clinch entry for a
+fighter with no takedown; the shot held back afterwards), `tests/game/test_main_scene.gd` (key 7),
 `tests/ui/test_fight_log_formatter.gd` (the feed lines), `tests/game/test_arena_view.gd` (the poses) and
 `tests/data/test_data_files.gd` (the `feint` block). After changing a number, run the harness with the Wrestler's pairings
 (`--pairs=wrestler:kicker,wrestler:boxer,muay_thai:wrestler`) and read the **Feints** and **Grappling** lines next to the wins.

@@ -73,7 +73,8 @@ Versions: position@2 added `transitions`; action@2 moved a takedown's `on_succes
 ### call@2 (examples: `takedown.json` attempt, `pressure.json` focus, `catch_the_kick.json` read)
 `name` (as shouted, "Takedown!"), `kind` (`now`/`read`), `tier` (`intent`/`technique`), `parent` (intent call it unlocks under),
 `hotkey` (a digit 0–9, or null; two calls may share a digit only if their `positions` never overlap, e.g. 1 for Pressure! standing and Ground and pound! in full guard, D121), `voice_cost`, `positions` (where it can be acted on), `roles` (optional:
-`neutral`/`top`/`bottom`), `actions`, `requires_technique` (an action id the fighter must know, or null).
+`neutral`/`top`/`bottom`), `actions`, `requires_technique` (an action id the fighter must know, or null), `then` (optional, an attempt's: action ids
+tried straight after the first move is over, the first that would work; *Feint!* feints, then shoots or ties up off it, D131, `docs/01` §29.3a).
 A now call is one of two kinds (`docs/01` §22.2):
 - an **attempt**: `actions` lists the moves to try, in order (the first that would work right now is used), and no `focus`;
 - a **focus**: `actions` is empty and `focus: {duration_ms, leanings, weights, read_bonus, sprawl_bonus, struggle, struggle_stamina}` says how the fighter

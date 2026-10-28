@@ -234,6 +234,11 @@ func test_references_point_to_things_that_exist() -> void:
 		var where := "call '%s'" % id
 		_expect_ids(problems, where, "actions", c.get("actions", []))
 		_expect_ids(problems, where, "positions", c.get("positions", []))
+		if c.has("then"):
+			if not c.then is Array or c.then.is_empty():
+				problems.append("%s: then lists the moves that follow the first one" % where)
+			else:
+				_expect_ids(problems, where, "actions", c.then)
 		if c.get("requires_technique") != null:
 			_expect_ids(problems, where, "actions", [c.requires_technique])
 		if c.get("parent") != null:
@@ -302,6 +307,8 @@ func test_calls_are_an_attempt_a_focus_or_a_read() -> void:
 					problems.append("%s: read.attention_cost is a share of defense from 0 to 0.5" % where)
 		elif actions.is_empty() == not c.has("focus"):
 			problems.append("%s: a now call has either actions (an attempt) or a focus block, not both" % where)
+		if c.has("then") and (c.get("kind") == "read" or actions.is_empty()):
+			problems.append("%s: only an attempt has a then list" % where)
 		if c.has("focus"):
 			var focus: Variant = c.focus
 			if not focus is Dictionary:
