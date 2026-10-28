@@ -1278,14 +1278,35 @@ BJJ vs Kicker:
 
 | Fighter | Stats | Style (pace · range · base · risk) | Moves |
 |---|---|---|---|
-| **Judoka** | Takedowns 70, Clinch control 75, Strength 65, Takedown defense 60; Boxing 40 | 10 · 50 · 60 · 10 | Jab, cross, knee, outside trip, hip throw, foot sweep. No double leg: he has to get to the clinch |
-| **BJJ** | Submissions 80, Guard 75, Submission defense 70, Scrambles and Top control 60; Takedowns and Takedown defense 45, Boxing 40 | 0 · 30 · 60 · 20 | Jab, cross, outside trip, guard pull, sweep, triangle, armbar (and the guillotine everyone has) |
+| **Judoka** | Takedowns 70, Clinch control 75, Strength and Cardio 65, Takedown defense 60, Chin 60; Boxing 50 | 10 · 50 · 70 · 10 | Jab, cross, knee, outside trip, hip throw, foot sweep. No double leg: he has to get to the clinch, so his clinch entry tendency is 2.0 |
+| **BJJ** | Guard 75, Submission defense 70, Submissions 65, Scrambles, Top control and Chin 60; Takedowns and Takedown defense 45, Boxing 45 | 0 · 30 · 60 · 20 | Jab, cross, outside trip, guard pull, sweep, triangle, armbar (and the guillotine everyone has). Clinch entry 2.0, guard pull 2.0, trip 0.5, get up 0.4 |
 
 ### 26.4 Balance
 Reported, no pass marks, like the Wrestler (D109): the harness prints a "Judoka vs …" and "BJJ fighter vs …" line against the
 Kicker, the Boxer and the Wrestler, and a **Throws** line (tried and landed a fight) for every pairing. CI's balance snapshot
 runs all six. The striker pairings and the Wrestler's don't change: nobody who fought before knows a new move, a sprawl only
-skips throws, and the judges' one change (no points for landing on top of a guard pull) touches only the guard pull.
+skips throws, and the judges' one change (no points for landing on top of a guard pull) touches only the guard pull. The four
+golden fights (§2.2) play out exactly as before.
+
+Harness, no calls, 100 fights a pairing (50 each way round, seed 1, pro rules):
+
+| Pairing | Wins | How it ends | Grappling a fight |
+|---|---|---|---|
+| Judoka vs Kicker | Judoka 26% | 87% decisions | Judoka throws 4 of 7; clinch 2% of the fight |
+| Judoka vs Boxer | Judoka 69% | 31% TKO (mostly the Judoka on top), the rest decisions | Judoka throws 21 of 30; on top 36% of the fight |
+| Judoka vs Wrestler | Judoka 52% | Subs 15% (the Judoka's guillotines on the Wrestler's shots) | Judoka throws 14 of 26, Wrestler shoots 45 and lands 12 |
+| BJJ vs Kicker | BJJ 5% | 88% decisions | BJJ in the clinch under 1% of the fight |
+| BJJ vs Boxer | BJJ 23% | Subs 22%, TKO 59% | BJJ trips 4 of 8 and pulls guard; on the ground 37% |
+| BJJ vs Wrestler | BJJ 73% | Subs 38% | Wrestler lands 13 takedowns of 30, the BJJ fighter locks 2 holds a fight |
+
+Across all 600 fights: draws 0%, no 10-10 cards. What it says: the throwers' way in is the clinch, and **the Kicker keeps
+both of them out** (the clinch is 1–2% of those fights; the Wrestler gets in with the double leg from mid range, the throwers
+only from the pocket). The Judoka beats the Boxer, who stands in the pocket, and is even with the Wrestler. The BJJ fighter
+loses on the feet to both strikers and beats the Wrestler, who keeps taking him down into his guard. First tuning was only
+the two fighters' own data (their striking, Submissions and tendencies); the first draft had both near 5% against strikers
+and the BJJ fighter at 90% against the Wrestler with Submissions 75. Next steps if the playtest wants them closer: a way into
+the clinch from mid range (a body-lock entry, or the Judoka's foot sweep on kicks), or a lower BJJ guard. To read it again,
+run the harness with the pairings above and read the **Throws** and **Subs** lines.
 
 ### 26.5 To change it, and the tests
 - The moves: `data/actions/outside_trip.json`, `hip_throw.json`, `foot_sweep.json`, `guard_pull.json`, `sweep.json` (`09`

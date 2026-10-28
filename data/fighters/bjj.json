@@ -5,12 +5,12 @@
 	"template": null,
 	"frame": { "height_cm": 180, "reach_cm": 185, "build": "lean" },
 	"stance": "orthodox",
-	"stats": { "submissions": 80, "guard": 75, "submission_defense": 70, "scrambles": 60, "top_control": 60, "clinch_control": 55, "takedowns": 45, "takedown_defense": 45, "cardio": 60, "boxing": 40, "power": 45, "chin": 55 },
+	"stats": { "submissions": 65, "guard": 75, "submission_defense": 70, "scrambles": 60, "top_control": 60, "clinch_control": 55, "takedowns": 45, "takedown_defense": 45, "cardio": 60, "boxing": 45, "striking_defense": 50, "power": 45, "chin": 60 },
 	"personality": { "ego": 0, "discipline": 20, "coachable": 0, "loyal": 0 },
 	"style": { "pace": 0, "range": 30, "base": 60, "risk": 20 },
 	"gifts": [],
 	"flaws": [],
 	"techniques": ["jab", "cross", "outside_trip", "guard_pull", "sweep", "triangle", "armbar"],
-	"tendencies": { "work_rate": 0.015, "actions": { "jab": 1.0, "cross": 0.8, "outside_trip": 0.8, "guard_pull": 1.0, "sweep": 1.5, "get_up": 0.4 } },
+	"tendencies": { "work_rate": 0.015, "actions": { "jab": 1.0, "cross": 0.8, "clinch_entry": 2.0, "outside_trip": 0.5, "guard_pull": 2.0, "sweep": 1.0, "get_up": 0.4 } },
 	"tells": []
 }
