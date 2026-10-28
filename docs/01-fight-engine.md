@@ -90,8 +90,8 @@ pinned on purpose, and the PR then shows the old and new numbers side by side.
 | Fight | Covers |
 |---|---|
 | Kicker vs Boxer, no corners (seed 35002) | The striking engine and judges on their own: a decision |
-| Wrestler vs Kicker, ideal corner vs AI corner, Wrestler drilled on catch-kick-and-shoot at 80% (seed 35006) | Calls, a drilled rule firing, takedowns, ground and pound: a TKO |
-| Wrestler vs Boxer, AI corner for the Boxer, Boxer drilled on sprawl-on-the-shot at 80% (seed 35007) | Sprawls, the opponent's corner and rules: a TKO the other way |
+| Wrestler vs Kicker, ideal corner vs AI corner, Wrestler drilled on catch-kick-and-shoot at 80% (seed 35006) | Calls, a drilled rule firing, takedowns, ground and pound, feints (D131): a TKO for the Wrestler in round 2 (since D131; a split decision for the Kicker after D130) |
+| Wrestler vs Boxer, AI corner for the Boxer, Boxer drilled on sprawl-on-the-shot at 80% (seed 35011; 35007 until D130, when it became a decision) | Sprawls, the opponent's corner and rules, passes, side control and the back (D130), blind shots (D131): a unanimous decision for the Wrestler (since D131; a TKO in round 3 after D130) |
 | The check fighters, amateur adult rules (seed 35001) | A ruleset other than pro: 3 × 3:00, a split decision |
 
 **What's pinned:** each fight's winner, result, the round and second it ended, the number of events, knockdowns, strikes
@@ -184,6 +184,10 @@ STANDING ──(clinch entry)──► CLINCH (open / cage / plum / body lock)
 Every position defines its **available actions**, its **available calls**, its stamina drain, how much
 control it scores for the judges, and its striking damage multipliers.
 
+In the engine so far: standing, the clinch (one position), full guard, half guard, side control, mount, back control and the
+scramble (D130, §28), plus the submission position a hold is fought in (D126). Butterfly/open guard, north-south and
+turtle/front headlock are still to come.
+
 ### 4.1 The model in the engine (#34, `12` §3 item 4)
 - **One shared situation.** Positions are relational (one fighter is on top), so the fight holds a single **situation** both
   fighters read (`sim/fight/situation.gd`): the phase (standing / clinch / ground), the named position (`standing`,
@@ -206,7 +210,7 @@ The Phase 1 playtest ships a trimmed ground game (#15):
 
 | In the playtest | After the playtest |
 |---|---|
-| Clinch (one clinch position), double leg, catch-kick single, sprawl, full guard top/bottom, get up, scramble; ground-and-pound and tie-ups from full guard (added early, D121, §24); the guillotine, triangle and armbar with a simple struggle (added early, D126, §25) | Half guard, side control, mount, back, north-south, turtle, guard passing, sweeps, the subs that need those positions, the per-beat struggle calls (§9) |
+| Clinch (one clinch position), double leg, catch-kick single, sprawl, full guard top/bottom, get up, scramble; ground-and-pound and tie-ups from full guard (added early, D121, §24); the guillotine, triangle and armbar with a simple struggle (added early, D126, §25); throws, the guard pull and the sweep (D128, §26); half guard, side control, mount and the back with passes, escapes, the rear-naked choke and the arm-triangle (added early, D130, §28) | North-south, turtle, butterfly guard, leg locks, the per-beat struggle calls (§9) |
 
 ---
 
@@ -645,7 +649,7 @@ the centre (§20.2). Tested in `tests/sim/fight/test_fighter_ai.gd`, `tests/sim/
 What `sim/` does for §4, §5.1 and D29 in the Phase 1 playtest. The scope is the trimmed one (D98): one clinch position, the
 double leg, the catch-kick single, the sprawl, full guard top and bottom, getting up and the scramble. Ground-and-pound came
 in after this (D121, §24): the fighter on top of full guard strikes and the one underneath ties up or gets up; where this
-section and §24 differ, §24 is current. Throws, the guard pull and the sweep came later still (D128, §26). The collar tie and knees to the head from it came after that (D129, §27). Every number is a first guess for the balance harness; each one is a named constant
+section and §24 differ, §24 is current. Throws, the guard pull and the sweep came later still (D128, §26). The collar tie and knees to the head from it came after that (D129, §27). Half guard, side control, mount and the back came next (D130, §28): where this section says full guard, the ground now has four more positions. Then feints and blind shots (D131, §29): the double leg's base is 35% now, and a shot with nothing setting it up is worse. Every number is a first guess for the balance harness; each one is a named constant
 or a field in `data/`, listed under "To change it".
 
 ### 21.1 Positions and the moves between them
@@ -664,7 +668,7 @@ nobody is ever stuck on the bottom with no way up.
 
 | Move | Timing (telegraph · wind-up · active · recovery) | Odds (base + attack − defense stats) | Notes |
 |---|---|---|---|
-| Double leg | 0.3 · 0.2 · 0.5 · 0.4 s | 45% + (Takedowns, Speed) − Takedown defense | From standing (mid or pocket) or the clinch. +15% on someone pinned on the fence, +10% on someone `LEANING`. `COMING_IN` during the telegraph (§21.8), head low from wind-up to the end of the drive. Within 10% past the odds it half works: a scramble |
+| Double leg | 0.3 · 0.2 · 0.5 · 0.4 s | 35% (45% until D131, §29) + (Takedowns, Speed) − Takedown defense | From standing (mid or pocket) or the clinch. +15% on someone pinned on the fence, +10% on someone `LEANING`. `COMING_IN` during the telegraph (§21.8), head low from wind-up to the end of the drive. Within 10% past the odds it half works: a scramble |
 | Catch-kick single | 0 · 0.1 · 0.4 · 0.3 s | 10% + (Takedowns, Speed) − (Takedown defense, Kicking), +15% for `ONE_LEG` | Only possible while the opponent is on one leg (`required`). Never thrown by the AI on its own (D103) |
 | Sprawl (*everyone*) | 0 · 0.1 · 0.3 · 0.3 s | 45% + (Takedown defense, Speed) − Takedowns, +10% against a head-low shot | §21.2 |
 | Clinch entry (*everyone*) | 0.2 · 0.2 · 0.2 · 0.3 s | 50% + (Clinch control, Strength) − (Clinch control, Footwork) | From the pocket. +15% on someone pinned, +10% on someone `LEANING`. `COMING_IN` until it ties up (§21.8) |
@@ -827,7 +831,7 @@ A new call replaces one of the same kind still being processed (logged as `repla
 ### 22.2 Three kinds of call
 | Kind | Calls | What the fighter does |
 |---|---|---|
-| **Attempt** | Takedown!, Clinch!, Get up! | Goes for the first of the call's moves that would work right now: in range, the stamina for it, and the opening it needs there when it lands. *Takedown!* lists the catch-kick single first, so a Takedown! call that lands while the opponent's leg is up (or will be as the catch lands) becomes the catch-kick (§5.1); otherwise the double-leg. Out of range, the fighter steps straight in to the nearest band one of the moves reaches from, for up to **2 s**, then gives up (`infeasible`, *"couldn't get in range"*) |
+| **Attempt** | Takedown!, Clinch!, Get up!, Feint! | Goes for the first of the call's moves that would work right now: in range, the stamina for it, and the opening it needs there when it lands. *Takedown!* lists the catch-kick single first, so a Takedown! call that lands while the opponent's leg is up (or will be as the catch lands) becomes the catch-kick (§5.1); otherwise the double-leg. Out of range, the fighter steps straight in to the nearest band one of the moves reaches from, for up to **2 s**, then gives up (`infeasible`, *"couldn't get in range"*). An attempt with a `then` list (*Feint!*, §29.3a) goes on once its first move is over: straight into the first of the `then` moves that would work |
 | **Focus** | Pressure!, Circle out!, Work the range!, Defend the shot!, Survive!, Stay safe! | For **15 s** the fighter's style leanings and move weights tilt, like a short gameplan, then it's back to the gameplan (`expired`). Calling it again starts the 15 s again; a different focus replaces it. The AI looks at its leanings and range plan again straight away when a focus starts or ends |
 | **Read** (D49) | Catch the kick! | Primed for 6 s. When the trigger comes (`opp_kick_starts`: the opponent starts a body kick or teep), the fighter reacts with their own reaction time (D93) and catches as the leg comes up (a quick fighter waits for it). It fires once (`fired`), and comes back as `missed` if the kick was over first. While primed it costs attention: Striking and Takedown defense −15% (`attention_cost`). Up to 2 reads at once (D67), costs added; a third replaces the oldest |
 
@@ -1076,7 +1080,8 @@ fully hurt while rocked. Amateur referees step in sooner (the ruleset's `early_s
 bias × 0.5 (adult amateur 15%, teen 25%) and they stop after one shot fewer.
 
 ### 24.3 Ground and pound (D121)
-In full guard the fighter on top strikes and the fighter underneath answers:
+In full guard the fighter on top strikes and the fighter underneath answers (since D130 the same strikes work from the top of
+half guard, side control, mount and the back, harder or softer by the position, §28):
 
 | Move | Who | Timing (telegraph · wind-up · active · recovery) | Odds and damage | Notes |
 |---|---|---|---|---|
@@ -1154,7 +1159,8 @@ After changing a number, run the harness with all six cross-style pairings
 Kyle asked for submissions (2026-10-27: "can we add in submissions?") and picked the simple struggle: three holds from the
 positions the game already has, each locking in like any grapple and then fought for in a short struggle with a danger meter,
 with one call a corner. It's the first step of §9 (D10): the per-beat menu of calls with one right answer, auto slow-mo
-tuned to it and the holds that need other positions (the back, mount, side control) come later. Every number is a first
+tuned to it and the holds that need other positions (the back, mount, side control) come later. (They came with D130, §28:
+the rear-naked choke from the back, the arm-triangle from side control and mount, and the armbar from mount.) Every number is a first
 guess for the harness; each is a named constant or a data field, listed in §25.6.
 
 ### 25.1 The holds
@@ -1245,7 +1251,8 @@ keys). After changing a number, run the harness with all six cross-style pairing
 Kyle asked for throws so judo and BJJ fighters become possible (2026-10-28, after the fight-styles overview flagged "no
 throws, no subs" as the biggest gap; subs came in D126). This adds three throws and two guard moves that use the positions the
 game already has (D98's trim stays: no side control, mount or back yet), and two fighters built on them. A clean throw lands
-in full guard like any takedown; side control, where a big throw would really land, is a later decision. Every number is a
+in full guard like any takedown; side control, where a big throw would really land, is a later decision. (Decided in D130,
+§28: the hip throw now lands in side control.) Every number is a
 first guess for the harness; each is a named constant or a data field, listed in §26.5.
 
 ### 26.1 The moves
@@ -1407,3 +1414,270 @@ tied, the call only in the clinch and only for a fighter who knows it, the Muay 
 knowing it), `tests/sim/balance/test_balance_report.gd` (the report lines), `tests/ui/test_fight_log_formatter.gd` ("COLLAR
 TIE"), `tests/game/test_arena_view.gd` (the pose), `tests/sim/fight/test_live_calls.gd` (the call catalogue) and
 `tests/data/test_data_files.gd` (`ties_up_ms` on a clinch move).
+
+## 28. Ground positions: half guard, side control, mount and the back (D130)
+Kyle asked for more positions on the ground (2026-10-28: "I feel like that opens up the most for wrestling BJJ and judo and
+sambo"). Until now the ground was full guard and a scramble (D98's trim). This adds four positions from §4's diagram, the moves
+between them, and what each one allows: who can strike and how hard, which holds work there, and what the judges score. It's
+the first of three scopes put to Kyle (four positions with passes and escapes; the others were half guard and side control
+only, or this plus leg locks and a Sambo fighter, which build on it). North-south, turtle and butterfly guard stay on the list in §4. Every number is a first guess for the harness; each
+is a named constant or a data field, listed in §28.7.
+
+### 28.1 The positions
+All four have the roles `top` and `bottom`, like full guard, so ground and pound, the referee's count underneath, the judges'
+takedown points and the 3D view's lying down all carry over. On the back, `top` is the fighter who has the back.
+
+| Position | Each second (stamina drain · judges' control score · strike damage ×), top / bottom | Ways out (the transitions in its file) |
+|---|---|---|
+| Full guard (as before) | 0.2 / 0.3 · 1.0 / 0.2 · 0.8 / 0.4 | New: the top fighter's **guard pass** → side control; half working → half guard |
+| **Half guard** | 0.2 / 0.3 · 1.2 / 0.1 · 0.9 / 0.4 | Top: guard pass → side control. Bottom: **recover guard** → full guard; get up → standing (half: a scramble); sweep → half guard with the roles swapped (half: a scramble) |
+| **Side control** | 0.2 / 0.4 · 1.5 / 0 · 1.0 / 0.4 | Top: **take the mount** → mount; **take the back** → back; the **arm-triangle**. Bottom: recover guard → full guard (half working: half guard). No getting straight up |
+| **Mount** | 0.2 / 0.5 · 2.0 / 0 · **1.3** / 0.4 | Top: take the back; the **armbar**; the arm-triangle. Bottom: **bridge and roll** → full guard with the bridger on top (a reversal); half working → half guard underneath |
+| **Back control** | 0.3 / 0.5 · 2.0 / 0 · 0.7 / 0 | Top: the **rear-naked choke**. Bottom: **escape the back** → full guard with the escaper on top (turning into his guard); half working → a scramble |
+| Scramble (as before) | 0.8 each · 0 · 0 | New: take the back (a technique) → back control |
+
+Where the fight lands from the feet: the double leg, the catch, the outside trip, the foot sweep and winning a scramble still
+land in full guard. **The hip throw lands in side control** (§26 said side control was where a big throw really lands): the
+thrower is past the guard as he lands.
+
+### 28.2 The moves
+| Move | Who, from where | Timing (telegraph · wind-up · active · recovery) | Odds (base + attack − defense stats) | Notes |
+|---|---|---|---|---|
+| Guard pass (*everyone*) | Top of full guard or half guard | 0.2 · 0.3 · 0.4 · 0.3 s | 15% + (Top control, Strength) − Guard, +10% on `HANDS_LOW`, −10% while his own posture is broken (tied up) | From full guard, within 15% past the odds it half works: half guard |
+| Take the mount (*everyone*) | Top of side control | 0.1 · 0.3 · 0.3 · 0.3 s | 30% + (Top control, Scrambles) − (Guard, Scrambles), +10% on `HANDS_LOW` | |
+| Take the back (a technique: Wrestler, BJJ, Judoka) | Top of side control or mount, or a scramble | 0 · 0.2 · 0.3 · 0.3 s | 10% + (Scrambles, Top control) − Scrambles, **+15% on someone `ESCAPING`** | Turning away to get out shows the back |
+| Recover guard (*everyone*) | Bottom of side control or half guard | 0.2 · 0.3 · 0.4 · 0.3 s | 30% + (Guard, Scrambles) − Top control, +15% on `POSTURED_UP` | `ESCAPING` from wind-up to the end of active. From side control, within 15%: half guard |
+| Bridge and roll (*everyone*) | Bottom of mount | 0.2 · 0.3 · 0.3 · 0.3 s | 15% + (Strength, Scrambles) − Top control, +15% on `POSTURED_UP` | `ESCAPING`. Works: a reversal, scored like a takedown. Within 20%: half guard |
+| Escape the back (*everyone*) | Bottom of back control | 0.2 · 0.3 · 0.4 · 0.3 s | 25% + (Scrambles, Strength) − Top control, +10% on `POSTURED_UP` | `ESCAPING`. Works: on top in his guard, scored like a takedown. Within 15%: a scramble |
+| Rear-naked choke (*everyone*, like the guillotine) | Top of back control | 0 · 0.3 · 0.4 · 0.5 s | 15% + (Submissions, Strength) − (Submission defense, Scrambles), +15% on `HANDS_LOW` | A hold (§25): danger starts at 25. Getting out: back to back control |
+| Arm-triangle choke (a technique: Wrestler, BJJ, Judoka) | Top of side control or mount | 0 · 0.3 · 0.4 · 0.5 s | 10% + (Submissions, Top control) − (Submission defense, Guard), +15% on `ESCAPING` | A hold: danger starts at 25. Getting out: back where it was locked |
+| Armbar (now also from mount; the Kicker, BJJ and the Judoka know it) | Bottom of full guard (as §25), or top of mount | as §25 | as §25, plus +20% on someone `ESCAPING` (an arm out as he pushes) | From mount, within 15%: a scramble |
+| Ground punch, ground elbow | Top of every ground position (no elbows from the back) | as §24.3 | as §24.3 | Damage × the position's multiplier: hardest from mount, softest from the back |
+| Tie up | Bottom of full guard, half guard and mount | as §24.3 | as §24.3 | Not from under side control or the back: there the answer is to get out |
+| Sweep | Bottom of full guard or half guard | as §26 | as §26 | From half guard he ends on top in half guard |
+
+**One move, different roles in different positions.** A move that moves the fight (a takedown, clinch move, ground move or
+hold) is only possible where its position file says where it goes for that role (`PositionLibrary.leads_somewhere()`), so the
+armbar works from the bottom of full guard and the top of mount but not from the top of full guard. Strikes, defenses and
+tie-ups don't move the fight, so this changes nothing for them, and nothing that was possible before stops being possible.
+
+### 28.3 The judges
+- **A better position scores**: 6 points per point of control score gained on top (`Judging.ADVANCE_POINTS_PER_CONTROL`), so
+  full guard to side control is 3, side control to mount 3, full guard to half guard 1.2, and mount to the back nothing (both
+  are 2.0). A takedown is still 6 (getting from no control to full guard's 1.0).
+- Every second there scores 0.15 × the control score, as before (§21.4): 20 s in mount is 6 points.
+- Getting out from underneath scores nothing on its own; a reversal (the bridge, escaping the back into his guard) scores like a
+  takedown, as the sweep does (§26).
+
+### 28.4 The fighter AI
+| Where | What the fighter does | To change it |
+|---|---|---|
+| On top, every position | Before the ground and pound (§24.3), a chance of 0.3 × work rate × (0.5 + Base / 100, at least 0.1) a tick to work for something better: a pass, the mount, the back or a hold, picked by weight like the moves underneath (a hold only on its opening, as §25.4, except the rear-naked choke, which needs none: being on the back is the opening). The Wrestler goes for it about every 20 s. Tied up, he can still pass, at −10% | `FighterAI.ADVANCE_RATE` (0.3), `ADVANCE_MIN_LIKING` (0.1); the hold's `ai_without_opening` |
+| On top, the fighter underneath starts to escape | One look per escape for what it gives away: the back, the armbar from mount, the arm-triangle. Taken on a chance of 0.2 × (the odds / 50%)², a hold also × 0.5 × how much they like subs (§25.4), and only if it would land while he's still `ESCAPING` | `ESCAPE_PUNISH` (0.2), `ESCAPE_SUB` (0.5) |
+| Underneath | As in full guard (§21.5, §24.3): about every 3.3 s, 3 × as often under fire, picking from what works there: recovering guard, the bridge, escaping the back, tying up, getting up from half guard, the sweep and the holds | `GROUND_RATE`, `GROUND_UNDER_FIRE` |
+| The corner | Calls *Ground and pound!* when its fighter lands on top, once: not again after every pass | `Corner.on_event()` |
+
+### 28.5 The calls
+- **Pass!** (new, key 4, voice 20, an attempt): from the top of full guard, half guard, side control or mount the fighter
+  goes for the next position up (the guard pass, the mount, then the back for a fighter who knows it). It shares key 4 with
+  *Takedown!*, which is only standing and in the clinch (`data/calls/pass.json`). The AI corner doesn't call it yet.
+- *Get up!* (key 7) now works from under every position and calls the way out from there: up from full guard or half guard,
+  back to guard from side control, the bridge from mount, turning out of the back.
+- *Ground and pound!* and *Survive!* work in every ground position.
+
+### 28.6 On screen and in the harness
+- The tag under the fighters names the position and who's on top, "Back control · Wrestler has the back" (a position's
+  `top_label`); the feed says the same, and "Wrestler's Guard pass half works: half guard".
+- In the 3D view the top fighter sits up in mount, lies flat across in side control, and sits behind on the back with the one
+  underneath sat up in front.
+- The harness's **Positions** line: the share of the fight in each ground position, how many better positions each fighter got
+  to on top, and how many times each got out from underneath (CSV columns `full_guard` … `back_control`, `advances_*`, `escapes_*`).
+
+### 28.7 Balance
+Reported, no pass marks, like the Wrestler and the throwers (D109, D128). Harness, no calls, 100 fights each way round (seed 1,
+pro rules), this change against main just before it:
+
+| Pairing | Wins before → now | Ended by submission before → now | Ground now: full guard · half guard · side control · mount · back (share of the fight) |
+|---|---|---|---|
+| Kicker vs Boxer | Kicker 44.5% → 44.5% (event for event the same) | 0% → 0% | – |
+| Wrestler vs Kicker | Wrestler 67.5% → 76% | 4% → 14% | 29% · 6% · 5% · 1% · 3% |
+| Wrestler vs Boxer | Wrestler 57% → 72.5% | 0% → 14.5% | 39% · 8% · 6% · 1% · 4% |
+| Judoka vs Kicker | Judoka 25% → 28% | 4% → 5% | 8% · 3% · 3% · 1% · 1% |
+| Judoka vs Boxer | Judoka 72% → 78% | 0% → 10% | 32% · 4% · 5% · 0% · 2% |
+| Judoka vs Wrestler | Judoka 52% → 71% | 9% → 18% | 40% · 5% · 6% · 1% · 2% |
+| BJJ vs Kicker | BJJ 4% → 11% | 6% → 6% | 7% · 1% · 1% · 0% · 1% |
+| BJJ vs Boxer | BJJ 27% → 35% | 26% → 30% | 31% · 3% · 2% · 1% · 2% |
+| BJJ vs Wrestler | BJJ 63% → 76% | 28% → 34% | 56% · 6% · 3% · 1% · 3% |
+| Muay Thai vs Wrestler | Muay Thai 56.5% → 51.5% | 7.5% → 8.5% | 37% · 6% · 4% · 1% · 2% |
+
+Across all 1,400 fights: draws 0.8% (was 0.8%), no 10-10 cards, 42% finished inside the distance (was 36.5%).
+
+What it says: **the grapplers got better on the ground, and the fighters who know the new moves most of all.** Full guard is
+still where most ground time is spent (passing is 15% + stats a try, and the one underneath gets back to guard about as
+often), but a few times a fight the top fighter gets past it, and from side control, mount and the back the Wrestler and the
+Judoka now finish fights: the rear-naked choke and the arm-triangle end 10–18% of their fights against strikers, where only the
+Kicker's triangles did before. The Judoka gains most against the Wrestler (his arm-triangle and armbar, and the Wrestler gives
+his back getting out). Striker fights don't change at all: nobody there goes to the ground.
+
+The first draft was much stronger: the chokes from the back and the arm-triangle ended 40–65% of grappler-vs-striker fights,
+because a striker who has spent the fight underneath is tired, and tired fighters lose the struggle's beats (§25.2). Tuning
+since: lower lock-in odds and starting danger for both chokes, a harder back take, the AI taking an escape's opening less often,
+cheaper positions underneath, a harder pass, and side control's escape going straight back to full guard. If the playtest
+finds grapplers too strong on the ground, the levers in order: `guard_pass.json`'s `base_success`, `FighterAI.ADVANCE_RATE`,
+the holds' `start_danger`, then `ESCAPE_PUNISH`. To read it again, run the harness with the grapplers' pairings and read the
+**Positions**, **Subs** and **How** lines.
+
+### 28.8 To change it, and the tests
+- The positions: `data/positions/half_guard.json`, `side_control.json`, `mount.json`, `back_control.json` (stamina drain,
+  control score, strike multiplier, where each move goes; `top_label`, `09`); the pass from full guard and the back take from a
+  scramble: `full_guard.json`, `scramble.json`; the hip throw's landing: `clinch.json`.
+- The moves: `data/actions/guard_pass.json`, `take_mount.json`, `take_back.json`, `recover_guard.json`, `bridge.json`,
+  `escape_back.json`, `rear_naked_choke.json`, `arm_triangle.json` (and `armbar.json` from mount); the opening an escape gives:
+  the `ESCAPING` flag (`data/enums/flags.json`) in the escapes' `flags_self` and the moves' opportunities.
+- Who knows what: `techniques` in `data/fighters/` (the Wrestler, BJJ and Judoka have the back take and the arm-triangle; the
+  Judoka the armbar too).
+- Judges: `Judging.ADVANCE_POINTS_PER_CONTROL` (6). The AI: `FighterAI.ADVANCE_RATE`, `ADVANCE_MIN_LIKING`, `ESCAPE_PUNISH`,
+  `ESCAPE_SUB`. The calls: `data/calls/pass.json`, `get_up.json`.
+- The harness: the `GROUND_POSITIONS` columns in `FightSummary`, the Positions line in `BalanceReport`.
+
+Tested in `tests/sim/fight/test_ground_positions.gd` (every new position has a way out everyone knows, control and damage go up
+past the guard, the pass and half a pass, the judges' points for a better position, the armbar from mount but not the top of
+full guard, getting out of each position, an escape showing the back, the rear-naked choke locking and its escape, punches from
+mount, the AI passing and climbing, taking the back on an escape and choking from it, the AI's escapes underneath, *Pass!* and
+*Get up!*, the corner's one Ground and pound!, the feed and the harness columns), `tests/sim/fight/test_throws.gd` (the hip
+throw lands in side control), `tests/sim/fight/test_submissions.gd` (every hold locks from every position it's done from),
+`tests/game/test_arena_view.gd` (the poses and the tag), `tests/sim/fight/test_live_calls.gd` (the catalogue) and
+`tests/data/test_data_files.gd` (`top_label`, `ai_without_opening`). After changing a number, run the harness with the
+grapplers' pairings and read the **Positions**, **Subs** and **How** lines next to the wins.
+
+## 29. Feints and blind shots (D131)
+Kyle asked for feints to fix the wrestling vs striking problem (2026-10-28: "Grapplers should be punished for not feinting or
+for shooting blind takedowns"). After D130 the grapplers beat the strikers 72–78% of the time, mostly by shooting whenever
+they liked. Now a shot needs setting up: a feint the opponent bites on, a strike just before it, or an opening to shoot into.
+A shot with none of those is a **blind shot**, and it's punished. Kyle picked the second of three scopes (the feint and the blind-shot
+penalty; **that plus a *Feint!* call for the player**; the blind-shot penalty with no feint move), 2026-10-28. Every number is a first guess for the harness; each
+is a named constant or a data field, listed in §29.6.
+
+### 29.1 The feint
+| | |
+|---|---|
+| Who | Everyone (`basic`), standing, from mid range or the pocket (`data/actions/feint.json`, category `feint`) |
+| Timing | 0.1 · 0.1 · 0.1 · 0.1 s (telegraph · wind-up · active · recovery), 1 stamina |
+| The bite | One roll as its active phase starts: 40% + (Fight IQ, Speed) − Fight IQ. Feinting again within 30 s bites 10% less for each feint in that time ("feinted again" in the odds), so the same feint over and over stops working. Out of range it fools nobody (no roll) |
+| Bitten | For the next second (`bites_ms` 1000) the opponent has his hands up and his weight back (`BIT_ON_FEINT`): a double leg gets **+10%** and a clinch entry +10% on him, his own sprawl is **−10%**, and he reads the next move half as well (§29.3) |
+| Not bitten | Nothing happens to him, but the feint still counts as setting a shot up (§29.2): he had to watch it |
+
+### 29.2 Blind shots
+A takedown from standing is **blind** when, as it starts:
+- none of the shooter's own strikes or feints ended in the last 0.5 s (`FightSim.SET_UP_TICKS`, 5 ticks), and
+- there's nothing to shoot into when it arrives: no counter (timed into his wind-up or recovery), no `LEANING`, no bite. **An
+  opponent on the fence doesn't count** (`FightSim.NOT_A_SET_UP`): the fence stops the sprawl going back, it doesn't hide the shot.
+
+Never blind: the catch-kick single (it needs a kick to catch: a reaction, not a guess), throws and trips (D128), and anything
+from the clinch (the clinch is the set-up). Clinch entries aren't blind shots: they were at first, but that cost the Muay Thai
+fighter 17 points against the Boxer, a striker fight.
+
+What a blind shot costs (it carries `BLIND_SHOT` from its start to its end):
+
+| | How much | To change it |
+|---|---|---|
+| A worse shot | −20% on its own odds | the `own_flag: BLIND_SHOT` opportunity in `data/actions/double_leg.json` |
+| Easier to read | +30% to the defender's chance to read it (§20) | `FighterAI.BLIND_READ` |
+| Easier to sprawl on | +20% to the sprawl's odds | the `BLIND_SHOT` opportunity in `data/actions/sprawl.json` |
+| Stuck longer | Sprawled on, 0.5 s more with the head low than a set-up shot (more time for knees and the guillotine) | `FightSim.BLIND_STUCK_TICKS` (5) |
+| Costs more | 5 more stamina when it's stuffed (sprawled on or defended) | `FightSim.BLIND_STUFFED_STAMINA` |
+
+**The double leg's base odds drop from 45% to 35%** (`data/actions/double_leg.json`): a shot that's set up by a strike or an
+opening is a little worse than before, one off a feint that bit is back where it was, and a blind one is 20% worse again.
+Where the shot came from: against the Kicker about a third of the Wrestler's shots are blind, a quarter come off a feint, and
+most of the rest are timed into the Kicker's kicks, which is a set-up.
+
+### 29.3 The fighter AI
+| Where | What the fighter does | To change it |
+|---|---|---|
+| About to lead with a takedown that would be blind | Feints first on a chance of 10% + 60% × Fight IQ / 100 (40% at Fight IQ 50), then shoots off the feint as soon as it's over, if it still reaches (up to 0.3 s after). The feed reads "feints to set up the double-leg takedown", then "shoots off the feint". The rest of the time he shoots blind anyway | `FighterAI.SETUP_BASE` (0.1), `SETUP_PER_IQ` (0.6), `FEINT_FOLLOW_TICKS` (3) |
+| Reading the opponent's moves | A blind shot is read +30%; while bitten on a feint, every move is read × 0.5. A feint itself isn't read: whether it bites is its own roll | `BLIND_READ` (0.3), `BIT_READ` (0.5) |
+| Strikers | Never feint on their own: the AI only feints before a shot, and strikers don't shoot. Striker fights play out event for event as before | |
+| Habits | A tell that leads straight into a shot (the Wrestler's stance shift, then the double leg) isn't a set-up: that shot is blind | the fighter's `tells` |
+
+The player's *Takedown!* call shoots straight away, as before: a called shot with nothing before it is blind too. Call it off
+your fighter's jab or into a kick, or call *Feint!* instead (§29.4).
+
+### 29.3a The *Feint!* call
+*Feint!* (key **7** standing; 7 is *Get up!* on the ground) sets a shot up for you: the fighter feints, then goes straight into a
+shot off it, one call. It's an attempt (§22.2) with a `then` list (`data/calls/feint.json`): `actions: ["feint"]` first, and once
+the feint is over the first of `then: ["double_leg", "clinch_entry"]` that would work right now, within 0.3 s
+(`LiveCalls.THEN_TICKS`, 3 ticks, inside the feint's 0.5 s set-up), so **the shot is never blind**, and if he bit it gets his +10%.
+A fighter who knows no double leg ties up instead (everyone knows the clinch entry). Two separate calls (*Feint!* then
+*Takedown!*) wouldn't work: the second would land 0.6 s later, after the bite and the set-up were over. It costs 20 voice, like
+*Takedown!*, and holds back the fighter's own feints and shots for 45 s like any called move (`SPENT_TICKS`, §22.5).
+
+The feed reads "Wrestler takes the Feint! call: Feint (call after 6 ticks)", then "Wrestler takes the Feint! call: Double-leg
+takedown (off the feint)". If the shot no longer reaches when the feint ends, the call ends `infeasible` (*"couldn't get in
+range"*). No corner bot calls it yet: the ideal and AI corners (§22.7) call moments, and a shot set up is the player's call.
+
+What it's worth (scratch check, 60 fights, Wrestler vs Boxer, the Wrestler's corner calling once every 10 s while standing at mid
+range or closer): no calls 29 wins; *Takedown!* every time 5 wins (15% of shots land, nearly all of them blind); *Feint!*
+every time **40 wins** (35% land, almost none blind). Called at random it's the better call by far; *Takedown!* is for the
+kick (the catch) and the moment after a jab.
+
+### 29.4 On screen and in the harness
+- The feed: "Wrestler feints and Boxer BITES: hands up, weight back 42% (base 40 · stats +2)", "Wrestler feints; Boxer doesn't
+  bite", and a blind shot starts "Wrestler starts a Double-leg takedown **blind**". Its odds show "own BLIND_SHOT −20" and the
+  sprawl's "BLIND_SHOT +20". A feint from out of range isn't shown.
+- In the 3D view a feint is half a jab and a dip of the level; a fighter who bit has his hands up and leans back.
+- The harness's **Feints** line: feints a fight and how many were bitten on, and blind shots a fight and how many still worked
+  (CSV columns `feints_*`, `feints_bit_*`, `blind_*`, `blind_landed_*`).
+
+### 29.5 Balance
+Reported, no pass marks, like the grapplers before (D109, D128). Harness, no calls, 100 fights one way round (seed 1, pro rules),
+this change against D130 just before it:
+
+| Pairing (red vs blue) | Red wins before → now | Takedowns landed of tried a fight, before → now | Feints a fight (bitten) · blind shots (worked) |
+|---|---|---|---|
+| Kicker vs Boxer | Kicker 44% → 44% (event for event the same) | – | – |
+| Wrestler vs Kicker | Wrestler 77% → 72% | 6.9 of 16.5 → 6.3 of 20.9 | 4.9 (1.8) · 6.9 (1.1) |
+| Wrestler vs Boxer | Wrestler 75% → 60% | 9.3 of 22.3 → 7.4 of 26.4 | 7.6 (2.6) · 11.1 (1.6) |
+| Judoka vs Kicker | Judoka 28% → 28% | unchanged (throws, from the clinch) | – |
+| Judoka vs Boxer | Judoka 78% → 78% | unchanged | – |
+| Judoka vs Wrestler | Judoka 71% → 79% | the Wrestler's 10.5 of 39.9 → 7.7 of 38.6 | the Wrestler's 5.0 (1.8) · 5.5 (0.3) |
+| BJJ vs Kicker | BJJ 11% → 11% | unchanged (guard pulls and throws) | – |
+| BJJ vs Boxer | BJJ 35% → 35% | unchanged | – |
+| BJJ vs Wrestler | BJJ 76% → 84% | the Wrestler's 11.7 of 25.8 → 9.3 of 28.1 | the Wrestler's 6.3 (2.4) · 8.2 (1.7) |
+| Muay Thai vs Wrestler | Muay Thai 54% → 62% | the Wrestler's 14.5 of 39.9 → 11.1 of 45.0 | the Wrestler's 8.0 (2.8) · 11.8 (1.4) |
+| Muay Thai vs Boxer, vs Kicker | 57% → 57%, 74% → 74% | – | – |
+
+Across all 1,200 fights: draws 0.4% (was 0.5%), no 10-10 cards, 41.5% finished inside the distance (was 41%).
+
+What it says: **the Wrestler can't just shoot any more.** Blind shots work about one time in six, and against the Boxer, who
+has nothing to catch, that's most of his shots: he still lands 7 a fight, but he takes more stuffed shots and pays for
+them, and wins 60% instead of 75%. Against the Kicker he wins 72% (was 77%): most of his takedowns there are timed into the
+Kicker's kicks, and those are set up. The other grapplers barely shoot (the Judoka and BJJ fighter go through the clinch), so
+only their fights with the Wrestler move. Fighters who shot more after D130 now shoot about as often but land less.
+
+If the Wrestler is still too strong against the Kicker, the lever is the shot timed into a kick (the counter bonus on a shot,
+or the Kicker kicking less after being taken down, §21.8); a blind clinch entry (§29.2) is the lever for the Judoka. If he's now
+too weak, the levers in order: the double leg's `base_success`, `BLIND_SHOT` in `double_leg.json`, then `SETUP_PER_IQ`.
+
+### 29.6 To change it, and the tests
+- The feint: `data/actions/feint.json` (timing, `feint.base_success`, `feint.bites_ms`, the stats); feinting again:
+  `FightSim.FEINT_REPEAT` (0.1), `FEINT_MEMORY_TICKS` (300). What a bite gives: the `BIT_ON_FEINT` opportunities in
+  `double_leg.json`, `clinch_entry.json` and `sprawl.json`.
+- Blind shots: `FightSim.would_be_blind()`, `SET_UP_TICKS` (5), `NOT_A_SET_UP`, `BLIND_STUCK_TICKS` (5), `BLIND_STUFFED_STAMINA`
+  (5); the `BLIND_SHOT` opportunities in `double_leg.json` and `sprawl.json`; the double leg's `base_success` (0.35).
+- The flags: `BIT_ON_FEINT` and `BLIND_SHOT` in `data/enums/flags.json`.
+- The AI: `FighterAI.SETUP_BASE`, `SETUP_PER_IQ`, `FEINT_FOLLOW_TICKS`, `BLIND_READ`, `BIT_READ`.
+- The *Feint!* call: `data/calls/feint.json` (`then`, `voice_cost`, `hotkey`), `LiveCalls.THEN_TICKS` (3). If it's too strong
+  for the player, raise its `voice_cost` or lower the bite's +10% on the double leg.
+- The harness: the `feints_*` and `blind_*` columns in `FightSummary`, the Feints line in `BalanceReport`.
+
+Tested in `tests/sim/fight/test_feints.gd` (everyone can feint, the bite and how long it lasts, out of range, feinting again,
+a blind double leg and its odds, a jab just before and long before, a shot off a bite, a feint that didn't bite still sets the
+shot up, a shot timed into a kick and one at a fighter on the fence, catches, throws and the clinch never blind, clinch entries
+never blind but finding a bitten opponent, a blind shot sprawled on and defended costing more, the Wrestler feinting and
+shooting off it, Fight IQ, strikers never feinting, reading a blind shot and reading while bitten),
+`tests/sim/fight/test_live_calls.gd` (*Feint!*: the feint then the shot inside the set-up, never blind; the clinch entry for a
+fighter with no takedown; the shot held back afterwards), `tests/game/test_main_scene.gd` (key 7),
+`tests/ui/test_fight_log_formatter.gd` (the feed lines), `tests/game/test_arena_view.gd` (the poses) and
+`tests/data/test_data_files.gd` (the `feint` block). After changing a number, run the harness with the Wrestler's pairings
+(`--pairs=wrestler:kicker,wrestler:boxer,muay_thai:wrestler`) and read the **Feints** and **Grappling** lines next to the wins.

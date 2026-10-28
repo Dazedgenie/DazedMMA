@@ -7,7 +7,8 @@ extends RefCounted
 ## fence, who held the centre, how much of it was a chase, how long each one circled
 ## and cut off the cage, D119), and the grappling
 ## (takedowns tried and landed, time in the clinch, on the ground and on top, #15;
-## submissions tried and locked in, D126),
+## submissions tried and locked in, D126; time in each ground position, passes and escapes, D130;
+## feints thrown and bitten on, and shots taken blind and how many still worked, D131),
 ## each corner's coaching bot and how many calls it made (Corner, D12, D68), and each
 ## fighter's drilled rules and how often they fired (DrilledRules, #17).
 ## BalanceReport turns rows into the CSV and the summary.
@@ -27,9 +28,13 @@ const COLUMNS: Array[String] = [
 	"throws_red", "throws_landed_red", "throws_blue", "throws_landed_blue",
 	"collar_ties_red", "collar_ties_won_red", "clinch_knees_red", "tied_knees_red",
 	"collar_ties_blue", "collar_ties_won_blue", "clinch_knees_blue", "tied_knees_blue",
+	"full_guard", "half_guard", "side_control", "mount", "back_control", "advances_red", "escapes_red", "advances_blue", "escapes_blue",
+	"feints_red", "feints_bit_red", "blind_red", "blind_landed_red", "feints_blue", "feints_bit_blue", "blind_blue", "blind_landed_blue",
 	"calls_red", "calls_blue", "fired_red", "fired_blue",
 ]
 const SIDES: Array[String] = ["red", "blue"]
+## The ground positions whose share of the fight each row reports (D130).
+const GROUND_POSITIONS: Array[String] = ["full_guard", "half_guard", "side_control", "mount", "back_control"]
 
 const METHOD_KO := "ko"
 const METHOD_TKO := "tko"
@@ -96,6 +101,8 @@ static func count_movement(sim: FightSim, before: Array[Vector2], moves: Diction
 	if not sim.situation.is_standing():
 		var key: String = "clinch" if sim.situation.phase == PositionLibrary.CLINCH else "ground"
 		moves[key] = moves.get(key, 0) + 1
+		if GROUND_POSITIONS.has(sim.situation.position):
+			moves[sim.situation.position] = moves.get(sim.situation.position, 0) + 1
 		for i in 2:
 			if sim.role(i) == PositionLibrary.TOP:
 				moves.top[i] += 1
@@ -145,6 +152,8 @@ static func of(sim: FightSim, lows: Array[float] = [], moves: Dictionary = {}) -
 	var ticks: int = moves.get("ticks", 0)
 	row.clinch = _share_of(moves.get("clinch", 0), ticks)
 	row.ground = _share_of(moves.get("ground", 0), ticks)
+	for id: String in GROUND_POSITIONS:
+		row[id] = _share_of(moves.get(id, 0), ticks)
 	for i in 2:
 		var f: FighterState = sim.fighters[i]
 		var side: String = SIDES[i]
@@ -167,6 +176,12 @@ static func of(sim: FightSim, lows: Array[float] = [], moves: Dictionary = {}) -
 		row["collar_ties_won_" + side] = f.collar_ties_won
 		row["clinch_knees_" + side] = f.clinch_knees_landed
 		row["tied_knees_" + side] = f.tied_knees_landed
+		row["advances_" + side] = f.advances
+		row["escapes_" + side] = f.escapes
+		row["feints_" + side] = f.feints_tried
+		row["feints_bit_" + side] = f.feints_bit
+		row["blind_" + side] = f.blind_shots
+		row["blind_landed_" + side] = f.blind_landed
 		row["top_" + side] = _share_of(moves.get("top", [0, 0])[i], ticks)
 		row["circling_" + side] = _seconds(sim.circling_ticks[i])
 		row["cutting_" + side] = _seconds(sim.cutting_ticks[i])

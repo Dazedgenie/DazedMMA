@@ -64,8 +64,8 @@ func _calls(sim: FightSim) -> LiveCalls:
 
 func test_every_call_in_the_catalogue_loads_with_its_hotkey() -> void:
 	var library: CallLibrary = CallLibrary.shared()
-	assert_eq(library.ids(), ["finish_it", "ground_and_pound", "pressure", "circle_out", "work_the_range", "takedown", "clinch", "collar_tie",
-		"defend_the_shot", "defend_the_sub", "get_up", "survive", "stay_safe", "catch_the_kick"] as Array[String])
+	assert_eq(library.ids(), ["finish_it", "ground_and_pound", "pressure", "circle_out", "work_the_range", "pass", "takedown", "clinch", "collar_tie",
+		"defend_the_shot", "defend_the_sub", "feint", "get_up", "survive", "stay_safe", "catch_the_kick"] as Array[String])
 	assert_eq(LiveCalls.shape(library.get_call("takedown")), LiveCalls.ATTEMPT)
 	assert_eq(LiveCalls.shape(library.get_call("pressure")), LiveCalls.FOCUS)
 	assert_eq(LiveCalls.shape(library.get_call("catch_the_kick")), LiveCalls.READ)
@@ -181,6 +181,43 @@ func test_takedown_call_shoots_once_the_call_delay_is_up() -> void:
 	assert_eq(answers[0].outcome, LiveCalls.ACCEPTED)
 	assert_eq(answers[0].action_id, "double_leg")
 	assert_eq(answers[0].reason, "call after 6 ticks")
+
+
+func test_feint_call_feints_then_shoots_straight_off_it_so_the_shot_is_never_blind() -> void:
+	var sim: FightSim = _sim()
+	sim.submit(FightCommand.live_call(0, 0, "feint"))
+	_run(sim, 30)
+	var starts: Array = _starts(sim)
+	assert_eq(starts.size(), 2, "the feint, then one shot")
+	assert_eq(starts[0], [6, "feint"])
+	assert_eq(starts[1][1], "double_leg")
+	var feint_ends: int = 6 + LiveCalls._move_ticks(FightView.new(sim, 0), "feint")
+	assert_between(starts[1][0], feint_ends, feint_ends + LiveCalls.THEN_TICKS, "straight off it, inside the set-up")
+	for e in sim.events:
+		if e.type == FightEvent.ACTION_PHASE and e.actor == 0 and e.data.action_id == "double_leg" and e.data.phase == "telegraph":
+			assert_false(e.data.get("blind", false), "set up by the feint (docs/01 §29)")
+			assert_eq(e.data.by, DecisionLayer.CALL)
+	var answers: Array[Dictionary] = _answers(sim)
+	assert_eq(answers.map(func(a: Dictionary) -> String: return a.outcome), [LiveCalls.ACCEPTED, LiveCalls.ACCEPTED])
+	assert_eq(answers[0].action_id, "feint")
+	assert_eq(answers[1].action_id, "double_leg")
+	assert_eq(answers[1].reason, "off the feint")
+
+
+func test_a_fighter_with_no_takedown_ties_up_off_the_called_feint() -> void:
+	var sim: FightSim = _sim([] as Array[String])
+	sim.submit(FightCommand.live_call(0, 0, "feint"))
+	_run(sim, 30)
+	assert_eq(_starts(sim).map(func(s: Array) -> String: return s[1]), ["feint", "clinch_entry"], "clinch entry: everyone knows it")
+
+
+func test_the_shot_off_a_called_feint_holds_back_the_fighters_own_shots_like_a_takedown_call() -> void:
+	var sim: FightSim = _sim()
+	sim.submit(FightCommand.live_call(0, 0, "feint"))
+	_run(sim, 30)
+	var calls: LiveCalls = _calls(sim)
+	assert_eq(calls.adjust_weight(FightView.new(sim, 0), _actions.get_action("double_leg"), 1.0), 0.0, "the call picked the moment (SPENT_TICKS)")
+	assert_true(calls.attempt.is_empty(), "nothing left to do")
 
 
 func test_takedown_called_into_the_kick_becomes_the_catch_kick_single() -> void:

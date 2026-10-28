@@ -1,0 +1,16 @@
+{
+	"schema": "action@2",
+	"id": "feint",
+	"name": "Feint",
+	"category": "feint",
+	"basic": true,
+	"positions": ["standing"],
+	"ranges": ["mid", "pocket"],
+	"phases_ms": { "telegraph": 100, "windup": 100, "active": 100, "recovery": 100 },
+	"stamina_cost": 1,
+	"flags_self": [],
+	"feint": { "base_success": 0.4, "bites_ms": 1000 },
+	"stats": { "offense": ["fight_iq", "speed"], "defense": ["fight_iq"] },
+	"opportunities": [],
+	"requires_technique": null
+}

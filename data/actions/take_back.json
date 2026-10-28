@@ -1,0 +1,18 @@
+{
+	"schema": "action@2",
+	"id": "take_back",
+	"name": "Take the back",
+	"category": "ground",
+	"positions": ["side_control", "mount", "scramble"],
+	"roles": ["top", "neutral"],
+	"ranges": ["clinch"],
+	"phases_ms": { "telegraph": 0, "windup": 200, "active": 300, "recovery": 300 },
+	"stamina_cost": 6,
+	"flags_self": [],
+	"ground": { "base_success": 0.1 },
+	"stats": { "offense": ["scrambles", "top_control"], "defense": ["scrambles"] },
+	"opportunities": [
+		{ "opponent_flag": "ESCAPING", "success_bonus": 0.15 }
+	],
+	"requires_technique": null
+}

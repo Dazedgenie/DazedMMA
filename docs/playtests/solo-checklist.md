@@ -41,6 +41,8 @@ switch **Speed** to 1×, pick Playtest 2 again
 - [ ] You notice the drilled rule fire on its own (the panel on the left flashes).
 - [ ] You still want to make calls, or you just watch.
 - [ ] On your back you use **7 Get up!** or **8 Survive!**
+- [ ] Standing, **7** is **Feint!** (D131): he feints, then shoots straight off it. **4 Takedown!** with nothing before it is a
+      **blind** shot (the feed says so) and gets sprawled on more. Could you feel the difference?
 
 **Then**, if you feel like another fight, play one (**Fight again**, or any Playtest fight). Note which and why: that's test 5.
 

@@ -367,9 +367,9 @@ func test_the_fighter_underneath_works_to_get_up_and_the_one_on_top_grounds_and_
 	var pounder := FightSim.new(SEED, [_fighter("Top", {}, ["jab", "double_leg"]), FighterState.new("Bottom", {}, [], 0.0)], _actions, 1, 300)
 	pounder.apply_transition(0, "double_leg")
 	_ticks(pounder, 600)
-	assert_gt(_starts(pounder, 0).size(), 0, "on top they ground and pound (D121)")
+	assert_has(_starts(pounder, 0), "ground_punch", "on top they ground and pound (D121)")
 	for id in _starts(pounder, 0):
-		assert_eq(id, "ground_punch", "everyone knows the ground punch; the jab is for standing")
+		assert_true(id in ["ground_punch", "guard_pass", "take_mount"], "everyone knows the ground punch and how to pass (D130); the jab is for standing")
 
 
 func test_strikers_break_the_clinch_and_grapplers_work_in_it() -> void:

@@ -101,6 +101,22 @@ const TANGLED_GAP: float = 0.4
 ## Sprawled on, the shooter is stuck under the sprawl, head low, for this many ticks
 ## on top of the shot's recovery (D29: a stuffed shot gets punished).
 const SPRAWL_STUCK_TICKS: int = 5
+## Feints and blind shots (D131, docs/01 §29). The feint (everyone knows it) makes the
+## opponent bite (BIT_ON_FEINT) on its own roll at the end of its active phase.
+const FEINT := "feint"
+## A strike or feint that ends sets the fighter up for this many ticks: a takedown started
+## in that window isn't blind.
+const SET_UP_TICKS: int = 5
+## Each of the fighter's own feints in the last FEINT_MEMORY_TICKS makes the next one
+## FEINT_REPEAT less likely to bite: the same feint over and over stops working.
+const FEINT_MEMORY_TICKS: int = 300
+const FEINT_REPEAT: float = 0.1
+## A blind shot that gets sprawled on is stuck this many ticks longer (more knees, a
+## guillotine), and a blind shot that's stuffed (sprawled on or defended) costs this much more stamina.
+const BLIND_STUCK_TICKS: int = 5
+const BLIND_STUFFED_STAMINA: float = 5.0
+## Openings that don't set a shot up: the fence stops the sprawl going back, it doesn't hide the shot.
+const NOT_A_SET_UP := { "BACK_TO_CAGE": true }
 ## Takedowns, clinch and ground moves: they make contact when their active phase starts
 ## and are rolled when it ends.
 const GRAPPLES := { "takedown": true, "clinch": true, "ground": true, "submission": true }
@@ -188,6 +204,8 @@ var _hold: Dictionary = {}
 var _drain: Array[float] = [0.0, 0.0]
 var _control: Array[float] = [0.0, 0.0]
 var _damage_scale: Array[float] = [1.0, 1.0]
+## Ticks each fighter's feints reached their active phase, oldest first (FEINT_REPEAT).
+var _feints: Array[Array] = [[], []]
 ## Announced state for range (slot 0) and each fighter's cage proximity (slots 1
 ## and 2), see _announce: what was last announced, what it's turning into, and for
 ## how many ticks. Arrays rather than dictionaries: this runs every tick.
@@ -421,7 +439,7 @@ func why_not(i: int, id: String) -> String:
 		return "not allowed under %s rules" % ruleset.name
 	if not action.positions.has(situation.position):
 		return "not possible from this position"
-	if not ActionLibrary.allows_role(action, situation.role(i)):
+	if not ActionLibrary.allows_role(action, situation.role(i)) or not positions.leads_somewhere(situation.position, situation.role(i), action):
 		return "not possible from the %s" % situation.role(i)
 	return ""
 
@@ -453,6 +471,8 @@ func _advance_fighter(i: int) -> void:
 			_emit(FightEvent.RECOVERED, i)
 	if f.tied_up_ticks > 0:
 		f.tied_up_ticks -= 1
+	if f.bit_ticks > 0:
+		f.bit_ticks -= 1
 	if f.stagger_ticks > 0:
 		f.stagger_ticks -= 1
 	var calls_here: LiveCalls = decisions[i].calls
@@ -686,7 +706,9 @@ func transition_for(i: int, action_id: String, result: String = PositionLibrary.
 ## over: tied up on the fence stays on the fence, and getting up separates there.
 ## Whatever either fighter was in the middle of stops. Ending up on top scores a
 ## takedown with the judges (Judging.TAKEDOWN_POINTS): the actor, or the opponent when the
-## actor's move failed into a position under them (not a guard pull, D128). Grapple resolution
+## actor's move failed into a position under them (not a guard pull, D128). Moving to a better
+## position on top (D130: a pass, the mount, the back) scores the control gained
+## (Judging.ADVANCE_POINTS_PER_CONTROL × the rise in the top's control score). Grapple resolution
 ## calls this when a takedown, clinch move, get-up or submission works (or fails into a new
 ## position, `result` "failed").
 func apply_transition(i: int, action_id: String, result: String = PositionLibrary.SUCCESS) -> bool:
@@ -694,6 +716,8 @@ func apply_transition(i: int, action_id: String, result: String = PositionLibrar
 	if t.is_empty():
 		return false
 	var was_top: Array[bool] = [situation.role(0) == PositionLibrary.TOP, situation.role(1) == PositionLibrary.TOP]
+	var was_bottom: bool = situation.role(i) == PositionLibrary.BOTTOM
+	var control_before: float = float(positions.get_position(situation.position).control_score.get(PositionLibrary.TOP, 0.0))
 	var roles: Array[String] = ["", ""]
 	roles[i] = t.roles.actor
 	roles[1 - i] = t.roles.opponent
@@ -705,6 +729,13 @@ func apply_transition(i: int, action_id: String, result: String = PositionLibrar
 		f.unanswered = 0
 	_place_bodies(i)
 	_emit(FightEvent.POSITION_CHANGED, i, { "action_id": action_id, "position": situation.position, "phase": situation.phase, "roles": roles.duplicate() })
+	if roles[i] == PositionLibrary.TOP and was_top[i]:
+		var gained: float = float(positions.get_position(t.to).control_score.get(PositionLibrary.TOP, 0.0)) - control_before
+		if gained > 0.0:
+			_round_points[i] += Judging.ADVANCE_POINTS_PER_CONTROL * gained
+			fighters[i].advances += 1
+	elif was_bottom and roles[i] != PositionLibrary.ATTACKER:
+		fighters[i].escapes += 1  # Out from underneath: back to guard, up, or on top (not a hold, D130).
 	if roles[i] == PositionLibrary.TOP and not was_top[i]:
 		_round_points[i] += Judging.TAKEDOWN_POINTS
 		if actions.has(action_id) and actions.get_action(action_id).category == "takedown":
@@ -759,7 +790,9 @@ func _place_bodies(i: int) -> void:
 ## (`by`, `why`), so the log can explain every move (docs/01 §16 A16).
 func _start_action(i: int, id: String, decision: Decision = null) -> void:
 	var f: FighterState = fighters[i]
+	var blind: bool = would_be_blind(i, id)
 	f.action_id = id
+	f.blind_shot = blind
 	var action: Dictionary = actions.get_action(id)
 	f.spend_stamina(float(action.stamina_cost))
 	if action.category == "strike":
@@ -768,6 +801,10 @@ func _start_action(i: int, id: String, decision: Decision = null) -> void:
 		f.takedowns_tried += 1
 		if ActionLibrary.is_throw(action):
 			f.throws_tried += 1
+		if blind:
+			f.blind_shots += 1
+	elif action.category == FEINT:
+		f.feints_tried += 1
 	elif action.category == "submission":
 		f.subs_tried += 1
 	elif id == COLLAR_TIE:
@@ -777,7 +814,28 @@ func _start_action(i: int, id: String, decision: Decision = null) -> void:
 	var why: Dictionary = {}
 	if decision != null:
 		why = { "by": decision.layer, "why": decision.reason }
+	if blind:
+		why.blind = true
 	_enter_phase(i, 0, why)
+
+
+## True when fighter i starting this move now would be a blind shot (D131): a takedown from
+## standing (not a throw, D128) with none of the fighter's own strikes or feints just before it
+## (SET_UP_TICKS), not a reaction to an opening the move needs (the catch), and nothing in the
+## odds to shoot into when it arrives: no counter (timed into their wind-up or recovery) and no
+## flag such as LEANING or BIT_ON_FEINT. An opponent on the fence doesn't count (NOT_A_SET_UP).
+func would_be_blind(i: int, id: String) -> bool:
+	var action: Dictionary = actions.get_action(id)
+	if action.category != "takedown" or not situation.is_standing() or fighters[i].set_up_until >= now or ActionLibrary.is_throw(action):
+		return false
+	for opp: Dictionary in action.opportunities:
+		if opp.get("required", false):
+			return false
+	var lands_in: int = phase_ticks(fighters[i], id, "telegraph") + phase_ticks(fighters[i], id, "windup")
+	for bonus: Dictionary in odds_breakdown(i, id, lands_in).bonuses:
+		if float(bonus.value) > 0.0 and not NOT_A_SET_UP.has(bonus.name):
+			return false
+	return true
 
 
 func _next_phase(i: int) -> void:
@@ -786,6 +844,9 @@ func _next_phase(i: int) -> void:
 	var at: int = ActionLibrary.PHASES.find(fighters[i].phase) + 1
 	if at >= ActionLibrary.PHASES.size():
 		var id: String = fighters[i].action_id
+		var category: String = actions.get_action(id).category
+		if category == "strike" or category == FEINT:
+			fighters[i].set_up_until = now + SET_UP_TICKS
 		fighters[i].clear_action()
 		_emit(FightEvent.ACTION_ENDED, i, { "action_id": id })
 	else:
@@ -835,10 +896,14 @@ func active_flags(i: int) -> Array[String]:
 		out.append("HANDS_LOW")
 	if f.tied_up_ticks > 0:
 		out.append("POSTURE_BROKEN")
+	if f.bit_ticks > 0:
+		out.append("BIT_ON_FEINT")
 	if f.is_free():
 		return out
 	if f.sprawled:
 		out.append("HEAD_LOW")
+	if f.blind_shot:
+		out.append("BLIND_SHOT")
 	var at: int = ActionLibrary.PHASES.find(f.phase)
 	for entry: Dictionary in actions.get_action(f.action_id).flags_self:
 		if ActionLibrary.PHASES.find(entry.from) <= at and at <= ActionLibrary.PHASES.find(entry.to):
@@ -860,11 +925,15 @@ func flags_ahead(i: int, ahead: int) -> Array[String]:
 		out.append("HANDS_LOW")
 	if f.tied_up_ticks > ahead:
 		out.append("POSTURE_BROKEN")
+	if f.bit_ticks > ahead:
+		out.append("BIT_ON_FEINT")
 	var phase: String = phase_ahead(i, ahead)
 	if phase == "":
 		return out
 	if f.sprawled:
 		out.append("HEAD_LOW")
+	if f.blind_shot:
+		out.append("BLIND_SHOT")
 	var at: int = ActionLibrary.PHASES.find(phase)
 	for entry: Dictionary in actions.get_action(f.action_id).flags_self:
 		if ActionLibrary.PHASES.find(entry.from) <= at and at <= ActionLibrary.PHASES.find(entry.to):
@@ -930,7 +999,19 @@ func odds_breakdown(i: int, id: String, ahead: int = 0) -> OddsBreakdown:
 			b.add_bonus(opp.opponent_flag, float(opp.success_bonus))
 		elif opp.get("required", false) and b.missing == "":
 			b.missing = opp.opponent_flag
+	if action.category == FEINT:
+		var again: int = _recent_feints(i)
+		if again > 0:
+			b.add_bonus("feinted again", -FEINT_REPEAT * again)
 	return b.settle()
+
+
+## How many of fighter i's feints reached their active phase in the last FEINT_MEMORY_TICKS.
+func _recent_feints(i: int) -> int:
+	var seen: Array = _feints[i]
+	while not seen.is_empty() and int(seen[0]) < now - FEINT_MEMORY_TICKS:
+		seen.pop_front()
+	return seen.size()
 
 
 ## True when fighter i's opponent is committed (wind-up or recovery) right now.
@@ -947,6 +1028,32 @@ func _resolve_active(i: int) -> void:
 			_meet_shot(i)
 		"takedown", "clinch", "ground", "submission":
 			_make_contact(i, action)
+		FEINT:
+			_feint(i, action)
+
+
+## A feint reaches its active phase (D131): one roll on its odds (the fighter's own recent
+## feints count against it). If it bites, the opponent has their hands up and weight back for
+## the feint's `bites_ms` (BIT_ON_FEINT): shots and clinch entries find them reacting.
+func _feint(i: int, action: Dictionary) -> void:
+	var data := { "action_id": action.id }
+	if fighters[1 - i].is_down():
+		data.reason = "opponent down"
+	elif not action.ranges.has(band()):
+		data.reason = "out of range"
+	if data.has("reason"):
+		data.bit = false
+		_emit(FightEvent.FEINTED, i, data)
+		return
+	var b: OddsBreakdown = odds_breakdown(i, action.id)
+	_feints[i].append(now)
+	data.bit = _rng.randf() < b.chance
+	data.chance = b.chance
+	data.odds = b.to_dict()
+	if data.bit:
+		fighters[1 - i].bit_ticks = int(action.feint.bites_ms) / FightClock.TICK_MS
+		fighters[i].feints_bit += 1
+	_emit(FightEvent.FEINTED, i, data)
 
 
 func _land_strike(i: int, action: Dictionary) -> void:
@@ -1078,6 +1185,9 @@ func _meet_shot(k: int) -> void:
 	_to_recovery(1 - k)
 	s.phase_ticks_left += SPRAWL_STUCK_TICKS
 	s.sprawled = true
+	if s.blind_shot:
+		s.phase_ticks_left += BLIND_STUCK_TICKS
+		s.spend_stamina(BLIND_STUFFED_STAMINA)
 
 
 ## The roll at the end of a grapple's active phase, on the odds fixed at contact.
@@ -1100,6 +1210,8 @@ func _finish_grip(i: int) -> bool:
 		_tie_up(i, action, b)
 		return false  # The fight stays where it is; the move goes on to its recovery.
 	if result == "" or transition_for(i, action.id, result).is_empty():
+		if f.blind_shot:
+			f.spend_stamina(BLIND_STUFFED_STAMINA)
 		_emit(FightEvent.GRAPPLE_STOPPED, i, { "action_id": action.id, "reason": "defended", "chance": b.chance, "odds": b.to_dict() })
 		# Some moves cost a position when they fail (a guillotine pulls the attacker onto their back).
 		return result == "" and apply_transition(i, action.id, PositionLibrary.FAILED)
@@ -1107,6 +1219,10 @@ func _finish_grip(i: int) -> bool:
 		_emit(FightEvent.GRAPPLE_WON, i, { "action_id": action.id, "result": result, "chance": b.chance, "odds": b.to_dict() })
 		return _lock_in(i, action)
 	var won := { "action_id": action.id, "result": result, "chance": b.chance, "odds": b.to_dict() }
+	if result == PositionLibrary.SUCCESS and f.blind_shot:
+		f.blind_landed += 1
+	if result == PositionLibrary.PARTIAL:
+		won.to = transition_for(i, action.id, result).to  # A scramble, or half a pass (half guard, D130).
 	var slam: int = landing_damage(i, action.id) if result == PositionLibrary.SUCCESS else 0
 	if slam > 0:
 		won.landing_damage = slam
@@ -1362,8 +1478,11 @@ func _end_round() -> void:
 		f.down_ticks = 0
 		f.stagger_ticks = 0
 		f.tied_up_ticks = 0
+		f.bit_ticks = 0
+		f.set_up_until = -1
 		f.unanswered = 0
 		f.knockdowns_this_round = 0
+	_feints = [[], []]
 	_round_points = [0.0, 0.0]
 	_round_knockdowns = [0, 0]
 	_round_impact = [0, 0]

@@ -10,7 +10,7 @@
 	"style": { "pace": 10, "range": 50, "base": 70, "risk": 10 },
 	"gifts": [],
 	"flaws": [],
-	"techniques": ["jab", "cross", "knee", "outside_trip", "hip_throw", "foot_sweep"],
+	"techniques": ["jab", "cross", "knee", "outside_trip", "hip_throw", "foot_sweep", "take_back", "arm_triangle", "armbar"],
 	"tendencies": { "work_rate": 0.015, "actions": { "jab": 1.0, "cross": 0.8, "knee": 0.5, "clinch_entry": 2.0, "outside_trip": 1.2, "hip_throw": 1.0 } },
 	"tells": []
 }

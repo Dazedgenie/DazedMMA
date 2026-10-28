@@ -22,7 +22,7 @@ const TRIGGER_EVENTS: Array[String] = [
 	FightEvent.RANGE_CHANGED, FightEvent.CAGE_CHANGED, FightEvent.POSITION_CHANGED,
 ]
 const LEANINGS: Array[String] = ["pace", "range", "base", "risk"]
-const CATEGORIES: Array[String] = ["strike", "takedown", "defense", "movement", "clinch", "ground", "submission"]
+const CATEGORIES: Array[String] = ["strike", "takedown", "defense", "movement", "clinch", "ground", "submission", "feint"]
 const ROLES: Array[String] = ["neutral", "top", "bottom", "attacker", "defender"]
 ## What a focus call (docs/09 call@2) may hold.
 const FOCUS_KEYS: Array[String] = ["duration_ms", "leanings", "weights", "read_bonus", "sprawl_bonus", "struggle", "struggle_stamina"]
@@ -152,6 +152,10 @@ func test_values_come_from_the_allowed_lists() -> void:
 	_expect_in(problems, "call", "tier", ["intent", "technique"])
 	_expect_in(problems, "trigger", "type", ["event", "state", "threshold"])
 	_expect_in(problems, "position", "phase", ["standing", "clinch", "ground"])
+	for id: String in _items("positions"):
+		var p: Dictionary = _items("positions")[id]
+		if p.has("top_label") and (not p.top_label is String or not p.get("roles", []).has("top")):
+			problems.append("position '%s': top_label is how the feed says who's on top (\"has the back\"), for a position with a top role (D130)" % id)
 	_expect_in(problems, "ruleset", "weigh_in", ["same_day", "day_before"])
 	for id: String in _items("actions"):
 		var action: Dictionary = _items("actions")[id]
@@ -179,6 +183,13 @@ func test_values_come_from_the_allowed_lists() -> void:
 			elif category == "submission" and (not block.get("start_danger") is float or block.start_danger <= 0.0 or block.start_danger >= 100.0 \
 					or block.get("escape_to") not in ESCAPES):
 				problems.append("action '%s': a submission needs start_danger (between 0 and 100) and escape_to (one of %s)" % [id, ESCAPES])
+			elif block.has("ai_without_opening") and (category != "submission" or not block.ai_without_opening is bool):
+				problems.append("action '%s': ai_without_opening (true or false) is a submission's (D130)" % id)
+		if category == "feint":
+			var feint: Variant = action.get("feint")
+			if not feint is Dictionary or not feint.get("base_success") is float or not feint.get("bites_ms") is float \
+					or feint.bites_ms <= 0.0 or fmod(feint.bites_ms, FightClock.TICK_MS) != 0:
+				problems.append("action '%s': a feint needs a 'feint' block with base_success and bites_ms (how long the opponent bites, a multiple of %d ms, D131)" % [id, FightClock.TICK_MS])
 		if action.has("basic") and not action.basic is bool:
 			problems.append("action '%s': basic is true or false" % id)
 		for r: Variant in action.get("roles", []):
@@ -223,6 +234,11 @@ func test_references_point_to_things_that_exist() -> void:
 		var where := "call '%s'" % id
 		_expect_ids(problems, where, "actions", c.get("actions", []))
 		_expect_ids(problems, where, "positions", c.get("positions", []))
+		if c.has("then"):
+			if not c.then is Array or c.then.is_empty():
+				problems.append("%s: then lists the moves that follow the first one" % where)
+			else:
+				_expect_ids(problems, where, "actions", c.then)
 		if c.get("requires_technique") != null:
 			_expect_ids(problems, where, "actions", [c.requires_technique])
 		if c.get("parent") != null:
@@ -291,6 +307,8 @@ func test_calls_are_an_attempt_a_focus_or_a_read() -> void:
 					problems.append("%s: read.attention_cost is a share of defense from 0 to 0.5" % where)
 		elif actions.is_empty() == not c.has("focus"):
 			problems.append("%s: a now call has either actions (an attempt) or a focus block, not both" % where)
+		if c.has("then") and (c.get("kind") == "read" or actions.is_empty()):
+			problems.append("%s: only an attempt has a then list" % where)
 		if c.has("focus"):
 			var focus: Variant = c.focus
 			if not focus is Dictionary:

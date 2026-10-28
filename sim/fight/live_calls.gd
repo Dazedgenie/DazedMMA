@@ -9,7 +9,9 @@ extends DecisionSource
 ##         ─► feasibility: position, role, rules, a move the fighter knows
 ##         ─► one of three shapes (CallLibrary):
 ##              attempt  Takedown!, Clinch!, Get up!: the fighter goes for it, stepping
-##                       in for up to 2 s to find the range (and catches a kick if one comes)
+##                       in for up to 2 s to find the range (and catches a kick if one comes).
+##                       An attempt with `then` (Feint!, D131) goes on: once the first move is
+##                       over, the fighter goes straight into the first of those that would work
 ##              focus    Pressure!, Circle out! …: style leanings and weights tilt for 15 s
 ##              read     Catch the kick!: primed for 6 s; when the trigger comes the fighter
 ##                       reacts with their own reaction time (D93), at an attention cost (D67)
@@ -53,6 +55,9 @@ const IGNORE_MAX: float = 0.9
 
 ## An accepted attempt: the fighter keeps looking for the range or the opening this long.
 const ATTEMPT_TICKS: int = 20
+## An attempt with `then` (Feint!, D131): the follow-up waits for the first move to be over and
+## must start within this many ticks after it, inside the feint's set-up (FightSim.SET_UP_TICKS).
+const THEN_TICKS: int = 3
 ## Read calls primed at once (D67); a third replaces the oldest.
 const MAX_READS: int = 2
 ## A move started on a call takes the place of one the fighter would have tried: their own
@@ -81,7 +86,8 @@ const REPLACED := "replaced"
 var trust: float = TRUST_START
 ## Calls heard and still being processed: [{call, heard, ready_at, garbled}], in the order heard.
 var pending: Array[Dictionary] = []
-## The attempt the fighter is going for: {call, heard, until, why}, or empty.
+## The attempt the fighter is going for: {call, heard, until, why, then?}, or empty. `then` is
+## true once the first move of a call with a `then` list has started: the follow-up is next.
 var attempt: Dictionary = {}
 ## The focus the fighter is fighting to: {call, until}, or empty.
 var focus: Dictionary = {}
@@ -240,6 +246,8 @@ func claim(view: FightView) -> Decision:
 		var id: String = _pick(view, attempt.call, attempt)
 		if id != "":
 			_claimed = attempt
+			if attempt.get("then", false):
+				return Decision.new(id, DecisionLayer.CALL, "off the %s" % _move_name(view, attempt.call.actions[0]))
 			return Decision.new(id, DecisionLayer.CALL, "call after %d ticks" % (view.now - attempt.heard))
 	return null
 
@@ -257,6 +265,9 @@ func claimed_started(view: FightView, decision: Decision) -> void:
 	else:
 		_answer(_claimed.call, ACCEPTED, decision.reason, decision.action_id)
 		attempt = {}
+		if _claimed.call.has("then") and not _claimed.get("then", false):
+			attempt = { "call": _claimed.call, "heard": _claimed.heard, "why": "", "then": true,
+				"until": view.now + _move_ticks(view, decision.action_id) + THEN_TICKS }
 	_claimed = {}
 	_settle()
 
@@ -322,7 +333,7 @@ func adjust_feet(view: FightView, feet: FeetPlan) -> void:
 	var gap: float = view.distance()
 	var band: String = Octagon.band(gap)
 	var target: float = -1.0
-	for id: String in _moves(view, attempt.call):
+	for id: String in _moves(view, attempt.call, attempt.get("then", false)):
 		var action: Dictionary = view.actions.get_action(id)
 		if FighterAI._needs_opening(action):
 			continue  # A catch waits for the kick: walk to where the plain moves reach.
@@ -338,10 +349,11 @@ func adjust_feet(view: FightView, feet: FeetPlan) -> void:
 		feet.cut = 0.0
 
 
-## The call's moves this fighter could use here (known, legal, from this position and role).
-func _moves(view: FightView, call: Dictionary) -> Array[String]:
+## The call's moves this fighter could use here (known, legal, from this position and role):
+## its `actions`, or with `then` its follow-ups.
+func _moves(view: FightView, call: Dictionary, then: bool = false) -> Array[String]:
 	var out: Array[String] = []
-	for id: String in call.actions:
+	for id: String in (call.then if then else call.actions):
 		if view.why_not(id) == "" and (call.get("bare", false) or _knows(view.me, view.actions.get_action(id))):
 			out.append(id)
 	return out
@@ -352,7 +364,7 @@ func _moves(view: FightView, call: Dictionary) -> Array[String]:
 ## "" when none would; `entry.why` then says what was missing.
 func _pick(view: FightView, call: Dictionary, entry: Dictionary) -> String:
 	var band: String = view.band()
-	for id: String in _moves(view, call):
+	for id: String in _moves(view, call, entry.get("then", false)):
 		var action: Dictionary = view.actions.get_action(id)
 		if not action.ranges.has(band):
 			entry.why = "couldn't get in range"
@@ -441,6 +453,14 @@ func _settle() -> void:
 	may_claim = armed or not attempt.is_empty()
 	steers_feet = not attempt.is_empty()
 	active = may_claim or not pending.is_empty() or not focus.is_empty() or not reads.is_empty() or _listening_until >= 0
+
+
+## Ticks a move takes this fighter from start to finish.
+static func _move_ticks(view: FightView, id: String) -> int:
+	var ticks: int = 0
+	for phase: String in ActionLibrary.PHASES:
+		ticks += view.phase_ticks(id, phase)
+	return ticks
 
 
 static func _move_name(view: FightView, id: String) -> String:

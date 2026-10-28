@@ -13,7 +13,8 @@ extends RefCounted
 ##      recovery, or a flag such as LEANING. Fight IQ decides how often it reads a
 ##      move; style decides how often it takes what it reads.
 ##   4. Meeting an opponent who walks in: one roll per advance, mostly outside fighters.
-##   5. A lead: now and then (work rate × pace × the moment), its best move from here.
+##   5. A lead: now and then (work rate × pace × the moment), its best move from here;
+##      a shot that would be blind is set up with a feint first, sometimes (D131).
 ## Strikes are only thrown when they will still reach as they land: the fighter
 ## stops moving once committed, but a free opponent keeps walking.
 ## Every candidate move is scored
@@ -232,6 +233,16 @@ const GUILLOTINE_CHANCE: float = 0.35
 ## much they like submissions, next to their throws, knees and the break. A required opening the
 ## data marks `ai_takes` (the foot sweep on a lean) is taken when read, unlike the catch (D103).
 const GUARD_PULL_WEIGHT: float = 0.5
+## Working position on top (D130): on top, a chance of ADVANCE_RATE × work rate × how much they like
+## position (0.5 + Base / 100, at least ADVANCE_MIN_LIKING) a free tick to go for a better position
+## or a hold from here (a pass, the mount, the back, the arm-triangle), before the ground and pound.
+## When the fighter underneath starts to escape (ESCAPING), one look per escape for the opening it
+## gives (the back, the armbar, the arm-triangle), taken on a chance of ESCAPE_PUNISH × (the odds / 50%)²,
+## and for a hold × ESCAPE_SUB × how much they like submissions.
+const ADVANCE_RATE: float = 0.3
+const ADVANCE_MIN_LIKING: float = 0.1
+const ESCAPE_PUNISH: float = 0.2
+const ESCAPE_SUB: float = 0.5
 ## The collar tie (D129): in the clinch, while either fighter's head is tied up the fighter works
 ## COLLAR_RATE × as often (the holder's knees come in a burst, the one tied up fights out), and
 ## the one tied up weights the break and a collar tie of his own COLLARED_ESCAPE × (he wants out).
@@ -258,6 +269,15 @@ const CAUGHT_FADE: float = 0.7
 const WISE_TICKS: int = 600
 const WISE_READ: float = 0.15
 const WISE_MAX: float = 0.45
+## Feints and blind shots (D131, docs/01 §29). About to lead with a takedown that would be
+## blind, the fighter feints first with chance SETUP_BASE + SETUP_PER_IQ × Fight IQ / 100
+## and shoots off it (until FEINT_FOLLOW_TICKS after the feint is over). Reading a blind
+## shot: + BLIND_READ; reading anything while bitten on a feint: × BIT_READ.
+const SETUP_BASE: float = 0.1
+const SETUP_PER_IQ: float = 0.6
+const FEINT_FOLLOW_TICKS: int = 3
+const BLIND_READ: float = 0.3
+const BIT_READ: float = 0.5
 
 var _triggers: TriggerLibrary
 var _ready_for: FighterState
@@ -338,6 +358,7 @@ var _choice_ready: bool = false
 ## looked for a guillotine on the opponent's current stuck shot.
 var _sub_at: int = -SUB_RETRY_TICKS
 var _guillotine_looked: bool = false
+var _escape_looked: bool = false
 
 
 func _init(p_triggers: TriggerLibrary = null) -> void:
@@ -503,7 +524,7 @@ func _opening(view: FightView, layer: DecisionLayer) -> Decision:
 		for bonus: Dictionary in b.bonuses:
 			if bonus.name == "counter":
 				counter = true
-			elif not STATE_FLAGS.has(bonus.name):
+			elif not STATE_FLAGS.has(bonus.name) and float(bonus.value) > 0.0:
 				flag = bonus.name
 		if not counter and flag == "":
 			continue
@@ -568,10 +589,33 @@ func _lead(view: FightView, layer: DecisionLayer) -> Decision:
 	if options.is_empty():
 		return DecisionLayer.IDLE
 	var id: String = options[_pick(view, weights)]
+	if _feints_first(view, id):
+		_follow = { "kind": TELL, "id": id, "until": view.now + _feint_ticks(view) + FEINT_FOLLOW_TICKS, "reason": "shoots off the feint" }
+		return Decision.new(FightSim.FEINT, DecisionLayer.AI, "feints to set up the %s" % String(view.actions.get_action(id).name).to_lower())
 	var setup: String = _setups.get(id, "")
 	if setup != "" and view.me.repertoire.has(setup) and _usable(view, view.actions.get_action(setup)):
 		return Decision.new(setup, DecisionLayer.AI, "sets up the %s" % String(view.actions.get_action(id).name).to_lower())
 	return Decision.new(id, DecisionLayer.AI, "swarms" if view.opponent.is_rocked() else "leads")
+
+
+## A takedown it's about to lead with would be blind (D131): does it feint first?
+func _feints_first(view: FightView, id: String) -> bool:
+	if not view.actions.has(FightSim.FEINT) or not _usable(view, view.actions.get_action(FightSim.FEINT)) or not view.would_be_blind(id):
+		return false
+	return view.roll() < setup_chance(view.me)
+
+
+## Chance to feint before a shot that would be blind: SETUP_BASE + SETUP_PER_IQ × Fight IQ / 100.
+static func setup_chance(f: FighterState) -> float:
+	return clampf(SETUP_BASE + SETUP_PER_IQ * f.effective_stat("fight_iq") / 100.0, 0.0, 1.0)
+
+
+## Ticks a feint takes this fighter from start to finish.
+func _feint_ticks(view: FightView) -> int:
+	var ticks: int = 0
+	for phase: String in ActionLibrary.PHASES:
+		ticks += view.phase_ticks(FightSim.FEINT, phase)
+	return ticks
 
 
 ## Tied up (#15): now and then, work from here. In the clinch: knees, a takedown or throw,
@@ -616,7 +660,7 @@ func _tied(view: FightView, layer: DecisionLayer) -> Decision:
 		var b: OddsBreakdown = _odds(view, id)
 		var w: float = 0.0
 		if action.category == SUBMISSION:
-			if f.is_rocked() or view.now < _sub_at + SUB_RETRY_TICKS or b.chance <= _plain_chance(b):
+			if f.is_rocked() or view.now < _sub_at + SUB_RETRY_TICKS or (b.chance <= _plain_chance(b) and not _any_time(action)):
 				continue  # Not hurt, not just tried one, and only on the opening the hold looks for.
 			w = _score(view, layer, action, b.chance, _plain_chance(b), false) * SUB_WEIGHT * sub_liking(view, layer)
 		else:
@@ -653,6 +697,14 @@ func _tied(view: FightView, layer: DecisionLayer) -> Decision:
 				reason = "pulls guard"
 			"sweep":
 				reason = "sweeps from the bottom"
+			"recover_guard":
+				reason = "works back to guard"
+			"bridge":
+				reason = "bridges to roll him off"
+			"escape_back":
+				reason = "turns out of the back"
+			"take_back":
+				reason = "goes for the back"
 			_:
 				if ActionLibrary.is_throw(action):
 					reason = "goes for the %s" % String(action.name).to_lower()
@@ -703,8 +755,14 @@ func sub_liking(view: FightView, layer: DecisionLayer) -> float:
 
 
 ## On top (D121): now and then a ground strike, picked like any strike; held while tied up.
+## Before that (D130): the opening an escape gives, then now and then a better position or a hold.
 func _pound(view: FightView, layer: DecisionLayer) -> Decision:
 	var f: FighterState = view.me
+	var d: Decision = _punish_escape(view, layer)
+	if d == null:
+		d = _work_position(view, layer)
+	if d != null:
+		return d
 	if f.tied_up_ticks > 0:
 		return DecisionLayer.IDLE
 	var rate: float = GNP_RATE * f.work_rate * maxf(0.0, 1.0 + _lean(view, layer, StyleLeanings.PACE) / 100.0)
@@ -730,6 +788,97 @@ func _pound(view: FightView, layer: DecisionLayer) -> Decision:
 		return DecisionLayer.IDLE
 	var k: int = _pick(view, weights)
 	return Decision.new(options[k], DecisionLayer.AI, "pounds the rocked fighter" if view.opponent.is_rocked() else "ground and pound")
+
+
+## On top (D130): on a chance of ADVANCE_RATE × work rate × position liking, a pass, the mount, the
+## back or a hold, picked by weight like the moves underneath (a hold only on its opening, unless it
+## needs none: the rear-naked choke). Tied up, passing is harder (the pass's own POSTURE_BROKEN).
+func _work_position(view: FightView, layer: DecisionLayer) -> Decision:
+	var f: FighterState = view.me
+	var liking: float = maxf(ADVANCE_MIN_LIKING, 0.5 + _lean(view, layer, StyleLeanings.BASE) / 100.0)
+	if f.is_rocked() or view.roll() >= ADVANCE_RATE * f.work_rate * liking:
+		return null
+	var options: Array[String] = []
+	var weights: Array[float] = []
+	var reasons: Array[String] = []
+	for id in _all_moves(view):
+		var action: Dictionary = view.actions.get_action(id)
+		if (action.category != GROUND and action.category != SUBMISSION) or not _usable(view, action):
+			continue
+		var b: OddsBreakdown = _odds(view, id)
+		var w: float = 0.0
+		if action.category == SUBMISSION:
+			if view.now < _sub_at + SUB_RETRY_TICKS or (b.chance <= _plain_chance(b) and not _any_time(action)):
+				continue
+			w = _score(view, layer, action, b.chance, _plain_chance(b), false) * SUB_WEIGHT * sub_liking(view, layer)
+		else:
+			w = _score(view, layer, action, b.chance, _plain_chance(b), false)
+		if w > 0.0:
+			options.append(id)
+			weights.append(w)
+			reasons.append("goes for the %s" % String(action.name).to_lower() if action.category == SUBMISSION else _advance_reason(id))
+	if options.is_empty():
+		return null
+	var k: int = _pick(view, weights)
+	if view.actions.get_action(options[k]).category == SUBMISSION:
+		_sub_at = view.now
+	return Decision.new(options[k], DecisionLayer.AI, reasons[k])
+
+
+static func _advance_reason(id: String) -> String:
+	match id:
+		"guard_pass":
+			return "passes the guard"
+		"take_mount":
+			return "steps over to the mount"
+		"take_back":
+			return "takes the back"
+	return "works for a better position"
+
+
+## The fighter underneath starts to get out (ESCAPING, D130): one look per escape for what it gives
+## away (the back, an arm), taken on a chance of ESCAPE_PUNISH × (the odds / 50%)² (a hold also
+## × ESCAPE_SUB × sub_liking) if it would land while the opening is there.
+func _punish_escape(view: FightView, layer: DecisionLayer) -> Decision:
+	var o: FighterState = view.opponent
+	if o.is_free() or not view.actions.get_action(o.action_id).flags_self.any(func(e: Dictionary) -> bool: return e.flag == "ESCAPING"):
+		_escape_looked = false
+		return null
+	if _escape_looked or view.me.is_rocked():
+		return null
+	_escape_looked = true
+	for id in _all_moves(view):
+		var action: Dictionary = view.actions.get_action(id)
+		if (action.category != GROUND and action.category != SUBMISSION) or not _usable(view, action):
+			continue
+		if action.category == SUBMISSION and view.now < _sub_at + SUB_RETRY_TICKS:
+			continue
+		if not action.opportunities.any(func(opp: Dictionary) -> bool: return opp.get("opponent_flag", "") == "ESCAPING"):
+			continue
+		var b: OddsBreakdown = view.odds_ahead(id, _ticks_to_land(view, id))
+		if not _has_bonus(b, "ESCAPING"):
+			continue  # Over before it would land.
+		var take: float = ESCAPE_PUNISH * pow(b.chance / 0.5, 2.0)
+		if action.category == SUBMISSION:
+			take *= ESCAPE_SUB * sub_liking(view, layer)
+		if view.roll() < take:
+			if action.category == SUBMISSION:
+				_sub_at = view.now
+			return Decision.new(id, DecisionLayer.AI, "catches the escape: %s" % String(action.name).to_lower())
+	return null
+
+
+static func _has_bonus(b: OddsBreakdown, bonus_name: String) -> bool:
+	for x: Dictionary in b.bonuses:
+		if x.name == bonus_name:
+			return true
+	return false
+
+
+## A hold the AI goes for without waiting for an opening (`ai_without_opening`: the rear-naked
+## choke, where being on the back is the opening, D130).
+static func _any_time(action: Dictionary) -> bool:
+	return bool(action.submission.get("ai_without_opening", false))
 
 
 ## True while the opponent is throwing a strike at this fighter (on the ground: ground and pound).
@@ -896,7 +1045,7 @@ func _usable(view: FightView, action: Dictionary) -> bool:
 	if _reach.has(id):
 		return _reach[id]
 	var ok: bool = action.positions.has(view.position()) and view.ruleset.allows_action(action) \
-		and ActionLibrary.allows_role(action, view.my_role())
+		and ActionLibrary.allows_role(action, view.my_role()) and view.positions.leads_somewhere(view.position(), view.my_role(), action)
 	if ok:
 		if view.position() != PositionLibrary.STANDING or (action.category != STRIKE and action.category != TAKEDOWN):
 			ok = action.ranges.has(_band)
@@ -1356,12 +1505,18 @@ func _saw_start(view: FightView, event: FightEvent, layer: DecisionLayer) -> voi
 	var f: FighterState = view.me
 	var id: String = event.data.action_id
 	var action: Dictionary = view.actions.get_action(id)
+	if action.category == FightSim.FEINT:
+		return  # Nothing to read: whether it bites is the feint's own roll (D131).
 	var telegraph: int = view.opponent.phase_ticks_left if view.opponent.phase == "telegraph" else 0
 	var factor: float = clampf(1.0 + READ_PER_TELEGRAPH_TICK * (telegraph - READ_TELEGRAPH_NORMAL), READ_FACTOR_MIN, READ_FACTOR_MAX)
 	var chance: float = layer.read_chance(view, action, (READ_BASE + READ_PER_IQ * f.effective_stat("fight_iq") / 100.0) * factor)
 	if action.category == TAKEDOWN or action.category == CLINCH:
 		chance += wise_bonus(event.tick)
 		_grapples_seen.append(event.tick)
+	if view.opponent.blind_shot:
+		chance += BLIND_READ  # Nothing to hide it (D131).
+	if f.bit_ticks > 0:
+		chance *= BIT_READ  # Still reacting to the feint (D131).
 	if f.is_rocked():
 		chance *= ROCKED_READ
 	# Fighters step in turn each tick: a move started after this fighter's step is

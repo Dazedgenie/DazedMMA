@@ -7,7 +7,7 @@
 	"parent": null,
 	"hotkey": 8,
 	"voice_cost": 25,
-	"positions": ["standing", "clinch", "full_guard", "scramble"],
+	"positions": ["standing", "clinch", "full_guard", "half_guard", "side_control", "mount", "back_control", "scramble"],
 	"actions": [],
 	"focus": { "duration_ms": 15000, "leanings": { "risk": -80, "pace": -50, "range": -30 }, "weights": { "strike": 0.6, "clinch": 2.0 } },
 	"requires_technique": null

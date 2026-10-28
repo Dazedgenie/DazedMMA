@@ -42,10 +42,11 @@ func test_the_screen_opens_on_the_fight_setup() -> void:
 func test_hotkeys_make_calls_and_change_the_speed() -> void:
 	_start()
 	_press(KEY_4)
+	_press(KEY_7)
 	_press(KEY_Q)
 	_main._process(FRAME)
 	var calls: Array = _main.driver.sim.events.filter(func(e: FightEvent) -> bool: return e.type == FightEvent.CALL_HEARD and e.actor == 0)
-	assert_eq(calls.map(func(e: FightEvent) -> String: return e.data.call_id), ["takedown", "catch_the_kick"])
+	assert_eq(calls.map(func(e: FightEvent) -> String: return e.data.call_id), ["takedown", "feint", "catch_the_kick"], "7 is Feint! standing, Get up! on the ground")
 	_press(KEY_SPACE)
 	assert_eq(_main.driver.speed, FightDriver.SLOW)
 	_press(KEY_F)

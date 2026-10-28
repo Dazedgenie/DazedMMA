@@ -71,11 +71,14 @@ func _events(sim: FightSim, type: String, actor: int = FightEvent.NO_ACTOR) -> A
 
 func test_every_submission_has_somewhere_to_lock_into_from_every_position_it_is_done_from() -> void:
 	var positions := PositionLibrary.shared()
-	for id: String in ["guillotine", "triangle", "armbar"]:
+	for id: String in ["guillotine", "triangle", "armbar", "rear_naked_choke", "arm_triangle"]:
 		var action: Dictionary = _actions.get_action(id)
 		assert_eq(action.category, "submission")
 		for from: String in action.positions:
-			var role: String = action.roles[0]
+			var role: String = ""
+			for r: String in positions.get_position(from).roles:
+				if ActionLibrary.allows_role(action, r) and positions.leads_somewhere(from, r, action):
+					role = r  # The armbar: the bottom of full guard, the top of mount (D130).
 			var t: Dictionary = positions.transition(from, role, id)
 			assert_eq(t.get("to", ""), PositionLibrary.SUBMISSION, "%s from %s" % [id, from])
 			assert_eq(t.roles.actor, PositionLibrary.ATTACKER)

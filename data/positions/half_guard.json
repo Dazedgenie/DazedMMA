@@ -1,0 +1,18 @@
+{
+	"schema": "position@2",
+	"id": "half_guard",
+	"name": "Half guard",
+	"phase": "ground",
+	"roles": ["top", "bottom"],
+	"stamina_drain_per_s": { "top": 0.2, "bottom": 0.3 },
+	"control_score": { "top": 1.2, "bottom": 0.1 },
+	"strike_damage_multiplier": { "top": 0.9, "bottom": 0.4 },
+	"transitions": [
+		{ "action": "guard_pass", "from_role": "top", "to": "side_control", "roles": { "actor": "top", "opponent": "bottom" } },
+		{ "action": "get_up", "from_role": "bottom", "to": "standing", "roles": { "actor": "neutral", "opponent": "neutral" } },
+		{ "action": "get_up", "from_role": "bottom", "result": "partial", "to": "scramble", "roles": { "actor": "neutral", "opponent": "neutral" } },
+		{ "action": "recover_guard", "from_role": "bottom", "to": "full_guard", "roles": { "actor": "bottom", "opponent": "top" } },
+		{ "action": "sweep", "from_role": "bottom", "to": "half_guard", "roles": { "actor": "top", "opponent": "bottom" } },
+		{ "action": "sweep", "from_role": "bottom", "result": "partial", "to": "scramble", "roles": { "actor": "neutral", "opponent": "neutral" } }
+	]
+}

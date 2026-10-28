@@ -15,6 +15,7 @@ var index: int
 var me: FighterState
 var opponent: FighterState
 var actions: ActionLibrary
+var positions: PositionLibrary
 var ruleset: Ruleset
 ## The tick being decided.
 var now: int = 0
@@ -32,6 +33,7 @@ func _init(p_sim: FightSim, p_index: int) -> void:
 	me = p_sim.fighters[p_index]
 	opponent = p_sim.fighters[1 - p_index]
 	actions = p_sim.actions
+	positions = p_sim.positions
 	ruleset = p_sim.ruleset
 	_rng = p_sim.rng_for_views()
 	_situation = p_sim.situation
@@ -106,6 +108,11 @@ func opponent_plain_odds(action_id: String) -> float:
 
 func opponent_odds(action_id: String) -> OddsBreakdown:
 	return _sim().odds_breakdown(1 - index, action_id)
+
+
+## True when starting this takedown now would be a blind shot (D131, FightSim.would_be_blind).
+func would_be_blind(action_id: String) -> bool:
+	return _sim().would_be_blind(index, action_id)
 
 
 ## Ticks one phase of an action takes me (or the opponent) right now (Speed, fatigue).

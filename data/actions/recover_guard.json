@@ -1,0 +1,21 @@
+{
+	"schema": "action@2",
+	"id": "recover_guard",
+	"name": "Recover guard",
+	"category": "ground",
+	"basic": true,
+	"positions": ["side_control", "half_guard"],
+	"roles": ["bottom"],
+	"ranges": ["clinch"],
+	"phases_ms": { "telegraph": 200, "windup": 300, "active": 400, "recovery": 300 },
+	"stamina_cost": 6,
+	"flags_self": [
+		{ "flag": "ESCAPING", "from": "windup", "to": "active" }
+	],
+	"ground": { "base_success": 0.3, "partial_within": 0.15 },
+	"stats": { "offense": ["guard", "scrambles"], "defense": ["top_control"] },
+	"opportunities": [
+		{ "opponent_flag": "POSTURED_UP", "success_bonus": 0.15 }
+	],
+	"requires_technique": null
+}

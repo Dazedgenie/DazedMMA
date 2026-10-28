@@ -102,6 +102,16 @@ var collar_ties_tried: int = 0
 var collar_ties_won: int = 0
 var clinch_knees_landed: int = 0
 var tied_knees_landed: int = 0
+## Times this fighter moved to a better position on top (a pass, the mount, the back) and got
+## out from underneath (back to guard, up, a reversal) (D130).
+var advances: int = 0
+var escapes: int = 0
+## Feints thrown and how many the opponent bit on; takedowns shot blind (nothing set them
+## up) and how many of those still worked (D131).
+var feints_tried: int = 0
+var feints_bit: int = 0
+var blind_shots: int = 0
+var blind_landed: int = 0
 
 var action_id: String = ""  # "" = free to act
 var phase: String = ""
@@ -112,6 +122,14 @@ var queued_action_id: String = ""
 var grip: OddsBreakdown = null
 ## Sprawled on: stuck under the sprawl, head low, for the rest of this move's recovery.
 var sprawled: bool = false
+## Bit on a feint (D131): hands up and weight back for this many more ticks (BIT_ON_FEINT).
+var bit_ticks: int = 0
+## Set up (D131): this fighter's last strike or feint ended recently enough that a shot
+## started up to this tick isn't blind.
+var set_up_until: int = -1
+## The takedown under way was started blind (D131): no feint or strike just before it, no
+## opening, standing. BLIND_SHOT for the rest of the move.
+var blind_shot: bool = false
 ## Share of Striking and Takedown defense the primed read calls take away (0 = none, LiveCalls).
 var attention: float = 0.0
 
@@ -278,3 +296,4 @@ func clear_action() -> void:
 	phase_ticks_left = 0
 	grip = null
 	sprawled = false
+	blind_shot = false

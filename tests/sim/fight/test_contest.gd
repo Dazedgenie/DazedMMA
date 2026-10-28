@@ -25,5 +25,5 @@ func test_stats_tilt_the_odds_but_never_guarantee_anything() -> void:
 
 func test_each_kind_of_action_starts_from_its_own_base_odds() -> void:
 	assert_eq(Contest.base_for(_actions.get_action("jab")), 0.5)
-	assert_almost_eq(Contest.base_for(_actions.get_action("double_leg")), 0.45, 0.0001)
+	assert_almost_eq(Contest.base_for(_actions.get_action("double_leg")), 0.35, 0.0001)  # 0.45 until feints (D131)
 	assert_almost_eq(Contest.base_for(_actions.get_action("sprawl")), 0.45, 0.0001)

@@ -398,6 +398,14 @@ func _pair_lines(of_rows: Array[Dictionary], names: Dictionary) -> PackedStringA
 	lines.append("  Clinch     %s collar ties %.1f of %.1f won, knees landed %.1f (%.1f from the tie) · %s %.1f of %.1f, %.1f (%.1f) (D129)" % [
 		red, average(of_rows, "collar_ties_won_red"), average(of_rows, "collar_ties_red"), average(of_rows, "clinch_knees_red"), average(of_rows, "tied_knees_red"),
 		blue, average(of_rows, "collar_ties_won_blue"), average(of_rows, "collar_ties_blue"), average(of_rows, "clinch_knees_blue"), average(of_rows, "tied_knees_blue")])
+	lines.append("  Positions  full guard %s · half guard %s · side control %s · mount %s · back %s of the fight · better positions on top %s %.1f, %s %.1f · out from under %s %.1f, %s %.1f a fight (D130)" % [
+		_pct(average(of_rows, "full_guard")), _pct(average(of_rows, "half_guard")), _pct(average(of_rows, "side_control")),
+		_pct(average(of_rows, "mount")), _pct(average(of_rows, "back_control")),
+		red, average(of_rows, "advances_red"), blue, average(of_rows, "advances_blue"),
+		red, average(of_rows, "escapes_red"), blue, average(of_rows, "escapes_blue")])
+	lines.append("  Feints     %s %.1f a fight, %.1f bit on · %s %.1f, %.1f · blind shots %s %.1f (%.1f worked), %s %.1f (%.1f) (D131)" % [
+		red, average(of_rows, "feints_red"), average(of_rows, "feints_bit_red"), blue, average(of_rows, "feints_blue"), average(of_rows, "feints_bit_blue"),
+		red, average(of_rows, "blind_red"), average(of_rows, "blind_landed_red"), blue, average(of_rows, "blind_blue"), average(of_rows, "blind_landed_blue")])
 	lines.append("  Tired      someone under 50%% of the tank in %s of fights" % _pct(tired_share(of_rows)))
 	lines.append("  Odds       %s of exchanges hit the 5–95%% clamp" % _pct(clamped_share(of_rows)))
 	return lines

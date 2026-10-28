@@ -4,7 +4,7 @@
 	"name": "Tie up",
 	"category": "ground",
 	"basic": true,
-	"positions": ["full_guard"],
+	"positions": ["full_guard", "half_guard", "mount"],
 	"roles": ["bottom"],
 	"ranges": ["clinch"],
 	"phases_ms": { "telegraph": 0, "windup": 200, "active": 300, "recovery": 200 },

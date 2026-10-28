@@ -177,3 +177,16 @@ func test_a_submission_locking_in_its_beats_and_the_tap_read_naturally() -> void
 	assert_eq(_plain(FightLogFormatter.line(out, _sim)), "R1 0:07.0  t70  Red ESCAPES the triangle choke (danger 0 after 2 s)")
 	var tap := FightEvent.new(80, 1, FightEvent.FIGHT_ENDED, FightEvent.NO_ACTOR, { "result": FightSim.RESULT_SUB, "winner": 1, "why": "triangle" })
 	assert_eq(_plain(FightLogFormatter.result_text(tap, _sim)), "Blue wins by submission (triangle choke)")
+
+
+func test_a_feint_says_whether_it_bit_and_a_blind_shot_says_so() -> void:
+	var odds := { "base": 0.4, "attack": 50.0, "defense": 50.0, "stat_gap": 0.0, "bonuses": [{ "name": "feinted again", "value": -0.1 }], "chance": 0.3 }
+	var bit := FightEvent.new(34, 1, FightEvent.FEINTED, 0, { "action_id": "feint", "bit": true, "chance": 0.3, "odds": odds })
+	assert_eq(_plain(FightLogFormatter.line(bit, _sim)), "R1 0:03.4  t34  Red feints and Blue BITES: hands up, weight back 30% (base 40 · stats +0 · feinted again -10)")
+	var not_bit := FightEvent.new(34, 1, FightEvent.FEINTED, 1, { "action_id": "feint", "bit": false, "chance": 0.4 })
+	assert_eq(_plain(FightLogFormatter.line(not_bit, _sim)), "R1 0:03.4  t34  Blue feints; Red doesn't bite 40%")
+	var far := FightEvent.new(34, 1, FightEvent.FEINTED, 0, { "action_id": "feint", "bit": false, "reason": "out of range" })
+	assert_eq(_plain(FightLogFormatter.line(far, _sim)), "R1 0:03.4  t34  Red feints at nothing (out of range)")
+	assert_eq(FightFeed.kind_of(far), FightFeed.NONE, "the feed skips a feint that reached nobody")
+	var blind := FightEvent.new(34, 1, FightEvent.ACTION_PHASE, 0, { "action_id": "double_leg", "phase": "telegraph", "by": "ai", "why": "tell: stance shift", "blind": true })
+	assert_eq(_plain(FightLogFormatter.line(blind, _sim)), "R1 0:03.4  t34  Red starts a Double-leg takedown blind  (tell: stance shift)")

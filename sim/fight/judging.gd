@@ -19,6 +19,9 @@ const KNOCKDOWN_POINTS: float = 20.0
 ## (full guard: top 1.0, bottom 0.2, data/positions).
 const TAKEDOWN_POINTS: float = 6.0
 const CONTROL_POINTS_PER_S: float = 0.15
+## Getting to a better position on top (D130): this much per point of control score gained, so
+## passing full guard (1.0) to side control (1.5) is 3, like half a takedown (0 to 1.0 control).
+const ADVANCE_POINTS_PER_CONTROL: float = 6.0
 ## Locking in a submission (D126), like a near takedown; the hold then scores control as any position.
 const SUB_LOCK_POINTS: float = 4.0
 ## How differently judges see the same round: each fighter's points ×(1 ± up to 15%).

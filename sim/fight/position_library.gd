@@ -21,6 +21,11 @@ const BOTTOM := "bottom"
 ## A transition's `result`: the move worked, half worked, or failed in a way that still moves
 ## the fight (a guillotine that doesn't lock pulls the attacker onto their back, D126).
 const SUCCESS := "success"
+## Moves that take the fight somewhere when they work (D130): they're only possible where the
+## position data says where they go for that role. Tie-ups (`ties_up_ms`) keep the fight put.
+const MOVING_CATEGORIES := { "takedown": true, "clinch": true, "ground": true, "submission": true }
+## How the feed names whoever is in the top role, unless the position says otherwise (`top_label`).
+const TOP_LABEL := "on top"
 const PARTIAL := "partial"
 const FAILED := "failed"
 
@@ -58,6 +63,21 @@ func has(id: String) -> bool:
 
 func get_position(id: String) -> Dictionary:
 	return _positions[id]
+
+
+## True when a fighter in `role` has somewhere to take the fight with this move from position
+## `id` (D130): a move that moves the fight needs a transition for that role here, so one move
+## can work from different roles in different positions (the armbar: the bottom of full guard
+## and the top of mount). Strikes, defenses and tie-ups don't move the fight, so they always do.
+func leads_somewhere(id: String, role: String, action: Dictionary) -> bool:
+	if not MOVING_CATEGORIES.has(action.category) or action[action.category].has("ties_up_ms"):
+		return true
+	return not transition(id, role, action.id).is_empty()
+
+
+## How the feed and the screen say who's in the top role here: "on top", or "has the back".
+func top_label(id: String) -> String:
+	return String(_positions[id].get("top_label", TOP_LABEL)) if _positions.has(id) else TOP_LABEL
 
 
 ## Where `action_id` takes the fight when the fighter in `role` lands it from
