@@ -1,0 +1,15 @@
+{
+	"schema": "call@2",
+	"id": "defend_the_sub",
+	"name": "Defend the sub!",
+	"kind": "now",
+	"tier": "intent",
+	"parent": null,
+	"hotkey": 6,
+	"voice_cost": 15,
+	"positions": ["submission"],
+	"roles": ["defender"],
+	"actions": [],
+	"focus": { "duration_ms": 5000, "struggle": 0.15, "struggle_stamina": 2 },
+	"requires_technique": null
+}

@@ -1,0 +1,11 @@
+{
+	"schema": "position@2",
+	"id": "submission",
+	"name": "Submission",
+	"phase": "ground",
+	"roles": ["attacker", "defender"],
+	"stamina_drain_per_s": { "attacker": 1.0, "defender": 1.2 },
+	"control_score": { "attacker": 1.0, "defender": 0.0 },
+	"strike_damage_multiplier": { "attacker": 0.0, "defender": 0.0 },
+	"transitions": []
+}

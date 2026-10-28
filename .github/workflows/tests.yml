@@ -41,6 +41,20 @@ jobs:
         if: always()
         run: python3 tools/ci/test_summary.py build/test-results.xml >> "$GITHUB_STEP_SUMMARY"
 
+      # The golden fights as a re-pin would write them (D122): when a change to fights is
+      # meant and nobody has Godot to hand, copy the printed file into tests/golden/.
+      - name: Golden fights re-pin preview
+        if: always()
+        run: |
+          ~/godot/godot --headless --script res://tools/golden.gd -- --update
+          if ! git diff --quiet tests/golden/golden_fights.json; then
+            echo "GOLDEN FIGHTS CHANGED: tests/golden/golden_fights.json as re-pinned follows"
+            echo "----- BEGIN golden_fights.json -----"
+            cat tests/golden/golden_fights.json
+            echo "----- END golden_fights.json -----"
+          fi
+          git checkout -- tests/golden/golden_fights.json
+
       - name: Balance snapshot
         if: always()
         run: |

@@ -111,7 +111,8 @@ The numbers are there so a failure reads in plain words ("landed_red was 111, no
 
 commit `tests/golden/golden_fights.json`, and say in the PR what changed and why. Without `--update` the tool only prints which
 fights changed and how. If two PRs both re-pin, the second one to merge re-runs the update after merging main instead of
-merging the file by hand. Speed work (§2.1) must leave the pins alone.
+merging the file by hand. Without Godot to hand (a cloud session), CI's Tests job has a **Golden fights re-pin preview** step that
+prints the file as `--update` would write it whenever a fight changed; copy that into `tests/golden/golden_fights.json` (D126). Speed work (§2.1) must leave the pins alone.
 
 **To change the set:** edit the setup of an entry (`name`, `seed`, `red`, `blue`, `ruleset`, `corners` as `[red, blue]` bot
 styles, `rules` as `[red, blue]` lists of `"rule_id@drilled"`) or add one in the same shape, then run the update. Never edit the
@@ -205,7 +206,7 @@ The Phase 1 playtest ships a trimmed ground game (#15):
 
 | In the playtest | After the playtest |
 |---|---|
-| Clinch (one clinch position), double leg, catch-kick single, sprawl, full guard top/bottom, get up, scramble; ground-and-pound and tie-ups from full guard (added early, D121, §24) | Half guard, side control, mount, back, north-south, turtle, guard passing, sweeps, submissions (§9) |
+| Clinch (one clinch position), double leg, catch-kick single, sprawl, full guard top/bottom, get up, scramble; ground-and-pound and tie-ups from full guard (added early, D121, §24); the guillotine, triangle and armbar with a simple struggle (added early, D126, §25) | Half guard, side control, mount, back, north-south, turtle, guard passing, sweeps, the subs that need those positions, the per-beat struggle calls (§9) |
 
 ---
 
@@ -377,6 +378,9 @@ but happen often enough that an underdog always has a chance.
    fighter's skills. The right call drops danger; the wrong call raises it; no call = fighter's own AI choice.
 5. Danger hits 100 → tap (or a "go to sleep" stoppage). Escape → reversal or scramble.
 6. **On offence** it's mirrored: "Get the hooks in! Flatten him! Switch to the arm-triangle!"
+
+In the engine so far (D126, §25): three holds and a simpler struggle, a danger meter moved by stats each beat with one call a
+corner (*Finish it!* / *Defend the sub!*). The per-beat menu of calls with one right answer (steps 3–4) is still to come.
 
 ---
 
@@ -1145,3 +1149,94 @@ bars), `tests/ui/test_fight_log_formatter.gd` (the feed lines) and `tests/data/t
 After changing a number, run the harness with all six cross-style pairings
 (`--pairs=kicker:boxer,boxer:kicker,wrestler:kicker,kicker:wrestler,wrestler:boxer,boxer:wrestler`) and read the **How** lines
 (finishes) next to the wins and draws.
+
+## 25. Submissions (D126)
+Kyle asked for submissions (2026-10-27: "can we add in submissions?") and picked the simple struggle: three holds from the
+positions the game already has, each locking in like any grapple and then fought for in a short struggle with a danger meter,
+with one call a corner. It's the first step of §9 (D10): the per-beat menu of calls with one right answer, auto slow-mo
+tuned to it and the holds that need other positions (the back, mount, side control) come later. Every number is a first
+guess for the harness; each is a named constant or a data field, listed in §25.6.
+
+### 25.1 The holds
+| Hold | Who, from where | Timing (telegraph · wind-up · active · recovery) | Lock-in odds (base + attack − defense stats) | If it doesn't lock | Getting out |
+|---|---|---|---|---|---|
+| Guillotine (*everyone*) | Standing or in the clinch | 0 · 0.1 · 0.3 · 0.4 s | 35% + (Submissions, Strength) − (Submission defense, Scrambles), +10% on `HEAD_LOW` (required: the head has to be low, a shot in its drive or stuck under a sprawl) | The attacker is pulled onto their back: full guard, the shooter on top (who scores it like a takedown) | Back where it was locked from |
+| Triangle choke (a technique; the Kicker has it) | Bottom of full guard | 0 · 0.3 · 0.4 · 0.6 s | 25% + (Submissions, Guard) − (Submission defense, Top control), +15% on `POSTURE_BROKEN` (after a tie-up) | The top fighter stays on top; the long recovery is a free window for his punches | Back to full guard, same roles |
+| Armbar (a technique; the Kicker has it) | Bottom of full guard | 0 · 0.2 · 0.3 · 0.4 s | 25% + (Submissions, Guard) − (Submission defense, Strength), +20% on `POSTURED_UP` (the top fighter's arm out on a ground punch) | Within 15% of the odds it half works: a scramble. Otherwise the top fighter stays on top | A scramble |
+
+A hold resolves like a takedown (§21.2): contact at the start of its active phase (the range, the opening a guillotine needs,
+odds fixed then), the roll as it ends. When it locks the fight moves to the **submission** position (`data/positions/`,
+roles `attacker` and `defender`): nobody walks, nobody starts a move, it drains 1.0 a second from the attacker and 1.2 from the
+defender, and the attacker scores control (1.0) as from the top of full guard.
+
+### 25.2 The struggle
+1. **The danger meter starts** at the hold's `start_danger` (40) plus half the gap between the attacker's and the defender's
+   stats for that hold, kept within 10–90: Submissions 100 against Submission defense 80 starts at 50.
+2. **Every second of fight time is a beat.** The attacker wins it on a chance of 50% + (attack − defense stats) / 100, the
+   same stats as the lock-in, effective (a tired or hurt defender loses more beats), plus or minus the calls (§25.3). A beat
+   won moves the danger up 20, a beat lost down 20, and each costs both fighters 2 stamina.
+3. **At 100 the defender taps**: a submission win, "Kicker wins by submission (triangle choke)". **At 0 they're out**, and
+   after 5 beats with no tap they're out too: back where it was locked from, or into a scramble (`escape_to`). Getting out
+   answers the referee's count (§24.2), like any change of position.
+4. **The bell saves them**: a round that ends mid-hold sends both to their corners.
+
+Between equal fighters a locked hold taps about 22% of the time (start 40, 20 a beat, 5 beats); at 45% a beat about 16%, at 65%
+about 46%. A hold that gets to 80 counts as impact for a 10-8, like a rock (D120), and the lock itself scores 4 points with the
+judges (`Judging.SUB_LOCK_POINTS`).
+
+### 25.3 The calls
+| Call | Key | Who | What it does |
+|---|---|---|---|
+| *Finish it!* | 1 (Pressure! standing, Ground and pound! on top) | The attacker's corner | +15% to win each beat for 5 s; each beat costs the attacker 2 more stamina |
+| *Defend the sub!* | 6 (Defend the shot! standing) | The defender's corner | −15% to the attacker's chance each beat for 5 s; each beat costs the defender 2 more stamina |
+
+Both are focus calls in `data/calls/` (`focus.struggle`, `focus.struggle_stamina`, `09` call@2) and only work in the submission
+position, from their own side. They come through the normal pipeline (voice 15, delay, compliance, §22), so a call made the
+moment the hold locks is acted on about a second in, from the second beat. The AI corner and the harness's coaching bots
+call them when a hold locks (`Corner`). The two calls cancel each other out.
+
+### 25.4 The fighter AI
+| Where | What the fighter does | To change it |
+|---|---|---|
+| Bottom of full guard | Only on the opening its hold looks for (the top fighter postured up for the armbar, his posture broken for the triangle), never rocked, and not again for 45 s after a try. Then a hold is weighted 0.1 × how much they like subs (Submissions / 50 × (1 + Risk / 200)) × the odds against the plain odds, squared, next to getting up and tying up | `FighterAI.SUB_WEIGHT`, `SUB_RETRY_TICKS`, `sub_liking()` |
+| Standing or in the clinch | One look per shot stuck under their sprawl: a guillotine on a chance of 0.35 × the same liking × (the odds / 50%)², and not within 45 s of their last try | `GUILLOTINE_CHANCE` |
+| In a hold | Nothing to decide: the beats play out on the stats and the calls | `FightSim.STRUGGLE_*` |
+
+The fighters (all were 50): the Kicker has Submissions 65 and knows the triangle and the armbar (long legs); the Wrestler has
+Submissions 45 and Submission defense 65; the Boxer Submissions 35 and Submission defense 40. Guard stays 50 for everyone,
+since it also defends ground punches and ties up (§24.3).
+
+### 25.5 Balance
+CI's balance snapshot on PR #56 (40 fights a pairing, seed 1, pro rules; small samples, so read them as rough):
+
+| Pairing | Subs tried / locked a fight | Ended by submission | Finishes | Wins |
+|---|---|---|---|---|
+| Kicker vs Boxer | 0 / 0 | 0% | 35% | Boxer 57.5% (unchanged: its golden fight plays out exactly as before) |
+| Wrestler vs Kicker | Kicker 5.4 / 1.6 | 5.0% | 30% | Wrestler 67.5%, draw 2.5% |
+| Wrestler vs Boxer | Boxer 0.8 / 0.2 | 0% | 60% | Wrestler 52.5% |
+
+Across all 160 fights: draws 0.6%, 10-10 cards 0%, 31.3% finished inside the distance (D121 target about 30%).
+Submissions end 5% of Wrestler vs Kicker fights, the bottom of the 5–10% aim. The Kicker locks a hold most fights but
+the Wrestler (Submission defense 65, Top control 60) usually fights out of it: only about one lock in thirty taps. To make
+holds more dangerous, raise `start_danger` in the holds' files or `FightSim.STRUGGLE_BASE` (the attacker's share of
+each beat before stats, §25.6), then re-pin the golden fights (§2.2).
+
+### 25.6 To change it, and the tests
+- The holds: `data/actions/guillotine.json`, `triangle.json`, `armbar.json` (`submission.base_success`, `partial_within`,
+  `start_danger`, `escape_to`, `09` action@2); where they lock and where a missed guillotine goes: the transitions in
+  `data/positions/standing.json`, `clinch.json`, `full_guard.json` (`result` `failed`); the hold itself:
+  `data/positions/submission.json`.
+- The struggle: `FightSim.STRUGGLE_BEAT_TICKS` (10), `STRUGGLE_BASE` (0.5), `STRUGGLE_STEP` (20), `STRUGGLE_BEATS` (5),
+  `SUB_TAP` (100), `START_DANGER_PER_EDGE` (0.5), `START_DANGER_MIN`/`MAX` (10/90), `STRUGGLE_STAMINA` (2), `NEAR_FINISH` (80).
+- The calls: `data/calls/finish_it.json`, `defend_the_sub.json`. Judges: `Judging.SUB_LOCK_POINTS` (4).
+- The AI: `FighterAI.SUB_WEIGHT` (0.1), `SUB_RETRY_TICKS` (450), `GUILLOTINE_CHANCE` (0.35). The fighters' Submissions and
+  Submission defense: `data/fighters/`.
+- The screen: the danger meter in `ui/fight_hud.gd`, the feed lines in `ui/fight_log_formatter.gd`.
+
+Tested in `tests/sim/fight/test_submissions.gd` (locking in from every position, the starting danger, the judges' points, no
+moves during a hold, the guillotine's opening and what a miss costs, taps and escapes, the last beat, near-finish impact, the
+bell, both calls, the corner's calls, the AI's openings and its wait between tries), `tests/ui/test_fight_hud.gd` (the danger
+meter), `tests/ui/test_fight_log_formatter.gd` (the feed lines and "wins by submission"), `tests/sim/balance/` (submissions
+count as finishes) and `tests/data/test_data_files.gd` (the `submission` block, `failed` transitions, the new roles and focus
+keys). After changing a number, run the harness with all six cross-style pairings and read the **How** (submission share) and
+**Subs** (tried and locked a fight) lines.

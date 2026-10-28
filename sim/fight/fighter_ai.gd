@@ -37,6 +37,7 @@ const TAKEDOWN := "takedown"
 const DEFENSE := "defense"
 const CLINCH := "clinch"
 const GROUND := "ground"
+const SUBMISSION := "submission"
 const TELL := "tell"
 const COMBO := "combo"
 ## Far to close: the bands a standing fighter can plan to fight from.
@@ -218,6 +219,15 @@ const GROUND_UNDER_FIRE: float = 3.0
 const TIE_UP_CALM: float = 0.3
 const TIE_UP_PRESSED: float = 1.5
 const ROCKED_GET_UP: float = 0.3
+## Submissions (D126): only on an opening their hold looks for (the top fighter postured up for
+## the armbar, his posture broken for the triangle, a head stuck low under a sprawl for the
+## guillotine), and not again for SUB_RETRY_TICKS after the last try. Underneath, a hold is
+## weighted SUB_WEIGHT × how much they like submissions (Submissions / 50) × (1 + Risk / 200),
+## next to getting up and tying up. Standing (or in the clinch), one look per sprawled shot: a
+## guillotine on a chance of GUILLOTINE_CHANCE × the same liking × (the odds / 50%)².
+const SUB_WEIGHT: float = 0.1
+const SUB_RETRY_TICKS: int = 450
+const GUILLOTINE_CHANCE: float = 0.35
 ## In a scramble: back to the feet × (1 − Base / 100), the top × (1 + Base / 100).
 ## Switching direction (D107): away from the fence (further than SWITCH_FENCE), circling
 ## fighters think again every SWITCH_EVERY ticks and change direction on a chance of
@@ -314,6 +324,10 @@ var _reach: Dictionary = {}
 var _land: Dictionary = {}
 var _odds_now: Dictionary = {}
 var _choice_ready: bool = false
+## Submissions (D126): the tick of this fighter's last try, and whether they've already
+## looked for a guillotine on the opponent's current stuck shot.
+var _sub_at: int = -SUB_RETRY_TICKS
+var _guillotine_looked: bool = false
 
 
 func _init(p_triggers: TriggerLibrary = null) -> void:
@@ -339,6 +353,8 @@ func choose(view: FightView, layer: DecisionLayer) -> Decision:
 	var d: Decision = null
 	if registered and _opp.category == TAKEDOWN:
 		d = _defend(view, layer)
+	if d == null:
+		d = _guillotine(view, layer)
 	if d == null and not _follow.is_empty():
 		d = _follow_up(view, layer)
 	if d == null and registered and not _opp.decided:
@@ -553,6 +569,8 @@ func _lead(view: FightView, layer: DecisionLayer) -> Decision:
 func _tied(view: FightView, layer: DecisionLayer) -> Decision:
 	var f: FighterState = view.me
 	var d: Decision = _defend(view, layer)
+	if d == null:
+		d = _guillotine(view, layer)
 	if d != null:
 		return d
 	var position: String = view.position()
@@ -580,7 +598,13 @@ func _tied(view: FightView, layer: DecisionLayer) -> Decision:
 		if f.is_rocked() and action.category == STRIKE:
 			continue  # Rocked in the clinch: get out.
 		var b: OddsBreakdown = _odds(view, id)
-		var w: float = _score(view, layer, action, _seen_chance(view, action, b), _plain_chance(b), false)
+		var w: float = 0.0
+		if action.category == SUBMISSION:
+			if f.is_rocked() or view.now < _sub_at + SUB_RETRY_TICKS or b.chance <= _plain_chance(b):
+				continue  # Not hurt, not just tried one, and only on the opening the hold looks for.
+			w = _score(view, layer, action, b.chance, _plain_chance(b), false) * SUB_WEIGHT * sub_liking(view, layer)
+		else:
+			w = _score(view, layer, action, _seen_chance(view, action, b), _plain_chance(b), false)
 		var reason: String = "works in the clinch"
 		match id:
 			"clinch_break":
@@ -600,6 +624,8 @@ func _tied(view: FightView, layer: DecisionLayer) -> Decision:
 			_:
 				if action.category == TAKEDOWN:
 					reason = "takes it down from the clinch"
+				elif action.category == SUBMISSION:
+					reason = "goes for the %s" % String(action.name).to_lower()
 		if w > 0.0:
 			options.append(id)
 			weights.append(w)
@@ -607,7 +633,37 @@ func _tied(view: FightView, layer: DecisionLayer) -> Decision:
 	if options.is_empty():
 		return DecisionLayer.IDLE
 	var k: int = _pick(view, weights)
+	if view.actions.get_action(options[k]).category == SUBMISSION:
+		_sub_at = view.now
 	return Decision.new(options[k], DecisionLayer.AI, reasons[k])
+
+
+## A head stuck low in front of them (a shot sprawled on, D126): one look per stuck shot for a
+## guillotine, on a chance of GUILLOTINE_CHANCE × sub_liking × (the odds / 50%)².
+func _guillotine(view: FightView, layer: DecisionLayer) -> Decision:
+	if not view.opponent.sprawled:
+		_guillotine_looked = false
+		return null
+	if _guillotine_looked or view.me.is_rocked() or view.now < _sub_at + SUB_RETRY_TICKS:
+		return null
+	_guillotine_looked = true
+	for id in _all_moves(view):
+		var action: Dictionary = view.actions.get_action(id)
+		if action.category != SUBMISSION or not _usable(view, action):
+			continue
+		var b: OddsBreakdown = view.odds_ahead(id, _ticks_to_land(view, id))
+		if b.chance <= 0.0:
+			continue  # The head is up again by the time it would land.
+		var take: float = GUILLOTINE_CHANCE * sub_liking(view, layer) * pow(b.chance / 0.5, 2.0)
+		if view.roll() < take:
+			_sub_at = view.now
+			return Decision.new(id, DecisionLayer.AI, "goes for the %s on the stuck head" % String(action.name).to_lower())
+	return null
+
+
+## How much a fighter likes going for submissions: Submissions / 50 × (1 + Risk / 200).
+func sub_liking(view: FightView, layer: DecisionLayer) -> float:
+	return view.me.effective_stat("submissions") / 50.0 * maxf(0.0, 1.0 + _lean(view, layer, StyleLeanings.RISK) / 200.0)
 
 
 ## On top (D121): now and then a ground strike, picked like any strike; held while tied up.

@@ -6,7 +6,8 @@ extends RefCounted
 ## an exchange's odds hit the 5–95% clamp, how the fighters moved (time on the
 ## fence, who held the centre, how much of it was a chase, how long each one circled
 ## and cut off the cage, D119), and the grappling
-## (takedowns tried and landed, time in the clinch, on the ground and on top, #15),
+## (takedowns tried and landed, time in the clinch, on the ground and on top, #15;
+## submissions tried and locked in, D126),
 ## each corner's coaching bot and how many calls it made (Corner, D12, D68), and each
 ## fighter's drilled rules and how often they fired (DrilledRules, #17).
 ## BalanceReport turns rows into the CSV and the summary.
@@ -22,12 +23,14 @@ const COLUMNS: Array[String] = [
 	"fence_red", "pinned_red", "centre_red", "fence_blue", "pinned_blue", "centre_blue", "chase",
 	"circling_red", "cutting_red", "circling_blue", "cutting_blue",
 	"shots_red", "takedowns_red", "shots_blue", "takedowns_blue", "clinch", "ground", "top_red", "top_blue",
+	"subs_red", "locked_red", "subs_blue", "locked_blue",
 	"calls_red", "calls_blue", "fired_red", "fired_blue",
 ]
 const SIDES: Array[String] = ["red", "blue"]
 
 const METHOD_KO := "ko"
 const METHOD_TKO := "tko"
+const METHOD_SUB := "submission"
 const METHOD_DECISION := "decision"
 const METHOD_DRAW := "draw"
 ## Movement is counted on standing ticks with both fighters up. A chase tick: one
@@ -153,6 +156,8 @@ static func of(sim: FightSim, lows: Array[float] = [], moves: Dictionary = {}) -
 		row["stamina_low_" + side] = snappedf(minf(lows[i] if i < lows.size() else 1.0, f.stamina_fraction()), 0.001)
 		row["shots_" + side] = f.takedowns_tried
 		row["takedowns_" + side] = f.takedowns_landed
+		row["subs_" + side] = f.subs_tried
+		row["locked_" + side] = f.subs_locked
 		row["top_" + side] = _share_of(moves.get("top", [0, 0])[i], ticks)
 		row["circling_" + side] = _seconds(sim.circling_ticks[i])
 		row["cutting_" + side] = _seconds(sim.cutting_ticks[i])
@@ -183,13 +188,15 @@ static func of(sim: FightSim, lows: Array[float] = [], moves: Dictionary = {}) -
 	return row
 
 
-## "ko", "tko", "decision" or "draw" from a fight_ended result.
+## "ko", "tko", "submission", "decision" or "draw" from a fight_ended result.
 static func method_of(result: String) -> String:
 	match result:
 		FightSim.RESULT_KO:
 			return METHOD_KO
 		FightSim.RESULT_TKO:
 			return METHOD_TKO
+		FightSim.RESULT_SUB:
+			return METHOD_SUB
 		Judging.DRAW:
 			return METHOD_DRAW
 	return METHOD_DECISION

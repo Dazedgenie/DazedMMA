@@ -156,3 +156,14 @@ func test_the_movement_line_says_how_long_each_fighter_circled_and_cut_off() -> 
 	_sim.cutting_ticks[1] = 905
 	assert_eq(_plain(FightLogFormatter.movement_line(_sim, 0)), "%s circled 7:12 (48%% of the fight) · cut off the cage 0:00 (0%% of the fight)" % _sim.fighters[0].name)
 	assert_string_contains(_plain(FightLogFormatter.movement_line(_sim, 1)), "cut off the cage 1:30 (10% of the fight)")
+
+
+func test_a_submission_locking_in_its_beats_and_the_tap_read_naturally() -> void:
+	var locked := FightEvent.new(50, 1, FightEvent.SUBMISSION_LOCKED, 1, { "action_id": "triangle", "danger": 45 })
+	assert_eq(_plain(FightLogFormatter.line(locked, _sim)), "R1 0:05.0  t50  Blue LOCKS IN the triangle choke! danger 45")
+	var beat := FightEvent.new(60, 1, FightEvent.SUBMISSION_BEAT, 1, { "action_id": "triangle", "danger": 65, "gained": true, "chance": 0.55 })
+	assert_eq(_plain(FightLogFormatter.line(beat, _sim)), "R1 0:06.0  t60  Blue squeezes on the triangle choke: danger 65  (55% to win the beat)")
+	var out := FightEvent.new(70, 1, FightEvent.SUBMISSION_ESCAPED, 0, { "action_id": "triangle", "danger": 0, "beats": 2 })
+	assert_eq(_plain(FightLogFormatter.line(out, _sim)), "R1 0:07.0  t70  Red ESCAPES the triangle choke (danger 0 after 2 s)")
+	var tap := FightEvent.new(80, 1, FightEvent.FIGHT_ENDED, FightEvent.NO_ACTOR, { "result": FightSim.RESULT_SUB, "winner": 1, "why": "triangle" })
+	assert_eq(_plain(FightLogFormatter.result_text(tap, _sim)), "Blue wins by submission (triangle choke)")

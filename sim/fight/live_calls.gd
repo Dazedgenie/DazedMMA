@@ -300,6 +300,21 @@ func adjust_sprawl(_view: FightView, chance: float) -> float:
 	return chance + float(focus.call.focus.get("sprawl_bonus", 0.0))
 
 
+## A struggle call's push on a submission hold (D126): Finish it! for the attacker, Defend the
+## sub! for the defender, while the focus is on (FightSim.struggle_share).
+func struggle_bonus() -> float:
+	if focus.is_empty():
+		return 0.0
+	return float(focus.call.focus.get("struggle", 0.0))
+
+
+## The extra stamina each beat of a struggle costs while a struggle call's focus is on.
+func struggle_stamina() -> float:
+	if focus.is_empty():
+		return 0.0
+	return float(focus.call.focus.get("struggle_stamina", 0.0))
+
+
 ## Going for an attempt that's out of range: step in to the nearest band one of its moves reaches from.
 func adjust_feet(view: FightView, feet: FeetPlan) -> void:
 	if attempt.is_empty() or not view.is_standing():

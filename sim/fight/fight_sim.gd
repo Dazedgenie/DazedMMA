@@ -31,6 +31,11 @@ extends RefCounted
 ## the active phase ends; in between the defender can sprawl on it or knee into it.
 ## A win moves the fight by the position data; a near miss can end in a scramble.
 ## Each position drains stamina, scores control for the judges and scales strikes.
+##
+## Submissions (D126, docs/01 §25): a guillotine, triangle or armbar locks in like any
+## grapple (contact, then the roll). A hold that locks moves the fight to the submission
+## position and is fought for in beats: a danger meter goes up or down each second of
+## fight time until the defender taps (a submission win) or gets out.
 signal event_emitted(event: FightEvent)
 
 ## Speed (and Kicking, for kick telegraphs) shortens or stretches telegraph and
@@ -98,7 +103,24 @@ const TANGLED_GAP: float = 0.4
 const SPRAWL_STUCK_TICKS: int = 5
 ## Takedowns, clinch and ground moves: they make contact when their active phase starts
 ## and are rolled when it ends.
-const GRAPPLES := { "takedown": true, "clinch": true, "ground": true }
+const GRAPPLES := { "takedown": true, "clinch": true, "ground": true, "submission": true }
+## A locked submission is fought for in beats, one every STRUGGLE_BEAT_TICKS (D126). Each beat
+## the attacker wins with Contest.chance(STRUGGLE_BASE, the hold's offense stats, its defense
+## stats, ± the corners' struggle calls) and the danger moves STRUGGLE_STEP up, or down.
+## At SUB_TAP the defender taps; at 0, or after STRUGGLE_BEATS beats, they're out of it.
+const STRUGGLE_BEAT_TICKS: int = 10
+const STRUGGLE_BASE: float = 0.5
+const STRUGGLE_STEP: float = 20.0
+const STRUGGLE_BEATS: int = 5
+const SUB_TAP: float = 100.0
+## Danger at lock-in: the hold's start_danger + this × (attack − defense stats), kept within 10–90.
+const START_DANGER_PER_EDGE: float = 0.5
+const START_DANGER_MIN: float = 10.0
+const START_DANGER_MAX: float = 90.0
+## Each beat costs both fighters this much stamina (a struggle call adds its own).
+const STRUGGLE_STAMINA: float = 2.0
+## A hold that gets this close to the tap counts as impact for a 10-8 (D120), like a rock.
+const NEAR_FINISH: float = 80.0
 ## In open space a circling fighter keeps their direction unless one way is clearly
 ## more open (by this much, in metres toward the middle).
 const CIRCLE_SIDE_DEADBAND: float = 0.3
@@ -116,6 +138,7 @@ const FEET_EVERY: int = 5
 
 const RESULT_KO := "ko"
 const RESULT_TKO := "tko"
+const RESULT_SUB := "submission"
 ## How a TKO came about when it wasn't the referee: the corner threw in the towel (D31).
 const STOPPED_BY_TOWEL := "towel"
 ## Why the referee stopped it (FIGHT_ENDED `why`, D120).
@@ -155,6 +178,9 @@ var _round_knockdowns: Array[int] = [0, 0]  # knockdowns scored this round
 var _round_impact: Array[int] = [0, 0]  # rocks and knockdowns scored this round (Judging: a 10-8 needs one)
 var _round_aggression: Array[float] = [0.0, 0.0]  # attacks thrown + metres walked forward this round
 var _round_control: Array[int] = [0, 0]  # ticks this round the opponent spent pinned on the fence
+## The submission being fought for (D126), or empty: {attacker, action_id, danger, beats,
+## next_at (tick of the next beat), from and from_roles (where it was locked from), near}.
+var _hold: Dictionary = {}
 ## What the current position does to each fighter every tick (its data, worked out
 ## when the position changes): stamina drained, judges' control points, strike damage ×.
 var _drain: Array[float] = [0.0, 0.0]
@@ -272,6 +298,11 @@ func tick() -> void:
 		return
 	for i in fighters.size():
 		_advance_fighter(i)
+		if _fight_over:
+			now += 1
+			return
+	if not _hold.is_empty() and now >= int(_hold.next_at):
+		_struggle_beat()
 		if _fight_over:
 			now += 1
 			return
@@ -430,7 +461,7 @@ func _advance_fighter(i: int) -> void:
 		f.phase_ticks_left -= 1
 		if f.phase_ticks_left <= 0:
 			_next_phase(i)
-	if f.is_free():
+	if f.is_free() and _hold.is_empty():
 		var seen: FightView = views[i]
 		if situation.is_standing():
 			var feet: FeetPlan = decisions[i].plan_feet(seen)
@@ -621,6 +652,7 @@ func _announce(slot: int, value: String, type: String, actor: int, field: String
 
 func _to_corners() -> void:
 	situation.reset()
+	_hold = {}  # Saved by the bell.
 	_position_effects()
 	_wants = [0.0, 0.0]
 	_circling = [0.0, 0.0]
@@ -651,13 +683,14 @@ func transition_for(i: int, action_id: String, result: String = PositionLibrary.
 ## here. The fight stays on the spot where the opponent stood, so the cage carries
 ## over: tied up on the fence stays on the fence, and getting up separates there.
 ## Whatever either fighter was in the middle of stops. Ending up on top scores a
-## takedown with the judges (Judging.TAKEDOWN_POINTS). Grapple resolution calls this
-## when a takedown, clinch move or get-up works.
+## takedown with the judges (Judging.TAKEDOWN_POINTS), for either fighter. Grapple resolution
+## calls this when a takedown, clinch move, get-up or submission works (or fails into a new
+## position, `result` "failed").
 func apply_transition(i: int, action_id: String, result: String = PositionLibrary.SUCCESS) -> bool:
 	var t: Dictionary = transition_for(i, action_id, result)
 	if t.is_empty():
 		return false
-	var was_top: bool = situation.role(i) == PositionLibrary.TOP
+	var was_top: Array[bool] = [situation.role(0) == PositionLibrary.TOP, situation.role(1) == PositionLibrary.TOP]
 	var roles: Array[String] = ["", ""]
 	roles[i] = t.roles.actor
 	roles[1 - i] = t.roles.opponent
@@ -669,10 +702,12 @@ func apply_transition(i: int, action_id: String, result: String = PositionLibrar
 		f.unanswered = 0
 	_place_bodies(i)
 	_emit(FightEvent.POSITION_CHANGED, i, { "action_id": action_id, "position": situation.position, "phase": situation.phase, "roles": roles.duplicate() })
-	if roles[i] == PositionLibrary.TOP and not was_top:
+	if roles[i] == PositionLibrary.TOP and not was_top[i]:
 		_round_points[i] += Judging.TAKEDOWN_POINTS
 		if actions.has(action_id) and actions.get_action(action_id).category == "takedown":
 			fighters[i].takedowns_landed += 1
+	if roles[1 - i] == PositionLibrary.TOP and not was_top[1 - i]:
+		_round_points[1 - i] += Judging.TAKEDOWN_POINTS  # Ends up on top off the opponent's failed move (a guillotine, D126).
 	return true
 
 
@@ -724,7 +759,9 @@ func _start_action(i: int, id: String, decision: Decision = null) -> void:
 		f.strikes_thrown += 1
 	elif action.category == "takedown":
 		f.takedowns_tried += 1
-	if action.category == "strike" or action.category == "takedown" or (action.category == "clinch" and situation.is_standing()):
+	elif action.category == "submission":
+		f.subs_tried += 1
+	if action.category == "strike" or action.category == "takedown" or action.category == "submission" or (action.category == "clinch" and situation.is_standing()):
 		_round_aggression[i] += 1.0
 	var why: Dictionary = {}
 	if decision != null:
@@ -897,7 +934,7 @@ func _resolve_active(i: int) -> void:
 			_land_strike(i, action)
 		"defense":
 			_meet_shot(i)
-		"takedown", "clinch", "ground":
+		"takedown", "clinch", "ground", "submission":
 			_make_contact(i, action)
 
 
@@ -1047,7 +1084,11 @@ func _finish_grip(i: int) -> bool:
 		return false  # The fight stays where it is; the move goes on to its recovery.
 	if result == "" or transition_for(i, action.id, result).is_empty():
 		_emit(FightEvent.GRAPPLE_STOPPED, i, { "action_id": action.id, "reason": "defended", "chance": b.chance, "odds": b.to_dict() })
-		return false
+		# Some moves cost a position when they fail (a guillotine pulls the attacker onto their back).
+		return result == "" and apply_transition(i, action.id, PositionLibrary.FAILED)
+	if result == PositionLibrary.SUCCESS and action.category == "submission":
+		_emit(FightEvent.GRAPPLE_WON, i, { "action_id": action.id, "result": result, "chance": b.chance, "odds": b.to_dict() })
+		return _lock_in(i, action)
 	_emit(FightEvent.GRAPPLE_WON, i, { "action_id": action.id, "result": result, "chance": b.chance, "odds": b.to_dict() })
 	return apply_transition(i, action.id, result)
 
@@ -1061,6 +1102,87 @@ func _tie_up(i: int, action: Dictionary, b: OddsBreakdown) -> void:
 	if not o.is_free() and actions.get_action(o.action_id).category == "strike":
 		o.clear_action()
 	_emit(FightEvent.GRAPPLE_WON, i, { "action_id": action.id, "result": "tied_up", "chance": b.chance, "odds": b.to_dict() })
+
+
+# --- Submissions (D126, docs/01 §25) ------------------------------------------
+
+## A submission locks in: the fight moves to the submission position (the position data says
+## so), the judges score the lock, and the struggle starts with the hold's starting danger,
+## nudged by how the attacker's stats compare with the defender's. False (nothing changed)
+## when the position data has nowhere for the hold to go from here.
+func _lock_in(i: int, action: Dictionary) -> bool:
+	var from: String = situation.position
+	var from_roles: Array[String] = situation.roles.duplicate()
+	if not apply_transition(i, action.id):
+		return false
+	var edge: float = _average_stat(fighters[i], action.stats.offense) - _average_stat(fighters[1 - i], action.stats.defense)
+	var danger: float = clampf(float(action.submission.get("start_danger", 40.0)) + START_DANGER_PER_EDGE * edge, START_DANGER_MIN, START_DANGER_MAX)
+	_hold = { "attacker": i, "action_id": action.id, "danger": danger, "beats": 0, "next_at": now + STRUGGLE_BEAT_TICKS,
+		"from": from, "from_roles": from_roles, "near": false }
+	fighters[i].subs_locked += 1
+	_round_points[i] += Judging.SUB_LOCK_POINTS
+	_emit(FightEvent.SUBMISSION_LOCKED, i, { "action_id": action.id, "danger": roundi(danger) })
+	return true
+
+
+## The submission being fought for: {attacker, action_id, danger, beats, …}, or empty. Read-only.
+func hold() -> Dictionary:
+	return _hold
+
+
+## The attacker's chance to win the next beat of the hold: the hold's offense stats against its
+## defense stats (effective, so a tired or hurt defender loses more beats), plus the attacker's
+## Finish it! and minus the defender's Defend the sub! while those calls are on.
+func struggle_share() -> float:
+	var a: int = _hold.attacker
+	var action: Dictionary = actions.get_action(_hold.action_id)
+	var bonus: float = decisions[a].calls.struggle_bonus() - decisions[1 - a].calls.struggle_bonus()
+	return Contest.chance(STRUGGLE_BASE, _average_stat(fighters[a], action.stats.offense), _average_stat(fighters[1 - a], action.stats.defense), bonus)
+
+
+## One beat of the struggle: the danger goes up or down, both fighters pay for it, and the hold
+## ends in a tap at SUB_TAP or an escape at 0 or after the last beat.
+func _struggle_beat() -> void:
+	var a: int = _hold.attacker
+	var share: float = struggle_share()
+	var gained: bool = _rng.randf() < share
+	_hold.danger = float(_hold.danger) + (STRUGGLE_STEP if gained else -STRUGGLE_STEP)
+	_hold.beats = int(_hold.beats) + 1
+	_hold.next_at = now + STRUGGLE_BEAT_TICKS
+	for k in fighters.size():
+		fighters[k].spend_stamina(STRUGGLE_STAMINA + decisions[k].calls.struggle_stamina())
+	_emit(FightEvent.SUBMISSION_BEAT, a, { "action_id": _hold.action_id, "danger": roundi(maxf(0.0, _hold.danger)), "gained": gained, "chance": share })
+	if _hold.danger >= NEAR_FINISH and not _hold.near:
+		_hold.near = true
+		_round_impact[a] += 1
+	if _hold.danger >= SUB_TAP:
+		var id: String = _hold.action_id
+		_hold = {}
+		_finish(a, RESULT_SUB, "", id)
+	elif _hold.danger <= 0.0 or _hold.beats >= STRUGGLE_BEATS:
+		_escape()
+
+
+## The defender gets out of the hold: back to where it was locked from, or into a scramble
+## (the hold's `escape_to`). Getting out answers the referee's count, as any change of position.
+func _escape() -> void:
+	var a: int = _hold.attacker
+	var action: Dictionary = actions.get_action(_hold.action_id)
+	_emit(FightEvent.SUBMISSION_ESCAPED, 1 - a, { "action_id": action.id, "danger": roundi(maxf(0.0, _hold.danger)), "beats": _hold.beats })
+	if String(action.submission.get("escape_to", "back")) == PositionLibrary.SCRAMBLE:
+		var neutral: Array[String] = [PositionLibrary.NEUTRAL, PositionLibrary.NEUTRAL]
+		situation.set_to(positions.get_position(PositionLibrary.SCRAMBLE), neutral)
+	else:
+		var back: Array[String] = _hold.from_roles
+		situation.set_to(positions.get_position(_hold.from), back)
+	_hold = {}
+	_position_effects()
+	for f in fighters:
+		f.clear_action()
+		f.tied_up_ticks = 0
+		f.unanswered = 0
+	_place_bodies(1 - a)
+	_emit(FightEvent.POSITION_CHANGED, 1 - a, { "action_id": action.id, "escaped": true, "position": situation.position, "phase": situation.phase, "roles": situation.roles.duplicate() })
 
 
 ## Damage multiplier from Power: 0.5 + Power / 100 (Power 50 → ×1).

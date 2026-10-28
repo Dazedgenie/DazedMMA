@@ -23,9 +23,11 @@ const TRIGGER_EVENTS: Array[String] = [
 ]
 const LEANINGS: Array[String] = ["pace", "range", "base", "risk"]
 const CATEGORIES: Array[String] = ["strike", "takedown", "defense", "movement", "clinch", "ground", "submission"]
-const ROLES: Array[String] = ["neutral", "top", "bottom"]
+const ROLES: Array[String] = ["neutral", "top", "bottom", "attacker", "defender"]
 ## What a focus call (docs/09 call@2) may hold.
-const FOCUS_KEYS: Array[String] = ["duration_ms", "leanings", "weights", "read_bonus", "sprawl_bonus"]
+const FOCUS_KEYS: Array[String] = ["duration_ms", "leanings", "weights", "read_bonus", "sprawl_bonus", "struggle", "struggle_stamina"]
+## Where a submission (docs/09 action@2 `submission.escape_to`, D126) leaves the fight when the defender gets out.
+const ESCAPES: Array[String] = ["back", "scramble"]
 ## The minigames a session can be played as (D38, docs/02 §3.2).
 const MINIGAMES: Array[String] = [
 	"mitt_work", "heavy_bag", "thai_pads", "wrestling_chain", "sprawl_reflex",
@@ -163,7 +165,7 @@ func test_values_come_from_the_allowed_lists() -> void:
 		if not (push is float) or push < 0.0:
 			problems.append("action '%s': strike.push_m is metres pushed back, 0 or more" % id)
 		var category: String = action.get("category", "")
-		if category in ["takedown", "defense", "clinch", "ground"]:
+		if category in ["takedown", "defense", "clinch", "ground", "submission"]:
 			var block: Variant = action.get(category)
 			if not block is Dictionary or not block.get("base_success") is float:
 				problems.append("action '%s': a %s move needs a '%s' block with base_success" % [id, category, category])
@@ -171,6 +173,9 @@ func test_values_come_from_the_allowed_lists() -> void:
 				problems.append("action '%s': %s.partial_within is a chance, 0 or more" % [id, category])
 			elif block.has("ties_up_ms") and (category != "ground" or not block.ties_up_ms is float or block.ties_up_ms <= 0.0):
 				problems.append("action '%s': ties_up_ms (how long a tie-up stops ground strikes) is a ground move's, in ms" % id)
+			elif category == "submission" and (not block.get("start_danger") is float or block.start_danger <= 0.0 or block.start_danger >= 100.0 \
+					or block.get("escape_to") not in ESCAPES):
+				problems.append("action '%s': a submission needs start_danger (between 0 and 100) and escape_to (one of %s)" % [id, ESCAPES])
 		if action.has("basic") and not action.basic is bool:
 			problems.append("action '%s': basic is true or false" % id)
 		for r: Variant in action.get("roles", []):
@@ -296,6 +301,12 @@ func test_calls_are_an_attempt_a_focus_or_a_read() -> void:
 			var sprawl: Variant = focus.get("sprawl_bonus", 0.0)
 			if not sprawl is float or sprawl < 0.0 or sprawl > 1.0:
 				problems.append("%s: focus.sprawl_bonus is a chance from 0 to 1" % where)
+			var struggle: Variant = focus.get("struggle", 0.0)
+			if not struggle is float or struggle < 0.0 or struggle > 0.5:
+				problems.append("%s: focus.struggle is a push on a submission's beats, a chance from 0 to 0.5" % where)
+			var struggle_stamina: Variant = focus.get("struggle_stamina", 0.0)
+			if not struggle_stamina is float or struggle_stamina < 0.0:
+				problems.append("%s: focus.struggle_stamina is stamina a beat, 0 or more" % where)
 	for id: String in _items("gameplans"):
 		var g: Dictionary = _items("gameplans")[id]
 		_expect_numbers(problems, "gameplan '%s'" % id, "leanings", g.get("leanings", {}), LEANINGS, -100, 100)
@@ -342,8 +353,8 @@ func test_position_transitions_lead_somewhere_real() -> void:
 			_expect_ids(problems, where, "positions", [t.get("to")])
 			if t.get("from_role") not in p.get("roles", []):
 				problems.append("%s: transition '%s' starts from role '%s', not one of %s" % [where, t.get("action"), t.get("from_role"), p.get("roles", [])])
-			if t.get("result", "success") not in ["success", "partial"]:
-				problems.append("%s: transition '%s' has result '%s', not success or partial" % [where, t.get("action"), t.get("result")])
+			if t.get("result", "success") not in ["success", "partial", "failed"]:
+				problems.append("%s: transition '%s' has result '%s', not success, partial or failed" % [where, t.get("action"), t.get("result")])
 			var key: String = "%s/%s/%s" % [t.get("action"), t.get("from_role"), t.get("result", "success")]
 			if seen.has(key):
 				problems.append("%s: '%s' from '%s' (%s) is listed twice" % [where, t.get("action"), t.get("from_role"), t.get("result", "success")])

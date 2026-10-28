@@ -58,7 +58,8 @@ func _init() -> void:
 
 ## Which kind of line this event makes, or NONE when the feed skips it (move phases,
 ## strikes out of range). Key moments: knockdowns, rocks, heavy or counter shots,
-## position changes, a call or rule going off, the bell. Explanations: why a
+## position changes, a submission locking in or escaped (each beat of it is play), a call
+## or rule going off, the bell. Explanations: why a
 ## takedown, call or rule didn't work.
 static func kind_of(event: FightEvent) -> String:
 	match event.type:
@@ -71,7 +72,7 @@ static func kind_of(event: FightEvent) -> String:
 		FightEvent.STRIKE_MISSED:
 			return NONE if event.data.has("reason") else PLAY
 		FightEvent.ROCKED, FightEvent.KNOCKDOWN, FightEvent.GOT_UP, FightEvent.GRAPPLE_WON, FightEvent.POSITION_CHANGED, \
-				FightEvent.ROUND_ENDED, FightEvent.FIGHT_ENDED:
+				FightEvent.SUBMISSION_LOCKED, FightEvent.SUBMISSION_ESCAPED, FightEvent.ROUND_ENDED, FightEvent.FIGHT_ENDED:
 			return KEY_MOMENT
 		FightEvent.SPRAWLED:
 			return KEY_MOMENT if event.data.get("worked", false) else EXPLANATION

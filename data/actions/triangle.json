@@ -1,0 +1,18 @@
+{
+	"schema": "action@2",
+	"id": "triangle",
+	"name": "Triangle choke",
+	"category": "submission",
+	"positions": ["full_guard"],
+	"roles": ["bottom"],
+	"ranges": ["clinch"],
+	"phases_ms": { "telegraph": 0, "windup": 300, "active": 400, "recovery": 600 },
+	"stamina_cost": 6,
+	"flags_self": [],
+	"submission": { "base_success": 0.25, "start_danger": 40, "escape_to": "back" },
+	"stats": { "offense": ["submissions", "guard"], "defense": ["submission_defense", "top_control"] },
+	"opportunities": [
+		{ "opponent_flag": "POSTURE_BROKEN", "success_bonus": 0.15 }
+	],
+	"requires_technique": null
+}

@@ -12,11 +12,17 @@ const PHASE_STANDING := "standing"
 const PHASE_GROUND := "ground"
 const CLINCH := "clinch"
 const SCRAMBLE := "scramble"
+## A submission hold being fought for (D126): one fighter attacking it, the other defending.
+const SUBMISSION := "submission"
+const ATTACKER := "attacker"
+const DEFENDER := "defender"
 const TOP := "top"
 const BOTTOM := "bottom"
-## A transition's `result`: the move worked, or half worked.
+## A transition's `result`: the move worked, half worked, or failed in a way that still moves
+## the fight (a guillotine that doesn't lock pulls the attacker onto their back, D126).
 const SUCCESS := "success"
 const PARTIAL := "partial"
+const FAILED := "failed"
 
 static var _default: PositionLibrary
 

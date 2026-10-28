@@ -78,9 +78,10 @@ func test_a_fight_counts_as_tiring_when_either_fighter_dips_under_half_a_tank() 
 	assert_almost_eq(BalanceReport.tired_share(rows), 0.5, 0.0001)
 
 
-func test_kos_and_tkos_count_as_finishes() -> void:
-	var rows: Array[Dictionary] = [_row({ "method": FightSummary.METHOD_KO }), _row({ "method": FightSummary.METHOD_TKO }), _row(), _row()]
-	assert_almost_eq(BalanceReport.finish_share(rows), 0.5, 0.0001)
+func test_kos_tkos_and_submissions_count_as_finishes() -> void:
+	var rows: Array[Dictionary] = [_row({ "method": FightSummary.METHOD_KO }), _row({ "method": FightSummary.METHOD_TKO }),
+		_row({ "method": FightSummary.METHOD_SUB }), _row()]
+	assert_almost_eq(BalanceReport.finish_share(rows), 0.75, 0.0001)
 
 
 func test_the_csv_has_a_header_and_one_line_per_fight_with_every_column() -> void:

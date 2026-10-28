@@ -4,7 +4,7 @@ extends Control
 ## stamina, body and leg damage, round clock, speed, the judges' rough estimate), the plan panel
 ## (drilled rules with reliability and cooldown, the call being acted on, primed
 ## reads), the opponent corner's speech bubble (D68), the feed, the voice meter and
-## the call bar. One dialog in the middle serves the bell, the result, the menu and
+## the call bar, and while a submission is locked in, the danger meter (D126). One dialog in the middle serves the bell, the result, the menu and
 ## the towel question. Presentation only: buttons send signals, the fight screen acts.
 ##
 ## Laid out for 1920×1080; the project's canvas_items stretch scales it to the window.
@@ -51,6 +51,9 @@ var _call_buttons: Dictionary = {}  # call id → Button
 var _read_ids: Array[String] = []
 var _speed_buttons: Dictionary = {}  # "slow"/"fast"/"pause" → Button
 var _banner: Label
+var _danger_panel: PanelContainer
+var _danger_label: Label
+var _danger: ProgressBar
 var _dialog: PanelContainer
 var _dialog_title: Label
 var _dialog_body: RichTextLabel
@@ -129,6 +132,17 @@ static func judges_estimate(sim: FightSim) -> String:
 		return "Judges: ≈ even"
 	var w: int = 0 if card[0] > card[1] else 1
 	return "Judges: ≈ %d-%d %s" % [card[w], card[1 - w], sim.fighters[w].name]
+
+
+## The submission meter's words (D126), e.g. "Kicker's TRIANGLE CHOKE on Wrestler · danger 60";
+## "" when no hold is locked in.
+static func danger_text(sim: FightSim) -> String:
+	var hold: Dictionary = sim.hold()
+	if hold.is_empty():
+		return ""
+	var a: int = int(hold.attacker)
+	var hold_name: String = String(sim.actions.get_action(hold.action_id).name).to_upper()
+	return "%s's %s on %s · danger %d" % [sim.fighters[a].name, hold_name, sim.fighters[1 - a].name, roundi(maxf(0.0, float(hold.danger)))]
 
 
 ## The colour of a health bar (or a body or leg bar) this full (1 = fresh, 0 = finished).
@@ -269,6 +283,11 @@ func _refresh(delta: float) -> void:
 		for read: Dictionary in calls.reads:
 			live = live or read.call.id == id
 		b.modulate = Color("#b2f2bb") if live else Color.WHITE
+	var hold: Dictionary = sim.hold()
+	_danger_panel.visible = not hold.is_empty()
+	if not hold.is_empty():
+		_danger.value = clampf(float(hold.danger), 0.0, FightSim.SUB_TAP)
+		_danger_label.text = danger_text(sim)
 	_speed_buttons.slow.button_pressed = driver.speed == FightDriver.SLOW
 	_speed_buttons.fast.button_pressed = driver.speed == FightDriver.FAST
 	_speed_buttons.pause.button_pressed = driver.paused
@@ -513,6 +532,25 @@ func _build() -> void:
 	_banner.add_theme_constant_override("outline_size", 12)
 	_banner.visible = false
 	add_child(_banner)
+
+	# Middle: the submission danger meter (D126), while a hold is locked in.
+	_danger_panel = _panel()
+	_danger_panel.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_danger_panel.offset_top = 290.0
+	_danger_panel.offset_left = -360.0
+	_danger_panel.offset_right = 360.0
+	add_child(_danger_panel)
+	var danger_column := VBoxContainer.new()
+	_danger_panel.add_child(danger_column)
+	_danger_label = Label.new()
+	_danger_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_danger_label.add_theme_font_size_override("font_size", 22)
+	danger_column.add_child(_danger_label)
+	_danger = _bar(0, 22.0, PIP_COLOURS[2], FightSim.SUB_TAP)
+	_danger.value = 0.0
+	_danger.tooltip_text = "submission danger: at 100 they tap, at 0 they're out"
+	danger_column.add_child(_danger)
+	_danger_panel.visible = false
 
 	_dialog = _panel(Color(0.08, 0.09, 0.11, 0.96))
 	_dialog.set_anchors_preset(Control.PRESET_CENTER)

@@ -89,6 +89,9 @@ var strikes_landed: int = 0
 var strikes_thrown: int = 0
 var takedowns_tried: int = 0
 var takedowns_landed: int = 0
+## Submissions this fighter went for, and the ones that locked in (D126).
+var subs_tried: int = 0
+var subs_locked: int = 0
 
 var action_id: String = ""  # "" = free to act
 var phase: String = ""

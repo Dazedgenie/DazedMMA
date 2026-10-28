@@ -104,9 +104,10 @@ static func method_share(of_rows: Array[Dictionary], method: String) -> float:
 	return share(of_rows, func(row: Dictionary) -> bool: return row.method == method)
 
 
-## KOs and TKOs: fights that ended inside the distance.
+## KOs, TKOs and submissions: fights that ended inside the distance.
 static func finish_share(of_rows: Array[Dictionary]) -> float:
-	return method_share(of_rows, FightSummary.METHOD_KO) + method_share(of_rows, FightSummary.METHOD_TKO)
+	return method_share(of_rows, FightSummary.METHOD_KO) + method_share(of_rows, FightSummary.METHOD_TKO) \
+		+ method_share(of_rows, FightSummary.METHOD_SUB)
 
 
 static func even_card_share(of_rows: Array[Dictionary]) -> float:
@@ -353,8 +354,9 @@ func _pair_lines(of_rows: Array[Dictionary], names: Dictionary) -> PackedStringA
 		if drilled(first, side) != "":
 			lines.append("  Rules      %s drilled %s, fired %.1f times a fight" % [red if side == "red" else blue, drilled(first, side), average(of_rows, "fired_" + side)])
 	lines.append("  Wins       %s %s · %s %s · draw %s" % [red, _pct(win_share(of_rows, "red")), blue, _pct(win_share(of_rows, "blue")), _pct(method_share(of_rows, FightSummary.METHOD_DRAW))])
-	lines.append("  How        KO %s · TKO %s · decision %s · draw %s" % [
+	lines.append("  How        KO %s · TKO %s · submission %s · decision %s · draw %s" % [
 		_pct(method_share(of_rows, FightSummary.METHOD_KO)), _pct(method_share(of_rows, FightSummary.METHOD_TKO)),
+		_pct(method_share(of_rows, FightSummary.METHOD_SUB)),
 		_pct(method_share(of_rows, FightSummary.METHOD_DECISION)), _pct(method_share(of_rows, FightSummary.METHOD_DRAW))])
 	lines.append("  Rounds     10-10 on %s of judges' cards · %.2f knockdowns a fight" % [
 		_pct(even_card_share(of_rows)), average(of_rows, "knockdowns_red") + average(of_rows, "knockdowns_blue")])
@@ -375,6 +377,8 @@ func _pair_lines(of_rows: Array[Dictionary], names: Dictionary) -> PackedStringA
 	lines.append("  Grappling  takedowns %s %.1f of %.1f a fight, %s %.1f of %.1f · clinch %s of the fight · ground %s (%s on top %s, %s on top %s)" % [
 		red, average(of_rows, "takedowns_red"), average(of_rows, "shots_red"), blue, average(of_rows, "takedowns_blue"), average(of_rows, "shots_blue"),
 		_pct(average(of_rows, "clinch")), _pct(average(of_rows, "ground")), red, _pct(average(of_rows, "top_red")), blue, _pct(average(of_rows, "top_blue"))])
+	lines.append("  Subs       %s %.1f tried, %.1f locked a fight · %s %.1f tried, %.1f locked (D126)" % [
+		red, average(of_rows, "subs_red"), average(of_rows, "locked_red"), blue, average(of_rows, "subs_blue"), average(of_rows, "locked_blue")])
 	lines.append("  Tired      someone under 50%% of the tank in %s of fights" % _pct(tired_share(of_rows)))
 	lines.append("  Odds       %s of exchanges hit the 5–95%% clamp" % _pct(clamped_share(of_rows)))
 	return lines

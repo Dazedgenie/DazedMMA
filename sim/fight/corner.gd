@@ -22,6 +22,7 @@ extends RefCounted
 ##     call for that move (Catch the kick!), so the fighter is primed before the kick
 ##   - this fighter rocked: Survive!; the opponent rocked: Pressure!
 ##   - this fighter ends up on top: Ground and pound! (D121)
+##   - a submission locks in (D126): Finish it! for the attacker, Defend the sub! for the defender
 ## It doesn't call Get up!: the fighter works to get up on their own, and a called try
 ## adds a tired try more than it helps. Nor Defend the shot! on the Wrestler's
 ## stance shift: the shot comes within a second, before the call can land, and the fighter
@@ -105,6 +106,10 @@ func on_event(view: FightView, event: FightEvent) -> void:
 		FightEvent.POSITION_CHANGED:
 			if event.data.roles[me] == PositionLibrary.TOP:
 				_decide(event.tick, "ground_and_pound")
+			elif event.data.roles[me] == PositionLibrary.ATTACKER:
+				_decide(event.tick, "finish_it")
+			elif event.data.roles[me] == PositionLibrary.DEFENDER:
+				_decide(event.tick, "defend_the_sub")
 		FightEvent.ACTION_PHASE:
 			if event.data.phase == "telegraph" and event.actor != me:
 				for read_id: String in _reads:

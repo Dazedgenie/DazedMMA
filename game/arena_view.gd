@@ -120,6 +120,9 @@ static func tag_text(sim: FightSim) -> String:
 	if sim.situation.is_standing():
 		return String(TAG_NAMES.get(sim.band(), sim.band()))
 	var text: String = String(sim.positions.get_position(sim.situation.position).name)
+	var hold: Dictionary = sim.hold()
+	if not hold.is_empty():
+		return "%s · %s's %s" % [text, sim.fighters[int(hold.attacker)].name, String(sim.actions.get_action(hold.action_id).name).to_lower()]
 	var top: int = sim.situation.roles.find(PositionLibrary.TOP)
 	if top >= 0:
 		text += " · %s on top" % sim.fighters[top].name
