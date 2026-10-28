@@ -10,7 +10,7 @@ extends PanelContainer
 signal start_pressed(settings: Dictionary)
 
 ## [label, red id, blue id] from data/fighters. The playtest matchup comes first (D112); the
-## Judoka and the BJJ fighter (D127) come last.
+## Judoka and the BJJ fighter (D128) come last.
 const MATCHUPS: Array = [
 	["Wrestler vs Kicker", "wrestler", "kicker"],
 	["Kicker vs Boxer", "kicker", "boxer"],

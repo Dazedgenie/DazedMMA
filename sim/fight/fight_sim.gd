@@ -684,7 +684,7 @@ func transition_for(i: int, action_id: String, result: String = PositionLibrary.
 ## over: tied up on the fence stays on the fence, and getting up separates there.
 ## Whatever either fighter was in the middle of stops. Ending up on top scores a
 ## takedown with the judges (Judging.TAKEDOWN_POINTS): the actor, or the opponent when the
-## actor's move failed into a position under them (not a guard pull, D127). Grapple resolution
+## actor's move failed into a position under them (not a guard pull, D128). Grapple resolution
 ## calls this when a takedown, clinch move, get-up or submission works (or fails into a new
 ## position, `result` "failed").
 func apply_transition(i: int, action_id: String, result: String = PositionLibrary.SUCCESS) -> bool:
@@ -711,7 +711,7 @@ func apply_transition(i: int, action_id: String, result: String = PositionLibrar
 				fighters[i].throws_landed += 1
 	if roles[1 - i] == PositionLibrary.TOP and not was_top[1 - i] and result == PositionLibrary.FAILED:
 		# Ends up on top off the opponent's failed move (a guillotine, D126); pulling guard
-		# on purpose (D127) gives the judges nothing.
+		# on purpose (D128) gives the judges nothing.
 		_round_points[1 - i] += Judging.TAKEDOWN_POINTS
 	return true
 
@@ -1050,7 +1050,7 @@ func _make_contact(i: int, action: Dictionary) -> void:
 ## opponent's shot, if the sprawl is in its active phase while the shot has contact.
 ## One roll: it works, and the shooter is stuck under it, head low, for longer; or
 ## it doesn't, and the shot goes on to its own roll. Either way the sprawl is spent.
-## A throw or a trip (D127) has no shot to sprawl on: the sprawl does nothing to it.
+## A throw or a trip (D128) has no shot to sprawl on: the sprawl does nothing to it.
 func _meet_shot(k: int) -> void:
 	var d: FighterState = fighters[k]
 	var s: FighterState = fighters[1 - k]
@@ -1059,7 +1059,7 @@ func _meet_shot(k: int) -> void:
 	var sprawl: Dictionary = actions.get_action(d.action_id)
 	var shot: Dictionary = actions.get_action(s.action_id)
 	if sprawl.category != "defense" or not sprawl.defense.against_categories.has(shot.category) or ActionLibrary.is_throw(shot):
-		return  # Nothing to sprawl on in a throw or a trip (D127).
+		return  # Nothing to sprawl on in a throw or a trip (D128).
 	var b: OddsBreakdown = odds_breakdown(k, sprawl.id)
 	var worked: bool = _rng.randf() < b.chance
 	_emit(FightEvent.SPRAWLED, k, { "action_id": sprawl.id, "against": s.action_id, "worked": worked, "chance": b.chance, "odds": b.to_dict() })
@@ -1104,13 +1104,13 @@ func _finish_grip(i: int) -> bool:
 		won.landing_damage = slam
 	_emit(FightEvent.GRAPPLE_WON, i, won)
 	if slam > 0:
-		# A big throw lands hard (D127): body damage, scored like a body shot.
+		# A big throw lands hard (D128): body damage, scored like a body shot.
 		fighters[1 - i].damage.body += slam
 		_round_points[i] += slam * Judging.TARGET_WEIGHTS.body
 	return apply_transition(i, action.id, result)
 
 
-## How hard fighter i's throw lands the opponent (D127): the throw's `landing_damage` × (0.5 +
+## How hard fighter i's throw lands the opponent (D128): the throw's `landing_damage` × (0.5 +
 ## Strength / 100) × the rules' damage scale, whole points; 0 for moves that don't, and where
 ## slams are banned (amateur rules, docs/08).
 func landing_damage(i: int, id: String) -> int:

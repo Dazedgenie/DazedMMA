@@ -160,7 +160,7 @@ func test_the_judoka_and_the_bjj_fighter_are_reported_with_no_pass_mark() -> voi
 		_row({ "red": "bjj", "blue": "wrestler", "winner_id": "bjj" }),
 	]
 	var judoka: Dictionary = _check(_report(rows), "Judoka vs Boxer")
-	assert_eq(judoka.status, BalanceReport.INFO, "report only, like the Wrestler (D127)")
+	assert_eq(judoka.status, BalanceReport.INFO, "report only, like the Wrestler (D128)")
 	assert_eq(judoka.value, "50.0%")
 	assert_eq(_check(_report(rows), "BJJ fighter vs Wrestler").value, "100.0%")
 	assert_true(_check(_report(rows), "Judoka vs Kicker").is_empty(), "no fights, no line")
@@ -169,7 +169,7 @@ func test_the_judoka_and_the_bjj_fighter_are_reported_with_no_pass_mark() -> voi
 func test_the_summary_counts_throws() -> void:
 	var report: BalanceReport = _report([_row({ "red": "judoka", "throws_red": 6, "throws_landed_red": 2 })])
 	var text: String = report.summary({ "judoka": "Judoka", "boxer": "Boxer" })
-	assert_string_contains(text, "Throws     Judoka (red) 2.0 of 6.0 a fight landed · Boxer (blue) 0.0 of 0.0 (D127)")
+	assert_string_contains(text, "Throws     Judoka (red) 2.0 of 6.0 a fight landed · Boxer (blue) 0.0 of 0.0 (D128)")
 
 
 func test_the_summary_says_how_much_grappling_there_was() -> void:

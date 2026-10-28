@@ -228,7 +228,7 @@ const ROCKED_GET_UP: float = 0.3
 const SUB_WEIGHT: float = 0.1
 const SUB_RETRY_TICKS: int = 450
 const GUILLOTINE_CHANCE: float = 0.35
-## Throws and the guard game (D127): in the clinch, a guard pull is weighted GUARD_PULL_WEIGHT × how
+## Throws and the guard game (D128): in the clinch, a guard pull is weighted GUARD_PULL_WEIGHT × how
 ## much they like submissions, next to their throws, knees and the break. A required opening the
 ## data marks `ai_takes` (the foot sweep on a lean) is taken when read, unlike the catch (D103).
 const GUARD_PULL_WEIGHT: float = 0.5
@@ -421,7 +421,7 @@ func _defend(view: FightView, layer: DecisionLayer) -> Decision:
 	if not _registered(view) or _opp.category != TAKEDOWN or _opp.get("sprawl_rolled", false):
 		return null
 	if ActionLibrary.is_throw(view.actions.get_action(_opp.id)):
-		return null  # Nothing to sprawl on (D127): it's read like any other move.
+		return null  # Nothing to sprawl on (D128): it's read like any other move.
 	_opp.sprawl_rolled = true
 	for id in _all_moves(view):
 		var action: Dictionary = view.actions.get_action(id)
@@ -569,7 +569,7 @@ func _lead(view: FightView, layer: DecisionLayer) -> Decision:
 
 
 ## Tied up (#15): now and then, work from here. In the clinch: knees, a takedown or throw,
-## a guard pull (D127) or a break, picked by weight (breaking by how little they like the
+## a guard pull (D128) or a break, picked by weight (breaking by how little they like the
 ## clinch). Underneath in full guard: get up, tie up, sweep or a hold. On top: ground and
 ## pound. In a scramble: back to the feet or the top, by Base. A shot it read gets sprawled on first.
 func _tied(view: FightView, layer: DecisionLayer) -> Decision:
@@ -843,7 +843,7 @@ static func _needs_opening(action: Dictionary) -> bool:
 
 
 ## True for a move whose required opening the AI takes on its own when it reads it (`ai_takes`:
-## the foot sweep on a lean, D127). Moves without it wait for a call or a rule (the catch, D103).
+## the foot sweep on a lean, D128). Moves without it wait for a call or a rule (the catch, D103).
 static func _takes_opening(action: Dictionary) -> bool:
 	for opp: Dictionary in action.opportunities:
 		if opp.get("required", false) and opp.get("ai_takes", false):

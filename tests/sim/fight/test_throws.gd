@@ -1,5 +1,5 @@
 extends GutTest
-## Throws and the guard game (docs/01 §26, D127): the outside trip and hip throw from the clinch,
+## Throws and the guard game (docs/01 §26, D128): the outside trip and hip throw from the clinch,
 ## the foot sweep on a lean, the guard pull and the sweep from the bottom, what a sprawl can't do
 ## to a throw, the judges, the AI and the Judoka and BJJ fighters.
 
@@ -265,7 +265,7 @@ func test_the_ai_takes_a_foot_sweep_on_a_hook_it_reads() -> void:
 			sim.tick()
 		if _starts(sim, 0).has("foot_sweep"):
 			swept += 1
-	assert_gt(swept, 5, "a sweep on a lean it reads is taken (D127), unlike the catch (D103)")
+	assert_gt(swept, 5, "a sweep on a lean it reads is taken (D128), unlike the catch (D103)")
 
 
 func test_the_judoka_throws_in_the_clinch_and_the_bjj_fighter_pulls_guard() -> void:

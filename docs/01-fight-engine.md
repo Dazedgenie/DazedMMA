@@ -645,7 +645,7 @@ the centre (§20.2). Tested in `tests/sim/fight/test_fighter_ai.gd`, `tests/sim/
 What `sim/` does for §4, §5.1 and D29 in the Phase 1 playtest. The scope is the trimmed one (D98): one clinch position, the
 double leg, the catch-kick single, the sprawl, full guard top and bottom, getting up and the scramble. Ground-and-pound came
 in after this (D121, §24): the fighter on top of full guard strikes and the one underneath ties up or gets up; where this
-section and §24 differ, §24 is current. Throws, the guard pull and the sweep came later still (D127, §26). Every number is a first guess for the balance harness; each one is a named constant
+section and §24 differ, §24 is current. Throws, the guard pull and the sweep came later still (D128, §26). Every number is a first guess for the balance harness; each one is a named constant
 or a field in `data/`, listed under "To change it".
 
 ### 21.1 Positions and the moves between them
@@ -1241,7 +1241,7 @@ count as finishes) and `tests/data/test_data_files.gd` (the `submission` block, 
 keys). After changing a number, run the harness with all six cross-style pairings and read the **How** (submission share) and
 **Subs** (tried and locked a fight) lines.
 
-## 26. Throws and the guard game (D127)
+## 26. Throws and the guard game (D128)
 Kyle asked for throws so judo and BJJ fighters become possible (2026-10-28, after the fight-styles overview flagged "no
 throws, no subs" as the biggest gap; subs came in D126). This adds three throws and two guard moves that use the positions the
 game already has (D98's trim stays: no side control, mount or back yet), and two fighters built on them. A clean throw lands

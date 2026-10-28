@@ -35,7 +35,7 @@ func basic_ids() -> Array[String]:
 	return _basic
 
 
-## True for a throw or a trip (D127, docs/01 §26): a takedown a sprawl can't stop.
+## True for a throw or a trip (D128, docs/01 §26): a takedown a sprawl can't stop.
 static func is_throw(action: Dictionary) -> bool:
 	return action.category == "takedown" and bool(action.takedown.get("throw", false))
 
