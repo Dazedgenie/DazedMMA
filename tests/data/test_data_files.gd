@@ -173,6 +173,9 @@ func test_values_come_from_the_allowed_lists() -> void:
 				problems.append("action '%s': %s.partial_within is a chance, 0 or more" % [id, category])
 			elif block.has("ties_up_ms") and (category != "ground" or not block.ties_up_ms is float or block.ties_up_ms <= 0.0):
 				problems.append("action '%s': ties_up_ms (how long a tie-up stops ground strikes) is a ground move's, in ms" % id)
+			elif (block.has("throw") or block.has("landing_damage")) and (category != "takedown" or not block.get("throw", false) is bool \
+					or not block.get("landing_damage", 0.0) is float or block.get("landing_damage", 0.0) < 0.0):
+				problems.append("action '%s': throw (true or false) and landing_damage (0 or more) are a takedown's (D128)" % id)
 			elif category == "submission" and (not block.get("start_danger") is float or block.start_danger <= 0.0 or block.start_danger >= 100.0 \
 					or block.get("escape_to") not in ESCAPES):
 				problems.append("action '%s': a submission needs start_danger (between 0 and 100) and escape_to (one of %s)" % [id, ESCAPES])
@@ -208,6 +211,8 @@ func test_references_point_to_things_that_exist() -> void:
 			_expect_key(problems, where, "flag", o.get("own_flag", o.get("opponent_flag")), flags)
 			if o.has("own_flag") and o.get("required", false):
 				problems.append("%s: only an opponent_flag opportunity can be required" % where)
+			if o.has("ai_takes") and (not o.ai_takes is bool or not o.get("required", false)):
+				problems.append("%s: ai_takes (true or false) goes on a required opening (D128)" % where)
 			if o.has("target") and o.target not in ["head", "body", "legs"]:
 				problems.append("%s: an opportunity's target is head, body or legs" % where)
 		for side: String in a.get("stats", {}):

@@ -1,0 +1,18 @@
+{
+	"schema": "action@2",
+	"id": "outside_trip",
+	"name": "Outside trip",
+	"category": "takedown",
+	"positions": ["clinch"],
+	"ranges": ["clinch"],
+	"phases_ms": { "telegraph": 100, "windup": 200, "active": 300, "recovery": 400 },
+	"stamina_cost": 7,
+	"flags_self": [],
+	"takedown": { "base_success": 0.4, "partial_within": 0.1, "throw": true },
+	"stats": { "offense": ["takedowns", "clinch_control"], "defense": ["takedown_defense", "clinch_control"] },
+	"opportunities": [
+		{ "opponent_flag": "BACK_TO_CAGE", "success_bonus": 0.15 },
+		{ "opponent_flag": "LEANING", "success_bonus": 0.10 }
+	],
+	"requires_technique": null
+}

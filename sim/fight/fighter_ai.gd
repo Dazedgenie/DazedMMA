@@ -228,6 +228,10 @@ const ROCKED_GET_UP: float = 0.3
 const SUB_WEIGHT: float = 0.1
 const SUB_RETRY_TICKS: int = 450
 const GUILLOTINE_CHANCE: float = 0.35
+## Throws and the guard game (D128): in the clinch, a guard pull is weighted GUARD_PULL_WEIGHT × how
+## much they like submissions, next to their throws, knees and the break. A required opening the
+## data marks `ai_takes` (the foot sweep on a lean) is taken when read, unlike the catch (D103).
+const GUARD_PULL_WEIGHT: float = 0.5
 ## In a scramble: back to the feet × (1 − Base / 100), the top × (1 + Base / 100).
 ## Switching direction (D107): away from the fence (further than SWITCH_FENCE), circling
 ## fighters think again every SWITCH_EVERY ticks and change direction on a chance of
@@ -416,6 +420,8 @@ func lead_rate(view: FightView, layer: DecisionLayer) -> float:
 func _defend(view: FightView, layer: DecisionLayer) -> Decision:
 	if not _registered(view) or _opp.category != TAKEDOWN or _opp.get("sprawl_rolled", false):
 		return null
+	if ActionLibrary.is_throw(view.actions.get_action(_opp.id)):
+		return null  # Nothing to sprawl on (D128): it's read like any other move.
 	_opp.sprawl_rolled = true
 	for id in _all_moves(view):
 		var action: Dictionary = view.actions.get_action(id)
@@ -496,7 +502,7 @@ func _opening(view: FightView, layer: DecisionLayer) -> Decision:
 		if not counter and flag == "":
 			continue
 		var w: float = _score(view, layer, action, b.chance, _plain_chance(b), counter and action.category == STRIKE)
-		if _needs_opening(action):
+		if _needs_opening(action) and not _takes_opening(action):
 			w *= OWN_REQUIRED_OPENINGS
 		if w > 0.0:
 			options.append(id)
@@ -562,10 +568,10 @@ func _lead(view: FightView, layer: DecisionLayer) -> Decision:
 	return Decision.new(id, DecisionLayer.AI, "swarms" if view.opponent.is_rocked() else "leads")
 
 
-## Tied up (#15): now and then, work from here. In the clinch: knees, a takedown or
-## a break, picked by weight (breaking by how little they like the clinch). Underneath
-## in full guard: get up. On top: hold (the judges score it). In a scramble: back to
-## the feet or the top, by Base. A shot it read gets sprawled on first.
+## Tied up (#15): now and then, work from here. In the clinch: knees, a takedown or throw,
+## a guard pull (D128) or a break, picked by weight (breaking by how little they like the
+## clinch). Underneath in full guard: get up, tie up, sweep or a hold. On top: ground and
+## pound. In a scramble: back to the feet or the top, by Base. A shot it read gets sprawled on first.
 func _tied(view: FightView, layer: DecisionLayer) -> Decision:
 	var f: FighterState = view.me
 	var d: Decision = _defend(view, layer)
@@ -621,8 +627,15 @@ func _tied(view: FightView, layer: DecisionLayer) -> Decision:
 			"tie_up":
 				w *= TIE_UP_PRESSED if pressed else TIE_UP_CALM
 				reason = "ties him up to stop the punches" if pressed else "ties him up"
+			"guard_pull":
+				w *= GUARD_PULL_WEIGHT * sub_liking(view, layer)
+				reason = "pulls guard"
+			"sweep":
+				reason = "sweeps from the bottom"
 			_:
-				if action.category == TAKEDOWN:
+				if ActionLibrary.is_throw(action):
+					reason = "goes for the %s" % String(action.name).to_lower()
+				elif action.category == TAKEDOWN:
 					reason = "takes it down from the clinch"
 				elif action.category == SUBMISSION:
 					reason = "goes for the %s" % String(action.name).to_lower()
@@ -825,6 +838,15 @@ static func _plain_chance(b: OddsBreakdown) -> float:
 static func _needs_opening(action: Dictionary) -> bool:
 	for opp: Dictionary in action.opportunities:
 		if opp.get("required", false) and not STATE_FLAGS.has(opp.get("opponent_flag", "")):
+			return true
+	return false
+
+
+## True for a move whose required opening the AI takes on its own when it reads it (`ai_takes`:
+## the foot sweep on a lean, D128). Moves without it wait for a call or a rule (the catch, D103).
+static func _takes_opening(action: Dictionary) -> bool:
+	for opp: Dictionary in action.opportunities:
+		if opp.get("required", false) and opp.get("ai_takes", false):
 			return true
 	return false
 

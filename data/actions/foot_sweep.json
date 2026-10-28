@@ -1,0 +1,17 @@
+{
+	"schema": "action@2",
+	"id": "foot_sweep",
+	"name": "Foot sweep",
+	"category": "takedown",
+	"positions": ["standing"],
+	"ranges": ["pocket"],
+	"phases_ms": { "telegraph": 0, "windup": 100, "active": 200, "recovery": 300 },
+	"stamina_cost": 5,
+	"flags_self": [],
+	"takedown": { "base_success": 0.15, "partial_within": 0.1, "throw": true },
+	"stats": { "offense": ["takedowns", "speed"], "defense": ["takedown_defense", "footwork"] },
+	"opportunities": [
+		{ "opponent_flag": "LEANING", "required": true, "ai_takes": true, "success_bonus": 0.25 }
+	],
+	"requires_technique": null
+}

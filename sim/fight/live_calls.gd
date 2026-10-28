@@ -416,6 +416,8 @@ func _infeasible(view: FightView, call: Dictionary) -> String:
 	if call.get("actions", []).is_empty() or not _moves(view, call).is_empty():
 		return ""
 	for id: String in call.actions:
+		if not call.get("bare", false) and not _knows(view.me, view.actions.get_action(id)):
+			continue  # Where a move they don't know works from says nothing (Takedown! lists clinch throws, D128).
 		var why: String = view.why_not(id)
 		if why != "":
 			return why
