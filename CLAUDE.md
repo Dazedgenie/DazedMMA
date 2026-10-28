@@ -17,7 +17,7 @@
 - How long each fighter circled and cut off the cage, reported after every fight (what counts, the numbers to change it): `docs/01-fight-engine.md` §20.3 (D119).
 - Smoke-run the main scene: `godot --headless --quit-after 30`
 - The fight screen (setup, grey-box 3D view, HUD v0, speed controls, hotkeys, F3 debug overlay), what's not in v0 yet and what to edit: `docs/06-fight-hud.md` §6 (D117).
-- Playtest kit (the Windows download from Actions → Playtest build, the Playtest fights in `data/playtest/`, saved fights and `tools/playtest_report.gd`, the host script, feedback form and write-up template): `docs/playtests/README.md` (D118). Self-check an export: `ChinCheck.x86_64 --headless -- --self-check`.
+- Playtest kit (the Windows download from Actions → Playtest build, the Playtest fights in `data/playtest/`, saved fights and `tools/playtest_report.gd`, the host script, feedback form and write-up template): `docs/playtests/README.md` (D118). No testers: `docs/playtests/solo-checklist.md` (D127). Self-check an export: `ChinCheck.x86_64 --headless -- --self-check`.
 - Re-run the playtest write-up's balance numbers without Godot installed: Actions → Playtest numbers → Run workflow (`.github/workflows/playtest-numbers.yml`, D124); what each part is and where its numbers go: `docs/playtests/README.md` §4.
 - Clinch, takedowns and the ground (how a shot resolves, sprawls, knees into shots, getting up, judges' grappling points, the AI tied up): `docs/01-fight-engine.md` §21 (D108).
 - How live coaching calls work (voice, delay, compliance, attempts/focus/reads) and where their numbers live: `docs/01-fight-engine.md` §22 (D111, D112).
