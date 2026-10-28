@@ -1,0 +1,15 @@
+{
+	"schema": "action@2",
+	"id": "guard_pull",
+	"name": "Guard pull",
+	"category": "clinch",
+	"positions": ["clinch"],
+	"ranges": ["clinch"],
+	"phases_ms": { "telegraph": 0, "windup": 200, "active": 200, "recovery": 300 },
+	"stamina_cost": 3,
+	"flags_self": [],
+	"clinch": { "base_success": 0.6 },
+	"stats": { "offense": ["guard", "clinch_control"], "defense": ["clinch_control", "strength"] },
+	"opportunities": [],
+	"requires_technique": null
+}

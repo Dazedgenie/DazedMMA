@@ -35,6 +35,11 @@ func basic_ids() -> Array[String]:
 	return _basic
 
 
+## True for a throw or a trip (D128, docs/01 §26): a takedown a sprawl can't stop.
+static func is_throw(action: Dictionary) -> bool:
+	return action.category == "takedown" and bool(action.takedown.get("throw", false))
+
+
 ## True when a fighter in `role` may use this action (the action's `roles`; none listed = anyone).
 static func allows_role(action: Dictionary, role: String) -> bool:
 	return not action.has("roles") or action.roles.has(role)

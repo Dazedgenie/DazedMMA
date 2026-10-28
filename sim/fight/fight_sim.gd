@@ -683,7 +683,8 @@ func transition_for(i: int, action_id: String, result: String = PositionLibrary.
 ## here. The fight stays on the spot where the opponent stood, so the cage carries
 ## over: tied up on the fence stays on the fence, and getting up separates there.
 ## Whatever either fighter was in the middle of stops. Ending up on top scores a
-## takedown with the judges (Judging.TAKEDOWN_POINTS), for either fighter. Grapple resolution
+## takedown with the judges (Judging.TAKEDOWN_POINTS): the actor, or the opponent when the
+## actor's move failed into a position under them (not a guard pull, D128). Grapple resolution
 ## calls this when a takedown, clinch move, get-up or submission works (or fails into a new
 ## position, `result` "failed").
 func apply_transition(i: int, action_id: String, result: String = PositionLibrary.SUCCESS) -> bool:
@@ -706,8 +707,12 @@ func apply_transition(i: int, action_id: String, result: String = PositionLibrar
 		_round_points[i] += Judging.TAKEDOWN_POINTS
 		if actions.has(action_id) and actions.get_action(action_id).category == "takedown":
 			fighters[i].takedowns_landed += 1
-	if roles[1 - i] == PositionLibrary.TOP and not was_top[1 - i]:
-		_round_points[1 - i] += Judging.TAKEDOWN_POINTS  # Ends up on top off the opponent's failed move (a guillotine, D126).
+			if ActionLibrary.is_throw(actions.get_action(action_id)):
+				fighters[i].throws_landed += 1
+	if roles[1 - i] == PositionLibrary.TOP and not was_top[1 - i] and result == PositionLibrary.FAILED:
+		# Ends up on top off the opponent's failed move (a guillotine, D126); pulling guard
+		# on purpose (D128) gives the judges nothing.
+		_round_points[1 - i] += Judging.TAKEDOWN_POINTS
 	return true
 
 
@@ -759,6 +764,8 @@ func _start_action(i: int, id: String, decision: Decision = null) -> void:
 		f.strikes_thrown += 1
 	elif action.category == "takedown":
 		f.takedowns_tried += 1
+		if ActionLibrary.is_throw(action):
+			f.throws_tried += 1
 	elif action.category == "submission":
 		f.subs_tried += 1
 	if action.category == "strike" or action.category == "takedown" or action.category == "submission" or (action.category == "clinch" and situation.is_standing()):
@@ -1043,14 +1050,16 @@ func _make_contact(i: int, action: Dictionary) -> void:
 ## opponent's shot, if the sprawl is in its active phase while the shot has contact.
 ## One roll: it works, and the shooter is stuck under it, head low, for longer; or
 ## it doesn't, and the shot goes on to its own roll. Either way the sprawl is spent.
+## A throw or a trip (D128) has no shot to sprawl on: the sprawl does nothing to it.
 func _meet_shot(k: int) -> void:
 	var d: FighterState = fighters[k]
 	var s: FighterState = fighters[1 - k]
 	if d.phase != "active" or s.grip == null:
 		return
 	var sprawl: Dictionary = actions.get_action(d.action_id)
-	if sprawl.category != "defense" or not sprawl.defense.against_categories.has(actions.get_action(s.action_id).category):
-		return
+	var shot: Dictionary = actions.get_action(s.action_id)
+	if sprawl.category != "defense" or not sprawl.defense.against_categories.has(shot.category) or ActionLibrary.is_throw(shot):
+		return  # Nothing to sprawl on in a throw or a trip (D128).
 	var b: OddsBreakdown = odds_breakdown(k, sprawl.id)
 	var worked: bool = _rng.randf() < b.chance
 	_emit(FightEvent.SPRAWLED, k, { "action_id": sprawl.id, "against": s.action_id, "worked": worked, "chance": b.chance, "odds": b.to_dict() })
@@ -1089,8 +1098,29 @@ func _finish_grip(i: int) -> bool:
 	if result == PositionLibrary.SUCCESS and action.category == "submission":
 		_emit(FightEvent.GRAPPLE_WON, i, { "action_id": action.id, "result": result, "chance": b.chance, "odds": b.to_dict() })
 		return _lock_in(i, action)
-	_emit(FightEvent.GRAPPLE_WON, i, { "action_id": action.id, "result": result, "chance": b.chance, "odds": b.to_dict() })
+	var won := { "action_id": action.id, "result": result, "chance": b.chance, "odds": b.to_dict() }
+	var slam: int = landing_damage(i, action.id) if result == PositionLibrary.SUCCESS else 0
+	if slam > 0:
+		won.landing_damage = slam
+	_emit(FightEvent.GRAPPLE_WON, i, won)
+	if slam > 0:
+		# A big throw lands hard (D128): body damage, scored like a body shot.
+		fighters[1 - i].damage.body += slam
+		_round_points[i] += slam * Judging.TARGET_WEIGHTS.body
 	return apply_transition(i, action.id, result)
+
+
+## How hard fighter i's throw lands the opponent (D128): the throw's `landing_damage` × (0.5 +
+## Strength / 100) × the rules' damage scale, whole points; 0 for moves that don't, and where
+## slams are banned (amateur rules, docs/08).
+func landing_damage(i: int, id: String) -> int:
+	var action: Dictionary = actions.get_action(id)
+	if action.category != "takedown" or not bool(ruleset.allows.get("slams", true)):
+		return 0
+	var base: float = float(action.takedown.get("landing_damage", 0.0))
+	if base <= 0.0:
+		return 0
+	return maxi(1, roundi(base * (0.5 + fighters[i].effective_stat("strength") / 100.0) * ruleset.damage_multiplier))
 
 
 ## A tie-up from the bottom works (D121): the top fighter's posture is broken, the ground

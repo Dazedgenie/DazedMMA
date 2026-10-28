@@ -8,6 +8,6 @@
 	"hotkey": 4,
 	"voice_cost": 20,
 	"positions": ["standing", "clinch"],
-	"actions": ["catch_kick_single", "double_leg"],
+	"actions": ["catch_kick_single", "double_leg", "outside_trip", "hip_throw", "foot_sweep"],
 	"requires_technique": null
 }
