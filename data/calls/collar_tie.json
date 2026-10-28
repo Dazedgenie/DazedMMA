@@ -1,0 +1,13 @@
+{
+	"schema": "call@2",
+	"id": "collar_tie",
+	"name": "Collar tie!",
+	"kind": "now",
+	"tier": "intent",
+	"parent": null,
+	"hotkey": 5,
+	"voice_cost": 15,
+	"positions": ["clinch"],
+	"actions": ["collar_tie"],
+	"requires_technique": "collar_tie"
+}

@@ -232,6 +232,12 @@ const GUILLOTINE_CHANCE: float = 0.35
 ## much they like submissions, next to their throws, knees and the break. A required opening the
 ## data marks `ai_takes` (the foot sweep on a lean) is taken when read, unlike the catch (D103).
 const GUARD_PULL_WEIGHT: float = 0.5
+## The collar tie (D129): in the clinch, while either fighter's head is tied up the fighter works
+## COLLAR_RATE × as often (the holder's knees come in a burst, the one tied up fights out), and
+## the one tied up weights the break and a collar tie of his own COLLARED_ESCAPE × (he wants out).
+## Nobody ties up a head that's already tied.
+const COLLAR_RATE: float = 2.0
+const COLLARED_ESCAPE: float = 3.0
 ## In a scramble: back to the feet × (1 − Base / 100), the top × (1 + Base / 100).
 ## Switching direction (D107): away from the fence (further than SWITCH_FENCE), circling
 ## fighters think again every SWITCH_EVERY ticks and change direction on a chance of
@@ -569,8 +575,8 @@ func _lead(view: FightView, layer: DecisionLayer) -> Decision:
 
 
 ## Tied up (#15): now and then, work from here. In the clinch: knees, a takedown or throw,
-## a guard pull (D128) or a break, picked by weight (breaking by how little they like the
-## clinch). Underneath in full guard: get up, tie up, sweep or a hold. On top: ground and
+## a guard pull (D128), a collar tie (D129) or a break, picked by weight (breaking by how little
+## they like the clinch, and more when their head is tied up). Underneath in full guard: get up, tie up, sweep or a hold. On top: ground and
 ## pound. In a scramble: back to the feet or the top, by Base. A shot it read gets sprawled on first.
 func _tied(view: FightView, layer: DecisionLayer) -> Decision:
 	var f: FighterState = view.me
@@ -581,8 +587,12 @@ func _tied(view: FightView, layer: DecisionLayer) -> Decision:
 		return d
 	var position: String = view.position()
 	var rate: float = SCRAMBLE_RATE
+	var collared: bool = position == PositionLibrary.CLINCH and f.tied_up_ticks > 0
+	var holding: bool = position == PositionLibrary.CLINCH and view.opponent.tied_up_ticks > 0
 	if position == PositionLibrary.CLINCH:
 		rate = CLINCH_RATE * f.work_rate
+		if collared or holding:
+			rate *= COLLAR_RATE
 	elif view.my_role() == PositionLibrary.TOP:
 		return _pound(view, layer)
 	elif position != PositionLibrary.SCRAMBLE:
@@ -616,6 +626,17 @@ func _tied(view: FightView, layer: DecisionLayer) -> Decision:
 			"clinch_break":
 				w *= maxf(CLINCH_BREAK_MIN, 1.0 - base - range_leaning / 2.0)
 				reason = "breaks the clinch"
+				if collared:
+					w *= COLLARED_ESCAPE
+					reason = "fights out of the collar tie"
+			FightSim.COLLAR_TIE:
+				if holding:
+					w = 0.0
+				elif collared:
+					w *= COLLARED_ESCAPE
+					reason = "wins the tie back"
+				else:
+					reason = "ties up the head"
 			"get_up":
 				w *= maxf(0.0, 1.0 - base) if position == PositionLibrary.SCRAMBLE else 1.0
 				if f.is_rocked():
@@ -639,6 +660,8 @@ func _tied(view: FightView, layer: DecisionLayer) -> Decision:
 					reason = "takes it down from the clinch"
 				elif action.category == SUBMISSION:
 					reason = "goes for the %s" % String(action.name).to_lower()
+				elif holding and action.category == STRIKE:
+					reason = "knees from the collar tie"
 		if w > 0.0:
 			options.append(id)
 			weights.append(w)

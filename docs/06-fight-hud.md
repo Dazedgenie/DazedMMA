@@ -86,7 +86,7 @@ screen; **Start fight** plays three rounds with the player as the **red corner**
 |---|---|
 | Playtest | Free fight, or one of the playtest's fights (D118, `docs/playtests/`): it sets the fight, the calls on the bar, the drilled rules and the tell cue, and opens on a tip |
 | Your name | Saved with each fight for the playtest write-up (optional) |
-| Fight | Wrestler vs Kicker (the playtest matchup, D112), Kicker vs Boxer, Wrestler vs Boxer, Boxer vs Kicker, then the throwers (D128): Judoka vs Boxer, Judoka vs Wrestler, BJJ vs Wrestler, BJJ vs Kicker. You coach the first-named fighter |
+| Fight | Wrestler vs Kicker (the playtest matchup, D112), Kicker vs Boxer, Wrestler vs Boxer, Boxer vs Kicker, then the throwers (D128): Judoka vs Boxer, Judoka vs Wrestler, BJJ vs Wrestler, BJJ vs Kicker, then the Muay Thai fighter (D129): Muay Thai vs Boxer, vs Wrestler and vs Kicker. You coach the first-named fighter |
 | Speed | Normal is 2× fight time (D9), or 1× for the playtest's comparison (D91) |
 | Difficulty | Normal, or Easy: P pauses the fight (D50) |
 | Tell cue, Auto slow-mo, Perfect-call flourish | On/off, so the playtest can compare (D51–D53) |
@@ -106,7 +106,7 @@ screen; **Start fight** plays three rounds with the player as the **red corner**
 | Opponent corner | A speech bubble with the AI corner's call, 3 s | `fight_hud.gd` |
 | Feed | Every event in words with the round clock; filter: All / Key moments / Explanations (why a takedown, call or rule didn't work, A16) | `ui/fight_feed.gd` |
 | Voice meter | Your voice with the garbled zone (under 30) marked; it shakes when you repeat a call within 3 s (spam), and trust shows next to it | `ui/voice_meter.gd` |
-| Call bar | 1–9 intent calls and Q/E read calls, clickable (key 1 is Pressure! standing, Ground and pound! on top and Finish it! in a submission; key 6 is Defend the shot! standing and Defend the sub! caught in one, D121, D126: the key makes whichever works from here); a call that can't be made from here is dimmed with the reason as its tooltip (no voice, not from this position, not learned). Pressing a dimmed call's key puts the reason in the feed. The call being acted on is tinted green | `fight_hud.gd` |
+| Call bar | 1–9 intent calls and Q/E read calls, clickable (key 1 is Pressure! standing, Ground and pound! on top and Finish it! in a submission; key 6 is Defend the shot! standing and Defend the sub! caught in one; key 5 is Clinch! standing and Collar tie! in the clinch, D121, D126, D129: the key makes whichever works from here); a call that can't be made from here is dimmed with the reason as its tooltip (no voice, not from this position, not learned). Pressing a dimmed call's key puts the reason in the feed. The call being acted on is tinted green | `fight_hud.gd` |
 | Perfect call (D52) | A move your call started that works as a counter (a takedown that lands, a strike that lands in the opponent's wind-up or recovery): "PERFECT CALL" in the middle, a feed line and 1.2 s of slow-mo | `FightDriver.is_perfect_call` |
 | Between rounds | The bell stops the fight: each judge's card for the round, the totals, both fighters' stamina and damage, and your rule slots to change for the next round | `game/main.gd` |
 | Result | How it ended, the cards, strikes and takedowns, the seed, your corner's calls and where the fight was saved (D118); Next (in a playtest), Fight again, Change setup, Open saved fights | `game/main.gd` |
@@ -129,7 +129,7 @@ changes and pauses against the same fight run headless).
 | Held | 0 | The bell between rounds, the Esc menu, the towel question |
 
 ### 6.4 Keys (as built)
-1–9 intent calls (1 is Pressure! standing, Ground and pound! on top, Finish it! in a submission; 6 is Defend the shot!, or Defend the sub! caught in one) · Q / E read calls (Q is Catch the kick!; E is empty until a second read call exists) · Space slow-mo ·
+1–9 intent calls (1 is Pressure! standing, Ground and pound! on top, Finish it! in a submission; 6 is Defend the shot!, or Defend the sub! caught in one; 5 is Clinch!, or Collar tie! in the clinch) · Q / E read calls (Q is Catch the kick!; E is empty until a second read call exists) · Space slow-mo ·
 F fast · P pause (Easy) · T throw in the towel (asks first; a TKO loss, D31) · Esc menu (pauses on every difficulty) ·
 Enter presses the dialog's first button · F3 debug overlay · ` debug console.
 

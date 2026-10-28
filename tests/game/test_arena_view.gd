@@ -78,3 +78,15 @@ func test_the_view_only_watches_the_fight() -> void:
 	var plain: FightSim = _sim()
 	plain.run_to_end()
 	assert_eq(watched.events_as_dicts(), plain.events_as_dicts())
+
+
+func test_a_collar_tie_pulls_his_head_down_and_puts_the_holders_hands_behind_it() -> void:
+	var sim: FightSim = _sim()
+	var figure := FighterFigure.new(Color.RED)
+	add_child_autofree(figure)
+	sim.apply_transition(0, "clinch_entry")
+	var clinched: Dictionary = figure.pose_for(sim, 1)
+	var holding: Dictionary = figure.pose_for(sim, 0)
+	sim.fighters[1].tied_up_ticks = 40
+	assert_lt(figure.pose_for(sim, 1).lean, clinched.lean - 0.3, "bent over in the tie (D129)")
+	assert_gt(figure.pose_for(sim, 0).arm_lead, holding.arm_lead, "hands up behind his head")

@@ -141,6 +141,11 @@ func test_a_hip_throw_says_how_hard_it_landed() -> void:
 	assert_string_contains(_plain(FightLogFormatter.line(thrown, _sim)), "Blue's Hip throw WORKS: slammed down (12 damage)")
 
 
+func test_a_collar_tie_says_the_head_is_pulled_down() -> void:
+	var tied := FightEvent.new(10, 1, FightEvent.GRAPPLE_WON, 0, { "action_id": "collar_tie", "result": "tied_up" })
+	assert_string_contains(_plain(FightLogFormatter.line(tied, _sim)), "Red gets the COLLAR TIE: his head is pulled down for the knees")
+
+
 func test_a_punished_shot_explains_what_punished_it() -> void:
 	var odds := { "base": 0.45, "attack": 50.0, "defense": 50.0, "stat_gap": 0.0, "bonuses": [], "chance": 0.45 }
 	var sprawled := FightEvent.new(10, 1, FightEvent.GRAPPLE_STOPPED, 0, { "action_id": "double_leg", "reason": "sprawled on", "chance": 0.45, "odds": odds })

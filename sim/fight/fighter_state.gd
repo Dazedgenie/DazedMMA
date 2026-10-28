@@ -96,6 +96,12 @@ var subs_locked: int = 0
 ## They count as takedowns too.
 var throws_tried: int = 0
 var throws_landed: int = 0
+## Collar ties this fighter went for and won, and knees they landed in the clinch, and how
+## many of those went to the head from a collar tie (D129).
+var collar_ties_tried: int = 0
+var collar_ties_won: int = 0
+var clinch_knees_landed: int = 0
+var tied_knees_landed: int = 0
 
 var action_id: String = ""  # "" = free to act
 var phase: String = ""

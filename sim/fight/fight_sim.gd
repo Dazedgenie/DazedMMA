@@ -104,6 +104,8 @@ const SPRAWL_STUCK_TICKS: int = 5
 ## Takedowns, clinch and ground moves: they make contact when their active phase starts
 ## and are rolled when it ends.
 const GRAPPLES := { "takedown": true, "clinch": true, "ground": true, "submission": true }
+## The collar tie (D129, docs/01 §27): a clinch move whose `ties_up_ms` breaks the opponent's posture.
+const COLLAR_TIE := "collar_tie"
 ## A locked submission is fought for in beats, one every STRUGGLE_BEAT_TICKS (D126). Each beat
 ## the attacker wins with Contest.chance(STRUGGLE_BASE, the hold's offense stats, its defense
 ## stats, ± the corners' struggle calls) and the danger moves STRUGGLE_STEP up, or down.
@@ -768,6 +770,8 @@ func _start_action(i: int, id: String, decision: Decision = null) -> void:
 			f.throws_tried += 1
 	elif action.category == "submission":
 		f.subs_tried += 1
+	elif id == COLLAR_TIE:
+		f.collar_ties_tried += 1
 	if action.category == "strike" or action.category == "takedown" or action.category == "submission" or (action.category == "clinch" and situation.is_standing()):
 		_round_aggression[i] += 1.0
 	var why: Dictionary = {}
@@ -994,6 +998,10 @@ func _land_strike(i: int, action: Dictionary) -> void:
 	if push > 0.0:
 		_push(1 - i, push)
 	attacker.strikes_landed += 1
+	if situation.position == PositionLibrary.CLINCH and action.id == "knee":
+		attacker.clinch_knees_landed += 1
+		if _has_bonus(breakdown, "POSTURE_BROKEN"):
+			attacker.tied_knees_landed += 1
 	_round_points[i] += dealt * Judging.TARGET_WEIGHTS[target]
 	var landed := { "action_id": action.id, "target": target, "damage": dealt, "chance": chance, "counter": counter, "odds": breakdown.to_dict() }
 	if into != "":
@@ -1125,10 +1133,15 @@ func landing_damage(i: int, id: String) -> int:
 
 ## A tie-up from the bottom works (D121): the top fighter's posture is broken, the ground
 ## strike they were throwing is smothered, and they can't throw another until it wears off.
+## A collar tie in the clinch (D129) breaks the opponent's posture the same way: his head is
+## pulled down for the knees. Winning the tie also frees the winner from the opponent's.
 func _tie_up(i: int, action: Dictionary, b: OddsBreakdown) -> void:
 	var o: FighterState = fighters[1 - i]
 	o.tied_up_ticks = int(action[action.category].ties_up_ms) / FightClock.TICK_MS
+	fighters[i].tied_up_ticks = 0
 	fighters[i].unanswered = 0
+	if action.id == COLLAR_TIE:
+		fighters[i].collar_ties_won += 1
 	if not o.is_free() and actions.get_action(o.action_id).category == "strike":
 		o.clear_action()
 	_emit(FightEvent.GRAPPLE_WON, i, { "action_id": action.id, "result": "tied_up", "chance": b.chance, "odds": b.to_dict() })

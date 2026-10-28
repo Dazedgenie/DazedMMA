@@ -130,6 +130,11 @@ func pose_for(sim: FightSim, i: int) -> Dictionary:
 		p.arm_rear = 1.75
 		p.reach_lead = 1.2
 		p.reach_rear = 1.2
+		if f.tied_up_ticks > 0:  # Head pulled down in a collar tie (D129).
+			p.lean = -0.8
+		elif sim.fighters[1 - i].tied_up_ticks > 0:  # Holding the collar tie: hands behind his head.
+			p.arm_lead = 2.1
+			p.arm_rear = 2.1
 	if f.action_id == "" or not sim.actions.has(f.action_id):
 		return p
 	var reach: float = float(PHASE_REACH.get(f.phase, 0.0))
