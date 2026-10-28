@@ -1,0 +1,16 @@
+{
+	"schema": "fighter@1",
+	"id": "judoka",
+	"name": "Judoka",
+	"template": null,
+	"frame": { "height_cm": 180, "reach_cm": 182, "build": "average" },
+	"stance": "orthodox",
+	"stats": { "takedowns": 70, "takedown_defense": 60, "clinch_control": 75, "strength": 65, "scrambles": 55, "top_control": 55, "cardio": 60, "boxing": 40, "power": 50, "chin": 55, "submissions": 50, "submission_defense": 55 },
+	"personality": { "ego": 0, "discipline": 20, "coachable": 0, "loyal": 0 },
+	"style": { "pace": 10, "range": 50, "base": 60, "risk": 10 },
+	"gifts": [],
+	"flaws": [],
+	"techniques": ["jab", "cross", "knee", "outside_trip", "hip_throw", "foot_sweep"],
+	"tendencies": { "work_rate": 0.015, "actions": { "jab": 1.0, "cross": 0.8, "knee": 0.5, "outside_trip": 1.2, "hip_throw": 1.0 } },
+	"tells": []
+}

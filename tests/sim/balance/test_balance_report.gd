@@ -153,6 +153,25 @@ func test_the_wrestlers_pairings_are_reported_with_no_pass_mark() -> void:
 	assert_true(_check(_report(rows), "Wrestler vs Boxer").is_empty(), "no Wrestler vs Boxer fights, no line")
 
 
+func test_the_judoka_and_the_bjj_fighter_are_reported_with_no_pass_mark() -> void:
+	var rows: Array[Dictionary] = [
+		_row({ "red": "judoka", "blue": "boxer", "winner_id": "judoka" }),
+		_row({ "red": "boxer", "blue": "judoka", "winner_id": "boxer" }),
+		_row({ "red": "bjj", "blue": "wrestler", "winner_id": "bjj" }),
+	]
+	var judoka: Dictionary = _check(_report(rows), "Judoka vs Boxer")
+	assert_eq(judoka.status, BalanceReport.INFO, "report only, like the Wrestler (D127)")
+	assert_eq(judoka.value, "50.0%")
+	assert_eq(_check(_report(rows), "BJJ fighter vs Wrestler").value, "100.0%")
+	assert_true(_check(_report(rows), "Judoka vs Kicker").is_empty(), "no fights, no line")
+
+
+func test_the_summary_counts_throws() -> void:
+	var report: BalanceReport = _report([_row({ "red": "judoka", "throws_red": 6, "throws_landed_red": 2 })])
+	var text: String = report.summary({ "judoka": "Judoka", "boxer": "Boxer" })
+	assert_string_contains(text, "Throws     Judoka (red) 2.0 of 6.0 a fight landed · Boxer (blue) 0.0 of 0.0 (D127)")
+
+
 func test_the_summary_says_how_much_grappling_there_was() -> void:
 	var report: BalanceReport = _report([_row({ "red": "wrestler", "takedowns_red": 4, "shots_red": 9, "ground": 0.3, "top_red": 0.28, "clinch": 0.05 })])
 	var text: String = report.summary({ "wrestler": "Wrestler", "boxer": "Boxer" })

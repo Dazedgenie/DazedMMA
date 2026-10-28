@@ -645,7 +645,7 @@ the centre (§20.2). Tested in `tests/sim/fight/test_fighter_ai.gd`, `tests/sim/
 What `sim/` does for §4, §5.1 and D29 in the Phase 1 playtest. The scope is the trimmed one (D98): one clinch position, the
 double leg, the catch-kick single, the sprawl, full guard top and bottom, getting up and the scramble. Ground-and-pound came
 in after this (D121, §24): the fighter on top of full guard strikes and the one underneath ties up or gets up; where this
-section and §24 differ, §24 is current. Every number is a first guess for the balance harness; each one is a named constant
+section and §24 differ, §24 is current. Throws, the guard pull and the sweep came later still (D127, §26). Every number is a first guess for the balance harness; each one is a named constant
 or a field in `data/`, listed under "To change it".
 
 ### 21.1 Positions and the moves between them
@@ -1240,3 +1240,64 @@ meter), `tests/ui/test_fight_log_formatter.gd` (the feed lines and "wins by subm
 count as finishes) and `tests/data/test_data_files.gd` (the `submission` block, `failed` transitions, the new roles and focus
 keys). After changing a number, run the harness with all six cross-style pairings and read the **How** (submission share) and
 **Subs** (tried and locked a fight) lines.
+
+## 26. Throws and the guard game (D127)
+Kyle asked for throws so judo and BJJ fighters become possible (2026-10-28, after the fight-styles overview flagged "no
+throws, no subs" as the biggest gap; subs came in D126). This adds three throws and two guard moves that use the positions the
+game already has (D98's trim stays: no side control, mount or back yet), and two fighters built on them. A clean throw lands
+in full guard like any takedown; side control, where a big throw would really land, is a later decision. Every number is a
+first guess for the harness; each is a named constant or a data field, listed in §26.5.
+
+### 26.1 The moves
+| Move | Who, from where | Timing (telegraph · wind-up · active · recovery) | Odds (base + attack − defense stats) | What it does |
+|---|---|---|---|---|
+| Outside trip (a technique: Judoka, BJJ) | Clinch | 0.1 · 0.2 · 0.3 · 0.4 s | 40% + (Takedowns, Clinch control) − (Takedown defense, Clinch control). +15% on someone pinned on the fence, +10% on someone `LEANING` | Full guard, the tripper on top; within 10% past the odds it half works: a scramble |
+| Hip throw (a technique: Judoka) | Clinch | 0.2 · 0.3 · 0.3 · 0.5 s | 35% + (Takedowns, Strength) − (Takedown defense, Clinch control). −10% on someone pinned (no room to turn him over), +15% on someone `LEANING` | Full guard, the thrower on top, and he lands hard: 8 × (0.5 + Strength / 100) body damage, scored as a body shot. A miss leaves the thrower turned the wrong way, `LEANING` through his recovery, so a trip or a shot gets in easier |
+| Foot sweep (a technique: Judoka) | Standing, in the pocket | 0 · 0.1 · 0.2 · 0.3 s | 15% + (Takedowns, Speed) − (Takedown defense, Footwork), +25% for `LEANING` (required: only on someone overcommitted, a hook from its wind-up to the end of its recovery) | Full guard, the sweeper on top; within 10%: a scramble |
+| Guard pull (a technique: BJJ) | Clinch | 0 · 0.2 · 0.2 · 0.3 s | 60% + (Guard, Clinch control) − (Clinch control, Strength) | Full guard with the puller on the **bottom**, where their holds are. The judges score nothing for it, either side |
+| Sweep (a technique: BJJ) | Bottom of full guard | 0 · 0.3 · 0.3 · 0.4 s | 25% + (Guard, Scrambles) − Top control, +15% on someone `POSTURED_UP` (throwing a ground strike) | The sweeper ends up on top: scored like a takedown. Within 10%: a scramble. A miss leaves him underneath, with a long recovery to punch into |
+
+All three throws are `takedown` moves (they count as takedowns in the harness and with the judges, and amateur rules that ban
+takedowns ban them) marked `throw`: **a sprawl does nothing to a throw**, there's no shot to sprawl on, and the AI doesn't
+try. They resolve like any grapple otherwise (§21.2): contact at the start of the active phase (the range, the opening the
+foot sweep needs, odds fixed then), the roll as it ends. The hip throw's landing damage is a slam: none under amateur rules,
+which ban slams (`08`). The *Takedown!* call now lists the throws after the double leg and the catch, so a coach can call a
+throw in the clinch for a fighter who knows one; there's no *Pull guard!* or *Sweep!* call yet.
+
+### 26.2 The fighter AI
+| Where | What the fighter does | To change it |
+|---|---|---|
+| In the clinch | Throws are picked like the double leg (§21.5): tendency × Base. The trip's fence bonus and the hip throw's fence penalty sway the pick, so a Judoka trips on the fence and hip-throws in open space. A guard pull is weighted 0.5 × how much they like submissions (§25.4) | `FighterAI.GUARD_PULL_WEIGHT`; tendencies in `data/fighters/` |
+| Standing | A foot sweep only on a hook it reads coming (`ai_takes` on its opening): unlike the catch-kick (D103), the AI takes this one on its own. A Boxer who gets swept throws hooks ×0.7 as often afterwards (§21.8 "kicks less after being caught") | `ai_takes` in `data/actions/foot_sweep.json` |
+| A throw coming | No sprawl; read like any other move (a counter, or stepping off) | |
+| Bottom of full guard | The sweep sits next to getting up, tying up and the holds (§24.3, §25.4); the BJJ fighter's tendencies lean on it (sweep 1.5, get up 0.4) | `data/fighters/bjj.json` |
+
+### 26.3 The fighters
+Two new test fighters in `data/fighters/`, on the setup screen as Judoka vs Boxer, Judoka vs Wrestler, BJJ vs Wrestler and
+BJJ vs Kicker:
+
+| Fighter | Stats | Style (pace · range · base · risk) | Moves |
+|---|---|---|---|
+| **Judoka** | Takedowns 70, Clinch control 75, Strength 65, Takedown defense 60; Boxing 40 | 10 · 50 · 60 · 10 | Jab, cross, knee, outside trip, hip throw, foot sweep. No double leg: he has to get to the clinch |
+| **BJJ** | Submissions 80, Guard 75, Submission defense 70, Scrambles and Top control 60; Takedowns and Takedown defense 45, Boxing 40 | 0 · 30 · 60 · 20 | Jab, cross, outside trip, guard pull, sweep, triangle, armbar (and the guillotine everyone has) |
+
+### 26.4 Balance
+Reported, no pass marks, like the Wrestler (D109): the harness prints a "Judoka vs …" and "BJJ fighter vs …" line against the
+Kicker, the Boxer and the Wrestler, and a **Throws** line (tried and landed a fight) for every pairing. CI's balance snapshot
+runs all six. The striker pairings and the Wrestler's don't change: nobody who fought before knows a new move, a sprawl only
+skips throws, and the judges' one change (no points for landing on top of a guard pull) touches only the guard pull.
+
+### 26.5 To change it, and the tests
+- The moves: `data/actions/outside_trip.json`, `hip_throw.json`, `foot_sweep.json`, `guard_pull.json`, `sweep.json` (`09`
+  action@2: `takedown.throw`, `takedown.landing_damage`, an opportunity's `ai_takes`); where they take the fight: the
+  transitions in `data/positions/standing.json`, `clinch.json`, `full_guard.json`.
+- The slam: `FightSim.landing_damage()` (the 0.5 + Strength / 100 scale; amateur rules through `slams`).
+- No points for a guard pull: `FightSim.apply_transition()` (the opponent scores ending up on top only when the actor's move failed into it).
+- The AI: `FighterAI.GUARD_PULL_WEIGHT` (0.5), `_takes_opening()`. The fighters: `data/fighters/judoka.json`, `bjj.json`.
+- The call: `data/calls/takedown.json`.
+
+Tested in `tests/sim/fight/test_throws.gd` (each throw lands on top, a trip counts as a takedown, a sprawl does nothing, the
+fence for and against, the slam and amateur rules, a failed hip throw leaning, the foot sweep's opening, the guard pull scoring
+nothing, the sweep, the AI not sprawling, taking the foot sweep, the Judoka throwing and the BJJ fighter pulling guard and
+sweeping, the *Takedown!* call, and both fighters in real fights), `tests/sim/balance/test_balance_report.gd` (the report
+lines), `tests/ui/test_fight_log_formatter.gd` ("slammed down") and `tests/data/test_data_files.gd` (the new fields).

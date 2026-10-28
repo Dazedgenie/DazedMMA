@@ -13,6 +13,8 @@
 		{ "action": "catch_kick_single", "from_role": "neutral", "to": "full_guard", "roles": { "actor": "top", "opponent": "bottom" } },
 		{ "action": "clinch_entry", "from_role": "neutral", "to": "clinch", "roles": { "actor": "neutral", "opponent": "neutral" } },
 		{ "action": "guillotine", "from_role": "neutral", "to": "submission", "roles": { "actor": "attacker", "opponent": "defender" } },
-		{ "action": "guillotine", "from_role": "neutral", "result": "failed", "to": "full_guard", "roles": { "actor": "bottom", "opponent": "top" } }
+		{ "action": "guillotine", "from_role": "neutral", "result": "failed", "to": "full_guard", "roles": { "actor": "bottom", "opponent": "top" } },
+		{ "action": "foot_sweep", "from_role": "neutral", "to": "full_guard", "roles": { "actor": "top", "opponent": "bottom" } },
+		{ "action": "foot_sweep", "from_role": "neutral", "result": "partial", "to": "scramble", "roles": { "actor": "neutral", "opponent": "neutral" } }
 	]
 }

@@ -86,7 +86,7 @@ screen; **Start fight** plays three rounds with the player as the **red corner**
 |---|---|
 | Playtest | Free fight, or one of the playtest's fights (D118, `docs/playtests/`): it sets the fight, the calls on the bar, the drilled rules and the tell cue, and opens on a tip |
 | Your name | Saved with each fight for the playtest write-up (optional) |
-| Fight | Wrestler vs Kicker (the playtest matchup, D112), Kicker vs Boxer, Wrestler vs Boxer, Boxer vs Kicker. You coach the first-named fighter |
+| Fight | Wrestler vs Kicker (the playtest matchup, D112), Kicker vs Boxer, Wrestler vs Boxer, Boxer vs Kicker, then the throwers (D127): Judoka vs Boxer, Judoka vs Wrestler, BJJ vs Wrestler, BJJ vs Kicker. You coach the first-named fighter |
 | Speed | Normal is 2× fight time (D9), or 1× for the playtest's comparison (D91) |
 | Difficulty | Normal, or Easy: P pauses the fight (D50) |
 | Tell cue, Auto slow-mo, Perfect-call flourish | On/off, so the playtest can compare (D51–D53) |

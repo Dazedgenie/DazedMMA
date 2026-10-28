@@ -74,6 +74,8 @@ static func _describe(event: FightEvent, sim: FightSim) -> String:
 				return "%s [b]TIES HIM UP[/b] from the bottom: no ground strikes for a few seconds%s" % [who, _odds(event)]
 			if event.data.result == PositionLibrary.PARTIAL:
 				return "%s's %s [b]half works[/b]: they scramble%s" % [who, _action_name(event.data.action_id, sim), _odds(event)]
+			if event.data.has("landing_damage"):
+				return "%s's %s [b]WORKS[/b]: slammed down (%d damage)%s" % [who, _action_name(event.data.action_id, sim), event.data.landing_damage, _odds(event)]
 			return "%s's %s [b]WORKS[/b]%s" % [who, _action_name(event.data.action_id, sim), _odds(event)]
 		FightEvent.GRAPPLE_STOPPED:
 			return "%s's %s %s" % [who, _action_name(event.data.action_id, sim), _stopped(event, sim)]

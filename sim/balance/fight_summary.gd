@@ -24,6 +24,7 @@ const COLUMNS: Array[String] = [
 	"circling_red", "cutting_red", "circling_blue", "cutting_blue",
 	"shots_red", "takedowns_red", "shots_blue", "takedowns_blue", "clinch", "ground", "top_red", "top_blue",
 	"subs_red", "locked_red", "subs_blue", "locked_blue",
+	"throws_red", "throws_landed_red", "throws_blue", "throws_landed_blue",
 	"calls_red", "calls_blue", "fired_red", "fired_blue",
 ]
 const SIDES: Array[String] = ["red", "blue"]
@@ -158,6 +159,8 @@ static func of(sim: FightSim, lows: Array[float] = [], moves: Dictionary = {}) -
 		row["takedowns_" + side] = f.takedowns_landed
 		row["subs_" + side] = f.subs_tried
 		row["locked_" + side] = f.subs_locked
+		row["throws_" + side] = f.throws_tried
+		row["throws_landed_" + side] = f.throws_landed
 		row["top_" + side] = _share_of(moves.get("top", [0, 0])[i], ticks)
 		row["circling_" + side] = _seconds(sim.circling_ticks[i])
 		row["cutting_" + side] = _seconds(sim.cutting_ticks[i])

@@ -14,6 +14,9 @@ const SHOWCASE_WITHIN: float = 0.6
 ## D104, D109: the Wrestler's pairings are reported with no pass mark until after the playtest.
 const WRESTLER := "wrestler"
 const WRESTLER_OPPONENTS: Array[String] = ["kicker", "boxer"]
+## D127: the Judoka and the BJJ fighter are reported the same way, against the other three styles.
+const THROWERS := { "judoka": "Judoka", "bjj": "BJJ fighter" }
+const THROWER_OPPONENTS: Array[String] = ["kicker", "boxer", "wrestler"]
 ## D96: someone who pushed or had the pace pushed on them ends at ~30–50% of the tank.
 const TIRED_BELOW: float = 0.5
 ## D12, docs/10 §2: the ideal caller adds +10–20% to the coached fighter's wins over no calls;
@@ -176,6 +179,13 @@ func checks() -> Array[Dictionary]:
 			return [row.red, row.blue] == [WRESTLER, opponent] or [row.blue, row.red] == [WRESTLER, opponent])
 		if not pair.is_empty():
 			out.append(_info("Wrestler vs %s: the Wrestler wins" % opponent.capitalize(), "D109", _pct(fighter_win_share(pair, WRESTLER))))
+	for thrower: String in THROWERS:
+		for opponent in THROWER_OPPONENTS:
+			var pair: Array[Dictionary] = plain.filter(func(row: Dictionary) -> bool:
+				return [row.red, row.blue] == [thrower, opponent] or [row.blue, row.red] == [thrower, opponent])
+			if not pair.is_empty():
+				var who: String = THROWERS[thrower]
+				out.append(_info("%s vs %s: the %s wins" % [who, opponent.capitalize(), who], "D127", _pct(fighter_win_share(pair, thrower))))
 	out.append(_info("Fights where someone got tired (under 50% of the tank)", "D96", _pct(tired_share(plain))))
 	out.append(_info("Fights finished inside the distance", "docs/12 §4", _pct(finish_share(plain))))
 	out.append(_info("Exchanges that hit the 5–95% odds clamp", "docs/12 §4", _pct(clamped_share(plain))))
@@ -379,6 +389,8 @@ func _pair_lines(of_rows: Array[Dictionary], names: Dictionary) -> PackedStringA
 		_pct(average(of_rows, "clinch")), _pct(average(of_rows, "ground")), red, _pct(average(of_rows, "top_red")), blue, _pct(average(of_rows, "top_blue"))])
 	lines.append("  Subs       %s %.1f tried, %.1f locked a fight · %s %.1f tried, %.1f locked (D126)" % [
 		red, average(of_rows, "subs_red"), average(of_rows, "locked_red"), blue, average(of_rows, "subs_blue"), average(of_rows, "locked_blue")])
+	lines.append("  Throws     %s %.1f of %.1f a fight landed · %s %.1f of %.1f (D127)" % [
+		red, average(of_rows, "throws_landed_red"), average(of_rows, "throws_red"), blue, average(of_rows, "throws_landed_blue"), average(of_rows, "throws_blue")])
 	lines.append("  Tired      someone under 50%% of the tank in %s of fights" % _pct(tired_share(of_rows)))
 	lines.append("  Odds       %s of exchanges hit the 5–95%% clamp" % _pct(clamped_share(of_rows)))
 	return lines
