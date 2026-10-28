@@ -3,7 +3,7 @@
 	"id": "sweep",
 	"name": "Sweep",
 	"category": "ground",
-	"positions": ["full_guard"],
+	"positions": ["full_guard", "half_guard"],
 	"roles": ["bottom"],
 	"ranges": ["clinch"],
 	"phases_ms": { "telegraph": 0, "windup": 300, "active": 300, "recovery": 400 },

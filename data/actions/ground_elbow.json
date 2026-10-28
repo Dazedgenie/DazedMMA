@@ -3,7 +3,7 @@
 	"id": "ground_elbow",
 	"name": "Ground elbow",
 	"category": "strike",
-	"positions": ["full_guard"],
+	"positions": ["full_guard", "half_guard", "side_control", "mount"],
 	"roles": ["top"],
 	"ranges": ["clinch"],
 	"phases_ms": { "telegraph": 200, "windup": 300, "active": 100, "recovery": 400 },

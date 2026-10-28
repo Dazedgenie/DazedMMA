@@ -90,3 +90,19 @@ func test_a_collar_tie_pulls_his_head_down_and_puts_the_holders_hands_behind_it(
 	sim.fighters[1].tied_up_ticks = 40
 	assert_lt(figure.pose_for(sim, 1).lean, clinched.lean - 0.3, "bent over in the tie (D129)")
 	assert_gt(figure.pose_for(sim, 0).arm_lead, holding.arm_lead, "hands up behind his head")
+
+
+func test_mount_sits_up_side_control_lies_across_and_the_back_sits_behind() -> void:
+	var sim: FightSim = _sim()
+	var figure := FighterFigure.new(Color.RED)
+	add_child_autofree(figure)
+	sim.apply_transition(0, "double_leg")
+	var guard: Dictionary = figure.pose_for(sim, 0)
+	sim.apply_transition(0, "guard_pass")
+	assert_lt(figure.pose_for(sim, 0).lean, guard.lean, "flat across him in side control (D130)")
+	sim.apply_transition(0, "take_mount")
+	assert_gt(figure.pose_for(sim, 0).lean, guard.lean, "sat up on his chest in mount")
+	assert_eq(ArenaView.tag_text(sim), "Mount · Wrestler on top")
+	sim.apply_transition(0, "take_back")
+	assert_lt(figure.pose_for(sim, 1).lie, 1.0, "sat up with him behind")
+	assert_eq(ArenaView.tag_text(sim), "Back control · Wrestler has the back")

@@ -1,0 +1,19 @@
+{
+	"schema": "action@2",
+	"id": "rear_naked_choke",
+	"name": "Rear-naked choke",
+	"category": "submission",
+	"basic": true,
+	"positions": ["back_control"],
+	"roles": ["top"],
+	"ranges": ["clinch"],
+	"phases_ms": { "telegraph": 0, "windup": 300, "active": 400, "recovery": 500 },
+	"stamina_cost": 6,
+	"flags_self": [],
+	"submission": { "base_success": 0.15, "start_danger": 25, "escape_to": "back", "ai_without_opening": true },
+	"stats": { "offense": ["submissions", "strength"], "defense": ["submission_defense", "scrambles"] },
+	"opportunities": [
+		{ "opponent_flag": "HANDS_LOW", "success_bonus": 0.15 }
+	],
+	"requires_technique": null
+}

@@ -94,9 +94,11 @@ func pose_for(sim: FightSim, i: int) -> Dictionary:
 	var f: FighterState = sim.fighters[i]
 	var p: Dictionary = _rest_pose()
 	var role: String = sim.situation.role(i)
+	var where: String = sim.situation.position
 	var hold: Dictionary = sim.hold()
 	if not hold.is_empty():
 		role = String(hold.from_roles[i])  # In a submission (D126): posed as where it was locked from.
+		where = String(hold.from)
 	if f.is_down() or role == PositionLibrary.BOTTOM:
 		p.lie = 1.0
 		p.hip_y = 0.22
@@ -104,6 +106,9 @@ func pose_for(sim: FightSim, i: int) -> Dictionary:
 		p.arm_rear = 2.4
 		p.leg_lead = 0.4
 		p.leg_rear = 0.4
+		if where == "back_control" and not f.is_down():  # Sat up with him behind (D130).
+			p.lie = 0.4
+			p.hip_y = 0.3
 	elif role == PositionLibrary.TOP:
 		p.hip_y = 0.6
 		p.lean = -0.75
@@ -111,6 +116,18 @@ func pose_for(sim: FightSim, i: int) -> Dictionary:
 		p.leg_rear = 0.9
 		p.arm_lead = 1.2
 		p.arm_rear = 1.2
+		match where:  # D130: sat up on the chest, flat across it, or behind with the hooks in.
+			"mount":
+				p.hip_y = 0.5
+				p.lean = -0.25
+			"side_control":
+				p.hip_y = 0.4
+				p.lean = -1.3
+			"back_control":
+				p.hip_y = 0.35
+				p.lean = -0.2
+				p.arm_lead = 1.75
+				p.arm_rear = 1.75
 		if f.tied_up_ticks > 0:  # Pulled down into the guard (D121).
 			p.lean = -1.1
 			p.arm_lead = 0.6

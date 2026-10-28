@@ -421,7 +421,7 @@ func why_not(i: int, id: String) -> String:
 		return "not allowed under %s rules" % ruleset.name
 	if not action.positions.has(situation.position):
 		return "not possible from this position"
-	if not ActionLibrary.allows_role(action, situation.role(i)):
+	if not ActionLibrary.allows_role(action, situation.role(i)) or not positions.leads_somewhere(situation.position, situation.role(i), action):
 		return "not possible from the %s" % situation.role(i)
 	return ""
 
@@ -686,7 +686,9 @@ func transition_for(i: int, action_id: String, result: String = PositionLibrary.
 ## over: tied up on the fence stays on the fence, and getting up separates there.
 ## Whatever either fighter was in the middle of stops. Ending up on top scores a
 ## takedown with the judges (Judging.TAKEDOWN_POINTS): the actor, or the opponent when the
-## actor's move failed into a position under them (not a guard pull, D128). Grapple resolution
+## actor's move failed into a position under them (not a guard pull, D128). Moving to a better
+## position on top (D130: a pass, the mount, the back) scores the control gained
+## (Judging.ADVANCE_POINTS_PER_CONTROL × the rise in the top's control score). Grapple resolution
 ## calls this when a takedown, clinch move, get-up or submission works (or fails into a new
 ## position, `result` "failed").
 func apply_transition(i: int, action_id: String, result: String = PositionLibrary.SUCCESS) -> bool:
@@ -694,6 +696,8 @@ func apply_transition(i: int, action_id: String, result: String = PositionLibrar
 	if t.is_empty():
 		return false
 	var was_top: Array[bool] = [situation.role(0) == PositionLibrary.TOP, situation.role(1) == PositionLibrary.TOP]
+	var was_bottom: bool = situation.role(i) == PositionLibrary.BOTTOM
+	var control_before: float = float(positions.get_position(situation.position).control_score.get(PositionLibrary.TOP, 0.0))
 	var roles: Array[String] = ["", ""]
 	roles[i] = t.roles.actor
 	roles[1 - i] = t.roles.opponent
@@ -705,6 +709,13 @@ func apply_transition(i: int, action_id: String, result: String = PositionLibrar
 		f.unanswered = 0
 	_place_bodies(i)
 	_emit(FightEvent.POSITION_CHANGED, i, { "action_id": action_id, "position": situation.position, "phase": situation.phase, "roles": roles.duplicate() })
+	if roles[i] == PositionLibrary.TOP and was_top[i]:
+		var gained: float = float(positions.get_position(t.to).control_score.get(PositionLibrary.TOP, 0.0)) - control_before
+		if gained > 0.0:
+			_round_points[i] += Judging.ADVANCE_POINTS_PER_CONTROL * gained
+			fighters[i].advances += 1
+	elif was_bottom and roles[i] != PositionLibrary.ATTACKER:
+		fighters[i].escapes += 1  # Out from underneath: back to guard, up, or on top (not a hold, D130).
 	if roles[i] == PositionLibrary.TOP and not was_top[i]:
 		_round_points[i] += Judging.TAKEDOWN_POINTS
 		if actions.has(action_id) and actions.get_action(action_id).category == "takedown":
@@ -1107,6 +1118,8 @@ func _finish_grip(i: int) -> bool:
 		_emit(FightEvent.GRAPPLE_WON, i, { "action_id": action.id, "result": result, "chance": b.chance, "odds": b.to_dict() })
 		return _lock_in(i, action)
 	var won := { "action_id": action.id, "result": result, "chance": b.chance, "odds": b.to_dict() }
+	if result == PositionLibrary.PARTIAL:
+		won.to = transition_for(i, action.id, result).to  # A scramble, or half a pass (half guard, D130).
 	var slam: int = landing_damage(i, action.id) if result == PositionLibrary.SUCCESS else 0
 	if slam > 0:
 		won.landing_damage = slam

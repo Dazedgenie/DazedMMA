@@ -1,0 +1,14 @@
+{
+	"schema": "call@2",
+	"id": "pass",
+	"name": "Pass!",
+	"kind": "now",
+	"tier": "intent",
+	"parent": null,
+	"hotkey": 4,
+	"voice_cost": 20,
+	"positions": ["full_guard", "half_guard", "side_control", "mount"],
+	"roles": ["top"],
+	"actions": ["guard_pass", "take_mount", "take_back"],
+	"requires_technique": null
+}

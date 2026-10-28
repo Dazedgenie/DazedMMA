@@ -4,7 +4,7 @@
 	"name": "Ground punch",
 	"category": "strike",
 	"basic": true,
-	"positions": ["full_guard"],
+	"positions": ["full_guard", "half_guard", "side_control", "mount", "back_control"],
 	"roles": ["top"],
 	"ranges": ["clinch"],
 	"phases_ms": { "telegraph": 100, "windup": 200, "active": 100, "recovery": 300 },

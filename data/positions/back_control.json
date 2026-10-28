@@ -1,0 +1,16 @@
+{
+	"schema": "position@2",
+	"id": "back_control",
+	"name": "Back control",
+	"phase": "ground",
+	"roles": ["top", "bottom"],
+	"top_label": "has the back",
+	"stamina_drain_per_s": { "top": 0.3, "bottom": 0.5 },
+	"control_score": { "top": 2.0, "bottom": 0.0 },
+	"strike_damage_multiplier": { "top": 0.7, "bottom": 0.0 },
+	"transitions": [
+		{ "action": "rear_naked_choke", "from_role": "top", "to": "submission", "roles": { "actor": "attacker", "opponent": "defender" } },
+		{ "action": "escape_back", "from_role": "bottom", "to": "full_guard", "roles": { "actor": "top", "opponent": "bottom" } },
+		{ "action": "escape_back", "from_role": "bottom", "result": "partial", "to": "scramble", "roles": { "actor": "neutral", "opponent": "neutral" } }
+	]
+}

@@ -1,0 +1,21 @@
+{
+	"schema": "action@2",
+	"id": "bridge",
+	"name": "Bridge and roll",
+	"category": "ground",
+	"basic": true,
+	"positions": ["mount"],
+	"roles": ["bottom"],
+	"ranges": ["clinch"],
+	"phases_ms": { "telegraph": 200, "windup": 300, "active": 300, "recovery": 300 },
+	"stamina_cost": 7,
+	"flags_self": [
+		{ "flag": "ESCAPING", "from": "windup", "to": "active" }
+	],
+	"ground": { "base_success": 0.15, "partial_within": 0.2 },
+	"stats": { "offense": ["strength", "scrambles"], "defense": ["top_control"] },
+	"opportunities": [
+		{ "opponent_flag": "POSTURED_UP", "success_bonus": 0.15 }
+	],
+	"requires_technique": null
+}

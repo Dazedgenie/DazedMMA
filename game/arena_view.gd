@@ -125,7 +125,7 @@ static func tag_text(sim: FightSim) -> String:
 		return "%s · %s's %s" % [text, sim.fighters[int(hold.attacker)].name, String(sim.actions.get_action(hold.action_id).name).to_lower()]
 	var top: int = sim.situation.roles.find(PositionLibrary.TOP)
 	if top >= 0:
-		text += " · %s on top" % sim.fighters[top].name
+		text += " · %s %s" % [sim.fighters[top].name, sim.positions.top_label(sim.situation.position)]
 	return text
 
 

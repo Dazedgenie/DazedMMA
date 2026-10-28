@@ -1,0 +1,17 @@
+{
+	"schema": "position@2",
+	"id": "side_control",
+	"name": "Side control",
+	"phase": "ground",
+	"roles": ["top", "bottom"],
+	"stamina_drain_per_s": { "top": 0.2, "bottom": 0.4 },
+	"control_score": { "top": 1.5, "bottom": 0.0 },
+	"strike_damage_multiplier": { "top": 1.0, "bottom": 0.4 },
+	"transitions": [
+		{ "action": "take_mount", "from_role": "top", "to": "mount", "roles": { "actor": "top", "opponent": "bottom" } },
+		{ "action": "take_back", "from_role": "top", "to": "back_control", "roles": { "actor": "top", "opponent": "bottom" } },
+		{ "action": "arm_triangle", "from_role": "top", "to": "submission", "roles": { "actor": "attacker", "opponent": "defender" } },
+		{ "action": "recover_guard", "from_role": "bottom", "to": "full_guard", "roles": { "actor": "bottom", "opponent": "top" } },
+		{ "action": "recover_guard", "from_role": "bottom", "result": "partial", "to": "half_guard", "roles": { "actor": "bottom", "opponent": "top" } }
+	]
+}

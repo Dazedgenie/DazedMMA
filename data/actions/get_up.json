@@ -4,7 +4,7 @@
 	"name": "Get up",
 	"category": "ground",
 	"basic": true,
-	"positions": ["full_guard", "scramble"],
+	"positions": ["full_guard", "half_guard", "scramble"],
 	"roles": ["bottom", "neutral"],
 	"ranges": ["clinch"],
 	"phases_ms": { "telegraph": 200, "windup": 300, "active": 500, "recovery": 300 },

@@ -1,0 +1,20 @@
+{
+	"schema": "action@2",
+	"id": "guard_pass",
+	"name": "Guard pass",
+	"category": "ground",
+	"basic": true,
+	"positions": ["full_guard", "half_guard"],
+	"roles": ["top"],
+	"ranges": ["clinch"],
+	"phases_ms": { "telegraph": 200, "windup": 300, "active": 400, "recovery": 300 },
+	"stamina_cost": 6,
+	"flags_self": [],
+	"ground": { "base_success": 0.15, "partial_within": 0.15 },
+	"stats": { "offense": ["top_control", "strength"], "defense": ["guard"] },
+	"opportunities": [
+		{ "opponent_flag": "HANDS_LOW", "success_bonus": 0.10 },
+		{ "own_flag": "POSTURE_BROKEN", "success_bonus": -0.10 }
+	],
+	"requires_technique": null
+}

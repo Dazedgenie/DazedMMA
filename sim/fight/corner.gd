@@ -21,7 +21,7 @@ extends RefCounted
 ##   - the opponent's scouted tell is set off (their jab blocked: a kick is coming): the read
 ##     call for that move (Catch the kick!), so the fighter is primed before the kick
 ##   - this fighter rocked: Survive!; the opponent rocked: Pressure!
-##   - this fighter ends up on top: Ground and pound! (D121)
+##   - this fighter ends up on top: Ground and pound! (D121), once: not again for a pass (D130)
 ##   - a submission locks in (D126): Finish it! for the attacker, Defend the sub! for the defender
 ## It doesn't call Get up!: the fighter works to get up on their own, and a called try
 ## adds a tired try more than it helps. Nor Defend the shot! on the Wrestler's
@@ -59,6 +59,8 @@ var _ready: bool = false
 var _reads: Dictionary = {}
 var _tells: Array[Dictionary] = []
 var _usable: Dictionary = {}
+## This fighter was on top before the last change of position (a pass keeps them there, D130).
+var _was_top: bool = false
 
 
 func _init(p_style: String = NONE, p_seed: int = 0, p_calls: CallLibrary = null, p_triggers: TriggerLibrary = null) -> void:
@@ -104,12 +106,16 @@ func on_event(view: FightView, event: FightEvent) -> void:
 			else:
 				_decide(event.tick, "ground_and_pound" if view.my_role() == PositionLibrary.TOP else "pressure")
 		FightEvent.POSITION_CHANGED:
-			if event.data.roles[me] == PositionLibrary.TOP:
+			var was_top: bool = _was_top
+			_was_top = event.data.roles[me] == PositionLibrary.TOP
+			if _was_top and not was_top:
 				_decide(event.tick, "ground_and_pound")
 			elif event.data.roles[me] == PositionLibrary.ATTACKER:
 				_decide(event.tick, "finish_it")
 			elif event.data.roles[me] == PositionLibrary.DEFENDER:
 				_decide(event.tick, "defend_the_sub")
+		FightEvent.ROUND_ENDED:
+			_was_top = false  # Every round starts standing.
 		FightEvent.ACTION_PHASE:
 			if event.data.phase == "telegraph" and event.actor != me:
 				for read_id: String in _reads:

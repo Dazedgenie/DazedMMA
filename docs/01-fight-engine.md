@@ -90,8 +90,8 @@ pinned on purpose, and the PR then shows the old and new numbers side by side.
 | Fight | Covers |
 |---|---|
 | Kicker vs Boxer, no corners (seed 35002) | The striking engine and judges on their own: a decision |
-| Wrestler vs Kicker, ideal corner vs AI corner, Wrestler drilled on catch-kick-and-shoot at 80% (seed 35006) | Calls, a drilled rule firing, takedowns, ground and pound: a TKO |
-| Wrestler vs Boxer, AI corner for the Boxer, Boxer drilled on sprawl-on-the-shot at 80% (seed 35007) | Sprawls, the opponent's corner and rules: a TKO the other way |
+| Wrestler vs Kicker, ideal corner vs AI corner, Wrestler drilled on catch-kick-and-shoot at 80% (seed 35006) | Calls, a drilled rule firing, takedowns, ground and pound: a split decision for the Kicker (since D130) |
+| Wrestler vs Boxer, AI corner for the Boxer, Boxer drilled on sprawl-on-the-shot at 80% (seed 35011; 35007 until D130, when it became a decision) | Sprawls, the opponent's corner and rules, passes, side control and the back (D130): a TKO in round 3 |
 | The check fighters, amateur adult rules (seed 35001) | A ruleset other than pro: 3 × 3:00, a split decision |
 
 **What's pinned:** each fight's winner, result, the round and second it ended, the number of events, knockdowns, strikes
@@ -184,6 +184,10 @@ STANDING ──(clinch entry)──► CLINCH (open / cage / plum / body lock)
 Every position defines its **available actions**, its **available calls**, its stamina drain, how much
 control it scores for the judges, and its striking damage multipliers.
 
+In the engine so far: standing, the clinch (one position), full guard, half guard, side control, mount, back control and the
+scramble (D130, §28), plus the submission position a hold is fought in (D126). Butterfly/open guard, north-south and
+turtle/front headlock are still to come.
+
 ### 4.1 The model in the engine (#34, `12` §3 item 4)
 - **One shared situation.** Positions are relational (one fighter is on top), so the fight holds a single **situation** both
   fighters read (`sim/fight/situation.gd`): the phase (standing / clinch / ground), the named position (`standing`,
@@ -206,7 +210,7 @@ The Phase 1 playtest ships a trimmed ground game (#15):
 
 | In the playtest | After the playtest |
 |---|---|
-| Clinch (one clinch position), double leg, catch-kick single, sprawl, full guard top/bottom, get up, scramble; ground-and-pound and tie-ups from full guard (added early, D121, §24); the guillotine, triangle and armbar with a simple struggle (added early, D126, §25) | Half guard, side control, mount, back, north-south, turtle, guard passing, sweeps, the subs that need those positions, the per-beat struggle calls (§9) |
+| Clinch (one clinch position), double leg, catch-kick single, sprawl, full guard top/bottom, get up, scramble; ground-and-pound and tie-ups from full guard (added early, D121, §24); the guillotine, triangle and armbar with a simple struggle (added early, D126, §25); throws, the guard pull and the sweep (D128, §26); half guard, side control, mount and the back with passes, escapes, the rear-naked choke and the arm-triangle (added early, D130, §28) | North-south, turtle, butterfly guard, leg locks, the per-beat struggle calls (§9) |
 
 ---
 
@@ -645,7 +649,7 @@ the centre (§20.2). Tested in `tests/sim/fight/test_fighter_ai.gd`, `tests/sim/
 What `sim/` does for §4, §5.1 and D29 in the Phase 1 playtest. The scope is the trimmed one (D98): one clinch position, the
 double leg, the catch-kick single, the sprawl, full guard top and bottom, getting up and the scramble. Ground-and-pound came
 in after this (D121, §24): the fighter on top of full guard strikes and the one underneath ties up or gets up; where this
-section and §24 differ, §24 is current. Throws, the guard pull and the sweep came later still (D128, §26). The collar tie and knees to the head from it came after that (D129, §27). Every number is a first guess for the balance harness; each one is a named constant
+section and §24 differ, §24 is current. Throws, the guard pull and the sweep came later still (D128, §26). The collar tie and knees to the head from it came after that (D129, §27). Half guard, side control, mount and the back came next (D130, §28): where this section says full guard, the ground now has four more positions. Every number is a first guess for the balance harness; each one is a named constant
 or a field in `data/`, listed under "To change it".
 
 ### 21.1 Positions and the moves between them
@@ -1076,7 +1080,8 @@ fully hurt while rocked. Amateur referees step in sooner (the ruleset's `early_s
 bias × 0.5 (adult amateur 15%, teen 25%) and they stop after one shot fewer.
 
 ### 24.3 Ground and pound (D121)
-In full guard the fighter on top strikes and the fighter underneath answers:
+In full guard the fighter on top strikes and the fighter underneath answers (since D130 the same strikes work from the top of
+half guard, side control, mount and the back, harder or softer by the position, §28):
 
 | Move | Who | Timing (telegraph · wind-up · active · recovery) | Odds and damage | Notes |
 |---|---|---|---|---|
@@ -1154,7 +1159,8 @@ After changing a number, run the harness with all six cross-style pairings
 Kyle asked for submissions (2026-10-27: "can we add in submissions?") and picked the simple struggle: three holds from the
 positions the game already has, each locking in like any grapple and then fought for in a short struggle with a danger meter,
 with one call a corner. It's the first step of §9 (D10): the per-beat menu of calls with one right answer, auto slow-mo
-tuned to it and the holds that need other positions (the back, mount, side control) come later. Every number is a first
+tuned to it and the holds that need other positions (the back, mount, side control) come later. (They came with D130, §28:
+the rear-naked choke from the back, the arm-triangle from side control and mount, and the armbar from mount.) Every number is a first
 guess for the harness; each is a named constant or a data field, listed in §25.6.
 
 ### 25.1 The holds
@@ -1245,7 +1251,8 @@ keys). After changing a number, run the harness with all six cross-style pairing
 Kyle asked for throws so judo and BJJ fighters become possible (2026-10-28, after the fight-styles overview flagged "no
 throws, no subs" as the biggest gap; subs came in D126). This adds three throws and two guard moves that use the positions the
 game already has (D98's trim stays: no side control, mount or back yet), and two fighters built on them. A clean throw lands
-in full guard like any takedown; side control, where a big throw would really land, is a later decision. Every number is a
+in full guard like any takedown; side control, where a big throw would really land, is a later decision. (Decided in D130,
+§28: the hip throw now lands in side control.) Every number is a
 first guess for the harness; each is a named constant or a data field, listed in §26.5.
 
 ### 26.1 The moves
@@ -1407,3 +1414,138 @@ tied, the call only in the clinch and only for a fighter who knows it, the Muay 
 knowing it), `tests/sim/balance/test_balance_report.gd` (the report lines), `tests/ui/test_fight_log_formatter.gd` ("COLLAR
 TIE"), `tests/game/test_arena_view.gd` (the pose), `tests/sim/fight/test_live_calls.gd` (the call catalogue) and
 `tests/data/test_data_files.gd` (`ties_up_ms` on a clinch move).
+
+## 28. Ground positions: half guard, side control, mount and the back (D130)
+Kyle asked for more positions on the ground (2026-10-28: "I feel like that opens up the most for wrestling BJJ and judo and
+sambo"). Until now the ground was full guard and a scramble (D98's trim). This adds four positions from §4's diagram, the moves
+between them, and what each one allows: who can strike and how hard, which holds work there, and what the judges score. It's
+the first of three scopes put to Kyle (four positions with passes and escapes; the others were half guard and side control
+only, or this plus leg locks and a Sambo fighter, which build on it). North-south, turtle and butterfly guard stay on the list in §4. Every number is a first guess for the harness; each
+is a named constant or a data field, listed in §28.7.
+
+### 28.1 The positions
+All four have the roles `top` and `bottom`, like full guard, so ground and pound, the referee's count underneath, the judges'
+takedown points and the 3D view's lying down all carry over. On the back, `top` is the fighter who has the back.
+
+| Position | Each second (stamina drain · judges' control score · strike damage ×), top / bottom | Ways out (the transitions in its file) |
+|---|---|---|
+| Full guard (as before) | 0.2 / 0.3 · 1.0 / 0.2 · 0.8 / 0.4 | New: the top fighter's **guard pass** → side control; half working → half guard |
+| **Half guard** | 0.2 / 0.3 · 1.2 / 0.1 · 0.9 / 0.4 | Top: guard pass → side control. Bottom: **recover guard** → full guard; get up → standing (half: a scramble); sweep → half guard with the roles swapped (half: a scramble) |
+| **Side control** | 0.2 / 0.4 · 1.5 / 0 · 1.0 / 0.4 | Top: **take the mount** → mount; **take the back** → back; the **arm-triangle**. Bottom: recover guard → full guard (half working: half guard). No getting straight up |
+| **Mount** | 0.2 / 0.5 · 2.0 / 0 · **1.3** / 0.4 | Top: take the back; the **armbar**; the arm-triangle. Bottom: **bridge and roll** → full guard with the bridger on top (a reversal); half working → half guard underneath |
+| **Back control** | 0.3 / 0.5 · 2.0 / 0 · 0.7 / 0 | Top: the **rear-naked choke**. Bottom: **escape the back** → full guard with the escaper on top (turning into his guard); half working → a scramble |
+| Scramble (as before) | 0.8 each · 0 · 0 | New: take the back (a technique) → back control |
+
+Where the fight lands from the feet: the double leg, the catch, the outside trip, the foot sweep and winning a scramble still
+land in full guard. **The hip throw lands in side control** (§26 said side control was where a big throw really lands): the
+thrower is past the guard as he lands.
+
+### 28.2 The moves
+| Move | Who, from where | Timing (telegraph · wind-up · active · recovery) | Odds (base + attack − defense stats) | Notes |
+|---|---|---|---|---|
+| Guard pass (*everyone*) | Top of full guard or half guard | 0.2 · 0.3 · 0.4 · 0.3 s | 15% + (Top control, Strength) − Guard, +10% on `HANDS_LOW`, −10% while his own posture is broken (tied up) | From full guard, within 15% past the odds it half works: half guard |
+| Take the mount (*everyone*) | Top of side control | 0.1 · 0.3 · 0.3 · 0.3 s | 30% + (Top control, Scrambles) − (Guard, Scrambles), +10% on `HANDS_LOW` | |
+| Take the back (a technique: Wrestler, BJJ, Judoka) | Top of side control or mount, or a scramble | 0 · 0.2 · 0.3 · 0.3 s | 10% + (Scrambles, Top control) − Scrambles, **+15% on someone `ESCAPING`** | Turning away to get out shows the back |
+| Recover guard (*everyone*) | Bottom of side control or half guard | 0.2 · 0.3 · 0.4 · 0.3 s | 30% + (Guard, Scrambles) − Top control, +15% on `POSTURED_UP` | `ESCAPING` from wind-up to the end of active. From side control, within 15%: half guard |
+| Bridge and roll (*everyone*) | Bottom of mount | 0.2 · 0.3 · 0.3 · 0.3 s | 15% + (Strength, Scrambles) − Top control, +15% on `POSTURED_UP` | `ESCAPING`. Works: a reversal, scored like a takedown. Within 20%: half guard |
+| Escape the back (*everyone*) | Bottom of back control | 0.2 · 0.3 · 0.4 · 0.3 s | 25% + (Scrambles, Strength) − Top control, +10% on `POSTURED_UP` | `ESCAPING`. Works: on top in his guard, scored like a takedown. Within 15%: a scramble |
+| Rear-naked choke (*everyone*, like the guillotine) | Top of back control | 0 · 0.3 · 0.4 · 0.5 s | 15% + (Submissions, Strength) − (Submission defense, Scrambles), +15% on `HANDS_LOW` | A hold (§25): danger starts at 25. Getting out: back to back control |
+| Arm-triangle choke (a technique: Wrestler, BJJ, Judoka) | Top of side control or mount | 0 · 0.3 · 0.4 · 0.5 s | 10% + (Submissions, Top control) − (Submission defense, Guard), +15% on `ESCAPING` | A hold: danger starts at 25. Getting out: back where it was locked |
+| Armbar (now also from mount; the Kicker, BJJ and the Judoka know it) | Bottom of full guard (as §25), or top of mount | as §25 | as §25, plus +20% on someone `ESCAPING` (an arm out as he pushes) | From mount, within 15%: a scramble |
+| Ground punch, ground elbow | Top of every ground position (no elbows from the back) | as §24.3 | as §24.3 | Damage × the position's multiplier: hardest from mount, softest from the back |
+| Tie up | Bottom of full guard, half guard and mount | as §24.3 | as §24.3 | Not from under side control or the back: there the answer is to get out |
+| Sweep | Bottom of full guard or half guard | as §26 | as §26 | From half guard he ends on top in half guard |
+
+**One move, different roles in different positions.** A move that moves the fight (a takedown, clinch move, ground move or
+hold) is only possible where its position file says where it goes for that role (`PositionLibrary.leads_somewhere()`), so the
+armbar works from the bottom of full guard and the top of mount but not from the top of full guard. Strikes, defenses and
+tie-ups don't move the fight, so this changes nothing for them, and nothing that was possible before stops being possible.
+
+### 28.3 The judges
+- **A better position scores**: 6 points per point of control score gained on top (`Judging.ADVANCE_POINTS_PER_CONTROL`), so
+  full guard to side control is 3, side control to mount 3, full guard to half guard 1.2, and mount to the back nothing (both
+  are 2.0). A takedown is still 6 (getting from no control to full guard's 1.0).
+- Every second there scores 0.15 × the control score, as before (§21.4): 20 s in mount is 6 points.
+- Getting out from underneath scores nothing on its own; a reversal (the bridge, escaping the back into his guard) scores like a
+  takedown, as the sweep does (§26).
+
+### 28.4 The fighter AI
+| Where | What the fighter does | To change it |
+|---|---|---|
+| On top, every position | Before the ground and pound (§24.3), a chance of 0.3 × work rate × (0.5 + Base / 100, at least 0.1) a tick to work for something better: a pass, the mount, the back or a hold, picked by weight like the moves underneath (a hold only on its opening, as §25.4, except the rear-naked choke, which needs none: being on the back is the opening). The Wrestler goes for it about every 20 s. Tied up, he can still pass, at −10% | `FighterAI.ADVANCE_RATE` (0.3), `ADVANCE_MIN_LIKING` (0.1); the hold's `ai_without_opening` |
+| On top, the fighter underneath starts to escape | One look per escape for what it gives away: the back, the armbar from mount, the arm-triangle. Taken on a chance of 0.2 × (the odds / 50%)², a hold also × 0.5 × how much they like subs (§25.4), and only if it would land while he's still `ESCAPING` | `ESCAPE_PUNISH` (0.2), `ESCAPE_SUB` (0.5) |
+| Underneath | As in full guard (§21.5, §24.3): about every 3.3 s, 3 × as often under fire, picking from what works there: recovering guard, the bridge, escaping the back, tying up, getting up from half guard, the sweep and the holds | `GROUND_RATE`, `GROUND_UNDER_FIRE` |
+| The corner | Calls *Ground and pound!* when its fighter lands on top, once: not again after every pass | `Corner.on_event()` |
+
+### 28.5 The calls
+- **Pass!** (new, key 4, voice 20, an attempt): from the top of full guard, half guard, side control or mount the fighter
+  goes for the next position up (the guard pass, the mount, then the back for a fighter who knows it). It shares key 4 with
+  *Takedown!*, which is only standing and in the clinch (`data/calls/pass.json`). The AI corner doesn't call it yet.
+- *Get up!* (key 7) now works from under every position and calls the way out from there: up from full guard or half guard,
+  back to guard from side control, the bridge from mount, turning out of the back.
+- *Ground and pound!* and *Survive!* work in every ground position.
+
+### 28.6 On screen and in the harness
+- The tag under the fighters names the position and who's on top, "Back control · Wrestler has the back" (a position's
+  `top_label`); the feed says the same, and "Wrestler's Guard pass half works: half guard".
+- In the 3D view the top fighter sits up in mount, lies flat across in side control, and sits behind on the back with the one
+  underneath sat up in front.
+- The harness's **Positions** line: the share of the fight in each ground position, how many better positions each fighter got
+  to on top, and how many times each got out from underneath (CSV columns `full_guard` … `back_control`, `advances_*`, `escapes_*`).
+
+### 28.7 Balance
+Reported, no pass marks, like the Wrestler and the throwers (D109, D128). Harness, no calls, 100 fights each way round (seed 1,
+pro rules), this change against main just before it:
+
+| Pairing | Wins before → now | Ended by submission before → now | Ground now: full guard · half guard · side control · mount · back (share of the fight) |
+|---|---|---|---|
+| Kicker vs Boxer | Kicker 44.5% → 44.5% (event for event the same) | 0% → 0% | – |
+| Wrestler vs Kicker | Wrestler 67.5% → 76% | 4% → 14% | 29% · 6% · 5% · 1% · 3% |
+| Wrestler vs Boxer | Wrestler 57% → 72.5% | 0% → 14.5% | 39% · 8% · 6% · 1% · 4% |
+| Judoka vs Kicker | Judoka 25% → 28% | 4% → 5% | 8% · 3% · 3% · 1% · 1% |
+| Judoka vs Boxer | Judoka 72% → 78% | 0% → 10% | 32% · 4% · 5% · 0% · 2% |
+| Judoka vs Wrestler | Judoka 52% → 71% | 9% → 18% | 40% · 5% · 6% · 1% · 2% |
+| BJJ vs Kicker | BJJ 4% → 11% | 6% → 6% | 7% · 1% · 1% · 0% · 1% |
+| BJJ vs Boxer | BJJ 27% → 35% | 26% → 30% | 31% · 3% · 2% · 1% · 2% |
+| BJJ vs Wrestler | BJJ 63% → 76% | 28% → 34% | 56% · 6% · 3% · 1% · 3% |
+| Muay Thai vs Wrestler | Muay Thai 56.5% → 51.5% | 7.5% → 8.5% | 37% · 6% · 4% · 1% · 2% |
+
+Across all 1,400 fights: draws 0.8% (was 0.8%), no 10-10 cards, 42% finished inside the distance (was 36.5%).
+
+What it says: **the grapplers got better on the ground, and the fighters who know the new moves most of all.** Full guard is
+still where most ground time is spent (passing is 15% + stats a try, and the one underneath gets back to guard about as
+often), but a few times a fight the top fighter gets past it, and from side control, mount and the back the Wrestler and the
+Judoka now finish fights: the rear-naked choke and the arm-triangle end 10–18% of their fights against strikers, where only the
+Kicker's triangles did before. The Judoka gains most against the Wrestler (his arm-triangle and armbar, and the Wrestler gives
+his back getting out). Striker fights don't change at all: nobody there goes to the ground.
+
+The first draft was much stronger: the chokes from the back and the arm-triangle ended 40–65% of grappler-vs-striker fights,
+because a striker who has spent the fight underneath is tired, and tired fighters lose the struggle's beats (§25.2). Tuning
+since: lower lock-in odds and starting danger for both chokes, a harder back take, the AI taking an escape's opening less often,
+cheaper positions underneath, a harder pass, and side control's escape going straight back to full guard. If the playtest
+finds grapplers too strong on the ground, the levers in order: `guard_pass.json`'s `base_success`, `FighterAI.ADVANCE_RATE`,
+the holds' `start_danger`, then `ESCAPE_PUNISH`. To read it again, run the harness with the grapplers' pairings and read the
+**Positions**, **Subs** and **How** lines.
+
+### 28.8 To change it, and the tests
+- The positions: `data/positions/half_guard.json`, `side_control.json`, `mount.json`, `back_control.json` (stamina drain,
+  control score, strike multiplier, where each move goes; `top_label`, `09`); the pass from full guard and the back take from a
+  scramble: `full_guard.json`, `scramble.json`; the hip throw's landing: `clinch.json`.
+- The moves: `data/actions/guard_pass.json`, `take_mount.json`, `take_back.json`, `recover_guard.json`, `bridge.json`,
+  `escape_back.json`, `rear_naked_choke.json`, `arm_triangle.json` (and `armbar.json` from mount); the opening an escape gives:
+  the `ESCAPING` flag (`data/enums/flags.json`) in the escapes' `flags_self` and the moves' opportunities.
+- Who knows what: `techniques` in `data/fighters/` (the Wrestler, BJJ and Judoka have the back take and the arm-triangle; the
+  Judoka the armbar too).
+- Judges: `Judging.ADVANCE_POINTS_PER_CONTROL` (6). The AI: `FighterAI.ADVANCE_RATE`, `ADVANCE_MIN_LIKING`, `ESCAPE_PUNISH`,
+  `ESCAPE_SUB`. The calls: `data/calls/pass.json`, `get_up.json`.
+- The harness: the `GROUND_POSITIONS` columns in `FightSummary`, the Positions line in `BalanceReport`.
+
+Tested in `tests/sim/fight/test_ground_positions.gd` (every new position has a way out everyone knows, control and damage go up
+past the guard, the pass and half a pass, the judges' points for a better position, the armbar from mount but not the top of
+full guard, getting out of each position, an escape showing the back, the rear-naked choke locking and its escape, punches from
+mount, the AI passing and climbing, taking the back on an escape and choking from it, the AI's escapes underneath, *Pass!* and
+*Get up!*, the corner's one Ground and pound!, the feed and the harness columns), `tests/sim/fight/test_throws.gd` (the hip
+throw lands in side control), `tests/sim/fight/test_submissions.gd` (every hold locks from every position it's done from),
+`tests/game/test_arena_view.gd` (the poses and the tag), `tests/sim/fight/test_live_calls.gd` (the catalogue) and
+`tests/data/test_data_files.gd` (`top_label`, `ai_without_opening`). After changing a number, run the harness with the
+grapplers' pairings and read the **Positions**, **Subs** and **How** lines next to the wins.

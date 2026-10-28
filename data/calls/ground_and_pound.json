@@ -7,7 +7,7 @@
 	"parent": null,
 	"hotkey": 1,
 	"voice_cost": 20,
-	"positions": ["full_guard"],
+	"positions": ["full_guard", "half_guard", "side_control", "mount", "back_control"],
 	"roles": ["top"],
 	"actions": [],
 	"focus": { "duration_ms": 15000, "leanings": { "pace": 80, "risk": 40 } },

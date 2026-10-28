@@ -74,6 +74,8 @@ static func _describe(event: FightEvent, sim: FightSim) -> String:
 				return "%s gets the [b]COLLAR TIE[/b]: his head is pulled down for the knees%s" % [who, _odds(event)]
 			if event.data.result == "tied_up":
 				return "%s [b]TIES HIM UP[/b] from the bottom: no ground strikes for a few seconds%s" % [who, _odds(event)]
+			if event.data.result == PositionLibrary.PARTIAL and String(event.data.get("to", PositionLibrary.SCRAMBLE)) != PositionLibrary.SCRAMBLE:
+				return "%s's %s [b]half works[/b]: %s%s" % [who, _action_name(event.data.action_id, sim), _position_name(event.data.to, sim).to_lower(), _odds(event)]
 			if event.data.result == PositionLibrary.PARTIAL:
 				return "%s's %s [b]half works[/b]: they scramble%s" % [who, _action_name(event.data.action_id, sim), _odds(event)]
 			if event.data.has("landing_damage"):
@@ -257,11 +259,11 @@ static func _position_name(id: String, sim: FightSim) -> String:
 	return String(sim.positions.get_position(id).name) if sim.positions.has(id) else id
 
 
-## " (Red on top)" when someone is on top, "" when both are neutral.
+## " (Red on top)" when someone is on top (" (Red has the back)" on the back, D130), "" when both are neutral.
 static func _roles(event: FightEvent, sim: FightSim) -> String:
 	var roles: Array = event.data.get("roles", [])
 	var top: int = roles.find("top")
-	return " (%s on top)" % _fighter(top, sim) if top != -1 else ""
+	return " (%s %s)" % [_fighter(top, sim), sim.positions.top_label(String(event.data.get("position", "")))] if top != -1 else ""
 
 
 ## A call's name from data/calls ("Takedown!"), or the move's for a bare call.

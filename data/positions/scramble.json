@@ -9,6 +9,7 @@
 	"strike_damage_multiplier": { "neutral": 0.0 },
 	"transitions": [
 		{ "action": "get_up", "from_role": "neutral", "to": "standing", "roles": { "actor": "neutral", "opponent": "neutral" } },
-		{ "action": "scramble", "from_role": "neutral", "to": "full_guard", "roles": { "actor": "top", "opponent": "bottom" } }
+		{ "action": "scramble", "from_role": "neutral", "to": "full_guard", "roles": { "actor": "top", "opponent": "bottom" } },
+		{ "action": "take_back", "from_role": "neutral", "to": "back_control", "roles": { "actor": "top", "opponent": "bottom" } }
 	]
 }

@@ -68,14 +68,15 @@ func _bonus_names(odds: Dictionary) -> Array[String]:
 
 # --- The throws ----------------------------------------------------------------------------
 
-func test_every_throw_is_a_takedown_that_lands_on_top_in_full_guard() -> void:
+func test_every_throw_is_a_takedown_that_lands_on_top_and_the_hip_throw_lands_in_side_control() -> void:
 	var positions := PositionLibrary.shared()
-	for id: String in ["outside_trip", "hip_throw", "foot_sweep"]:
+	var lands := { "outside_trip": "full_guard", "hip_throw": "side_control", "foot_sweep": "full_guard" }  # D130: a big throw lands past the guard.
+	for id: String in lands:
 		var action: Dictionary = _actions.get_action(id)
 		assert_true(ActionLibrary.is_throw(action), id)
 		for from: String in action.positions:
 			var t: Dictionary = positions.transition(from, PositionLibrary.NEUTRAL, id)
-			assert_eq(t.get("to", ""), "full_guard", "%s from %s" % [id, from])
+			assert_eq(t.get("to", ""), lands[id], "%s from %s" % [id, from])
 			assert_eq(t.roles.actor, PositionLibrary.TOP)
 	assert_false(ActionLibrary.is_throw(_actions.get_action("double_leg")), "a shot is not a throw")
 

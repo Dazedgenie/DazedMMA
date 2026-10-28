@@ -15,6 +15,7 @@ var index: int
 var me: FighterState
 var opponent: FighterState
 var actions: ActionLibrary
+var positions: PositionLibrary
 var ruleset: Ruleset
 ## The tick being decided.
 var now: int = 0
@@ -32,6 +33,7 @@ func _init(p_sim: FightSim, p_index: int) -> void:
 	me = p_sim.fighters[p_index]
 	opponent = p_sim.fighters[1 - p_index]
 	actions = p_sim.actions
+	positions = p_sim.positions
 	ruleset = p_sim.ruleset
 	_rng = p_sim.rng_for_views()
 	_situation = p_sim.situation

@@ -152,6 +152,10 @@ func test_values_come_from_the_allowed_lists() -> void:
 	_expect_in(problems, "call", "tier", ["intent", "technique"])
 	_expect_in(problems, "trigger", "type", ["event", "state", "threshold"])
 	_expect_in(problems, "position", "phase", ["standing", "clinch", "ground"])
+	for id: String in _items("positions"):
+		var p: Dictionary = _items("positions")[id]
+		if p.has("top_label") and (not p.top_label is String or not p.get("roles", []).has("top")):
+			problems.append("position '%s': top_label is how the feed says who's on top (\"has the back\"), for a position with a top role (D130)" % id)
 	_expect_in(problems, "ruleset", "weigh_in", ["same_day", "day_before"])
 	for id: String in _items("actions"):
 		var action: Dictionary = _items("actions")[id]
@@ -179,6 +183,8 @@ func test_values_come_from_the_allowed_lists() -> void:
 			elif category == "submission" and (not block.get("start_danger") is float or block.start_danger <= 0.0 or block.start_danger >= 100.0 \
 					or block.get("escape_to") not in ESCAPES):
 				problems.append("action '%s': a submission needs start_danger (between 0 and 100) and escape_to (one of %s)" % [id, ESCAPES])
+			elif block.has("ai_without_opening") and (category != "submission" or not block.ai_without_opening is bool):
+				problems.append("action '%s': ai_without_opening (true or false) is a submission's (D130)" % id)
 		if action.has("basic") and not action.basic is bool:
 			problems.append("action '%s': basic is true or false" % id)
 		for r: Variant in action.get("roles", []):

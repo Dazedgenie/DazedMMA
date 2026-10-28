@@ -102,6 +102,10 @@ var collar_ties_tried: int = 0
 var collar_ties_won: int = 0
 var clinch_knees_landed: int = 0
 var tied_knees_landed: int = 0
+## Times this fighter moved to a better position on top (a pass, the mount, the back) and got
+## out from underneath (back to guard, up, a reversal) (D130).
+var advances: int = 0
+var escapes: int = 0
 
 var action_id: String = ""  # "" = free to act
 var phase: String = ""
