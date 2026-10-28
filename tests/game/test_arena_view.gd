@@ -39,6 +39,20 @@ func test_kicks_lift_a_leg_and_shots_drop_the_hips() -> void:
 	assert_eq(figure.pose_for(sim, 1).lie, 1.0, "the fighter on the bottom lies on their back")
 
 
+func test_a_feint_dips_and_a_fighter_who_bit_puts_his_hands_up() -> void:
+	var sim: FightSim = _sim()
+	var figure := FighterFigure.new(Color.RED)
+	add_child_autofree(figure)
+	var rest: Dictionary = figure.pose_for(sim, 1)
+	sim.fighters[0].action_id = "feint"
+	sim.fighters[0].phase = "active"
+	assert_lt(figure.pose_for(sim, 0).hip_y, rest.hip_y, "a dip of the level (D131)")
+	sim.fighters[1].bit_ticks = 5
+	var bit: Dictionary = figure.pose_for(sim, 1)
+	assert_gt(bit.arm_lead, rest.arm_lead + 0.3, "hands up")
+	assert_gt(bit.lean, rest.lean, "weight back")
+
+
 func test_the_body_kick_is_thrown_with_the_rear_leg_for_the_tell_cue() -> void:
 	assert_eq(FighterFigure.limb_for("body_kick"), "rear_leg")
 	assert_eq(FighterFigure.limb_for("jab"), "lead_arm")

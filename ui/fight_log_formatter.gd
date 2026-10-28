@@ -61,7 +61,8 @@ static func _describe(event: FightEvent, sim: FightSim) -> String:
 			if event.data.phase == "telegraph":
 				var why: String = String(event.data.get("why", ""))
 				var reason: String = "  [color=%s](%s)[/color]" % [DIM_COLOUR, why] if why != "" else ""
-				return "%s starts a %s%s" % [who, _action_name(event.data.action_id, sim), reason]
+				var blind: String = " [b]blind[/b]" if event.data.get("blind", false) else ""
+				return "%s starts a %s%s%s" % [who, _action_name(event.data.action_id, sim), blind, reason]
 			return "[color=%s]%s %s → %s[/color]" % [DIM_COLOUR, who, _action_name(event.data.action_id, sim), event.data.phase]
 		FightEvent.ACTION_ENDED:
 			return "[color=%s]%s %s finished[/color]" % [DIM_COLOUR, who, _action_name(event.data.action_id, sim)]
@@ -87,6 +88,13 @@ static func _describe(event: FightEvent, sim: FightSim) -> String:
 			if event.data.worked:
 				return "%s [b]SPRAWLS[/b] on it%s" % [who, _odds(event)]
 			return "%s's sprawl doesn't hold%s" % [who, _odds(event)]
+		FightEvent.FEINTED:
+			var them: String = _fighter(1 - event.actor, sim)
+			if event.data.has("reason"):
+				return "%s feints at nothing (%s)" % [who, event.data.reason]
+			if event.data.bit:
+				return "%s feints and %s [b]BITES[/b]: hands up, weight back%s" % [who, them, _odds(event)]
+			return "%s feints; %s doesn't bite%s" % [who, them, _odds(event)]
 		FightEvent.STRIKE_MISSED:
 			if event.data.has("reason"):
 				return "%s's %s misses (%s)" % [who, _action_name(event.data.action_id, sim), event.data.reason]

@@ -152,6 +152,10 @@ func pose_for(sim: FightSim, i: int) -> Dictionary:
 		elif sim.fighters[1 - i].tied_up_ticks > 0:  # Holding the collar tie: hands behind his head.
 			p.arm_lead = 2.1
 			p.arm_rear = 2.1
+	elif sim.situation.is_standing() and f.bit_ticks > 0:  # Bit on a feint (D131): hands up, weight back.
+		p.arm_lead = 2.4
+		p.arm_rear = 2.4
+		p.lean = 0.25
 	if f.action_id == "" or not sim.actions.has(f.action_id):
 		return p
 	var reach: float = float(PHASE_REACH.get(f.phase, 0.0))
@@ -196,6 +200,10 @@ func pose_for(sim: FightSim, i: int) -> Dictionary:
 			p.lean = lerpf(p.lean, -1.25, reach)
 			p.leg_lead = lerpf(p.leg_lead, -0.9, reach)
 			p.leg_rear = lerpf(p.leg_rear, -1.0, reach)
+		"feint":  # Half a jab and a dip of the level (D131).
+			p.arm_lead = lerpf(p.arm_lead, 1.2, reach)
+			p.hip_y = lerpf(p.hip_y, HIP_HEIGHT - 0.1, reach)
+			p.lean = lerpf(p.lean, -0.25, reach)
 		"stance_shift":
 			p.hip_y = lerpf(p.hip_y, 0.75, maxf(reach, 0.6))
 			p.lean = lerpf(p.lean, -0.3, maxf(reach, 0.6))

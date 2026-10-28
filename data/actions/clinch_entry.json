@@ -15,7 +15,8 @@
 	"stats": { "offense": ["clinch_control", "strength"], "defense": ["clinch_control", "footwork"] },
 	"opportunities": [
 		{ "opponent_flag": "BACK_TO_CAGE", "success_bonus": 0.15 },
-		{ "opponent_flag": "LEANING", "success_bonus": 0.10 }
+		{ "opponent_flag": "LEANING", "success_bonus": 0.10 },
+		{ "opponent_flag": "BIT_ON_FEINT", "success_bonus": 0.10 }
 	],
 	"requires_technique": null
 }

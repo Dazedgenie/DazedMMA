@@ -219,7 +219,8 @@ func test_the_wrestler_shifts_his_stance_before_he_shoots() -> void:
 	var shots: int = 0
 	var after_shift: int = 0
 	for n in starts.size():
-		if starts[n].action_id != "double_leg" or starts[n].why.begins_with("opening") or starts[n].why.begins_with("counters"):
+		if starts[n].action_id != "double_leg" or starts[n].why.begins_with("opening") or starts[n].why.begins_with("counters") \
+				or starts[n].why == "shoots off the feint":  # Set up with a feint instead (D131).
 			continue
 		shots += 1
 		if n > 0 and starts[n - 1].action_id == "stance_shift" and starts[n].tick - starts[n - 1].tick <= 10:

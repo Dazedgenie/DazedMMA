@@ -229,7 +229,7 @@ func test_a_sprawl_is_easier_against_a_shot_with_the_head_low() -> void:
 	sim.fighters[0].action_id = "double_leg"
 	sim.fighters[0].phase = "active"  # HEAD_LOW from windup to active
 	assert_almost_eq(sim.odds(1, "sprawl") - early, 0.10, 0.0001)
-	assert_almost_eq(sim.odds(0, "double_leg"), 0.45, 0.0001)
+	assert_almost_eq(sim.odds(0, "double_leg"), 0.35, 0.0001)  # 0.45 until D131 (set by hand: not started, so not blind).
 
 
 func test_speed_shortens_telegraph_and_windup_and_fatigue_stretches_them() -> void:
@@ -266,11 +266,11 @@ func test_a_grappler_leaning_shoots_more_and_a_pure_striker_never_shoots() -> vo
 	var jab_leads: int = 0
 	for e in sim.events:
 		if e.type == FightEvent.ACTION_PHASE and e.data.phase == "telegraph":
-			if e.data.action_id == "double_leg":
-				shots[e.actor] += 1
+			if e.data.action_id == "double_leg" or e.data.action_id == "clinch_entry" or String(e.data.get("why", "")).begins_with("feints to set up"):
+				shots[e.actor] += 1  # A shot or a tie-up, or the feint it led with (D131: the shot may not follow).
 			elif e.actor == 0 and e.data.get("why", "") == "leads":
 				jab_leads += 1
-	assert_gt(shots[0], jab_leads * 2, "a +100 grappler leads with the shot (4× the weight), jabbing to counter; time on top pounding takes some of the fight (D121)")
+	assert_gt(shots[0], jab_leads * 2, "a +100 grappler leads with the shot or the clinch (4× the weight), jabbing to counter; time on top pounding takes some of the fight (D121)")
 	assert_eq(shots[1], 0)
 
 

@@ -110,6 +110,11 @@ func opponent_odds(action_id: String) -> OddsBreakdown:
 	return _sim().odds_breakdown(1 - index, action_id)
 
 
+## True when starting this takedown now would be a blind shot (D131, FightSim.would_be_blind).
+func would_be_blind(action_id: String) -> bool:
+	return _sim().would_be_blind(index, action_id)
+
+
 ## Ticks one phase of an action takes me (or the opponent) right now (Speed, fatigue).
 func phase_ticks(action_id: String, phase: String) -> int:
 	return _sim().phase_ticks(me, action_id, phase)

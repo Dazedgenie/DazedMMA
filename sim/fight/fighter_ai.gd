@@ -13,7 +13,8 @@ extends RefCounted
 ##      recovery, or a flag such as LEANING. Fight IQ decides how often it reads a
 ##      move; style decides how often it takes what it reads.
 ##   4. Meeting an opponent who walks in: one roll per advance, mostly outside fighters.
-##   5. A lead: now and then (work rate × pace × the moment), its best move from here.
+##   5. A lead: now and then (work rate × pace × the moment), its best move from here;
+##      a shot that would be blind is set up with a feint first, sometimes (D131).
 ## Strikes are only thrown when they will still reach as they land: the fighter
 ## stops moving once committed, but a free opponent keeps walking.
 ## Every candidate move is scored
@@ -268,6 +269,15 @@ const CAUGHT_FADE: float = 0.7
 const WISE_TICKS: int = 600
 const WISE_READ: float = 0.15
 const WISE_MAX: float = 0.45
+## Feints and blind shots (D131, docs/01 §29). About to lead with a takedown that would be
+## blind, the fighter feints first with chance SETUP_BASE + SETUP_PER_IQ × Fight IQ / 100
+## and shoots off it (until FEINT_FOLLOW_TICKS after the feint is over). Reading a blind
+## shot: + BLIND_READ; reading anything while bitten on a feint: × BIT_READ.
+const SETUP_BASE: float = 0.1
+const SETUP_PER_IQ: float = 0.6
+const FEINT_FOLLOW_TICKS: int = 3
+const BLIND_READ: float = 0.3
+const BIT_READ: float = 0.5
 
 var _triggers: TriggerLibrary
 var _ready_for: FighterState
@@ -514,7 +524,7 @@ func _opening(view: FightView, layer: DecisionLayer) -> Decision:
 		for bonus: Dictionary in b.bonuses:
 			if bonus.name == "counter":
 				counter = true
-			elif not STATE_FLAGS.has(bonus.name):
+			elif not STATE_FLAGS.has(bonus.name) and float(bonus.value) > 0.0:
 				flag = bonus.name
 		if not counter and flag == "":
 			continue
@@ -579,10 +589,33 @@ func _lead(view: FightView, layer: DecisionLayer) -> Decision:
 	if options.is_empty():
 		return DecisionLayer.IDLE
 	var id: String = options[_pick(view, weights)]
+	if _feints_first(view, id):
+		_follow = { "kind": TELL, "id": id, "until": view.now + _feint_ticks(view) + FEINT_FOLLOW_TICKS, "reason": "shoots off the feint" }
+		return Decision.new(FightSim.FEINT, DecisionLayer.AI, "feints to set up the %s" % String(view.actions.get_action(id).name).to_lower())
 	var setup: String = _setups.get(id, "")
 	if setup != "" and view.me.repertoire.has(setup) and _usable(view, view.actions.get_action(setup)):
 		return Decision.new(setup, DecisionLayer.AI, "sets up the %s" % String(view.actions.get_action(id).name).to_lower())
 	return Decision.new(id, DecisionLayer.AI, "swarms" if view.opponent.is_rocked() else "leads")
+
+
+## A takedown it's about to lead with would be blind (D131): does it feint first?
+func _feints_first(view: FightView, id: String) -> bool:
+	if not view.actions.has(FightSim.FEINT) or not _usable(view, view.actions.get_action(FightSim.FEINT)) or not view.would_be_blind(id):
+		return false
+	return view.roll() < setup_chance(view.me)
+
+
+## Chance to feint before a shot that would be blind: SETUP_BASE + SETUP_PER_IQ × Fight IQ / 100.
+static func setup_chance(f: FighterState) -> float:
+	return clampf(SETUP_BASE + SETUP_PER_IQ * f.effective_stat("fight_iq") / 100.0, 0.0, 1.0)
+
+
+## Ticks a feint takes this fighter from start to finish.
+func _feint_ticks(view: FightView) -> int:
+	var ticks: int = 0
+	for phase: String in ActionLibrary.PHASES:
+		ticks += view.phase_ticks(FightSim.FEINT, phase)
+	return ticks
 
 
 ## Tied up (#15): now and then, work from here. In the clinch: knees, a takedown or throw,
@@ -1472,12 +1505,18 @@ func _saw_start(view: FightView, event: FightEvent, layer: DecisionLayer) -> voi
 	var f: FighterState = view.me
 	var id: String = event.data.action_id
 	var action: Dictionary = view.actions.get_action(id)
+	if action.category == FightSim.FEINT:
+		return  # Nothing to read: whether it bites is the feint's own roll (D131).
 	var telegraph: int = view.opponent.phase_ticks_left if view.opponent.phase == "telegraph" else 0
 	var factor: float = clampf(1.0 + READ_PER_TELEGRAPH_TICK * (telegraph - READ_TELEGRAPH_NORMAL), READ_FACTOR_MIN, READ_FACTOR_MAX)
 	var chance: float = layer.read_chance(view, action, (READ_BASE + READ_PER_IQ * f.effective_stat("fight_iq") / 100.0) * factor)
 	if action.category == TAKEDOWN or action.category == CLINCH:
 		chance += wise_bonus(event.tick)
 		_grapples_seen.append(event.tick)
+	if view.opponent.blind_shot:
+		chance += BLIND_READ  # Nothing to hide it (D131).
+	if f.bit_ticks > 0:
+		chance *= BIT_READ  # Still reacting to the feint (D131).
 	if f.is_rocked():
 		chance *= ROCKED_READ
 	# Fighters step in turn each tick: a move started after this fighter's step is

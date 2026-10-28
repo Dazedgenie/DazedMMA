@@ -12,7 +12,9 @@
 	"defense": { "against_categories": ["takedown"], "base_success": 0.45 },
 	"stats": { "offense": ["takedown_defense", "speed"], "defense": ["takedowns"] },
 	"opportunities": [
-		{ "opponent_flag": "HEAD_LOW", "success_bonus": 0.10 }
+		{ "opponent_flag": "HEAD_LOW", "success_bonus": 0.10 },
+		{ "opponent_flag": "BLIND_SHOT", "success_bonus": 0.20 },
+		{ "own_flag": "BIT_ON_FEINT", "success_bonus": -0.10 }
 	],
 	"requires_technique": null
 }

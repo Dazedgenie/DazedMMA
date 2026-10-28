@@ -21,6 +21,9 @@ const GRAPPLE_WON := "grapple_won"
 const GRAPPLE_STOPPED := "grapple_stopped"
 ## Actor's sprawl met the opponent's shot. data: {action_id (the sprawl), against (the shot), worked, chance, odds}
 const SPRAWLED := "sprawled"
+## Actor's feint reached its active phase (D131). data: {action_id, bit (the opponent bit on it),
+## chance?, odds? (no roll, and a reason instead: "out of range" / "opponent down")}
+const FEINTED := "feinted"
 ## Submissions (D126). The actor's hold locked in (a grapple_won and a position_changed into the
 ## submission position come first). data: {action_id, danger (0–100, where the struggle starts)}
 const SUBMISSION_LOCKED := "submission_locked"

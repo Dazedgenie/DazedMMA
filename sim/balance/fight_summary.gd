@@ -7,7 +7,8 @@ extends RefCounted
 ## fence, who held the centre, how much of it was a chase, how long each one circled
 ## and cut off the cage, D119), and the grappling
 ## (takedowns tried and landed, time in the clinch, on the ground and on top, #15;
-## submissions tried and locked in, D126; time in each ground position, passes and escapes, D130),
+## submissions tried and locked in, D126; time in each ground position, passes and escapes, D130;
+## feints thrown and bitten on, and shots taken blind and how many still worked, D131),
 ## each corner's coaching bot and how many calls it made (Corner, D12, D68), and each
 ## fighter's drilled rules and how often they fired (DrilledRules, #17).
 ## BalanceReport turns rows into the CSV and the summary.
@@ -28,6 +29,7 @@ const COLUMNS: Array[String] = [
 	"collar_ties_red", "collar_ties_won_red", "clinch_knees_red", "tied_knees_red",
 	"collar_ties_blue", "collar_ties_won_blue", "clinch_knees_blue", "tied_knees_blue",
 	"full_guard", "half_guard", "side_control", "mount", "back_control", "advances_red", "escapes_red", "advances_blue", "escapes_blue",
+	"feints_red", "feints_bit_red", "blind_red", "blind_landed_red", "feints_blue", "feints_bit_blue", "blind_blue", "blind_landed_blue",
 	"calls_red", "calls_blue", "fired_red", "fired_blue",
 ]
 const SIDES: Array[String] = ["red", "blue"]
@@ -176,6 +178,10 @@ static func of(sim: FightSim, lows: Array[float] = [], moves: Dictionary = {}) -
 		row["tied_knees_" + side] = f.tied_knees_landed
 		row["advances_" + side] = f.advances
 		row["escapes_" + side] = f.escapes
+		row["feints_" + side] = f.feints_tried
+		row["feints_bit_" + side] = f.feints_bit
+		row["blind_" + side] = f.blind_shots
+		row["blind_landed_" + side] = f.blind_landed
 		row["top_" + side] = _share_of(moves.get("top", [0, 0])[i], ticks)
 		row["circling_" + side] = _seconds(sim.circling_ticks[i])
 		row["cutting_" + side] = _seconds(sim.cutting_ticks[i])

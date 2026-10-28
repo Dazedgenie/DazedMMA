@@ -22,7 +22,7 @@ const TRIGGER_EVENTS: Array[String] = [
 	FightEvent.RANGE_CHANGED, FightEvent.CAGE_CHANGED, FightEvent.POSITION_CHANGED,
 ]
 const LEANINGS: Array[String] = ["pace", "range", "base", "risk"]
-const CATEGORIES: Array[String] = ["strike", "takedown", "defense", "movement", "clinch", "ground", "submission"]
+const CATEGORIES: Array[String] = ["strike", "takedown", "defense", "movement", "clinch", "ground", "submission", "feint"]
 const ROLES: Array[String] = ["neutral", "top", "bottom", "attacker", "defender"]
 ## What a focus call (docs/09 call@2) may hold.
 const FOCUS_KEYS: Array[String] = ["duration_ms", "leanings", "weights", "read_bonus", "sprawl_bonus", "struggle", "struggle_stamina"]
@@ -185,6 +185,11 @@ func test_values_come_from_the_allowed_lists() -> void:
 				problems.append("action '%s': a submission needs start_danger (between 0 and 100) and escape_to (one of %s)" % [id, ESCAPES])
 			elif block.has("ai_without_opening") and (category != "submission" or not block.ai_without_opening is bool):
 				problems.append("action '%s': ai_without_opening (true or false) is a submission's (D130)" % id)
+		if category == "feint":
+			var feint: Variant = action.get("feint")
+			if not feint is Dictionary or not feint.get("base_success") is float or not feint.get("bites_ms") is float \
+					or feint.bites_ms <= 0.0 or fmod(feint.bites_ms, FightClock.TICK_MS) != 0:
+				problems.append("action '%s': a feint needs a 'feint' block with base_success and bites_ms (how long the opponent bites, a multiple of %d ms, D131)" % [id, FightClock.TICK_MS])
 		if action.has("basic") and not action.basic is bool:
 			problems.append("action '%s': basic is true or false" % id)
 		for r: Variant in action.get("roles", []):

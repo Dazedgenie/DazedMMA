@@ -10,6 +10,8 @@
 		"BACK_TO_CAGE": "Pinned against the fence. Exploited by cage takedowns and clinch knees.",
 		"POSTURE_BROKEN": "Posture pulled down in the clinch or guard (tied up from the bottom). No ground strikes until it wears off; later exploited by bottom submissions and sweeps.",
 		"POSTURED_UP": "Sitting up in guard to throw a ground strike. Exploited by get-ups and tie-ups from the bottom, and by escapes from under side control, mount and the back.",
-		"ESCAPING": "Underneath and working to get out (shrimping back to guard, bridging, turning out of the back): arms out and the back half turned (D130). Exploited by taking the back, the armbar from mount and the arm-triangle."
+		"ESCAPING": "Underneath and working to get out (shrimping back to guard, bridging, turning out of the back): arms out and the back half turned (D130). Exploited by taking the back, the armbar from mount and the arm-triangle.",
+		"BIT_ON_FEINT": "Bit on a feint: hands up and weight back for a moment (D131). Exploited by shots and clinch entries; a sprawl from it is late.",
+		"BLIND_SHOT": "Shooting with nothing setting it up: no feint or strike just before it, no opening, standing (D131). The shot is worse, easier to read and to sprawl on, and costs more when it's stuffed."
 	}
 }

@@ -90,8 +90,8 @@ pinned on purpose, and the PR then shows the old and new numbers side by side.
 | Fight | Covers |
 |---|---|
 | Kicker vs Boxer, no corners (seed 35002) | The striking engine and judges on their own: a decision |
-| Wrestler vs Kicker, ideal corner vs AI corner, Wrestler drilled on catch-kick-and-shoot at 80% (seed 35006) | Calls, a drilled rule firing, takedowns, ground and pound: a split decision for the Kicker (since D130) |
-| Wrestler vs Boxer, AI corner for the Boxer, Boxer drilled on sprawl-on-the-shot at 80% (seed 35011; 35007 until D130, when it became a decision) | Sprawls, the opponent's corner and rules, passes, side control and the back (D130): a TKO in round 3 |
+| Wrestler vs Kicker, ideal corner vs AI corner, Wrestler drilled on catch-kick-and-shoot at 80% (seed 35006) | Calls, a drilled rule firing, takedowns, ground and pound, feints (D131): a TKO for the Wrestler in round 2 (since D131; a split decision for the Kicker after D130) |
+| Wrestler vs Boxer, AI corner for the Boxer, Boxer drilled on sprawl-on-the-shot at 80% (seed 35011; 35007 until D130, when it became a decision) | Sprawls, the opponent's corner and rules, passes, side control and the back (D130), blind shots (D131): a unanimous decision for the Wrestler (since D131; a TKO in round 3 after D130) |
 | The check fighters, amateur adult rules (seed 35001) | A ruleset other than pro: 3 × 3:00, a split decision |
 
 **What's pinned:** each fight's winner, result, the round and second it ended, the number of events, knockdowns, strikes
@@ -649,7 +649,7 @@ the centre (§20.2). Tested in `tests/sim/fight/test_fighter_ai.gd`, `tests/sim/
 What `sim/` does for §4, §5.1 and D29 in the Phase 1 playtest. The scope is the trimmed one (D98): one clinch position, the
 double leg, the catch-kick single, the sprawl, full guard top and bottom, getting up and the scramble. Ground-and-pound came
 in after this (D121, §24): the fighter on top of full guard strikes and the one underneath ties up or gets up; where this
-section and §24 differ, §24 is current. Throws, the guard pull and the sweep came later still (D128, §26). The collar tie and knees to the head from it came after that (D129, §27). Half guard, side control, mount and the back came next (D130, §28): where this section says full guard, the ground now has four more positions. Every number is a first guess for the balance harness; each one is a named constant
+section and §24 differ, §24 is current. Throws, the guard pull and the sweep came later still (D128, §26). The collar tie and knees to the head from it came after that (D129, §27). Half guard, side control, mount and the back came next (D130, §28): where this section says full guard, the ground now has four more positions. Then feints and blind shots (D131, §29): the double leg's base is 35% now, and a shot with nothing setting it up is worse. Every number is a first guess for the balance harness; each one is a named constant
 or a field in `data/`, listed under "To change it".
 
 ### 21.1 Positions and the moves between them
@@ -668,7 +668,7 @@ nobody is ever stuck on the bottom with no way up.
 
 | Move | Timing (telegraph · wind-up · active · recovery) | Odds (base + attack − defense stats) | Notes |
 |---|---|---|---|
-| Double leg | 0.3 · 0.2 · 0.5 · 0.4 s | 45% + (Takedowns, Speed) − Takedown defense | From standing (mid or pocket) or the clinch. +15% on someone pinned on the fence, +10% on someone `LEANING`. `COMING_IN` during the telegraph (§21.8), head low from wind-up to the end of the drive. Within 10% past the odds it half works: a scramble |
+| Double leg | 0.3 · 0.2 · 0.5 · 0.4 s | 35% (45% until D131, §29) + (Takedowns, Speed) − Takedown defense | From standing (mid or pocket) or the clinch. +15% on someone pinned on the fence, +10% on someone `LEANING`. `COMING_IN` during the telegraph (§21.8), head low from wind-up to the end of the drive. Within 10% past the odds it half works: a scramble |
 | Catch-kick single | 0 · 0.1 · 0.4 · 0.3 s | 10% + (Takedowns, Speed) − (Takedown defense, Kicking), +15% for `ONE_LEG` | Only possible while the opponent is on one leg (`required`). Never thrown by the AI on its own (D103) |
 | Sprawl (*everyone*) | 0 · 0.1 · 0.3 · 0.3 s | 45% + (Takedown defense, Speed) − Takedowns, +10% against a head-low shot | §21.2 |
 | Clinch entry (*everyone*) | 0.2 · 0.2 · 0.2 · 0.3 s | 50% + (Clinch control, Strength) − (Clinch control, Footwork) | From the pocket. +15% on someone pinned, +10% on someone `LEANING`. `COMING_IN` until it ties up (§21.8) |
@@ -1549,3 +1549,113 @@ throw lands in side control), `tests/sim/fight/test_submissions.gd` (every hold 
 `tests/game/test_arena_view.gd` (the poses and the tag), `tests/sim/fight/test_live_calls.gd` (the catalogue) and
 `tests/data/test_data_files.gd` (`top_label`, `ai_without_opening`). After changing a number, run the harness with the
 grapplers' pairings and read the **Positions**, **Subs** and **How** lines next to the wins.
+
+## 29. Feints and blind shots (D131)
+Kyle asked for feints to fix the wrestling vs striking problem (2026-10-28: "Grapplers should be punished for not feinting or
+for shooting blind takedowns"). After D130 the grapplers beat the strikers 72–78% of the time, mostly by shooting whenever
+they liked. Now a shot needs setting up: a feint the opponent bites on, a strike just before it, or an opening to shoot into.
+A shot with none of those is a **blind shot**, and it's punished. It's the first of three scopes put to Kyle (this; this plus a
+*Feint!* call for the player; the blind-shot penalty with no feint move). Every number is a first guess for the harness; each
+is a named constant or a data field, listed in §29.6.
+
+### 29.1 The feint
+| | |
+|---|---|
+| Who | Everyone (`basic`), standing, from mid range or the pocket (`data/actions/feint.json`, category `feint`) |
+| Timing | 0.1 · 0.1 · 0.1 · 0.1 s (telegraph · wind-up · active · recovery), 1 stamina |
+| The bite | One roll as its active phase starts: 40% + (Fight IQ, Speed) − Fight IQ. Feinting again within 30 s bites 10% less for each feint in that time ("feinted again" in the odds), so the same feint over and over stops working. Out of range it fools nobody (no roll) |
+| Bitten | For the next second (`bites_ms` 1000) the opponent has his hands up and his weight back (`BIT_ON_FEINT`): a double leg gets **+10%** and a clinch entry +10% on him, his own sprawl is **−10%**, and he reads the next move half as well (§29.3) |
+| Not bitten | Nothing happens to him, but the feint still counts as setting a shot up (§29.2): he had to watch it |
+
+### 29.2 Blind shots
+A takedown from standing is **blind** when, as it starts:
+- none of the shooter's own strikes or feints ended in the last 0.5 s (`FightSim.SET_UP_TICKS`, 5 ticks), and
+- there's nothing to shoot into when it arrives: no counter (timed into his wind-up or recovery), no `LEANING`, no bite. **An
+  opponent on the fence doesn't count** (`FightSim.NOT_A_SET_UP`): the fence stops the sprawl going back, it doesn't hide the shot.
+
+Never blind: the catch-kick single (it needs a kick to catch: a reaction, not a guess), throws and trips (D128), and anything
+from the clinch (the clinch is the set-up). Clinch entries aren't blind shots: they were at first, but that cost the Muay Thai
+fighter 17 points against the Boxer, a striker fight.
+
+What a blind shot costs (it carries `BLIND_SHOT` from its start to its end):
+
+| | How much | To change it |
+|---|---|---|
+| A worse shot | −20% on its own odds | the `own_flag: BLIND_SHOT` opportunity in `data/actions/double_leg.json` |
+| Easier to read | +30% to the defender's chance to read it (§20) | `FighterAI.BLIND_READ` |
+| Easier to sprawl on | +20% to the sprawl's odds | the `BLIND_SHOT` opportunity in `data/actions/sprawl.json` |
+| Stuck longer | Sprawled on, 0.5 s more with the head low than a set-up shot (more time for knees and the guillotine) | `FightSim.BLIND_STUCK_TICKS` (5) |
+| Costs more | 5 more stamina when it's stuffed (sprawled on or defended) | `FightSim.BLIND_STUFFED_STAMINA` |
+
+**The double leg's base odds drop from 45% to 35%** (`data/actions/double_leg.json`): a shot that's set up by a strike or an
+opening is a little worse than before, one off a feint that bit is back where it was, and a blind one is 20% worse again.
+Where the shot came from: against the Kicker about a third of the Wrestler's shots are blind, a quarter come off a feint, and
+most of the rest are timed into the Kicker's kicks, which is a set-up.
+
+### 29.3 The fighter AI
+| Where | What the fighter does | To change it |
+|---|---|---|
+| About to lead with a takedown that would be blind | Feints first on a chance of 10% + 60% × Fight IQ / 100 (40% at Fight IQ 50), then shoots off the feint as soon as it's over, if it still reaches (up to 0.3 s after). The feed reads "feints to set up the double-leg takedown", then "shoots off the feint". The rest of the time he shoots blind anyway | `FighterAI.SETUP_BASE` (0.1), `SETUP_PER_IQ` (0.6), `FEINT_FOLLOW_TICKS` (3) |
+| Reading the opponent's moves | A blind shot is read +30%; while bitten on a feint, every move is read × 0.5. A feint itself isn't read: whether it bites is its own roll | `BLIND_READ` (0.3), `BIT_READ` (0.5) |
+| Strikers | Never feint on their own: the AI only feints before a shot, and strikers don't shoot. Striker fights play out event for event as before | |
+| Habits | A tell that leads straight into a shot (the Wrestler's stance shift, then the double leg) isn't a set-up: that shot is blind | the fighter's `tells` |
+
+The player's *Takedown!* call shoots straight away, as before: a called shot with nothing before it is blind too. Call it off
+your fighter's jab, into a kick, or right after one of his feints. There's no *Feint!* call yet (the second scope on the card).
+
+### 29.4 On screen and in the harness
+- The feed: "Wrestler feints and Boxer BITES: hands up, weight back 42% (base 40 · stats +2)", "Wrestler feints; Boxer doesn't
+  bite", and a blind shot starts "Wrestler starts a Double-leg takedown **blind**". Its odds show "own BLIND_SHOT −20" and the
+  sprawl's "BLIND_SHOT +20". A feint from out of range isn't shown.
+- In the 3D view a feint is half a jab and a dip of the level; a fighter who bit has his hands up and leans back.
+- The harness's **Feints** line: feints a fight and how many were bitten on, and blind shots a fight and how many still worked
+  (CSV columns `feints_*`, `feints_bit_*`, `blind_*`, `blind_landed_*`).
+
+### 29.5 Balance
+Reported, no pass marks, like the grapplers before (D109, D128). Harness, no calls, 100 fights one way round (seed 1, pro rules),
+this change against D130 just before it:
+
+| Pairing (red vs blue) | Red wins before → now | Takedowns landed of tried a fight, before → now | Feints a fight (bitten) · blind shots (worked) |
+|---|---|---|---|
+| Kicker vs Boxer | Kicker 44% → 44% (event for event the same) | – | – |
+| Wrestler vs Kicker | Wrestler 77% → 72% | 6.9 of 16.5 → 6.3 of 20.9 | 4.9 (1.8) · 6.9 (1.1) |
+| Wrestler vs Boxer | Wrestler 75% → 60% | 9.3 of 22.3 → 7.4 of 26.4 | 7.6 (2.6) · 11.1 (1.6) |
+| Judoka vs Kicker | Judoka 28% → 28% | unchanged (throws, from the clinch) | – |
+| Judoka vs Boxer | Judoka 78% → 78% | unchanged | – |
+| Judoka vs Wrestler | Judoka 71% → 79% | the Wrestler's 10.5 of 39.9 → 7.7 of 38.6 | the Wrestler's 5.0 (1.8) · 5.5 (0.3) |
+| BJJ vs Kicker | BJJ 11% → 11% | unchanged (guard pulls and throws) | – |
+| BJJ vs Boxer | BJJ 35% → 35% | unchanged | – |
+| BJJ vs Wrestler | BJJ 76% → 84% | the Wrestler's 11.7 of 25.8 → 9.3 of 28.1 | the Wrestler's 6.3 (2.4) · 8.2 (1.7) |
+| Muay Thai vs Wrestler | Muay Thai 54% → 62% | the Wrestler's 14.5 of 39.9 → 11.1 of 45.0 | the Wrestler's 8.0 (2.8) · 11.8 (1.4) |
+| Muay Thai vs Boxer, vs Kicker | 57% → 57%, 74% → 74% | – | – |
+
+Across all 1,200 fights: draws 0.4% (was 0.5%), no 10-10 cards, 41.5% finished inside the distance (was 41%).
+
+What it says: **the Wrestler can't just shoot any more.** Blind shots work about one time in six, and against the Boxer, who
+has nothing to catch, that's most of his shots: he still lands 7 a fight, but he takes more stuffed shots and pays for
+them, and wins 60% instead of 75%. Against the Kicker he wins 72% (was 77%): most of his takedowns there are timed into the
+Kicker's kicks, and those are set up. The other grapplers barely shoot (the Judoka and BJJ fighter go through the clinch), so
+only their fights with the Wrestler move. Fighters who shot more after D130 now shoot about as often but land less.
+
+If the Wrestler is still too strong against the Kicker, the lever is the shot timed into a kick (the counter bonus on a shot,
+or the Kicker kicking less after being taken down, §21.8); a blind clinch entry (§29.2) is the lever for the Judoka. If he's now
+too weak, the levers in order: the double leg's `base_success`, `BLIND_SHOT` in `double_leg.json`, then `SETUP_PER_IQ`.
+
+### 29.6 To change it, and the tests
+- The feint: `data/actions/feint.json` (timing, `feint.base_success`, `feint.bites_ms`, the stats); feinting again:
+  `FightSim.FEINT_REPEAT` (0.1), `FEINT_MEMORY_TICKS` (300). What a bite gives: the `BIT_ON_FEINT` opportunities in
+  `double_leg.json`, `clinch_entry.json` and `sprawl.json`.
+- Blind shots: `FightSim.would_be_blind()`, `SET_UP_TICKS` (5), `NOT_A_SET_UP`, `BLIND_STUCK_TICKS` (5), `BLIND_STUFFED_STAMINA`
+  (5); the `BLIND_SHOT` opportunities in `double_leg.json` and `sprawl.json`; the double leg's `base_success` (0.35).
+- The flags: `BIT_ON_FEINT` and `BLIND_SHOT` in `data/enums/flags.json`.
+- The AI: `FighterAI.SETUP_BASE`, `SETUP_PER_IQ`, `FEINT_FOLLOW_TICKS`, `BLIND_READ`, `BIT_READ`.
+- The harness: the `feints_*` and `blind_*` columns in `FightSummary`, the Feints line in `BalanceReport`.
+
+Tested in `tests/sim/fight/test_feints.gd` (everyone can feint, the bite and how long it lasts, out of range, feinting again,
+a blind double leg and its odds, a jab just before and long before, a shot off a bite, a feint that didn't bite still sets the
+shot up, a shot timed into a kick and one at a fighter on the fence, catches, throws and the clinch never blind, clinch entries
+never blind but finding a bitten opponent, a blind shot sprawled on and defended costing more, the Wrestler feinting and
+shooting off it, Fight IQ, strikers never feinting, reading a blind shot and reading while bitten),
+`tests/ui/test_fight_log_formatter.gd` (the feed lines), `tests/game/test_arena_view.gd` (the poses) and
+`tests/data/test_data_files.gd` (the `feint` block). After changing a number, run the harness with the Wrestler's pairings
+(`--pairs=wrestler:kicker,wrestler:boxer,muay_thai:wrestler`) and read the **Feints** and **Grappling** lines next to the wins.

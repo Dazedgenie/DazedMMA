@@ -11,11 +11,13 @@
 		{ "flag": "COMING_IN", "from": "telegraph", "to": "windup" },
 		{ "flag": "HEAD_LOW", "from": "windup", "to": "active" }
 	],
-	"takedown": { "base_success": 0.45, "partial_within": 0.1 },
+	"takedown": { "base_success": 0.35, "partial_within": 0.1 },
 	"stats": { "offense": ["takedowns", "speed"], "defense": ["takedown_defense"] },
 	"opportunities": [
 		{ "opponent_flag": "BACK_TO_CAGE", "success_bonus": 0.15 },
-		{ "opponent_flag": "LEANING", "success_bonus": 0.10 }
+		{ "opponent_flag": "LEANING", "success_bonus": 0.10 },
+		{ "opponent_flag": "BIT_ON_FEINT", "success_bonus": 0.10 },
+		{ "own_flag": "BLIND_SHOT", "success_bonus": -0.20 }
 	],
 	"requires_technique": null
 }
