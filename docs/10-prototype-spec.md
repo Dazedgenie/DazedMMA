@@ -63,7 +63,7 @@ Merged acceptance tests from the Foundation doc (A13):
 | 5 | Call processor + voice meter | |
 | 6 | Balance harness | CSV + summary printout |
 | 7 | Grey-box isometric view + slow-mo + call buttons/hotkeys | Built in #19 (D117): `06` §6 |
-| 8 | Playtest build + playtest checklist | Built in #20 (D118): the Windows download, the playtest fights, saved fights and the report, and the script, form and write-up template in `docs/playtests/` |
+| 8 | Playtest build + playtest checklist | Built in #20 (D118): the Windows download, the playtest fights, saved fights and the report, and the script, form and write-up template in `docs/playtests/`; with no testers, the solo checklist (D127) |
 
 ---
 

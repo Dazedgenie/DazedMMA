@@ -1,12 +1,14 @@
 # Playtests
 
-> Related decisions: D62 (friends + small Discord), D91 (compare 1× and 2×), D118 (the playtest kit). Issue #20.
+> Related decisions: D62 (friends + small Discord), D91 (compare 1× and 2×), D118 (the playtest kit), D127 (playing it solo). Issue #20.
 > The playtest answers the prototype's one question (`10` §1): *does calling the takedown during the kick feel right?*
 
-This folder holds everything for running a playtest and writing it up:
+This folder holds everything for running a playtest and writing it up. **No testers yet?** Play
+[`solo-checklist.md`](solo-checklist.md) on your own instead (D127): the fights, what to check, ten questions and a short write-up.
 
 | File | What it is | Who uses it |
 |---|---|---|
+| [`solo-checklist.md`](solo-checklist.md) | The playtest on your own: the fights in order with what to check, ten questions, sending the saved fights back, and the solo write-up's shape (D127) | You, with no testers |
 | [`script.md`](script.md) | The host's script: setup, the four fights in order, what to watch for, what to say and not say | Host |
 | [`feedback-form.md`](feedback-form.md) | The questions for each tester after the fights, each tied to a test in `10` §2 | Tester (the host reads them out or pastes them into a form) |
 | [`write-up-template.md`](write-up-template.md) | The write-up shell: every acceptance test from `10` §2 with where its answer comes from, and the go / adjust / rethink decision | Host, after the session |
@@ -83,7 +85,7 @@ playtest build's commit if fights have changed since (a golden-fight re-pin, D12
 | What ships in the build | `export_presets.cfg` (`include_filter`, `exclude_filter`) |
 | The download (name, how long it's kept) | `.github/workflows/playtest-build.yml` |
 | Which harness runs the write-up gets, and how many fights | `.github/workflows/playtest-numbers.yml` (the `matrix` list: each part's harness arguments) |
-| The script, form or write-up | The files in this folder |
+| The script, form, write-up or solo checklist | The files in this folder |
 
 Tests: `tests/game/test_playtest.gd` (steps, settings, records, the report), `tests/game/test_main_scene.gd` (a playtest
 fight from setup to saved record), `tests/data/test_data_files.gd` (the `playtest@1` files).

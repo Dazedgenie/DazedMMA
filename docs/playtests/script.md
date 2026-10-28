@@ -3,6 +3,7 @@
 > Follows the onboarding order (`07` §1 steps 4–9, `07` §3) so every tester learns the calls in the same order: three call keys,
 > then the read call against the Kicker, then a drilled rule with the full call bar. Decisions: D91, D118.
 > About 30–40 minutes a tester. Have [`feedback-form.md`](feedback-form.md) ready and a notes sheet for each tester.
+> No testers? Play [`solo-checklist.md`](solo-checklist.md) yourself instead (D127).
 
 ## 0. Before the session
 
@@ -34,8 +35,8 @@ Leave **Difficulty** on Normal and the other toggles as they are. Set **Speed** 
 
 | # | Playtest step | Speed | What it teaches (`07` §1) | Watch for |
 |---|---|---|---|---|
-| 1 | **Playtest 1: your first calls** (Wrestler vs Boxer; Pressure, Circle out, Takedown, and Ground and pound! on top, which shares key 1) | 2× | Watching the fight, speed controls, three call keys, the voice meter | Do they find the call bar and hotkeys? Do they notice calls take a moment (the ring over the fighter) and can be ignored ("nah")? Do they run out of voice? Once on top, do they press 1 for Ground and pound!, and do they watch the health bars drop? This fight often ends early (see [`write-up-template.md`](write-up-template.md) §2b): note whether a stoppage surprises them |
-| 2a | **Playtest 2: catch the kick** (Wrestler vs Kicker; adds Catch the kick! on Q; tell cue on) | Odd: 2×. Even: 1× | The read call, the tell cue, the perfect-call flourish | Do they spot the glow before the kick? Do they press Q early (a read waits for the kick) or late? Their face and words at the first perfect catch: that's the moment the game is built around |
+| 1 | **Playtest 1: your first calls** (Wrestler vs Boxer; Pressure, Circle out, Takedown, and Ground and pound! on top, which shares key 1; Finish it! (1) and Defend the sub! (6) in a submission hold, D126) | 2× | Watching the fight, speed controls, three call keys, the voice meter | Do they find the call bar and hotkeys? Do they notice calls take a moment (the ring over the fighter) and can be ignored ("nah")? Do they run out of voice? Once on top, do they press 1 for Ground and pound!, and do they watch the health bars drop? If the Boxer guillotines a shot (rare), do they find Defend the sub! (6)? This fight often ends early (see [`write-up-template.md`](write-up-template.md) §2b): note whether a stoppage surprises them |
+| 2a | **Playtest 2: catch the kick** (Wrestler vs Kicker; adds Catch the kick! on Q; tell cue on) | Odd: 2×. Even: 1× | The read call, the tell cue, the perfect-call flourish | Do they spot the glow before the kick? Do they press Q early (a read waits for the kick) or late? Their face and words at the first perfect catch: that's the moment the game is built around. When the Kicker locks a triangle or armbar from his back, do they read the danger meter and press 6 (Defend the sub!)? |
 | 2b | **Playtest 2 again** at the other speed: on the result screen press **Change setup**, switch **Speed**, pick Playtest 2, Start | Odd: 1×. Even: 2× | Same fight, other speed (D91) | Do they time the catch better or worse? Do they say which speed felt better without being asked? |
 | 3 | **Playtest 3: a drilled rule** (Wrestler vs Kicker; rule Catch & shoot at 80%; all calls) | Ask: "Which speed do you want?" and note the answer | Drilled rules firing on their own, the plan panel, the full call bar, the ground calls (Get up, Survive) | Do they notice the rule fire without them? Do they still make calls or just watch? Do they use Get up / Survive on the ground? |
 

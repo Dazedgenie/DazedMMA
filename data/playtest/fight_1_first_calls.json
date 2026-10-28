@@ -5,7 +5,7 @@
 	"order": 1,
 	"red": "wrestler",
 	"blue": "boxer",
-	"calls": ["pressure", "circle_out", "takedown", "ground_and_pound"],
+	"calls": ["pressure", "circle_out", "takedown", "ground_and_pound", "finish_it", "defend_the_sub"],
 	"rules": [],
 	"tell_cue": false,
 	"tip": "You're in the Wrestler's corner and he fights on his own: press 4 (Takedown!) when you see a chance, 1 (Pressure!) or 2 (Circle out!) to change how he fights, and 1 again (Ground and pound!) once he's on top. Every call costs voice, so pick your moments."
