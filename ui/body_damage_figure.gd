@@ -2,9 +2,9 @@ class_name BodyDamageFigure
 extends Control
 ## A little fighter on the top bar that shows where he's hurt (D150, docs/06 §6): the head,
 ## body and legs each run from green (fresh) through yellow to red (FighterState.hurt).
-## The head is health (D120): red means the referee is close. Both legs share the one
-## "legs" area until the fight engine tracks them apart. A part flashes white when a
-## clean shot lands on it, and the head pulses while he's rocked.
+## The head is health (D120): red means the referee is close. Each leg shows its own damage
+## (FighterState.leg_hurt, D144), drawn facing you: his left leg on your right. A part flashes
+## white when a clean shot lands on it, and the head pulses while he's rocked.
 
 const AREAS: Array[String] = ["head", "body", "legs"]
 ## Hurt 0 → 0.5 → 1 blends these (green, yellow, red: the HUD's pip colours).
@@ -22,9 +22,12 @@ const DESIGN := Vector2(60.0, 100.0)
 
 ## Area → 0 (fresh) to 1 (fully hurt).
 var hurt: Dictionary = { "head": 0.0, "body": 0.0, "legs": 0.0 }
+## Each leg's own hurt (D144), [left, right].
+var leg_hurt: Array[float] = [0.0, 0.0]
 var rocked: bool = false
 
 var _flash_left: Dictionary = { "head": 0.0, "body": 0.0, "legs": 0.0 }
+var _leg_flash: int = -1  # the leg a "legs" flash is on (D144), or -1 for both
 var _pulse: float = 0.0
 var _boxes: Dictionary = {}  # part → StyleBoxFlat (rounded rects)
 
@@ -44,12 +47,16 @@ func _init() -> void:
 func show_fighter(f: FighterState) -> void:
 	for area: String in AREAS:
 		hurt[area] = f.hurt(area)
+	for side in 2:
+		leg_hurt[side] = f.leg_hurt(side)
 	rocked = f.is_rocked()
 	queue_redraw()
 
 
-## A clean shot landed on this area ("head", "body" or "legs").
-func flash(area: String) -> void:
+## A clean shot landed on this area ("head", "body" or "legs"; `leg` which one, -1 both).
+func flash(area: String, leg: int = -1) -> void:
+	if area == "legs":
+		_leg_flash = leg
 	if _flash_left.has(area):
 		_flash_left[area] = FLASH_SECONDS
 		queue_redraw()
@@ -76,6 +83,15 @@ func area_colour(area: String) -> Color:
 	return c
 
 
+## One leg's fill right now: its own damage colour, whitened by a flash on it.
+func leg_colour(side: int) -> Color:
+	var c: Color = damage_colour(leg_hurt[side])
+	var left: float = float(_flash_left.legs)
+	if left > 0.0 and (_leg_flash < 0 or _leg_flash == side):
+		c = c.lerp(FLASH, left / FLASH_SECONDS)
+	return c
+
+
 func _process(delta: float) -> void:
 	var busy: bool = rocked
 	for area: String in AREAS:
@@ -96,9 +112,8 @@ func _draw() -> void:
 	draw_set_transform((size - DESIGN * s) * 0.5, 0.0, Vector2(s, s))
 	draw_style_box(_boxes.arm_left, Rect2(8.0, 27.0, 8.0, 28.0))
 	draw_style_box(_boxes.arm_right, Rect2(44.0, 27.0, 8.0, 28.0))
-	var legs: Color = area_colour("legs")
-	for part: String in ["leg_left", "leg_right"]:
-		(_boxes[part] as StyleBoxFlat).bg_color = legs
+	(_boxes.leg_left as StyleBoxFlat).bg_color = leg_colour(FighterState.RIGHT_LEG)  # Facing you: his right on your left.
+	(_boxes.leg_right as StyleBoxFlat).bg_color = leg_colour(FighterState.LEFT_LEG)
 	draw_style_box(_boxes.leg_left, Rect2(18.5, 59.0, 10.5, 38.0))
 	draw_style_box(_boxes.leg_right, Rect2(31.0, 59.0, 10.5, 38.0))
 	(_boxes.body as StyleBoxFlat).bg_color = area_colour("body")

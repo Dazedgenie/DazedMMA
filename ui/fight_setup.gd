@@ -29,11 +29,14 @@ const MATCHUPS: Array = [
 	["Sambo vs BJJ", "sambo", "bjj"],
 	["Sambo vs Boxer", "sambo", "boxer"],
 ]
+## The rules the fight is held under: label, data/rulesets id (D141: PRIDE).
+const RULESETS: Array = [["Pro (unified rules)", "pro"], ["PRIDE rules", "pride"], ["Amateur, 18+", "amateur_adult"], ["Amateur, 16–17", "amateur_teen"]]
 const SPEEDS: Array = [["Normal is 2× fight time", 2.0], ["Normal is 1× fight time", 1.0]]
 const HELP := "[b]Keys[/b]  1–9 calls · Q/E read calls · Space slow-mo · F fast · P pause (Easy) · T towel · Esc menu · F3 debug overlay · ` console"
 
 var _matchup: OptionButton
 var _speed: OptionButton
+var _ruleset: OptionButton
 var _difficulty: OptionButton
 var _tells: CheckBox
 var _auto_slow: CheckBox
@@ -87,6 +90,7 @@ func _init(p_roster: FighterLibrary = null, p_actions: ActionLibrary = null) -> 
 	grid.add_child(_tester)
 	_matchup = _picker(grid, "Fight", MATCHUPS.map(func(m: Array) -> String: return m[0]))
 	_matchup.item_selected.connect(func(_i: int) -> void: _build_rules())
+	_ruleset = _picker(grid, "Rules", RULESETS.map(func(r: Array) -> String: return r[0]))
 	_speed = _picker(grid, "Speed", SPEEDS.map(func(s: Array) -> String: return s[0]))
 	_difficulty = _picker(grid, "Difficulty", ["Normal", "Easy (P pauses the fight)"])
 	_add_label(grid, "Seed")
@@ -135,7 +139,7 @@ func _init(p_roster: FighterLibrary = null, p_actions: ActionLibrary = null) -> 
 	buttons.add_child(_start)
 
 
-## What was picked: {label, red, blue, normal_rate, easy, tell_cues, auto_slow,
+## What was picked: {label, red, blue, ruleset (data/rulesets id), normal_rate, easy, tell_cues, auto_slow,
 ## flourishes, rules ([[slot, rule id, drilled], …]), seed (-1 = random), tester}, and for a
 ## playtest fight also {step, calls (the call bar's calls, [] = all), tip}.
 func settings() -> Dictionary:
@@ -144,6 +148,7 @@ func settings() -> Dictionary:
 	var s := {
 		"label": m[0], "red": m[1], "blue": m[2],
 		"normal_rate": float(SPEEDS[maxi(0, _speed.selected)][1]),
+		"ruleset": String(RULESETS[maxi(0, _ruleset.selected)][1]),
 		"easy": _difficulty.selected == 1,
 		"tell_cues": _tells.button_pressed, "auto_slow": _auto_slow.button_pressed, "flourishes": _flourish.button_pressed,
 		"rules": _rules.picked(),
@@ -173,6 +178,7 @@ func show_settings(s: Dictionary) -> void:
 	_select_matchup(String(s.get("red", "")), String(s.get("blue", "")))
 	_rules.show_rules(s.get("rules", []))
 	_tells.button_pressed = bool(s.get("tell_cues", true))
+	_ruleset.selected = maxi(0, RULESETS.map(func(r: Array) -> String: return r[1]).find(String(s.get("ruleset", "pro"))))
 	_tester.text = String(s.get("tester", ""))
 	_step.selected = 0
 	for n in _steps.size():
@@ -189,6 +195,7 @@ func _apply_step() -> void:
 	_select_matchup(s.red, s.blue)
 	_rules.show_rules(s.rules)
 	_tells.button_pressed = s.tell_cues
+	_ruleset.selected = 0  # The playtest fights are pro rules.
 
 
 func _select_matchup(red: String, blue: String) -> void:

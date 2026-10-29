@@ -46,6 +46,14 @@ const REACTION_TICKS_PER_SPEED: float = 0.02
 const FATIGUE_EXEMPT := { "cardio": true, "recovery": true, "durability": true, "chin": true, "fight_iq": true, "composure": true, "heart": true }
 const HEAD_HURT_STATS := { "speed": true, "striking_defense": true, "fight_iq": true }
 const LEG_HURT_STATS := { "footwork": true, "speed": true, "kicking": true }
+## The two legs (D144): each is fully hurt at this share of the legs' damage scale (one leg kicked
+## to pieces is a leg gone while the other is fresh). A buckled leg leaves him limping: these stats
+## a further LIMP_PENALTY down (slower, weaker kicks, easier to take down).
+const LEG_SHARE: float = 0.3
+const LIMP_STATS := { "footwork": true, "speed": true, "kicking": true, "takedown_defense": true }
+const LIMP_PENALTY: float = 0.2
+const LEFT_LEG: int = 0
+const RIGHT_LEG: int = 1
 ## Primed read calls take attention from the rest of the defense (docs/01 §6.1, D67).
 const ATTENTION_STATS := { "striking_defense": true, "takedown_defense": true }
 const PANIC_DEFENSE_STATS := { "fight_iq": true, "striking_defense": true, "takedown_defense": true, "submission_defense": true }
@@ -74,9 +82,21 @@ var profile: Dictionary = {}
 ## Where they stand in the cage, in metres from the centre (Octagon).
 var pos: Vector2 = Vector2.ZERO
 var damage: Dictionary = { "head": 0, "body": 0, "legs": 0 }
+## The legs' damage by leg (D144), [left, right]: `damage.legs` is the two together. Low kicks land
+## on the front leg (lead_leg()), so switching stance puts the other one in the way.
+var leg_damage: Array[int] = [0, 0]
+## Switched stance from his profile's (to hide a hurt front leg, D144).
+var switched: bool = false
+## The leg that buckled (LEFT_LEG or RIGHT_LEG), or -1: he limps on it for the rest of the fight.
+var limping: int = -1
 ## Ticks left rocked, and ticks left on the canvas after a knockdown.
 var rocked_ticks: int = 0
 var down_ticks: int = 0
+## A liver shot (D143): ticks until it takes him (he freezes, then folds), and ticks left
+## winded after he's back up, guarding the body with his hands low.
+var liver_ticks: int = 0
+var liver_by: int = -1
+var winded_ticks: int = 0
 ## Ticks left flinching from a clean shot: the feet stop (FightSim.STAGGER_*).
 var stagger_ticks: int = 0
 ## Ticks left with their posture broken: tied up from the bottom, so no ground strikes (D121).
@@ -220,6 +240,8 @@ func effective_stat(id: String) -> float:
 			value *= 1.0 - ROCKED_PENALTY
 	if LEG_HURT_STATS.has(id):
 		value *= 1.0 - MAX_HURT_PENALTY * hurt("legs")
+	if limping >= 0 and LIMP_STATS.has(id):
+		value *= 1.0 - LIMP_PENALTY
 	if attention > 0.0 and ATTENTION_STATS.has(id):
 		value *= 1.0 - attention
 	var defense: bool = PANIC_DEFENSE_STATS.has(id)
@@ -242,6 +264,8 @@ func condition_reasons(id: String) -> Array[String]:
 		out.append("rocked")
 	if id in LEG_HURT_STATS and hurt("legs") > 0.0:
 		out.append("legs hurt")
+	if limping >= 0 and id in LIMP_STATS:
+		out.append("limping")
 	if attention > 0.0 and id in ATTENTION_STATS:
 		out.append("watching for a read")
 	if is_panicking() and (id in PANIC_DEFENSE_STATS or id == "power"):
@@ -272,6 +296,19 @@ func tired() -> float:
 func hurt(area: String) -> float:
 	var toughness: float = int(stats.get("chin" if area == "head" else "durability", DEFAULT_STAT))
 	return clampf(damage[area] / (HURT_SCALE * (toughness + 50.0)), 0.0, 1.0)
+
+
+## 0 (fresh) to 1 (gone) for one leg (D144): LEFT_LEG or RIGHT_LEG.
+func leg_hurt(side: int) -> float:
+	var toughness: float = int(stats.get("durability", DEFAULT_STAT))
+	return clampf(leg_damage[side] / (HURT_SCALE * LEG_SHARE * (toughness + 50.0)), 0.0, 1.0)
+
+
+## The leg in front, where low kicks land: the left for an orthodox fighter (and anyone whose
+## profile gives no stance), the right for a southpaw; the other one once he's switched.
+func lead_leg() -> int:
+	var lead: int = RIGHT_LEG if String(profile.get("stance", "orthodox")) == "southpaw" else LEFT_LEG
+	return 1 - lead if switched else lead
 
 
 ## What's left before the referee stops it, 1 (fresh) to 0 (finished): the head

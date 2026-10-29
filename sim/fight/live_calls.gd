@@ -369,10 +369,13 @@ func adjust_feet(view: FightView, feet: FeetPlan) -> void:
 
 
 ## The call's moves this fighter could use here (known, legal, from this position and role):
-## its `actions`, or with `then` its follow-ups.
+## its `actions`, or with `then` its follow-ups. A move at a downed man (following him down,
+## D142) only while he's down: otherwise Takedown! is the shots it always was.
 func _moves(view: FightView, call: Dictionary, then: bool = false) -> Array[String]:
 	var out: Array[String] = []
 	for id: String in (call.then if then else call.actions):
+		if _at_downed_man(view.actions.get_action(id)) and not view.opponent.is_down():
+			continue
 		if view.why_not(id) == "" and (call.get("bare", false) or _knows(view.me, view.actions.get_action(id))):
 			out.append(id)
 	return out
@@ -474,6 +477,11 @@ func _infeasible(view: FightView, call: Dictionary) -> String:
 		if why != "":
 			return why
 	return "doesn't know how"
+
+
+static func _at_downed_man(action: Dictionary) -> bool:
+	var block: Variant = action.get(action.category)
+	return block is Dictionary and bool(block.get("downed", false))
 
 
 func _knows(f: FighterState, action: Dictionary) -> bool:

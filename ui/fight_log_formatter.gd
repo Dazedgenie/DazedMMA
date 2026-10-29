@@ -11,6 +11,9 @@ const DIM_COLOUR := "#8a8f98"
 const RANGE_NAMES := { "out": "out of range", "long": "long (kicking range)", "mid": "mid (punching range)", "pocket": "in the pocket" }
 const CAGE_NAMES := { "centre": "is back in open space", "near": "is near the fence", "pinned": "is PINNED against the cage" }
 const RESULT_NAMES := { "ko": "KO", "tko": "TKO", "submission": "submission" }
+const LEG_NAMES: Array[String] = ["left", "right"]
+## What decided a whole-fight verdict (D141), in the judges' words.
+const JUDGED_ON := { "finish": "the effort to finish", "control": "control", "aggression": "aggression" }
 ## How the referee's stoppages read (FIGHT_ENDED `why`, D120).
 const STOP_REASONS := {
 	"health": "the referee stops it: nothing left",
@@ -35,17 +38,19 @@ static func is_detail(event: FightEvent) -> bool:
 	return event.type == FightEvent.ACTION_PHASE and event.data.phase != "telegraph"
 
 
-## Fight time since the start of the event's round, e.g. "R1 0:03.4".
-static func time_label(event: FightEvent, round_seconds: int) -> String:
+## Fight time since the start of the event's round, e.g. "R1 0:03.4". `round_start`: the
+## tick the event's round started on, when the rounds aren't all `round_seconds` long (D141).
+static func time_label(event: FightEvent, round_seconds: int, round_start: int = -1) -> String:
 	var ticks_per_round: int = round_seconds * FightClock.TICKS_PER_SECOND
-	var in_round: int = event.tick - (event.round_number - 1) * ticks_per_round
+	var start: int = round_start if round_start >= 0 else (event.round_number - 1) * ticks_per_round
+	var in_round: int = event.tick - start
 	var seconds: int = in_round / FightClock.TICKS_PER_SECOND
 	var tenths: int = in_round % FightClock.TICKS_PER_SECOND
 	return "R%d %d:%02d.%d" % [event.round_number, seconds / 60, seconds % 60, tenths]
 
 
 static func line(event: FightEvent, sim: FightSim) -> String:
-	var stamp: String = "[color=%s]%s  t%d[/color]  " % [DIM_COLOUR, time_label(event, sim.clock.round_seconds), event.tick]
+	var stamp: String = "[color=%s]%s  t%d[/color]  " % [DIM_COLOUR, time_label(event, sim.clock.round_seconds, sim.clock.round_start_tick(event.round_number)), event.tick]
 	return stamp + _describe(event, sim)
 
 
@@ -124,7 +129,17 @@ static func _describe(event: FightEvent, sim: FightSim) -> String:
 				return "[b]%s is ROCKED again underneath![/b]" % who
 			return "[b]%s is ROCKED![/b]" % who
 		FightEvent.KNOCKDOWN:
+			if event.data.get("liver", false):
+				return "[b]%s FOLDS and goes DOWN![/b] It was the liver" % who
+			if event.data.has("leg"):
+				return "[b]%s's %s leg BUCKLES and he goes DOWN![/b]" % [who, LEG_NAMES[int(event.data.leg)]]
+			if event.data.get("flash", false):
+				return "[b]%s is DROPPED by one shot![/b]" % who
 			return "[b]%s goes DOWN![/b]" % who
+		FightEvent.STANCE_SWITCHED:
+			return "%s switches stance to hide the %s leg" % [who, LEG_NAMES[int(event.data.hiding)]]
+		FightEvent.LIVER_SHOT:
+			return "[b]%s freezes: that one found the LIVER[/b]" % who
 		FightEvent.GOT_UP:
 			return "%s beats the count and gets back up" % who
 		FightEvent.RECOVERED:
@@ -153,7 +168,9 @@ static func _describe(event: FightEvent, sim: FightSim) -> String:
 		FightEvent.COMMAND_REJECTED:
 			return "[color=%s]Command refused for %s: %s[/color]" % [FAIL_COLOUR, who, event.data.reason]
 		FightEvent.ROUND_ENDED:
-			return "[b]── End of round %d ──[/b]  judges: %s" % [event.round_number, _cards(event.data.get("cards", []))]
+			if not event.data.has("cards"):
+				return "[b]── End of round %d ──[/b]  (no round scores: the judges score the whole fight)" % event.round_number
+			return "[b]── End of round %d ──[/b]  judges: %s" % [event.round_number, _cards(event.data.cards)]
 		FightEvent.FIGHT_ENDED:
 			return "[b]── %s ──[/b]" % result_text(event, sim)
 	return "%s %s %s" % [who, event.type, JSON.stringify(event.data)]
@@ -219,10 +236,25 @@ static func result_text(event: FightEvent, sim: FightSim) -> String:
 	elif result == FightSim.RESULT_SUB and event.data.has("why"):
 		how += " (%s)" % _action_name(event.data.why, sim).to_lower()
 	var cards: String = " (%s)" % _cards(event.data.cards) if event.data.has("cards") else ""
+	if event.data.has("judges"):
+		cards = " (%s)" % _picks(event.data.judges, event.data.get("judged_on", []), sim)
 	var winner: int = int(event.data.get("winner", -1))
 	if winner < 0:
 		return "%s%s" % [how.capitalize(), cards]
 	return "%s wins by %s%s" % [_fighter(winner, sim), how, cards]
+
+
+## Whole-fight judging (D141): e.g. "Boxer on the effort to finish, Boxer on control, Kicker on the effort to finish".
+static func _picks(picks: Array, judged_on: Array, sim: FightSim) -> String:
+	var out: Array[String] = []
+	for j in picks.size():
+		var w: int = int(picks[j])
+		if w < 0:
+			out.append("even")
+			continue
+		var on: String = String(judged_on[j]) if j < judged_on.size() else ""
+		out.append("%s on %s" % [sim.fighters[w].name, JUDGED_ON.get(on, on)] if on != "" else sim.fighters[w].name)
+	return ", ".join(out)
 
 
 static func _cards(cards: Array) -> String:

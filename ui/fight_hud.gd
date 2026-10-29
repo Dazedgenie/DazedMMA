@@ -122,6 +122,11 @@ func is_allowed(id: String) -> bool:
 
 ## The judges' rough score for the round so far (docs/06 §2), e.g. "≈ 10-9 Wrestler".
 static func judges_estimate(sim: FightSim) -> String:
+	if sim.ruleset.judging == Ruleset.WHOLE_FIGHT:
+		var lean: Dictionary = Judging.whole_fight_pick(sim.fight_scores())
+		if int(lean.winner) < 0:
+			return "Judges: nothing in it yet"
+		return "Judges: ≈ %s (%s)" % [sim.fighters[int(lean.winner)].name, FightLogFormatter.JUDGED_ON[lean.on]]
 	var points: Array[float] = sim.round_points()
 	if points[0] + points[1] < 1.0:
 		return "Judges: nothing in it yet"
@@ -301,7 +306,7 @@ func _on_event(event: FightEvent, sim: FightSim) -> void:
 	feed.add_event(event, sim)
 	match event.type:
 		FightEvent.STRIKE_LANDED:
-			_figures[1 - event.actor].flash(String(event.data.target))
+			_figures[1 - event.actor].flash(String(event.data.target), int(event.data.get("leg", -1)))
 		FightEvent.CALL_HEARD:
 			if event.actor != driver.player:
 				_bubble_label.text = "%s's corner: \"%s\"" % [sim.fighters[event.actor].name, String(sim.calls.get_call(event.data.call_id).name) if sim.calls.has(event.data.call_id) else event.data.call_id]

@@ -1,0 +1,28 @@
+{
+	"schema": "ruleset@1",
+	"id": "pride",
+	"name": "PRIDE rules",
+	"rounds": 3,
+	"title_rounds": 3,
+	"round_seconds": 300,
+	"round_lengths": [600, 300, 300],
+	"judging": "whole_fight",
+	"glove_oz": 4,
+	"gear": [],
+	"allows": {
+		"elbows": true,
+		"head_strikes_on_ground": true,
+		"knees_to_head_standing": true,
+		"knees_to_head_grounded": true,
+		"heel_hooks": true,
+		"slams": true,
+		"takedowns": true,
+		"soccer_kicks": true,
+		"stomps": true
+	},
+	"damage_multiplier": 1.0,
+	"cut_multiplier": 1.0,
+	"early_stoppage_bias": 0.0,
+	"weigh_in": "day_before",
+	"paid": true
+}

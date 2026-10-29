@@ -86,3 +86,40 @@ static func decision(totals: Array) -> Dictionary:
 		if wins[w] >= 2 and draws >= 1:
 			return { "result": MAJORITY, "winner": w }
 	return { "result": DRAW, "winner": -1 }
+
+
+# --- Whole-fight judging (PRIDE rules, D141, docs/01 §33) ---------------------------
+
+## What the judges look at, in order, for a whole-fight verdict: the effort to finish (damage
+## landed, rocks, knockdowns, slams and submissions locked in), then control (takedowns,
+## better positions, time on top and pinning him on the fence), then aggression.
+const FINISH := "finish"
+const CONTROL := "control"
+const AGGRESSION := "aggression"
+const WHOLE_FIGHT_ORDER: Array[String] = [FINISH, CONTROL, AGGRESSION]
+## A judge only looks past the effort to finish when it's this close (within 10%), and past
+## control when that's this close too. Aggression decides anything closer.
+const WHOLE_FIGHT_EVEN_WITHIN := { "finish": 0.10, "control": 0.10, "aggression": 0.0 }
+## Pinning him on the fence counts toward control at this much a second (like full guard top).
+const FENCE_CONTROL_PER_S: float = CONTROL_POINTS_PER_S
+
+
+## Who one judge gives the whole fight to, and why: {winner (-1 = nothing between them),
+## on (FINISH, CONTROL or AGGRESSION; "" for nothing)}. `seen` is that judge's view of the
+## fight: {finish: [red, blue], control: [...], aggression: [...]}.
+static func whole_fight_pick(seen: Dictionary) -> Dictionary:
+	for what in WHOLE_FIGHT_ORDER:
+		var pair: Array = seen[what]
+		var best: float = maxf(float(pair[0]), float(pair[1]))
+		if best > 0.0 and absf(float(pair[0]) - float(pair[1])) > float(WHOLE_FIGHT_EVEN_WITHIN[what]) * best:
+			return { "winner": 0 if pair[0] > pair[1] else 1, "on": what }
+	return { "winner": -1, "on": "" }
+
+
+## The verdict from each judge's pick ([0, 0, 1]): {result, winner}, as decision() words it.
+## A judge who sees nothing between them counts as a draw on that card.
+static func whole_fight_decision(picks: Array) -> Dictionary:
+	var totals: Array = []
+	for w: int in picks:
+		totals.append([1 if w == 0 else 0, 1 if w == 1 else 0])
+	return decision(totals)

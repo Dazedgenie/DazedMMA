@@ -169,11 +169,13 @@ fatigue they add (or take away), their injury risk, any style push, any chin wea
 | Rehab (physio, easy technique) (D135) | | | −8 | | heals a day faster |
 
 **Points from XP** (§3.3, D13). Each session's XP is split by its shares, and one point of an attribute costs
-**10 × e^(attribute / 25)** XP: about 33 at 30, 74 at 50 and 164 at 70, so every 25 points costs e (≈2.7) times as much. The
+**4 × e^(attribute / 25)** XP: about 13 at 30, 30 at 50 and 66 at 70, so every 25 points costs e (≈2.7) times as much
+(it was 10 × until D136 sped camps up so a top prospect reaches the top level by 28–29, §3.8). The
 XP is then multiplied by:
 - **Session quality**: 1.0 when it auto-resolves; a session played as a minigame scores 0.8 (bad) to 1.5 (great). Auto is
   the baseline, never a gate (A5), and about two thirds of a great session (D14).
-- **Age**: × 1.2 up to 23, × 1.0 to 29, × 0.8 to 33, × 0.6 after.
+- **Age**: × 1.2 up to 23, × 1.0 to 29, × 0.8 to 33, × 0.6 after. The body's stats (the ones that age, §3.8) have their own
+  curve: × 1.2 up to 23, × 1.0 to 27, × 0.6 to 30, × 0.3 to 34, × 0.1 after.
 - **Coachable** (`11` §4.1): × (1 + Coachable / 400), so × 1.25 at +100 and × 0.75 at Stubborn −100. **Fast learner** × 1.15.
 - **Fatigue**: full up to 40, then down in a line to × 0.5 at 100.
 - **Variety**: × 1.1 for the whole week when its plan trains attributes from at least 3 of the 5 groups (§2).
@@ -183,9 +185,9 @@ a point costs × e^(points past that / 8) more, so × 3.5 at the potential itsel
 raises the ceiling for Speed and Strength by 10, Heavy hands for Power. **The soft cap per camp**: once an attribute has
 gained 3 points in one camp, the rest of that camp's points for it count half.
 
-What that comes to: a teenager with 30 in their wrestling stats gains a few points of Takedowns in an 8-week wrestling camp;
-the Wrestler at 19 with potential 80 (CI's camp snapshot) gains under a point in each main stat and about 2 Fight IQ from
-the film study. The camp keeps fractions of a point; fights read each stat to the nearest whole point (`FighterState`), so
+What that comes to: a teenager with 30 in their wrestling stats gains about 6 points of Takedowns in an 8-week wrestling
+camp; the Wrestler at 19 with potential 80 (CI's camp snapshot) gains about 2 points in each main stat and about 4 Fight IQ
+from the film study. The camp keeps fractions of a point; fights read each stat to the nearest whole point (`FighterState`), so
 a gain shows in fights once it rounds up. Every fighter in `data/fighters/` has whole-number stats, so that changes no fight.
 
 Each session that can hurt says where (`injury_area`, D135): sparring the head; boxing drills, the bag, wrestling, clinch
@@ -317,6 +319,63 @@ session hurts, whether it's light and rehab's `heals` in `data/sessions/`; what 
 `tests/sim/world/test_training_camp.gd`, the starting condition in `tests/sim/fight/test_fighter_state.gd`, the planner's
 fight night in `tests/ui/test_camp_planner.gd`, the result line in `tests/game/test_main_scene.gd`. A fighter without a
 `condition` fights exactly as before (the golden fights don't change). Then update this section and D135.
+
+### 3.8 Ageing and the prime (D136)
+
+Fighters now get older a week at a time, and the body has a prime (Kyle: a perfect 18-year-old who trains right and wins
+everything should peak "maybe 28, 29"; after it "a drop off after your physical decline", while "skills and fight IQ would
+continue to increase"). It matches what fights show: in 8,332 UFC bouts (AgentMMA's win rate by age) fighters win 57.6% of the time at 24 or under,
+52.2% at 28–30, 48.0% at 31–33 and 42.7% at 34–36, and master athletes lose about 7–14% of their aerobic and anaerobic power
+a decade.
+
+**Getting older** (`sim/world/ageing.gd`). Every week the camp runs makes the fighter a week older (`TrainingCamp.age_years`;
+the fight gets the new age). From 30 the body slows (the numbers Kyle agreed):
+- **Speed, Cardio, Recovery and Chin** lose 1% of what they are a year from 30, and 2% a year from 34.
+- **Strength, Power and Durability** go later and slower: 0.5% a year from 33, 1% from 36.
+- **Skills and the mental stats never age.** A 34-year-old still learns them (× 0.6, §3.5).
+
+**The body stops answering training.** The stats that age have their own learning curve (§3.5): full to 27, then × 0.6 to
+30, × 0.3 to 34 and × 0.1 after. So training builds the body until about 29, it holds at 30, and after that training only
+slows the decline.
+
+**Between camps** (Kyle: training between camps "should be optional for the player to decide"). Two new week plans for
+the weeks between fights: *Between fights* (lighter work, more rest) and *Time off* (rest all week). Training between camps
+is a bonus on top: a fighter who rests between camps still improves, just slower.
+
+**Hidden potential.** A fighter's `potential` stays hidden; scouts see a range 14 points wide with the true number somewhere
+inside it, not always the middle, and always the same for the same fighter (`Ageing.scouted_range`). The planner's title
+shows it ("potential 78–92 (scouted)"); its *True potential* box is the real number, there for testing.
+
+**The career curve** (`tools/career_curve.gd`). There's no career calendar yet, so this tool runs a fighter through years
+of camps and prints their stat groups by age (also `build/career/curve.csv`). A top prospect (every stat 45 at 18,
+potential 90, three 8-week camps a year with a taper, training between camps) comes out like this:
+
+| Age | Physical | Striking | Wrestling | Grappling | Mental |
+|---|---|---|---|---|---|
+| 18 | 45 | 45 | 45 | 45 | 45 |
+| 22 | 67 | 71 | 69 | 71 | 74 |
+| 25 | 72 | 78 | 76 | 80 | 81 |
+| 29 | 76 | 84 | 80 | 85 | 85 |
+| 30 | 77 (the peak) | 84 | 81 | 86 | 86 |
+| 34 | 75 | 87 | 83 | 88 | 88 |
+| 38 | 71 | 87 | 84 | 90 | 90 |
+
+Resting between camps instead leaves the same fighter about 8 points lower at 29. The skills keep creeping up into the
+late 30s, but slowly and toward the potential, while the body falls away: the old fighter knows more but is slower and
+gasses sooner.
+
+    godot --headless --script res://tools/career_curve.gd -- --fighter=wrestler --start=45 --age=18 --to=38 --potential=90
+    godot --headless --script res://tools/career_curve.gd -- --between=off --plans=striker,balanced,speed,power --fighter=boxer
+
+**Not yet:** the career calendar itself (the tool stands in for it), a "skip a year" button, scouting that gets sharper
+(better scouts or more fights watched narrow the range; Kyle: yes, later), gifts or flaws that move the
+prime (a late bloomer, an early decline), damage over a career wearing the Chin faster, and retirement.
+
+**What to change:** `DECLINE` (which stats age, from when, how fast) and the scouting width `SCOUT_HALF_WIDTH` and
+`SCOUT_OFFSET` in `sim/world/ageing.gd`; `BODY_AGE_LEARNING` and `XP_PER_POINT` in `sim/world/training_camp.gd`; the
+between-camp weeks in `data/week_plans/between_fights.json` and `time_off.json`. Check a change with
+`tools/career_curve.gd` and `tests/sim/world/test_ageing.gd`, then update this section and D136. Fights don't change (the
+golden fights don't need re-pinning).
 
 ---
 

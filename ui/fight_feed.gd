@@ -73,7 +73,7 @@ static func kind_of(event: FightEvent) -> String:
 			return NONE if event.data.has("reason") else PLAY
 		FightEvent.FEINTED:
 			return NONE if event.data.has("reason") else PLAY
-		FightEvent.ROCKED, FightEvent.KNOCKDOWN, FightEvent.GOT_UP, FightEvent.GRAPPLE_WON, FightEvent.POSITION_CHANGED, \
+		FightEvent.ROCKED, FightEvent.KNOCKDOWN, FightEvent.LIVER_SHOT, FightEvent.STANCE_SWITCHED, FightEvent.GOT_UP, FightEvent.GRAPPLE_WON, FightEvent.POSITION_CHANGED, \
 				FightEvent.SUBMISSION_LOCKED, FightEvent.SUBMISSION_ESCAPED, FightEvent.ROUND_ENDED, FightEvent.FIGHT_ENDED:
 			return KEY_MOMENT
 		FightEvent.SPRAWLED:
@@ -109,8 +109,8 @@ static func shows(kind: String, p_filter: int) -> bool:
 
 ## "3:44": time left in the event's round, as the top bar's clock shows it.
 static func clock_label(event: FightEvent, sim: FightSim) -> String:
-	var per_round: int = sim.clock.ticks_per_round()
-	var in_round: int = event.tick - (event.round_number - 1) * per_round
+	var per_round: int = sim.clock.ticks_in_round(event.round_number)
+	var in_round: int = event.tick - sim.clock.round_start_tick(event.round_number)
 	var left: int = int(ceil(float(per_round - in_round) / FightClock.TICKS_PER_SECOND))
 	return "%d:%02d" % [left / 60, left % 60]
 

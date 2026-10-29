@@ -1,0 +1,15 @@
+{
+	"schema": "week_plan@1",
+	"id": "between_fights",
+	"name": "Between fights",
+	"about": "A lighter week between camps: technique, roadwork and plenty of rest, so the fighter keeps growing without wearing down",
+	"instruction": null,
+	"days": [
+		["boxing_drill", "rest"],
+		["wrestling_drill", "roadwork"],
+		["rolling", "rest"],
+		["thai_pads", "film_study"],
+		["light_sparring", "rest"],
+		["strength_conditioning", "rest"]
+	]
+}

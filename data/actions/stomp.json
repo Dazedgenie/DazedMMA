@@ -1,0 +1,20 @@
+{
+	"schema": "action@2",
+	"id": "stomp",
+	"name": "Stomp",
+	"category": "strike",
+	"basic": true,
+	"positions": ["standing"],
+	"ranges": ["pocket"],
+	"phases_ms": { "telegraph": 100, "windup": 200, "active": 100, "recovery": 300 },
+	"stamina_cost": 5,
+	"flags_self": [
+		{ "flag": "ONE_LEG", "from": "windup", "to": "active" }
+	],
+	"strike": { "target": "head", "base_damage": 9, "downed": true },
+	"stats": { "offense": ["power", "speed"], "defense": ["striking_defense"] },
+	"opportunities": [
+		{ "opponent_flag": "DOWN", "success_bonus": 0.20, "required": true }
+	],
+	"requires_technique": null
+}

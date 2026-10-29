@@ -47,6 +47,14 @@ gains), the injuries, the stats that moved with their grades, the style pushes a
     godot --headless --script res://tools/camp.gd -- --fighter=wrestler --plan=wrestler --weeks=8 --fights=100
     godot --headless --script res://tools/camp.gd -- --fighter=kicker --plan=all_out --weeks=8 --taper=0 --seed=4
 
+`career_curve.gd` runs a fighter through years of camps and prints their stat groups by age, the climb to the prime and
+the decline after it (D136, `docs/02` §3.8), and writes `build/career/curve.csv`. `--start` sets every stat (0 keeps the
+fighter file's), `--fights` is fights a year, `--camp` the weeks of each camp (the last is a taper fight week), `--plans`
+the week plans a camp rotates through, and `--between=off` rests the weeks between camps instead of training them:
+
+    godot --headless --script res://tools/career_curve.gd -- --fighter=wrestler --start=45 --age=18 --to=38 --potential=90
+    godot --headless --script res://tools/career_curve.gd -- --between=off --plans=striker,balanced,speed,power --fighter=boxer
+
 `golden.gd` plays the golden fights (#35, D122, `docs/01` §2.2), the four fights pinned in
 `tests/golden/golden_fights.json`, and says which ones changed and how. With `--update` it pins the new results: do that
 only when a change is meant to change fights, commit the file and say why in the PR.

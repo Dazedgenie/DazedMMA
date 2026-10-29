@@ -75,6 +75,35 @@ const ROCK_THRESHOLD_PER_CHIN: float = 0.12
 const ROCK_FROM: float = 0.6
 const ROCK_SLOPE: float = 0.5
 const ROCK_MAX: float = 0.6
+## Liver shots (D143): a body shot thrown standing or in the clinch. Shock = damage × (1 +
+## body hurt) / (8 + 0.16 × Durability); liver chance = (shock − 0.8) × 0.2, up to 25%. It takes
+## him LIVER_DELAY_TICKS later (frozen meanwhile): down LIVER_DOWN_TICKS (a knockdown, but his
+## head is clear: not rocked), LIVER_STAMINA gone, then winded with his hands low for LIVER_WINDED_TICKS.
+const LIVER_THRESHOLD_BASE: float = 8.0
+const LIVER_THRESHOLD_PER_DURABILITY: float = 0.16
+const LIVER_FROM: float = 0.8
+const LIVER_SLOPE: float = 0.2
+const LIVER_MAX: float = 0.25
+const LIVER_DELAY_TICKS: int = 5
+const LIVER_DOWN_TICKS: int = 30
+const LIVER_STAMINA: float = 20.0
+const LIVER_WINDED_TICKS: int = 50
+## A leg giving out (D144): a low kick landing on a front leg already this hurt (FighterState.leg_hurt)
+## can buckle it: chance (leg hurt − 0.4) × damage × 0.03, up to 30%. He drops for LEG_DOWN_TICKS (a
+## knockdown, head clear) and limps on it for the rest of the fight. A front leg past SWITCH_FROM,
+## worse than the back one by SWITCH_MARGIN, makes him switch stance to hide it.
+const BUCKLE_FROM: float = 0.35
+const BUCKLE_PER_DAMAGE: float = 0.03
+const BUCKLE_MAX: float = 0.3
+const LEG_DOWN_TICKS: int = 10
+const SWITCH_FROM: float = 0.5
+const SWITCH_MARGIN: float = 0.2
+## Flash knockdowns (D145): a head shot that rocks a man who wasn't rocked drops him there and then
+## when it was big enough: chance (shock − 1.2) × 0.4, up to 35%. A counter (×1.3 damage), a head kick or an
+## overhand gets there; a jab never does.
+const FLASH_FROM: float = 1.2
+const FLASH_SLOPE: float = 0.4
+const FLASH_MAX: float = 0.35
 ## Rocked lasts 4 s × (1.5 − Recovery / 100); a knockdown keeps them down 2 s, then rocked.
 const ROCKED_TICKS: int = 40
 const DOWN_TICKS: int = 20
@@ -210,6 +239,10 @@ var _round_knockdowns: Array[int] = [0, 0]  # knockdowns scored this round
 var _round_impact: Array[int] = [0, 0]  # rocks and knockdowns scored this round (Judging: a 10-8 needs one)
 var _round_aggression: Array[float] = [0.0, 0.0]  # attacks thrown + metres walked forward this round
 var _round_control: Array[int] = [0, 0]  # ticks this round the opponent spent pinned on the fence
+var _round_grappling: Array[float] = [0.0, 0.0]  # the part of _round_points from takedowns, positions and time on top
+## The whole fight to the last bell, for PRIDE's judges (D141, Judging.whole_fight_pick):
+## {finish: [red, blue], control: [...], aggression: [...]}.
+var _fight_scores: Dictionary = { Judging.FINISH: [0.0, 0.0], Judging.CONTROL: [0.0, 0.0], Judging.AGGRESSION: [0.0, 0.0] }
 ## The submission being fought for (D126), or empty: {attacker, action_id, danger, beats,
 ## next_at (tick of the next beat), from and from_roles (where it was locked from), near}.
 var _hold: Dictionary = {}
@@ -265,7 +298,7 @@ func _init(p_seed: int, p_fighters: Array[FighterState], p_actions: ActionLibrar
 		ruleset = Ruleset.pro_with(p_rules, p_round_seconds)
 	else:
 		ruleset = Ruleset.load_id()
-	clock = FightClock.new(ruleset.rounds, ruleset.round_seconds)
+	clock = FightClock.new(ruleset.rounds, ruleset.round_seconds, ruleset.round_lengths)
 	for i in fighters.size():
 		decisions.append(DecisionLayer.new())
 		views.append(FightView.new(self, i))
@@ -344,8 +377,9 @@ func tick() -> void:
 			now += 1
 			return
 	if not situation.is_standing():
-		_round_points[0] += _control[0]
-		_round_points[1] += _control[1]
+		for k in 2:
+			_round_points[k] += _control[k]
+			_round_grappling[k] += _control[k]
 	_update_space()
 	if clock.tick():
 		_end_round()
@@ -482,6 +516,13 @@ func _advance_fighter(i: int) -> void:
 		if f.down_ticks == 0:
 			_emit(FightEvent.GOT_UP, i)
 		return
+	if f.liver_ticks > 0:
+		f.liver_ticks -= 1
+		if f.liver_ticks == 0:
+			_liver_fold(i)
+		return  # Frozen: it's coming.
+	if f.winded_ticks > 0:
+		f.winded_ticks -= 1
 	if f.is_rocked():
 		f.rocked_ticks -= 1
 		if f.rocked_ticks == 0:
@@ -745,6 +786,8 @@ func apply_transition(i: int, action_id: String, result: String = PositionLibrar
 	for f in fighters:
 		f.clear_action()
 		f.tied_up_ticks = 0
+		if not situation.is_standing():
+			f.down_ticks = 0  # Followed down after a knockdown (D142): on the ground now, still rocked.
 		f.unanswered = 0
 	_place_bodies(i)
 	var changed := { "action_id": action_id, "position": situation.position, "phase": situation.phase, "roles": roles.duplicate() }
@@ -755,16 +798,19 @@ func apply_transition(i: int, action_id: String, result: String = PositionLibrar
 	if roles[i] == PositionLibrary.TOP and was_top[i]:
 		if gained > 0.0:
 			_round_points[i] += Judging.ADVANCE_POINTS_PER_CONTROL * gained
+			_round_grappling[i] += Judging.ADVANCE_POINTS_PER_CONTROL * gained
 			fighters[i].advances += 1
 	elif result == PositionLibrary.FAILED:
 		if roles[1 - i] == PositionLibrary.TOP and was_top[1 - i] and gained > 0.0:
 			# A leg lock from underneath that misses lets him past the legs (D132): his better position scores.
 			_round_points[1 - i] += Judging.ADVANCE_POINTS_PER_CONTROL * gained
+			_round_grappling[1 - i] += Judging.ADVANCE_POINTS_PER_CONTROL * gained
 			fighters[1 - i].advances += 1
 	elif was_bottom and roles[i] != PositionLibrary.ATTACKER:
 		fighters[i].escapes += 1  # Out from underneath: back to guard, up, or on top (not a hold, D130).
 	if roles[i] == PositionLibrary.TOP and not was_top[i]:
 		_round_points[i] += Judging.TAKEDOWN_POINTS
+		_round_grappling[i] += Judging.TAKEDOWN_POINTS
 		if actions.has(action_id) and actions.get_action(action_id).category == "takedown":
 			fighters[i].takedowns_landed += 1
 			if ActionLibrary.is_throw(actions.get_action(action_id)):
@@ -773,6 +819,7 @@ func apply_transition(i: int, action_id: String, result: String = PositionLibrar
 		# Ends up on top off the opponent's failed move (a guillotine, D126); pulling guard
 		# on purpose (D128) gives the judges nothing.
 		_round_points[1 - i] += Judging.TAKEDOWN_POINTS
+		_round_grappling[1 - i] += Judging.TAKEDOWN_POINTS
 	return true
 
 
@@ -946,18 +993,21 @@ func phase_ticks(f: FighterState, id: String, phase: String) -> int:
 
 ## Flags fighter i carries right now: from their current action's phase (docs/09
 ## flags_self), BACK_TO_CAGE when pinned, HANDS_LOW when exhausted or rocked,
-## POSTURE_BROKEN while tied up from the bottom, HEAD_LOW while stuck under a sprawl.
+## POSTURE_BROKEN while tied up from the bottom, HEAD_LOW while stuck under a sprawl,
+## DOWN while knocked down (soccer kicks and stomps need it, D141).
 func active_flags(i: int) -> Array[String]:
 	var f: FighterState = fighters[i]
 	var out: Array[String] = []
 	if cage_proximity(i) == Octagon.CAGE_PINNED:
 		out.append("BACK_TO_CAGE")
-	if f.stamina_fraction() < HANDS_LOW_BELOW or f.is_rocked():
+	if f.stamina_fraction() < HANDS_LOW_BELOW or f.is_rocked() or f.winded_ticks > 0 or f.liver_ticks > 0:
 		out.append("HANDS_LOW")
 	if f.tied_up_ticks > 0:
 		out.append("POSTURE_BROKEN")
 	if f.bit_ticks > 0:
 		out.append("BIT_ON_FEINT")
+	if f.is_down():
+		out.append("DOWN")
 	if f.is_free():
 		return out
 	if f.sprawled:
@@ -981,12 +1031,14 @@ func flags_ahead(i: int, ahead: int) -> Array[String]:
 	var out: Array[String] = []
 	if cage_proximity(i) == Octagon.CAGE_PINNED:
 		out.append("BACK_TO_CAGE")
-	if f.stamina_fraction() < HANDS_LOW_BELOW or f.is_rocked():
+	if f.stamina_fraction() < HANDS_LOW_BELOW or f.is_rocked() or f.winded_ticks > ahead or f.liver_ticks > 0:
 		out.append("HANDS_LOW")
 	if f.tied_up_ticks > ahead:
 		out.append("POSTURE_BROKEN")
 	if f.bit_ticks > ahead:
 		out.append("BIT_ON_FEINT")
+	if f.down_ticks > ahead:
+		out.append("DOWN")
 	var phase: String = phase_ahead(i, ahead)
 	if phase == "":
 		return out
@@ -1145,8 +1197,8 @@ func _land_strike(i: int, action: Dictionary) -> void:
 	var defender: FighterState = fighters[1 - i]
 	var target: String = action.strike.target
 	var miss := { "action_id": action.id, "target": target, "chance": 0.0 }
-	if defender.is_down():
-		miss.reason = "opponent down"
+	if defender.is_down() and not action.strike.get("downed", false):
+		miss.reason = "opponent down"  # Only a soccer kick or a stomp hits a downed man (D141).
 		_emit(FightEvent.STRIKE_MISSED, i, miss)
 		return
 	if not action.ranges.has(band()):
@@ -1183,6 +1235,10 @@ func _land_strike(i: int, action: Dictionary) -> void:
 	var dealt: int = maxi(1, roundi(strike_damage(attacker, action.id) * scale))
 	var was_rocked: bool = defender.is_rocked()
 	defender.damage[target] += dealt
+	var leg: int = -1
+	if target == "legs":
+		leg = defender.lead_leg()
+		defender.leg_damage[leg] += dealt
 	attacker.unanswered = 0  # Landing anything back answers (D120).
 	defender.stagger_ticks = maxi(defender.stagger_ticks, STAGGER_BASE + roundi(dealt * STAGGER_PER_DAMAGE))
 	var push: float = float(action.strike.get("push_m", 0.0))
@@ -1202,6 +1258,8 @@ func _land_strike(i: int, action: Dictionary) -> void:
 	var landed := { "action_id": action.id, "target": target, "damage": dealt, "chance": chance, "counter": counter, "odds": breakdown.to_dict() }
 	if into != "":
 		landed.into = into
+	if leg >= 0:
+		landed.leg = leg
 	_emit(FightEvent.STRIKE_LANDED, i, landed)
 	if into != "":
 		_emit(FightEvent.GRAPPLE_STOPPED, 1 - i, { "action_id": into, "reason": "stopped", "by_action": action.id })
@@ -1209,6 +1267,10 @@ func _land_strike(i: int, action: Dictionary) -> void:
 	if target == "head":
 		_head_impact(i, dealt, into != "")
 		_referee(i, was_rocked)
+	elif target == "body" and situation.phase != PositionLibrary.PHASE_GROUND:
+		_body_impact(i, dealt)
+	elif leg >= 0 and situation.is_standing():
+		_leg_impact(i, leg, dealt)
 
 
 static func _has_bonus(b: OddsBreakdown, bonus_name: String) -> bool:
@@ -1233,7 +1295,7 @@ func _to_recovery(i: int) -> void:
 ## sprawl on it or knee into it.
 func _make_contact(i: int, action: Dictionary) -> void:
 	var stopped := { "action_id": action.id }
-	if fighters[1 - i].is_down():
+	if fighters[1 - i].is_down() and not action[action.category].get("downed", false):
 		stopped.reason = "opponent down"
 	elif not action.ranges.has(band()):
 		stopped.reason = "out of range"
@@ -1474,9 +1536,20 @@ func _head_impact(i: int, dealt: int, flash: bool = false) -> void:
 	if chance <= 0.0 or _rng.randf() >= chance:
 		return
 	var d: FighterState = fighters[1 - i]
+	if d.is_down():
+		# Kicked or stomped while down (D141): he's already on the floor, so it's the KO roll.
+		_round_points[i] += Judging.ROCKED_POINTS
+		_round_impact[i] += 1
+		if _rng.randf() < ko_chance(shock, d):
+			_finish(i, RESULT_KO)
+		return
 	var grounded: bool = situation.phase == PositionLibrary.PHASE_GROUND
 	if (d.is_rocked() or flash) and not grounded:
 		_knockdown(i, shock)
+		return
+	var flash_odds: float = 0.0 if grounded else flash_chance(shock)
+	if flash_odds > 0.0 and _rng.randf() < flash_odds:
+		_knockdown(i, shock, true)  # One clean shot, and a fresh man goes down (D145).
 		return
 	var again: bool = d.is_rocked()
 	d.rocked_ticks = rocked_duration(d)
@@ -1523,22 +1596,112 @@ func stop_unanswered() -> int:
 	return maxi(1, STOP_UNANSWERED - roundi(2.0 * ruleset.early_stoppage_bias))
 
 
+func body_shock(i: int, dealt: float) -> float:
+	var d: FighterState = fighters[1 - i]
+	return dealt * (1.0 + d.hurt("body")) / (LIVER_THRESHOLD_BASE + LIVER_THRESHOLD_PER_DURABILITY * d.stat("durability"))
+
+
+func liver_chance(shock: float) -> float:
+	return clampf((shock - LIVER_FROM) * LIVER_SLOPE, 0.0, LIVER_MAX)
+
+
+## A body shot's liver roll (D143): it doesn't drop him there and then. He freezes, and
+## LIVER_DELAY_TICKS later he folds (_liver_fold). A man already going, or down, has nothing more to find.
+func _body_impact(i: int, dealt: int) -> void:
+	var d: FighterState = fighters[1 - i]
+	if d.liver_ticks > 0 or d.is_down():
+		return
+	var chance: float = liver_chance(body_shock(i, dealt))
+	if chance <= 0.0 or _rng.randf() >= chance:
+		return
+	d.clear_action()
+	d.grip = null
+	d.liver_ticks = LIVER_DELAY_TICKS
+	d.liver_by = i
+	_emit(FightEvent.LIVER_SHOT, 1 - i, { "by": i })
+
+
+## The liver shot takes him: he folds and goes down (a knockdown for the judges and the
+## referee, but his head is clear, so not rocked), loses LIVER_STAMINA, and gets up winded.
+func _liver_fold(k: int) -> void:
+	var d: FighterState = fighters[k]
+	var by: int = d.liver_by
+	d.spend_stamina(LIVER_STAMINA)
+	if situation.phase == PositionLibrary.PHASE_GROUND:
+		d.winded_ticks = LIVER_WINDED_TICKS  # Taken down meanwhile: nowhere to fold to, but it still takes his wind.
+		return
+	d.knockdowns += 1
+	d.knockdowns_this_round += 1
+	d.unanswered = 0
+	d.clear_action()
+	d.down_ticks = LIVER_DOWN_TICKS
+	d.winded_ticks = LIVER_WINDED_TICKS  # Counted from when he's back up.
+	_round_points[by] += Judging.KNOCKDOWN_POINTS
+	_round_knockdowns[by] += 1
+	_round_impact[by] += 1
+	_emit(FightEvent.KNOCKDOWN, k, { "by": by, "liver": true })
+	if not situation.is_standing():
+		fighters[by].clear_action()
+		_break_apart(by)
+	if d.knockdowns_this_round >= TKO_KNOCKDOWNS:
+		_finish(by, RESULT_TKO, "", STOP_KNOCKDOWNS)
+
+
+func buckle_chance(leg_hurt: float, dealt: float) -> float:
+	return clampf((leg_hurt - BUCKLE_FROM) * dealt * BUCKLE_PER_DAMAGE, 0.0, BUCKLE_MAX)
+
+
+## A low kick on fighter i's opponent's front leg (D144): it can buckle a badly hurt one, and a
+## front leg that's gone makes him switch stance to put the other one in the way.
+func _leg_impact(i: int, leg: int, dealt: int) -> void:
+	var d: FighterState = fighters[1 - i]
+	if d.is_down() or d.liver_ticks > 0:
+		return
+	var hurt: float = d.leg_hurt(leg)
+	var chance: float = buckle_chance(hurt, dealt)
+	if chance > 0.0 and _rng.randf() < chance:
+		d.knockdowns += 1
+		d.knockdowns_this_round += 1
+		d.unanswered = 0
+		d.clear_action()
+		d.grip = null
+		d.down_ticks = LEG_DOWN_TICKS
+		d.limping = leg
+		_round_points[i] += Judging.KNOCKDOWN_POINTS
+		_round_knockdowns[i] += 1
+		_round_impact[i] += 1
+		_emit(FightEvent.KNOCKDOWN, 1 - i, { "by": i, "leg": leg })
+		if d.knockdowns_this_round >= TKO_KNOCKDOWNS:
+			_finish(i, RESULT_TKO, "", STOP_KNOCKDOWNS)
+			return
+	if hurt >= SWITCH_FROM and hurt - d.leg_hurt(1 - leg) >= SWITCH_MARGIN:
+		d.switched = not d.switched
+		_emit(FightEvent.STANCE_SWITCHED, 1 - i, { "hiding": leg })
+
+
+func flash_chance(shock: float) -> float:
+	return clampf((shock - FLASH_FROM) * FLASH_SLOPE, 0.0, FLASH_MAX)
+
+
 func rocked_duration(f: FighterState) -> int:
 	return roundi(ROCKED_TICKS * (1.5 - f.effective_stat("recovery") / 100.0))
 
 
-func _knockdown(i: int, shock: float) -> void:
+func _knockdown(i: int, shock: float, flash: bool = false) -> void:
 	var d: FighterState = fighters[1 - i]
 	d.knockdowns += 1
 	d.knockdowns_this_round += 1
 	d.unanswered = 0
 	d.clear_action()
+	if d.liver_ticks > 0:
+		d.liver_ticks = 0  # Dropped while the liver shot was coming: it's the same fall.
+		d.winded_ticks = LIVER_WINDED_TICKS
 	d.down_ticks = DOWN_TICKS
 	d.rocked_ticks = rocked_duration(d)
 	_round_points[i] += Judging.KNOCKDOWN_POINTS
 	_round_knockdowns[i] += 1
 	_round_impact[i] += 1
-	_emit(FightEvent.KNOCKDOWN, 1 - i, { "by": i })
+	_emit(FightEvent.KNOCKDOWN, 1 - i, { "by": i, "flash": true } if flash else { "by": i })
 	if not situation.is_standing():
 		fighters[i].clear_action()
 		_break_apart(i)
@@ -1551,6 +1714,17 @@ func _knockdown(i: int, shock: float) -> void:
 # --- Rounds, judges and the result --------------------------------------------
 
 func _end_round() -> void:
+	var round_scores: Dictionary = _round_scores()
+	for what: String in _fight_scores:
+		for i in 2:
+			_fight_scores[what][i] += round_scores[what][i]
+	if ruleset.judging == Ruleset.WHOLE_FIGHT:
+		_emit(FightEvent.ROUND_ENDED, FightEvent.NO_ACTOR, {})
+		if clock.is_fight_over():
+			_whole_fight_verdict()
+			return
+		_next_round()
+		return
 	var cards: Array = []
 	for j in Judging.JUDGES:
 		var seen: Array[float] = []
@@ -1568,11 +1742,18 @@ func _end_round() -> void:
 		_fight_over = true
 		_emit(FightEvent.FIGHT_ENDED, FightEvent.NO_ACTOR, { "result": verdict.result, "winner": verdict.winner, "cards": judge_totals.duplicate(true) })
 		return
+	_next_round()
+
+
+## Between rounds: both fighters back to their corners, recovered, with the round's tallies cleared.
+func _next_round() -> void:
 	for f in fighters:
 		f.clear_action()
 		f.recover_between_rounds()
 		f.rocked_ticks = 0
 		f.down_ticks = 0
+		f.liver_ticks = 0
+		f.winded_ticks = 0
 		f.stagger_ticks = 0
 		f.tied_up_ticks = 0
 		f.bit_ticks = 0
@@ -1585,8 +1766,52 @@ func _end_round() -> void:
 	_round_impact = [0, 0]
 	_round_aggression = [0.0, 0.0]
 	_round_control = [0, 0]
+	_round_grappling = [0.0, 0.0]
 	clock.start_next_round()
 	_to_corners()
+
+
+## This round's points split the way PRIDE's judges look at them (D141): the effort to finish,
+## control (grappling, and pinning him on the fence), and aggression.
+func _round_scores() -> Dictionary:
+	var out: Dictionary = { Judging.FINISH: [0.0, 0.0], Judging.CONTROL: [0.0, 0.0], Judging.AGGRESSION: [0.0, 0.0] }
+	for i in 2:
+		out[Judging.FINISH][i] = _round_points[i] - _round_grappling[i]
+		out[Judging.CONTROL][i] = _round_grappling[i] + _round_control[i] * Judging.FENCE_CONTROL_PER_S / FightClock.TICKS_PER_SECOND
+		out[Judging.AGGRESSION][i] = _round_aggression[i]
+	return out
+
+
+## The fight went the distance under whole-fight judging: each judge, seeing it a little
+## differently, gives it to whoever did more to finish it, then controlled it, then pushed it.
+func _whole_fight_verdict() -> void:
+	var picks: Array[int] = []
+	var on: Array[String] = []
+	for j in Judging.JUDGES:
+		var seen: Dictionary = {}
+		for what: String in Judging.WHOLE_FIGHT_ORDER:
+			seen[what] = []
+			for i in 2:
+				seen[what].append(float(_fight_scores[what][i]) * (1.0 + _rng.randf_range(-Judging.JUDGE_NOISE, Judging.JUDGE_NOISE)))
+		var pick: Dictionary = Judging.whole_fight_pick(seen)
+		picks.append(int(pick.winner))
+		on.append(String(pick.on))
+	var verdict: Dictionary = Judging.whole_fight_decision(picks)
+	_fight_over = true
+	_emit(FightEvent.FIGHT_ENDED, FightEvent.NO_ACTOR, { "result": verdict.result, "winner": verdict.winner, "judges": picks, "judged_on": on })
+
+
+## The whole fight so far as PRIDE's judges add it up, before their own noise, including the
+## round in progress (D141): {finish: [red, blue], control: [...], aggression: [...]}.
+func fight_scores() -> Dictionary:
+	var out: Dictionary = _fight_scores.duplicate(true)
+	if clock.is_fight_over():
+		return out  # the last round is already in
+	var now_scores: Dictionary = _round_scores()
+	for what: String in out:
+		for i in 2:
+			out[what][i] += now_scores[what][i]
+	return out
 
 
 func _finish(winner: int, result: String, stopped_by: String = "", why: String = "") -> void:

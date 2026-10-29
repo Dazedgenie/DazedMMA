@@ -13,15 +13,36 @@ var round_seconds: int
 var rounds: int
 var current_round: int = 1
 var tick_in_round: int = 0
+## Each round's own length in seconds when they differ (PRIDE's 10-minute first round,
+## D141); empty = every round is round_seconds.
+var round_lengths: Array[int] = []
 
 
-func _init(p_rounds: int = 3, p_round_seconds: int = 300) -> void:
+func _init(p_rounds: int = 3, p_round_seconds: int = 300, p_round_lengths: Array[int] = []) -> void:
 	rounds = p_rounds
 	round_seconds = p_round_seconds
+	round_lengths = p_round_lengths
 
 
+## The current round's length in ticks.
 func ticks_per_round() -> int:
+	return ticks_in_round(current_round)
+
+
+## Round `n`'s length in ticks (1 is the first).
+func ticks_in_round(n: int) -> int:
+	if n >= 1 and n <= round_lengths.size():
+		return round_lengths[n - 1] * TICKS_PER_SECOND
 	return round_seconds * TICKS_PER_SECOND
+
+
+## The fight tick round `n` starts on (round 1 starts on tick 0). Rounds follow each other
+## tick after tick: the corner between them takes no fight time.
+func round_start_tick(n: int) -> int:
+	var out: int = 0
+	for r in range(1, n):
+		out += ticks_in_round(r)
+	return out
 
 
 ## Advances one tick. Returns true when this tick ended the current round.
