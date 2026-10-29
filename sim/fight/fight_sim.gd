@@ -210,6 +210,10 @@ var _round_knockdowns: Array[int] = [0, 0]  # knockdowns scored this round
 var _round_impact: Array[int] = [0, 0]  # rocks and knockdowns scored this round (Judging: a 10-8 needs one)
 var _round_aggression: Array[float] = [0.0, 0.0]  # attacks thrown + metres walked forward this round
 var _round_control: Array[int] = [0, 0]  # ticks this round the opponent spent pinned on the fence
+var _round_grappling: Array[float] = [0.0, 0.0]  # the part of _round_points from takedowns, positions and time on top
+## The whole fight to the last bell, for PRIDE's judges (D141, Judging.whole_fight_pick):
+## {finish: [red, blue], control: [...], aggression: [...]}.
+var _fight_scores: Dictionary = { Judging.FINISH: [0.0, 0.0], Judging.CONTROL: [0.0, 0.0], Judging.AGGRESSION: [0.0, 0.0] }
 ## The submission being fought for (D126), or empty: {attacker, action_id, danger, beats,
 ## next_at (tick of the next beat), from and from_roles (where it was locked from), near}.
 var _hold: Dictionary = {}
@@ -265,7 +269,7 @@ func _init(p_seed: int, p_fighters: Array[FighterState], p_actions: ActionLibrar
 		ruleset = Ruleset.pro_with(p_rules, p_round_seconds)
 	else:
 		ruleset = Ruleset.load_id()
-	clock = FightClock.new(ruleset.rounds, ruleset.round_seconds)
+	clock = FightClock.new(ruleset.rounds, ruleset.round_seconds, ruleset.round_lengths)
 	for i in fighters.size():
 		decisions.append(DecisionLayer.new())
 		views.append(FightView.new(self, i))
@@ -344,8 +348,9 @@ func tick() -> void:
 			now += 1
 			return
 	if not situation.is_standing():
-		_round_points[0] += _control[0]
-		_round_points[1] += _control[1]
+		for k in 2:
+			_round_points[k] += _control[k]
+			_round_grappling[k] += _control[k]
 	_update_space()
 	if clock.tick():
 		_end_round()
@@ -755,16 +760,19 @@ func apply_transition(i: int, action_id: String, result: String = PositionLibrar
 	if roles[i] == PositionLibrary.TOP and was_top[i]:
 		if gained > 0.0:
 			_round_points[i] += Judging.ADVANCE_POINTS_PER_CONTROL * gained
+			_round_grappling[i] += Judging.ADVANCE_POINTS_PER_CONTROL * gained
 			fighters[i].advances += 1
 	elif result == PositionLibrary.FAILED:
 		if roles[1 - i] == PositionLibrary.TOP and was_top[1 - i] and gained > 0.0:
 			# A leg lock from underneath that misses lets him past the legs (D132): his better position scores.
 			_round_points[1 - i] += Judging.ADVANCE_POINTS_PER_CONTROL * gained
+			_round_grappling[1 - i] += Judging.ADVANCE_POINTS_PER_CONTROL * gained
 			fighters[1 - i].advances += 1
 	elif was_bottom and roles[i] != PositionLibrary.ATTACKER:
 		fighters[i].escapes += 1  # Out from underneath: back to guard, up, or on top (not a hold, D130).
 	if roles[i] == PositionLibrary.TOP and not was_top[i]:
 		_round_points[i] += Judging.TAKEDOWN_POINTS
+		_round_grappling[i] += Judging.TAKEDOWN_POINTS
 		if actions.has(action_id) and actions.get_action(action_id).category == "takedown":
 			fighters[i].takedowns_landed += 1
 			if ActionLibrary.is_throw(actions.get_action(action_id)):
@@ -773,6 +781,7 @@ func apply_transition(i: int, action_id: String, result: String = PositionLibrar
 		# Ends up on top off the opponent's failed move (a guillotine, D126); pulling guard
 		# on purpose (D128) gives the judges nothing.
 		_round_points[1 - i] += Judging.TAKEDOWN_POINTS
+		_round_grappling[1 - i] += Judging.TAKEDOWN_POINTS
 	return true
 
 
@@ -946,7 +955,8 @@ func phase_ticks(f: FighterState, id: String, phase: String) -> int:
 
 ## Flags fighter i carries right now: from their current action's phase (docs/09
 ## flags_self), BACK_TO_CAGE when pinned, HANDS_LOW when exhausted or rocked,
-## POSTURE_BROKEN while tied up from the bottom, HEAD_LOW while stuck under a sprawl.
+## POSTURE_BROKEN while tied up from the bottom, HEAD_LOW while stuck under a sprawl,
+## DOWN while knocked down (soccer kicks and stomps need it, D141).
 func active_flags(i: int) -> Array[String]:
 	var f: FighterState = fighters[i]
 	var out: Array[String] = []
@@ -958,6 +968,8 @@ func active_flags(i: int) -> Array[String]:
 		out.append("POSTURE_BROKEN")
 	if f.bit_ticks > 0:
 		out.append("BIT_ON_FEINT")
+	if f.is_down():
+		out.append("DOWN")
 	if f.is_free():
 		return out
 	if f.sprawled:
@@ -987,6 +999,8 @@ func flags_ahead(i: int, ahead: int) -> Array[String]:
 		out.append("POSTURE_BROKEN")
 	if f.bit_ticks > ahead:
 		out.append("BIT_ON_FEINT")
+	if f.down_ticks > ahead:
+		out.append("DOWN")
 	var phase: String = phase_ahead(i, ahead)
 	if phase == "":
 		return out
@@ -1145,8 +1159,8 @@ func _land_strike(i: int, action: Dictionary) -> void:
 	var defender: FighterState = fighters[1 - i]
 	var target: String = action.strike.target
 	var miss := { "action_id": action.id, "target": target, "chance": 0.0 }
-	if defender.is_down():
-		miss.reason = "opponent down"
+	if defender.is_down() and not action.strike.get("downed", false):
+		miss.reason = "opponent down"  # Only a soccer kick or a stomp hits a downed man (D141).
 		_emit(FightEvent.STRIKE_MISSED, i, miss)
 		return
 	if not action.ranges.has(band()):
@@ -1474,6 +1488,13 @@ func _head_impact(i: int, dealt: int, flash: bool = false) -> void:
 	if chance <= 0.0 or _rng.randf() >= chance:
 		return
 	var d: FighterState = fighters[1 - i]
+	if d.is_down():
+		# Kicked or stomped while down (D141): he's already on the floor, so it's the KO roll.
+		_round_points[i] += Judging.ROCKED_POINTS
+		_round_impact[i] += 1
+		if _rng.randf() < ko_chance(shock, d):
+			_finish(i, RESULT_KO)
+		return
 	var grounded: bool = situation.phase == PositionLibrary.PHASE_GROUND
 	if (d.is_rocked() or flash) and not grounded:
 		_knockdown(i, shock)
@@ -1551,6 +1572,17 @@ func _knockdown(i: int, shock: float) -> void:
 # --- Rounds, judges and the result --------------------------------------------
 
 func _end_round() -> void:
+	var round_scores: Dictionary = _round_scores()
+	for what: String in _fight_scores:
+		for i in 2:
+			_fight_scores[what][i] += round_scores[what][i]
+	if ruleset.judging == Ruleset.WHOLE_FIGHT:
+		_emit(FightEvent.ROUND_ENDED, FightEvent.NO_ACTOR, {})
+		if clock.is_fight_over():
+			_whole_fight_verdict()
+			return
+		_next_round()
+		return
 	var cards: Array = []
 	for j in Judging.JUDGES:
 		var seen: Array[float] = []
@@ -1568,6 +1600,11 @@ func _end_round() -> void:
 		_fight_over = true
 		_emit(FightEvent.FIGHT_ENDED, FightEvent.NO_ACTOR, { "result": verdict.result, "winner": verdict.winner, "cards": judge_totals.duplicate(true) })
 		return
+	_next_round()
+
+
+## Between rounds: both fighters back to their corners, recovered, with the round's tallies cleared.
+func _next_round() -> void:
 	for f in fighters:
 		f.clear_action()
 		f.recover_between_rounds()
@@ -1585,8 +1622,52 @@ func _end_round() -> void:
 	_round_impact = [0, 0]
 	_round_aggression = [0.0, 0.0]
 	_round_control = [0, 0]
+	_round_grappling = [0.0, 0.0]
 	clock.start_next_round()
 	_to_corners()
+
+
+## This round's points split the way PRIDE's judges look at them (D141): the effort to finish,
+## control (grappling, and pinning him on the fence), and aggression.
+func _round_scores() -> Dictionary:
+	var out: Dictionary = { Judging.FINISH: [0.0, 0.0], Judging.CONTROL: [0.0, 0.0], Judging.AGGRESSION: [0.0, 0.0] }
+	for i in 2:
+		out[Judging.FINISH][i] = _round_points[i] - _round_grappling[i]
+		out[Judging.CONTROL][i] = _round_grappling[i] + _round_control[i] * Judging.FENCE_CONTROL_PER_S / FightClock.TICKS_PER_SECOND
+		out[Judging.AGGRESSION][i] = _round_aggression[i]
+	return out
+
+
+## The fight went the distance under whole-fight judging: each judge, seeing it a little
+## differently, gives it to whoever did more to finish it, then controlled it, then pushed it.
+func _whole_fight_verdict() -> void:
+	var picks: Array[int] = []
+	var on: Array[String] = []
+	for j in Judging.JUDGES:
+		var seen: Dictionary = {}
+		for what: String in Judging.WHOLE_FIGHT_ORDER:
+			seen[what] = []
+			for i in 2:
+				seen[what].append(float(_fight_scores[what][i]) * (1.0 + _rng.randf_range(-Judging.JUDGE_NOISE, Judging.JUDGE_NOISE)))
+		var pick: Dictionary = Judging.whole_fight_pick(seen)
+		picks.append(int(pick.winner))
+		on.append(String(pick.on))
+	var verdict: Dictionary = Judging.whole_fight_decision(picks)
+	_fight_over = true
+	_emit(FightEvent.FIGHT_ENDED, FightEvent.NO_ACTOR, { "result": verdict.result, "winner": verdict.winner, "judges": picks, "judged_on": on })
+
+
+## The whole fight so far as PRIDE's judges add it up, before their own noise, including the
+## round in progress (D141): {finish: [red, blue], control: [...], aggression: [...]}.
+func fight_scores() -> Dictionary:
+	var out: Dictionary = _fight_scores.duplicate(true)
+	if clock.is_fight_over():
+		return out  # the last round is already in
+	var now_scores: Dictionary = _round_scores()
+	for what: String in out:
+		for i in 2:
+			out[what][i] += now_scores[what][i]
+	return out
 
 
 func _finish(winner: int, result: String, stopped_by: String = "", why: String = "") -> void:

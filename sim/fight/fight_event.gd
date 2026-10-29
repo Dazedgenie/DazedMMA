@@ -51,8 +51,8 @@ const CALL_ANSWERED := "call_answered"
 ## slow (the reliability roll: didn't see it in time) / outranked (the rule in slot 1 went) / not_eligible (out of range,
 ## too tired, rocked, no opening …) / missed (busy until the moment had gone)
 const RULE_ANSWERED := "rule_answered"
-const ROUND_ENDED := "round_ended"  # data: {cards: per judge [red, blue]}
-const FIGHT_ENDED := "fight_ended"  # data: {result, winner (-1 = draw), cards? (judges' totals), stopped_by? ("towel"), why? (the referee's reason: "health", "unanswered", "knockdowns", D120; for a submission, the hold's action id, D126)}
+const ROUND_ENDED := "round_ended"  # data: {cards?: per judge [red, blue]; none under whole-fight judging, D141}
+const FIGHT_ENDED := "fight_ended"  # data: {result, winner (-1 = draw), cards? (judges' totals), judges? and judged_on? (whole-fight judging, D141: each judge's pick, -1 = even, and what decided it), stopped_by? ("towel"), why? (the referee's reason: "health", "unanswered", "knockdowns", D120; for a submission, the hold's action id, D126)}
 
 const NO_ACTOR: int = -1
 

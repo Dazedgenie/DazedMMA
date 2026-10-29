@@ -26,6 +26,20 @@ D121, `01` §24): elbows are illegal and ground strikes go to the body under bot
 (adult 0.3, teen 0.5) makes the referee stop it sooner: at 15% / 25% health instead of 0, and one unanswered shot sooner.
 The heel hook (D132, `01` §30) is illegal under both amateur rulesets through `heel_hooks`; the ankle lock and kneebar are allowed.
 
+### 1.1 PRIDE rules (D141, `01` §33)
+A fourth ruleset, for fun and for the PRIDE fans (Kyle, 2026-10-29: "pride never die"). Pro and amateur fights stay on unified
+rules. `data/rulesets/pride.json`:
+
+| Rule | PRIDE |
+|---|---|
+| Rounds | A 10-minute first round, then two of 5 minutes (`round_lengths`) |
+| Elbows | ✓ (PRIDE banned elbows to the head; Kyle kept them in, D141) |
+| Knees to the head | Standing and on the ground (`knees_to_head_grounded`) |
+| Soccer kicks and stomps | ✓ on a knocked-down opponent (`soccer_kicks`, `stomps`) |
+| Heel hooks / slams | ✓ |
+| Judging | The whole fight, not round by round: the effort to finish first, then control, then aggression (`judging: whole_fight`). No 10-9s and almost no draws |
+| Gloves, weigh-ins, pay | 4 oz, the day before, a purse |
+
 ## 2. Teen amateur stage (D83)
 
 - **Ages ~16–18.** You fight on local and regional amateur cards (4–10 fights in total).

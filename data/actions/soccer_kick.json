@@ -1,0 +1,20 @@
+{
+	"schema": "action@2",
+	"id": "soccer_kick",
+	"name": "Soccer kick",
+	"category": "strike",
+	"basic": true,
+	"positions": ["standing"],
+	"ranges": ["mid", "pocket"],
+	"phases_ms": { "telegraph": 200, "windup": 200, "active": 100, "recovery": 400 },
+	"stamina_cost": 6,
+	"flags_self": [
+		{ "flag": "ONE_LEG", "from": "windup", "to": "recovery" }
+	],
+	"strike": { "target": "head", "base_damage": 12, "downed": true },
+	"stats": { "offense": ["kicking", "power"], "defense": ["striking_defense"] },
+	"opportunities": [
+		{ "opponent_flag": "DOWN", "success_bonus": 0.20, "required": true }
+	],
+	"requires_technique": null
+}

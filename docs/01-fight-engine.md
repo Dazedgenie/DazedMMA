@@ -236,6 +236,7 @@ Each phase can set **state flags** that counters look for:
 | `LEANING` | Overcommitted hook/overhand | Counter hook, trip, level change |
 | `BACK_TO_CAGE` | Pinned position | Double leg against the cage, knees in the clinch |
 | `POSTURE_BROKEN` | Clinch control, being pulled into guard | Subs from the bottom, sweeps |
+| `DOWN` | Knocked down, for the 2 s he's on the floor (D141) | Soccer kick, stomp (PRIDE rules only, §33) |
 
 ### 5.1 The example the whole game is built around: kick → takedown
 - Opponent throws a **body kick**: telegraph 0.3 s, wind-up 0.3 s, active 0.2 s, recovery 0.4 s
@@ -405,6 +406,7 @@ corner (*Finish it!* / *Defend the sub!*). The per-beat menu of calls with one r
 ## 11. Officials, fouls, scoring (D20)
 
 - **Judges**: 10-point must system. Each round is scored on effective striking/grappling > aggression > cage control.
+  Under PRIDE rules the judges score the whole fight instead: the effort to finish, then control, then aggression (§33.4, D141).
   Judges have personality weights (e.g. *loves takedowns*, *volume-striking fan*, *damage-first*). The player can
   learn their reputations over a career.
 - **Referees**: stoppage threshold (early vs late), stand-up impatience, foul strictness.
@@ -475,7 +477,7 @@ constants in `sim/fight/octagon.gd`, `sim/fight/fight_sim.gd`, `sim/fight/fighte
 | Counters | Hitting a fighter in wind-up or recovery: +10% to land and ×1.3 damage |
 | Damage | Base damage × (0.5 + Power/100), at least 1 |
 | Rocked | Head shots only. Shock = damage × (1 + head hurt) / (6 + 0.12 × Chin). Rock chance = (shock − 0.6) × 0.5, up to 60%: a jab never rocks a fresh fighter, a clean hook or head kick can. Rocked lasts 4 s × (1.5 − Recovery/100): Speed, Striking defense, Fight IQ −30% more, hands drop, they back off and mostly cover up, and the opponent swarms (more with a Wild Risk leaning) |
-| Knockdown | Rocked again while rocked (or rocked by a knee into a shot, §21.2). Down for 2 s (nobody hits a downed fighter: no ground strikes until after the playtest), then up and rocked. A knockdown in the clinch separates the fighters |
+| Knockdown | Rocked again while rocked (or rocked by a knee into a shot, §21.2). Down for 2 s, then up and rocked. Under unified rules nobody hits a downed fighter; under PRIDE rules a soccer kick or a stomp can (§33). A knockdown in the clinch separates the fighters |
 | KO / TKO | KO roll on each knockdown: 15% + (shock − 1) × 50%, 5–80%, × (1.5 − Heart/100). TKO on a third knockdown in a round, or a rock with the head fully hurt |
 | Judges | Three judges, 10-point must. A round's points = damage landed (head ×1, body ×0.8, legs ×0.6) + 8 per rock + 20 per knockdown + grappling (a takedown and control time, §21.4); each judge sees each fighter's points ±15%. Within 5%, the round goes to the busier fighter (aggression: strikes and takedowns started plus metres walked forward, each judge seeing it ±15%), then to whoever held the other on the fence longer (cage control); only a round where nothing separates them is 10-10 (D97). 10-8 for two more knockdowns or out-landing 4 to 1 in a busy round (D110; `Judging.DOMINANT_SHARE` 0.25). Decision: unanimous / split / majority / draw |
 | Events | `range_changed`, `cage_changed` (announced once held for 0.5 s), `rocked`, `knockdown`, `got_up`, `recovered`; strikes carry `counter`, the `odds` breakdown (§19) and, when they fall short, a `reason` |
@@ -2003,3 +2005,112 @@ amateur elbow ban, every fighter throwing their new moves, elbows in the clinch,
 fighter's combinations against the Kicker now: against the Boxer he mostly knees and elbows in the clinch and some fights have
 none. The golden fights were re-pinned (§2.2): the Boxer, the Kicker and the Wrestler throw the new moves, so three of the four
 play out differently; the check fighters don't know any.
+
+## 33. PRIDE rules: soccer kicks, stomps, knees on the ground and whole-fight judging (D141)
+Kyle asked for soccer kicks on a downed opponent and knees to a grounded one (2026-10-29: "pride never die"), and picked a new
+PRIDE ruleset for them on a decision card, with a 10-minute first round; pro and amateur fights stay on unified rules. On a
+second card he picked PRIDE's judging: the whole fight, not round by round, looking at the effort to finish first, then control,
+then aggression. The rules are `data/rulesets/pride.json` (`08` §1.1); pick them on the fight setup's *Rules* (`06` §6.1).
+
+### 33.1 The rounds
+A 10-minute first round, then two of 5 minutes (`round_lengths: [600, 300, 300]`, `09` ruleset@1). The clock, the bell, the feed's
+times and the round breaks follow each round's own length (`FightClock.ticks_in_round`, `round_start_tick`). No more title rounds:
+PRIDE's title fights were the same three.
+
+### 33.2 Soccer kicks and stomps
+A knocked-down fighter (§18: down for 2 s) carries the **`DOWN`** flag. Under unified rules nobody hits him, as before: a punch
+or kick thrown at him misses ("opponent down"). Under PRIDE rules two moves can, and only these two (`strike.downed`):
+
+| Move | Reach | Timing (telegraph · wind-up · active · recovery) | Lands on | Notes |
+|---|---|---|---|---|
+| Soccer kick (`soccer_kick.json`) | Mid, pocket | 0.2 · 0.2 · 0.1 · 0.4 s | Head, 12 | Kicking and Power. Everyone knows it (`basic`). Only on `DOWN`, +20% on him. `ONE_LEG` from wind-up to recovery |
+| Stomp (`stomp.json`) | Pocket | 0.1 · 0.2 · 0.1 · 0.3 s | Head, 9 | Power and Speed. Everyone knows it. Only on `DOWN`, +20% |
+
+He's already down, so a kick on him scores no second knockdown: it counts as a rock for the judges, hurts like any head shot,
+and can knock him out or have the referee stop it (§24). The fighter AI follows a knockdown up under PRIDE rules: each free tick
+while the man is down it throws the downed strike with the most expected damage that reaches, at 30% a tick (`DOWNED_RATE`, ×0.5
+to 1.5 from the Risk leaning). Where they're illegal it waits for him to get up, as before.
+
+How often (100 fights a pairing, PRIDE rules): about 0.2 soccer kicks a fight in most pairings, because knockdowns are rare
+(0.1–0.3 a fight); the Muay Thai fighter against the Wrestler, who gets knocked down about once a fight, throws about 1.3 and lands
+1. Stomps hardly happen: the soccer kick does more and reaches from further.
+
+### 33.3 Knees on the ground
+A **knee on the ground** (`ground_knee.json`) from the top of side control: 0.2 · 0.2 · 0.1 · 0.4 s, 9 damage, Top control and
+Power against Guard, postured up from the wind-up to the end (so the bottom fighter can tie him up, §24). Under PRIDE rules it goes
+to the head (`knees_to_head_grounded`); under unified and amateur rules to the body, like every illegal ground head strike (§24).
+The Wrestler and the Judoka know it: about 3 a fight, two landing, against the Boxer. Because they know it in pro fights too
+(to the body), pro fights with them changed a little (§33.5).
+
+### 33.4 Whole-fight judging
+Under PRIDE rules nobody scores rounds: the bell says "the judges score the whole fight", and if it goes the distance each
+of the three judges gives the whole fight to one fighter (`judging: whole_fight`, `Judging.whole_fight_pick`), looking at:
+1. **The effort to finish:** damage landed (head counts most), rocks, knockdowns, slams and submissions locked in. The same
+   points that make up effective striking in a round (§11, D120), minus the grappling.
+2. **Control,** only when the effort to finish is within 10%: takedowns, getting to a better position, time on top (the same
+   points as D108 and D130), and time pinning him on the fence (0.15 a second).
+3. **Aggression,** only when control is within 10% too: attacks thrown and ground walked forward.
+
+Each judge sees every number ×(1 ± up to 15%), as in a round. Three judges for one fighter is a unanimous decision, two to one a
+split; a judge sees it even only when nothing at all separates them, so draws are close to none (0 in 3,300 fights). The result
+says why: "Boxer wins by split decision (Boxer on the effort to finish, Kicker on control, Boxer on the effort to finish)". The
+HUD's judges' estimate shows who they'd give it to so far and why (`FightSim.fight_scores()`, no noise), and the round break
+says the same. Most verdicts are on the effort to finish (about three in four judges' picks, 100 fights each of four pairings); control decides the rest.
+
+### 33.5 Balance
+Harness, no calls, 300 fights a pairing, seed 1. The pro column is after D140 with the knee on the ground in (to the body):
+
+| Pairing | Pro, D140 → now | PRIDE rules | Finished inside the distance, pro → PRIDE |
+|---|---|---|---|
+| Kicker vs Boxer | Kicker 44% → 44% | Kicker 34% | 26% → 45% |
+| Boxer vs Kicker | Boxer 53% → 53% | Boxer 63% | 23% → 45% |
+| Muay Thai vs Boxer | Muay Thai 60% → 60% | Muay Thai 71% | 99% → 100% |
+| Muay Thai vs Kicker | Muay Thai 82% → 82% | Muay Thai 93% | 40% → 63% |
+| Muay Thai vs Wrestler | Muay Thai 64% → 69% | Muay Thai 83% | 66% → 87% |
+| Wrestler vs Boxer | Wrestler 61% → 64% | Wrestler 62% | 71% → 93% |
+| Wrestler vs Kicker | Wrestler 63% → 63% (draws 2.7% → 2.3%) | Wrestler 69% | 35% → 64% |
+| Judoka vs Boxer | Judoka 63% → 62% | Judoka 51% | 50% → 76% |
+| BJJ vs Boxer | BJJ 46% → 46% | BJJ 57% | 85% → 98% |
+| Sambo vs Boxer | Sambo 53% → 53% | Sambo 61% | 78% → 93% |
+| Boxer vs Boxer | 49/51 → 49/51 | 50/50 | all of them, both |
+
+Across the 3,300 fights: pro draws 0.4%, finished 61%; PRIDE draws 0%, finished 79%, over half of all fights (54%) inside the
+10-minute first round. Noise at 300 fights is about ±3 points. The #14 exit test (Kicker vs Boxer within 60/40) is a pro test and still
+passes; under PRIDE rules the Boxer wins 65% (reported only).
+
+What it says:
+- **The 10-minute first round finishes fights.** With no bell at five minutes, damage and tiredness build up: the Boxer stops the
+  Kicker twice as often (TKOs 20% → 30% of fights), and the submission fighters get there more (BJJ, Sambo +8 to +11).
+- **Finish-first judging helps whoever does damage, not whoever holds.** The Judoka wins half his pro fights on decisions built on
+  throws and time on top; under PRIDE the Boxer's damage outweighs them (63% → 51%). The Boxer out-damages the Kicker over a
+  whole fight too.
+- **Elbows stay legal** (Kyle's pick, 2026-10-29, though PRIDE banned elbows to the head). With them banned in a first run the
+  Muay Thai fighter lost his elbows and dropped against the Boxer (60% → 47%), and the Wrestler lost his ground elbows. With them
+  the Muay Thai fighter beats the Boxer 71% (elbows and knees in the clinch for ten minutes) and the Wrestler finishes far more
+  of his fights (Boxer 93%, Kicker 64%) with ground elbows and knees to the head together.
+- In pro fights the knee on the ground to the body changes little: the Wrestler +3 against the Boxer, and the Muay Thai fighter
+  +5 against the Wrestler (about the noise; the Wrestler spends some of his top time kneeing the body instead of punching).
+
+To read it again, run the harness with `--ruleset=pride` and the pairings of §32.3.
+
+### 33.6 To change it, and the tests
+- The rules: `data/rulesets/pride.json` (`round_lengths`, `judging`, `allows`: `soccer_kicks`, `stomps`, `knees_to_head_grounded`,
+  `elbows`, true under PRIDE by Kyle's pick; `09` ruleset@1). Which moves the `soccer_kicks` and `stomps` keys cover, and the ground knee's target:
+  `Ruleset.allows_action()`, `Ruleset.allows_target()`.
+- The moves: `data/actions/soccer_kick.json`, `stomp.json`, `ground_knee.json`; who knows the ground knee: `techniques` in
+  `data/fighters/wrestler.json` and `judoka.json`. What lands on a downed man: `strike.downed` (`FightSim._land_strike`), and a kick
+  on him scoring no second knockdown: `FightSim._head_impact`.
+- The AI following a knockdown up: `DOWNED_RATE` in `sim/fight/fighter_ai.gd` (`_downed`).
+- The judges: `WHOLE_FIGHT_ORDER`, `WHOLE_FIGHT_EVEN_WITHIN` and `FENCE_CONTROL_PER_S` in `sim/fight/judging.gd`; what counts as
+  control and what as the effort to finish: `FightSim._round_scores` (`_round_grappling` holds the grappling share of a round's
+  points).
+- The screen: the *Rules* picker (`FightSetup.RULESETS`), the poses for the three moves in `game/fighter_figure.gd`, the verdict's
+  words in `FightLogFormatter.JUDGED_ON`.
+
+Tested in `tests/sim/fight/test_pride.gd` (the round lengths and the clock, the feed's times, which rules allow soccer kicks and
+stomps, a soccer kick needing him down, only downed strikes landing on a downed man, no second knockdown, the ground knee's
+target under each ruleset, the AI kicking a downed man under PRIDE and never under pro, each step of a judge's pick, the verdict
+from three picks, a takedown counting as control, a PRIDE fight with no round scores, pro fights still scored by round) and
+`tests/data/test_data_files.gd` (the new `allows` keys, `round_lengths` and `judging`, a downed strike being a standing move that
+needs `DOWN`). The golden fights were re-pinned (§2.2): the Wrestler knows the knee on the ground, so his two golden fights play
+out differently; the Kicker vs Boxer and check-fighter fights don't change.

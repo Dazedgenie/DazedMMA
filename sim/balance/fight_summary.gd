@@ -210,7 +210,7 @@ static func of(sim: FightSim, lows: Array[float] = [], moves: Dictionary = {}) -
 				elif e.data.outcome == DrilledRules.FIRED:
 					row["fired_" + side] += 1
 			FightEvent.ROUND_ENDED:
-				for card: Array in e.data.cards:
+				for card: Array in e.data.get("cards", []):
 					row.round_cards += 1
 					if card[0] == card[1]:
 						row.even_cards += 1
