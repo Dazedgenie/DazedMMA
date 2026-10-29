@@ -210,7 +210,7 @@ The Phase 1 playtest ships a trimmed ground game (#15):
 
 | In the playtest | After the playtest |
 |---|---|
-| Clinch (one clinch position), double leg, catch-kick single, sprawl, full guard top/bottom, get up, scramble; ground-and-pound and tie-ups from full guard (added early, D121, §24); the guillotine, triangle and armbar with a simple struggle (added early, D126, §25); throws, the guard pull and the sweep (D128, §26); half guard, side control, mount and the back with passes, escapes, the rear-naked choke and the arm-triangle (added early, D130, §28) | North-south, turtle, butterfly guard, leg locks, the per-beat struggle calls (§9) |
+| Clinch (one clinch position), double leg, catch-kick single, sprawl, full guard top/bottom, get up, scramble; ground-and-pound and tie-ups from full guard (added early, D121, §24); the guillotine, triangle and armbar with a simple struggle (added early, D126, §25); throws, the guard pull and the sweep (D128, §26); half guard, side control, mount and the back with passes, escapes, the rear-naked choke and the arm-triangle (added early, D130, §28); the ankle lock, kneebar and heel hook (added early, D132, §30) | North-south, turtle, butterfly guard, the per-beat struggle calls (§9) |
 
 ---
 
@@ -1160,7 +1160,7 @@ Kyle asked for submissions (2026-10-27: "can we add in submissions?") and picked
 positions the game already has, each locking in like any grapple and then fought for in a short struggle with a danger meter,
 with one call a corner. It's the first step of §9 (D10): the per-beat menu of calls with one right answer, auto slow-mo
 tuned to it and the holds that need other positions (the back, mount, side control) come later. (They came with D130, §28:
-the rear-naked choke from the back, the arm-triangle from side control and mount, and the armbar from mount.) Every number is a first
+the rear-naked choke from the back, the arm-triangle from side control and mount, and the armbar from mount; the leg locks came with D132, §30.) Every number is a first
 guess for the harness; each is a named constant or a data field, listed in §25.6.
 
 ### 25.1 The holds
@@ -1681,3 +1681,103 @@ fighter with no takedown; the shot held back afterwards), `tests/game/test_main_
 `tests/ui/test_fight_log_formatter.gd` (the feed lines), `tests/game/test_arena_view.gd` (the poses) and
 `tests/data/test_data_files.gd` (the `feint` block). After changing a number, run the harness with the Wrestler's pairings
 (`--pairs=wrestler:kicker,wrestler:boxer,muay_thai:wrestler`) and read the **Feints** and **Grappling** lines next to the wins.
+
+## 30. Leg locks and the Sambo fighter (D132)
+Kyle started the third ground scope from D130's card (2026-10-29: "alright lets start on that"): leg locks and a Sambo test
+fighter, built on the positions in §28. A leg lock is a hold like the others (§25: it locks in on a roll, then the danger meter
+and the struggle's beats), with two differences: it can come from places a choke can't (underneath, on top of half guard, in a
+scramble), and **missing one costs the position**, because the attacker lets go of everything else to dive on a leg. Every
+number is a first guess for the harness; each is a named constant or a data field, listed in §30.6.
+
+### 30.1 The holds
+| Hold | Who, from where | Timing (telegraph · wind-up · active · recovery) | Lock-in odds (base + attack − defense stats) | Danger | If it misses |
+|---|---|---|---|---|---|
+| Ankle lock (a technique: Sambo, BJJ) | Bottom of full guard or half guard; a scramble | 0 · 0.2 · 0.3 · 0.4 s | 15% + (Submissions, Scrambles) − (Submission defense, Scrambles), +15% on `POSTURED_UP` (sat up to punch, a foot left behind) | Starts at 25, 20 a beat | From underneath: he walks past the legs, **side control**. From a scramble: the attacker ends up on the bottom of full guard. Within 15% of the odds it half works: a scramble |
+| Kneebar (a technique: Sambo) | Top of half guard; a scramble | 0 · 0.3 · 0.3 · 0.5 s | 5% + (Submissions, Strength) − (Submission defense, Strength), +10% on `ESCAPING` (getting his guard back leaves the trapped leg out) | Starts at 25, 20 a beat | He rolled for the leg and lost the top: **the attacker on the bottom of full guard**, the other scores a reversal. Within 15%: a scramble |
+| Heel hook (a technique: BJJ) | As the ankle lock | 0 · 0.3 · 0.3 · 0.4 s | 10% + (Submissions, Scrambles) − (Submission defense, Scrambles), +15% on `POSTURED_UP` | Starts at 35, **30 a beat** (`step`): it's over fast, a tap in three beats or out in two | As the ankle lock. **Banned under both amateur rulesets** (`heel_hooks`, `08`) |
+
+All three: getting out goes to a **scramble** (the legs come apart, nobody on top), the lock scores with the judges like any
+hold (`Judging.SUB_LOCK_POINTS`), and *Finish it!* and *Defend the sub!* work on them as on any hold (§25.3). A win reads "Sambo
+wins by submission (kneebar)". Between equal fighters a locked ankle lock or kneebar taps about 6% of the time (from 25 it takes four
+beats won in a row), 18% when the attacker wins 65% of the beats (a tired striker underneath); the heel hook about 22%, and 46%
+at 65% (three beats won before two lost). The holds of §25 tap about 22% between equal fighters.
+
+### 30.2 What a miss costs
+A leg lock that doesn't lock at all (not half working) moves the fight (the `failed` transitions in the position files):
+
+| From | Where it goes | The judges |
+|---|---|---|
+| Underneath (full guard, half guard) | Side control, the other fighter still on top | He scores the pass he got for free: 6 × the control gained (§28.3), 3 points from full guard. It doesn't count as an escape for anyone |
+| On top of half guard (the kneebar) | Full guard, the attacker now underneath | The other scores a reversal, like a takedown (6) |
+| A scramble | Full guard, the attacker underneath | As above |
+
+The feed says "Sambo's ankle lock misses and costs the position → Side control". The guillotine's miss (§25.1, pulled onto his
+back) now reads the same way.
+
+### 30.3 The fighter AI
+| Where | What the fighter does | To change it |
+|---|---|---|
+| Underneath | The ankle lock and heel hook are holds like the triangle (§25.4): only when the top fighter postures up to punch, weighted 0.1 × how much they like subs, not again for 45 s | `FighterAI.SUB_WEIGHT`, `SUB_RETRY_TICKS` |
+| On top of half guard | The kneebar only on an escape (§28.4): one look as the one underneath works back to guard, on a chance of 0.2 × (the odds / 50%)² × 0.5 × how much they like subs. He doesn't weigh what a miss costs | `ESCAPE_PUNISH`, `ESCAPE_SUB` |
+| A scramble | Any of the three without waiting for an opening (`ai_without_opening` lists `scramble`: legs everywhere), next to scrambling for the top and getting up | `ai_without_opening` in the holds' files |
+
+### 30.4 The Sambo fighter
+A new test fighter in `data/fighters/sambo.json`, on the setup screen as Sambo vs Wrestler, vs BJJ and vs Boxer:
+
+| Fighter | Stats | Style (pace · range · base · risk) | Moves |
+|---|---|---|---|
+| **Sambo** | Clinch control, Strength, Scrambles, Submissions, Takedowns and Cardio 65; Takedown defense, Submission defense and Chin 60; Top control and Power 55; Boxing and Kicking 50 | 10 · 40 · 50 · 30 | Jab, cross, leg kick, double leg, outside trip, hip throw, ankle lock, kneebar, armbar, take the back. Leans on the clinch (entry 1.5), the trip and the leg locks (1.5 each). No heel hook: sport sambo bans it |
+
+The BJJ fighter learns the ankle lock and the heel hook (modern no-gi), so his fights change a little. Nobody else knows a leg
+lock, so the strikers' and the Wrestler's fights, and the four golden fights (§2.2), play out as before. (One golden fight was
+re-pinned: Wrestler vs Boxer is the same fight, but the event for its missed guillotine now says it failed, which changes the
+event hash.)
+
+### 30.5 Balance
+Reported, no pass marks (D109). The harness prints "Sambo fighter vs …" against the Kicker, the Boxer, the Wrestler and the BJJ
+fighter, and a **Leg locks** line for every pairing (tried and locked a fight, and the share of fights a leg lock ended). Harness,
+no calls, 100 fights a pairing (50 each way round, seed 1, pro rules):
+
+| Pairing | Wins | Ended by submission · by a leg lock | Leg locks a fight (tried / locked) |
+|---|---|---|---|
+| Sambo vs Kicker | Sambo 52% | 20% · 11% | 0.7 / 0.3 |
+| Sambo vs Boxer | Sambo 43% | 26% · 12% (and 52% TKO, mostly the Boxer's hands) | 0.9 / 0.3 |
+| Sambo vs Wrestler | Sambo 75% | 57% · 5% (mostly guillotines on the Wrestler's shots) | 1.8 / 0.3 |
+| Sambo vs BJJ | Sambo 26% | 40% · 14% | Sambo 4.0 / 0.7, BJJ 3.7 / 0.9 |
+| BJJ vs Kicker (before → now) | BJJ 12% → 14% | 9% → 11% · 4% | 0.2 / 0.1 |
+| BJJ vs Boxer | BJJ 34% → 44% | 28% → 40% · 16% | 0.7 / 0.3 |
+| BJJ vs Wrestler | BJJ 83% → 80% | 43% → 45% · 15% | 3.5 / 0.7 |
+
+Across all 700 fights: draws 0.1%, no 10-10 cards. Noise at 100 fights is about ±5.
+
+What it says: **the Sambo fighter sits between the Wrestler and the BJJ fighter.** He's about even with the strikers (closer
+than the Wrestler or the Judoka, D131, §26.4), beats the Wrestler (who keeps shooting into his guillotine and scrambles) and loses
+to the BJJ fighter, the better guard and submission defender. Leg locks are his signature finish, not his only one: they end about
+one fight in nine against the strikers. They come mostly from scrambles and from the kneebar as a striker works back to guard;
+against good submission defense (the Wrestler, 65) they rarely tap. The first draft locked the kneebar three times in four on a
+tired striker escaping half guard and ended about 40% of the Sambo fighter's fights with leg locks; tuning since lowered all three
+holds' lock-in odds and starting danger and the kneebar's escape bonus, and the Sambo fighter's Submissions and Scrambles (70 →
+65). If the playtest wants leg locks rarer or deadlier, the levers in order: the holds' `base_success`, `start_danger`, the heel
+hook's `step`, then the Sambo fighter's leg-lock tendencies. To read it again, run the harness with
+`--pairs=sambo:kicker,kicker:sambo,sambo:boxer,boxer:sambo,sambo:wrestler,wrestler:sambo,sambo:bjj,bjj:sambo` and read the
+**Leg locks** and **Subs** lines.
+
+### 30.6 To change it, and the tests
+- The holds: `data/actions/ankle_lock.json`, `kneebar.json`, `heel_hook.json` (`submission.base_success`, `partial_within`,
+  `start_danger`, `step`, `leg_lock`, `ai_without_opening`, `09` action@2); where they lock and what a miss costs: the
+  transitions in `data/positions/full_guard.json`, `half_guard.json`, `scramble.json` (`result` `failed`).
+- The struggle step: a hold's `submission.step`, else `FightSim.STRUGGLE_STEP` (20); `FightSim.struggle_step()`.
+- The judges for a miss: `FightSim.apply_transition()` (the fighter left on top scores the control gained, `Judging.ADVANCE_POINTS_PER_CONTROL`).
+- The amateur ban: `Ruleset.allows_action()` and `heel_hooks` in `data/rulesets/`.
+- The AI: `FighterAI._any_time()` (`ai_without_opening` as a list of positions), and §25.4/§28.4's constants. The fighters:
+  `data/fighters/sambo.json`, `bjj.json`.
+- The harness: `BalanceReport.LEG_LOCKERS`, the `leg_locks_*`, `leg_locked_*` and `leg_lock_finish` columns in `FightSummary`.
+- The screen: the leg-lock pose in `game/fighter_figure.gd`, the miss's feed line in `ui/fight_log_formatter.gd`, the matchups
+  in `ui/fight_setup.gd`.
+
+Tested in `tests/sim/fight/test_leg_locks.gd` (where each is done from and by whom, locking in, what a miss costs and scores, the
+half-working scramble, getting out to a scramble, the heel hook's step, a tap counted by the harness, the amateur ban, the AI in a
+scramble, waiting for its opening underneath and taking the kneebar on an escape, who knows them, and the Sambo fighter in real
+fights), `tests/sim/fight/test_submissions.gd` (every hold locks from every position it's done from),
+`tests/sim/balance/test_balance_report.gd` (the report lines), `tests/game/test_arena_view.gd` (the pose) and
+`tests/data/test_data_files.gd` (`leg_lock`, `step`, `ai_without_opening` as a list).
