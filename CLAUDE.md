@@ -44,4 +44,5 @@
 - The camp planner screen (*Training camp first* on the fight setup: focus weeks, slot-by-slot weeks, the forecast, taking the trained fighter into the fight): `docs/02-fighter-and-training.md` §3.6 (D134).
 - Fight night (camp fatigue shrinks the gas tank, a healing injury starts the fight hurt, light sessions and rehab while hurt, the doctor, pulling out, fighting hurt making it worse): `docs/02-fighter-and-training.md` §3.7 (D135).
 - Ageing and the prime (the body slows from 30 while skills keep growing, the body's learning curve, training between camps, scouted potential, `tools/career_curve.gd`): `docs/02-fighter-and-training.md` §3.8 (D136).
+- Mitt work, the first minigame (the coach's calls in boxing's numbers, keys 1–6 and ← ↓, timing windows, how it scores the session, ticking Play in the planner, the numbers to tune it): `docs/02-fighter-and-training.md` §3.9 (D137).
 - Import/refresh the project cache: `godot --headless --import`

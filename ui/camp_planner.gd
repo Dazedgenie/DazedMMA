@@ -5,8 +5,9 @@ extends PanelContainer
 ## focus week (data/week_plans) and any slot can be changed by hand; the forecast says
 ## what the week will probably do before it's run (TrainingCamp.forecast), and the log
 ## says what it did. On fight night it says how the camp sends the fighter in (tired, hurt,
-## what the doctor says, D135) and offers Fight! or Pull out. Presentation only: TrainingCamp
-## does the training.
+## what the doctor says, D135) and offers Fight! or Pull out. Up to PLAY_MAX sessions a week with a
+## minigame built so far (mitt work, D137) can be ticked to Play: running the week plays them first and their
+## scores count in the camp. Presentation only: TrainingCamp does the training.
 
 signal fight_pressed(profile: Dictionary)
 signal back_pressed
@@ -23,6 +24,9 @@ const SLOT_NAMES: Array[String] = ["Morning", "Evening"]
 const GROUPS: Array[String] = ["Physical", "Striking", "Wrestling", "Grappling", "Mental"]
 ## Forecast gains this small aren't worth a line.
 const SHOWN_GAIN: float = 0.005
+## The minigames that can be played so far (D137), and how many sessions a week the player can play (docs/02 §3.1).
+const PLAYABLE: Array[String] = ["mitt_work"]
+const PLAY_MAX: int = 3
 const DIM := "#8a8f98"
 const GAIN := "#69db7c"
 const LOSS := "#ff8787"
@@ -58,6 +62,11 @@ var _preset: OptionButton
 var _instruction: OptionButton
 var _about: Label
 var _slots: Array[OptionButton] = []
+var _play: Array[CheckBox] = []  # Beside each slot: play its minigame this week.
+## The minigame on screen while a week is being played, else null.
+var minigame: MittWorkScreen
+var _to_play: Array[int] = []
+var _played: Dictionary = {}  # slot → quality, this week
 var _forecast: RichTextLabel
 var _log: RichTextLabel
 var _stats: RichTextLabel
@@ -154,12 +163,52 @@ func week_plan() -> Dictionary:
 		"instruction": null if instruction == "" else instruction, "days": days }
 
 
-## Runs the week on screen (the next week of the camp).
+## Runs the week on screen (the next week of the camp). Sessions ticked to Play are played first, one
+## minigame after another, and the week runs when the last one is done.
 func run_week() -> void:
-	if done():
+	if done() or minigame != null:
 		return
-	reports.append(camp.run_plan(week_plan(), {}, fight_week()))
+	_to_play = played_slots()
+	_played = {}
+	_play_next()
+
+
+## The slots ticked to Play (0–11) whose minigame exists.
+func played_slots() -> Array[int]:
+	var out: Array[int] = []
+	for i in _play.size():
+		if _play[i].button_pressed and not _play[i].disabled:
+			out.append(i)
+	return out
+
+
+## Ticks or unticks a slot's Play box (only a session with a playable minigame, at most PLAY_MAX a week).
+func set_play(index: int, on: bool) -> void:
+	_play[index].button_pressed = on
 	_refresh()
+
+
+func _play_next() -> void:
+	if _to_play.is_empty():
+		var report: Dictionary = camp.run_plan(week_plan(), _played, fight_week())
+		report.played = _played.duplicate()
+		reports.append(report)
+		_refresh()
+		return
+	var index: int = _to_play.pop_front()
+	var forecast: Dictionary = camp.forecast(week_plan(), fight_week())
+	var fatigue: float = float(forecast.slots[index].fatigue_before) if index < forecast.slots.size() else camp.fatigue
+	var drill := MittWork.new(camp.stat("boxing"), fatigue, hash([_camp_seed, reports.size(), index]))
+	var day: int = index / TrainingCamp.SLOTS_PER_DAY
+	minigame = MittWorkScreen.new(drill, "Mitt work · week %d, %s %s · fatigue %d" % [reports.size() + 1,
+		TrainingCamp.DAY_NAMES[day], SLOT_NAMES[index % TrainingCamp.SLOTS_PER_DAY].to_lower(), roundi(fatigue)])
+	minigame.finished.connect(func(quality: float, played: bool) -> void:
+		if played:
+			_played[index] = quality
+		minigame.queue_free()
+		minigame = null
+		_play_next())
+	add_child(minigame)
 
 
 ## The week on screen is the last one: the fight is on its Saturday evening (D135).
@@ -169,6 +218,8 @@ func fight_week() -> bool:
 
 ## Runs every week left with the week on screen.
 func run_rest() -> void:
+	if minigame != null:
+		return
 	while not done():
 		reports.append(camp.run_plan(week_plan(), {}, fight_week()))
 	_refresh()
@@ -266,13 +317,14 @@ func _build_plan_column() -> Control:
 	left.add_child(_about)
 
 	var grid := GridContainer.new()
-	grid.columns = 1 + TrainingCamp.SLOTS_PER_DAY
+	grid.columns = 1 + 2 * TrainingCamp.SLOTS_PER_DAY
 	grid.add_theme_constant_override("h_separation", 10)
 	grid.add_theme_constant_override("v_separation", 6)
 	left.add_child(grid)
 	FightSetup._add_label(grid, "")
 	for slot_name in SLOT_NAMES:
 		FightSetup._add_label(grid, slot_name)
+		FightSetup._add_label(grid, "")
 	var session_names: Array = _session_ids.map(func(id: String) -> String: return String(_library.session(id).name))
 	for day in TrainingCamp.DAYS:
 		FightSetup._add_label(grid, TrainingCamp.DAY_NAMES[day])
@@ -284,12 +336,19 @@ func _build_plan_column() -> Control:
 			picker.item_selected.connect(func(_i: int) -> void: _on_changed_by_hand())
 			grid.add_child(picker)
 			_slots.append(picker)
+			var play := CheckBox.new()
+			play.text = "Play"
+			play.tooltip_text = "Play this session's minigame yourself when the week runs (up to %d a week)" % PLAY_MAX
+			play.toggled.connect(func(_on: bool) -> void: _refresh())
+			grid.add_child(play)
+			_play.append(play)
 	FightSetup._add_label(grid, "Sunday")
 	for slot in TrainingCamp.SLOTS_PER_DAY:
 		var off := Label.new()
 		off.text = "Day off"
 		off.add_theme_color_override("font_color", Color(DIM))
 		grid.add_child(off)
+		FightSetup._add_label(grid, "")
 	return left
 
 
@@ -408,12 +467,31 @@ func _refresh() -> void:
 	_fight.disabled = not can_fight()
 	_pull_out.disabled = not done() or pulled_out
 	_slots[-1].disabled = fight_week() or done()
+	_refresh_play()
 	var forecast: Dictionary = {} if done() else camp.forecast(week_plan(), fight_week())
 	_forecast.text = _forecast_bbcode(forecast)
 	_log.text = _log_bbcode()
 	_stats.text = _stats_bbcode(forecast.get("gains", {}))
 	if can_fight():
 		FightHud.focus_later(_fight)
+
+
+## A Play box works only beside a session with a playable minigame, until PLAY_MAX are ticked.
+func _refresh_play() -> void:
+	var plan: Dictionary = week_plan()
+	var ticked: int = 0
+	for i in _play.size():
+		var session: Dictionary = _library.session(String(plan.days[i / TrainingCamp.SLOTS_PER_DAY][i % TrainingCamp.SLOTS_PER_DAY]))
+		var playable: bool = session.get("minigame") is String and PLAYABLE.has(session.minigame) and not done() and not _slots[i].disabled
+		if not playable:
+			_play[i].set_pressed_no_signal(false)
+		elif _play[i].button_pressed:
+			ticked += 1
+		_play[i].modulate.a = 1.0 if playable else 0.0  # Hidden but keeping its place in the grid.
+		_play[i].mouse_filter = Control.MOUSE_FILTER_STOP if playable else Control.MOUSE_FILTER_IGNORE
+		_play[i].set_meta("playable", playable)
+	for i in _play.size():
+		_play[i].disabled = not _play[i].get_meta("playable") or (not _play[i].button_pressed and ticked >= PLAY_MAX)
 
 
 func _forecast_bbcode(forecast: Dictionary) -> String:
@@ -489,6 +567,8 @@ func _log_bbcode() -> String:
 		if r.injured > 0:
 			bits.append("[color=%s]%d missed hurt[/color]" % [LOSS, r.injured])
 		bits.append("fatigue peaked at %d" % roundi(r.fatigue_peak))
+		for slot: int in r.get("played", {}):
+			bits.append("played %s × %.2f" % [_library.session(String(r.slots[slot].session)).name, r.played[slot]])
 		lines.append("Week %d, %s: %s. %s" % [i + 1, plan_name, ", ".join(bits), _top_gains(r.gains, 3)])
 		for injury: Dictionary in r.injuries:
 			lines.append("  [color=%s]Hurt (%s) on %s in %s: out %d days.[/color]" % [LOSS, injury.area, TrainingCamp.DAY_NAMES[injury.day],

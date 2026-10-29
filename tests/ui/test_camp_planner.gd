@@ -135,3 +135,47 @@ func test_the_last_week_is_fight_week_with_the_fight_on_saturday_evening() -> vo
 func test_the_title_shows_the_scouts_range_for_the_fighters_potential() -> void:
 	assert_string_contains(_planner._title.text, _planner.scouted_potential() + " (scouted)")
 	assert_eq(_planner.scouted_potential().split("–").size(), 2, "a range, e.g. 78–92")
+
+
+func test_only_boxing_drills_can_be_played_and_only_three_a_week() -> void:
+	_planner.pick_preset("striker")  # Boxing drills on Monday and Friday mornings.
+	assert_false(_planner._play[0].disabled, "Monday morning's mitt work can be played")
+	assert_true(_planner._play[1].disabled, "roadwork has no minigame yet")
+	_planner.set_slot(2, "boxing_drill")
+	_planner.set_slot(4, "boxing_drill")
+	for i in [0, 2, 4]:
+		_planner.set_play(i, true)
+	assert_eq(_planner.played_slots(), [0, 2, 4] as Array[int])
+	assert_true(_planner._play[8].disabled, "three a week is the most")
+	_planner.set_slot(2, "rest")
+	assert_eq(_planner.played_slots(), [0, 4] as Array[int], "changing the session unticks it")
+
+
+func test_running_a_week_plays_the_ticked_mitt_work_first_and_its_score_counts() -> void:
+	_planner.pick_preset("striker")
+	var auto: Dictionary = _planner.camp.forecast(_planner.week_plan())
+	_planner.set_play(0, true)
+	_planner.run_week()
+	assert_not_null(_planner.minigame, "the minigame opens")
+	assert_true(_planner.reports.is_empty(), "the week waits for it")
+	var drill: MittWork = _planner.minigame.drill
+	_planner.minigame.start()
+	for note in drill.notes:
+		_planner.minigame.tick(float(note.t))
+		_planner.minigame.hit(String(note.key))
+	_planner.minigame.tick(drill.length())
+	_planner.minigame.finish()
+	assert_null(_planner.minigame)
+	assert_eq(_planner.reports.size(), 1)
+	assert_almost_eq(float(_planner.reports[0].played[0]), TrainingCamp.PLAYED_MAX, 0.0001)
+	assert_gt(_planner.reports[0].gains.boxing, auto.gains.boxing, "a great round trains more than auto")
+	assert_string_contains(_planner.log_text(), "played Boxing drills × 1.50")
+
+
+func test_skipping_the_minigame_lets_the_session_auto_resolve() -> void:
+	_planner.pick_preset("striker")
+	_planner.set_play(8, true)
+	_planner.run_week()
+	_planner.minigame.skip()
+	assert_eq(_planner.reports.size(), 1)
+	assert_true(_planner.reports[0].played.is_empty())
