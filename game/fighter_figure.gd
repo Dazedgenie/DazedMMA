@@ -109,6 +109,12 @@ func pose_for(sim: FightSim, i: int) -> Dictionary:
 		if where == "back_control" and not f.is_down():  # Sat up with him behind (D130).
 			p.lie = 0.4
 			p.hip_y = 0.3
+	elif f.liver_ticks > 0:
+		# A liver shot taking him (D143): bent over it, hands dropped to the body.
+		p.hip_y = HIP_HEIGHT * 0.85
+		p.lean = -0.9
+		p.arm_lead = 0.7
+		p.arm_rear = 0.7
 	elif role == PositionLibrary.TOP:
 		p.hip_y = 0.6
 		p.lean = -0.75

@@ -306,7 +306,7 @@ func _on_event(event: FightEvent, sim: FightSim) -> void:
 	feed.add_event(event, sim)
 	match event.type:
 		FightEvent.STRIKE_LANDED:
-			_figures[1 - event.actor].flash(String(event.data.target))
+			_figures[1 - event.actor].flash(String(event.data.target), int(event.data.get("leg", -1)))
 		FightEvent.CALL_HEARD:
 			if event.actor != driver.player:
 				_bubble_label.text = "%s's corner: \"%s\"" % [sim.fighters[event.actor].name, String(sim.calls.get_call(event.data.call_id).name) if sim.calls.has(event.data.call_id) else event.data.call_id]

@@ -54,9 +54,15 @@ const BAND_SPOTS := {
 }
 ## Flags that come from how a fighter is or where they stand, not from a move: anyone sees them.
 const STATE_FLAGS := { "HANDS_LOW": true, "BACK_TO_CAGE": true }
-## The opponent knocked down (D141): the chance a free tick of a soccer kick or a stomp,
-## where the rules allow them (× 0.5 to 1.5 from the Risk leaning).
+## The opponent knocked down (D141, D142): the chance a free tick of following him down, or of a
+## soccer kick or a stomp where the rules allow them (× 0.5 to 1.5 from the Risk leaning).
 const DOWNED_RATE: float = 0.3
+## Following a knocked-down man to the ground (D142) is worth this much × its odds, against a
+## soccer kick's expected damage (about 10 for an average fighter) where those are legal.
+const FOLLOW_DOWN_VALUE: float = 10.0
+## Whether he follows this knockdown down at all, decided once as the man drops: this × his
+## tendency for it × (1 + Base / 100), so a grappler (Base 70) about 85%, a striker (0) half the time.
+const FOLLOW_DOWN_CHANCE: float = 0.5
 
 ## Reading a move: (0.15 + 0.5 × Fight IQ / 100) × telegraph factor, where a 2-tick
 ## telegraph is normal and each tick longer or shorter is ±20% (docs/11 §3.3: a shorter
@@ -369,6 +375,10 @@ var _reach: Dictionary = {}
 var _land: Dictionary = {}
 var _odds_now: Dictionary = {}
 var _choice_ready: bool = false
+## The opponent's knockdown count when this fighter last decided whether to follow him down (D142),
+## and what he decided.
+var _follow_decided_at: int = 0
+var _follows: bool = false
 ## Submissions (D126): the tick of this fighter's last try, and whether they've already
 ## looked for a guillotine on the opponent's current stuck shot.
 var _sub_at: int = -SUB_RETRY_TICKS
@@ -419,25 +429,32 @@ func choose(view: FightView, layer: DecisionLayer) -> Decision:
 	return DecisionLayer.IDLE
 
 
-## The opponent is down from a knockdown (D141). Where the rules allow it (PRIDE), kick
-## or stomp him while he's there: at DOWNED_RATE a free tick (× 0.5 to 1.5 from the Risk
-## leaning), the downed strike with the most expected damage that reaches. Elsewhere the
-## fighter waits for him to get up, as before.
+## The opponent is down from a knockdown (D141, D142): follow him down to the ground and
+## finish him there, or, where the rules allow it (PRIDE), kick or stomp him while he's there.
+## Whether he'll follow him down is decided once as he drops (FOLLOW_DOWN_CHANCE: grapplers more).
+## Then at DOWNED_RATE a free tick (× 0.5 to 1.5 from the Risk leaning), the move worth most that
+## reaches: a downed strike by its expected damage, following him down FOLLOW_DOWN_VALUE × its odds.
 func _downed(view: FightView, layer: DecisionLayer) -> Decision:
 	if not view.is_standing() or view.me.is_rocked():
 		return DecisionLayer.IDLE
 	_choice_ready = false
+	if view.opponent.knockdowns != _follow_decided_at:
+		_follow_decided_at = view.opponent.knockdowns
+		_follows = view.roll() < FOLLOW_DOWN_CHANCE * float(view.me.tendencies.get("follow_down", 1.0)) \
+			* maxf(0.0, 1.0 + _lean(view, layer, StyleLeanings.BASE) / 100.0)
 	var best: String = ""
 	var best_value: float = 0.0
 	for id in _all_moves(view):
 		var action: Dictionary = view.actions.get_action(id)
-		if action.category != STRIKE or not action.strike.get("downed", false) or not _usable(view, action):
-			continue
-		var value: float = view.strike_damage(id) * view.odds(id).chance
+		var value: float = 0.0
+		if action.category == STRIKE and action.strike.get("downed", false) and _usable(view, action):
+			value = view.strike_damage(id) * view.odds(id).chance
+		elif _follows and action.category == GROUND and action.ground.get("downed", false) and _usable(view, action):
+			value = FOLLOW_DOWN_VALUE * view.odds(id).chance
 		if value > best_value:
 			best_value = value
 			best = id
-	# No roll unless there's something to throw, so fights under other rules play out as before.
+	# No roll unless there's something to do, so a fighter who won't follow up plays as before.
 	if best == "" or view.roll() >= DOWNED_RATE * (1.0 + _lean(view, layer, StyleLeanings.RISK) / 200.0):
 		return DecisionLayer.IDLE
 	return Decision.new(best, DecisionLayer.AI, "while he's down")

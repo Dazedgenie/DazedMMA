@@ -181,7 +181,7 @@ func _on_event(event: FightEvent) -> void:
 		FightEvent.ACTION_PHASE:
 			if event.data.phase == "telegraph":
 				_started_by[event.actor] = String(event.data.get("by", ""))
-		FightEvent.ROCKED, FightEvent.KNOCKDOWN:
+		FightEvent.ROCKED, FightEvent.KNOCKDOWN, FightEvent.LIVER_SHOT:
 			_slow_down(AUTO_SLOW_SECONDS, auto_slow)
 		FightEvent.POSITION_CHANGED:
 			if event.data.get("position", "") == PositionLibrary.SCRAMBLE:
