@@ -65,7 +65,7 @@ func _calls(sim: FightSim) -> LiveCalls:
 func test_every_call_in_the_catalogue_loads_with_its_hotkey() -> void:
 	var library: CallLibrary = CallLibrary.shared()
 	assert_eq(library.ids(), ["finish_it", "ground_and_pound", "pressure", "circle_out", "work_the_range", "pass", "takedown", "clinch", "collar_tie",
-		"defend_the_shot", "defend_the_sub", "feint", "get_up", "survive", "stay_safe", "catch_the_kick"] as Array[String])
+		"defend_the_shot", "defend_the_sub", "feint", "get_up", "survive", "stay_safe", "catch_the_kick", "fire_back"] as Array[String])
 	assert_eq(LiveCalls.shape(library.get_call("takedown")), LiveCalls.ATTEMPT)
 	assert_eq(LiveCalls.shape(library.get_call("pressure")), LiveCalls.FOCUS)
 	assert_eq(LiveCalls.shape(library.get_call("catch_the_kick")), LiveCalls.READ)
@@ -396,6 +396,52 @@ func test_catch_the_kick_needs_the_technique() -> void:
 	_run(sim, 10)
 	assert_eq(_answers(sim)[0].outcome, LiveCalls.INFEASIBLE)
 	assert_eq(_answers(sim)[0].reason, "hasn't learned the catch-kick single leg")
+
+
+## Red, a puncher who knows the 1-2, against Blue, whose cross Red's defense nearly always
+## stops: on the first seed where it's defended, the fight after `ticks`.
+func _fire_back(combos: Array[String], ticks: int = 40) -> FightSim:
+	for n in 40:
+		var red := FighterState.new("Red", { "striking_defense": 100 }, ["jab", "cross", "hook"] as Array[String], 0.0)
+		red.profile = { "personality": { "ego": -100 } }
+		red.combos = combos
+		var sim := FightSim.new(SEED + n, [red, FighterState.new("Blue", { "boxing": 0 }, ["cross"] as Array[String], 0.0)], _actions)
+		sim.fighters[0].pos = Vector2(-0.9, 0.0)
+		sim.fighters[1].pos = Vector2(0.9, 0.0)
+		sim.submit(FightCommand.live_call(0, 0, "fire_back"))
+		sim.submit(FightCommand.queue_action(KICK_AT, 1, "cross"))
+		_run(sim, ticks)
+		for e in sim.events:
+			if e.type == FightEvent.STRIKE_MISSED and e.actor == 1 and not e.data.has("reason"):
+				return sim
+	return null
+
+
+func test_fire_back_answers_a_defended_strike_with_the_first_combination_that_works() -> void:
+	var sim: FightSim = _fire_back(["one_two"] as Array[String])
+	assert_not_null(sim, "Blue's cross got defended")
+	var missed_at: int = 0
+	for e in sim.events:
+		if e.type == FightEvent.STRIKE_MISSED and e.actor == 1:
+			missed_at = e.tick
+	var starts: Array = _starts(sim)
+	assert_eq(starts.map(func(s: Array) -> String: return s[1]), ["jab", "cross"], "the whole 1-2, on one call")
+	# Blue steps after Red, so Red first sees the miss a tick later, plus 2 ticks of reaction (Speed 50).
+	assert_eq(starts[0][0], missed_at + 3, "into Blue's recovery")
+	var fired: Dictionary = _answers(sim).filter(func(a: Dictionary) -> bool: return a.outcome == LiveCalls.FIRED)[0]
+	assert_eq(fired.action_id, "jab")
+	assert_string_contains(fired.reason, "fires back after the cross")
+	var jab: FightEvent = sim.events.filter(func(e: FightEvent) -> bool:
+		return e.type == FightEvent.ACTION_PHASE and e.actor == 0 and e.data.phase == "telegraph")[0]
+	assert_eq(jab.data.combo, "one_two", "thrown as a combination, from its first move")
+	assert_false(_calls(sim)._spent.has("strike"), "a called strike never holds the fighter's own strikes back")
+
+
+func test_fire_back_with_no_combination_answers_with_a_single_strike() -> void:
+	var sim: FightSim = _fire_back([] as Array[String])
+	assert_not_null(sim)
+	assert_eq(_starts(sim).map(func(s: Array) -> String: return s[1]), ["cross"], "the call's first fallback move")
+	assert_eq(sim.fighters[0].combos_thrown, 0)
 
 
 func test_a_primed_read_costs_defense_until_it_expires() -> void:

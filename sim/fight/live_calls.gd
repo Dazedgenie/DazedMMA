@@ -14,7 +14,9 @@ extends DecisionSource
 ##                       over, the fighter goes straight into the first of those that would work
 ##              focus    Pressure!, Circle out! …: style leanings and weights tilt for 15 s
 ##              read     Catch the kick!: primed for 6 s; when the trigger comes the fighter
-##                       reacts with their own reaction time (D93), at an attention cost (D67)
+##                       reacts with their own reaction time (D93), at an attention cost (D67).
+##                       A call with `combo` (Fire back!, D133) answers with the fighter's first
+##                       combination that works from there, thrown as a whole
 ##
 ## Every outcome is logged as a call_answered event with its reason (A16): accepted,
 ## ignored, infeasible, fired (a read went off), missed (a read came too late),
@@ -65,6 +67,10 @@ const MAX_READS: int = 2
 ## it. Calls pick the moment; they don't add work. Moves off the feet (getting up, breaking
 ## the clinch) are never held back.
 const SPENT_TICKS: int = 450
+## A combination fired on a call (Fire back!, D133) takes the place of the fighter's own
+## attacks the same way: they don't lead with anything of their own for this long after it
+## (counters, the rest of a combination and their own reads still go).
+const LEADS_HELD_TICKS: int = 100
 ## Every call heard takes the fighter's eyes off the opponent for a moment: this much
 ## off their striking and takedown defense (like a primed read, D67) for this long.
 const HEARD_ATTENTION: float = 0.2
@@ -110,6 +116,8 @@ var _claimed: Dictionary = {}
 var _spent: Dictionary = {}
 ## Tick until which the last call heard has the fighter's attention (HEARD_TICKS).
 var _listening_until: int = -1
+## Tick until which the fighter leads with nothing of their own (LEADS_HELD_TICKS).
+var _leads_held_until: int = -1
 
 
 func _init(p_triggers: TriggerLibrary = null) -> void:
@@ -241,6 +249,11 @@ func claim(view: FightView) -> Decision:
 		var id: String = _pick(view, read.call, read)
 		if id != "":
 			_claimed = read
+			if read.call.get("combo", false):
+				var d := Decision.new(id, DecisionLayer.CALL, "fires back after the %s" % _move_name(view, read.move))
+				d.combo = String(read.get("combo", ""))
+				d.combo_runs = d.combo != ""
+				return d
 			return Decision.new(id, DecisionLayer.CALL, "read the %s" % _move_name(view, read.move))
 	if not attempt.is_empty():
 		var id: String = _pick(view, attempt.call, attempt)
@@ -256,8 +269,10 @@ func claimed_started(view: FightView, decision: Decision) -> void:
 	if _claimed.is_empty():
 		return
 	var action: Dictionary = view.actions.get_action(decision.action_id)
-	if action.positions.has(PositionLibrary.STANDING):
-		_spent[action.category] = view.now + SPENT_TICKS
+	if action.positions.has(PositionLibrary.STANDING) and action.category != FighterAI.STRIKE:
+		_spent[action.category] = view.now + SPENT_TICKS  # Strikes are never held back (D133).
+	if decision.combo != "":
+		_leads_held_until = view.now + LEADS_HELD_TICKS
 	if reads.has(_claimed):
 		_answer(_claimed.call, FIRED, "%s, %d ticks after the %s started" % [decision.reason, view.now - _claimed.seen, _move_name(view, _claimed.move)], decision.action_id)
 		reads.erase(_claimed)
@@ -273,7 +288,7 @@ func claimed_started(view: FightView, decision: Decision) -> void:
 
 
 func on_event(view: FightView, event: FightEvent) -> void:
-	if reads.is_empty() or event.type != FightEvent.ACTION_PHASE:
+	if reads.is_empty():
 		return
 	for read: Dictionary in reads:
 		if read.notice < 0 and _triggers.matches(read.call.read.trigger, event, view.index):
@@ -283,6 +298,10 @@ func on_event(view: FightView, event: FightEvent) -> void:
 			read.notice = read.seen + view.me.reaction_ticks()
 			read.move = event.data.action_id
 	_settle()
+
+
+func adjust_lead_rate(view: FightView, rate: float) -> float:
+	return 0.0 if view.now < _leads_held_until else rate
 
 
 func adjust_leaning(_view: FightView, which: String, value: float) -> float:
@@ -363,6 +382,10 @@ func _moves(view: FightView, call: Dictionary, then: bool = false) -> Array[Stri
 ## for it, and with the opening it needs there when it lands (a catch needs a kick).
 ## "" when none would; `entry.why` then says what was missing.
 func _pick(view: FightView, call: Dictionary, entry: Dictionary) -> String:
+	if call.get("combo", false):
+		var first: String = _first_combo(view, entry)
+		if first != "":
+			return first
 	var band: String = view.band()
 	for id: String in _moves(view, call, entry.get("then", false)):
 		var action: Dictionary = view.actions.get_action(id)
@@ -378,6 +401,23 @@ func _pick(view: FightView, call: Dictionary, entry: Dictionary) -> String:
 				entry.why = "no opening (%s)" % b.missing
 			continue
 		return id
+	return ""
+
+
+## A call with `combo` (Fire back!, D133): the first of the fighter's combinations (in their
+## profile's order) whose first move would work right now; `entry.combo` says which. "" when
+## none would (the call's `actions` are then thrown as single strikes).
+func _first_combo(view: FightView, entry: Dictionary) -> String:
+	entry.combo = ""
+	var band: String = view.band()
+	for combo: String in view.me.combos:
+		if not view.combos.has(combo):
+			continue
+		var id: String = view.combos.move(combo, 0)
+		var action: Dictionary = view.actions.get_action(id)
+		if view.why_not(id) == "" and _knows(view.me, action) and action.ranges.has(band) and view.me.stamina >= float(action.stamina_cost):
+			entry.combo = combo
+			return id
 	return ""
 
 

@@ -450,7 +450,7 @@ func lead_rate(view: FightView, layer: DecisionLayer) -> float:
 			rate *= BEHIND_RATE + 0.25 * risk / 100.0
 		elif _rounds_up > 0 and risk < 0.0:
 			rate *= 1.0 + 0.25 * risk / 100.0
-	return minf(rate, LEAD_RATE_CAP * f.work_rate)
+	return minf(layer.lead_rate(view, rate), LEAD_RATE_CAP * f.work_rate)
 
 
 ## Danger first (A2): a shot it read gets sprawled on. When the sprawl roll fails

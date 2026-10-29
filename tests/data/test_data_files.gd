@@ -313,6 +313,12 @@ func test_calls_are_an_attempt_a_focus_or_a_read() -> void:
 			problems.append("%s: a now call has either actions (an attempt) or a focus block, not both" % where)
 		if c.has("then") and (c.get("kind") == "read" or actions.is_empty()):
 			problems.append("%s: only an attempt has a then list" % where)
+		if c.has("combo") and (not c.combo is bool or c.get("kind") != "read"):
+			problems.append("%s: combo is true or false, on a read call (D133)" % where)
+		if c.get("combo", false):
+			for move: Variant in actions:
+				if _items("actions").get(move, {}).get("category", "") != "strike":
+					problems.append("%s: a combo call's actions are the single strikes it falls back on" % where)
 		if c.has("focus"):
 			var focus: Variant = c.focus
 			if not focus is Dictionary:

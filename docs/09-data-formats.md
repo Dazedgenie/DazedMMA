@@ -32,6 +32,7 @@ Rules:
 | `data/playtest/` | `playtest@1` | The playtest's fights in order (D118, `docs/playtests/`) |
 | `data/sessions/` | `session@1` | Training sessions: drills, sparring, conditioning, rest (`docs/02` §3.5, D125) |
 | `data/week_plans/` | `week_plan@1` | Week plans: a session in each of the 12 slots of a training week (`docs/02` §3.5) |
+| `data/combos/` | `combo@1` | Combinations: a named run of strikes a fighter has drilled, the 1-2, a jab into a low kick (D133, `docs/01` §31) |
 
 ## 3. Schemas
 
@@ -84,8 +85,15 @@ A now call is one of two kinds (`docs/01` §22.2):
 
 A read call has `actions` (what the fighter reacts with) and `read: {trigger, duration_ms, attention_cost}`: primed for
 `duration_ms`, it reacts to the trigger once; while primed, Striking and Takedown defense drop by `attention_cost` (0–0.5).
+A read call with `combo: true` (*Fire back!*, D133, `docs/01` §31.4) reacts with the fighter's first combination (their
+profile's `combos`, in order) whose first move works from there, thrown as a whole; its `actions` are single strikes it falls
+back on for a fighter with no combination that works.
 Loaded by `CallLibrary` (`sim/fight/call_library.gd`). call@2 replaced call@1's `priority_boost` with the attempt/focus split
 (an accepted call claims the choice outright, `docs/01` §19); the two call@1 files were migrated.
+
+### combo@1 (examples: `one_two.json`, `jab_leg_kick.json`, `one_two_body_kick.json`)
+`name` (as the feed says it, "1-2-3"), `moves` (two or more action ids, each a strike thrown standing, in order). A fighter
+throws the ones in their profile's `combos` (D133, `docs/01` §31). Loaded by `ComboLibrary` (`sim/fight/combo_library.gd`).
 
 ### gameplan@1 (example: `pressure.json`)
 `name`, `leanings` (points added to Pace/Range/Base/Risk for the fight, −100 to 100), `weights` (action id or category →
@@ -127,6 +135,7 @@ generated world fighters. Loaded by `FighterLibrary` (`sim/fight/fighter_library
 | `tendencies` | `{work_rate, actions: {action id: weight}}` | `work_rate`: the chance per free tick to lead with something (0–1; 0.015 ≈ one lead every 7 s, with combinations, counters and meeting advances on top; `docs/01` §20). `actions`: how much they favour a move (1.0 = normal, 0–10), `docs/01` §7 |
 | `age` | whole years, 14–45 (optional) | Training learns faster when young and styles set from 30 (`docs/02` §3.5); 25 if left out |
 | `potential` | 0–100 (optional) | Where training slows right down (`docs/11` §2.3, `docs/02` §3.5); 75 if left out |
+| `combos` (optional) | data/combos ids | The combinations this fighter has drilled (D133, `docs/01` §31). Every move in them must be one the fighter knows. Left out = none: their strikes chain one at a time as before |
 | `tells` | `[{trigger, action, chance, within_ms}]` | Habits an opponent can scout: after `trigger`, `chance` to throw `action` within `within_ms` (`docs/01` §7, D11). The AI follows them (`docs/01` §20). A tell on the fighter's own move starting is a set-up: the Wrestler's `own_stance_shift` → `double_leg` |
 
 Without a `template`, every field above must be present. A fight is saved and replayed as seed + fighter ids + ruleset +

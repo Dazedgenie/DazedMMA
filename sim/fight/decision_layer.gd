@@ -135,6 +135,13 @@ func weight(view: FightView, action: Dictionary, base_weight: float) -> float:
 	return w
 
 
+## The AI's lead rate after every source's say.
+func lead_rate(view: FightView, rate: float) -> float:
+	for source in sources:
+		rate = source.adjust_lead_rate(view, rate)
+	return rate
+
+
 ## A style leaning as the AI reads it this fight: the fighter's own, shifted by
 ## the gameplan (−100 to +100).
 func leaning(view: FightView, which: String) -> float:

@@ -1,0 +1,8 @@
+{
+	"schema": "trigger@1",
+	"id": "opp_strike_misses",
+	"name": "Opponent's strike is defended",
+	"type": "event",
+	"event": "strike_missed",
+	"match": { "actor": "opponent", "defended": true }
+}

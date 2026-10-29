@@ -1781,3 +1781,120 @@ scramble, waiting for its opening underneath and taking the kneebar on an escape
 fights), `tests/sim/fight/test_submissions.gd` (every hold locks from every position it's done from),
 `tests/sim/balance/test_balance_report.gd` (the report lines), `tests/game/test_arena_view.gd` (the pose) and
 `tests/data/test_data_files.gd` (`leg_lock`, `step`, `ai_without_opening` as a list).
+
+## 31. Striker combinations and *Fire back!* (D133)
+Kyle asked for striker combinations after the leg locks (2026-10-29: "after that I want to work on strikers combinations").
+Before this, a "combination" was the AI throwing another strike straight after the last one, picked fresh each time, with
+nothing gained from throwing them together (§20). Now strikers have **drilled combinations**: named runs of strikes in their
+profile (the Boxer's 1-2 and 1-2-3, the Kicker's teep into a body kick, the Muay Thai fighter's 1-2 into a body kick). The moves
+after the first flow out of the one before, so they're harder to see coming; going to another target catches the opponent looking
+the wrong way; and a combination he has seen a few times stops working as well. Kyle picked the second of three scopes on the
+card (no new call; **a *Fire back!* read call on E**; a *Combo!* call that throws right away), 2026-10-29. Every number is a
+first guess for the harness; each is a named constant or a data field, listed in §31.6.
+
+### 31.1 The combinations
+Each is a file in `data/combos/` (`09` combo@1). A fighter throws the ones in their profile's `combos`; grapplers have none, so
+their strikes chain one at a time as before.
+
+| Fighter | Combinations (`combos` in `data/fighters/`) |
+|---|---|
+| Boxer | 1-2 (jab, cross) · 1-2-3 (jab, cross, hook) · 1-1-2 (jab, jab, cross) · 2-3 (cross, hook) |
+| Kicker | Jab, low kick · Jab, body kick · Teep, body kick · Teep, high kick |
+| Muay Thai | 1-2 · 1-2, body kick · 1-2, knee · Jab, low kick |
+
+Tried and dropped: the Kicker's low kick into a high kick and body kick into a high kick. Two slow kicks back to back give a
+pressing Boxer time to walk inside the second one, which fell short about half the time. A teep first pushes him back to where
+the kick lands.
+
+### 31.2 What a combination does
+| | What happens | To change it |
+|---|---|---|
+| Flows | Each move after the first starts the tick the last one ends, and its telegraph is **0.1 s shorter** (a cross's 0.2 s is 0.1 s), so the opponent reads it less often (§20: each tick shorter is −20%) | `FightSim.COMBO_FLOW_TICKS` (1) |
+| Changes levels | A move that goes to a different target from the one before (head, then the body or the legs, or the other way round) is **+20%** to land: his eyes are up. The 1-2's cross gets nothing (both go to the head); the jab, low kick's kick does | `FightSim.LEVEL_CHANGE` (0.2) |
+| He's seen it | Each time the opponent has already seen this combination this fight (counted as its second move starts), its follow-ups are **−5%** to land, up to −15% from the fourth time on, and he's **+10%** likelier to read each of them (up to +30%) | `FightSim.COMBO_SEEN` (0.05), `COMBO_SEEN_MAX` (3), `FighterAI.COMBO_SEEN_READ` (0.1) |
+| Breaks | A clean shot landed on a fighter in the middle of a combination ends it. So does the next move not reaching any more (the 1-2-3 from mid range is a 1-2: the hook only works in the pocket), being rocked, or the fight leaving the feet | `FightSim._land_strike`, `FighterAI.next_in_combo` |
+| Window | The next move has to start within 0.2 s of the last one ending, or the combination is over | `FightSim.COMBO_WINDOW_TICKS` (2) |
+
+The feed says "Boxer starts a Cross **in a 1-2-3** (2 of 3)", and a follow-up's odds show "changes levels +20" and "seen it −10".
+
+### 31.3 The fighter AI
+| Where | What the fighter does | To change it |
+|---|---|---|
+| Chaining | Unchanged: after a strike, another at (0.15 + 0.45 × skill / 100) × pace (§20), picked fresh. When the two make the start of one of their combinations (a cross after the jab), it's thrown as that combination | `FighterAI._pick_combo` |
+| Going on | Each further move of it takes the same chance to chain, and if it passes it's the combination's next move (if it reaches; if not, a fresh pick). So the fighter doesn't throw more, he throws them better | `FighterAI._own_ended`, `_follow_up` |
+| Which one | Of several that fit (the 1-2 and the 1-2-3 both start jab, cross), by their moves' tendencies, × 0.6 for each time it's been thrown already this fight, so they mix them up | `FighterAI.COMBO_FRESH` (0.6) |
+
+The first version threw every combination to its end once started. The Boxer then threw a cross or a hook where he used to throw
+another jab, and beat the Kicker 65% of the time (the #14 exit test is within 60/40). Making each move take the usual chain chance
+fixed it. Only a combination called as a whole (*Fire back!*, §31.4) runs to its end on its own.
+
+### 31.4 The *Fire back!* call
+*Fire back!* (key **E**, the second read call; Q is *Catch the kick!*) is a read call (§22.2, `data/calls/fire_back.json`):
+
+| | |
+|---|---|
+| Primed | For **3 s**. When the opponent's strike is defended (not one that falls short: `data/triggers/opp_strike_misses.json`), the fighter reacts with their own reaction time (D93) and answers with the first of their combinations, in their profile's order, whose first move reaches from there, thrown whole, into his recovery (a counter: +10% and ×1.3 damage on the first strike, §18). With no combination that works, a single cross or jab. If his recovery is over first, it's *missed* ("too late") and stays primed |
+| Costs | **30 voice**. While primed, Striking and Takedown defense **−25%** (watching for the miss). After it fires, the fighter **leads with nothing of their own for 10 s** (counters and their own reads still go), as a called takedown stands in for their own (D115). Called strikes never hold back the fighter's own strikes otherwise |
+| The feed | "Boxer goes on the read of the Fire back! call: Jab (fires back after the body kick, 3 ticks after the body kick started)", then "Boxer starts a Cross in a 1-2 (2 of 2)" |
+
+No corner bot calls it, so the golden fights (§2.2) don't see it. It's open in playtest fight 3 and free fights, not fights 1–2
+(`docs/07`: the first fight teaches three keys).
+
+What it's worth (scratch check, 300 fights a line, seed 1, the corner calling it with nothing else): Boxer vs Kicker with no calls,
+the Boxer wins 56%; *Fire back!* each time the Kicker's jab is blocked (his tell: a body kick is coming, §20) **62%**; kept primed
+all fight (called every 3.1 s, which drains the voice) 65%. Kicker vs Boxer the other way: no calls 44%, kept primed all fight
+**35%**: the Boxer doesn't miss enough to fire back at, and the Kicker spends the fight with his defense down. So it pays to call it
+against someone who throws a lot and misses, best when you know a miss is coming, and it costs you against a sharp puncher. The
+first draft (6 s, 20 voice, −10% defense, no held-back leads) took the Boxer from 61% to 86% kept primed, and every limit above
+came from that.
+
+### 31.5 Balance
+The #14 exit test (Kicker vs Boxer within 60/40) still passes, and the rest is reported (D109). The harness prints a **Combos**
+line for every pairing: each fighter's combinations a fight and the share of their follow-ups that land. Harness, no calls,
+100 fights a pairing (seed 1, pro rules), before → now:
+
+| Pairing | Wins before → now | Combinations a fight (follow-ups landing) |
+|---|---|---|
+| Kicker vs Boxer | Kicker 44% → 42% | Kicker 4.4 (40%), Boxer 22 (51%) |
+| Boxer vs Kicker | Boxer 55% → 61% | as above |
+| Boxer vs Boxer | 50/50 → 57/43 | about 20 each |
+| Muay Thai vs Boxer | Muay Thai 57% → 61% | Muay Thai 1.9 |
+| Muay Thai vs Kicker | Muay Thai 74% → 77% | Muay Thai 4.3 |
+| Wrestler vs Boxer | Wrestler 60% → 56% | Boxer 14 |
+| Wrestler vs Kicker | Wrestler 72% → 75% | |
+| Judoka vs Boxer | Judoka 78% → 70% | Boxer 7 |
+| BJJ vs Boxer | BJJ 43% → 46% | |
+| Sambo vs Boxer | Sambo 38% → 55% (noise: seeds from 1001 give 39% → 37%) | |
+
+Across every pairing: finished 56.5% → 59.8%, draws 0.1% → 0%, no 10-10 cards. The exit test's run: the Kicker within 59.5%
+of the Boxer. Noise at 100 fights is about ±5–9 (a call that did nothing moved one line from 61% to 70%), so the *Fire back!*
+numbers in §31.4 are 300 fights a line.
+
+What it says: **combinations make the Boxer a little better at what he already did**, about 5 points against most, and he throws
+fewest against the grapplers (14 a fight with the Wrestler, 7 with the Judoka), who close the distance before a 1-2-3 comes. The Kicker
+throws few (his kicks chain less often than the Boxer's hands), and his follow-ups land less: kicks are slower to read and to
+reach. If the playtest wants combinations to matter more or less, the levers in order: `FightSim.LEVEL_CHANGE`, `COMBO_FLOW_TICKS`,
+`COMBO_SEEN`, then the combinations in each fighter's profile. To read it again, run the harness with
+`--pairs=kicker:boxer,boxer:kicker,muay_thai:boxer,muay_thai:kicker` and read the **Combos** line.
+
+### 31.6 To change it, and the tests
+- The combinations: `data/combos/*.json` (`09` combo@1: `name`, `moves`); who throws which: `combos` in `data/fighters/`.
+- What a combination does: `FightSim.COMBO_FLOW_TICKS`, `LEVEL_CHANGE`, `COMBO_SEEN`, `COMBO_SEEN_MAX`, `COMBO_WINDOW_TICKS`
+  (`FightSim._start_combo()`, `phase_ticks()`, `_combo_bonuses()`, `_land_strike()`); the loader is `sim/fight/combo_library.gd`.
+- The AI: `FighterAI.COMBO_FRESH`, `COMBO_SEEN_READ`, `_pick_combo()`, `_own_ended()`, `_follow_up()`, `next_in_combo()`; the
+  decision layer goes on with a called combination before anything else of the fighter's own (`DecisionLayer.decide()`).
+- *Fire back!*: `data/calls/fire_back.json` (`combo: true`, `read.duration_ms`, `read.attention_cost`, `voice_cost`, `09`
+  call@2), its trigger `data/triggers/opp_strike_misses.json`, and `LiveCalls.LEADS_HELD_TICKS` (100), `_first_combo()`,
+  `adjust_lead_rate()` (a `DecisionSource` hook any source can use to hold back the fighter's own leads).
+- The harness: the `combos_*`, `combo_strikes_*` and `combo_landed_*` columns in `FightSummary`, the **Combos** line in
+  `BalanceReport`. The screen: the "in a 1-2 (2 of 2)" feed line in `ui/fight_log_formatter.gd`, the E key in `ui/fight_hud.gd`.
+- A command can queue a whole combination: `FightCommand.queue_combo()`.
+
+Tested in `tests/sim/fight/test_combos.gd` (thrown move after move, the shorter telegraph, changing levels, seen it up to three
+times, what breaks one, a wrong move is no part of it, the AI throwing only its own combinations in order and mixing them up,
+grapplers throwing none), `tests/sim/fight/test_live_calls.gd` (*Fire back!* answering a blocked strike with a combination, and
+too late), `tests/data/test_data_files.gd` (combo@1, a fighter's `combos`, combinations are runs of standing strikes their fighters
+know), `tests/ui/test_fight_log_formatter.gd`, `tests/sim/balance/test_balance_report.gd`, `tests/ui/test_fight_hud.gd` and
+`tests/game/test_main_scene.gd` (E is *Fire back!*). The golden fights were re-pinned (§2.2): the Boxer and the Kicker now throw
+combinations, so Kicker vs Boxer and Wrestler vs Boxer play out differently. The other two (Wrestler vs Kicker, and the
+check fighters) came out the same: the Kicker never strung one together in that fight, and the check fighters have none.
