@@ -124,6 +124,11 @@ func is_allowed(id: String) -> bool:
 
 ## The judges' rough score for the round so far (docs/06 §2), e.g. "≈ 10-9 Wrestler".
 static func judges_estimate(sim: FightSim) -> String:
+	if sim.ruleset.judging == Ruleset.WHOLE_FIGHT:
+		var lean: Dictionary = Judging.whole_fight_pick(sim.fight_scores())
+		if int(lean.winner) < 0:
+			return "Judges: nothing in it yet"
+		return "Judges: ≈ %s (%s)" % [sim.fighters[int(lean.winner)].name, FightLogFormatter.JUDGED_ON[lean.on]]
 	var points: Array[float] = sim.round_points()
 	if points[0] + points[1] < 1.0:
 		return "Judges: nothing in it yet"

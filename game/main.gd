@@ -79,7 +79,7 @@ func start_fight(p_settings: Dictionary) -> void:
 	if settings.get("red_profile") is Dictionary:
 		_roster.add(settings.red_profile)
 		red = String(settings.red_profile.id)
-	var sim := FightSim.new(fight_seed, _roster.make_pair(red, settings.blue), _actions)
+	var sim := FightSim.new(fight_seed, _roster.make_pair(red, settings.blue), _actions, Ruleset.load_id(String(settings.get("ruleset", Ruleset.DEFAULT_ID))))
 	sim.corners[1] = Corner.new(Corner.AI, fight_seed)
 	driver = FightDriver.new(sim, 0)
 	driver.normal_rate = float(settings.get("normal_rate", 2.0))
@@ -222,14 +222,18 @@ func _on_round_over(event: FightEvent) -> void:
 ## The bell's text: each judge's card for the round, the totals and how both fighters are.
 static func round_summary(sim: FightSim, event: FightEvent) -> String:
 	var lines: Array[String] = []
-	var cards: Array[String] = []
-	for c: Array in event.data.get("cards", []):
-		cards.append("%d-%d" % [c[0], c[1]])
-	lines.append("Judges this round (%s – %s): %s" % [sim.fighters[0].name, sim.fighters[1].name, ", ".join(cards)])
-	var totals: Array[String] = []
-	for t: Array in sim.judge_totals:
-		totals.append("%d-%d" % [t[0], t[1]])
-	lines.append("So far: %s" % ", ".join(totals))
+	if not event.data.has("cards"):
+		lines.append("No round scores under %s: the judges score the whole fight (the effort to finish, then control, then aggression)." % sim.ruleset.name)
+		lines.append("So far: %s" % FightHud.judges_estimate(sim).trim_prefix("Judges: "))
+	else:
+		var cards: Array[String] = []
+		for c: Array in event.data.cards:
+			cards.append("%d-%d" % [c[0], c[1]])
+		lines.append("Judges this round (%s – %s): %s" % [sim.fighters[0].name, sim.fighters[1].name, ", ".join(cards)])
+		var totals: Array[String] = []
+		for t: Array in sim.judge_totals:
+			totals.append("%d-%d" % [t[0], t[1]])
+		lines.append("So far: %s" % ", ".join(totals))
 	for f in sim.fighters:
 		lines.append("%s: stamina %d/%d, landed %d of %d, damage taken head %d · body %d · legs %d" % [f.name,
 			roundi(f.stamina), roundi(f.max_stamina()), f.strikes_landed, f.strikes_thrown, f.damage.head, f.damage.body, f.damage.legs])

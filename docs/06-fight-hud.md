@@ -87,6 +87,7 @@ screen; **Start fight** plays three rounds with the player as the **red corner**
 | Playtest | Free fight, or one of the playtest's fights (D118, `docs/playtests/`): it sets the fight, the calls on the bar, the drilled rules and the tell cue, and opens on a tip |
 | Your name | Saved with each fight for the playtest write-up (optional) |
 | Fight | Wrestler vs Kicker (the playtest matchup, D112), Kicker vs Boxer, Wrestler vs Boxer, Boxer vs Kicker, then the throwers (D128): Judoka vs Boxer, Judoka vs Wrestler, BJJ vs Wrestler, BJJ vs Kicker, then the Muay Thai fighter (D129): Muay Thai vs Boxer, vs Wrestler and vs Kicker, then the Sambo fighter (D132): Sambo vs Wrestler, vs BJJ and vs Boxer. You coach the first-named fighter |
+| Rules | Pro (unified rules, the default), PRIDE rules (D141, `01` §33: a 10-minute first round, soccer kicks and stomps on a downed man, knees on the ground, the whole fight judged), Amateur 18+ or Amateur 16–17 (`08`). A playtest fight is always pro |
 | Speed | Normal is 2× fight time (D9), or 1× for the playtest's comparison (D91) |
 | Difficulty | Normal, or Easy: P pauses the fight (D50) |
 | Tell cue, Auto slow-mo, Perfect-call flourish | On/off, so the playtest can compare (D51–D53) |
@@ -102,7 +103,7 @@ screen; **Start fight** plays three rounds with the player as the **red corner**
 | Tell cue (D51) | When a scouted tell shows (the Kicker's jab blocked, the Wrestler's stance shift), the limb the move will come from glows and a **!** shows over the fighter, until the move starts or the tell's window runs out. Shape and colour, so it reads without colour | `arena_view.gd` `_on_event` |
 | Ground tag | Under the fighters: the range standing (Out of range / Long / Mid / Pocket), the position tied up ("Full guard · Wrestler on top", "Submission · Kicker's triangle choke"). It grows when it changes, then settles | `ArenaView.tag_text` |
 | Danger meter (D126) | While a submission is locked in: a red bar in the middle, 0 to 100, with the hold and the danger ("Kicker's TRIANGLE CHOKE on Wrestler · danger 60"). At 100 they tap, at 0 they're out. The fighters keep the pose of where it was locked from (a guillotine bends the defender over) | `FightHud.danger_text`, `fighter_figure.gd` |
-| Top bar | Names; a big **health** bar per fighter (the head damage they can still take, D120: green, yellow under 60%, red under 30%, with the percentage and ROCKED when they are); stamina under it; small body and leg bars (same colours); round clock, speed, and the judges' rough estimate of the round so far ("≈ 10-9 Wrestler", from `FightSim.round_points()` with no judge noise). The damage pips of the first v0 became these bars | `ui/fight_hud.gd` |
+| Top bar | Names; a big **health** bar per fighter (the head damage they can still take, D120: green, yellow under 60%, red under 30%, with the percentage and ROCKED when they are); stamina under it; small body and leg bars (same colours); round clock, speed, and the judges' rough estimate of the round so far ("≈ 10-9 Wrestler", from `FightSim.round_points()` with no judge noise; under PRIDE rules who they'd give the whole fight to and why, "≈ Wrestler (control)", from `FightSim.fight_scores()`, D141). The damage pips of the first v0 became these bars | `ui/fight_hud.gd` |
 | Plan panel | Each rule slot with how sharp it is right now (its reliability) and its cooldown, flashing green when it fires; the call being heard, the attempt in progress, the focus call with seconds left, primed reads with seconds left | `FightHud.plan_text` |
 | Opponent corner | A speech bubble with the AI corner's call, 3 s | `fight_hud.gd` |
 | Feed | Every event in words with the round clock; filter: All / Key moments / Explanations (why a takedown, call or rule didn't work, A16). A feint says whether the opponent bit, and a shot with nothing setting it up starts "blind" (D131, `01` §29.4) | `ui/fight_feed.gd` |
@@ -149,7 +150,7 @@ Enter presses the dialog's first button · F3 debug overlay · ` debug console.
 - Camera zoom and follow: `ZOOM_STANDING`, `ZOOM_CLINCH`, `ZOOM_GROUND`, `CAMERA_SPEED`, `FOLLOW_SHARE` in `game/arena_view.gd`.
 - Body sizes, poses and phase colours: the constants and `pose_for` in `game/fighter_figure.gd`.
 - Pip colours, bubble and flash times: the constants at the top of `ui/fight_hud.gd`. What the feed calls a key moment: `FightFeed.kind_of`.
-- The matchups on the setup screen: `FightSetup.MATCHUPS`.
+- The matchups on the setup screen: `FightSetup.MATCHUPS`; the rules it offers: `FightSetup.RULESETS`.
 - Tests: `tests/game/test_fight_driver.gd` (speeds, pause, the bell, auto slow-mo, perfect calls, sliding, the towel, and
   speed never changing the fight), `tests/game/test_main_scene.gd` (a full three-round fight from setup to result, hotkeys,
   pause on Easy, the menu and the towel), `tests/game/test_arena_view.gd`, `tests/ui/test_fight_hud.gd`,

@@ -14,7 +14,9 @@
 		"knees_to_head_grounded": false,
 		"heel_hooks": true,
 		"slams": true,
-		"takedowns": true
+		"takedowns": true,
+		"soccer_kicks": false,
+		"stomps": false
 	},
 	"damage_multiplier": 1.0,
 	"cut_multiplier": 1.0,
