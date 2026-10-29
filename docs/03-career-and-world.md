@@ -137,26 +137,27 @@ Kyle picked "recipe + scouting card" and all 15 styles (the first 10 plus five e
 
 | Style | Wins | By KO/TKO | By sub | Strikes a minute | Shots a fight | Subs tried | Clinch | Ground |
 |---|---|---|---|---|---|---|---|---|
-| Range kicker | 50% | 7% | 0% | 9.7 | 0 | 1.1 | 1% | 14% |
-| Pressure boxer | 40% | 33% | 0% | 10.3 | 0 | 0.3 | 8% | 19% |
-| Wrestle-boxer | 60% | 10% | 10% | 6.4 | 33.9 | 1.4 | 4% | 51% |
-| Submission grappler | 53% | 0% | 37% | 6.8 | 10.7 | 2.4 | 4% | 46% |
-| Judo thrower | 50% | 7% | 17% | 6.5 | 41.2 | 1.8 | 6% | 43% |
-| Sambo leg-locker | 53% | 7% | 23% | 6.4 | 38.6 | 2.3 | 5% | 49% |
-| Muay Thai clinch fighter | 60% | 50% | 3% | 9.7 | 0 | 0.4 | 18% | 21% |
-| Counter-striker | 53% | 10% | 0% | 11.5 | 0 | 0.3 | 2% | 14% |
-| Sprawl-and-brawl | 63% | 50% | 3% | 11.4 | 0 | 0.5 | 9% | 13% |
-| Brawler | 50% | 47% | 0% | 8.5 | 0 | 0.3 | 6% | 23% |
-| Pressure wrestler | 47% | 13% | 3% | 8.2 | 35.0 | 0.7 | 4% | 57% |
-| Karate point fighter | 60% | 27% | 0% | 9.8 | 0 | 0.1 | 0% | 11% |
-| Leg-kick specialist | 33% | 17% | 3% | 13.8 | 0 | 0.2 | 7% | 21% |
-| Dirty boxer | 40% | 30% | 3% | 10.0 | 0 | 0.5 | 25% | 23% |
-| Ground-and-pound wrestler | 47% | 37% | 0% | 5.8 | 23.4 | 0.1 | 3% | 55% |
+| Range kicker | 47% | 3% | 0% | 9.8 | 0 | 1.1 | 1% | 15% |
+| Pressure boxer | 37% | 30% | 0% | 10.5 | 0 | 0.3 | 8% | 19% |
+| Wrestle-boxer | 60% | 10% | 10% | 6.3 | 33.7 | 1.4 | 4% | 51% |
+| Submission grappler | 53% | 0% | 37% | 6.8 | 10.3 | 2.4 | 4% | 46% |
+| Judo thrower | 50% | 7% | 17% | 6.4 | 41.6 | 1.9 | 6% | 43% |
+| Sambo leg-locker | 57% | 7% | 27% | 6.4 | 38.1 | 2.4 | 5% | 49% |
+| Muay Thai clinch fighter | 60% | 50% | 3% | 9.9 | 0 | 0.4 | 17% | 22% |
+| Counter-striker | 57% | 13% | 0% | 11.7 | 0 | 0.3 | 2% | 14% |
+| Sprawl-and-brawl | 63% | 50% | 3% | 11.6 | 0 | 0.5 | 9% | 13% |
+| Brawler | 50% | 47% | 0% | 8.6 | 0 | 0.3 | 6% | 23% |
+| Pressure wrestler | 47% | 17% | 3% | 8.3 | 33.1 | 0.6 | 4% | 57% |
+| Karate point fighter | 57% | 23% | 0% | 9.8 | 0 | 0.1 | 0% | 11% |
+| Leg-kick specialist | 40% | 17% | 3% | 14.0 | 0 | 0.4 | 7% | 20% |
+| Dirty boxer | 40% | 30% | 3% | 9.9 | 0 | 0.5 | 25% | 23% |
+| Ground-and-pound wrestler | 50% | 37% | 0% | 5.8 | 24.5 | 0.1 | 3% | 54% |
 
-Every style wins between 33% and 63%, and each wins its own way: the strikers by KO, the grapplers by submission, the
-wrestlers on top (51–57% of the fight on the ground), the Dirty boxer and Muay Thai fighter in the clinch (18–25%). To watch:
-the Leg-kick specialist wins least (33%) although he throws the most; the Counter-striker throws about as much as the other
-strikers (counters and tells, not leads).
+Every style wins between 37% and 63%, and each wins its own way: the strikers by KO, the grapplers by submission, the
+wrestlers on top (51–57% of the fight on the ground), the Dirty boxer and Muay Thai fighter in the clinch (17–25%). The
+Leg-kick specialist first won 33%; Kyle asked for at least 36% (2026-10-29), so his Striking defense and Footwork went from 50
+to 55: 40% over 30 fights and 40% over 90. To watch: the Counter-striker throws about as much as the other strikers
+(counters and tells, not leads).
 
 Not yet: names and nationalities for generated fighters, picking a style mix per division and region, and showing the
 scouting card on screen (it comes with scouting, D51).
