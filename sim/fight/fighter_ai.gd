@@ -54,6 +54,9 @@ const BAND_SPOTS := {
 }
 ## Flags that come from how a fighter is or where they stand, not from a move: anyone sees them.
 const STATE_FLAGS := { "HANDS_LOW": true, "BACK_TO_CAGE": true }
+## The opponent knocked down (D141): the chance a free tick of a soccer kick or a stomp,
+## where the rules allow them (× 0.5 to 1.5 from the Risk leaning).
+const DOWNED_RATE: float = 0.3
 
 ## Reading a move: (0.15 + 0.5 × Fight IQ / 100) × telegraph factor, where a 2-tick
 ## telegraph is normal and each tick longer or shorter is ±20% (docs/11 §3.3: a shorter
@@ -384,8 +387,10 @@ func _init(p_triggers: TriggerLibrary = null) -> void:
 func choose(view: FightView, layer: DecisionLayer) -> Decision:
 	var f: FighterState = view.me
 	_prepare(f)
-	if f.repertoire.is_empty() or f.work_rate <= 0.0 or view.opponent.is_down():
+	if f.repertoire.is_empty() or f.work_rate <= 0.0:
 		return DecisionLayer.IDLE
+	if view.opponent.is_down():
+		return _downed(view, layer)
 	_choice_ready = false
 	if not view.is_standing():
 		return _tied(view, layer)
@@ -412,6 +417,30 @@ func choose(view: FightView, layer: DecisionLayer) -> Decision:
 	if _leads(view, layer):
 		return _lead(view, layer)
 	return DecisionLayer.IDLE
+
+
+## The opponent is down from a knockdown (D141). Where the rules allow it (PRIDE), kick
+## or stomp him while he's there: at DOWNED_RATE a free tick (× 0.5 to 1.5 from the Risk
+## leaning), the downed strike with the most expected damage that reaches. Elsewhere the
+## fighter waits for him to get up, as before.
+func _downed(view: FightView, layer: DecisionLayer) -> Decision:
+	if not view.is_standing() or view.me.is_rocked():
+		return DecisionLayer.IDLE
+	_choice_ready = false
+	var best: String = ""
+	var best_value: float = 0.0
+	for id in _all_moves(view):
+		var action: Dictionary = view.actions.get_action(id)
+		if action.category != STRIKE or not action.strike.get("downed", false) or not _usable(view, action):
+			continue
+		var value: float = view.strike_damage(id) * view.odds(id).chance
+		if value > best_value:
+			best_value = value
+			best = id
+	# No roll unless there's something to throw, so fights under other rules play out as before.
+	if best == "" or view.roll() >= DOWNED_RATE * (1.0 + _lean(view, layer, StyleLeanings.RISK) / 200.0):
+		return DecisionLayer.IDLE
+	return Decision.new(best, DecisionLayer.AI, "while he's down")
 
 
 ## One roll against the lead rate. Most ticks the roll is above any rate the moment

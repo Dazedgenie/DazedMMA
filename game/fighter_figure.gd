@@ -214,6 +214,16 @@ func pose_for(sim: FightSim, i: int) -> Dictionary:
 		"leg_kick":
 			p.leg_rear = lerpf(0.0, 0.9, reach)
 			p.twist = lerpf(0.0, 0.4, reach)
+		"soccer_kick":  # A punt at the head of a man on the floor (PRIDE, D141).
+			p.leg_rear = lerpf(0.0, 1.1, reach)
+			p.lean = lerpf(p.lean, 0.35, reach)
+			p.twist = lerpf(0.0, 0.2, reach)
+		"stomp":  # The knee comes up, then the heel drives down.
+			p.leg_lead = lerpf(0.0, 1.2 if f.phase == "telegraph" or f.phase == "windup" else 0.4, reach)
+			p.knee_short = reach
+		"ground_knee":  # From side control, into the body or (PRIDE) the head.
+			p.leg_rear = lerpf(p.leg_rear, 1.4, reach)
+			p.knee_short = reach
 		"calf_kick":  # Lower and shorter than the leg kick.
 			p.leg_rear = lerpf(0.0, 0.6, reach)
 			p.twist = lerpf(0.0, 0.3, reach)
@@ -287,9 +297,9 @@ static func limb_for(action_id: String) -> String:
 			return "lead_arm"
 		"cross", "uppercut", "short_uppercut", "overhand", "elbow", "ground_punch", "ground_elbow":
 			return "rear_arm"
-		"teep":
+		"teep", "stomp":
 			return "lead_leg"
-		"leg_kick", "calf_kick", "body_kick", "head_kick", "knee":
+		"leg_kick", "calf_kick", "soccer_kick", "ground_knee", "body_kick", "head_kick", "knee":
 			return "rear_leg"
 	return "hips"
 
