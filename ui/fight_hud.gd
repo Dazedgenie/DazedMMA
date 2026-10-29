@@ -350,7 +350,7 @@ func _build_calls(sim: FightSim) -> void:
 			empty.text = "%s  —" % READ_KEYS[n]
 			empty.disabled = true
 			empty.focus_mode = Control.FOCUS_NONE
-			empty.tooltip_text = "no second read call yet"
+			empty.tooltip_text = "no read call here yet"
 			_call_bar.add_child(empty)
 
 

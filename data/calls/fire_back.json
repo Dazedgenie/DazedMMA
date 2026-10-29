@@ -1,0 +1,15 @@
+{
+	"schema": "call@2",
+	"id": "fire_back",
+	"name": "Fire back!",
+	"kind": "read",
+	"tier": "intent",
+	"parent": null,
+	"hotkey": null,
+	"voice_cost": 30,
+	"positions": ["standing"],
+	"actions": ["cross", "jab"],
+	"combo": true,
+	"read": { "trigger": "opp_strike_misses", "duration_ms": 3000, "attention_cost": 0.25 },
+	"requires_technique": null
+}

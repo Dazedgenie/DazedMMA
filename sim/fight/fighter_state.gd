@@ -65,6 +65,8 @@ var style: StyleLeanings
 ## Habits an opponent can scout (docs/01 §7, D11): [{trigger, action, chance, within_ms}].
 ## After the trigger, `chance` to throw `action` within `within_ms`. The AI follows them (#14).
 var tells: Array = []
+## Combinations this fighter has drilled (data/combos ids, the profile's `combos`, D133).
+var combos: Array[String] = []
 ## The rest of the profile (docs/09 fighter@1): frame, stance, personality, gifts and
 ## flaws. Kept for the world and saves; the fight doesn't read them yet.
 var profile: Dictionary = {}
@@ -115,6 +117,11 @@ var feints_tried: int = 0
 var feints_bit: int = 0
 var blind_shots: int = 0
 var blind_landed: int = 0
+## Combinations thrown (counted as their second move starts), the strikes after the first in
+## them, and how many of those landed (D133).
+var combos_thrown: int = 0
+var combo_strikes: int = 0
+var combo_landed: int = 0
 
 var action_id: String = ""  # "" = free to act
 var phase: String = ""
@@ -133,6 +140,16 @@ var set_up_until: int = -1
 ## The takedown under way was started blind (D131): no feint or strike just before it, no
 ## opening, standing. BLIND_SHOT for the rest of the move.
 var blind_shot: bool = false
+## The combination the current (or last) move is part of ("" for none) and which move of it
+## this is (0 = the first), set as each move starts (D133).
+var combo_id: String = ""
+var combo_step: int = 0
+## It runs to its end on its own (called or commanded as a whole, Decision.combo_runs).
+var combo_runs: bool = false
+## The combination has moves left: the next one is due by this tick (−1 = nothing due).
+var combo_next_until: int = -1
+## A combination queued from outside with queued_action_id (its first move), or "".
+var queued_combo: String = ""
 ## Share of Striking and Takedown defense the primed read calls take away (0 = none, LiveCalls).
 var attention: float = 0.0
 
@@ -159,6 +176,7 @@ static func from_profile(p: Dictionary) -> FighterState:
 	f.id = p.get("id", "")
 	f.tendencies = tend.get("actions", {}).duplicate()
 	f.tells = p.get("tells", []).duplicate(true)
+	f.combos.assign(p.get("combos", []))
 	f.profile = p
 	return f
 

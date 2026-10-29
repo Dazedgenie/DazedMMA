@@ -29,6 +29,12 @@ func adjust_weight(_view: FightView, _action: Dictionary, weight: float) -> floa
 	return weight
 
 
+## The AI's chance per free tick to lead with something (FighterAI.lead_rate), e.g. held
+## back after a combination fired on a call (D133). Unchanged by default.
+func adjust_lead_rate(_view: FightView, rate: float) -> float:
+	return rate
+
+
 ## A style leaning (StyleLeanings.PACE …) as the AI should read it for this fight,
 ## e.g. a Pressure gameplan adds Pace. Unchanged by default.
 func adjust_leaning(_view: FightView, _leaning: String, value: float) -> float:

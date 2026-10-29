@@ -1,0 +1,6 @@
+{
+	"schema": "combo@1",
+	"id": "one_two_knee",
+	"name": "1-2, knee",
+	"moves": ["jab", "cross", "knee"]
+}

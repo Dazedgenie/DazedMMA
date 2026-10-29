@@ -62,7 +62,7 @@ static func _describe(event: FightEvent, sim: FightSim) -> String:
 				var why: String = String(event.data.get("why", ""))
 				var reason: String = "  [color=%s](%s)[/color]" % [DIM_COLOUR, why] if why != "" else ""
 				var blind: String = " [b]blind[/b]" if event.data.get("blind", false) else ""
-				return "%s starts a %s%s%s" % [who, _action_name(event.data.action_id, sim), blind, reason]
+				return "%s starts a %s%s%s%s" % [who, _action_name(event.data.action_id, sim), _combo(event, sim), blind, reason]
 			return "[color=%s]%s %s → %s[/color]" % [DIM_COLOUR, who, _action_name(event.data.action_id, sim), event.data.phase]
 		FightEvent.ACTION_ENDED:
 			return "[color=%s]%s %s finished[/color]" % [DIM_COLOUR, who, _action_name(event.data.action_id, sim)]
@@ -279,6 +279,14 @@ static func _roles(event: FightEvent, sim: FightSim) -> String:
 ## A call's name from data/calls ("Takedown!"), or the move's for a bare call.
 static func _call_name(id: String, sim: FightSim) -> String:
 	return String(sim.calls.get_call(id).name) if sim.calls.has(id) else _action_name(id, sim)
+
+
+## " in a 1-2-3 (2 of 3)" for a move thrown as part of a combination (D133), else "".
+static func _combo(event: FightEvent, sim: FightSim) -> String:
+	var id: String = String(event.data.get("combo", ""))
+	if id == "" or not sim.combos.has(id):
+		return ""
+	return " in a [b]%s[/b] (%d of %d)" % [sim.combos.get_combo(id).name, int(event.data.get("step", 0)) + 1, sim.combos.length(id)]
 
 
 static func _action_name(id: String, sim: FightSim) -> String:

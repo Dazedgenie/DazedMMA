@@ -32,6 +32,7 @@ Rules (docs/04-tech-and-production.md §2.2):
 | `situation.gd` | Where the fight is, shared by both fighters: phase, position and each fighter's role (`docs/01` §4.1) |
 | `position_library.gd` | Loads `data/positions/*.json`, including the transitions between positions |
 | `action_library.gd` | Loads `data/actions/*.json` |
+| `combo_library.gd` | Loads `data/combos/*.json`: the strikers' drilled combinations (D133, `docs/01` §31) |
 | `fighter_library.gd` | Loads `data/fighters/*.json` (fighter@1), fills in templates, makes fresh `FighterState`s |
 
 ## balance/

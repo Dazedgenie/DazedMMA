@@ -4,7 +4,9 @@ extends RefCounted
 ## of a given tick. The sim never reads input; everything arrives as a command,
 ## so seed + command log replays a fight exactly (docs/04-tech-and-production.md §2.2).
 ##
-## Fighter starts this action as soon as they are free. data: {action_id}
+## Fighter starts this action as soon as they are free. data: {action_id, combo?}: with
+## `combo` (a data/combos id) the action is that combination's first move and the rest
+## follow (D133).
 const QUEUE_ACTION := "queue_action"
 ## The corner makes a call: it costs voice and goes through the fighter's call delay,
 ## compliance and feasibility checks first (LiveCalls, docs/01 §6.2, §22). data: {call_id}:
@@ -32,6 +34,11 @@ func _init(p_tick: int, p_fighter: int, p_type: String, p_data: Dictionary = {})
 
 static func queue_action(p_tick: int, p_fighter: int, action_id: String) -> FightCommand:
 	return FightCommand.new(p_tick, p_fighter, QUEUE_ACTION, { "action_id": action_id })
+
+
+## Fighter throws this combination (data/combos) as soon as they are free (D133).
+static func queue_combo(p_tick: int, p_fighter: int, combo_id: String) -> FightCommand:
+	return FightCommand.new(p_tick, p_fighter, QUEUE_ACTION, { "action_id": ComboLibrary.shared().move(combo_id, 0), "combo": combo_id })
 
 
 static func live_call(p_tick: int, p_fighter: int, call_id: String) -> FightCommand:

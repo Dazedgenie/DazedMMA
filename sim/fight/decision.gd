@@ -8,6 +8,12 @@ var action_id: String = ""
 ## DecisionLayer.COMMAND, CALL, RULE or AI.
 var layer: String = ""
 var reason: String = ""
+## The combination this move is part of ("" for none) and which move of it (0 = the first, D133).
+var combo: String = ""
+var combo_step: int = 0
+## The rest of the combination follows without the fighter's own say: it was called or commanded
+## as a whole (D133). The fighter's own combinations go on a move at a time, like any strikes.
+var combo_runs: bool = false
 ## The source that claimed it (null for commands and the AI).
 var source: DecisionSource
 

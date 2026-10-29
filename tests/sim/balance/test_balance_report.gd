@@ -206,6 +206,15 @@ func test_the_summary_counts_leg_locks_and_the_fights_they_end() -> void:
 	assert_string_contains(text, "Leg locks  Sambo (red) 2.0 tried, 0.5 locked a fight · Boxer (blue) 0.0 tried, 0.0 locked · ended 50.0% of fights (D132)")
 
 
+func test_the_summary_counts_combinations_and_how_often_their_follow_ups_land() -> void:
+	var report: BalanceReport = _report([
+		_row({ "blue": "boxer", "combos_blue": 10, "combo_strikes_blue": 14, "combo_landed_blue": 7 }),
+		_row({ "blue": "boxer", "combos_blue": 6, "combo_strikes_blue": 6, "combo_landed_blue": 5 }),
+	])
+	var text: String = report.summary({ "kicker": "Kicker", "boxer": "Boxer" })
+	assert_string_contains(text, "Combos     Kicker (red) 0.0 a fight, follow-ups land 0.0% · Boxer (blue) 8.0, 60.0% (D133)")
+
+
 func test_the_summary_says_how_much_grappling_there_was() -> void:
 	var report: BalanceReport = _report([_row({ "red": "wrestler", "takedowns_red": 4, "shots_red": 9, "ground": 0.3, "top_red": 0.28, "clinch": 0.05 })])
 	var text: String = report.summary({ "wrestler": "Wrestler", "boxer": "Boxer" })

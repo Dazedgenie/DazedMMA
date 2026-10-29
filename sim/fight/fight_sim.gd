@@ -117,6 +117,18 @@ const BLIND_STUCK_TICKS: int = 5
 const BLIND_STUFFED_STAMINA: float = 5.0
 ## Openings that don't set a shot up: the fence stops the sprawl going back, it doesn't hide the shot.
 const NOT_A_SET_UP := { "BACK_TO_CAGE": true }
+## Combinations (D133, docs/01 §31): a drilled run of strikes (data/combos). Each move after
+## the first flows out of the last: its telegraph is COMBO_FLOW_TICKS shorter (harder to read),
+## and it's LEVEL_CHANGE likelier to land when it goes to another target than the last one
+## (head, then the legs: his eyes are up). Each time the opponent has already seen this
+## combination in the fight, its follow-ups are COMBO_SEEN less likely to land (up to
+## COMBO_SEEN_MAX times). The next move is due within COMBO_WINDOW_TICKS of the last one
+## ending, or the combination is over; a clean shot taken mid-combination breaks it.
+const COMBO_FLOW_TICKS: int = 1
+const LEVEL_CHANGE: float = 0.2
+const COMBO_SEEN: float = 0.05
+const COMBO_SEEN_MAX: int = 3
+const COMBO_WINDOW_TICKS: int = 2
 ## Takedowns, clinch and ground moves: they make contact when their active phase starts
 ## and are rolled when it ends.
 const GRAPPLES := { "takedown": true, "clinch": true, "ground": true, "submission": true }
@@ -169,6 +181,8 @@ var clock: FightClock
 var actions: ActionLibrary
 ## The coach calls a live_call command can name (data/calls, #16).
 var calls: CallLibrary
+## The combinations fighters can throw (data/combos, D133).
+var combos: ComboLibrary
 var ruleset: Ruleset
 var positions: PositionLibrary
 ## Where the fight is: phase, position and both roles (shared, docs/01 §4).
@@ -206,6 +220,8 @@ var _control: Array[float] = [0.0, 0.0]
 var _damage_scale: Array[float] = [1.0, 1.0]
 ## Ticks each fighter's feints reached their active phase, oldest first (FEINT_REPEAT).
 var _feints: Array[Array] = [[], []]
+## Per fighter, combination id → times they've seen the opponent throw it this fight (COMBO_SEEN).
+var _combos_seen: Array[Dictionary] = [{}, {}]
 ## Announced state for range (slot 0) and each fighter's cage proximity (slots 1
 ## and 2), see _announce: what was last announced, what it's turning into, and for
 ## how many ticks. Arrays rather than dictionaries: this runs every tick.
@@ -242,6 +258,7 @@ func _init(p_seed: int, p_fighters: Array[FighterState], p_actions: ActionLibrar
 	actions = p_actions
 	positions = PositionLibrary.shared()
 	calls = CallLibrary.shared()
+	combos = ComboLibrary.shared()
 	if p_rules is Ruleset:
 		ruleset = p_rules
 	elif p_rules is int:
@@ -392,6 +409,7 @@ func _apply_commands() -> void:
 			return
 		else:
 			fighters[command.fighter].queued_action_id = command.data.action_id
+			fighters[command.fighter].queued_combo = String(command.data.get("combo", ""))
 		command_log.append(command)
 
 
@@ -820,6 +838,7 @@ func _start_action(i: int, id: String, decision: Decision = null) -> void:
 			f.leg_locks_tried += 1
 	elif id == COLLAR_TIE:
 		f.collar_ties_tried += 1
+	_start_combo(i, id, decision)
 	if action.category == "strike" or action.category == "takedown" or action.category == "submission" or (action.category == "clinch" and situation.is_standing()):
 		_round_aggression[i] += 1.0
 	var why: Dictionary = {}
@@ -827,7 +846,32 @@ func _start_action(i: int, id: String, decision: Decision = null) -> void:
 		why = { "by": decision.layer, "why": decision.reason }
 	if blind:
 		why.blind = true
+	if f.combo_id != "":
+		why.combo = f.combo_id
+		why.step = f.combo_step
 	_enter_phase(i, 0, why)
+
+
+## Where this move sits in a combination (D133): the decision says which one and which move
+## of it, and it has to be that move. The second move is when it counts as thrown, and when
+## the opponent has seen it once more.
+func _start_combo(i: int, id: String, decision: Decision) -> void:
+	var f: FighterState = fighters[i]
+	f.combo_next_until = -1
+	f.combo_id = ""
+	f.combo_step = 0
+	f.combo_runs = false
+	if decision == null or decision.combo == "" or not combos.has(decision.combo) or combos.move(decision.combo, decision.combo_step) != id:
+		return
+	f.combo_id = decision.combo
+	f.combo_step = decision.combo_step
+	f.combo_runs = decision.combo_runs
+	if f.combo_step == 0:
+		return
+	f.combo_strikes += 1
+	if f.combo_step == 1:
+		f.combos_thrown += 1
+		_combos_seen[1 - i][f.combo_id] = int(_combos_seen[1 - i].get(f.combo_id, 0)) + 1
 
 
 ## True when fighter i starting this move now would be a blind shot (D131): a takedown from
@@ -858,6 +902,8 @@ func _next_phase(i: int) -> void:
 		var category: String = actions.get_action(id).category
 		if category == "strike" or category == FEINT:
 			fighters[i].set_up_until = now + SET_UP_TICKS
+		if fighters[i].combo_id != "" and fighters[i].combo_step + 1 < combos.length(fighters[i].combo_id):
+			fighters[i].combo_next_until = now + COMBO_WINDOW_TICKS
 		fighters[i].clear_action()
 		_emit(FightEvent.ACTION_ENDED, i, { "action_id": id })
 	else:
@@ -892,7 +938,10 @@ func phase_ticks(f: FighterState, id: String, phase: String) -> int:
 		quickness = (quickness + f.effective_stat("kicking")) / 2.0
 	var factor: float = 1.0 - MAX_TIMING_SHIFT * clampf((quickness - FighterState.DEFAULT_STAT) / 50.0, -1.0, 1.0)
 	factor *= 1.0 + f.tired()
-	return maxi(1, roundi(ticks * factor))
+	var out: int = maxi(1, roundi(ticks * factor))
+	if phase == "telegraph" and f.combo_step > 0 and f.action_id == id and f.combo_id != "":
+		out = maxi(0, out - COMBO_FLOW_TICKS)  # It flows out of the last one (D133).
+	return out
 
 
 ## Flags fighter i carries right now: from their current action's phase (docs/09
@@ -1014,7 +1063,31 @@ func odds_breakdown(i: int, id: String, ahead: int = 0) -> OddsBreakdown:
 		var again: int = _recent_feints(i)
 		if again > 0:
 			b.add_bonus("feinted again", -FEINT_REPEAT * again)
+	var f: FighterState = fighters[i]
+	if f.combo_step > 0 and f.combo_id != "" and f.action_id == id and action.category == "strike":
+		_combo_bonuses(i, action, b)
 	return b.settle()
+
+
+## A move after the first of a combination (D133): it may change levels, and the opponent
+## may have seen it before.
+func _combo_bonuses(i: int, action: Dictionary, b: OddsBreakdown) -> void:
+	var f: FighterState = fighters[i]
+	var before: Dictionary = actions.get_action(combos.move(f.combo_id, f.combo_step - 1))
+	if before.strike.target != action.strike.target:
+		b.add_bonus("changes levels", LEVEL_CHANGE)
+	var seen: int = combo_seen_before(1 - i)
+	if seen > 0:
+		b.add_bonus("seen it", -COMBO_SEEN * seen)
+
+
+## How many times fighter i had already seen the combination the opponent is in the middle of
+## (its second move or later) before this one, up to COMBO_SEEN_MAX; 0 when there's none (D133).
+func combo_seen_before(i: int) -> int:
+	var opp: FighterState = fighters[1 - i]
+	if opp.combo_id == "" or opp.combo_step == 0:
+		return 0
+	return mini(int(_combos_seen[i].get(opp.combo_id, 1)) - 1, COMBO_SEEN_MAX)
 
 
 ## How many of fighter i's feints reached their active phase in the last FEINT_MEMORY_TICKS.
@@ -1116,6 +1189,11 @@ func _land_strike(i: int, action: Dictionary) -> void:
 	if push > 0.0:
 		_push(1 - i, push)
 	attacker.strikes_landed += 1
+	if attacker.combo_step > 0 and attacker.combo_id != "":
+		attacker.combo_landed += 1
+	# A clean shot breaks the combination he was in the middle of (D133).
+	defender.combo_id = ""
+	defender.combo_next_until = -1
 	if situation.position == PositionLibrary.CLINCH and action.id == "knee":
 		attacker.clinch_knees_landed += 1
 		if _has_bonus(breakdown, "POSTURE_BROKEN"):

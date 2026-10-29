@@ -1,0 +1,6 @@
+{
+	"schema": "combo@1",
+	"id": "teep_body_kick",
+	"name": "Teep, body kick",
+	"moves": ["teep", "body_kick"]
+}

@@ -16,6 +16,7 @@ var me: FighterState
 var opponent: FighterState
 var actions: ActionLibrary
 var positions: PositionLibrary
+var combos: ComboLibrary
 var ruleset: Ruleset
 ## The tick being decided.
 var now: int = 0
@@ -34,6 +35,7 @@ func _init(p_sim: FightSim, p_index: int) -> void:
 	opponent = p_sim.fighters[1 - p_index]
 	actions = p_sim.actions
 	positions = p_sim.positions
+	combos = p_sim.combos
 	ruleset = p_sim.ruleset
 	_rng = p_sim.rng_for_views()
 	_situation = p_sim.situation
@@ -125,6 +127,11 @@ func opponent_phase_ticks(action_id: String, phase: String) -> int:
 
 
 ## Ticks from starting this action to its active phase (when it lands or not).
+## How many times I'd already seen the combination the opponent is in the middle of (D133).
+func combo_seen_before() -> int:
+	return _sim().combo_seen_before(index)
+
+
 func ticks_to_land(action_id: String) -> int:
 	return phase_ticks(action_id, "telegraph") + phase_ticks(action_id, "windup")
 

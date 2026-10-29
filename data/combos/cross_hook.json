@@ -1,0 +1,6 @@
+{
+	"schema": "combo@1",
+	"id": "cross_hook",
+	"name": "2-3",
+	"moves": ["cross", "hook"]
+}

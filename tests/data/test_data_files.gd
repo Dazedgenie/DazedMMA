@@ -80,6 +80,7 @@ const SCHEMAS := {
 		"injury_risk": TYPE_FLOAT, "leanings": TYPE_DICTIONARY, "chin_wear": TYPE_FLOAT,
 	} },
 	"week_plan@1": { "folder": "week_plans", "fields": { "name": TYPE_STRING, "days": TYPE_ARRAY } },
+	"combo@1": { "folder": "combos", "fields": { "name": TYPE_STRING, "moves": TYPE_ARRAY } },
 }
 
 var _files: Dictionary = {}  # res:// path → parsed Dictionary (or null if unparseable)
@@ -312,6 +313,12 @@ func test_calls_are_an_attempt_a_focus_or_a_read() -> void:
 			problems.append("%s: a now call has either actions (an attempt) or a focus block, not both" % where)
 		if c.has("then") and (c.get("kind") == "read" or actions.is_empty()):
 			problems.append("%s: only an attempt has a then list" % where)
+		if c.has("combo") and (not c.combo is bool or c.get("kind") != "read"):
+			problems.append("%s: combo is true or false, on a read call (D133)" % where)
+		if c.get("combo", false):
+			for move: Variant in actions:
+				if _items("actions").get(move, {}).get("category", "") != "strike":
+					problems.append("%s: a combo call's actions are the single strikes it falls back on" % where)
 		if c.has("focus"):
 			var focus: Variant = c.focus
 			if not focus is Dictionary:
@@ -448,6 +455,11 @@ func test_fighter_profiles_are_complete_and_in_range() -> void:
 			problems.append("%s: age is whole years from 14 to 45" % where)
 		if f.get("potential", 75.0) is float and (f.get("potential", 75.0) < 0.0 or f.get("potential", 75.0) > 100.0):
 			problems.append("%s: potential is 0–100" % where)
+		if f.has("combos"):
+			if not f.combos is Array:
+				problems.append("%s: 'combos' is a list of data/combos ids" % where)
+			else:
+				_expect_ids(problems, where, "combos", f.combos)
 		for t: Variant in f.get("tells", []):
 			if not t is Dictionary or not (t.get("chance") is float) or not (t.get("within_ms") is float):
 				problems.append("%s: each tell needs {trigger, action, chance, within_ms}" % where)
@@ -456,6 +468,31 @@ func test_fighter_profiles_are_complete_and_in_range() -> void:
 			_expect_ids(problems, where, "actions", [t.get("action")])
 			if t.chance < 0.0 or t.chance > 1.0 or fmod(t.within_ms, FightClock.TICK_MS) != 0:
 				problems.append("%s: a tell's chance is 0–1 and within_ms a multiple of %d" % [where, FightClock.TICK_MS])
+	_report(problems)
+
+
+func test_combinations_are_runs_of_standing_strikes_their_fighters_know() -> void:
+	var problems: Array[String] = []
+	var actions: Dictionary = _items("actions")
+	for id: String in _items("combos"):
+		var c: Dictionary = _items("combos")[id]
+		var where := "combo '%s'" % id
+		var moves: Array = c.get("moves", []) if c.get("moves") is Array else []
+		if moves.size() < 2:
+			problems.append("%s: a combination is two moves or more" % where)
+		_expect_ids(problems, where, "actions", moves)
+		for move: Variant in moves:
+			var a: Dictionary = actions.get(move, {})
+			if not a.is_empty() and (a.category != "strike" or not a.positions.has("standing")):
+				problems.append("%s: '%s' isn't a strike thrown standing" % [where, move])
+	var basic: Array = actions.keys().filter(func(a: String) -> bool: return actions[a].get("basic", false))
+	var roster := FighterLibrary.load_dir()
+	for id: String in _items("fighters"):
+		var f: Dictionary = roster.profile(id)
+		for combo: Variant in f.get("combos", []):
+			for move: Variant in _items("combos").get(combo, {}).get("moves", []):
+				if move not in f.get("techniques", []) and move not in basic:
+					problems.append("fighter '%s': combo '%s' needs '%s', which they don't know" % [id, combo, move])
 	_report(problems)
 
 
