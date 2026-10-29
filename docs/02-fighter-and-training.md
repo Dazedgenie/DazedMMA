@@ -211,7 +211,7 @@ session and its others in proportion, so a week of Push the pace is about +3 Pac
 traits. Pushes are × (1 + Coachable / 200), and × 0.4 from age 30 (a style sets). **Hard sparring wears the Chin** 0.05 a
 session (`03` §5); nothing trains it back up.
 
-**Not yet:** the minigames (`played` scores are already taken), rule drilling in the middle of a camp (A6), camp
+**Not yet:** the minigames other than mitt work (§3.9; `played` scores are already taken), rule drilling in the middle of a camp (A6), camp
 phases, scouting and the weight cut, and saving a career (`04` §11).
 
 **What to change:** every number above is a named constant at the top of `sim/world/training_camp.gd` (`XP_PER_POINT`,
@@ -224,7 +224,8 @@ change, so the golden fights don't need re-pinning (unless a fighter file gets f
 
 The camp is now on screen. On the fight setup (`06` §6.1), **Training camp first** opens the planner for the red corner's
 fighter (`ui/camp_planner.gd`); its **Fight!** button starts the same fight with the fighter as the camp left them. It is
-the first look at §3.1's planner, so it's plain: dropdowns, not drag and drop, and no minigames yet.
+the first look at §3.1's planner, so it's plain: dropdowns, not drag and drop. The first minigame, mitt work, plays from
+it (§3.9).
 
 **Try it:** run the game, pick a fight, press *Training camp first*, pick a focus week, change a slot or two, watch the
 forecast, run the weeks, then *Fight!*.
@@ -376,6 +377,50 @@ prime (a late bloomer, an early decline), damage over a career wearing the Chin 
 between-camp weeks in `data/week_plans/between_fights.json` and `time_off.json`. Check a change with
 `tools/career_curve.gd` and `tests/sim/world/test_ageing.gd`, then update this section and D136. Fights don't change (the
 golden fights don't need re-pinning).
+
+### 3.9 Mitt work, the first minigame (D137)
+
+Kyle picked mitt work as the first minigame. It's §3.2's rhythm game: the coach calls a combination and you hit it on
+the beat. It plays a **Boxing drills** session, and how well it went is that session's quality (§3.5): every key hit
+perfectly is × 1.5, nothing hit still × 0.8 (A5), and skipping it is the auto × 1.0. The logic is `sim/world/mitt_work.gd`
+(`MittWork`, pure and seeded); the screen is `ui/mitt_work_screen.gd`.
+
+**Try it:** in the planner pick *Striker* (Boxing drills on Monday and Friday mornings), tick **Play** beside one,
+press *Run week 1*, then Space to start.
+
+**Playing it.** Four beats of count-in, then the coach shouts a call in boxing's numbers and you hit it one key a beat,
+starting the beat after the shout, as each note slides in to the hit line. Keys: **1** jab, **2** cross, **3** lead hook,
+**4** rear hook, **5** lead uppercut, **6** rear uppercut (number pad too), **←** (or A) slip and **↓** (or S) roll when
+the coach swings the mitt back. Two beats' rest, then the next call, for about a minute. The lead mitt lights up for odd
+numbers and the rear for even ones; a click marks every beat and a smack every hit (both made in code: no audio files
+yet).
+
+**Judging.** Within 0.06 s of the beat is perfect, within 0.14 s good (worth 0.6); later or never is a miss, and the wrong
+key misses that note. A press with nothing to hit is a stray and takes 0.25 off. Accuracy is that total over the notes, and
+the quality runs in a line from 0.8 at 0% to 1.5 at 100%: hitting about 80% well is × 1.35.
+
+**Harder as he gets better** (§3.2). The tempo runs from 84 beats a minute at Boxing 20 to 132 at Boxing 90, and the
+calls get longer: from Boxing 40 three-punch calls and the first slip and roll, from 60 four, from 80 five or six with
+defence in the middle. The newest calls come up twice as often. **Tired hands:** from fatigue 40 at that point of the week
+(the forecast's fatigue before the session) the timing windows shrink in a line to 60% at fatigue 100.
+
+**In the planner.** A *Play* box sits beside every session with a minigame built so far (only Boxing drills), up to 3 a
+week (§3.1). *Run week* plays the ticked ones first, in order, then runs the week with their scores; the week's log says
+"played Boxing drills × 1.35". *Run every week left* doesn't play them. If the fighter is hurt by then, the session
+becomes rest and the round doesn't count, as any session would.
+
+What it trains is the Boxing drills session's own split (Boxing 50%, Footwork 25%, Striking defense 25%), not §3.2's
+"Boxing, Speed": the session data is the source.
+
+**Not yet:** the other nine minigames, a gym's own look and sound (§3.2), playing a session during the week as it comes
+round instead of before, and the onboarding's first week (`07`).
+
+**What to change:** the calls (`TIERS`), the tempo (`TEMPO_MIN`, `TEMPO_MAX`, `LEVEL_LOW`, `LEVEL_HIGH`), the round
+(`ROUND_SECONDS`, `COUNT_IN_BEATS`, `REST_BEATS`), the timing (`PERFECT_WINDOW`, `GOOD_WINDOW`, `TIRED_FROM`,
+`TIRED_FLOOR`) and the scoring (`GOOD_CREDIT`, `STRAY_COST`) at the top of `sim/world/mitt_work.gd`; the keys, colours and
+sounds in `ui/mitt_work_screen.gd`; how many a week (`PLAY_MAX`) and which minigames can be played (`PLAYABLE`) in
+`ui/camp_planner.gd`. Tests: `tests/sim/world/test_mitt_work.gd`, `tests/ui/test_mitt_work_screen.gd` and the planner's
+in `tests/ui/test_camp_planner.gd`. Fights don't change. Then update this section and D137.
 
 ---
 
