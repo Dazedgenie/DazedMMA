@@ -6,7 +6,7 @@ extends RefCounted
 ## fighter, plans and seed always train the same way.
 ##
 ## Every session auto-resolves at quality 1.0 (A5); a session the player plays as
-## a minigame passes its score (0.8–1.5) in `played`. The minigames come later.
+## a minigame passes its score (0.8–1.5) in `played`: so far mitt work (MittWork, D137).
 ##
 ## Usage: TrainingCamp.new(profile, seed).run_camp(["wrestler", …, "taper"]), then
 ## profile() is the fighter@1 profile with the trained stats and style.
@@ -204,8 +204,9 @@ func run_plan(plan: Dictionary, played: Dictionary = {}, fight_week: bool = fals
 			if fight_week and day == DAYS - 1 and slot == SLOTS_PER_DAY - 1:
 				break  # Saturday evening is the fight.
 			var index: int = day * SLOTS_PER_DAY + slot
+			var before: float = fatigue
 			var outcome: String = _run_slot(plan.days[day][slot], day, float(played.get(index, AUTO_QUALITY)), variety, instruction, week)
-			week.slots.append({ "day": day, "slot": slot, "session": plan.days[day][slot], "result": outcome, "fatigue": fatigue })
+			week.slots.append({ "day": day, "slot": slot, "session": plan.days[day][slot], "result": outcome, "fatigue": fatigue, "fatigue_before": before })
 			week.fatigue_peak = maxf(week.fatigue_peak, fatigue)
 		if fight_week and day == DAYS - 1:
 			break
