@@ -276,6 +276,10 @@ func _on_fight_over(event: FightEvent) -> void:
 	var stats: Dictionary = record.stats
 	lines.append("Your corner: %d calls (%d ignored), %d perfect, takedowns from your calls %d, from your rules %d" % [
 		stats.calls_made, stats.calls_ignored, stats.perfect_calls, stats.takedowns_by_call, stats.takedowns_by_rule])
+	var injury: Dictionary = TrainingCamp.after_fight(settings.get("camp", {}), sim.fight_seed)
+	if not injury.is_empty():
+		lines.append(("[color=#ff8787]Fighting hurt made the %s injury worse: out %d days.[/color]" if injury.worse
+			else "The %s injury held up: %d more days to heal.") % [injury.area, injury.days_out])
 	lines.append("")
 	lines.append("[color=#8a8f98]Seed %d (type it in the setup to replay this fight's start)[/color]" % sim.fight_seed)
 	if last_record_path != "":

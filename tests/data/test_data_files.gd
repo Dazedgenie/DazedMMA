@@ -77,7 +77,7 @@ const SCHEMAS := {
 	} },
 	"session@1": { "folder": "sessions", "fields": {
 		"name": TYPE_STRING, "trains": TYPE_DICTIONARY, "xp": TYPE_FLOAT, "fatigue": TYPE_FLOAT,
-		"injury_risk": TYPE_FLOAT, "leanings": TYPE_DICTIONARY, "chin_wear": TYPE_FLOAT,
+		"injury_risk": TYPE_FLOAT, "light": TYPE_BOOL, "leanings": TYPE_DICTIONARY, "chin_wear": TYPE_FLOAT,
 	} },
 	"week_plan@1": { "folder": "week_plans", "fields": { "name": TYPE_STRING, "about": TYPE_STRING, "days": TYPE_ARRAY } },
 	"combo@1": { "folder": "combos", "fields": { "name": TYPE_STRING, "moves": TYPE_ARRAY } },
@@ -517,6 +517,13 @@ func test_training_sessions_train_real_stats_in_shares_that_add_up() -> void:
 			problems.append("%s: fatigue is −100 to 100 (negative takes it away)" % where)
 		if s.get("injury_risk") is float and (s.injury_risk < 0.0 or s.injury_risk > 0.05):
 			problems.append("%s: injury_risk is a chance per session from 0 to 0.05" % where)
+		var area: Variant = s.get("injury_area")
+		if s.get("injury_risk") is float and s.injury_risk > 0.0 and area not in TrainingCamp.INJURY_AREAS:
+			problems.append("%s: a session that can hurt says where (injury_area: one of %s)" % [where, TrainingCamp.INJURY_AREAS])
+		elif area != null and area not in TrainingCamp.INJURY_AREAS:
+			problems.append("%s: injury_area is null or one of %s" % [where, TrainingCamp.INJURY_AREAS])
+		if s.has("heals") and (not s.heals is float or s.heals < 0.0 or s.heals > 7.0 or not s.get("light", false)):
+			problems.append("%s: heals is extra days of healing a session, 0–7, and only a light session heals" % where)
 		if s.get("chin_wear") is float and (s.chin_wear < 0.0 or s.chin_wear > 1.0):
 			problems.append("%s: chin_wear is Chin points lost per session, 0 to 1" % where)
 		_expect_numbers(problems, where, "leanings", s.get("leanings", {}), LEANINGS, -1, 1)

@@ -128,3 +128,20 @@ func test_reaction_time_is_two_ticks_at_speed_50_and_fatigue_stretches_it() -> v
 	assert_eq(FighterState.new("Fast", { "speed": 100 }, []).reaction_ticks(), 1)
 	average.stamina = 0.0
 	assert_eq(average.reaction_ticks(), 3, "D93: stretched by fatigue")
+
+
+func test_a_camp_condition_starts_the_fight_with_a_smaller_tank_and_hurt() -> void:
+	var fresh := FighterState.from_profile({ "name": "Fresh", "stats": { "cardio": 60, "durability": 50 } })
+	var tired := FighterState.from_profile({ "name": "Tired", "stats": { "cardio": 60, "durability": 50 },
+		"condition": { "tank": 0.75, "hurt": { "legs": 0.09 } } })
+	assert_almost_eq(tired.max_stamina(), fresh.max_stamina() * 0.75, 0.001, "a quarter of the tank gone for the whole fight (D135)")
+	assert_eq(tired.stamina, tired.max_stamina(), "but it starts full")
+	assert_almost_eq(tired.hurt("legs"), 0.09, 0.001)
+	assert_eq(tired.tired(), 0.0, "a smaller tank, not tired yet")
+	assert_lt(tired.effective_stat("footwork"), fresh.effective_stat("footwork"), "hurt legs slow the feet")
+
+
+func test_a_hurt_body_from_camp_shrinks_the_tank_further() -> void:
+	var fighter := FighterState.from_profile({ "name": "Ribs", "stats": {}, "condition": { "tank": 1.0, "hurt": { "body": 0.1 } } })
+	var fresh := FighterState.from_profile({ "name": "Fresh", "stats": {} })
+	assert_almost_eq(fighter.max_stamina(), fresh.max_stamina() * (1.0 - FighterState.MAX_BODY_DRAIN * 0.1), 0.01)

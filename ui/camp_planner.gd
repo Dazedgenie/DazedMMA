@@ -4,7 +4,9 @@ extends PanelContainer
 ## the red corner's fighter, then take them into the fight. Each week starts from a
 ## focus week (data/week_plans) and any slot can be changed by hand; the forecast says
 ## what the week will probably do before it's run (TrainingCamp.forecast), and the log
-## says what it did. Presentation only: TrainingCamp does the training.
+## says what it did. On fight night it says how the camp sends the fighter in (tired, hurt,
+## what the doctor says, D135) and offers Fight! or Pull out. Presentation only: TrainingCamp
+## does the training.
 
 signal fight_pressed(profile: Dictionary)
 signal back_pressed
@@ -24,12 +26,20 @@ const SHOWN_GAIN: float = 0.005
 const DIM := "#8a8f98"
 const GAIN := "#69db7c"
 const LOSS := "#ff8787"
+## What a hurt area does to the fighter in the fight (FighterState: head and legs hurt slow stats down, body hurt shrinks the tank).
+const HURT_EFFECTS := {
+	"head": "a lower health bar, slower hands and reads",
+	"body": "a smaller gas tank",
+	"legs": "slower feet and weaker kicks",
+}
 
 ## The camp being planned (rebuilt when the length, age or potential change before week 1).
 var camp: TrainingCamp
 var weeks: int = WEEKS_DEFAULT
 ## What each week that has been run did (TrainingCamp.run_plan reports).
 var reports: Array[Dictionary] = []
+## The player pulled out of the fight on fight night: the camp is wasted (D135).
+var pulled_out: bool = false
 
 var _start: Dictionary  # The fighter@1 profile as the camp found them.
 var _library: TrainingLibrary
@@ -54,6 +64,7 @@ var _stats: RichTextLabel
 var _run: Button
 var _run_rest: Button
 var _fight: Button
+var _pull_out: Button
 var _filling: bool = false  # Setting the slots from a preset, not by hand.
 
 
@@ -96,6 +107,7 @@ func _init(profile: Dictionary, camp_seed: int = 1, library: TrainingLibrary = n
 	_button(buttons, "Start the camp again", reset)
 	_run = _button(buttons, "Run week 1", run_week)
 	_run_rest = _button(buttons, "Run every week left like this one", run_rest)
+	_pull_out = _button(buttons, "Pull out of the fight", pull_out)
 	_fight = _button(buttons, "Fight!", func() -> void: fight_pressed.emit(trained_profile()))
 	_fight.add_theme_font_size_override("font_size", 24)
 	_new_camp()
@@ -146,14 +158,19 @@ func week_plan() -> Dictionary:
 func run_week() -> void:
 	if done():
 		return
-	reports.append(camp.run_plan(week_plan()))
+	reports.append(camp.run_plan(week_plan(), {}, fight_week()))
 	_refresh()
+
+
+## The week on screen is the last one: the fight is on its Saturday evening (D135).
+func fight_week() -> bool:
+	return reports.size() == weeks - 1
 
 
 ## Runs every week left with the week on screen.
 func run_rest() -> void:
 	while not done():
-		reports.append(camp.run_plan(week_plan()))
+		reports.append(camp.run_plan(week_plan(), {}, fight_week()))
 	_refresh()
 
 
@@ -161,17 +178,32 @@ func done() -> bool:
 	return reports.size() >= weeks
 
 
-## The fighter as the camp has left them, ready for FighterLibrary (id: theirs + "_camp").
+## Whether Fight! is on: the camp is over, the player hasn't pulled out and the doctor clears the fighter.
+func can_fight() -> bool:
+	return done() and not pulled_out and camp.fight_night().doctor != TrainingCamp.NOT_CLEARED
+
+
+## Pulls the fighter out of the fight (fight night only): the fight is off and the camp is wasted.
+func pull_out() -> void:
+	if done():
+		pulled_out = true
+		_refresh()
+
+
+## The fighter as the camp has left them, ready for FighterLibrary (id: theirs + "_camp"), with the
+## condition fight night leaves them in (TrainingCamp.fight_profile).
 func trained_profile() -> Dictionary:
-	var out: Dictionary = camp.profile()
+	var out: Dictionary = camp.fight_profile()
 	out.id = String(_start.get("id", "fighter")) + "_camp"
 	return out
 
 
-## What the camp was, for the fight's record: its weeks (each week's plan id) and how the fighter came out of it.
+## What the camp was, for the fight's record: its weeks (each week's plan id) and fight night (TrainingCamp.fight_night).
 func summary() -> Dictionary:
+	var night: Dictionary = camp.fight_night()
 	return { "weeks": reports.map(func(r: Dictionary) -> String: return String(r.plan)),
-		"fatigue": snappedf(camp.fatigue, 0.1), "injured_days": camp.injured_days }
+		"fatigue": snappedf(night.fatigue, 0.1), "tank": snappedf(night.tank, 0.001), "injury_area": night.injury_area,
+		"injured_days": night.injured_days, "doctor": night.doctor, "worsen_chance": snappedf(night.worsen_chance, 0.001) }
 
 
 ## The forecast, log and stats as text (tests read them).
@@ -331,6 +363,7 @@ func _new_camp() -> void:
 	weeks = WEEKS_MIN + maxi(0, _weeks_picker.selected)
 	camp = TrainingCamp.new(_start, _camp_seed, _library)
 	reports.clear()
+	pulled_out = false
 
 
 func _on_preset_selected(index: int) -> void:
@@ -365,28 +398,30 @@ func _refresh() -> void:
 	_run.text = "Run week" if done() else "Run week %d" % (reports.size() + 1)
 	_run.disabled = done()
 	_run_rest.disabled = done()
-	_fight.disabled = not done()
-	var forecast: Dictionary = {} if done() else camp.forecast(week_plan())
+	_fight.disabled = not can_fight()
+	_pull_out.disabled = not done() or pulled_out
+	_slots[-1].disabled = fight_week() or done()
+	var forecast: Dictionary = {} if done() else camp.forecast(week_plan(), fight_week())
 	_forecast.text = _forecast_bbcode(forecast)
 	_log.text = _log_bbcode()
 	_stats.text = _stats_bbcode(forecast.get("gains", {}))
-	if done():
+	if can_fight():
 		FightHud.focus_later(_fight)
 
 
 func _forecast_bbcode(forecast: Dictionary) -> String:
 	var lines: Array[String] = []
 	if forecast.is_empty():
-		lines.append("[b]Fight night[/b]")
-		lines.append("Fatigue %d (%s)%s." % [roundi(camp.fatigue), TrainingCamp.freshness(camp.fatigue),
-			", still hurt (%d more days)" % camp.injured_days if camp.injured_days > 0 else ""])
-		lines.append("[color=%s]Fatigue and injuries don't reach the fight yet: that comes next.[/color]" % DIM)
-		return "\n".join(lines)
+		return _fight_night_bbcode()
 	lines.append("[b]This week, if nothing goes wrong[/b]")
+	if forecast.fight_week:
+		lines.append("[b]Fight week:[/b] the fight is Saturday evening, so that slot is the fight and nothing after it heals.")
 	if camp.injured_days > 0:
-		lines.append("[color=%s]Still hurt for %d more days: those sessions become rest.[/color]" % [LOSS, camp.injured_days])
-	lines.append("Fatigue: starts at %d, peaks at %d, Sunday night %d (%s)" % [roundi(forecast.fatigue_start),
-		roundi(forecast.fatigue_peak), roundi(forecast.fatigue_end), TrainingCamp.freshness(forecast.fatigue_end)])
+		lines.append("[color=%s]Hurt (%s) for %d more days: light sessions (film study, meditation, rehab, recovery, rest) still go ahead, the rest become rest. Rehab heals a day faster.[/color]" % [
+			LOSS, camp.injury_area, camp.injured_days])
+	lines.append("Fatigue: starts at %d, peaks at %d, %s %d (%s)" % [roundi(forecast.fatigue_start),
+		roundi(forecast.fatigue_peak), "at the fight" if forecast.fight_week else "Sunday night", roundi(forecast.fatigue_end),
+		TrainingCamp.freshness(forecast.fatigue_end)])
 	if forecast.fatigue_peak > TrainingCamp.FATIGUE_FREE:
 		lines.append("[color=%s]Past fatigue %d the fighter learns less (× %.2f at the peak).[/color]" % [LOSS,
 			roundi(TrainingCamp.FATIGUE_FREE), TrainingCamp.fatigue_factor_at(forecast.fatigue_peak)])
@@ -406,6 +441,28 @@ func _forecast_bbcode(forecast: Dictionary) -> String:
 	return "\n".join(lines)
 
 
+func _fight_night_bbcode() -> String:
+	var night: Dictionary = camp.fight_night()
+	var lines: Array[String] = ["[b]Fight night[/b]"]
+	var tank: int = roundi(100.0 * float(night.tank))
+	lines.append("Fatigue %d (%s): %s" % [roundi(night.fatigue), TrainingCamp.freshness(night.fatigue),
+		"a full gas tank for the fight." if tank >= 100 else "[color=%s]%d%% of the gas tank for the whole fight.[/color]" % [LOSS, tank]])
+	if night.injured_days > 0:
+		var area: String = night.injury_area
+		lines.append("[color=%s]Still hurt (%s), %d more days to heal: he starts the fight %d%% hurt there (%s).[/color]" % [LOSS,
+			area, night.injured_days, roundi(100.0 * float(night.hurt[area])), HURT_EFFECTS.get(area, "")])
+	if pulled_out:
+		lines.append("[color=%s]You pulled him out. The fight is off and the camp is wasted.[/color]" % LOSS)
+	elif night.doctor == TrainingCamp.NOT_CLEARED:
+		lines.append("[color=%s]The doctor won't clear him (more than %d days still to heal). The fight is off and the camp is wasted.[/color]" % [
+			LOSS, TrainingCamp.DOCTOR_MAX_DAYS])
+	elif night.doctor == TrainingCamp.CLEARED_HURT:
+		lines.append("The doctor clears him to fight hurt. Fighting on it has a %d%% chance of making it worse (a longer layoff after). You can pull out instead." % roundi(100.0 * float(night.worsen_chance)))
+	else:
+		lines.append("The doctor clears him.")
+	return "\n".join(lines)
+
+
 func _log_bbcode() -> String:
 	if reports.is_empty():
 		return "[color=%s]Each week you run shows up here.[/color]" % DIM
@@ -421,7 +478,7 @@ func _log_bbcode() -> String:
 		bits.append("fatigue peaked at %d" % roundi(r.fatigue_peak))
 		lines.append("Week %d, %s: %s. %s" % [i + 1, plan_name, ", ".join(bits), _top_gains(r.gains, 3)])
 		for injury: Dictionary in r.injuries:
-			lines.append("  [color=%s]Hurt on %s in %s: out %d days.[/color]" % [LOSS, TrainingCamp.DAY_NAMES[injury.day],
+			lines.append("  [color=%s]Hurt (%s) on %s in %s: out %d days.[/color]" % [LOSS, injury.area, TrainingCamp.DAY_NAMES[injury.day],
 				_library.session(injury.session).name, injury.days_out])
 	return "\n".join(lines)
 

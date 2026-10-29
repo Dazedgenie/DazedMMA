@@ -1,0 +1,15 @@
+{
+	"schema": "session@1",
+	"id": "rehab",
+	"name": "Rehab (physio, easy technique)",
+	"trains": {},
+	"xp": 0,
+	"fatigue": -8,
+	"injury_risk": 0.0,
+	"injury_area": null,
+	"light": true,
+	"heals": 1,
+	"leanings": {},
+	"chin_wear": 0,
+	"minigame": null
+}

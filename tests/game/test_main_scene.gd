@@ -156,3 +156,16 @@ func test_back_from_the_camp_goes_to_the_setup() -> void:
 	_main.planner.back_pressed.emit()
 	assert_null(_main.planner)
 	assert_true(_main.setup.visible)
+
+
+func test_after_a_fight_taken_hurt_the_result_says_how_the_injury_held_up() -> void:
+	_main.open_camp(_main.setup.settings())
+	_main.planner.run_rest()
+	_main.planner.camp.injured_days = 4
+	_main.planner.camp.injury_area = "body"
+	_main.planner._refresh()
+	_main.planner._fight.pressed.emit()
+	assert_gt(_main.driver.sim.fighters[0].damage.body, 0, "he starts the fight hurt")
+	_main._process(1.0)
+	_main.driver.throw_towel()
+	assert_string_contains(_main.hud._dialog_body.get_parsed_text(), "body injury")

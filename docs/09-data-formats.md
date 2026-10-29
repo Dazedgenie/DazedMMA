@@ -135,6 +135,7 @@ generated world fighters. Loaded by `FighterLibrary` (`sim/fight/fighter_library
 | `tendencies` | `{work_rate, actions: {action id: weight}}` | `work_rate`: the chance per free tick to lead with something (0–1; 0.015 ≈ one lead every 7 s, with combinations, counters and meeting advances on top; `docs/01` §20). `actions`: how much they favour a move (1.0 = normal, 0–10), `docs/01` §7 |
 | `age` | whole years, 14–45 (optional) | Training learns faster when young and styles set from 30 (`docs/02` §3.5); 25 if left out |
 | `potential` | 0–100 (optional) | Where training slows right down (`docs/11` §2.3, `docs/02` §3.5); 75 if left out |
+| `condition` (optional) | `{tank: 0–1, hurt: {head/body/legs: 0–1}}` | How a camp sends them in (D135, `docs/02` §3.7): the share of the gas tank they have all fight, and how hurt an area already is. Written by the camp planner, never in `data/fighters/`; left out = fresh |
 | `combos` (optional) | data/combos ids | The combinations this fighter has drilled (D133, `docs/01` §31). Every move in them must be one the fighter knows. Left out = none: their strikes chain one at a time as before |
 | `tells` | `[{trigger, action, chance, within_ms}]` | Habits an opponent can scout: after `trigger`, `chance` to throw `action` within `within_ms` (`docs/01` §7, D11). The AI follows them (`docs/01` §20). A tell on the fighter's own move starting is a set-up: the Wrestler's `own_stance_shift` → `double_leg` |
 
@@ -164,6 +165,9 @@ One kind of training session (`docs/02` §3.5, D125). Loaded by `TrainingLibrary
 | `xp` | number ≥ 0 | XP for a session at quality 1.0; 0 exactly when it trains nothing |
 | `fatigue` | −100–100 | Fatigue it adds (× the Recovery factor); negative takes fatigue away (rest, recovery, meditation) |
 | `injury_risk` | 0–0.05 | Chance of a camp injury per session when fresh (fatigue and Durability scale it) |
+| `injury_area` | `head` · `body` · `legs`, or null | Where its injury is; a healing injury starts the fight hurt there (D135, `docs/02` §3.7). Needed when `injury_risk` > 0 |
+| `light` | bool | Goes ahead while the fighter is hurt (film study, meditation, rehab, recovery, rest); the rest become rest (D135) |
+| `heals` (optional) | days, 0–7 | Extra days of healing when done hurt (Rehab: 1). Only a light session heals |
 | `leanings` | `{leaning: −1–1}` | Style push per session (`docs/11` §4.2) |
 | `chin_wear` | 0–1 | Chin points lost per session (hard sparring) |
 | `minigame` | minigame id or null | The minigame that will play it (D38): `mitt_work`, `heavy_bag`, `thai_pads`, `wrestling_chain`, `sprawl_reflex`, `rolling_puzzle`, `roadwork`, `film_study`, `hard_sparring`, `meditation` |
@@ -186,7 +190,7 @@ What a fight on the fight screen leaves behind, one file per fight in the player
 | Field | Meaning |
 |---|---|
 | `saved_at`, `game` | When, and the game name and Godot version |
-| `settings` | The setup it was played with: `label`, `step` (playtest id or ""), `tester`, `normal_rate` (1 or 2), `easy`, `tell_cues`, `auto_slow`, `flourishes`, and after a camp (D134) `camp`: `weeks` (each week's plan id, `custom` for one changed by hand), `fatigue` and `injured_days` on fight night |
+| `settings` | The setup it was played with: `label`, `step` (playtest id or ""), `tester`, `normal_rate` (1 or 2), `easy`, `tell_cues`, `auto_slow`, `flourishes`, and after a camp (D134) `camp`: `weeks` (each week's plan id, `custom` for one changed by hand) and fight night (D135): `fatigue`, `tank`, `injury_area`, `injured_days`, `doctor`, `worsen_chance` |
 | `player` | The player's corner (0 = red) |
 | `result`, `won`, `rounds_played` | The `FIGHT_ENDED` event's data (`winner`, `result`, `stopped_by`, cards), and whether the player won |
 | `stats` | The player's coaching: `calls_made`, `calls_ignored`, `calls_by_id`, `perfect_calls`, takedowns that worked split by who chose them (`takedowns_by_call`, `takedowns_by_rule`, `takedowns_own`), `catch_kicks_landed`, `rules_fired` |
