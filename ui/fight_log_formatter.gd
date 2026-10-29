@@ -11,6 +11,7 @@ const DIM_COLOUR := "#8a8f98"
 const RANGE_NAMES := { "out": "out of range", "long": "long (kicking range)", "mid": "mid (punching range)", "pocket": "in the pocket" }
 const CAGE_NAMES := { "centre": "is back in open space", "near": "is near the fence", "pinned": "is PINNED against the cage" }
 const RESULT_NAMES := { "ko": "KO", "tko": "TKO", "submission": "submission" }
+const LEG_NAMES: Array[String] = ["left", "right"]
 ## What decided a whole-fight verdict (D141), in the judges' words.
 const JUDGED_ON := { "finish": "the effort to finish", "control": "control", "aggression": "aggression" }
 ## How the referee's stoppages read (FIGHT_ENDED `why`, D120).
@@ -128,7 +129,17 @@ static func _describe(event: FightEvent, sim: FightSim) -> String:
 				return "[b]%s is ROCKED again underneath![/b]" % who
 			return "[b]%s is ROCKED![/b]" % who
 		FightEvent.KNOCKDOWN:
+			if event.data.get("liver", false):
+				return "[b]%s FOLDS and goes DOWN![/b] It was the liver" % who
+			if event.data.has("leg"):
+				return "[b]%s's %s leg BUCKLES and he goes DOWN![/b]" % [who, LEG_NAMES[int(event.data.leg)]]
+			if event.data.get("flash", false):
+				return "[b]%s is DROPPED by one shot![/b]" % who
 			return "[b]%s goes DOWN![/b]" % who
+		FightEvent.STANCE_SWITCHED:
+			return "%s switches stance to hide the %s leg" % [who, LEG_NAMES[int(event.data.hiding)]]
+		FightEvent.LIVER_SHOT:
+			return "[b]%s freezes: that one found the LIVER[/b]" % who
 		FightEvent.GOT_UP:
 			return "%s beats the count and gets back up" % who
 		FightEvent.RECOVERED:
