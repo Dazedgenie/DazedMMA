@@ -1,0 +1,26 @@
+{
+	"schema": "style@1",
+	"id": "sprawl_brawl",
+	"name": "Sprawl-and-brawl",
+	"fighter": "sprawl_brawl",
+	"roots": [
+		"Boxing gym kid",
+		"Street kid",
+		"College football athlete"
+	],
+	"southpaw_chance": 0.15,
+	"variation": { "stats": 6, "style": 12, "tendencies": 0.2, "personality": 30, "height_cm": 4 },
+	"scouting": {
+		"summary": "A striker who stuffs takedowns and gets straight back up, so the fight stays standing.",
+		"strengths": [
+			"Elite takedown defense and scrambles",
+			"Heavy hands"
+		],
+		"weaknesses": [
+			"Almost never shoots",
+			"Only one way to win"
+		],
+		"tell": "When his jab is blocked he digs a hook to the body.",
+		"how_to_beat": "Beat him on the feet with range and kicks, or chain takedowns against the fence so he can't sprawl."
+	}
+}

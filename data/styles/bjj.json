@@ -1,0 +1,25 @@
+{
+	"schema": "style@1",
+	"id": "bjj",
+	"name": "Submission grappler",
+	"fighter": "bjj",
+	"roots": [
+		"Jiu-jitsu prodigy",
+		"Rio training trip"
+	],
+	"southpaw_chance": 0.15,
+	"variation": { "stats": 6, "style": 12, "tendencies": 0.2, "personality": 30, "height_cm": 4 },
+	"scouting": {
+		"summary": "Ties you up, pulls guard if the takedown won't come, and hunts arms, necks and heels from anywhere.",
+		"strengths": [
+			"Dangerous off his back",
+			"Slick sweeps and leg locks"
+		],
+		"weaknesses": [
+			"Poor striking",
+			"Weak takedowns: he often pulls guard instead"
+		],
+		"tell": null,
+		"how_to_beat": "Keep it standing and punish him when he reaches for the clinch. Don't follow him to the mat."
+	}
+}

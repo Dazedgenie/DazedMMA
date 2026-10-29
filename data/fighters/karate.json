@@ -1,0 +1,19 @@
+{
+	"schema": "fighter@1",
+	"id": "karate",
+	"name": "Karate point fighter",
+	"template": null,
+	"frame": { "height_cm": 185, "reach_cm": 190, "build": "lean" },
+	"stance": "orthodox",
+	"stats": { "speed": 70, "footwork": 75, "kicking": 65, "boxing": 55, "striking_defense": 60, "fight_iq": 60, "power": 45, "chin": 50, "cardio": 60, "takedown_defense": 50, "takedowns": 35, "submissions": 40, "submission_defense": 45 },
+	"personality": { "ego": 0, "discipline": 20, "coachable": 0, "loyal": 0 },
+	"style": { "pace": -20, "range": -80, "base": -30, "risk": -10 },
+	"gifts": [],
+	"flaws": [],
+	"techniques": ["jab", "cross", "teep", "body_kick", "head_kick"],
+	"combos": ["one_two", "teep_head_kick", "body_kick_head_kick"],
+	"tendencies": { "work_rate": 0.012, "actions": { "jab": 1.0, "cross": 1.2, "teep": 0.6, "body_kick": 0.8, "head_kick": 1.2, "feint": 1.2 } },
+	"tells": [
+		{ "trigger": "own_jab_blocked", "action": "head_kick", "chance": 0.5, "within_ms": 1200 }
+	]
+}

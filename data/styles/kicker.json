@@ -1,0 +1,25 @@
+{
+	"schema": "style@1",
+	"id": "kicker",
+	"name": "Range kicker",
+	"fighter": "kicker",
+	"roots": [
+		"Traditional martial arts (karate/TKD)",
+		"Dutch kickboxing"
+	],
+	"southpaw_chance": 0.25,
+	"variation": { "stats": 6, "style": 12, "tendencies": 0.2, "personality": 30, "height_cm": 4 },
+	"scouting": {
+		"summary": "Stays long and kicks: teeps to keep you out, then body and leg kicks. Circles off when you close in.",
+		"strengths": [
+			"Long, fast kicks",
+			"Good footwork: hard to pin down"
+		],
+		"weaknesses": [
+			"Weak hands in the pocket",
+			"Stands on one leg every time he kicks"
+		],
+		"tell": "When his jab gets blocked he follows with a right body kick, most of the time.",
+		"how_to_beat": "Close the distance and make him fight in the pocket. Call the catch-kick when the body kick comes."
+	}
+}

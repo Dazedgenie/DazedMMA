@@ -32,6 +32,7 @@ Rules:
 | `data/playtest/` | `playtest@1` | The playtest's fights in order (D118, `docs/playtests/`) |
 | `data/sessions/` | `session@1` | Training sessions: drills, sparring, conditioning, rest (`docs/02` §3.5, D125) |
 | `data/week_plans/` | `week_plan@1` | Week plans: a session in each of the 12 slots of a training week (`docs/02` §3.5) |
+| `data/styles/` | `style@1` | Opponent style sheets: the recipe the world makes opponents of one style from, and the style's scouting card (D160, `docs/03` §7.1) |
 | `data/combos/` | `combo@1` | Combinations: a named run of strikes a fighter has drilled, the 1-2, a jab into a low kick (D133, `docs/01` §31) |
 
 ## 3. Schemas
@@ -146,6 +147,23 @@ generated world fighters. Loaded by `FighterLibrary` (`sim/fight/fighter_library
 
 Without a `template`, every field above must be present. A fight is saved and replayed as seed + fighter ids + ruleset +
 command log (`FightSim.record()` / `FightSim.from_record()`).
+
+### style@1 (examples: `brawler.json`, `counter_striker.json`)
+An opponent style (D160, `docs/03` §7.1). Loaded by `StyleLibrary` (`sim/world/style_library.gd`), whose `generate(style, seed, level, roster)`
+makes a complete fighter@1 profile from it: the same style, seed and level always give the same fighter.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `name` | string | The style's name, as scouting shows it ("Counter-striker") |
+| `fighter` | fighter id | The **signature fighter**: the style done well at an average level. Opponents start from this profile. It must not use a `template` |
+| `roots` | strings | Backgrounds and trips this style comes from (`docs/02` §1.2, §6); display text for now |
+| `southpaw_chance` | 0–1 | The chance an opponent of this style fights southpaw |
+| `variation` | `{stats, style, tendencies, personality, height_cm}` | How far an opponent may differ from the signature fighter: each stat ± `stats` points (at most 20), each style leaning ± `style` (at most 40), each move preference × (1 ± `tendencies`) (at most 0.5), each personality axis ± `personality`, height ± `height_cm` (reach keeps the signature fighter's reach-to-height gap, ± 3 cm) |
+| `scouting` | `{summary, strengths, weaknesses, tell, how_to_beat}` | The scouting card: one line on how they fight, lists of strengths and weaknesses, the tell in words (`null` if the signature fighter has no tell; the validator checks they agree), and how to beat them |
+
+What `generate` keeps from the signature fighter: moves, combinations, tells, gifts, flaws and build. The quality `level`
+(−30 to +30) is added to every one of the 23 stats, so it changes how good they are, not how they fight. A generated profile
+carries two extra fields, `style_id` and `level`. Add it to the fight's `FighterLibrary` (`add()`) before the fight, so a replay finds it.
 
 ### playtest@1 (examples: `fight_1_first_calls.json`, `fight_2_catch_the_kick.json`)
 One fight of the playtest (D118), picked from the setup screen's **Playtest** list. Loaded by `Playtest` (`game/playtest.gd`).

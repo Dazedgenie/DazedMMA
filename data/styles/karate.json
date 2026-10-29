@@ -1,0 +1,24 @@
+{
+	"schema": "style@1",
+	"id": "karate",
+	"name": "Karate point fighter",
+	"fighter": "karate",
+	"roots": [
+		"Traditional martial arts (karate/TKD)"
+	],
+	"southpaw_chance": 0.35,
+	"variation": { "stats": 6, "style": 12, "tendencies": 0.2, "personality": 30, "height_cm": 4 },
+	"scouting": {
+		"summary": "Bounces on the outside, feints, then blitzes in with a straight punch or a head kick and is gone again.",
+		"strengths": [
+			"Fast, long and hard to hit",
+			"Sudden head kicks"
+		],
+		"weaknesses": [
+			"Light hands: rarely hurts you with punches",
+			"Lost if you trap him on the fence or take him down"
+		],
+		"tell": "When his jab is blocked he throws the head kick.",
+		"how_to_beat": "Cut off the cage, don't chase in straight lines, and take him down when he plants for a kick."
+	}
+}

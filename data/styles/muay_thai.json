@@ -1,0 +1,25 @@
+{
+	"schema": "style@1",
+	"id": "muay_thai",
+	"name": "Muay Thai clinch fighter",
+	"fighter": "muay_thai",
+	"roots": [
+		"Muay Thai camp abroad",
+		"Bangkok training trip"
+	],
+	"southpaw_chance": 0.15,
+	"variation": { "stats": 6, "style": 12, "tendencies": 0.2, "personality": 30, "height_cm": 4 },
+	"scouting": {
+		"summary": "Walks into the clinch, grabs a collar tie and goes to work with knees and elbows.",
+		"strengths": [
+			"Vicious clinch knees and elbows",
+			"Tough and strong in the tie-up"
+		],
+		"weaknesses": [
+			"Weak wrestling",
+			"Little outside the clinch"
+		],
+		"tell": null,
+		"how_to_beat": "Keep him at range, or take him down. Break the clinch the moment he grabs it."
+	}
+}

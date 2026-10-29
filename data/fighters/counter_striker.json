@@ -1,0 +1,19 @@
+{
+	"schema": "fighter@1",
+	"id": "counter_striker",
+	"name": "Counter-striker",
+	"template": null,
+	"frame": { "height_cm": 180, "reach_cm": 186, "build": "lean" },
+	"stance": "orthodox",
+	"stats": { "boxing": 60, "striking_defense": 65, "footwork": 60, "speed": 60, "fight_iq": 65, "composure": 65, "power": 50, "kicking": 45, "takedown_defense": 55, "takedowns": 35, "submissions": 40, "submission_defense": 50 },
+	"personality": { "ego": 0, "discipline": 20, "coachable": 0, "loyal": 0 },
+	"style": { "pace": -70, "range": -30, "base": -20, "risk": -30 },
+	"gifts": [],
+	"flaws": [],
+	"techniques": ["jab", "cross", "hook", "uppercut", "body_hook", "leg_kick"],
+	"combos": ["one_two", "cross_hook", "uppercut_hook"],
+	"tendencies": { "work_rate": 0.007, "actions": { "jab": 1.2, "cross": 1.0, "hook": 0.8, "uppercut": 0.4, "body_hook": 0.5, "leg_kick": 0.6 } },
+	"tells": [
+		{ "trigger": "opp_strike_misses", "action": "cross", "chance": 0.5, "within_ms": 800 }
+	]
+}
