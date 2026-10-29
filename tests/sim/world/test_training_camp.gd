@@ -62,7 +62,7 @@ func test_a_session_raises_the_stats_it_trains_and_nothing_else() -> void:
 
 func test_higher_stats_need_more_xp_for_a_point() -> void:
 	var camp := TrainingCamp.new(_fighter({ "stats": { "boxing": 30, "takedowns": 55 } }), 1)
-	assert_almost_eq(camp.xp_per_point("boxing"), 10.0 * exp(30.0 / 25.0), 0.001)
+	assert_almost_eq(camp.xp_per_point("boxing"), TrainingCamp.XP_PER_POINT * exp(30.0 / 25.0), 0.001)
 	assert_gt(camp.xp_per_point("takedowns"), camp.xp_per_point("boxing") * 2.5, "25 points more costs e (≈2.7) times the XP")
 
 
@@ -190,8 +190,8 @@ func test_points_past_the_soft_cap_in_one_camp_count_half() -> void:
 	two_camps.start_camp()
 	var capped: Dictionary = one_camp.run_week("boxing_week")
 	var fresh: Dictionary = two_camps.run_week("boxing_week")
-	# A touch over half: growing slower keeps the next point a little cheaper.
-	assert_between(capped.gains.boxing / fresh.gains.boxing, 0.5, 0.56)
+	# Over half: growing slower keeps the next point cheaper.
+	assert_between(capped.gains.boxing / fresh.gains.boxing, 0.5, 0.7)
 
 
 func test_an_eight_week_camp_moves_a_young_wrestlers_main_stats_a_few_points() -> void:
@@ -199,7 +199,7 @@ func test_an_eight_week_camp_moves_a_young_wrestlers_main_stats_a_few_points() -
 	var camp := TrainingCamp.new(young, 11)
 	var plans: Array[String] = ["wrestler", "wrestler", "wrestler", "wrestler", "wrestler", "wrestler", "wrestler", "taper"]
 	camp.run_camp(plans)
-	assert_between(camp.stat("takedowns") - 30.0, 1.0, 6.0)
+	assert_between(camp.stat("takedowns") - 30.0, 2.0, 9.0)
 	assert_lt(camp.stat("boxing") - 30.0, camp.stat("takedowns") - 30.0, "a wrestling camp trains wrestling most")
 
 

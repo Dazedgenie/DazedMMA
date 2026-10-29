@@ -241,7 +241,7 @@ func _build_plan_column() -> Control:
 	_weeks_picker.item_selected.connect(func(_i: int) -> void: reset())
 	setup.add_child(_weeks_picker)
 	_age = _spin(setup, "Age", 16.0, 45.0, float(_start.get("age", TrainingCamp.DEFAULT_AGE)))
-	_potential = _spin(setup, "Potential", 30.0, 100.0, float(_start.get("potential", TrainingCamp.DEFAULT_POTENTIAL)))
+	_potential = _spin(setup, "True potential", 30.0, 100.0, float(_start.get("potential", TrainingCamp.DEFAULT_POTENTIAL)))
 
 	_week_label = Label.new()
 	_week_label.add_theme_font_size_override("font_size", 24)
@@ -385,9 +385,16 @@ func _on_changed_by_hand() -> void:
 	_refresh()
 
 
+## What the scouts say the fighter's hidden potential is (D136): a range, e.g. "78–92". The True potential box in the
+## setup is the real number, for testing.
+func scouted_potential() -> String:
+	var scouted: Array[int] = Ageing.scouted_range(camp.potential, hash(String(_start.get("id", _start.get("name", "")))))
+	return "%d–%d" % scouted
+
+
 func _refresh() -> void:
 	var fighter_name: String = String(_start.get("name", "Fighter"))
-	_title.text = "Training camp · %s, %d, potential %d" % [fighter_name, camp.age, roundi(camp.potential)]
+	_title.text = "Training camp · %s, %d, potential %s (scouted)" % [fighter_name, camp.age, scouted_potential()]
 	var started: bool = not reports.is_empty()
 	_weeks_picker.disabled = started
 	_age.editable = not started
@@ -432,6 +439,12 @@ func _forecast_bbcode(forecast: Dictionary) -> String:
 	if float(forecast.chin_wear) > 0.0:
 		lines.append("Hard sparring wears the Chin: −%.2f" % forecast.chin_wear)
 	lines.append("Gains: " + _top_gains(forecast.gains, 5))
+	var aged: Dictionary = forecast.get("aged", {})
+	if not aged.is_empty():
+		var names: Array[String] = []
+		for id: String in aged:
+			names.append(TrainingCamp.STAT_NAMES.get(id, id))
+		lines.append("[color=%s]Age %d: the body is slowing (%s lose a little every week).[/color]" % [LOSS, camp.age, ", ".join(names)])
 	var style: Array[String] = []
 	for leaning: String in forecast.leanings:
 		if absf(float(forecast.leanings[leaning])) >= 0.05:

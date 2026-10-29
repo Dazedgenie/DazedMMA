@@ -130,3 +130,8 @@ func test_the_last_week_is_fight_week_with_the_fight_on_saturday_evening() -> vo
 	assert_string_contains(_planner.forecast_text(), "Fight week")
 	_planner.run_week()
 	assert_true(_planner.reports[-1].fight_week)
+
+
+func test_the_title_shows_the_scouts_range_for_the_fighters_potential() -> void:
+	assert_string_contains(_planner._title.text, _planner.scouted_potential() + " (scouted)")
+	assert_eq(_planner.scouted_potential().split("–").size(), 2, "a range, e.g. 78–92")
