@@ -170,10 +170,11 @@ func test_values_come_from_the_allowed_lists() -> void:
 		for f: Dictionary in action.get("flags_self", []):
 			if f.get("from") not in PHASES or f.get("to") not in PHASES:
 				problems.append("action '%s': flag phases must be one of %s" % [id, PHASES])
-		if action.get("strike") is Dictionary and action.strike.has("downed"):
+		var downed_block: String = "strike" if action.get("strike") is Dictionary else ("ground" if action.get("ground") is Dictionary else "")
+		if downed_block != "" and action[downed_block].has("downed"):
 			var needs_down: bool = action.opportunities.any(func(o: Dictionary) -> bool: return o.get("opponent_flag", "") == "DOWN" and o.get("required", false))
-			if not action.strike.downed is bool or not needs_down or not action.positions == ["standing"]:
-				problems.append("action '%s': a downed strike (strike.downed true, D141) is thrown standing and needs the DOWN opening (required)" % id)
+			if not action[downed_block].downed is bool or not needs_down or not action.positions == ["standing"]:
+				problems.append("action '%s': a move at a downed man (%s.downed true, D141, D142) is used standing and needs the DOWN opening (required)" % [id, downed_block])
 		var push: Variant = action.get("strike", {}).get("push_m", 0.0) if action.get("strike") is Dictionary else 0.0
 		if not (push is float) or push < 0.0:
 			problems.append("action '%s': strike.push_m is metres pushed back, 0 or more" % id)

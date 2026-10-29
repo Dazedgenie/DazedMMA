@@ -33,6 +33,10 @@
 - Striker combinations and *Fire back!* (the fighters' combinations in `data/combos/`, why they flow and change levels, a combination he has seen before, what breaks one, the *Fire back!* read call on key E, the numbers to tune them): `docs/01-fight-engine.md` §31 (D133).
 - More strikes (the uppercut, overhand, hook to the body, calf kick, elbow and the short uppercut and hook in the clinch: what each punishes and leaves open, who throws them, why the Boxer never looks for the clinch, the numbers to tune them): `docs/01-fight-engine.md` §32 (D140).
 - PRIDE rules (the 10-minute first round, soccer kicks and stomps on a downed fighter, knees on the ground, the whole-fight judges: effort to finish, then control, then aggression; the *Rules* picker on the setup, the numbers to tune them): `docs/01-fight-engine.md` §33 (D141).
+- Following a knockdown down to the ground (the *Follow him down* move, where it lands, who follows up, *Takedown!* on key 4 doing it, the numbers to tune it): `docs/01-fight-engine.md` §34 (D142).
+- Liver shots (how a body shot finds the liver, the freeze and the fold, getting up winded, how often, the numbers to tune them): `docs/01-fight-engine.md` §35 (D143).
+- A leg giving out (the two legs tracked apart, low kicks on the front leg, switching stance, the buckle and the limp, the numbers to tune them): `docs/01-fight-engine.md` §36 (D144).
+- Flash knockdowns (one big shot dropping a fresh man, and what the four rocked-and-dropped changes did to fights together): `docs/01-fight-engine.md` §37 (D145).
 - Drilled rules (two slots, reliability, cooldown, opponents adapting, the presets, `--rules` in the harness): `docs/01-fight-engine.md` §23 (D116).
 - Speed budget (1000× fight time), the timing checks and how to speed things up without changing fights: `docs/01-fight-engine.md` §2.1 (D105).
 - Golden fights: four pinned fights that fail a test whenever a change alters a fight. If the change is meant to, re-pin with `godot --headless --script res://tools/golden.gd -- --update`, commit `tests/golden/golden_fights.json` and say why in the PR: `docs/01-fight-engine.md` §2.2 (D122).

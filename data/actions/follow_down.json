@@ -1,0 +1,18 @@
+{
+	"schema": "action@2",
+	"id": "follow_down",
+	"name": "Follow him down",
+	"category": "ground",
+	"basic": true,
+	"positions": ["standing"],
+	"ranges": ["mid", "pocket"],
+	"phases_ms": { "telegraph": 100, "windup": 200, "active": 300, "recovery": 300 },
+	"stamina_cost": 4,
+	"flags_self": [],
+	"ground": { "base_success": 0.35, "partial_within": 0.25, "downed": true },
+	"stats": { "offense": ["scrambles", "top_control"], "defense": ["scrambles"] },
+	"opportunities": [
+		{ "opponent_flag": "DOWN", "success_bonus": 0.20, "required": true }
+	],
+	"requires_technique": null
+}

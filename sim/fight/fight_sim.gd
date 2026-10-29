@@ -75,6 +75,35 @@ const ROCK_THRESHOLD_PER_CHIN: float = 0.12
 const ROCK_FROM: float = 0.6
 const ROCK_SLOPE: float = 0.5
 const ROCK_MAX: float = 0.6
+## Liver shots (D143): a body shot thrown standing or in the clinch. Shock = damage × (1 +
+## body hurt) / (8 + 0.16 × Durability); liver chance = (shock − 0.8) × 0.2, up to 25%. It takes
+## him LIVER_DELAY_TICKS later (frozen meanwhile): down LIVER_DOWN_TICKS (a knockdown, but his
+## head is clear: not rocked), LIVER_STAMINA gone, then winded with his hands low for LIVER_WINDED_TICKS.
+const LIVER_THRESHOLD_BASE: float = 8.0
+const LIVER_THRESHOLD_PER_DURABILITY: float = 0.16
+const LIVER_FROM: float = 0.8
+const LIVER_SLOPE: float = 0.2
+const LIVER_MAX: float = 0.25
+const LIVER_DELAY_TICKS: int = 5
+const LIVER_DOWN_TICKS: int = 30
+const LIVER_STAMINA: float = 20.0
+const LIVER_WINDED_TICKS: int = 50
+## A leg giving out (D144): a low kick landing on a front leg already this hurt (FighterState.leg_hurt)
+## can buckle it: chance (leg hurt − 0.4) × damage × 0.03, up to 30%. He drops for LEG_DOWN_TICKS (a
+## knockdown, head clear) and limps on it for the rest of the fight. A front leg past SWITCH_FROM,
+## worse than the back one by SWITCH_MARGIN, makes him switch stance to hide it.
+const BUCKLE_FROM: float = 0.35
+const BUCKLE_PER_DAMAGE: float = 0.03
+const BUCKLE_MAX: float = 0.3
+const LEG_DOWN_TICKS: int = 10
+const SWITCH_FROM: float = 0.5
+const SWITCH_MARGIN: float = 0.2
+## Flash knockdowns (D145): a head shot that rocks a man who wasn't rocked drops him there and then
+## when it was big enough: chance (shock − 1.2) × 0.4, up to 35%. A counter (×1.3 damage), a head kick or an
+## overhand gets there; a jab never does.
+const FLASH_FROM: float = 1.2
+const FLASH_SLOPE: float = 0.4
+const FLASH_MAX: float = 0.35
 ## Rocked lasts 4 s × (1.5 − Recovery / 100); a knockdown keeps them down 2 s, then rocked.
 const ROCKED_TICKS: int = 40
 const DOWN_TICKS: int = 20
@@ -487,6 +516,13 @@ func _advance_fighter(i: int) -> void:
 		if f.down_ticks == 0:
 			_emit(FightEvent.GOT_UP, i)
 		return
+	if f.liver_ticks > 0:
+		f.liver_ticks -= 1
+		if f.liver_ticks == 0:
+			_liver_fold(i)
+		return  # Frozen: it's coming.
+	if f.winded_ticks > 0:
+		f.winded_ticks -= 1
 	if f.is_rocked():
 		f.rocked_ticks -= 1
 		if f.rocked_ticks == 0:
@@ -750,6 +786,8 @@ func apply_transition(i: int, action_id: String, result: String = PositionLibrar
 	for f in fighters:
 		f.clear_action()
 		f.tied_up_ticks = 0
+		if not situation.is_standing():
+			f.down_ticks = 0  # Followed down after a knockdown (D142): on the ground now, still rocked.
 		f.unanswered = 0
 	_place_bodies(i)
 	var changed := { "action_id": action_id, "position": situation.position, "phase": situation.phase, "roles": roles.duplicate() }
@@ -962,7 +1000,7 @@ func active_flags(i: int) -> Array[String]:
 	var out: Array[String] = []
 	if cage_proximity(i) == Octagon.CAGE_PINNED:
 		out.append("BACK_TO_CAGE")
-	if f.stamina_fraction() < HANDS_LOW_BELOW or f.is_rocked():
+	if f.stamina_fraction() < HANDS_LOW_BELOW or f.is_rocked() or f.winded_ticks > 0 or f.liver_ticks > 0:
 		out.append("HANDS_LOW")
 	if f.tied_up_ticks > 0:
 		out.append("POSTURE_BROKEN")
@@ -993,7 +1031,7 @@ func flags_ahead(i: int, ahead: int) -> Array[String]:
 	var out: Array[String] = []
 	if cage_proximity(i) == Octagon.CAGE_PINNED:
 		out.append("BACK_TO_CAGE")
-	if f.stamina_fraction() < HANDS_LOW_BELOW or f.is_rocked():
+	if f.stamina_fraction() < HANDS_LOW_BELOW or f.is_rocked() or f.winded_ticks > ahead or f.liver_ticks > 0:
 		out.append("HANDS_LOW")
 	if f.tied_up_ticks > ahead:
 		out.append("POSTURE_BROKEN")
@@ -1197,6 +1235,10 @@ func _land_strike(i: int, action: Dictionary) -> void:
 	var dealt: int = maxi(1, roundi(strike_damage(attacker, action.id) * scale))
 	var was_rocked: bool = defender.is_rocked()
 	defender.damage[target] += dealt
+	var leg: int = -1
+	if target == "legs":
+		leg = defender.lead_leg()
+		defender.leg_damage[leg] += dealt
 	attacker.unanswered = 0  # Landing anything back answers (D120).
 	defender.stagger_ticks = maxi(defender.stagger_ticks, STAGGER_BASE + roundi(dealt * STAGGER_PER_DAMAGE))
 	var push: float = float(action.strike.get("push_m", 0.0))
@@ -1216,6 +1258,8 @@ func _land_strike(i: int, action: Dictionary) -> void:
 	var landed := { "action_id": action.id, "target": target, "damage": dealt, "chance": chance, "counter": counter, "odds": breakdown.to_dict() }
 	if into != "":
 		landed.into = into
+	if leg >= 0:
+		landed.leg = leg
 	_emit(FightEvent.STRIKE_LANDED, i, landed)
 	if into != "":
 		_emit(FightEvent.GRAPPLE_STOPPED, 1 - i, { "action_id": into, "reason": "stopped", "by_action": action.id })
@@ -1223,6 +1267,10 @@ func _land_strike(i: int, action: Dictionary) -> void:
 	if target == "head":
 		_head_impact(i, dealt, into != "")
 		_referee(i, was_rocked)
+	elif target == "body" and situation.phase != PositionLibrary.PHASE_GROUND:
+		_body_impact(i, dealt)
+	elif leg >= 0 and situation.is_standing():
+		_leg_impact(i, leg, dealt)
 
 
 static func _has_bonus(b: OddsBreakdown, bonus_name: String) -> bool:
@@ -1247,7 +1295,7 @@ func _to_recovery(i: int) -> void:
 ## sprawl on it or knee into it.
 func _make_contact(i: int, action: Dictionary) -> void:
 	var stopped := { "action_id": action.id }
-	if fighters[1 - i].is_down():
+	if fighters[1 - i].is_down() and not action[action.category].get("downed", false):
 		stopped.reason = "opponent down"
 	elif not action.ranges.has(band()):
 		stopped.reason = "out of range"
@@ -1499,6 +1547,10 @@ func _head_impact(i: int, dealt: int, flash: bool = false) -> void:
 	if (d.is_rocked() or flash) and not grounded:
 		_knockdown(i, shock)
 		return
+	var flash_odds: float = 0.0 if grounded else flash_chance(shock)
+	if flash_odds > 0.0 and _rng.randf() < flash_odds:
+		_knockdown(i, shock, true)  # One clean shot, and a fresh man goes down (D145).
+		return
 	var again: bool = d.is_rocked()
 	d.rocked_ticks = rocked_duration(d)
 	d.clear_action()
@@ -1544,22 +1596,112 @@ func stop_unanswered() -> int:
 	return maxi(1, STOP_UNANSWERED - roundi(2.0 * ruleset.early_stoppage_bias))
 
 
+func body_shock(i: int, dealt: float) -> float:
+	var d: FighterState = fighters[1 - i]
+	return dealt * (1.0 + d.hurt("body")) / (LIVER_THRESHOLD_BASE + LIVER_THRESHOLD_PER_DURABILITY * d.stat("durability"))
+
+
+func liver_chance(shock: float) -> float:
+	return clampf((shock - LIVER_FROM) * LIVER_SLOPE, 0.0, LIVER_MAX)
+
+
+## A body shot's liver roll (D143): it doesn't drop him there and then. He freezes, and
+## LIVER_DELAY_TICKS later he folds (_liver_fold). A man already going, or down, has nothing more to find.
+func _body_impact(i: int, dealt: int) -> void:
+	var d: FighterState = fighters[1 - i]
+	if d.liver_ticks > 0 or d.is_down():
+		return
+	var chance: float = liver_chance(body_shock(i, dealt))
+	if chance <= 0.0 or _rng.randf() >= chance:
+		return
+	d.clear_action()
+	d.grip = null
+	d.liver_ticks = LIVER_DELAY_TICKS
+	d.liver_by = i
+	_emit(FightEvent.LIVER_SHOT, 1 - i, { "by": i })
+
+
+## The liver shot takes him: he folds and goes down (a knockdown for the judges and the
+## referee, but his head is clear, so not rocked), loses LIVER_STAMINA, and gets up winded.
+func _liver_fold(k: int) -> void:
+	var d: FighterState = fighters[k]
+	var by: int = d.liver_by
+	d.spend_stamina(LIVER_STAMINA)
+	if situation.phase == PositionLibrary.PHASE_GROUND:
+		d.winded_ticks = LIVER_WINDED_TICKS  # Taken down meanwhile: nowhere to fold to, but it still takes his wind.
+		return
+	d.knockdowns += 1
+	d.knockdowns_this_round += 1
+	d.unanswered = 0
+	d.clear_action()
+	d.down_ticks = LIVER_DOWN_TICKS
+	d.winded_ticks = LIVER_WINDED_TICKS  # Counted from when he's back up.
+	_round_points[by] += Judging.KNOCKDOWN_POINTS
+	_round_knockdowns[by] += 1
+	_round_impact[by] += 1
+	_emit(FightEvent.KNOCKDOWN, k, { "by": by, "liver": true })
+	if not situation.is_standing():
+		fighters[by].clear_action()
+		_break_apart(by)
+	if d.knockdowns_this_round >= TKO_KNOCKDOWNS:
+		_finish(by, RESULT_TKO, "", STOP_KNOCKDOWNS)
+
+
+func buckle_chance(leg_hurt: float, dealt: float) -> float:
+	return clampf((leg_hurt - BUCKLE_FROM) * dealt * BUCKLE_PER_DAMAGE, 0.0, BUCKLE_MAX)
+
+
+## A low kick on fighter i's opponent's front leg (D144): it can buckle a badly hurt one, and a
+## front leg that's gone makes him switch stance to put the other one in the way.
+func _leg_impact(i: int, leg: int, dealt: int) -> void:
+	var d: FighterState = fighters[1 - i]
+	if d.is_down() or d.liver_ticks > 0:
+		return
+	var hurt: float = d.leg_hurt(leg)
+	var chance: float = buckle_chance(hurt, dealt)
+	if chance > 0.0 and _rng.randf() < chance:
+		d.knockdowns += 1
+		d.knockdowns_this_round += 1
+		d.unanswered = 0
+		d.clear_action()
+		d.grip = null
+		d.down_ticks = LEG_DOWN_TICKS
+		d.limping = leg
+		_round_points[i] += Judging.KNOCKDOWN_POINTS
+		_round_knockdowns[i] += 1
+		_round_impact[i] += 1
+		_emit(FightEvent.KNOCKDOWN, 1 - i, { "by": i, "leg": leg })
+		if d.knockdowns_this_round >= TKO_KNOCKDOWNS:
+			_finish(i, RESULT_TKO, "", STOP_KNOCKDOWNS)
+			return
+	if hurt >= SWITCH_FROM and hurt - d.leg_hurt(1 - leg) >= SWITCH_MARGIN:
+		d.switched = not d.switched
+		_emit(FightEvent.STANCE_SWITCHED, 1 - i, { "hiding": leg })
+
+
+func flash_chance(shock: float) -> float:
+	return clampf((shock - FLASH_FROM) * FLASH_SLOPE, 0.0, FLASH_MAX)
+
+
 func rocked_duration(f: FighterState) -> int:
 	return roundi(ROCKED_TICKS * (1.5 - f.effective_stat("recovery") / 100.0))
 
 
-func _knockdown(i: int, shock: float) -> void:
+func _knockdown(i: int, shock: float, flash: bool = false) -> void:
 	var d: FighterState = fighters[1 - i]
 	d.knockdowns += 1
 	d.knockdowns_this_round += 1
 	d.unanswered = 0
 	d.clear_action()
+	if d.liver_ticks > 0:
+		d.liver_ticks = 0  # Dropped while the liver shot was coming: it's the same fall.
+		d.winded_ticks = LIVER_WINDED_TICKS
 	d.down_ticks = DOWN_TICKS
 	d.rocked_ticks = rocked_duration(d)
 	_round_points[i] += Judging.KNOCKDOWN_POINTS
 	_round_knockdowns[i] += 1
 	_round_impact[i] += 1
-	_emit(FightEvent.KNOCKDOWN, 1 - i, { "by": i })
+	_emit(FightEvent.KNOCKDOWN, 1 - i, { "by": i, "flash": true } if flash else { "by": i })
 	if not situation.is_standing():
 		fighters[i].clear_action()
 		_break_apart(i)
@@ -1610,6 +1752,8 @@ func _next_round() -> void:
 		f.recover_between_rounds()
 		f.rocked_ticks = 0
 		f.down_ticks = 0
+		f.liver_ticks = 0
+		f.winded_ticks = 0
 		f.stagger_ticks = 0
 		f.tied_up_ticks = 0
 		f.bit_ticks = 0

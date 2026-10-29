@@ -230,7 +230,7 @@ Each phase can set **state flags** that counters look for:
 | Flag | Set by | Exploited by |
 |---|---|---|
 | `ONE_LEG` | Body/head kick, teep, knee | Catch-kick single leg, sweep, counter cross |
-| `HANDS_LOW` | Lazy jab return, shot attempt, fatigue | Overhand, head kick, knee |
+| `HANDS_LOW` | Lazy jab return, shot attempt, fatigue, a liver shot (D143) | Overhand, head kick, knee |
 | `HEAD_LOW` | Level change, shot | Knee, guillotine, front headlock, uppercut |
 | `COMING_IN` | Clinch entry (until it ties up), the first step of a double leg | Jab, cross, teep, knee: a strike that lands into it stops the entry (D114) |
 | `LEANING` | Overcommitted hook/overhand | Counter hook, trip, level change |
@@ -477,7 +477,7 @@ constants in `sim/fight/octagon.gd`, `sim/fight/fight_sim.gd`, `sim/fight/fighte
 | Counters | Hitting a fighter in wind-up or recovery: +10% to land and ×1.3 damage |
 | Damage | Base damage × (0.5 + Power/100), at least 1 |
 | Rocked | Head shots only. Shock = damage × (1 + head hurt) / (6 + 0.12 × Chin). Rock chance = (shock − 0.6) × 0.5, up to 60%: a jab never rocks a fresh fighter, a clean hook or head kick can. Rocked lasts 4 s × (1.5 − Recovery/100): Speed, Striking defense, Fight IQ −30% more, hands drop, they back off and mostly cover up, and the opponent swarms (more with a Wild Risk leaning) |
-| Knockdown | Rocked again while rocked (or rocked by a knee into a shot, §21.2). Down for 2 s, then up and rocked. Under unified rules nobody hits a downed fighter; under PRIDE rules a soccer kick or a stomp can (§33). A knockdown in the clinch separates the fighters |
+| Knockdown | Rocked again while rocked (or rocked by a knee into a shot, §21.2). Down for 2 s, then up and rocked, unless the other man follows him down to the ground first (§34, D142). A liver shot (§35, D143) drops him too, a moment later, for 3 s, with his head clear. Under unified rules nobody hits a downed fighter; under PRIDE rules a soccer kick or a stomp can (§33). A knockdown in the clinch separates the fighters |
 | KO / TKO | KO roll on each knockdown: 15% + (shock − 1) × 50%, 5–80%, × (1.5 − Heart/100). TKO on a third knockdown in a round, or a rock with the head fully hurt |
 | Judges | Three judges, 10-point must. A round's points = damage landed (head ×1, body ×0.8, legs ×0.6) + 8 per rock + 20 per knockdown + grappling (a takedown and control time, §21.4); each judge sees each fighter's points ±15%. Within 5%, the round goes to the busier fighter (aggression: strikes and takedowns started plus metres walked forward, each judge seeing it ±15%), then to whoever held the other on the fence longer (cage control); only a round where nothing separates them is 10-10 (D97). 10-8 for two more knockdowns or out-landing 4 to 1 in a busy round (D110; `Judging.DOMINANT_SHARE` 0.25). Decision: unanimous / split / majority / draw |
 | Events | `range_changed`, `cage_changed` (announced once held for 0.5 s), `rocked`, `knockdown`, `got_up`, `recovered`; strikes carry `counter`, the `odds` breakdown (§19) and, when they fall short, a `reason` |
@@ -834,7 +834,7 @@ A new call replaces one of the same kind still being processed (logged as `repla
 ### 22.2 Three kinds of call
 | Kind | Calls | What the fighter does |
 |---|---|---|
-| **Attempt** | Takedown!, Clinch!, Get up!, Feint! | Goes for the first of the call's moves that would work right now: in range, the stamina for it, and the opening it needs there when it lands. *Takedown!* lists the catch-kick single first, so a Takedown! call that lands while the opponent's leg is up (or will be as the catch lands) becomes the catch-kick (§5.1); otherwise the double-leg. Out of range, the fighter steps straight in to the nearest band one of the moves reaches from, for up to **2 s**, then gives up (`infeasible`, *"couldn't get in range"*). An attempt with a `then` list (*Feint!*, §29.3a) goes on once its first move is over: straight into the first of the `then` moves that would work |
+| **Attempt** | Takedown!, Clinch!, Get up!, Feint! | Goes for the first of the call's moves that would work right now: in range, the stamina for it, and the opening it needs there when it lands. *Takedown!* lists following a knocked-down man down first (D142, §34), then the catch-kick single, so a Takedown! call that lands while the opponent's leg is up (or will be as the catch lands) becomes the catch-kick (§5.1); otherwise the double-leg. Out of range, the fighter steps straight in to the nearest band one of the moves reaches from, for up to **2 s**, then gives up (`infeasible`, *"couldn't get in range"*). An attempt with a `then` list (*Feint!*, §29.3a) goes on once its first move is over: straight into the first of the `then` moves that would work |
 | **Focus** | Pressure!, Circle out!, Work the range!, Defend the shot!, Survive!, Stay safe! | For **15 s** the fighter's style leanings and move weights tilt, like a short gameplan, then it's back to the gameplan (`expired`). Calling it again starts the 15 s again; a different focus replaces it. The AI looks at its leanings and range plan again straight away when a focus starts or ends |
 | **Read** (D49) | Catch the kick! | Primed for 6 s. When the trigger comes (`opp_kick_starts`: the opponent starts a body kick or teep), the fighter reacts with their own reaction time (D93) and catches as the leg comes up (a quick fighter waits for it). It fires once (`fired`), and comes back as `missed` if the kick was over first. While primed it costs attention: Striking and Takedown defense −15% (`attention_cost`). Up to 2 reads at once (D67), costs added; a third replaces the oldest |
 
@@ -2114,3 +2114,205 @@ from three picks, a takedown counting as control, a PRIDE fight with no round sc
 `tests/data/test_data_files.gd` (the new `allows` keys, `round_lengths` and `judging`, a downed strike being a standing move that
 needs `DOWN`). The golden fights were re-pinned (§2.2): the Wrestler knows the knee on the ground, so his two golden fights play
 out differently; the Kicker vs Boxer and check-fighter fights don't change.
+
+## 34. Following a knockdown down to the ground (D142)
+Kyle asked whether fighters can get rocked or dropped (2026-10-29). They could (§18, §24), but a knockdown led nowhere: the man
+was down for 2 s and nobody could touch him, then he got up. Kyle picked all three follow-ups on a decision card, one after
+another: following a knockdown down to the ground (this section), then liver shots and a leg giving out, then flash knockdowns.
+On a second card he picked the call: *Takedown!* on key 4 does it, no new key.
+
+### 34.1 The move
+**Follow him down** (`follow_down.json`): everyone knows it (`basic`), from standing at mid or pocket range, only on a knocked-down
+man (`DOWN`, required; `ground.downed`). 0.1 · 0.2 · 0.3 · 0.3 s. 35% + 20% on him down + (Scrambles, Top control) − his
+Scrambles. A rocked man can't do much about it, so it usually works:
+
+| Roll | Where it goes |
+|---|---|
+| Under the odds | **Half guard, on top** (`standing.json`): straight past most of his legs |
+| Within 25% over them | **Full guard, on top**: a scrappy landing, he gets his legs round |
+| Worse | He scrambles up; the fight stays standing and the man who tried it is in his recovery |
+
+Landing on top scores like a takedown (D108). The downed man is in a ground position now, so he's no longer down, but he's still
+rocked for the rest of his rocked time: ground and pound on a rocked man (§24) is where the referee steps in. Any other grapple
+at a downed man (a double-leg, a clinch entry) still finds nobody standing to shoot on ("opponent down"), and under unified rules
+nothing else hits him (PRIDE's soccer kicks and stomps, §33).
+
+### 34.2 Who does it
+The fighter AI decides once, as the man drops, whether it will follow him down: 50% × its `follow_down` tendency × (1 + Base /
+100), so a grappler (the Wrestler and the Judoka, Base 70) about 85% of the time, a striker (the Boxer and the Kicker, Base 0)
+half the time (`FOLLOW_DOWN_CHANCE`). If it will, it goes at 30% a free tick while he's down (`DOWNED_RATE`), as for a soccer kick.
+Under PRIDE rules it weighs following him down (10 × its odds, `FOLLOW_DOWN_VALUE`) against a soccer kick's expected damage and
+takes the bigger. No fighter's profile sets the tendency yet: it's there to make one keener or less keen.
+
+The player calls it with *Takedown!* (key 4): it's the first move on that call's list, so when he's down the call follows him
+down, and otherwise goes on to the catch-kick and the double-leg as before (§22.2). While he's on his feet the call skips it
+(`LiveCalls._moves`), so a fighter who knows no takedown still can't take a Takedown! call.
+
+### 34.3 Balance
+How often (100 fights a pairing, pro rules): the Kicker and the Boxer drop each other about 0.25 times a fight and follow up after
+about 3 in 5 of those knockdowns (some knockdowns end the fight there and then, and a fighter who is rocked himself doesn't follow);
+three in four follow-ups land. The Muay Thai fighter drops the Wrestler about 1.2 times a fight and follows 52 of those 119 times
+down; 15 of the 34 fights where he did ended inside the distance.
+
+Harness, no calls, 300 fights a pairing, seed 1, pro rules, D141 → now: fights finished inside the distance 61% → 61%, draws
+0.4% → 0.4%. Kicker vs Boxer 44/56 → 46/54, Boxer vs Kicker 53 → 53, Muay Thai vs Boxer 60 → 56, Muay Thai vs Kicker 82 → 80,
+Muay Thai vs Wrestler 69 → 69, Wrestler vs Boxer 64 → 66, Wrestler vs Kicker 63 → 64, Judoka vs Boxer 62 → 60, BJJ vs Boxer
+46 → 48, Sambo vs Boxer 53 → 55, Boxer mirror 49/51 → 50/50: all within the noise (±3) but the Muay Thai fighter against the
+Boxer. Knockdowns are rare, and a man who's been dropped was usually going to be stopped anyway; what changes is how: more of
+those fights end on the ground. Flash knockdowns (next) will make knockdowns, and so this, more common. The golden fights don't
+change: none of them has a knockdown that gets followed up.
+
+### 34.4 To change it, and the tests
+- The move: `data/actions/follow_down.json` (`phases_ms`, `ground.base_success`, `partial_within`, the `DOWN` opening's bonus,
+  `stats`); where it lands: the two `follow_down` transitions in `data/positions/standing.json`.
+- Who follows up: `FOLLOW_DOWN_CHANCE`, `FOLLOW_DOWN_VALUE` and `DOWNED_RATE` in `sim/fight/fighter_ai.gd` (`_downed`), and a
+  `follow_down` tendency in a fighter's profile.
+- The call: `follow_down` first in `actions` of `data/calls/takedown.json`; skipped while he's standing: `LiveCalls._moves`.
+- The downed man coming off the floor into the ground position: `FightSim.apply_transition`; a downed grapple reaching him:
+  `FightSim._make_contact`.
+
+Tested in `tests/sim/fight/test_follow_down.gd` (it needs him down, a clean one lands in half guard with him still rocked, a
+scrappy one in full guard and a miss lets him up, a double-leg at a downed man still finds nobody, the AI following up with the
+Wrestler keener than the Boxer, the Takedown! call following him down) and `tests/data/test_data_files.gd` (a move at a downed
+man is used standing and needs `DOWN`).
+
+## 35. Liver shots (D143)
+The second of Kyle's three rocked-and-dropped follow-ups (§34). Body shots used to wear the tank down (§8) and do nothing in the
+moment. Now a hard one can find the liver: he freezes, folds a moment later and goes down.
+
+### 35.1 How it works
+Any clean body shot thrown standing or in the clinch (the hook to the body, the body kick, the knee, the teep) rolls for it, like
+a head shot rolls to rock (§18):
+- **Shock** = damage × (1 + his body hurt) / (8 + 0.16 × Durability). An average fighter's body is 16 to a head's 12, so a liver
+  shot takes more than a rock; a body that's been hit already goes easier.
+- **Chance** = (shock − 0.8) × 0.2, up to 25%. Nothing under a shock of 0.8.
+- It doesn't drop him on the spot. **He freezes for 0.5 s** (`LIVER_DELAY_TICKS`), bent over it with his hands dropped
+  (`HANDS_LOW`): he can't start anything, and anything thrown at him finds him open. The feed says *"freezes: that one found the
+  LIVER"*.
+- **Then he folds and goes down for 3 s** (2 s for a knockdown). It is a knockdown for the judges and the referee (three in a
+  round stops it), but his head is clear, so he isn't rocked. It takes 20 stamina (`LIVER_STAMINA`).
+- While he's down he can be followed down (§34), and under PRIDE rules soccer kicked (§33).
+- **He gets up winded:** his hands stay low for 5 s more (`LIVER_WINDED_TICKS`), so the overhand, the head kick and the guard pass
+  find him easier.
+- A head shot that drops him while it's coming is the same fall: one knockdown, not two. Taken down before it takes him, there's
+  nowhere to fold to: he loses the stamina and is winded on the ground. Ground strikes never find the liver.
+
+### 35.2 How often
+100 fights a pairing, pro rules: about 2 liver shots in 100 Kicker vs Boxer fights, the Kicker's body kicks, and 3 in 100 Muay Thai
+vs Boxer fights, knees. A body-shot war finds it most: the Muay Thai fighter and the Kicker fold each other about 23 times in 100
+fights, knees and body kicks on bodies already worn down. The Wrestler, who doesn't throw to the body, never finds one. Against
+head knockdowns (27 and 72 in the first two) they're the rarer way down, as in real fights. A first draft (from a shock of 0.7)
+folded the Kicker about once every two fights against the Muay Thai fighter; 0.8 keeps it a moment.
+
+What the four rocked-and-dropped changes do to fights together is in §37.3.
+
+### 35.3 To change it, and the tests
+- How hard a shot has to be, and how often: `LIVER_THRESHOLD_BASE`, `LIVER_THRESHOLD_PER_DURABILITY`, `LIVER_FROM`, `LIVER_SLOPE`,
+  `LIVER_MAX` at the top of `sim/fight/fight_sim.gd` (`body_shock`, `liver_chance`).
+- What it does: `LIVER_DELAY_TICKS`, `LIVER_DOWN_TICKS`, `LIVER_STAMINA`, `LIVER_WINDED_TICKS` (`FightSim._body_impact`,
+  `_liver_fold`); the hands dropping: `active_flags`, `flags_ahead`.
+- The screen: the bent-over pose in `game/fighter_figure.gd`, the feed lines in `ui/fight_log_formatter.gd`; the feed counts a liver
+  shot as a key moment and the fight slows for it, like a knockdown (`FightFeed.kind_of`, `FightDriver`).
+
+Tested in `tests/sim/fight/test_liver_shots.gd` (a hard body kick on a hurt body finds it and he folds a moment later, the odds,
+folding as a knockdown with his head clear, getting up winded, frozen while it's coming, head and ground shots never finding it,
+one fall not two).
+
+## 36. A leg giving out (D144)
+The third of Kyle's rocked-and-dropped follow-ups (§34). Kyle picked "It buckles, then he limps" on a decision card (the others
+were a limp with no fall, and a referee stoppage after two buckles).
+
+### 36.1 Two legs
+Leg damage used to be one area that slowed the feet (§8). Now each leg keeps its own (`FighterState.leg_damage`, [left, right];
+`damage.legs` is still the two together, for the judges, the tank and the feet as before):
+- **Low kicks land on the front leg** (`lead_leg()`): the left for an orthodox fighter and anyone whose profile gives no stance,
+  the right for a southpaw.
+- **Each leg is fully hurt at 0.3 of the legs' scale** (`LEG_SHARE`; 3 × (Durability + 50) damage, 300 for an average fighter),
+  so one leg kicked to pieces is a leg gone while the other is fresh. The Boxer takes about 145 to his front leg from the Kicker in a
+  fight (about half gone by the end), up to 240.
+- **He switches stance to hide it:** a front leg past half gone (`SWITCH_FROM`) and worse than the back one by 0.2
+  (`SWITCH_MARGIN`) makes him switch, and the kicks find the other leg. The feed says *"switches stance to hide the left leg"*. The
+  Boxer switches in about 2 fights in 5 against the Kicker.
+- The body figure on the top bar (D150, `06` §6.2) shows each leg in its own colour now, drawn facing you: his left leg on your
+  right; a low kick flashes the leg it landed on.
+
+### 36.2 The buckle and the limp
+A low kick that lands on a front leg already past 0.35 hurt (`BUCKLE_FROM`) can buckle it: chance (leg hurt − 0.35) × damage ×
+0.03, up to 30% (`buckle_chance`). He drops for 1 s (`LEG_DOWN_TICKS`): a knockdown for the judges and the referee, his head clear,
+and he can be followed down (§34). After that **he limps on it for the rest of the fight** (`limping`): Footwork, Speed, Kicking
+and Takedown defense a further 20% down (`LIMP_STATS`, `LIMP_PENALTY`), so he's slower, his kicks are weaker and he's easier to
+take down. The feed says *"'s left leg BUCKLES and he goes DOWN!"*.
+
+How often (100 fights a pairing, pro rules): the Boxer's leg buckles in about 7 fights in 100 against the Kicker, the Kicker's in
+about 3 against the Muay Thai fighter. No one else kicks the legs enough.
+
+### 36.3 To change it, and the tests
+- The legs: `LEG_SHARE`, `LIMP_STATS`, `LIMP_PENALTY` in `sim/fight/fighter_state.gd` (`leg_hurt`, `lead_leg`); the stance from
+  the profile's `stance` (`09` fighter@1).
+- The buckle and the switch: `BUCKLE_FROM`, `BUCKLE_PER_DAMAGE`, `BUCKLE_MAX`, `LEG_DOWN_TICKS`, `SWITCH_FROM`, `SWITCH_MARGIN` at
+  the top of `sim/fight/fight_sim.gd` (`_leg_impact`).
+- The screen: each leg's colour and the leg flash in `ui/body_damage_figure.gd` (`leg_colour`); the feed lines in
+  `ui/fight_log_formatter.gd`.
+
+Tested in `tests/sim/fight/test_legs.gd` (low kicks land on the front leg, a southpaw's and a switched fighter's front leg, one
+leg gone while the other is fresh, switching stance to hide it, a gone leg buckling and the limp, a fresh leg never buckling,
+the figure showing each leg).
+
+## 37. Flash knockdowns (D145)
+The last of the three. Before this a fighter only went down when he was hit while already rocked, or rocked by a knee into his
+shot (§21.2): one punch, however hard, never dropped a fresh man.
+
+### 37.1 How it works
+A head shot that rocks a man who isn't rocked (§18) can drop him there and then if it was big enough: chance (shock − 1.2) × 0.4, up
+to 35% (`flash_chance`). Shock is the same as for a rock (damage × (1 + head hurt) / (6 + 0.12 × Chin)), so for an average chin a
+flash needs about 15 damage: a counter (×1.3), a head kick or an overhand gets there, a jab never does. It's a knockdown like any
+other: the KO roll (§18), 2 s down, up rocked, followed down (§34) or soccer kicked under PRIDE rules (§33). The feed says
+*"is DROPPED by one shot!"*. On the ground there's nowhere to fall: a big shot there rocks, as before.
+
+How often (100 fights a pairing, pro rules): about 22 in 100 Kicker vs Boxer fights have one, nearly all the Boxer's counter
+overhands and the Kicker's counter head kicks; 1 to 4 in 100 in the other pairings with the Boxer.
+
+### 37.2 What Kyle was asked
+How often one clean shot should drop a fresh fighter: rarely, about one fight in ten (recommended, built while the card was
+open); commonly, one in four; or only off a counter.
+
+### 37.3 The four together: balance
+Harness, no calls, 300 fights a pairing, seed 1, D141 (PRIDE) → now, with following up (§34), liver shots (§35), the legs (§36)
+and flash knockdowns together:
+
+| Pairing | Wins, pro rules | Finished inside the distance | Fights with a knockdown |
+|---|---|---|---|
+| Kicker vs Boxer | Kicker 44% → 45% | 26% → 34% | 19% → 38% |
+| Boxer vs Kicker | Boxer 53% → 57% | 23% → 36% | 18% → 40% |
+| Muay Thai vs Boxer | Muay Thai 60% → 56% | 99% → 98% | 46% → 51% |
+| Muay Thai vs Kicker | Muay Thai 82% → 76% | 40% → 38% | 31% → 54% |
+| Muay Thai vs Wrestler | Muay Thai 69% → 69% | 66% → 66% | 78% → 77% |
+| Wrestler vs Boxer | Wrestler 64% → 64% | 71% → 72% | 21% → 20% |
+| Wrestler vs Kicker | Wrestler 63% → 61% | 35% → 34% | 8% → 11% |
+| Judoka vs Boxer | Judoka 62% → 58% | 50% → 54% | 10% → 11% |
+| BJJ vs Boxer | BJJ 46% → 48% | 85% → 85% | 9% → 11% |
+| Sambo vs Boxer | Sambo 53% → 53% | 78% → 80% | 18% → 19% |
+| Boxer vs Boxer | 49/51 → 47/53 | all of them | 13% → 15% |
+
+Across the 3,300 fights: finished 61% → 63%, fights with a knockdown 25% → 32%, draws 0.4% → 0.5%. The #14 exit test still passes
+(the Boxer 56% over both corners). Under PRIDE rules: finished 79% → 84%, fights with a knockdown 26% → 36%, no draws; Kicker vs
+Boxer is finished 62% of the time (45%).
+
+What it says:
+- **The striker fights changed most:** Kicker vs Boxer has twice the knockdowns (about two fights in five) and a third more
+  finishes. It's the Boxer's counters and the Kicker's leg kicks: the Boxer drops the Kicker on counters, the Kicker buckles the
+  Boxer's leg.
+- **The Muay Thai fighter drops a little** against the Boxer and the Kicker (−4, −6): both drop him with flash counters now, and
+  the Kicker's body kicks find his liver.
+- **Grappling fights hardly move.** Knockdowns there are rare, and a fighter on top was already finishing on the ground.
+
+Two golden fights were re-pinned (§2.2): Kicker vs Boxer goes the distance now (the body shots' liver rolls change what follows),
+and the Wrestler vs Kicker fight plays out the same but its landed low kicks now say which leg they hit. The other two don't change.
+
+### 37.4 To change it, and the tests
+- How big a shot it takes, and how often: `FLASH_FROM`, `FLASH_SLOPE`, `FLASH_MAX` at the top of `sim/fight/fight_sim.gd`
+  (`flash_chance`, in `_head_impact`).
+- The feed line: `ui/fight_log_formatter.gd`.
+
+Tested in `tests/sim/fight/test_flash_knockdowns.gd` (only a big shot can, a jab never drops a fresh man, a big head kick drops one
+with no rock first, nowhere to fall on the ground).
