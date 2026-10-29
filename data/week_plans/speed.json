@@ -1,0 +1,15 @@
+{
+	"schema": "week_plan@1",
+	"id": "speed",
+	"name": "Speed focus",
+	"about": "Sprints, sprawls and quick hands: Speed most, then Takedown defense and Boxing",
+	"instruction": null,
+	"days": [
+		["sprints", "boxing_drill"],
+		["sprawl_drill", "strength_conditioning"],
+		["sprints", "film_study"],
+		["boxing_drill", "light_sparring"],
+		["sprints", "sprawl_drill"],
+		["recovery", "rest"]
+	]
+}

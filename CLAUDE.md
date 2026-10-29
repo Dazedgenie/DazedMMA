@@ -35,4 +35,5 @@
 - Speed budget (1000× fight time), the timing checks and how to speed things up without changing fights: `docs/01-fight-engine.md` §2.1 (D105).
 - Golden fights: four pinned fights that fail a test whenever a change alters a fight. If the change is meant to, re-pin with `godot --headless --script res://tools/golden.gd -- --update`, commit `tests/golden/golden_fights.json` and say why in the PR: `docs/01-fight-engine.md` §2.2 (D122).
 - Training camp (the week planner's sessions and plans, how XP turns into points, fatigue, camp injuries, style pushes, `tools/camp.gd`): `docs/02-fighter-and-training.md` §3.5 (D125).
+- The camp planner screen (*Training camp first* on the fight setup: focus weeks, slot-by-slot weeks, the forecast, taking the trained fighter into the fight): `docs/02-fighter-and-training.md` §3.6 (D134).
 - Import/refresh the project cache: `godot --headless --import`

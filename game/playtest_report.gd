@@ -54,7 +54,10 @@ static func replays(record: Dictionary) -> bool:
 	var replay: Dictionary = record.get("replay", {})
 	if replay.is_empty():
 		return false
-	var sim: FightSim = FightSim.from_record(replay, FighterLibrary.load_dir(), ActionLibrary.load_dir())
+	var roster := FighterLibrary.load_dir()
+	for profile: Variant in record.get("profiles", {}).values():
+		roster.add(profile)  # A fighter from the camp planner (D133).
+	var sim: FightSim = FightSim.from_record(replay, roster, ActionLibrary.load_dir())
 	var ended: Dictionary = sim.events[-1].data if not sim.events.is_empty() else {}
 	var wanted: Dictionary = record.get("result", {})
 	return ended.get("result") == wanted.get("result") and int(ended.get("winner", -2)) == int(wanted.get("winner", -3)) \

@@ -1,0 +1,15 @@
+{
+	"schema": "week_plan@1",
+	"id": "cardio",
+	"name": "Cardio focus",
+	"about": "Roadwork every day: Cardio and Recovery most, so the tank lasts three rounds",
+	"instruction": null,
+	"days": [
+		["roadwork", "boxing_drill"],
+		["roadwork", "rolling"],
+		["roadwork", "light_sparring"],
+		["meditation", "roadwork"],
+		["roadwork", "hard_sparring"],
+		["recovery", "rest"]
+	]
+}

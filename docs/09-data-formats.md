@@ -174,6 +174,7 @@ A training week (`docs/02` §3.5). Loaded by `TrainingLibrary`.
 | Field | Type | Meaning |
 |---|---|---|
 | `name` | string | As the planner and the camp report show it |
+| `about` | string | One line on what the week is for, under the planner's *Start from* (D134) |
 | `instruction` | gameplan id or null | A gameplan whose style leanings every session pushes a little (Pressure → "push the pace") |
 | `days` | 6 × `[morning, evening]` session ids | Monday to Saturday; Sunday is always off |
 
@@ -185,12 +186,13 @@ What a fight on the fight screen leaves behind, one file per fight in the player
 | Field | Meaning |
 |---|---|
 | `saved_at`, `game` | When, and the game name and Godot version |
-| `settings` | The setup it was played with: `label`, `step` (playtest id or ""), `tester`, `normal_rate` (1 or 2), `easy`, `tell_cues`, `auto_slow`, `flourishes` |
+| `settings` | The setup it was played with: `label`, `step` (playtest id or ""), `tester`, `normal_rate` (1 or 2), `easy`, `tell_cues`, `auto_slow`, `flourishes`, and after a camp (D134) `camp`: `weeks` (each week's plan id, `custom` for one changed by hand), `fatigue` and `injured_days` on fight night |
 | `player` | The player's corner (0 = red) |
 | `result`, `won`, `rounds_played` | The `FIGHT_ENDED` event's data (`winner`, `result`, `stopped_by`, cards), and whether the player won |
 | `stats` | The player's coaching: `calls_made`, `calls_ignored`, `calls_by_id`, `perfect_calls`, takedowns that worked split by who chose them (`takedowns_by_call`, `takedowns_by_rule`, `takedowns_own`), `catch_kicks_landed`, `rules_fired` |
 | `fighters` | Each fighter's id, name, strikes and takedowns landed and tried, damage |
 | `replay` | `FightSim.record()` plus `ticks`: the fight replays from it to the same ending |
+| `profiles` | `{id: fighter@1 profile}` for any fighter not in `data/fighters/` (the camp planner's `<id>_camp`, D134); `PlaytestReport.replays` adds them to the roster before replaying. Empty otherwise |
 
 ## 4. What the validator checks
 Valid JSON with a known schema · id matches file name and folder · required fields present with the right types ·

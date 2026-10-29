@@ -1,0 +1,12 @@
+{
+	"schema": "session@1",
+	"id": "sprints",
+	"name": "Sprints & plyometrics",
+	"trains": { "speed": 0.6, "strength": 0.2, "cardio": 0.2 },
+	"xp": 10,
+	"fatigue": 12,
+	"injury_risk": 0.0015,
+	"leanings": {},
+	"chin_wear": 0,
+	"minigame": null
+}

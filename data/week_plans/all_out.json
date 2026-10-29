@@ -2,6 +2,7 @@
 	"schema": "week_plan@1",
 	"id": "all_out",
 	"name": "All out (no rest)",
+	"about": "Twelve hard sessions and no rest: the most XP, but tired fighters learn less and get hurt more",
 	"instruction": null,
 	"days": [
 		["hard_sparring", "strength_conditioning"],
