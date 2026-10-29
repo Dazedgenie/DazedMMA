@@ -502,8 +502,9 @@ the fight through a read-only **view** and walks one priority stack. The first l
   same breakdown (§21).
 - **Rulesets** (`08`): the fight takes a ruleset (pro by default) for rounds, round length, damage scaling from gear and which
   actions are legal. Banned actions are refused as commands and calls and never picked by the AI. Today only `takedowns` maps to
-  actions, plus `knees_to_head_standing`: where it's off (teen amateurs), a knee into a shot stays on the body (§21.2). Elbows,
-  knees to a grounded opponent, ground strikes to the head and slams map as those actions arrive.
+  actions, plus `knees_to_head_standing`: where it's off (teen amateurs), a knee into a shot stays on the body (§21.2). Elbows (the
+  ground elbow, and the standing elbow since D140, §32) map to `elbows`; knees to a grounded opponent, ground strikes to the head
+  and slams map as those actions arrive.
 
 ## 20. Fighter AI in the engine (#14)
 What a fighter does when nobody is calling (`sim/fight/fighter_ai.gd`), the bottom of the §19 stack. It sees the fight only
@@ -1060,9 +1061,9 @@ number below is a first guess for the harness; each is a named constant or a dat
 ### 24.1 Health (D120)
 A fighter's **health** is the head damage they can still take: `1 − head hurt`, where 10 × (Chin + 50) of head damage is all of
 it (Chin 50: 1,000). It doesn't come back between rounds (D99). It was always there underneath (hurt fighters are slower, defend
-worse and get rocked more easily, §8, `11` §3.2); now it has a bar and an end. The HUD's top bar shows each fighter's health as a
-big bar (green, yellow under 60%, red under 30%, with the percentage and ROCKED when they are), their stamina under it, and
-small body and leg bars (body damage shrinks the tank, leg damage slows the feet). `FighterState.health()`.
+worse and get rocked more easily, §8, `11` §3.2); now it has a bar and an end. The HUD's top bar shows it as the head of a body figure
+(D150, `06` §6.2): head, body and legs run green → yellow → red, with what's left of each beside it and ROCKED when they are
+(body damage shrinks the tank, leg damage slows the feet). `FighterState.health()`.
 
 ### 24.2 The referee (D120)
 The referee watches every clean head shot and stops the fight (a TKO, with the reason on the result) when:
@@ -1799,12 +1800,13 @@ their strikes chain one at a time as before.
 | Fighter | Combinations (`combos` in `data/fighters/`) |
 |---|---|
 | Boxer | 1-2 (jab, cross) · 1-2-3 (jab, cross, hook) · 1-1-2 (jab, jab, cross) · 2-3 (cross, hook) |
-| Kicker | Jab, low kick · Jab, body kick · Teep, body kick · Teep, high kick |
+| Kicker | Jab, low kick · Jab, body kick · Teep, body kick · Teep, high kick · Body kick, high kick |
 | Muay Thai | 1-2 · 1-2, body kick · 1-2, knee · Jab, low kick |
 
-Tried and dropped: the Kicker's low kick into a high kick and body kick into a high kick. Two slow kicks back to back give a
-pressing Boxer time to walk inside the second one, which fell short about half the time. A teep first pushes him back to where
-the kick lands.
+Tried and dropped: the Kicker's low kick into a high kick. Two slow kicks back to back give a pressing Boxer time to walk inside
+the second one, which fell short about half the time. A teep first pushes him back to where the kick lands. The body kick into a
+high kick was meant to go too but stayed in his profile, and every number in §31.5 was measured with it in (corrected here
+with D140, 2026-10-29).
 
 ### 31.2 What a combination does
 | | What happens | To change it |
@@ -1898,3 +1900,106 @@ know), `tests/ui/test_fight_log_formatter.gd`, `tests/sim/balance/test_balance_r
 `tests/game/test_main_scene.gd` (E is *Fire back!*). The golden fights were re-pinned (§2.2): the Boxer and the Kicker now throw
 combinations, so Kicker vs Boxer and Wrestler vs Boxer play out differently. The other two (Wrestler vs Kicker, and the
 check fighters) came out the same: the Kicker never strung one together in that fight, and the check fighters have none.
+
+## 32. More strikes: the uppercut, overhand, hook to the body, calf kick, elbow and dirty boxing (D140)
+Kyle asked to expand the strikes after the combinations (2026-10-29: "alright lets start expanding on that now") and picked
+the core set plus dirty boxing in the clinch on the scope card (the other options were the core set alone, the core set plus
+spinning moves, and punches only). Before this there were ten strikes: the jab, cross, hook, teep, body kick, head kick, leg kick
+and knee standing, and the ground punch and elbow on the ground. The new ones fill the gaps every striker uses, and each punishes
+an opening the engine already had (§5): the uppercut a lowered head, the overhand dropped hands, the hook to the body a leg in the
+air, the short uppercut a head pulled down in the clinch. Soccer kicks, stomps and knees to a grounded opponent come next, under a
+PRIDE ruleset (Kyle's pick on the second card, 2026-10-29). Every number is a first guess for the harness, and each is a field in
+the move's file in `data/actions/` (`09` action@2), listed in §32.4.
+
+### 32.1 The moves
+| Move | Reach | Timing (telegraph · wind-up · active · recovery) | Lands on | What it's for | What it leaves |
+|---|---|---|---|---|---|
+| Uppercut (`uppercut.json`) | Pocket | 0.2 · 0.2 · 0.1 · 0.3 s | Head, 7 | **+25% on a lowered head** (`HEAD_LOW`: a shot, stuck under a sprawl), ×1.4 damage and it **stops the shot**, like a knee into one (§21.2); +10% into someone walking in (`COMING_IN`), and stops it | **`HANDS_LOW`** from wind-up to active: the rear hand leaves the chin, so the overhand and the head kick are +20% on him |
+| Overhand (`overhand.json`) | Mid, pocket | 0.3 · 0.2 · 0.1 · 0.4 s | Head, 10 | **+20% over dropped hands** (`HANDS_LOW`: tired, rocked, or in an uppercut), +10% on a leg in the air | **`LEANING`** from wind-up to recovery: the counter hook is +15% on him (§5) |
+| Hook to the body (`body_hook.json`) | Pocket | 0.2 · 0.2 · 0.1 · 0.3 s | Body, 7 (drains the tank, §8) | **+15% on a leg in the air** (into a kick or a knee), +10% on a lean | Nothing extra |
+| Calf kick (`calf_kick.json`) | Mid, pocket | 0.1 · 0.2 · 0.1 · 0.3 s | Legs, 5 (slows the feet, §8) | Quicker to come than the leg kick (0.1 s to read, not 0.2 s) and short enough to throw in the pocket. Kicking and Speed, where the leg kick is Kicking and Power | **`ONE_LEG`** from wind-up to active: it can be caught, like the leg kick |
+| Elbow (`elbow.json`) | Pocket, and inside the clinch | 0.1 · 0.2 · 0.1 · 0.3 s | Head, 9 | Clinch striking and Power. **+15% and ×1.2 on a head pulled down** (`POSTURE_BROKEN`: the collar tie, §27); +10% into someone walking in, and stops it | −15% with his own head pulled down. **Banned under both amateur rulesets** (`elbows`, `08`), like the ground elbow |
+| Short uppercut (`short_uppercut.json`) | Inside the clinch only | 0.1 · 0.2 · 0.1 · 0.3 s | Head, 6 | Dirty boxing: Boxing and Clinch striking. **+15% and ×1.2 on a head pulled down** | −15% with his own head pulled down |
+| Short hook (`short_hook.json`) | Inside the clinch only | 0.1 · 0.2 · 0.1 · 0.3 s | Head, 6 | Dirty boxing: Boxing and Clinch striking | −15% with his own head pulled down |
+
+The figure has a pose for each and lights the right limb for a scouted tell (`game/fighter_figure.gd`).
+
+### 32.2 Who throws them
+| Fighter | New moves (`techniques`, tendency) | New combinations (`data/combos/`) |
+|---|---|---|
+| Boxer | Uppercut 0.7, overhand 0.5, hook to the body 0.8, short uppercut 1.0, short hook 1.0. His `clinch_entry` tendency is **0**: he fights when he's tied up but never goes looking for the clinch | 1-2, hook to the body · Body hook, head hook · Uppercut, hook |
+| Kicker | Calf kick 1.0 | Jab, calf kick |
+| Muay Thai | Elbow 0.5 (standing and in the clinch); his `clinch_entry` tendency goes from 2.5 to **3.25** | None yet: the elbow is a pocket weapon, and a 1-2 from mid range seldom gets there |
+| Wrestler | Overhand 0.6 (the wrestler's punch: it comes over the top while the other man watches for the shot) | None |
+
+The AI needs nothing new: it picks them by the same weights as any strike (§20), so a move that punishes an opening gets thrown
+more when the opening is there. Two things it does on its own that the profiles had to answer:
+- **A fighter with any clinch strike goes looking for the clinch.** The range plan (§20) counts clinch entries as a threat for
+  a fighter who can strike in the clinch, so giving the Boxer dirty boxing made him walk into the Wrestler's shots: the Wrestler
+  went to 71%. A `clinch_entry` tendency of 0 keeps him from starting one, and the range plan from counting it.
+- **The Muay Thai fighter sits on a knife edge.** Whether he walks the Boxer to the fence and clinches, or plans to stand at mid
+  range and gets walked down himself, flips on small changes to how dangerous the Boxer is in the pocket. With the uppercut in,
+  the Boxer pinned him on the fence 75% of the time (it was the other way round, 90%) and he won 37%. A `clinch_entry` of 3.0 left
+  it flipped (49%), 3.5 over-corrected (69%), and 3.25 has him back walking the Boxer down. His elbow tendency is 0.5, not 1.0,
+  because at 1.0 he threw elbows instead of knees (knees 56 → 19 a fight).
+
+How often each gets thrown (30 fights, seed 1, a fight): against the Kicker the Boxer throws about 9 overhands (6 land), 3 uppercuts and 4 hooks to the
+body, and still about 43 crosses and 52 jabs (it was 54 and 64). Against the Wrestler he throws about 6 uppercuts, two in three
+landing, mostly into the shots. Against the Muay Thai fighter, who ties him up, about 25 short uppercuts and short hooks, under
+half landing. The Kicker throws about 31 calf kicks, two in three landing, mostly in place of jabs (49 → 25) and a few leg kicks
+(14 → 10). The Muay Thai fighter throws about 10 elbows and 34 knees against the Boxer. The Wrestler throws 3–4 overhands.
+
+### 32.3 Balance
+The #14 exit test (Kicker vs Boxer within 60/40) still passes; the rest is reported (D109). Harness, no calls, 300 fights a
+pairing, seed 1, pro rules, main (D133) → now:
+
+| Pairing | Wins before → now | Finished inside the distance |
+|---|---|---|
+| Kicker vs Boxer | Kicker 44% → 44% | 29% → 26% |
+| Boxer vs Kicker | Boxer 56% → 53% | 29% → 23% |
+| Muay Thai vs Boxer | Muay Thai 54% → 60% | 92% → 99% |
+| Muay Thai vs Kicker | Muay Thai 78% → 82% | 22% → 40% |
+| Muay Thai vs Wrestler | Muay Thai 68% → 64% | 63% → 64% |
+| Wrestler vs Boxer | Wrestler 57% → 61% | 68% → 74% |
+| Wrestler vs Kicker | Wrestler 72% → 63% (draws 1.7% → 2.7%) | 41% → 39% |
+| Judoka vs Boxer | Judoka 72% → 63% | 35% → 53% |
+| BJJ vs Boxer | BJJ 44% → 46% | 82% → 85% |
+| Sambo vs Boxer | Sambo 50% → 53% | 76% → 78% |
+| Boxer vs Boxer | 52/48 → 49/51 | all of them, both |
+
+Across the 3,300 fights: draws 0.4% → 0.5%, no 10-10 cards, finished inside the distance 58% → 62% (the average of the
+pairings). Noise at 300 fights is about ±3 points.
+
+What it says:
+- **Kicker vs Boxer hardly moves.** The Boxer's new punches are pocket punches and the Kicker keeps him out of the pocket; the
+  overhand is the one he lands from range.
+- **The calf kicks hurt the Wrestler** most: they slow his feet, and he loses about 10 points against the Kicker.
+- **The Boxer does better against the Judoka** (9 points, and more fights finished). The Judoka has to get close to throw
+  him, and that's where the uppercut and the dirty boxing are; which of them does most of it isn't measured yet.
+- **The Muay Thai fighter is a little ahead of where he was against the Boxer** (60%, was 54%) after the `clinch_entry` change,
+  and nearly every fight between them is finished now: knees and elbows one way, short uppercuts and hooks the other.
+- **The Wrestler does a little better against the Boxer** (+3): the overhand, and the uppercut's dropped hand.
+- The Boxer's combinations come down (about 15 a fight against the Kicker, was 22): more of his strikes are single overhands,
+  uppercuts and body shots now.
+
+If the playtest wants a move rarer or stronger, the levers in order: the fighter's tendency for it, its opening's
+`success_bonus`, its `base_damage`, then its telegraph. Watch the Muay Thai fighter's `clinch_entry` first if he starts getting
+walked down again (§32.2). To read it again, run the harness with
+`--fights=300 --pairs=kicker:boxer,boxer:kicker,muay_thai:boxer,muay_thai:kicker,muay_thai:wrestler,wrestler:boxer,wrestler:kicker,judoka:boxer,bjj:boxer,sambo:boxer,boxer:boxer`.
+
+### 32.4 To change it, and the tests
+- The moves: `data/actions/uppercut.json`, `overhand.json`, `body_hook.json`, `calf_kick.json`, `elbow.json`,
+  `short_uppercut.json`, `short_hook.json` (`phases_ms`, `strike.base_damage`, `opportunities`, `flags_self`, `09` action@2). The
+  elbow ban: `elbows` in `data/rulesets/` (`Ruleset.allows_action()`: any move whose id has "elbow" in it).
+- Who throws them: `techniques`, `tendencies` and `combos` in `data/fighters/boxer.json`, `kicker.json`, `muay_thai.json`,
+  `wrestler.json`; the new combinations in `data/combos/one_two_body_hook.json`, `body_hook_hook.json`, `uppercut_hook.json`,
+  `jab_calf_kick.json`.
+- The screen: the poses and tell limbs in `game/fighter_figure.gd`.
+
+Tested in `tests/sim/fight/test_strikes.gd` (each move's opening, the uppercut's dropped hand and the overhand's lean, the
+uppercut into a shot, the elbow and short uppercut on a broken posture, where each reaches, the clinch-only dirty boxing, the
+amateur elbow ban, every fighter throwing their new moves, elbows in the clinch, and the Boxer never starting a clinch entry).
+`tests/sim/fight/test_fighter_library.gd` has the Kicker's new list, and `tests/sim/fight/test_combos.gd` checks the Muay Thai
+fighter's combinations against the Kicker now: against the Boxer he mostly knees and elbows in the clinch and some fights have
+none. The golden fights were re-pinned (§2.2): the Boxer, the Kicker and the Wrestler throw the new moves, so three of the four
+play out differently; the check fighters don't know any.

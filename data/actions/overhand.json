@@ -1,0 +1,20 @@
+{
+	"schema": "action@2",
+	"id": "overhand",
+	"name": "Overhand",
+	"category": "strike",
+	"positions": ["standing"],
+	"ranges": ["mid", "pocket"],
+	"phases_ms": { "telegraph": 300, "windup": 200, "active": 100, "recovery": 400 },
+	"stamina_cost": 6,
+	"flags_self": [
+		{ "flag": "LEANING", "from": "windup", "to": "recovery" }
+	],
+	"strike": { "target": "head", "base_damage": 10 },
+	"stats": { "offense": ["boxing", "power"], "defense": ["striking_defense"] },
+	"opportunities": [
+		{ "opponent_flag": "HANDS_LOW", "success_bonus": 0.20 },
+		{ "opponent_flag": "ONE_LEG", "success_bonus": 0.10 }
+	],
+	"requires_technique": null
+}

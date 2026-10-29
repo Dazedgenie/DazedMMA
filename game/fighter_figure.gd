@@ -184,9 +184,39 @@ func pose_for(sim: FightSim, i: int) -> Dictionary:
 			p.arm_lead = lerpf(p.arm_lead, 1.7, reach)
 			p.reach_lead = lerpf(1.0, 1.2, reach)
 			p.twist = lerpf(0.0, 0.5, reach)
+		"uppercut":  # Dips, then drives the rear hand up the middle.
+			p.arm_rear = lerpf(p.arm_rear, 1.3, reach)
+			p.reach_rear = lerpf(1.0, 1.2, reach)
+			p.hip_y = lerpf(p.hip_y, HIP_HEIGHT - 0.08, reach)
+			p.twist = lerpf(0.0, 0.3, reach)
+		"overhand":  # The rear hand loops over the top, leaning in behind it.
+			p.arm_rear = lerpf(p.arm_rear, 2.0, reach)
+			p.reach_rear = lerpf(1.0, 1.45, reach)
+			p.lean = lerpf(p.lean, 0.3, reach)
+			p.twist = lerpf(0.0, 0.4, reach)
+		"body_hook":  # The lead hook, dropped to the ribs.
+			p.arm_lead = lerpf(p.arm_lead, 1.4, reach)
+			p.reach_lead = lerpf(1.0, 1.15, reach)
+			p.hip_y = lerpf(p.hip_y, HIP_HEIGHT - 0.12, reach)
+			p.twist = lerpf(0.0, 0.5, reach)
+		"short_uppercut":  # Up the middle from chest to chest.
+			p.arm_rear = lerpf(p.arm_rear, 1.1, reach)
+			p.reach_rear = lerpf(1.0, 0.9, reach)
+			p.twist = lerpf(0.0, 0.25, reach)
+		"short_hook":
+			p.arm_lead = lerpf(p.arm_lead, 1.6, reach)
+			p.reach_lead = lerpf(1.0, 0.9, reach)
+			p.twist = lerpf(0.0, 0.4, reach)
+		"elbow":
+			p.arm_rear = lerpf(p.arm_rear, 1.8, reach)
+			p.reach_rear = lerpf(1.0, 0.9, reach)
+			p.twist = lerpf(0.0, 0.5, reach)
 		"leg_kick":
 			p.leg_rear = lerpf(0.0, 0.9, reach)
 			p.twist = lerpf(0.0, 0.4, reach)
+		"calf_kick":  # Lower and shorter than the leg kick.
+			p.leg_rear = lerpf(0.0, 0.6, reach)
+			p.twist = lerpf(0.0, 0.3, reach)
 		"body_kick":
 			p.leg_rear = lerpf(0.0, 1.45, reach)
 			p.twist = lerpf(0.0, 0.6, reach)
@@ -253,13 +283,13 @@ func pose_for(sim: FightSim, i: int) -> Dictionary:
 ## Which body part a move is thrown with ("lead_arm", "rear_leg", "hips" …), for the tell cue.
 static func limb_for(action_id: String) -> String:
 	match action_id:
-		"jab", "hook":
+		"jab", "hook", "body_hook", "short_hook":
 			return "lead_arm"
-		"cross", "ground_punch", "ground_elbow":
+		"cross", "uppercut", "short_uppercut", "overhand", "elbow", "ground_punch", "ground_elbow":
 			return "rear_arm"
 		"teep":
 			return "lead_leg"
-		"leg_kick", "body_kick", "head_kick", "knee":
+		"leg_kick", "calf_kick", "body_kick", "head_kick", "knee":
 			return "rear_leg"
 	return "hips"
 

@@ -10,8 +10,8 @@
 	"style": { "pace": 30, "range": 40, "base": 70, "risk": 0 },
 	"gifts": [],
 	"flaws": [],
-	"techniques": ["jab", "cross", "double_leg", "catch_kick_single", "stance_shift", "ground_elbow", "take_back", "arm_triangle"],
-	"tendencies": { "work_rate": 0.015, "actions": { "jab": 1.0, "cross": 0.8, "double_leg": 1.2 } },
+	"techniques": ["jab", "cross", "overhand", "double_leg", "catch_kick_single", "stance_shift", "ground_elbow", "take_back", "arm_triangle"],
+	"tendencies": { "work_rate": 0.015, "actions": { "jab": 1.0, "cross": 0.8, "overhand": 0.6, "double_leg": 1.2 } },
 	"tells": [
 		{ "trigger": "own_stance_shift", "action": "double_leg", "chance": 0.9, "within_ms": 1000 }
 	]

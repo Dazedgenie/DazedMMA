@@ -25,7 +25,7 @@
 8. During a fight, could you tell: (tick the ones that were easy)
    ☐ how far apart they were (the range) ☐ who was on top or against the fence (the position)
    ☐ what each fighter was doing right now ☐ when there was a chance to make a call
-   ☐ how hurt each fighter was (the health bars) *(Readability)*
+   ☐ how hurt each fighter was (the body damage figure) *(Readability)*
 9. Without any calls from you, did your fighter still fight sensibly? **Yes / Mostly / No** *(Autonomy)*
 10. Did the fights feel fair, or did the Kicker or Boxer seem to cheat or get lucky? *(Fairness)*
 
