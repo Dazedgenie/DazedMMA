@@ -8,7 +8,10 @@ extends RefCounted
 ## Each free tick, in this order:
 ##   1. Danger first (A2): rocked fighters cover up; a shot it read gets sprawled on.
 ##   2. What it is following through with: a tell (the profile's habits, docs/01 §7,
-##      D11) or the next strike of a combination.
+##      D11) or the next strike of a combination. Chained strikes that are the start of a
+##      drilled combination (the profile's `combos`, D133) are thrown as it: each chain after
+##      that is its next move. A combination called or commanded as a whole runs to its end
+##      (next_in_combo, asked by DecisionLayer first).
 ##   3. An opening it read in time: a counter landing in the opponent's wind-up or
 ##      recovery, or a flag such as LEANING. Fight IQ decides how often it reads a
 ##      move; style decides how often it takes what it reads.
@@ -85,6 +88,11 @@ const COMBO_PER_SKILL: float = 0.45
 const COMBO_MAX: int = 3
 const COMBO_WINDOW_TICKS: int = 2
 const TIRED_COMBO_BELOW: float = 0.3
+## Drilled combinations (D133): picked by the moves' tendencies (their average), × this for
+## each time the fighter has already thrown it this fight, so they mix them up.
+const COMBO_FRESH: float = 0.6
+## Reading the next move of a combination already seen this fight: +0.1 for each time before (up to 3).
+const COMBO_SEEN_READ: float = 0.1
 ## Resets: when a combination ends, outside fighters step out 0.6 m for 1–2 s (up to 70% at Range −100).
 const RESET_MAX: float = 0.7
 const RESET_TICKS_MIN: int = 10
@@ -297,6 +305,10 @@ var _opp: Dictionary = {}
 ## A move to follow with: {kind: TELL or COMBO, id, until, reason, last}, or empty.
 var _follow: Dictionary = {}
 var _chain: int = 0
+## The move of _follow's combination to go on with.
+var _follow_step: int = 0
+## Combination id → times this fighter has started it this fight (COMBO_FRESH).
+var _combos_used: Dictionary = {}
 var _reset_until: int = -1
 var _evade_until: int = -1
 var _plan_band: String = ""
@@ -475,7 +487,16 @@ func _follow_up(view: FightView, layer: DecisionLayer) -> Decision:
 		_follow = {}
 		return Decision.new(action.id, DecisionLayer.AI, reason)
 	var last: String = _follow.last
+	var combo: String = String(_follow.get("combo", ""))
 	_follow = {}
+	if combo != "":
+		var next: String = view.combos.move(combo, int(_follow_step))
+		if _usable(view, view.actions.get_action(next)):
+			_chain += 1
+			var drilled := Decision.new(next, DecisionLayer.AI, "combination")
+			drilled.combo = combo
+			drilled.combo_step = _follow_step
+			return drilled
 	var options: Array[String] = []
 	var weights: Array[float] = []
 	for id in view.me.repertoire:
@@ -493,7 +514,12 @@ func _follow_up(view: FightView, layer: DecisionLayer) -> Decision:
 		_chain = 0
 		return null
 	_chain += 1
-	return Decision.new(options[_pick(view, weights)], DecisionLayer.AI, "combination")
+	var d := Decision.new(options[_pick(view, weights)], DecisionLayer.AI, "combination")
+	d.combo = _pick_combo(view, last, d.action_id)
+	if d.combo != "":
+		d.combo_step = 1
+		_combos_used[d.combo] = int(_combos_used.get(d.combo, 0)) + 1
+	return d
 
 
 ## An opening it read and registered in time: a counter or a flag to punish.
@@ -1519,6 +1545,8 @@ func _saw_start(view: FightView, event: FightEvent, layer: DecisionLayer) -> voi
 		_grapples_seen.append(event.tick)
 	if view.opponent.blind_shot:
 		chance += BLIND_READ  # Nothing to hide it (D131).
+	if view.opponent.combo_step > 0:
+		chance += COMBO_SEEN_READ * view.combo_seen_before()  # He's seen this one before (D133).
 	if f.bit_ticks > 0:
 		chance *= BIT_READ  # Still reacting to the feint (D131).
 	if f.is_rocked():
@@ -1562,13 +1590,65 @@ func _own_ended(view: FightView, event: FightEvent, layer: DecisionLayer) -> voi
 	var action: Dictionary = view.actions.get_action(event.data.action_id)
 	if not _follow.is_empty() or action.category != STRIKE or f.is_rocked() or f.work_rate <= 0.0:
 		return
+	var more: bool = f.combo_next_until >= event.tick
+	if more and f.combo_runs:
+		return  # Called as a whole: it runs on (next_in_combo).
 	if _chain < COMBO_MAX and view.roll() < combo_chance(view, layer, action):
-		_follow = { "kind": COMBO, "until": event.tick + COMBO_WINDOW_TICKS, "last": action.id }
+		# Inside a drilled combination, going on means its next move (if it still reaches then).
+		_follow = { "kind": COMBO, "until": event.tick + COMBO_WINDOW_TICKS, "last": action.id, "combo": f.combo_id if more else "" }
+		_follow_step = f.combo_step + 1
 		return
 	_chain = 0
 	var outside: float = clampf(-_lean(view, layer, StyleLeanings.RANGE) / 100.0, 0.0, 1.0)
 	if view.roll() < outside * RESET_MAX:
 		_reset_until = event.tick + RESET_TICKS_MIN + int(view.roll() * (RESET_TICKS_MAX - RESET_TICKS_MIN + 1))
+
+
+## The drilled combination (the profile's `combos`, D133) these two strikes are the start of,
+## when the fighter knows one: the 1-2 when the cross follows the jab. Of several (the 1-2
+## and the 1-2-3), weighted by their moves' tendencies and how often each has been thrown
+## already (COMBO_FRESH). "" when the fighter knows none that starts this way.
+func _pick_combo(view: FightView, first: String, second: String) -> String:
+	var f: FighterState = view.me
+	if f.combos.is_empty():
+		return ""
+	var options: Array[String] = []
+	var weights: Array[float] = []
+	for id in f.combos:
+		if not view.combos.has(id) or view.combos.move(id, 0) != first or view.combos.move(id, 1) != second:
+			continue
+		var moves: Array = view.combos.get_combo(id).moves
+		var w: float = 0.0
+		for move: String in moves:
+			w += float(f.tendencies.get(move, 1.0))
+		w = w / moves.size() * pow(COMBO_FRESH, int(_combos_used.get(id, 0)))
+		if w > 0.0:
+			options.append(id)
+			weights.append(w)
+	if options.is_empty():
+		return ""
+	return options[0] if options.size() == 1 else options[_pick(view, weights)]
+
+
+## The next move of a combination called or commanded as a whole (D133): it runs on while the
+## next move still reaches and the fighter isn't hurt or tied up. null when it's over or it
+## can't go on.
+func next_in_combo(view: FightView) -> Decision:
+	var f: FighterState = view.me
+	if f.combo_id == "" or f.is_rocked() or not view.is_standing() or view.opponent.is_down():
+		return null
+	var id: String = view.combos.move(f.combo_id, f.combo_step + 1)
+	if id == "":
+		return null
+	_choice_ready = false
+	if not _usable(view, view.actions.get_action(id)):
+		return null
+	_chain += 1
+	var d := Decision.new(id, DecisionLayer.AI, "combination")
+	d.combo = f.combo_id
+	d.combo_step = f.combo_step + 1
+	d.combo_runs = true
+	return d
 
 
 ## Chance to chain another strike after this one: (0.15 + 0.45 × skill / 100) × (1 + Pace / 200).

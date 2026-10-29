@@ -34,6 +34,14 @@ func test_the_start_of_a_move_says_why_the_fighter_chose_it() -> void:
 	assert_eq(_plain(FightLogFormatter.line(e, _sim)), "R1 0:03.4  t34  Red starts a Body kick  (tell: jab blocked)")
 
 
+func test_a_move_in_a_combination_says_which_one_and_how_far_in() -> void:
+	var e := FightEvent.new(34, 1, FightEvent.ACTION_PHASE, 0, { "action_id": "cross", "phase": "telegraph", "by": "ai", "why": "combination", "combo": "one_two_three", "step": 1 })
+	assert_eq(_plain(FightLogFormatter.line(e, _sim)), "R1 0:03.4  t34  Red starts a Cross in a 1-2-3 (2 of 3)  (combination)")
+	var landed := FightEvent.new(36, 1, FightEvent.STRIKE_LANDED, 0, { "action_id": "leg_kick", "target": "legs", "damage": 6, "chance": 0.6,
+		"odds": { "base": 0.5, "stat_gap": 0.12, "chance": 0.82, "bonuses": [{ "name": "changes levels", "value": 0.2 }, { "name": "seen it", "value": -0.1 }] } })
+	assert_eq(_plain(FightLogFormatter.line(landed, _sim)), "R1 0:03.6  t36  Red's Leg kick LANDS (legs, 6 damage) 60% (base 50 · stats +12 · changes levels +20 · seen it -10)")
+
+
 func test_a_strike_shows_the_odds_it_was_rolled_at() -> void:
 	var e := FightEvent.new(34, 1, FightEvent.STRIKE_MISSED, 1, { "action_id": "jab", "target": "head", "chance": 0.634 })
 	assert_eq(_plain(FightLogFormatter.line(e, _sim)), "R1 0:03.4  t34  Blue's Jab misses 63%")

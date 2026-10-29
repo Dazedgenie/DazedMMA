@@ -416,6 +416,9 @@ func _pair_lines(of_rows: Array[Dictionary], names: Dictionary) -> PackedStringA
 	lines.append("  Feints     %s %.1f a fight, %.1f bit on · %s %.1f, %.1f · blind shots %s %.1f (%.1f worked), %s %.1f (%.1f) (D131)" % [
 		red, average(of_rows, "feints_red"), average(of_rows, "feints_bit_red"), blue, average(of_rows, "feints_blue"), average(of_rows, "feints_bit_blue"),
 		red, average(of_rows, "blind_red"), average(of_rows, "blind_landed_red"), blue, average(of_rows, "blind_blue"), average(of_rows, "blind_landed_blue")])
+	lines.append("  Combos     %s %.1f a fight, follow-ups land %s · %s %.1f, %s (D133)" % [
+		red, average(of_rows, "combos_red"), _pct(_ratio(of_rows, "combo_landed_red", "combo_strikes_red")),
+		blue, average(of_rows, "combos_blue"), _pct(_ratio(of_rows, "combo_landed_blue", "combo_strikes_blue"))])
 	lines.append("  Tired      someone under 50%% of the tank in %s of fights" % _pct(tired_share(of_rows)))
 	lines.append("  Odds       %s of exchanges hit the 5–95%% clamp" % _pct(clamped_share(of_rows)))
 	return lines

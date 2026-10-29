@@ -11,6 +11,7 @@
 	"gifts": [],
 	"flaws": [],
 	"techniques": ["jab", "cross", "teep", "leg_kick", "body_kick", "knee", "collar_tie"],
+	"combos": ["one_two", "one_two_body_kick", "one_two_knee", "jab_leg_kick"],
 	"tendencies": { "work_rate": 0.015, "actions": { "jab": 0.8, "cross": 0.8, "teep": 0.5, "leg_kick": 0.6, "body_kick": 0.6, "knee": 1.5, "clinch_entry": 2.5, "collar_tie": 1.5 } },
 	"tells": []
 }

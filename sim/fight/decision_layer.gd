@@ -7,7 +7,8 @@ extends RefCounted
 ##   1. COMMAND  an action queued from outside (tests, bots, the debug console)
 ##   2. CALL     a live call the fighter heard, processed and accepted (LiveCalls, #16)
 ##   3. RULE     a drilled rule whose trigger fired (#17)
-##   4. AI       the fighter's own choice (FighterAI, #14), weighted by the gameplan and habits
+##   4. AI       the fighter's own choice (FighterAI, #14), weighted by the gameplan and habits.
+##               A combination called or commanded as a whole runs on first (D133).
 ##
 ## The first layer that claims the choice wins. Gameplan sources never claim;
 ## they only tilt the AI's weights and leanings, so the fighter never silently
@@ -106,7 +107,10 @@ func update_calls(view: FightView) -> void:
 func decide(view: FightView) -> Decision:
 	var f: FighterState = view.me
 	if f.queued_action_id != "":
-		return Decision.new(f.queued_action_id, COMMAND, "queued")
+		var queued := Decision.new(f.queued_action_id, COMMAND, "queued")
+		queued.combo = f.queued_combo
+		queued.combo_runs = f.queued_combo != ""
+		return queued
 	for source in _claimers:
 		if not source.may_claim:
 			continue
@@ -116,6 +120,10 @@ func decide(view: FightView) -> Decision:
 		if claimed != null and not claimed.is_idle():
 			claimed.source = source
 			return claimed
+	if f.combo_runs and f.combo_next_until >= view.now:
+		var next: Decision = ai.next_in_combo(view)
+		if next != null:
+			return next
 	return ai.choose(view, self)
 
 
@@ -163,6 +171,7 @@ func on_event(view: FightView, event: FightEvent) -> void:
 func started(view: FightView, decision: Decision) -> void:
 	if decision.layer == COMMAND:
 		view.me.queued_action_id = ""
+		view.me.queued_combo = ""
 	if decision.source != null:
 		decision.source.claimed_started(view, decision)
 		_notes.append_array(decision.source.take_notes())

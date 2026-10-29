@@ -1,0 +1,6 @@
+{
+	"schema": "combo@1",
+	"id": "body_kick_head_kick",
+	"name": "Body kick, high kick",
+	"moves": ["body_kick", "head_kick"]
+}

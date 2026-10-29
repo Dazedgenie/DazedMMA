@@ -1,0 +1,6 @@
+{
+	"schema": "combo@1",
+	"id": "one_two_body_kick",
+	"name": "1-2, body kick",
+	"moves": ["jab", "cross", "body_kick"]
+}
