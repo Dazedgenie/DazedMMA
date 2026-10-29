@@ -35,10 +35,11 @@ func test_the_judges_estimate_reads_the_round_so_far() -> void:
 	assert_eq(FightHud.judges_estimate(sim), "Judges: ≈ even")
 
 
-func test_health_bars_go_green_yellow_red() -> void:
-	assert_eq(FightHud.health_colour(1.0), FightHud.PIP_COLOURS[0])
-	assert_eq(FightHud.health_colour(0.5), FightHud.PIP_COLOURS[1])
-	assert_eq(FightHud.health_colour(0.2), FightHud.PIP_COLOURS[2])
+func test_the_figure_readout_says_whats_left_of_each_area() -> void:
+	var sim: FightSim = _sim()
+	sim.fighters[1].damage.head = 350  # The Kicker: Chin 50, so 35% of his head is gone.
+	assert_eq(FightHud.area_text(sim.fighters[1], "head"), "HEAD 65%")
+	assert_eq(FightHud.area_text(sim.fighters[1], "legs"), "LEGS 100%")
 
 
 func test_the_plan_panel_shows_rules_calls_and_reads_with_their_timers() -> void:
@@ -76,7 +77,7 @@ func test_the_hud_follows_a_fight_and_its_buttons_make_calls() -> void:
 	assert_eq(hud._clock.text, "R1 5:00")
 
 
-func test_the_top_bar_shows_each_fighters_health_from_their_head_damage() -> void:
+func test_the_top_bar_figure_shows_each_fighters_damage_by_area() -> void:
 	var sim: FightSim = _sim()
 	var hud := FightHud.new()
 	add_child_autofree(hud)
@@ -84,10 +85,24 @@ func test_the_top_bar_shows_each_fighters_health_from_their_head_damage() -> voi
 	sim.fighters[1].damage.head = 500  # The Kicker: Chin 50, so half his health.
 	sim.fighters[1].rocked_ticks = 10
 	hud._refresh(0.0)
-	assert_almost_eq(hud._health[1].value, 0.5, 0.0001)
-	assert_eq(hud._health_label[1].text, "HEALTH 50%  ROCKED")
-	assert_eq(hud._health_fill[1].bg_color, FightHud.PIP_COLOURS[1])
-	assert_eq(hud._health_label[0].text, "HEALTH 100%")
+	assert_almost_eq(float(hud._figures[1].hurt.head), 0.5, 0.0001)
+	assert_true(hud._figures[1].rocked)
+	assert_eq(hud._area_labels[1][0].text, "HEAD 50%")
+	assert_eq(hud._area_labels[1][0].get_theme_color("font_color"), BodyDamageFigure.HALF, "half gone is yellow")
+	assert_true(hud._rocked[1].visible)
+	assert_eq(hud._area_labels[0][0].text, "HEAD 100%")
+	assert_false(hud._rocked[0].visible)
+
+
+func test_a_clean_shot_flashes_the_area_it_landed_on() -> void:
+	var sim: FightSim = _sim()
+	var hud := FightHud.new()
+	add_child_autofree(hud)
+	hud.watch(FightDriver.new(sim))
+	sim._emit(FightEvent.STRIKE_LANDED, 0, { "action_id": "body_kick", "target": "body", "damage": 8 })
+	assert_true(hud._figures[1].is_flashing("body"), "the Wrestler kicked the Kicker's body")
+	assert_false(hud._figures[1].is_flashing("head"))
+	assert_false(hud._figures[0].is_flashing("body"))
 
 
 
