@@ -81,7 +81,13 @@ const SCHEMAS := {
 	} },
 	"week_plan@1": { "folder": "week_plans", "fields": { "name": TYPE_STRING, "about": TYPE_STRING, "days": TYPE_ARRAY } },
 	"combo@1": { "folder": "combos", "fields": { "name": TYPE_STRING, "moves": TYPE_ARRAY } },
+	"style@1": { "folder": "styles", "fields": {
+		"name": TYPE_STRING, "fighter": TYPE_STRING, "roots": TYPE_ARRAY, "southpaw_chance": TYPE_FLOAT,
+		"variation": TYPE_DICTIONARY, "scouting": TYPE_DICTIONARY,
+	} },
 }
+## How far a style sheet's opponents may differ (docs/09 style@1): each key and its largest sensible value.
+const STYLE_VARIATION := { "stats": 20, "style": 40, "tendencies": 0.5, "personality": 100, "height_cm": 15 }
 
 var _files: Dictionary = {}  # res:// path → parsed Dictionary (or null if unparseable)
 var _by_folder: Dictionary = {}  # folder → { id → Dictionary }
@@ -550,6 +556,43 @@ func test_week_plans_fill_six_days_of_two_sessions() -> void:
 		var instruction: Variant = p.get("instruction")
 		if instruction != null:
 			_expect_ids(problems, where, "gameplans", [instruction])
+	_report(problems)
+
+
+func test_style_sheets_build_on_a_real_fighter_and_carry_a_scouting_card() -> void:
+	var problems: Array[String] = []
+	var fighters: Dictionary = _items("fighters")
+	assert_gt(_items("styles").size(), 0, "expected style sheets in data/styles")
+	for id: String in _items("styles"):
+		var s: Dictionary = _items("styles")[id]
+		var where := "style '%s'" % id
+		var base: Variant = s.get("fighter")
+		if not fighters.has(base):
+			problems.append("%s refers to missing fighters '%s'" % [where, base])
+		elif fighters[base].get("template") != null:
+			problems.append("%s: signature fighter '%s' must not use a template" % [where, base])
+		_expect_numbers(problems, where, "variation", s.get("variation", {}), STYLE_VARIATION.keys(), 0, 100)
+		var variation: Dictionary = s.get("variation", {}) if s.get("variation") is Dictionary else {}
+		for key: String in STYLE_VARIATION:
+			if not variation.has(key):
+				problems.append("%s: variation is missing '%s'" % [where, key])
+			elif variation[key] is float and variation[key] > STYLE_VARIATION[key]:
+				problems.append("%s: variation.%s is over %s" % [where, key, STYLE_VARIATION[key]])
+		var chance: Variant = s.get("southpaw_chance")
+		if chance is float and (chance < 0.0 or chance > 1.0):
+			problems.append("%s: southpaw_chance must be from 0 to 1" % where)
+		var card: Dictionary = s.get("scouting", {}) if s.get("scouting") is Dictionary else {}
+		for field: String in ["summary", "how_to_beat"]:
+			if not (card.get(field) is String) or String(card.get(field)).is_empty():
+				problems.append("%s: scouting.%s must be a sentence" % [where, field])
+		for field: String in ["strengths", "weaknesses"]:
+			if not (card.get(field) is Array) or (card.get(field) as Array).is_empty():
+				problems.append("%s: scouting.%s must list at least one" % [where, field])
+		var tell: Variant = card.get("tell", null)
+		if tell != null and not tell is String:
+			problems.append("%s: scouting.tell must be a sentence or null" % where)
+		if base in fighters and (tell != null) != not (fighters[base].get("tells", []) as Array).is_empty():
+			problems.append("%s: scouting.tell should describe the signature fighter's tell, and only if it has one" % where)
 	_report(problems)
 
 

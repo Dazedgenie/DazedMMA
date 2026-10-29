@@ -1,0 +1,25 @@
+{
+	"schema": "style@1",
+	"id": "brawler",
+	"name": "Brawler",
+	"fighter": "brawler",
+	"roots": [
+		"Street kid",
+		"Farm / labour kid"
+	],
+	"southpaw_chance": 0.15,
+	"variation": { "stats": 6, "style": 12, "tendencies": 0.2, "personality": 30, "height_cm": 4 },
+	"scouting": {
+		"summary": "Comes forward swinging hooks and overhands, takes one to give one, and looks for the knockout.",
+		"strengths": [
+			"Heavy power and a hard chin",
+			"Huge heart: never stops coming"
+		],
+		"weaknesses": [
+			"Wide open defense",
+			"Gasses if the fight goes long"
+		],
+		"tell": "When his jab is blocked he loads up the overhand.",
+		"how_to_beat": "Move, make him miss and counter. Take him down when he's swinging, and drag it into the late rounds."
+	}
+}

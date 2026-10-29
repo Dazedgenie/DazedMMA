@@ -1,0 +1,25 @@
+{
+	"schema": "style@1",
+	"id": "sambo",
+	"name": "Sambo leg-locker",
+	"fighter": "sambo",
+	"roots": [
+		"Judo / sambo household",
+		"Dagestan training trip"
+	],
+	"southpaw_chance": 0.15,
+	"variation": { "stats": 6, "style": 12, "tendencies": 0.2, "personality": 30, "height_cm": 4 },
+	"scouting": {
+		"summary": "Mixes takedowns and throws, then attacks the legs in every scramble.",
+		"strengths": [
+			"Ankle locks and kneebars",
+			"Great in scrambles"
+		],
+		"weaknesses": [
+			"Average striking",
+			"Takes risks hunting for the legs"
+		],
+		"tell": null,
+		"how_to_beat": "Stay out of scrambles and get back up fast when he dives for a leg."
+	}
+}

@@ -103,6 +103,51 @@ At the start of every new career:
 
 Name generators need some care: promotion names should sound plausible without copying real brands.
 
+### 7.1 Opponent style sheets (D160)
+The ~600 world fighters are made from **style sheets** (`data/styles/`, `09` style@1). Each sheet names a hand-built
+**signature fighter** in `data/fighters/` and says how far opponents of that style may differ from it. A generated opponent
+keeps the style's moves, combinations and tell, so scouting a style works on every fighter of it; their stats, style
+leanings, move preferences, personality, height and stance differ a little, and a **quality level** (−30 to +30 on every stat)
+sets how good they are. Each sheet also carries a **scouting card**: how they fight, strengths, weaknesses, the tell and how
+to beat them.
+
+| Style | Signature fighter | Roots | Fights by |
+|---|---|---|---|
+| Range kicker | `kicker` | Karate/TKD, Dutch kickboxing | Teeps and kicks from range; tell: body kick after a blocked jab |
+| Pressure boxer | `boxer` | Boxing gym kid, street kid | Walking you down to trade combinations in the pocket |
+| Wrestle-boxer | `wrestler` | Wrestling family, Dagestan | Jab and overhand to get close, then the double leg; tell: stance shift before the shot |
+| Submission grappler | `bjj` | Jiu-jitsu prodigy, Rio | Clinch or guard pull, then submissions from anywhere |
+| Judo thrower | `judoka` | Judo/sambo household | Clinch, trips and throws, then the back |
+| Sambo leg-locker | `sambo` | Judo/sambo household, Dagestan | Takedowns and throws, leg locks in scrambles |
+| Muay Thai clinch fighter | `muay_thai` | Muay Thai camp, Bangkok | Collar tie, knees and elbows |
+| **Counter-striker** (new) | `counter_striker` | Boxing gym kid, karate, late starter | Waits for you to lead, then counters (Pace −70, Risk −30); tell: a counter right hand after you miss |
+| **Sprawl-and-brawl** (new) | `sprawl_brawl` | Boxing gym kid, street kid, college football | Stuffs takedowns (TDD 75, Base −70) and keeps it standing; tell: body hook after a blocked jab |
+| **Brawler** (new) | `brawler` | Street kid, farm kid | Hooks and overhands, hunting the knockout (Pace +70, Risk +70, Power 70, Heavy hands); tell: overhand after a blocked jab |
+
+Every sheet uses the same variation for now: stats ±6, leanings ±12, move preferences ±20%, personality ±30, height ±4 cm.
+Check that a sheet's opponents fight in style with `tools/style_sheets.gd -- --fights=30` (prints the scouting cards, then
+a table of win rate against the other styles' signature fighters, finishes, output, shots, submissions, clinch and ground time).
+First run (2026-10-29, 30 opponents a style at level 0; reported, no pass marks):
+
+| Style | Wins | By KO/TKO | By sub | Strikes a minute | Shots a fight | Subs tried | Clinch | Ground |
+|---|---|---|---|---|---|---|---|---|
+| Range kicker | 53% | 7% | 0% | 10.2 | 0 | 1.0 | 1% | 10% |
+| Pressure boxer | 43% | 30% | 0% | 11.8 | 0 | 0 | 6% | 18% |
+| Wrestle-boxer | 33% | 13% | 0% | 6.1 | 25.7 | 0.8 | 3% | 52% |
+| Submission grappler | 43% | 0% | 23% | 6.8 | 9.1 | 2.5 | 3% | 40% |
+| Judo thrower | 43% | 0% | 10% | 6.6 | 41.4 | 2.3 | 6% | 43% |
+| Sambo leg-locker | 33% | 0% | 17% | 6.2 | 35.3 | 1.9 | 5% | 41% |
+| Muay Thai clinch fighter | 50% | 40% | 0% | 9.9 | 0 | 0.2 | 12% | 19% |
+| Counter-striker | 47% | 13% | 0% | 10.6 | 0 | 0.2 | 1% | 15% |
+| Sprawl-and-brawl | 50% | 47% | 0% | 11.6 | 0 | 0.5 | 7% | 14% |
+| Brawler | 60% | 47% | 0% | 11.0 | 0 | 0.1 | 4% | 21% |
+
+Each style wins its own way. To watch: the Counter-striker still throws about as much as the strikers (most of it counters
+and tells, not leads), and the wrestling styles win least against this field.
+
+Not yet: names and nationalities for generated fighters, picking a style mix per division and region, and showing the
+scouting card on screen (it comes with scouting, D51).
+
 ## 8. Resolved & open questions
 - W1 → **D55**: ~100 fighters **per division**.
 - W2 → **D56**: 6 men's divisions at launch.

@@ -1,0 +1,26 @@
+{
+	"schema": "style@1",
+	"id": "counter_striker",
+	"name": "Counter-striker",
+	"fighter": "counter_striker",
+	"roots": [
+		"Boxing gym kid",
+		"Traditional martial arts (karate/TKD)",
+		"Late starter"
+	],
+	"southpaw_chance": 0.25,
+	"variation": { "stats": 6, "style": 12, "tendencies": 0.2, "personality": 30, "height_cm": 4 },
+	"scouting": {
+		"summary": "Patient. Waits for you to lead, makes you miss and fires back. Rarely starts the exchange himself.",
+		"strengths": [
+			"Sharp counters and great defense",
+			"High fight IQ: hard to fool"
+		],
+		"weaknesses": [
+			"Waits on you: if you don't lead, he barely does, and he can lose close rounds",
+			"Doesn't want to wrestle"
+		],
+		"tell": "When you miss, a counter right hand comes straight back.",
+		"how_to_beat": "Feint to draw his counter, don't lead with wild shots, and take him down: he won't come to you."
+	}
+}

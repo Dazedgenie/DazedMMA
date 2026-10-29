@@ -1,0 +1,25 @@
+{
+	"schema": "style@1",
+	"id": "boxer",
+	"name": "Pressure boxer",
+	"fighter": "boxer",
+	"roots": [
+		"Boxing gym kid",
+		"Street kid"
+	],
+	"southpaw_chance": 0.15,
+	"variation": { "stats": 6, "style": 12, "tendencies": 0.2, "personality": 30, "height_cm": 4 },
+	"scouting": {
+		"summary": "Walks you down behind a jab and wants to trade combinations in the pocket.",
+		"strengths": [
+			"Best hands in the division",
+			"Good combinations to the head and body"
+		],
+		"weaknesses": [
+			"No kicks and no wrestling",
+			"Comes forward in straight lines"
+		],
+		"tell": null,
+		"how_to_beat": "Keep him at kicking range, or take him down: he has nothing on the mat."
+	}
+}

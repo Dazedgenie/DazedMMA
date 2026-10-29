@@ -1,0 +1,19 @@
+{
+	"schema": "fighter@1",
+	"id": "brawler",
+	"name": "Brawler",
+	"template": null,
+	"frame": { "height_cm": 177, "reach_cm": 179, "build": "stocky" },
+	"stance": "orthodox",
+	"stats": { "power": 70, "chin": 65, "heart": 70, "boxing": 55, "strength": 60, "striking_defense": 40, "footwork": 40, "fight_iq": 40, "cardio": 45, "composure": 50, "takedowns": 35, "submissions": 35, "submission_defense": 40 },
+	"personality": { "ego": 30, "discipline": -20, "coachable": 0, "loyal": 0 },
+	"style": { "pace": 70, "range": 60, "base": -20, "risk": 70 },
+	"gifts": ["heavy_hands"],
+	"flaws": [],
+	"techniques": ["jab", "cross", "hook", "overhand", "uppercut", "body_hook", "knee"],
+	"combos": ["one_two", "cross_hook", "uppercut_hook"],
+	"tendencies": { "work_rate": 0.022, "actions": { "jab": 0.6, "cross": 1.2, "hook": 1.5, "overhand": 1.4, "uppercut": 0.8, "body_hook": 0.6, "knee": 0.3, "clinch_entry": 0.0 } },
+	"tells": [
+		{ "trigger": "own_jab_blocked", "action": "overhand", "chance": 0.6, "within_ms": 1200 }
+	]
+}
