@@ -185,6 +185,27 @@ func test_the_summary_counts_collar_ties_and_clinch_knees() -> void:
 	assert_string_contains(text, "Clinch     Muay Thai (red) collar ties 3.0 of 5.0 won, knees landed 8.0 (4.0 from the tie) · Boxer (blue) 0.0 of 0.0, 0.0 (0.0) (D129)")
 
 
+func test_the_sambo_fighter_is_reported_against_the_strikers_the_wrestler_and_the_bjj_fighter() -> void:
+	var rows: Array[Dictionary] = [
+		_row({ "red": "sambo", "blue": "bjj", "winner_id": "bjj" }),
+		_row({ "red": "boxer", "blue": "sambo", "winner_id": "sambo" }),
+	]
+	var bjj: Dictionary = _check(_report(rows), "Sambo fighter vs BJJ fighter")
+	assert_eq(bjj.status, BalanceReport.INFO, "report only (D132)")
+	assert_eq(bjj.value, "0.0%")
+	assert_eq(_check(_report(rows), "Sambo fighter vs Boxer").value, "100.0%")
+	assert_true(_check(_report(rows), "Sambo fighter vs Kicker").is_empty(), "no fights, no line")
+
+
+func test_the_summary_counts_leg_locks_and_the_fights_they_end() -> void:
+	var report: BalanceReport = _report([
+		_row({ "red": "sambo", "leg_locks_red": 3, "leg_locked_red": 1, "leg_lock_finish": 1 }),
+		_row({ "red": "sambo", "leg_locks_red": 1 }),
+	])
+	var text: String = report.summary({ "sambo": "Sambo", "boxer": "Boxer" })
+	assert_string_contains(text, "Leg locks  Sambo (red) 2.0 tried, 0.5 locked a fight · Boxer (blue) 0.0 tried, 0.0 locked · ended 50.0% of fights (D132)")
+
+
 func test_the_summary_says_how_much_grappling_there_was() -> void:
 	var report: BalanceReport = _report([_row({ "red": "wrestler", "takedowns_red": 4, "shots_red": 9, "ground": 0.3, "top_red": 0.28, "clinch": 0.05 })])
 	var text: String = report.summary({ "wrestler": "Wrestler", "boxer": "Boxer" })

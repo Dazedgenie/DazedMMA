@@ -10,6 +10,12 @@
 	"transitions": [
 		{ "action": "get_up", "from_role": "neutral", "to": "standing", "roles": { "actor": "neutral", "opponent": "neutral" } },
 		{ "action": "scramble", "from_role": "neutral", "to": "full_guard", "roles": { "actor": "top", "opponent": "bottom" } },
-		{ "action": "take_back", "from_role": "neutral", "to": "back_control", "roles": { "actor": "top", "opponent": "bottom" } }
+		{ "action": "take_back", "from_role": "neutral", "to": "back_control", "roles": { "actor": "top", "opponent": "bottom" } },
+		{ "action": "ankle_lock", "from_role": "neutral", "to": "submission", "roles": { "actor": "attacker", "opponent": "defender" } },
+		{ "action": "ankle_lock", "from_role": "neutral", "result": "failed", "to": "full_guard", "roles": { "actor": "bottom", "opponent": "top" } },
+		{ "action": "kneebar", "from_role": "neutral", "to": "submission", "roles": { "actor": "attacker", "opponent": "defender" } },
+		{ "action": "kneebar", "from_role": "neutral", "result": "failed", "to": "full_guard", "roles": { "actor": "bottom", "opponent": "top" } },
+		{ "action": "heel_hook", "from_role": "neutral", "to": "submission", "roles": { "actor": "attacker", "opponent": "defender" } },
+		{ "action": "heel_hook", "from_role": "neutral", "result": "failed", "to": "full_guard", "roles": { "actor": "bottom", "opponent": "top" } }
 	]
 }

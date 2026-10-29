@@ -19,6 +19,9 @@ const THROWERS := { "judoka": "Judoka", "bjj": "BJJ fighter" }
 const THROWER_OPPONENTS: Array[String] = ["kicker", "boxer", "wrestler"]
 ## D129: and the Muay Thai fighter, against the same three.
 const CLINCH_FIGHTERS := { "muay_thai": "Muay Thai fighter" }
+## The leg-lock fighter (D132): reported against the same opponents, plus the BJJ fighter.
+const LEG_LOCKERS := { "sambo": "Sambo fighter" }
+const LEG_LOCKER_OPPONENTS: Array[String] = ["kicker", "boxer", "wrestler", "bjj"]
 ## D96: someone who pushed or had the pace pushed on them ends at ~30–50% of the tank.
 const TIRED_BELOW: float = 0.5
 ## D12, docs/10 §2: the ideal caller adds +10–20% to the coached fighter's wins over no calls;
@@ -181,15 +184,19 @@ func checks() -> Array[Dictionary]:
 			return [row.red, row.blue] == [WRESTLER, opponent] or [row.blue, row.red] == [WRESTLER, opponent])
 		if not pair.is_empty():
 			out.append(_info("Wrestler vs %s: the Wrestler wins" % opponent.capitalize(), "D109", _pct(fighter_win_share(pair, WRESTLER))))
-	for styles: Dictionary in [THROWERS, CLINCH_FIGHTERS]:
-		var decision: String = "D128" if styles == THROWERS else "D129"
+	var groups: Array[Dictionary] = [THROWERS, CLINCH_FIGHTERS, LEG_LOCKERS]
+	var decisions: Array[String] = ["D128", "D129", "D132"]
+	for g in groups.size():
+		var styles: Dictionary = groups[g]
+		var decision: String = decisions[g]
 		for stylist: String in styles:
-			for opponent in THROWER_OPPONENTS:
+			for opponent in (LEG_LOCKER_OPPONENTS if styles == LEG_LOCKERS else THROWER_OPPONENTS):
 				var pair: Array[Dictionary] = plain.filter(func(row: Dictionary) -> bool:
 					return [row.red, row.blue] == [stylist, opponent] or [row.blue, row.red] == [stylist, opponent])
 				if not pair.is_empty():
 					var who: String = styles[stylist]
-					out.append(_info("%s vs %s: the %s wins" % [who, opponent.capitalize(), who], decision, _pct(fighter_win_share(pair, stylist))))
+					var them: String = THROWERS.get(opponent, opponent.capitalize())
+					out.append(_info("%s vs %s: the %s wins" % [who, them, who], decision, _pct(fighter_win_share(pair, stylist))))
 	out.append(_info("Fights where someone got tired (under 50% of the tank)", "D96", _pct(tired_share(plain))))
 	out.append(_info("Fights finished inside the distance", "docs/12 §4", _pct(finish_share(plain))))
 	out.append(_info("Exchanges that hit the 5–95% odds clamp", "docs/12 §4", _pct(clamped_share(plain))))
@@ -393,6 +400,9 @@ func _pair_lines(of_rows: Array[Dictionary], names: Dictionary) -> PackedStringA
 		_pct(average(of_rows, "clinch")), _pct(average(of_rows, "ground")), red, _pct(average(of_rows, "top_red")), blue, _pct(average(of_rows, "top_blue"))])
 	lines.append("  Subs       %s %.1f tried, %.1f locked a fight · %s %.1f tried, %.1f locked (D126)" % [
 		red, average(of_rows, "subs_red"), average(of_rows, "locked_red"), blue, average(of_rows, "subs_blue"), average(of_rows, "locked_blue")])
+	lines.append("  Leg locks  %s %.1f tried, %.1f locked a fight · %s %.1f tried, %.1f locked · ended %s of fights (D132)" % [
+		red, average(of_rows, "leg_locks_red"), average(of_rows, "leg_locked_red"), blue, average(of_rows, "leg_locks_blue"), average(of_rows, "leg_locked_blue"),
+		_pct(average(of_rows, "leg_lock_finish"))])
 	lines.append("  Throws     %s %.1f of %.1f a fight landed · %s %.1f of %.1f (D128)" % [
 		red, average(of_rows, "throws_landed_red"), average(of_rows, "throws_red"), blue, average(of_rows, "throws_landed_blue"), average(of_rows, "throws_blue")])
 	lines.append("  Clinch     %s collar ties %.1f of %.1f won, knees landed %.1f (%.1f from the tie) · %s %.1f of %.1f, %.1f (%.1f) (D129)" % [

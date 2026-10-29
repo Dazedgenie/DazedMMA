@@ -7,7 +7,7 @@ extends RefCounted
 ## fence, who held the centre, how much of it was a chase, how long each one circled
 ## and cut off the cage, D119), and the grappling
 ## (takedowns tried and landed, time in the clinch, on the ground and on top, #15;
-## submissions tried and locked in, D126; time in each ground position, passes and escapes, D130;
+## submissions tried and locked in, D126, and the leg locks among them and fights they ended, D132; time in each ground position, passes and escapes, D130;
 ## feints thrown and bitten on, and shots taken blind and how many still worked, D131),
 ## each corner's coaching bot and how many calls it made (Corner, D12, D68), and each
 ## fighter's drilled rules and how often they fired (DrilledRules, #17).
@@ -25,6 +25,7 @@ const COLUMNS: Array[String] = [
 	"circling_red", "cutting_red", "circling_blue", "cutting_blue",
 	"shots_red", "takedowns_red", "shots_blue", "takedowns_blue", "clinch", "ground", "top_red", "top_blue",
 	"subs_red", "locked_red", "subs_blue", "locked_blue",
+	"leg_locks_red", "leg_locked_red", "leg_locks_blue", "leg_locked_blue", "leg_lock_finish",
 	"throws_red", "throws_landed_red", "throws_blue", "throws_landed_blue",
 	"collar_ties_red", "collar_ties_won_red", "clinch_knees_red", "tied_knees_red",
 	"collar_ties_blue", "collar_ties_won_blue", "clinch_knees_blue", "tied_knees_blue",
@@ -146,6 +147,8 @@ static func of(sim: FightSim, lows: Array[float] = [], moves: Dictionary = {}) -
 		"end_round": end.round_number, "end_second": sim.clock.tick_in_round / FightClock.TICKS_PER_SECOND,
 		"fight_seconds": _seconds(sim.now),
 		"round_cards": 0, "even_cards": 0, "exchanges": 0, "clamped": 0, "events": sim.events.size(),
+		"leg_lock_finish": 1 if end.data.result == FightSim.RESULT_SUB and sim.actions.has(String(end.data.get("why", ""))) \
+			and ActionLibrary.is_leg_lock(sim.actions.get_action(end.data.why)) else 0,
 	}
 	var standing: int = moves.get("standing", 0)
 	row.chase = _share_of(moves.get("chase", 0), standing)
@@ -170,6 +173,8 @@ static func of(sim: FightSim, lows: Array[float] = [], moves: Dictionary = {}) -
 		row["takedowns_" + side] = f.takedowns_landed
 		row["subs_" + side] = f.subs_tried
 		row["locked_" + side] = f.subs_locked
+		row["leg_locks_" + side] = f.leg_locks_tried
+		row["leg_locked_" + side] = f.leg_locks_locked
 		row["throws_" + side] = f.throws_tried
 		row["throws_landed_" + side] = f.throws_landed
 		row["collar_ties_" + side] = f.collar_ties_tried

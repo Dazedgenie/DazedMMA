@@ -40,6 +40,11 @@ static func is_throw(action: Dictionary) -> bool:
 	return action.category == "takedown" and bool(action.takedown.get("throw", false))
 
 
+## True for a leg lock (D132, docs/01 §30): the ankle lock, kneebar and heel hook.
+static func is_leg_lock(action: Dictionary) -> bool:
+	return action.category == "submission" and bool(action.submission.get("leg_lock", false))
+
+
 ## True when a fighter in `role` may use this action (the action's `roles`; none listed = anyone).
 static func allows_role(action: Dictionary, role: String) -> bool:
 	return not action.has("roles") or action.roles.has(role)

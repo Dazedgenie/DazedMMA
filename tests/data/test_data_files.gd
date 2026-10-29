@@ -183,8 +183,11 @@ func test_values_come_from_the_allowed_lists() -> void:
 			elif category == "submission" and (not block.get("start_danger") is float or block.start_danger <= 0.0 or block.start_danger >= 100.0 \
 					or block.get("escape_to") not in ESCAPES):
 				problems.append("action '%s': a submission needs start_danger (between 0 and 100) and escape_to (one of %s)" % [id, ESCAPES])
-			elif block.has("ai_without_opening") and (category != "submission" or not block.ai_without_opening is bool):
-				problems.append("action '%s': ai_without_opening (true or false) is a submission's (D130)" % id)
+			elif block.has("ai_without_opening") and (category != "submission" or not _any_time_ok(block.ai_without_opening, action.get("positions", []))):
+				problems.append("action '%s': ai_without_opening (true or false, or a list of the move's positions, D132) is a submission's (D130)" % id)
+			elif (block.has("leg_lock") or block.has("step")) and (category != "submission" or not block.get("leg_lock", false) is bool \
+					or not block.get("step", 20.0) is float or block.get("step", 20.0) <= 0.0 or block.get("step", 20.0) > 100.0):
+				problems.append("action '%s': leg_lock (true or false) and step (danger a beat, above 0 up to 100) are a submission's (D132)" % id)
 		if category == "feint":
 			var feint: Variant = action.get("feint")
 			if not feint is Dictionary or not feint.get("base_success") is float or not feint.get("bites_ms") is float \
@@ -515,6 +518,13 @@ func _known_files() -> Array:
 
 func _items(folder: String) -> Dictionary:
 	return _by_folder.get(folder, {})
+
+
+## A hold's `ai_without_opening`: true or false, or a list of positions it's done from (D132).
+static func _any_time_ok(value: Variant, positions: Array) -> bool:
+	if value is bool:
+		return true
+	return value is Array and not (value as Array).is_empty() and (value as Array).all(func(p: Variant) -> bool: return p in positions)
 
 
 func _expect_in(problems: Array[String], type: String, field: String, allowed: Array) -> void:

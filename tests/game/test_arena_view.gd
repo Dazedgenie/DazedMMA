@@ -120,3 +120,15 @@ func test_mount_sits_up_side_control_lies_across_and_the_back_sits_behind() -> v
 	sim.apply_transition(0, "take_back")
 	assert_lt(figure.pose_for(sim, 1).lie, 1.0, "sat up with him behind")
 	assert_eq(ArenaView.tag_text(sim), "Back control · Wrestler has the back")
+
+
+func test_in_a_leg_lock_the_attacker_lies_back_holding_the_leg_out() -> void:
+	var sim: FightSim = _sim()
+	var figure := FighterFigure.new(Color.RED)
+	add_child_autofree(figure)
+	sim.apply_transition(1, "double_leg")  # Red underneath in full guard.
+	var guard: Dictionary = figure.pose_for(sim, 1)
+	assert_true(sim._lock_in(0, sim.actions.get_action("ankle_lock")))
+	assert_eq(figure.pose_for(sim, 0).lie, 1.0, "lying back with the foot (D132)")
+	assert_gt(figure.pose_for(sim, 1).leg_lead, guard.leg_lead, "his leg out straight in the lock")
+	assert_string_contains(ArenaView.tag_text(sim), "ankle lock")

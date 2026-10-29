@@ -156,6 +156,18 @@ func pose_for(sim: FightSim, i: int) -> Dictionary:
 		p.arm_lead = 2.4
 		p.arm_rear = 2.4
 		p.lean = 0.25
+	if not hold.is_empty() and ActionLibrary.is_leg_lock(sim.actions.get_action(hold.action_id)):
+		# A leg lock (D132): the attacker lies back with the leg clamped, the defender's leg out straight.
+		if int(hold.attacker) == i:
+			p.lie = 1.0
+			p.hip_y = 0.22
+			p.leg_lead = 1.3
+			p.leg_rear = 1.3
+			p.arm_lead = 1.2
+			p.arm_rear = 1.2
+		else:
+			p.leg_lead = 1.4
+			p.lean = 0.3
 	if f.action_id == "" or not sim.actions.has(f.action_id):
 		return p
 	var reach: float = float(PHASE_REACH.get(f.phase, 0.0))

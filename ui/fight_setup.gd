@@ -10,7 +10,7 @@ extends PanelContainer
 signal start_pressed(settings: Dictionary)
 
 ## [label, red id, blue id] from data/fighters. The playtest matchup comes first (D112); the
-## Judoka and the BJJ fighter (D128), then the Muay Thai fighter (D129), come last.
+## Judoka and the BJJ fighter (D128), then the Muay Thai fighter (D129) and the Sambo fighter (D132), come last.
 const MATCHUPS: Array = [
 	["Wrestler vs Kicker", "wrestler", "kicker"],
 	["Kicker vs Boxer", "kicker", "boxer"],
@@ -23,6 +23,9 @@ const MATCHUPS: Array = [
 	["Muay Thai vs Boxer", "muay_thai", "boxer"],
 	["Muay Thai vs Wrestler", "muay_thai", "wrestler"],
 	["Muay Thai vs Kicker", "muay_thai", "kicker"],
+	["Sambo vs Wrestler", "sambo", "wrestler"],
+	["Sambo vs BJJ", "sambo", "bjj"],
+	["Sambo vs Boxer", "sambo", "boxer"],
 ]
 const SPEEDS: Array = [["Normal is 2× fight time", 2.0], ["Normal is 1× fight time", 1.0]]
 const HELP := "[b]Keys[/b]  1–9 calls · Q/E read calls · Space slow-mo · F fast · P pause (Easy) · T towel · Esc menu · F3 debug overlay · ` console"

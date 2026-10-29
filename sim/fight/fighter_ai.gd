@@ -660,7 +660,7 @@ func _tied(view: FightView, layer: DecisionLayer) -> Decision:
 		var b: OddsBreakdown = _odds(view, id)
 		var w: float = 0.0
 		if action.category == SUBMISSION:
-			if f.is_rocked() or view.now < _sub_at + SUB_RETRY_TICKS or (b.chance <= _plain_chance(b) and not _any_time(action)):
+			if f.is_rocked() or view.now < _sub_at + SUB_RETRY_TICKS or (b.chance <= _plain_chance(b) and not _any_time(view, action)):
 				continue  # Not hurt, not just tried one, and only on the opening the hold looks for.
 			w = _score(view, layer, action, b.chance, _plain_chance(b), false) * SUB_WEIGHT * sub_liking(view, layer)
 		else:
@@ -808,7 +808,7 @@ func _work_position(view: FightView, layer: DecisionLayer) -> Decision:
 		var b: OddsBreakdown = _odds(view, id)
 		var w: float = 0.0
 		if action.category == SUBMISSION:
-			if view.now < _sub_at + SUB_RETRY_TICKS or (b.chance <= _plain_chance(b) and not _any_time(action)):
+			if view.now < _sub_at + SUB_RETRY_TICKS or (b.chance <= _plain_chance(b) and not _any_time(view, action)):
 				continue
 			w = _score(view, layer, action, b.chance, _plain_chance(b), false) * SUB_WEIGHT * sub_liking(view, layer)
 		else:
@@ -876,9 +876,13 @@ static func _has_bonus(b: OddsBreakdown, bonus_name: String) -> bool:
 
 
 ## A hold the AI goes for without waiting for an opening (`ai_without_opening`: the rear-naked
-## choke, where being on the back is the opening, D130).
-static func _any_time(action: Dictionary) -> bool:
-	return bool(action.submission.get("ai_without_opening", false))
+## choke, where being on the back is the opening, D130), or only in the positions it lists (the leg
+## locks in a scramble, where legs are everywhere, D132).
+static func _any_time(view: FightView, action: Dictionary) -> bool:
+	var without: Variant = action.submission.get("ai_without_opening", false)
+	if without is Array:
+		return (without as Array).has(view.position())
+	return bool(without)
 
 
 ## True while the opponent is throwing a strike at this fighter (on the ground: ground and pound).
