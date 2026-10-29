@@ -362,7 +362,7 @@ func _refresh() -> void:
 	_week_label.text = "Camp over: fight night" if done() else "Week %d of %d" % [reports.size() + 1, weeks]
 	var id: String = _preset_id()
 	_about.text = "Changed by hand." if id == CUSTOM else String(_library.plan(id).get("about", ""))
-	_run.text = "Run week %d" % (reports.size() + 1)
+	_run.text = "Run week" if done() else "Run week %d" % (reports.size() + 1)
 	_run.disabled = done()
 	_run_rest.disabled = done()
 	_fight.disabled = not done()
@@ -380,7 +380,7 @@ func _forecast_bbcode(forecast: Dictionary) -> String:
 		lines.append("[b]Fight night[/b]")
 		lines.append("Fatigue %d (%s)%s." % [roundi(camp.fatigue), TrainingCamp.freshness(camp.fatigue),
 			", still hurt (%d more days)" % camp.injured_days if camp.injured_days > 0 else ""])
-		lines.append("[color=%s]Fatigue and injuries don't reach the fight yet: that comes next (docs/02 §3.6).[/color]" % DIM)
+		lines.append("[color=%s]Fatigue and injuries don't reach the fight yet: that comes next.[/color]" % DIM)
 		return "\n".join(lines)
 	lines.append("[b]This week, if nothing goes wrong[/b]")
 	if camp.injured_days > 0:
