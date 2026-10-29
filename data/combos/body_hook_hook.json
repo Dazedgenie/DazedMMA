@@ -1,0 +1,6 @@
+{
+	"schema": "combo@1",
+	"id": "body_hook_hook",
+	"name": "Body hook, head hook",
+	"moves": ["body_hook", "hook"]
+}

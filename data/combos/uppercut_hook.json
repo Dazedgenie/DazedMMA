@@ -1,0 +1,6 @@
+{
+	"schema": "combo@1",
+	"id": "uppercut_hook",
+	"name": "Uppercut, hook",
+	"moves": ["uppercut", "hook"]
+}

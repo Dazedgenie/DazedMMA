@@ -189,7 +189,7 @@ func test_a_move_that_is_not_the_next_one_is_no_part_of_the_combination() -> voi
 # --- The fighter AI --------------------------------------------------------------
 
 func test_strikers_throw_the_combinations_in_their_profile_and_nothing_else() -> void:
-	for pair: Array in [["boxer", "kicker"], ["muay_thai", "boxer"]]:
+	for pair: Array in [["boxer", "kicker"], ["muay_thai", "kicker"]]:
 		for n in 3:
 			var sim := FightSim.new(SEED + n, _roster.make_pair(pair[0], pair[1]), _actions)
 			sim.run_to_end()

@@ -1,0 +1,18 @@
+{
+	"schema": "action@2",
+	"id": "short_uppercut",
+	"name": "Short uppercut",
+	"category": "strike",
+	"positions": ["clinch"],
+	"ranges": ["clinch"],
+	"phases_ms": { "telegraph": 100, "windup": 200, "active": 100, "recovery": 300 },
+	"stamina_cost": 4,
+	"flags_self": [],
+	"strike": { "target": "head", "base_damage": 6 },
+	"stats": { "offense": ["boxing", "clinch_striking"], "defense": ["striking_defense"] },
+	"opportunities": [
+		{ "opponent_flag": "POSTURE_BROKEN", "success_bonus": 0.15, "damage_multiplier": 1.2 },
+		{ "own_flag": "POSTURE_BROKEN", "success_bonus": -0.15 }
+	],
+	"requires_technique": null
+}

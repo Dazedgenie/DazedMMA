@@ -1,0 +1,17 @@
+{
+	"schema": "action@2",
+	"id": "calf_kick",
+	"name": "Calf kick",
+	"category": "strike",
+	"positions": ["standing"],
+	"ranges": ["mid", "pocket"],
+	"phases_ms": { "telegraph": 100, "windup": 200, "active": 100, "recovery": 300 },
+	"stamina_cost": 3,
+	"flags_self": [
+		{ "flag": "ONE_LEG", "from": "windup", "to": "active" }
+	],
+	"strike": { "target": "legs", "base_damage": 5 },
+	"stats": { "offense": ["kicking", "speed"], "defense": ["striking_defense"] },
+	"opportunities": [],
+	"requires_technique": null
+}

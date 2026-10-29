@@ -1,0 +1,6 @@
+{
+	"schema": "combo@1",
+	"id": "one_two_body_hook",
+	"name": "1-2, hook to the body",
+	"moves": ["jab", "cross", "body_hook"]
+}

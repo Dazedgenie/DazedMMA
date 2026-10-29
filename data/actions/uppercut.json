@@ -1,0 +1,20 @@
+{
+	"schema": "action@2",
+	"id": "uppercut",
+	"name": "Uppercut",
+	"category": "strike",
+	"positions": ["standing"],
+	"ranges": ["pocket"],
+	"phases_ms": { "telegraph": 200, "windup": 200, "active": 100, "recovery": 300 },
+	"stamina_cost": 5,
+	"flags_self": [
+		{ "flag": "HANDS_LOW", "from": "windup", "to": "active" }
+	],
+	"strike": { "target": "head", "base_damage": 7 },
+	"stats": { "offense": ["boxing", "power"], "defense": ["striking_defense"] },
+	"opportunities": [
+		{ "opponent_flag": "HEAD_LOW", "success_bonus": 0.25, "damage_multiplier": 1.4, "stops": true },
+		{ "opponent_flag": "COMING_IN", "success_bonus": 0.10, "stops": true }
+	],
+	"requires_technique": null
+}
