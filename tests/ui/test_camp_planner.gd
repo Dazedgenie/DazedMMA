@@ -133,7 +133,7 @@ func test_the_last_week_is_fight_week_with_the_fight_on_saturday_evening() -> vo
 
 
 func test_the_title_shows_the_scouts_range_for_the_fighters_potential() -> void:
-	assert_string_contains(_planner._title.text, _planner.scouted_potential() + " (scouted)")
+	assert_string_contains(_planner._subtitle.text, _planner.scouted_potential() + " (scouted)")
 	assert_eq(_planner.scouted_potential().split("–").size(), 2, "a range, e.g. 78–92")
 
 
@@ -179,3 +179,54 @@ func test_skipping_the_minigame_lets_the_session_auto_resolve() -> void:
 	_planner.minigame.skip()
 	assert_eq(_planner.reports.size(), 1)
 	assert_true(_planner.reports[0].played.is_empty())
+
+
+func test_each_tile_shows_its_session_and_the_fatigue_after_it() -> void:
+	_planner.pick_preset("speed")
+	var forecast: Dictionary = _planner.camp.forecast(_planner.week_plan())
+	assert_eq(_planner.tile_text(0), "Sprints & plyometrics · fatigue %d" % roundi(forecast.slots[0].fatigue))
+	assert_string_contains(_planner.tile_text(5), "Film study")
+	assert_eq(_planner._slots[0].kind, "conditioning", "coloured by its kind")
+
+
+func test_picking_a_session_from_a_tiles_list_changes_that_slot() -> void:
+	_planner.open_session_menu(3)
+	_planner.choose_session("rolling")
+	assert_eq(_planner.week_plan().days[1][1], "rolling", "Tuesday evening")
+	assert_eq(_planner.week_plan().id, CampPlanner.CUSTOM)
+	assert_string_contains(_planner.tile_text(3), "Rolling")
+
+
+func test_the_countdown_runs_down_to_the_fight_on_the_last_saturday() -> void:
+	assert_eq(_planner.days_to_fight(), 5 * 7 + 5, "from week 1's Monday to week 6's Saturday")
+	_planner.run_week()
+	assert_eq(_planner.days_to_fight(), 4 * 7 + 5)
+	assert_eq(_planner._countdown.run, 1)
+	assert_string_contains(_planner._days.text, "33 days")
+	_planner.run_rest()
+	assert_eq(_planner.days_to_fight(), 0)
+	assert_eq(_planner._days.text, "Fight night")
+
+
+func test_the_condition_card_shows_fatigue_the_weeks_peak_and_injury_chance() -> void:
+	_planner.pick_preset("all_out")
+	var forecast: Dictionary = _planner.camp.forecast(_planner.week_plan())
+	var text: String = _planner.condition_text()
+	assert_string_contains(text, "no injuries")
+	assert_string_contains(text, "Peak this week %d" % roundi(forecast.fatigue_peak))
+	assert_string_contains(text, "Injury chance %d%%" % roundi(100.0 * float(forecast.injury_odds)))
+
+
+func test_the_opponents_name_goes_under_the_countdown() -> void:
+	_planner.opponent_name = "Kicker"
+	assert_string_contains(_planner._days_note.text, "vs Kicker")
+
+
+func test_a_hurt_fighters_tiles_say_the_sessions_he_will_miss() -> void:
+	_planner.camp.injured_days = 5
+	_planner.camp.injury_area = "legs"
+	_planner.pick_preset("speed")
+	assert_string_contains(_planner.tile_text(0), "out hurt", "sprints are off while he's hurt")
+	assert_false(_planner.tile_text(5).contains("out hurt"), "film study is light, so it goes ahead")
+	assert_string_contains(_planner.condition_text(), "Hurt (legs): 5 more days")
+	assert_gt(float(_planner._figure.hurt.legs), 0.0, "the figure shows where")

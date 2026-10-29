@@ -2,6 +2,7 @@
 	"schema": "session@1",
 	"id": "wrestling_drill",
 	"name": "Wrestling drills",
+	"kind": "wrestling",
 	"trains": { "takedowns": 0.5, "clinch_control": 0.2, "scrambles": 0.3 },
 	"xp": 10,
 	"fatigue": 12,

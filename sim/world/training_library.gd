@@ -6,6 +6,8 @@ extends RefCounted
 
 const SESSIONS_DIR := "res://data/sessions/"
 const PLANS_DIR := "res://data/week_plans/"
+## What kind of training a session is (docs/09 session@1 `kind`, D160): the planner colours its tiles by it.
+const KINDS: Array[String] = ["striking", "wrestling", "grappling", "sparring", "conditioning", "mind", "recovery"]
 
 static var _default: TrainingLibrary
 

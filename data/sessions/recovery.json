@@ -2,6 +2,7 @@
 	"schema": "session@1",
 	"id": "recovery",
 	"name": "Recovery (stretching, ice, massage)",
+	"kind": "recovery",
 	"trains": {},
 	"xp": 0,
 	"fatigue": -15,

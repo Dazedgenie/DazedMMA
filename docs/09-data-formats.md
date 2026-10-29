@@ -166,6 +166,7 @@ One kind of training session (`docs/02` §3.5, D125). Loaded by `TrainingLibrary
 | Field | Type | Meaning |
 |---|---|---|
 | `name` | string | As the planner and the camp report show it |
+| `kind` | `striking` · `wrestling` · `grappling` · `sparring` · `conditioning` · `mind` · `recovery` | What kind of training it is: the planner colours its tile by it (D160, `docs/02` §3.10) |
 | `trains` | `{stat: share}` | Which attributes its XP goes to; shares add up to 1. Empty for rest and recovery |
 | `xp` | number ≥ 0 | XP for a session at quality 1.0; 0 exactly when it trains nothing |
 | `fatigue` | −100–100 | Fatigue it adds (× the Recovery factor); negative takes fatigue away (rest, recovery, meditation) |

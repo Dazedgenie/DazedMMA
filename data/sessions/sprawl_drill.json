@@ -2,6 +2,7 @@
 	"schema": "session@1",
 	"id": "sprawl_drill",
 	"name": "Sprawl drills",
+	"kind": "wrestling",
 	"trains": { "takedown_defense": 0.6, "scrambles": 0.2, "speed": 0.2 },
 	"xp": 10,
 	"fatigue": 10,

@@ -2,6 +2,7 @@
 	"schema": "session@1",
 	"id": "heavy_bag",
 	"name": "Heavy bag",
+	"kind": "striking",
 	"trains": { "power": 0.5, "boxing": 0.3, "strength": 0.2 },
 	"xp": 10,
 	"fatigue": 10,

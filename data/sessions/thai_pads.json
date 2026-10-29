@@ -2,6 +2,7 @@
 	"schema": "session@1",
 	"id": "thai_pads",
 	"name": "Thai pads",
+	"kind": "striking",
 	"trains": { "kicking": 0.5, "clinch_striking": 0.3, "power": 0.2 },
 	"xp": 10,
 	"fatigue": 10,

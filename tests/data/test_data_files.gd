@@ -76,7 +76,7 @@ const SCHEMAS := {
 		"rules": TYPE_ARRAY, "tell_cue": TYPE_BOOL, "tip": TYPE_STRING,
 	} },
 	"session@1": { "folder": "sessions", "fields": {
-		"name": TYPE_STRING, "trains": TYPE_DICTIONARY, "xp": TYPE_FLOAT, "fatigue": TYPE_FLOAT,
+		"name": TYPE_STRING, "kind": TYPE_STRING, "trains": TYPE_DICTIONARY, "xp": TYPE_FLOAT, "fatigue": TYPE_FLOAT,
 		"injury_risk": TYPE_FLOAT, "light": TYPE_BOOL, "leanings": TYPE_DICTIONARY, "chin_wear": TYPE_FLOAT,
 	} },
 	"week_plan@1": { "folder": "week_plans", "fields": { "name": TYPE_STRING, "about": TYPE_STRING, "days": TYPE_ARRAY } },
@@ -543,6 +543,8 @@ func test_training_sessions_train_real_stats_in_shares_that_add_up() -> void:
 		if s.get("chin_wear") is float and (s.chin_wear < 0.0 or s.chin_wear > 1.0):
 			problems.append("%s: chin_wear is Chin points lost per session, 0 to 1" % where)
 		_expect_numbers(problems, where, "leanings", s.get("leanings", {}), LEANINGS, -1, 1)
+		if s.get("kind") is String and s.kind not in TrainingLibrary.KINDS:
+			problems.append("%s: kind '%s' is one of %s" % [where, s.kind, TrainingLibrary.KINDS])
 		var minigame: Variant = s.get("minigame")
 		if minigame != null and minigame not in MINIGAMES:
 			problems.append("%s: minigame '%s' is null or one of %s" % [where, minigame, MINIGAMES])

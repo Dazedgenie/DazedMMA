@@ -2,6 +2,7 @@
 	"schema": "session@1",
 	"id": "meditation",
 	"name": "Meditation",
+	"kind": "mind",
 	"trains": { "composure": 0.6, "heart": 0.4 },
 	"xp": 8,
 	"fatigue": -4,

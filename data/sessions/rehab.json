@@ -2,6 +2,7 @@
 	"schema": "session@1",
 	"id": "rehab",
 	"name": "Rehab (physio, easy technique)",
+	"kind": "recovery",
 	"trains": {},
 	"xp": 0,
 	"fatigue": -8,

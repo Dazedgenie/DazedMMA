@@ -2,6 +2,7 @@
 	"schema": "session@1",
 	"id": "rolling",
 	"name": "Rolling (BJJ)",
+	"kind": "grappling",
 	"trains": { "top_control": 0.3, "guard": 0.3, "submissions": 0.2, "submission_defense": 0.2 },
 	"xp": 10,
 	"fatigue": 10,
