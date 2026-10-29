@@ -134,7 +134,7 @@ generated world fighters. Loaded by `FighterLibrary` (`sim/fight/fighter_library
 | `techniques` | action ids | The moves this fighter knows and the AI picks from |
 | `tendencies` | `{work_rate, actions: {action id: weight}}` | `work_rate`: the chance per free tick to lead with something (0–1; 0.015 ≈ one lead every 7 s, with combinations, counters and meeting advances on top; `docs/01` §20). `actions`: how much they favour a move (1.0 = normal, 0–10), `docs/01` §7 |
 | `age` | whole years, 14–45 (optional) | Training learns faster when young and styles set from 30 (`docs/02` §3.5); 25 if left out |
-| `potential` | 0–100 (optional) | Where training slows right down (`docs/11` §2.3, `docs/02` §3.5); 75 if left out |
+| `potential` | 0–100 (optional) | Where training slows right down (`docs/11` §2.3, `docs/02` §3.5); 75 if left out. Hidden in the game: scouts see a 14-point range around it (D136, `docs/02` §3.8) |
 | `condition` (optional) | `{tank: 0–1, hurt: {head/body/legs: 0–1}}` | How a camp sends them in (D135, `docs/02` §3.7): the share of the gas tank they have all fight, and how hurt an area already is. Written by the camp planner, never in `data/fighters/`; left out = fresh |
 | `combos` (optional) | data/combos ids | The combinations this fighter has drilled (D133, `docs/01` §31). Every move in them must be one the fighter knows. Left out = none: their strikes chain one at a time as before |
 | `tells` | `[{trigger, action, chance, within_ms}]` | Habits an opponent can scout: after `trigger`, `chance` to throw `action` within `within_ms` (`docs/01` §7, D11). The AI follows them (`docs/01` §20). A tell on the fighter's own move starting is a set-up: the Wrestler's `own_stance_shift` → `double_leg` |

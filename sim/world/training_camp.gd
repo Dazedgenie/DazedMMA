@@ -23,7 +23,8 @@ const PLAYED_MIN: float = 0.8
 const PLAYED_MAX: float = 1.5
 
 ## XP for one point: XP_PER_POINT × e^(stat / XP_CURVE), so every 25 points costs e (≈2.7) times as much.
-const XP_PER_POINT: float = 10.0
+## 4 (was 10) so a top prospect reaches the top level by 28–29 (D136, docs/02 §3.8).
+const XP_PER_POINT: float = 4.0
 const XP_CURVE: float = 25.0
 ## Near the fighter's potential it slows down more: × e^(points past (potential − CEILING_SOFT) / CEILING_SCALE).
 const CEILING_SOFT: float = 10.0
@@ -42,6 +43,9 @@ const FAST_LEARNER: float = 1.15
 const COACHABLE_PER_POINT: float = 1.0 / 400.0
 ## [up to this age, XP ×]: young fighters learn fastest.
 const AGE_LEARNING: Array = [[23, 1.2], [29, 1.0], [33, 0.8], [999, 0.6]]
+## The body's own curve, for the stats that age (Ageing.DECLINE): it stops answering training soon after 27, so even
+## a fighter who trains perfectly peaks physically around 28–29 (D136, Kyle) while skills and Fight IQ keep growing.
+const BODY_AGE_LEARNING: Array = [[23, 1.2], [27, 1.0], [30, 0.6], [34, 0.3], [999, 0.1]]
 ## Each stat's points past this in one camp count half (the soft cap per camp, D13).
 const CAMP_SOFT_CAP: float = 3.0
 const PAST_SOFT_CAP: float = 0.5
@@ -127,6 +131,7 @@ var fatigue: float = 0.0
 var injured_days: int = 0
 var injury_area: String = ""  # Where the injury that's healing is ("" when not hurt).
 var age: int
+var age_years: float  # Age with the weeks since the last birthday: each week run adds one (Ageing, D136).
 var potential: float
 
 var _profile: Dictionary
@@ -147,6 +152,7 @@ func _init(profile_in: Dictionary, camp_seed: int, library: TrainingLibrary = nu
 		stats[id] = float(_profile.stats[id])
 	style = StyleLeanings.new(_profile.get("style", {}))
 	age = int(_profile.get("age", DEFAULT_AGE))
+	age_years = float(age)
 	potential = float(_profile.get("potential", DEFAULT_POTENTIAL))
 	var enum_data: Variant = JSON.parse_string(FileAccess.get_file_as_string(STATS_PATH))
 	if enum_data is Dictionary:
@@ -210,6 +216,9 @@ func run_plan(plan: Dictionary, played: Dictionary = {}, fight_week: bool = fals
 		_heal(1)
 	week.fatigue_end = fatigue
 	week.injury_odds = 1.0 - _unhurt
+	week.aged = Ageing.age_a_week(stats, age_years)
+	age_years += 1.0 / Ageing.WEEKS_PER_YEAR
+	age = int(age_years + 0.0001)
 	return week
 
 
@@ -222,6 +231,8 @@ func forecast(plan: Dictionary, fight_week: bool = false) -> Dictionary:
 	copy.fatigue = fatigue
 	copy.injured_days = injured_days
 	copy.injury_area = injury_area
+	copy.age_years = age_years
+	copy.age = age
 	copy._camp_gains = _camp_gains.duplicate()
 	copy._forecasting = true
 	return copy.run_plan(plan, {}, fight_week)
@@ -288,6 +299,7 @@ static func grade(value: float) -> String:
 func profile() -> Dictionary:
 	var out: Dictionary = _profile.duplicate(true)
 	out.template = null
+	out.age = age
 	var trained: Dictionary = {}
 	for id: String in stats:
 		trained[id] = snappedf(stats[id], 0.01)
@@ -313,10 +325,11 @@ func ceiling(id: String) -> float:
 	return out
 
 
-## Training XP × this, from age, Coachable and the Fast learner gift.
-func learning() -> float:
+## Training XP × this, from age, Coachable and the Fast learner gift. A stat that ages (Speed, Strength …) uses the
+## body's age curve, BODY_AGE_LEARNING.
+func learning(stat_id: String = "") -> float:
 	var out: float = 1.0 + float(_profile.get("personality", {}).get("coachable", 0.0)) * COACHABLE_PER_POINT
-	for entry: Array in AGE_LEARNING:
+	for entry: Array in (BODY_AGE_LEARNING if Ageing.ages(stat_id) else AGE_LEARNING):
 		if age <= entry[0]:
 			out *= entry[1]
 			break
@@ -389,9 +402,9 @@ func _run_slot(id: String, day: int, quality: float, variety: float, instruction
 			injury_area = area
 		injured_days = maxi(injured_days, days)
 		week.injuries.append({ "day": day, "session": id, "days_out": days, "area": area })
-	var mult: float = clampf(quality, PLAYED_MIN, PLAYED_MAX) * learning() * fatigue_factor() * variety
+	var mult: float = clampf(quality, PLAYED_MIN, PLAYED_MAX) * fatigue_factor() * variety
 	for stat_id: String in session.trains:
-		var points: float = float(session.xp) * float(session.trains[stat_id]) * mult / xp_per_point(stat_id)
+		var points: float = float(session.xp) * float(session.trains[stat_id]) * mult * learning(stat_id) / xp_per_point(stat_id)
 		if _camp_gains.get(stat_id, 0.0) >= CAMP_SOFT_CAP:
 			points *= PAST_SOFT_CAP
 		stats[stat_id] = minf(100.0, stat(stat_id) + points)

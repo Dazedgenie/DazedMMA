@@ -1,0 +1,15 @@
+{
+	"schema": "week_plan@1",
+	"id": "time_off",
+	"name": "Time off",
+	"about": "No training at all: the fighter rests and heals, and learns nothing",
+	"instruction": null,
+	"days": [
+		["rest", "rest"],
+		["rest", "rest"],
+		["rest", "rest"],
+		["rest", "rest"],
+		["rest", "rest"],
+		["rest", "rest"]
+	]
+}
