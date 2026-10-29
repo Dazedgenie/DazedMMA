@@ -2,6 +2,7 @@
 	"schema": "week_plan@1",
 	"id": "striker",
 	"name": "Striker",
+	"about": "Boxing, Thai pads and the bag: the striking stats most",
 	"instruction": null,
 	"days": [
 		["boxing_drill", "roadwork"],

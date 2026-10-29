@@ -10,14 +10,7 @@ extends MainLoop
 ## --age and --potential stand in for a fighter file that doesn't give them (docs/09 fighter@1).
 ## --fights=N also plays N fights (seeds 1…N) against --opponent with the fighter as they were and as the camp left them.
 
-const STAT_NAMES := {
-	"strength": "Strength", "speed": "Speed", "cardio": "Cardio", "recovery": "Recovery", "durability": "Durability",
-	"chin": "Chin", "boxing": "Boxing", "kicking": "Kicking", "clinch_striking": "Clinch striking",
-	"striking_defense": "Striking defense", "footwork": "Footwork", "power": "Power", "takedowns": "Takedowns",
-	"takedown_defense": "Takedown defense", "clinch_control": "Clinch control", "scrambles": "Scrambles",
-	"top_control": "Top control", "guard": "Guard", "submissions": "Submissions",
-	"submission_defense": "Submission defense", "fight_iq": "Fight IQ", "composure": "Composure", "heart": "Heart",
-}
+const STAT_NAMES := TrainingCamp.STAT_NAMES
 
 
 func _initialize() -> void:
@@ -104,7 +97,7 @@ func _report(before: Dictionary, camp: TrainingCamp, reports: Array[Dictionary],
 	moved.sort_custom(func(a: Array, b: Array) -> bool: return a[2] - a[1] > b[2] - b[1])
 	for m: Array in moved:
 		lines.append("  %-20s %5.1f → %5.1f  (%+.1f)  %s → %s%s" % [STAT_NAMES[m[0]], m[1], m[2], m[2] - m[1],
-			_grade(m[1]), _grade(m[2]), "  (fights see %d → %d)" % [roundi(m[1]), roundi(m[2])] if roundi(m[1]) != roundi(m[2]) else ""])
+			TrainingCamp.grade(m[1]), TrainingCamp.grade(m[2]), "  (fights see %d → %d)" % [roundi(m[1]), roundi(m[2])] if roundi(m[1]) != roundi(m[2]) else ""])
 	if moved.is_empty():
 		lines.append("  none")
 	lines.append("")
@@ -120,7 +113,7 @@ func _report(before: Dictionary, camp: TrainingCamp, reports: Array[Dictionary],
 		traits.append(StyleLeanings.TRAIT_NAMES[t])
 	if not traits.is_empty():
 		lines.append("Style traits: " + ", ".join(traits))
-	lines.append("Fight night: fatigue %d (%s)%s" % [roundi(camp.fatigue), _freshness(camp.fatigue),
+	lines.append("Fight night: fatigue %d (%s)%s" % [roundi(camp.fatigue), TrainingCamp.freshness(camp.fatigue),
 		", still hurt (%d days)" % camp.injured_days if camp.injured_days > 0 else ""])
 	lines.append("  (Fatigue and injuries don't carry into fights yet: that comes after the playtest, docs/02 §3.5.)")
 	return "\n".join(lines)
@@ -159,31 +152,6 @@ func _top_gains(gains: Dictionary, count: int) -> String:
 	for id: String in ids.slice(0, count):
 		bits.append("%s %+.2f" % [STAT_NAMES.get(id, id), gains[id]])
 	return ", ".join(bits)
-
-
-## Letter grades from docs/11 §2.4.
-func _grade(value: float) -> String:
-	if value >= 80.0:
-		return "A+"
-	if value >= 72.0:
-		return "A"
-	if value >= 65.0:
-		return "A−"
-	if value >= 50.0:
-		return "B"
-	if value >= 35.0:
-		return "C"
-	if value >= 20.0:
-		return "D"
-	return "F"
-
-
-func _freshness(fatigue: float) -> String:
-	if fatigue < 15.0:
-		return "fresh"
-	if fatigue < TrainingCamp.FATIGUE_FREE:
-		return "a little tired"
-	return "worn down"
 
 
 func _process(_delta: float) -> bool:

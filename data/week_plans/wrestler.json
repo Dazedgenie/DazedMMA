@@ -2,6 +2,7 @@
 	"schema": "week_plan@1",
 	"id": "wrestler",
 	"name": "Wrestler",
+	"about": "Wrestling and rolling, told to wrestle: the wrestling stats most and a more grounded style",
 	"instruction": "wrestle_heavy",
 	"days": [
 		["wrestling_drill", "strength_conditioning"],

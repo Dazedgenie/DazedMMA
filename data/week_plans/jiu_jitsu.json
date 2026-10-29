@@ -1,0 +1,15 @@
+{
+	"schema": "week_plan@1",
+	"id": "jiu_jitsu",
+	"name": "Jiu-jitsu focus",
+	"about": "Rolling most days: Guard, Top control and Submissions most",
+	"instruction": null,
+	"days": [
+		["rolling", "strength_conditioning"],
+		["rolling", "film_study"],
+		["wrestling_drill", "rolling"],
+		["roadwork", "meditation"],
+		["rolling", "light_sparring"],
+		["rolling", "rest"]
+	]
+}

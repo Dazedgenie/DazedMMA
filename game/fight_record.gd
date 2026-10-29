@@ -4,12 +4,13 @@ extends RefCounted
 ## the replay (seed + fighters + every command, FightSim.record), the settings it was
 ## played with, how it ended, and the coaching numbers docs/10 §2 asks about (well-timed
 ## takedowns, perfect calls, calls ignored). Saved as one JSON file per fight in
-## user://fights/; tools/playtest_report.gd adds a folder of them up.
+## user://fights/; tools/playtest_report.gd adds a folder of them up. A fighter who
+## came out of the camp planner (D133) is kept whole in `profiles`, so the fight still replays.
 
 const SCHEMA := "fight_record@1"
 const DIR := "user://fights/"
 ## The settings worth keeping with the fight (FightSetup.settings()).
-const KEPT_SETTINGS: Array[String] = ["label", "step", "tester", "normal_rate", "easy", "tell_cues", "auto_slow", "flourishes"]
+const KEPT_SETTINGS: Array[String] = ["label", "step", "tester", "normal_rate", "easy", "tell_cues", "auto_slow", "flourishes", "camp"]
 
 
 ## The record of a finished (or towelled) fight, as plain data.
@@ -25,6 +26,9 @@ static func build(sim: FightSim, settings: Dictionary, player: int = 0) -> Dicti
 	var ended: Dictionary = {}
 	if not sim.events.is_empty() and sim.events[-1].type == FightEvent.FIGHT_ENDED:
 		ended = sim.events[-1].data.duplicate(true)
+	var profiles: Dictionary = {}
+	if settings.get("red_profile") is Dictionary:
+		profiles[settings.red_profile.id] = settings.red_profile
 	return {
 		"schema": SCHEMA,
 		"saved_at": Time.get_datetime_string_from_system(),
@@ -37,6 +41,7 @@ static func build(sim: FightSim, settings: Dictionary, player: int = 0) -> Dicti
 		"stats": coaching_stats(sim, player),
 		"fighters": fighters,
 		"replay": _replay(sim),
+		"profiles": profiles,
 	}
 
 

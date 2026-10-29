@@ -6,8 +6,10 @@ extends PanelContainer
 ## rules (docs/01 §23) and the seed. The player is always the red corner.
 ## For the playtest (#20, D118): the tester's name and a "Playtest" picker that sets up
 ## each of the playtest's fights in order (Playtest, data/playtest).
+## "Training camp first" opens the camp planner for the red fighter (CampPlanner, D133).
 
 signal start_pressed(settings: Dictionary)
+signal camp_pressed(settings: Dictionary)
 
 ## [label, red id, blue id] from data/fighters. The playtest matchup comes first (D112); the
 ## Judoka and the BJJ fighter (D128), then the Muay Thai fighter (D129) and the Sambo fighter (D132), come last.
@@ -40,6 +42,7 @@ var _seed: LineEdit
 var _rules_box: VBoxContainer
 var _rules: RuleSlots
 var _start: Button
+var _camp: Button
 var _step: OptionButton
 var _tester: LineEdit
 var _steps: Array[Dictionary] = []
@@ -113,12 +116,23 @@ func _init(p_roster: FighterLibrary = null, p_actions: ActionLibrary = null) -> 
 	help.add_theme_color_override("default_color", Color("#adb5bd"))
 	column.add_child(help)
 
+	var buttons := HBoxContainer.new()
+	buttons.add_theme_constant_override("separation", 12)
+	column.add_child(buttons)
+	_camp = Button.new()
+	_camp.text = "Training camp first"
+	_camp.custom_minimum_size = Vector2(0.0, 56.0)
+	_camp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_camp.pressed.connect(func() -> void: camp_pressed.emit(settings()))
+	buttons.add_child(_camp)
 	_start = Button.new()
 	_start.text = "Start fight"
 	_start.custom_minimum_size = Vector2(0.0, 56.0)
+	_start.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_start.size_flags_stretch_ratio = 2.0
 	_start.add_theme_font_size_override("font_size", 24)
 	_start.pressed.connect(func() -> void: start_pressed.emit(settings()))
-	column.add_child(_start)
+	buttons.add_child(_start)
 
 
 ## What was picked: {label, red, blue, normal_rate, easy, tell_cues, auto_slow,

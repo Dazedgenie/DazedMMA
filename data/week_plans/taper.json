@@ -2,6 +2,7 @@
 	"schema": "week_plan@1",
 	"id": "taper",
 	"name": "Taper (fight week)",
+	"about": "Fight week: light work and rest, so the fighter comes in fresh",
 	"instruction": null,
 	"days": [
 		["film_study", "rest"],

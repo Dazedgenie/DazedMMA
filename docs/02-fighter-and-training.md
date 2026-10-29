@@ -131,7 +131,7 @@ Design rules for every minigame:
 The first working piece of training, as pure logic in `sim/world/` (D100): `TrainingCamp` (`sim/world/training_camp.gd`)
 runs week plans of sessions and turns them into attribute points, fatigue, style pushes, chin wear and camp injuries. It is
 seeded, so the same fighter, plans and seed always train the same way. Nothing here touches the fight engine, which is why it
-could be built while the Phase 1 playtest runs. The planner screen, the minigames and save/load come later.
+could be built while the Phase 1 playtest runs. The planner screen is §3.6 (D134); the minigames and save/load come later.
 
 **Try it:** `godot --headless --script res://tools/camp.gd -- --fighter=wrestler --plan=wrestler --weeks=8 --fights=100`
 prints each week, the injuries, the stats that moved (with grades), the style pushes and how fresh the fighter is for the
@@ -142,7 +142,8 @@ fight, then plays 100 fights against the Kicker before and after the camp. CI pr
 sessions" of §3.1 with two slots a day, not three. A week plan (`data/week_plans/`, `docs/09` week_plan@1) fills every slot
 with a session, and may name an **instruction**: a gameplan (`data/gameplans/`) whose style leanings every session pushes a
 little. The presets: Balanced, Striker, Push the pace (Striker with the Pressure instruction), Wrestler (with Wrestle-heavy),
-All out (12 hard sessions, no rest: the overtraining example) and Taper (fight week).
+All out (12 hard sessions, no rest: the overtraining example) and Taper (fight week), plus the focus weeks of §3.6 (Speed,
+Cardio, Power, Jiu-jitsu and Defense focus, D134). Each says in one line (`about`) what it's for.
 
 **Sessions** (`data/sessions/`, `docs/09` session@1) say what they train (shares of their XP per attribute), their XP, the
 fatigue they add (or take away), their injury risk, any style push, any chin wear and the minigame that will play them:
@@ -157,6 +158,7 @@ fatigue they add (or take away), their injury risk, any style push, any chin wea
 | Clinch work | Clinch control 50%, Clinch striking 30%, Strength 20% | 10 | 10 | 0.1% | Range +0.1 |
 | Rolling (rolling puzzle) | Top control 30%, Guard 30%, Submissions 20%, Submission defense 20% | 10 | 10 | 0.1% | Base +0.1 |
 | Strength & conditioning | Strength 50%, Speed 25%, Durability 25% | 10 | 12 | 0.1% | |
+| Sprints & plyometrics (D134) | Speed 60%, Strength 20%, Cardio 20% | 10 | 12 | 0.15% | |
 | Roadwork | Cardio 70%, Recovery 30% | 10 | 10 | 0.05% | |
 | Film study | Fight IQ | 8 | 2 | | |
 | Meditation | Composure 60%, Heart 40% | 8 | −4 | | |
@@ -203,13 +205,66 @@ session (`03` §5); nothing trains it back up.
 
 **Not yet** (they change how fights feel, so they wait for the playtest): fatigue and injuries carried into the fight
 ("enter the ring broken"), the minigames (`played` scores are already taken), rule drilling in the middle of a camp (A6), camp
-phases, the planner screen, scouting and the weight cut, and saving a career (`04` §11).
+phases, scouting and the weight cut, and saving a career (`04` §11).
 
 **What to change:** every number above is a named constant at the top of `sim/world/training_camp.gd` (`XP_PER_POINT`,
 `XP_CURVE`, `CEILING_SOFT`, `CEILING_SCALE`, `AGE_LEARNING`, `CAMP_SOFT_CAP`, `NIGHT_KEEPS`, `SUNDAY_KEEPS`, `FATIGUE_FREE`,
 `INJURY_FATIGUE`, `SKIP_PER_PARTY_POINT`, `INSTRUCTION_PUSH` …); sessions and plans are their JSON files. Fights don't
 change, so the golden fights don't need re-pinning (unless a fighter file gets fractional stats). Check a change with `tools/camp.gd` and
 `tests/sim/world/test_training_camp.gd`, then update this section and D125.
+
+### 3.6 The planner screen (D134)
+
+The camp is now on screen. On the fight setup (`06` §6.1), **Training camp first** opens the planner for the red corner's
+fighter (`ui/camp_planner.gd`); its **Fight!** button starts the same fight with the fighter as the camp left them. It is
+the first look at §3.1's planner, so it's plain: dropdowns, not drag and drop, and no minigames yet.
+
+**Try it:** run the game, pick a fight, press *Training camp first*, pick a focus week, change a slot or two, watch the
+forecast, run the weeks, then *Fight!*.
+
+**The camp.** Before week 1 you set its length (1–8 weeks, 6 by default: §4's 4–8, or 1–2 on short notice), and the
+fighter's age and potential. The test fighters have neither in their files, so they start at 25 and 75 (`TrainingCamp`'s
+defaults); the boxes are there to feel how a 19-year-old trains next to a 31-year-old. They lock once a week has run.
+
+**A week** starts from a week plan in *Start from*, the "focus on speed, focus on this" defaults Kyle asked for: Balanced,
+Striker, Push the pace, Wrestler, All out, Taper, and five focus weeks made for the planner:
+
+| Focus week | Trains most (a fighter with flat stats) | Peak fatigue | Injury chance in the week |
+|---|---|---|---|
+| Speed focus | Speed, then Boxing and Takedown defense (three days of the new *Sprints & plyometrics*) | ~45 | ~2% |
+| Cardio focus | Cardio, then Recovery (roadwork every day) | ~45 | ~3% |
+| Power focus | Power, then Boxing and Strength (the heavy bag three times) | ~45 | ~2% |
+| Jiu-jitsu focus | Top control and Guard, then Submissions and Submission defense (rolling five times) | ~37 | ~2% |
+| Defense focus | Takedown defense (sprawls three times), then Fight IQ, Composure and Striking defense | ~42 | ~2% |
+
+Every slot (Monday to Saturday, morning and evening) is a dropdown of all the sessions, and the *Instruction* picks a
+gameplan to push the style with (§3.5). Change anything and the week becomes a *Custom week*: you can build one from
+scratch the same way. The week stays on screen after it runs, so the next week starts from it.
+
+**The forecast** (`TrainingCamp.forecast`) is what the week would do if nothing goes wrong: it runs the week on a copy of
+the camp that rolls no dice (everyone turns up, nobody gets hurt) and shows the fatigue (start, peak, Sunday night), when
+being tired starts costing XP, the chance of at least one injury that week, the sessions a party animal will probably skip,
+whether the week gets the variety bonus, the Chin wear, the five biggest gains and the style pushes. A forecast never
+changes the camp or its dice: the camp trains the same with or without one. The right-hand list has every stat with its
+grade, what the camp has done to it so far and what this week adds.
+
+**Running it.** *Run week N* runs the week on screen; *Run every week left like this one* runs it to the end of the camp.
+The log says what each week did: sessions done, skipped and missed hurt, the fatigue peak, the biggest gains and any
+injury. *Start the camp again* goes back to week 1 with the fighter as they came in.
+
+**Into the fight.** *Fight!* (after the last week) starts the setup's fight with the trained fighter: id `<fighter>_camp`,
+the stats as the camp left them (fights read the nearest whole point) and the new style. The fight's saved record keeps
+the trained fighter whole and what the camp was (`09` fight_record@1), so it still replays. **Fatigue and injuries don't
+reach the fight yet:** that is next (fight-night condition: a tired fighter starts with less in the tank, a healing
+injury starts the fight with damage where it happened, and a fighter hurt badly enough pulls out or is pulled out). After
+it, ageing and the prime (a perfect 18-year-old peaks around 28–29, physical stats fall off after, skills and Fight IQ
+keep growing).
+
+**What to change:** the camp length (`WEEKS_MIN`, `WEEKS_MAX`, `WEEKS_DEFAULT`) and the week it opens on (`START_PLAN`) at
+the top of `ui/camp_planner.gd`; the focus weeks are `data/week_plans/` files (any new file shows up in *Start from*) and
+the new session is `data/sessions/sprints.json`. Tests: `tests/ui/test_camp_planner.gd`, the forecast and focus weeks in
+`tests/sim/world/test_training_camp.gd`, and the camp-to-fight path in `tests/game/test_main_scene.gd`. Fights don't
+change (no golden re-pin). Then update this section and D134.
 
 ---
 

@@ -79,7 +79,7 @@ const SCHEMAS := {
 		"name": TYPE_STRING, "trains": TYPE_DICTIONARY, "xp": TYPE_FLOAT, "fatigue": TYPE_FLOAT,
 		"injury_risk": TYPE_FLOAT, "leanings": TYPE_DICTIONARY, "chin_wear": TYPE_FLOAT,
 	} },
-	"week_plan@1": { "folder": "week_plans", "fields": { "name": TYPE_STRING, "days": TYPE_ARRAY } },
+	"week_plan@1": { "folder": "week_plans", "fields": { "name": TYPE_STRING, "about": TYPE_STRING, "days": TYPE_ARRAY } },
 	"combo@1": { "folder": "combos", "fields": { "name": TYPE_STRING, "moves": TYPE_ARRAY } },
 }
 

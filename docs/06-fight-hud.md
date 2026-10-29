@@ -92,6 +92,7 @@ screen; **Start fight** plays three rounds with the player as the **red corner**
 | Tell cue, Auto slow-mo, Perfect-call flourish | On/off, so the playtest can compare (D51–D53) |
 | Drilled rules | Your fighter's two slots and the Drilled slider (`01` §23). Only rules whose move your fighter knows are offered |
 | Seed | Blank for a random fight; type a number to get the same opening again (the result screen shows it) |
+| Training camp first | Opens the camp planner for your fighter (`02` §3.6, D134); its *Fight!* starts this fight with the fighter as the camp left them. *Start fight* skips the camp |
 
 ### 6.2 What's on screen (v0)
 | Element | v0 | Code |

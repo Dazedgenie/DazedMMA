@@ -2,6 +2,7 @@
 	"schema": "week_plan@1",
 	"id": "balanced",
 	"name": "Balanced",
+	"about": "A bit of everything, with hard sparring once a week",
 	"instruction": null,
 	"days": [
 		["boxing_drill", "wrestling_drill"],
