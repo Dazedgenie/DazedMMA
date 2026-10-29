@@ -15,7 +15,8 @@ func before_all() -> void:
 func test_there_is_a_sheet_for_every_planned_style() -> void:
 	var ids: Array = _styles.ids()
 	ids.sort()
-	assert_eq(ids, ["bjj", "boxer", "brawler", "counter_striker", "judoka", "kicker", "muay_thai", "sambo", "sprawl_brawl", "wrestler"])
+	assert_eq(ids, ["bjj", "boxer", "brawler", "counter_striker", "dirty_boxer", "gnp_wrestler", "judoka", "karate", "kicker", "leg_kicker",
+		"muay_thai", "pressure_wrestler", "sambo", "sprawl_brawl", "wrestler"])
 
 
 func test_the_same_style_seed_and_level_make_the_same_opponent() -> void:

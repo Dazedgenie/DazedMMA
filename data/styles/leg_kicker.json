@@ -1,0 +1,26 @@
+{
+	"schema": "style@1",
+	"id": "leg_kicker",
+	"name": "Leg-kick specialist",
+	"fighter": "leg_kicker",
+	"roots": [
+		"Dutch kickboxing",
+		"Amsterdam training trip",
+		"Muay Thai camp abroad"
+	],
+	"southpaw_chance": 0.15,
+	"variation": { "stats": 6, "style": 12, "tendencies": 0.2, "personality": 30, "height_cm": 4 },
+	"scouting": {
+		"summary": "Walks forward behind punches and chops the legs with low kicks and calf kicks until you can't stand.",
+		"strengths": [
+			"Punishing leg and calf kicks",
+			"Good punch-kick combinations"
+		],
+		"weaknesses": [
+			"Stands on one leg every time he kicks",
+			"No wrestling to speak of"
+		],
+		"tell": "When his jab is blocked he follows with a calf kick.",
+		"how_to_beat": "Check or catch the kicks, counter when he's on one leg, and take him down."
+	}
+}

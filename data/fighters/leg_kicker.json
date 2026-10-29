@@ -1,0 +1,19 @@
+{
+	"schema": "fighter@1",
+	"id": "leg_kicker",
+	"name": "Leg-kick specialist",
+	"template": null,
+	"frame": { "height_cm": 180, "reach_cm": 183, "build": "average" },
+	"stance": "orthodox",
+	"stats": { "kicking": 72, "boxing": 62, "power": 60, "chin": 62, "cardio": 62, "strength": 55, "striking_defense": 50, "footwork": 50, "takedown_defense": 55, "takedowns": 35, "submissions": 35, "submission_defense": 45 },
+	"personality": { "ego": 0, "discipline": 0, "coachable": 0, "loyal": 0 },
+	"style": { "pace": 40, "range": 10, "base": -20, "risk": 10 },
+	"gifts": [],
+	"flaws": [],
+	"techniques": ["jab", "cross", "hook", "leg_kick", "calf_kick", "body_kick", "knee"],
+	"combos": ["jab_leg_kick", "jab_calf_kick", "one_two", "one_two_leg_kick"],
+	"tendencies": { "work_rate": 0.018, "actions": { "jab": 1.0, "cross": 1.0, "hook": 0.8, "leg_kick": 2.0, "calf_kick": 1.6, "body_kick": 0.5, "knee": 0.3 } },
+	"tells": [
+		{ "trigger": "own_jab_blocked", "action": "calf_kick", "chance": 0.6, "within_ms": 1000 }
+	]
+}

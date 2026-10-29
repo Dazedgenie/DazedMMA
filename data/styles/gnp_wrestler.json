@@ -1,0 +1,25 @@
+{
+	"schema": "style@1",
+	"id": "gnp_wrestler",
+	"name": "Ground-and-pound wrestler",
+	"fighter": "gnp_wrestler",
+	"roots": [
+		"Wrestling family",
+		"Farm / labour kid"
+	],
+	"southpaw_chance": 0.15,
+	"variation": { "stats": 6, "style": 12, "tendencies": 0.2, "personality": 30, "height_cm": 4 },
+	"scouting": {
+		"summary": "Takes you down to hurt you, not to submit you: heavy top pressure, punches and elbows.",
+		"strengths": [
+			"Heavy top control",
+			"Brutal ground and pound"
+		],
+		"weaknesses": [
+			"Few submissions",
+			"Average striking"
+		],
+		"tell": "When his jab is blocked he shoots the double leg.",
+		"how_to_beat": "Sprawl, keep it standing, and tie him up from the bottom if he gets you down."
+	}
+}

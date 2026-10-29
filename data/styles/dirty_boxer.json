@@ -1,0 +1,25 @@
+{
+	"schema": "style@1",
+	"id": "dirty_boxer",
+	"name": "Dirty boxer",
+	"fighter": "dirty_boxer",
+	"roots": [
+		"Boxing gym kid",
+		"Street kid"
+	],
+	"southpaw_chance": 0.15,
+	"variation": { "stats": 6, "style": 12, "tendencies": 0.2, "personality": 30, "height_cm": 4 },
+	"scouting": {
+		"summary": "Ties you up against the fence and works short uppercuts and hooks in the clinch.",
+		"strengths": [
+			"Strong in the clinch",
+			"Short punches that wear you down"
+		],
+		"weaknesses": [
+			"Little at range",
+			"Slow feet"
+		],
+		"tell": "When his jab is blocked he grabs the clinch.",
+		"how_to_beat": "Keep him at range with kicks, break the clinch fast, and circle off the fence."
+	}
+}
