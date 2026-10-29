@@ -221,3 +221,71 @@ func test_fights_read_a_trained_stat_to_the_nearest_whole_point() -> void:
 	assert_eq(f.stat("takedowns"), 71)
 	assert_eq(f.stat("chin"), 60)
 	assert_eq(f.stat("boxing"), 45)
+
+
+func test_a_forecast_shows_the_week_without_changing_the_camp() -> void:
+	var library := _no_injuries()
+	var camp := TrainingCamp.new(_fighter(), 1, library)
+	var plan: Dictionary = library.plan("balanced")
+	var forecast: Dictionary = camp.forecast(plan)
+	assert_eq(camp.stat("boxing"), 40.0, "a forecast trains nobody")
+	assert_eq(camp.fatigue, 0.0)
+	var week: Dictionary = camp.run_plan(plan)
+	assert_almost_eq(float(forecast.gains.boxing), float(week.gains.boxing), 0.0001, "with nobody hurt, the week does what the forecast said")
+	assert_almost_eq(float(forecast.fatigue_peak), float(week.fatigue_peak), 0.0001)
+
+
+func test_a_forecast_rolls_none_of_the_camps_dice() -> void:
+	var plans: Array[String] = ["all_out", "all_out", "all_out", "all_out"]
+	var plain := TrainingCamp.new(_fighter(), 9)
+	var forecasting := TrainingCamp.new(_fighter(), 9)
+	var plain_weeks: Array[Dictionary] = []
+	var forecast_weeks: Array[Dictionary] = []
+	for id in plans:
+		plain_weeks.append(plain.run_week(id))
+		forecasting.forecast(TrainingLibrary.shared().plan("all_out"))
+		forecast_weeks.append(forecasting.run_week(id))
+	assert_eq(forecast_weeks.map(func(w: Dictionary) -> Array: return w.injuries), plain_weeks.map(func(w: Dictionary) -> Array: return w.injuries))
+	assert_eq(forecasting.profile().stats, plain.profile().stats)
+
+
+func test_the_planners_own_week_trains_exactly_like_the_same_week_plan() -> void:
+	var a := TrainingCamp.new(_fighter(), 3)
+	var b := TrainingCamp.new(_fighter(), 3)
+	var plan: Dictionary = TrainingLibrary.shared().plan("wrestler").duplicate(true)
+	plan.id = "custom"
+	a.run_week("wrestler")
+	b.run_plan(plan)
+	assert_eq(a.profile().stats, b.profile().stats)
+	assert_eq(a.fatigue, b.fatigue)
+
+
+func test_harder_weeks_carry_a_bigger_chance_of_an_injury() -> void:
+	var library := TrainingLibrary.shared()
+	var odds: Array[float] = []
+	for id in ["taper", "balanced", "all_out"]:
+		odds.append(float(TrainingCamp.new(_fighter(), 1).forecast(library.plan(id)).injury_odds))
+	assert_lt(odds[0], odds[1])
+	assert_lt(odds[1], odds[2])
+	assert_between(odds[2], 0.05, 0.3, "about one All out camp in two or three has an injury over 8 weeks (docs/02 §3.5)")
+
+
+func test_each_focus_week_trains_its_focus_most() -> void:
+	var library := TrainingLibrary.shared()
+	var flat := _fighter({ "stats": {} })
+	var focus := { "speed": ["speed"], "cardio": ["cardio"], "power": ["power"], "jiu_jitsu": ["guard", "submissions", "top_control"],
+		"defense": ["takedown_defense", "striking_defense", "submission_defense", "fight_iq"] }
+	for id: String in focus:
+		var gains: Dictionary = TrainingCamp.new(flat, 1).forecast(library.plan(id)).gains
+		var top: Array = gains.keys()
+		top.sort_custom(func(a: String, b: String) -> bool: return gains[a] > gains[b])
+		assert_has(focus[id], top[0], "%s focus trains %s most" % [id, top[0]])
+
+
+func test_grades_follow_the_docs_letter_scale() -> void:
+	assert_eq(TrainingCamp.grade(85.0), "A+")
+	assert_eq(TrainingCamp.grade(72.0), "A")
+	assert_eq(TrainingCamp.grade(64.9), "B")
+	assert_eq(TrainingCamp.grade(3.0), "F")
+	assert_eq(TrainingCamp.freshness(10.0), "fresh")
+	assert_eq(TrainingCamp.freshness(55.0), "worn down")

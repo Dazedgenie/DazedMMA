@@ -1,0 +1,15 @@
+{
+	"schema": "week_plan@1",
+	"id": "defense",
+	"name": "Defense focus",
+	"about": "Sprawls, slipping and escapes: Takedown defense, Striking defense and Submission defense",
+	"instruction": null,
+	"days": [
+		["sprawl_drill", "boxing_drill"],
+		["rolling", "light_sparring"],
+		["sprawl_drill", "film_study"],
+		["clinch_work", "roadwork"],
+		["sprawl_drill", "light_sparring"],
+		["meditation", "rest"]
+	]
+}

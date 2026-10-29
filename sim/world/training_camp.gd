@@ -58,6 +58,8 @@ const SUNDAY_KEEPS: float = 0.4
 ## XP is full up to FATIGUE_FREE, then falls in a line to × FATIGUE_FLOOR at 100.
 const FATIGUE_FREE: float = 40.0
 const FATIGUE_FLOOR: float = 0.5
+## Below this fatigue a fighter is fresh; below FATIGUE_FREE a little tired; past it worn down.
+const FRESH_BELOW: float = 15.0
 
 ## Injury chance per session: injury_risk × (1 + (fatigue / INJURY_FATIGUE)²) × (INJURY_DURABILITY_BASE − Durability / 100).
 const INJURY_FATIGUE: float = 30.0
@@ -85,6 +87,17 @@ const INJURED := "injured"
 const RESTED := "rested"
 
 const STATS_PATH := "res://data/enums/stats.json"
+## How the planner and the camp report name each stat (data/enums/stats ids), in the docs/02 §2 order.
+const STAT_NAMES := {
+	"strength": "Strength", "speed": "Speed", "cardio": "Cardio", "recovery": "Recovery", "durability": "Durability",
+	"chin": "Chin", "boxing": "Boxing", "kicking": "Kicking", "clinch_striking": "Clinch striking",
+	"striking_defense": "Striking defense", "footwork": "Footwork", "power": "Power", "takedowns": "Takedowns",
+	"takedown_defense": "Takedown defense", "clinch_control": "Clinch control", "scrambles": "Scrambles",
+	"top_control": "Top control", "guard": "Guard", "submissions": "Submissions",
+	"submission_defense": "Submission defense", "fight_iq": "Fight IQ", "composure": "Composure", "heart": "Heart",
+}
+## [from this value, letter grade] (docs/11 §2.4), best first.
+const GRADES: Array = [[80.0, "A+"], [72.0, "A"], [65.0, "A−"], [50.0, "B"], [35.0, "C"], [20.0, "D"], [0.0, "F"]]
 
 var stats: Dictionary = {}  # stat id → 0–100 (fractions kept, so small gains add up)
 var style: StyleLeanings
@@ -99,6 +112,8 @@ var _rng := RandomNumberGenerator.new()
 var _camp_gains: Dictionary = {}  # stat id → points gained this camp
 var _groups: Dictionary = {}  # stat id → attribute group, from data/enums/stats
 var _instructions: Dictionary = {}  # gameplan id → its leanings
+var _forecasting: bool = false  # A forecast copy rolls no dice: nobody skips or gets hurt.
+var _unhurt: float = 1.0  # The chance of getting through this week's sessions so far without an injury.
 
 
 func _init(profile_in: Dictionary, camp_seed: int, library: TrainingLibrary = null) -> void:
@@ -136,13 +151,22 @@ func run_camp(plan_ids: Array[String]) -> Array[Dictionary]:
 ## One week of a plan. `played` maps a slot (0–11: day × 2 + slot) to the minigame score it got.
 ## Returns what happened: each slot, the points each stat gained, style pushes, fatigue, injuries.
 func run_week(plan_id: String, played: Dictionary = {}) -> Dictionary:
-	var plan: Dictionary = _library.plan(plan_id)
+	return run_plan(_library.plan(plan_id), played)
+
+
+## One week of a plan given as data (week_plan@1: the planner's own week, D133), as run_week.
+## The report also gives `injury_odds` (the chance the week had of at least one injury), `skips_expected`
+## and whether it got the `variety` bonus.
+func run_plan(plan: Dictionary, played: Dictionary = {}) -> Dictionary:
 	var week := {
-		"plan": plan_id, "slots": [], "gains": {}, "leanings": {}, "injuries": [],
+		"plan": String(plan.get("id", "")), "slots": [], "gains": {}, "leanings": {}, "injuries": [],
 		"done": 0, "skipped": 0, "injured": 0, "chin_wear": 0.0,
 		"fatigue_start": fatigue, "fatigue_peak": fatigue, "fatigue_end": 0.0,
+		"injury_odds": 0.0, "skips_expected": 0.0, "variety": false,
 	}
 	var variety: float = VARIETY_BONUS if _groups_trained(plan) >= VARIETY_GROUPS else 1.0
+	week.variety = variety > 1.0
+	_unhurt = 1.0
 	var instruction: Dictionary = _instruction(plan.get("instruction"))
 	for day in DAYS:
 		for slot in SLOTS_PER_DAY:
@@ -155,7 +179,34 @@ func run_week(plan_id: String, played: Dictionary = {}) -> Dictionary:
 	fatigue *= SUNDAY_KEEPS
 	injured_days = maxi(0, injured_days - 1)
 	week.fatigue_end = fatigue
+	week.injury_odds = 1.0 - _unhurt
 	return week
+
+
+## What this week would probably do, without changing the camp (the planner shows it, D133): the same
+## week on a copy that rolls no dice, so every session is done and nobody gets hurt; `injury_odds` and
+## `skips_expected` say how likely the dice were to change that.
+func forecast(plan: Dictionary) -> Dictionary:
+	var copy := TrainingCamp.new(profile(), 0, _library)
+	copy.stats = stats.duplicate()
+	copy.fatigue = fatigue
+	copy.injured_days = injured_days
+	copy._camp_gains = _camp_gains.duplicate()
+	copy._forecasting = true
+	return copy.run_plan(plan)
+
+
+## How much each stat has gained since start_camp().
+func camp_gains() -> Dictionary:
+	return _camp_gains.duplicate()
+
+
+## The letter grade for a stat value (docs/11 §2.4).
+static func grade(value: float) -> String:
+	for entry: Array in GRADES:
+		if value >= entry[0]:
+			return entry[1]
+	return GRADES[-1][1]
 
 
 ## The fighter@1 profile with the trained stats and style (fractions kept to 2 places; fights read whole points).
@@ -207,7 +258,21 @@ func style_speed() -> float:
 
 ## XP × this at the current fatigue.
 func fatigue_factor() -> float:
-	return 1.0 - (1.0 - FATIGUE_FLOOR) * clampf((fatigue - FATIGUE_FREE) / (100.0 - FATIGUE_FREE), 0.0, 1.0)
+	return fatigue_factor_at(fatigue)
+
+
+## XP × this at that fatigue.
+static func fatigue_factor_at(value: float) -> float:
+	return 1.0 - (1.0 - FATIGUE_FLOOR) * clampf((value - FATIGUE_FREE) / (100.0 - FATIGUE_FREE), 0.0, 1.0)
+
+
+## How a fighter at that fatigue would put it: "fresh", "a little tired" or "worn down".
+static func freshness(value: float) -> String:
+	if value < FRESH_BELOW:
+		return "fresh"
+	if value < FATIGUE_FREE:
+		return "a little tired"
+	return "worn down"
 
 
 ## The chance this session injures the fighter, at the fatigue they're doing it at.
@@ -227,14 +292,18 @@ func _run_slot(id: String, day: int, quality: float, variety: float, instruction
 		_add_fatigue(float(_library.session("rest").fatigue))  # Out hurt: the slot becomes rest.
 		week.injured += 1
 		return INJURED
-	if trains and _rng.randf() < skip_chance():
+	if trains:
+		week.skips_expected += skip_chance()
+	if trains and _roll(skip_chance()):
 		week.skipped += 1
 		return SKIPPED
 	_add_fatigue(float(session.fatigue))
 	if not trains:
 		return RESTED
 	week.done += 1
-	if float(session.injury_risk) > 0.0 and _rng.randf() < injury_chance(session):
+	if float(session.injury_risk) > 0.0:
+		_unhurt *= 1.0 - minf(1.0, injury_chance(session))
+	if float(session.injury_risk) > 0.0 and _roll(injury_chance(session)):
 		var days: int = _rng.randi_range(INJURY_DAYS_MIN, INJURY_DAYS_MAX)
 		if "slow_healer" in _profile.get("flaws", []):
 			days = ceili(days * SLOW_HEALER)
@@ -258,6 +327,11 @@ func _run_slot(id: String, day: int, quality: float, variety: float, instruction
 	for leaning: String in instruction:
 		_push(leaning, float(instruction[leaning]) * speed, week)
 	return DONE
+
+
+## A dice roll at this chance; a forecast never rolls (and never uses up the camp's dice).
+func _roll(chance: float) -> bool:
+	return not _forecasting and _rng.randf() < chance
 
 
 func _add_fatigue(amount: float) -> void:

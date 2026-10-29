@@ -132,3 +132,27 @@ func test_after_a_playtest_fight_the_next_one_is_offered() -> void:
 	_main.hud._dialog_buttons.get_child(0).pressed.emit()
 	assert_eq(_main.settings.step, "fight_2_catch_the_kick")
 	assert_eq(_main.settings.blue, "kicker")
+
+
+func test_a_camp_before_the_fight_sends_the_trained_fighter_in_and_the_fight_still_replays() -> void:
+	_main.open_camp(_main.setup.settings())
+	assert_false(_main.setup.visible)
+	assert_not_null(_main.planner)
+	_main.planner.run_rest()
+	_main.planner._fight.pressed.emit()
+	assert_null(_main.planner, "the planner closes for the fight")
+	assert_eq(_main.driver.sim.fighters[0].id, "wrestler_camp")
+	assert_string_contains(_main.settings.label, "after camp")
+	var sim: FightSim = _main.driver.sim
+	sim.run_to_end()
+	var record: Dictionary = JSON.parse_string(JSON.stringify(FightRecord.build(sim, _main.settings)))
+	assert_true(record.profiles.has("wrestler_camp"), "the trained fighter is kept with the fight")
+	assert_eq(record.settings.camp.weeks.size(), CampPlanner.WEEKS_DEFAULT)
+	assert_true(PlaytestReport.replays(record), "a fight after camp replays from its record")
+
+
+func test_back_from_the_camp_goes_to_the_setup() -> void:
+	_main.open_camp(_main.setup.settings())
+	_main.planner.back_pressed.emit()
+	assert_null(_main.planner)
+	assert_true(_main.setup.visible)

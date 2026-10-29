@@ -8,6 +8,9 @@ extends Node3D
 ## For the playtest (#20, D118): a playtest fight opens on its tip card and limits the
 ## call bar to its calls; every fight is saved as a FightRecord in user://fights/ for the
 ## write-up; `-- --self-check` runs the self-check fight and quits (the export check in CI).
+##
+## "Training camp first" on the setup opens the camp planner (CampPlanner, D133); its Fight!
+## starts the same fight with the fighter as the camp left them (settings.red_profile).
 
 ## Smallest window the UI still fits in (the game opens windowed and resizable).
 const MIN_WINDOW_SIZE := Vector2i(960, 540)
@@ -19,6 +22,7 @@ const OVER := "over"
 var arena: ArenaView
 var hud: FightHud
 var setup: FightSetup
+var planner: CampPlanner
 var overlay: DebugOverlay
 var driver: FightDriver
 var state: String = SETUP
@@ -53,6 +57,7 @@ func _ready() -> void:
 	ui.add_child(overlay)
 	setup = FightSetup.new(_roster, _actions)
 	setup.start_pressed.connect(start_fight)
+	setup.camp_pressed.connect(open_camp)
 	ui.add_child(setup)
 	_console = $UI/DebugConsole
 	ui.move_child(_console, -1)
@@ -63,13 +68,18 @@ func _ready() -> void:
 	setup.focus_start()
 
 
-## Starts a fight with these settings (FightSetup.settings()).
+## Starts a fight with these settings (FightSetup.settings()). With `red_profile` (a fighter@1
+## profile, from the camp planner) the red corner is that fighter instead of `red`'s data file.
 func start_fight(p_settings: Dictionary) -> void:
 	settings = p_settings
 	var fight_seed: int = int(settings.get("seed", -1))
 	if fight_seed < 0:
 		fight_seed = randi()
-	var sim := FightSim.new(fight_seed, _roster.make_pair(settings.red, settings.blue), _actions)
+	var red: String = settings.red
+	if settings.get("red_profile") is Dictionary:
+		_roster.add(settings.red_profile)
+		red = String(settings.red_profile.id)
+	var sim := FightSim.new(fight_seed, _roster.make_pair(red, settings.blue), _actions)
 	sim.corners[1] = Corner.new(Corner.AI, fight_seed)
 	driver = FightDriver.new(sim, 0)
 	driver.normal_rate = float(settings.get("normal_rate", 2.0))
@@ -89,6 +99,7 @@ func start_fight(p_settings: Dictionary) -> void:
 	overlay.driver = driver
 	_console.watch(sim, "%s, seed %d" % [settings.get("label", ""), fight_seed])
 	setup.visible = false
+	_close_camp()
 	state = FIGHT
 	last_record_path = ""
 	if String(settings.get("tip", "")) != "":
@@ -291,7 +302,35 @@ func _self_check() -> void:
 	get_tree().quit(0 if check.passed() and Playtest.steps().size() > 0 else 1)
 
 
+## Opens the camp planner for these settings' red fighter (from the setup's "Training camp first").
+func open_camp(p_settings: Dictionary) -> void:
+	settings = p_settings
+	_close_camp()
+	planner = CampPlanner.new(_roster.profile(settings.red), randi())
+	planner.fight_pressed.connect(_fight_after_camp)
+	planner.back_pressed.connect(_back_to_setup)
+	$UI.add_child(planner)
+	$UI.move_child(_console, -1)
+	setup.visible = false
+	planner.focus_run()
+
+
+func _fight_after_camp(profile: Dictionary) -> void:
+	var s: Dictionary = settings.duplicate(true)
+	s.red_profile = profile
+	s.camp = planner.summary()
+	s.label = "%s after camp" % settings.get("label", "")
+	start_fight(s)
+
+
+func _close_camp() -> void:
+	if planner != null:
+		planner.queue_free()
+		planner = null
+
+
 func _back_to_setup() -> void:
+	_close_camp()
 	hud.hide_dialog()
 	hud.visible = false
 	state = SETUP

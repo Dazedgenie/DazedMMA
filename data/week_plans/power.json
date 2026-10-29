@@ -1,0 +1,15 @@
+{
+	"schema": "week_plan@1",
+	"id": "power",
+	"name": "Power focus",
+	"about": "Heavy bag and the weights: Power and Strength most",
+	"instruction": null,
+	"days": [
+		["heavy_bag", "strength_conditioning"],
+		["thai_pads", "film_study"],
+		["heavy_bag", "boxing_drill"],
+		["roadwork", "light_sparring"],
+		["heavy_bag", "sprints"],
+		["recovery", "rest"]
+	]
+}
