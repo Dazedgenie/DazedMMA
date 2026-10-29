@@ -83,3 +83,50 @@ func _gain(forecast: Dictionary) -> float:
 	for id: String in forecast.gains:
 		total += float(forecast.gains[id])
 	return total
+
+
+func test_fight_night_says_how_the_camp_sends_the_fighter_in() -> void:
+	_planner.run_rest()
+	_planner.camp.fatigue = 60.0
+	_planner.camp.injured_days = 3
+	_planner.camp.injury_area = "legs"
+	_planner._refresh()
+	var text: String = _planner.forecast_text()
+	assert_string_contains(text, "75% of the gas tank")
+	assert_string_contains(text, "Still hurt (legs)")
+	assert_string_contains(text, "clears him to fight hurt")
+	assert_true(_planner.can_fight())
+	var condition: Dictionary = _planner.trained_profile().condition
+	assert_almost_eq(float(condition.tank), 0.75, 0.0001)
+	assert_eq(_planner.summary().doctor, TrainingCamp.CLEARED_HURT)
+
+
+func test_the_doctor_calls_off_the_fight_when_the_injury_is_bad() -> void:
+	_planner.run_rest()
+	_planner.camp.injured_days = 9
+	_planner.camp.injury_area = "head"
+	_planner._refresh()
+	assert_false(_planner.can_fight())
+	assert_true(_planner._fight.disabled)
+	assert_string_contains(_planner.forecast_text(), "won't clear him")
+
+
+func test_pulling_out_calls_off_the_fight_and_wastes_the_camp() -> void:
+	assert_true(_planner._pull_out.disabled, "only on fight night")
+	_planner.run_rest()
+	_planner.pull_out()
+	assert_true(_planner.pulled_out)
+	assert_true(_planner._fight.disabled)
+	assert_string_contains(_planner.forecast_text(), "camp is wasted")
+	_planner.reset()
+	assert_false(_planner.pulled_out, "a new camp")
+
+
+func test_the_last_week_is_fight_week_with_the_fight_on_saturday_evening() -> void:
+	for n in CampPlanner.WEEKS_DEFAULT - 1:
+		_planner.run_week()
+	assert_true(_planner.fight_week())
+	assert_true(_planner._slots[-1].disabled, "Saturday evening is the fight")
+	assert_string_contains(_planner.forecast_text(), "Fight week")
+	_planner.run_week()
+	assert_true(_planner.reports[-1].fight_week)

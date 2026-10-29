@@ -6,6 +6,8 @@
 	"xp": 10,
 	"fatigue": 12,
 	"injury_risk": 0.001,
+	"injury_area": "body",
+	"light": false,
 	"leanings": {},
 	"chin_wear": 0,
 	"minigame": null

@@ -289,3 +289,105 @@ func test_grades_follow_the_docs_letter_scale() -> void:
 	assert_eq(TrainingCamp.grade(3.0), "F")
 	assert_eq(TrainingCamp.freshness(10.0), "fresh")
 	assert_eq(TrainingCamp.freshness(55.0), "worn down")
+
+
+func test_a_camp_injury_says_where_it_hurts() -> void:
+	var library := _no_injuries()
+	var spar: Dictionary = library.session("hard_sparring").duplicate(true)
+	spar.injury_risk = 0.05
+	library.add_session(spar)
+	_all_week(library, "spar_all_week", "hard_sparring")
+	var camp := TrainingCamp.new(_fighter({ "stats": { "durability": 0 } }), 2, library)
+	var week: Dictionary = camp.run_week("spar_all_week")
+	assert_false(week.injuries.is_empty(), "a week of risky sparring hurts someone")
+	assert_eq(week.injuries[0].area, "head", "sparring hurts the head")
+
+
+func test_light_sessions_still_go_ahead_while_hurt_and_the_rest_become_rest() -> void:
+	var library := _library_with("film_monday", "film_study")
+	var camp := TrainingCamp.new(_fighter(), 1, library)
+	camp.injured_days = 5
+	camp.injury_area = "legs"
+	var week: Dictionary = camp.run_week("film_monday")
+	assert_eq(week.slots[0].result, TrainingCamp.DONE, "film study is light")
+	assert_gt(float(week.gains.get("fight_iq", 0.0)), 0.0)
+	var hard := TrainingCamp.new(_fighter(), 1, _library_with("bag_monday", "heavy_bag"))
+	hard.injured_days = 5
+	assert_eq(hard.run_week("bag_monday").slots[0].result, TrainingCamp.INJURED)
+
+
+func test_rehab_heals_an_injury_faster_than_rest() -> void:
+	var resting := TrainingCamp.new(_fighter(), 1, _library_with("rest_week", "rest"))
+	var rehab := TrainingCamp.new(_fighter(), 1, _library_with("rehab_week", "rehab"))
+	for camp: TrainingCamp in [resting, rehab]:
+		camp.injured_days = 9
+		camp.injury_area = "body"
+	resting.run_week("rest_week")
+	rehab.run_week("rehab_week")
+	assert_eq(resting.injured_days, 2, "a week heals 7 days")
+	assert_eq(rehab.injured_days, 1, "and a rehab session one more")
+	rehab.run_week("rehab_week")
+	assert_eq(rehab.injured_days, 0)
+	assert_eq(rehab.injury_area, "", "healed")
+
+
+func test_fight_night_fatigue_shrinks_the_gas_tank() -> void:
+	assert_eq(TrainingCamp.tank_at(5.0), 1.0)
+	assert_almost_eq(TrainingCamp.tank_at(30.0), 0.9, 0.0001, "Kyle: fatigue 30 is 90% of the tank")
+	assert_almost_eq(TrainingCamp.tank_at(60.0), 0.75, 0.0001, "and 60 is 75%")
+	assert_almost_eq(TrainingCamp.tank_at(100.0), 0.55, 0.0001, "worn right out: just over half")
+	assert_gte(TrainingCamp.tank_at(1000.0), TrainingCamp.TANK_FLOOR)
+
+
+func test_the_doctor_clears_a_small_injury_and_stops_a_bad_one() -> void:
+	var camp := TrainingCamp.new(_fighter(), 1)
+	assert_eq(camp.fight_night().doctor, TrainingCamp.FIT)
+	assert_true(camp.fight_night().hurt.is_empty())
+	camp.injured_days = 3
+	camp.injury_area = "legs"
+	var night: Dictionary = camp.fight_night()
+	assert_eq(night.doctor, TrainingCamp.CLEARED_HURT)
+	assert_almost_eq(float(night.hurt.legs), 0.09, 0.0001, "3 days to heal: 9% hurt")
+	assert_almost_eq(float(night.worsen_chance), 0.08, 0.0001)
+	camp.injured_days = TrainingCamp.DOCTOR_MAX_DAYS + 1
+	assert_eq(camp.fight_night().doctor, TrainingCamp.NOT_CLEARED)
+
+
+func test_the_fight_profile_carries_fight_night_into_the_fight() -> void:
+	var camp := TrainingCamp.new(_fighter(), 1)
+	camp.fatigue = 60.0
+	camp.injured_days = 3
+	camp.injury_area = "legs"
+	var condition: Dictionary = camp.fight_profile().condition
+	assert_almost_eq(float(condition.tank), 0.75, 0.0001)
+	assert_almost_eq(float(condition.hurt.legs), 0.09, 0.0001)
+	assert_false(camp.profile().has("condition"), "the trained profile itself stays as it was")
+
+
+func test_fighting_hurt_sometimes_makes_it_worse_and_the_same_fight_always_says_the_same() -> void:
+	var night := { "injured_days": 5, "injury_area": "body", "worsen_chance": 0.1 }
+	var worse: int = 0
+	for n in 400:
+		var after: Dictionary = TrainingCamp.after_fight(night, n)
+		if after.worse:
+			worse += 1
+			assert_between(int(after.days_out), 5 + TrainingCamp.WORSEN_DAYS_MIN, 5 + TrainingCamp.WORSEN_DAYS_MAX)
+		else:
+			assert_eq(after.days_out, 5)
+	assert_between(worse, 20, 65, "about one in ten")
+	assert_eq(TrainingCamp.after_fight(night, 7), TrainingCamp.after_fight(night, 7))
+	assert_true(TrainingCamp.after_fight({ "injured_days": 0 }, 1).is_empty(), "not hurt, nothing to say")
+
+
+func test_in_fight_week_the_fight_is_on_saturday_evening_with_no_sunday_to_recover() -> void:
+	var plain := TrainingCamp.new(_fighter(), 1, _no_injuries())
+	var fight := TrainingCamp.new(_fighter(), 1, _no_injuries())
+	var normal: Dictionary = plain.run_plan(TrainingLibrary.shared().plan("all_out"))
+	var last: Dictionary = fight.run_plan(TrainingLibrary.shared().plan("all_out"), {}, true)
+	assert_eq(last.slots.size(), TrainingCamp.DAYS * TrainingCamp.SLOTS_PER_DAY - 1, "Saturday evening is the fight")
+	assert_true(last.fight_week)
+	assert_gt(fight.fatigue, plain.fatigue, "no night or Sunday after Saturday morning")
+	assert_lt(TrainingCamp.tank_at(fight.fatigue), 1.0, "an All out fight week costs gas on the night")
+	var tapered := TrainingCamp.new(_fighter(), 1, _no_injuries())
+	tapered.run_camp(["all_out", "taper"] as Array[String], true)
+	assert_eq(TrainingCamp.tank_at(tapered.fatigue), 1.0, "a Taper week brings the fighter in with a full tank")

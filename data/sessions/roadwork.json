@@ -6,6 +6,8 @@
 	"xp": 10,
 	"fatigue": 10,
 	"injury_risk": 0.0005,
+	"injury_area": "legs",
+	"light": false,
 	"leanings": {},
 	"chin_wear": 0,
 	"minigame": "roadwork"

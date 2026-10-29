@@ -6,6 +6,8 @@
 	"xp": 20,
 	"fatigue": 18,
 	"injury_risk": 0.006,
+	"injury_area": "head",
+	"light": false,
 	"leanings": { "risk": 0.05 },
 	"chin_wear": 0.05,
 	"minigame": "hard_sparring"

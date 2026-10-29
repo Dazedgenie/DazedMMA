@@ -6,6 +6,8 @@
 	"xp": 10,
 	"fatigue": 12,
 	"injury_risk": 0.0015,
+	"injury_area": "body",
+	"light": false,
 	"leanings": { "base": 0.1 },
 	"chin_wear": 0,
 	"minigame": "wrestling_chain"

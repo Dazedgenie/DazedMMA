@@ -8,7 +8,8 @@ extends MainLoop
 ##
 ## --plan is a data/week_plans id (one for every week), --taper how many of the last weeks use the taper plan.
 ## --age and --potential stand in for a fighter file that doesn't give them (docs/09 fighter@1).
-## --fights=N also plays N fights (seeds 1…N) against --opponent with the fighter as they were and as the camp left them.
+## --fights=N also plays N fights (seeds 1…N) against --opponent with the fighter as they were and as the camp left them
+## (tired or hurt as fight night finds them, docs/02 §3.7).
 
 const STAT_NAMES := TrainingCamp.STAT_NAMES
 
@@ -56,10 +57,10 @@ func _initialize() -> void:
 	for w in weeks:
 		plans.append("taper" if w >= weeks - taper else plan_id)
 	var camp := TrainingCamp.new(before, camp_seed, library)
-	var reports: Array[Dictionary] = camp.run_camp(plans)
+	var reports: Array[Dictionary] = camp.run_camp(plans, true)  # The fight is the last Saturday evening (D135).
 	print(_report(before, camp, reports, library, camp_seed))
 	if fights > 0:
-		var after: Dictionary = camp.profile()
+		var after: Dictionary = camp.fight_profile()
 		after.id = fighter_id + "_after_camp"
 		roster.add(after)
 		print(_fights(roster, fighter_id, after.id, opponent, fights))
@@ -73,7 +74,7 @@ func _report(before: Dictionary, camp: TrainingCamp, reports: Array[Dictionary],
 	lines.append("Camp: %s, %d weeks (%s), seed %d, age %d, potential %d" % [
 		before.name, reports.size(), _runs(names), camp_seed, camp.age, roundi(camp.potential)])
 	lines.append("")
-	lines.append("Week  Plan                  Done  Skipped  Hurt  Peak fatigue  Sunday fatigue  Biggest gains")
+	lines.append("Week  Plan                  Done  Skipped  Hurt  Peak fatigue     End fatigue  Biggest gains")
 	var injuries: Array[String] = []
 	for i in reports.size():
 		var r: Dictionary = reports[i]
@@ -115,7 +116,10 @@ func _report(before: Dictionary, camp: TrainingCamp, reports: Array[Dictionary],
 		lines.append("Style traits: " + ", ".join(traits))
 	lines.append("Fight night: fatigue %d (%s)%s" % [roundi(camp.fatigue), TrainingCamp.freshness(camp.fatigue),
 		", still hurt (%d days)" % camp.injured_days if camp.injured_days > 0 else ""])
-	lines.append("  (Fatigue and injuries don't carry into fights yet: that comes after the playtest, docs/02 §3.5.)")
+	var night: Dictionary = camp.fight_night()
+	lines.append("  The fight: %d%% of the gas tank%s; the doctor: %s (docs/02 §3.7)" % [roundi(100.0 * float(night.tank)),
+		", starts %d%% hurt (%s)" % [roundi(100.0 * float(night.hurt[night.injury_area])), night.injury_area] if night.injured_days > 0 else "",
+		night.doctor.replace("_", " ")])
 	return "\n".join(lines)
 
 

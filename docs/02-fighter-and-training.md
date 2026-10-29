@@ -166,6 +166,7 @@ fatigue they add (or take away), their injury risk, any style push, any chin wea
 | Hard sparring | Composure 30%, Heart 20%, Striking defense 20%, Fight IQ 20%, Durability 10% | 20 | 18 | 0.6% | Risk +0.05; Chin −0.05 |
 | Recovery (stretching, ice, massage) | | | −15 | | |
 | Rest | | | −20 | | |
+| Rehab (physio, easy technique) (D135) | | | −8 | | heals a day faster |
 
 **Points from XP** (§3.3, D13). Each session's XP is split by its shares, and one point of an attribute costs
 **10 × e^(attribute / 25)** XP: about 33 at 30, 74 at 50 and 164 at 70, so every 25 points costs e (≈2.7) times as much. The
@@ -187,14 +188,19 @@ the Wrestler at 19 with potential 80 (CI's camp snapshot) gains under a point in
 the film study. The camp keeps fractions of a point; fights read each stat to the nearest whole point (`FighterState`), so
 a gain shows in fights once it rounds up. Every fighter in `data/fighters/` has whole-number stats, so that changes no fight.
 
+Each session that can hurt says where (`injury_area`, D135): sparring the head; boxing drills, the bag, wrestling, clinch
+work, rolling and the weights the body; Thai pads, sprawls, roadwork and sprints the legs. Film study, meditation, rehab,
+recovery and rest are **light** (`light`): they still go ahead while the fighter is hurt.
+
 **Fatigue** (0–100, §3.1). A session adds its fatigue × (1.25 − Recovery / 200), so × 1 at Recovery 50; rest and recovery
 take theirs off. Every night keeps 60% of the fatigue and Sunday keeps 40% of what's left. A Balanced or Wrestler week peaks around 53;
 All out peaks around 65, where XP is × 0.8, and over 8 weeks it costs about 1.5 Chin from the hard sparring. A Taper week
 brings the fighter in fresh.
 
 **Camp injuries** (`03` §5). Each session rolls its injury risk × (1 + (fatigue / 30)²) × (1.5 − Durability / 100): at
-fatigue 60 that is 5 times the fresh risk. An injury keeps the fighter out 2–10 days (Slow healer × 1.5), and every slot
-until then becomes rest. About a quarter of sensible 8-week camps have one minor knock; All out gets one in about two camps
+fatigue 60 that is 5 times the fresh risk. An injury keeps the fighter out 2–10 days (Slow healer × 1.5), and until then every slot
+becomes rest except the light sessions, which go ahead (Kyle: "you should also be able to train light", D135); each rehab
+session heals a day on top. About a quarter of sensible 8-week camps have one minor knock; All out gets one in about two camps
 in three. **Party animals skip sessions**: a chance of −Discipline / 400 a session (25% at −100); a disciplined fighter
 never does. A skipped session gives nothing and costs nothing.
 
@@ -203,8 +209,7 @@ session and its others in proportion, so a week of Push the pace is about +3 Pac
 traits. Pushes are × (1 + Coachable / 200), and × 0.4 from age 30 (a style sets). **Hard sparring wears the Chin** 0.05 a
 session (`03` §5); nothing trains it back up.
 
-**Not yet** (they change how fights feel, so they wait for the playtest): fatigue and injuries carried into the fight
-("enter the ring broken"), the minigames (`played` scores are already taken), rule drilling in the middle of a camp (A6), camp
+**Not yet:** the minigames (`played` scores are already taken), rule drilling in the middle of a camp (A6), camp
 phases, scouting and the weight cut, and saving a career (`04` §11).
 
 **What to change:** every number above is a named constant at the top of `sim/world/training_camp.gd` (`XP_PER_POINT`,
@@ -254,17 +259,64 @@ injury. *Start the camp again* goes back to week 1 with the fighter as they came
 
 **Into the fight.** *Fight!* (after the last week) starts the setup's fight with the trained fighter: id `<fighter>_camp`,
 the stats as the camp left them (fights read the nearest whole point) and the new style. The fight's saved record keeps
-the trained fighter whole and what the camp was (`09` fight_record@1), so it still replays. **Fatigue and injuries don't
-reach the fight yet:** that is next (fight-night condition: a tired fighter starts with less in the tank, a healing
-injury starts the fight with damage where it happened, and a fighter hurt badly enough pulls out or is pulled out). After
-it, ageing and the prime (a perfect 18-year-old peaks around 28–29, physical stats fall off after, skills and Fight IQ
-keep growing).
+the trained fighter whole and what the camp was (`09` fight_record@1), so it still replays. How tired or hurt the camp
+sends them in is §3.7. Next: ageing and the prime (a perfect 18-year-old peaks around 28–29, physical stats fall off
+after, skills and Fight IQ keep growing).
 
 **What to change:** the camp length (`WEEKS_MIN`, `WEEKS_MAX`, `WEEKS_DEFAULT`) and the week it opens on (`START_PLAN`) at
 the top of `ui/camp_planner.gd`; the focus weeks are `data/week_plans/` files (any new file shows up in *Start from*) and
 the new session is `data/sessions/sprints.json`. Tests: `tests/ui/test_camp_planner.gd`, the forecast and focus weeks in
 `tests/sim/world/test_training_camp.gd`, and the camp-to-fight path in `tests/game/test_main_scene.gd`. Fights don't
 change (no golden re-pin). Then update this section and D134.
+
+### 3.7 Fight night: the camp goes into the fight (D135)
+
+What the camp leaves the fighter with reaches the fight (Kyle: fatigue and injuries "should absolutely carry into the fight.
+If your fighter's sparring the day before and they get hurt, they should start the fight, you know, hurt a little bit").
+`TrainingCamp.fight_night()` reads it after the last week, the planner shows it in place of the forecast, and
+`TrainingCamp.fight_profile()` writes it into the fighter's profile as `condition` (`09` fighter@1), which
+`FighterState.start_condition` applies when the fight starts.
+
+**Fight week.** The camp's last week is fight week: the fight is on its Saturday evening, so that slot is the fight (the
+planner greys it out) and Saturday morning is the last session, with no night's sleep or Sunday after it. So what happens
+late in fight week counts: sparring hard on Friday comes into the fight tired, and a knock then is still healing.
+(`run_plan`'s `fight_week`; `run_camp(plans, true)` and `tools/camp.gd` end the camp the same way.)
+
+**A smaller gas tank.** Fight-night fatigue shrinks the tank for the whole fight: full up to fatigue 10, then 0.5% less a
+point, so fatigue 30 leaves 90% of it and 60 leaves 75% (the numbers Kyle agreed), never under 50%. The fighter starts
+with that smaller tank full, so they aren't tired at the bell; they just gas sooner. A Taper fight week brings fatigue
+under 10; an All out one ends around 52 (79% of the tank), a Wrestler week around 42 (84%).
+
+**Starting hurt.** An injury still healing on fight night starts the fight 3% hurt in its area for every day it still
+needs (3 days → 9%), as the fight's own damage reads it (`11` §3.5): the head means a lower health bar and slower hands and
+reads, the body a smaller tank, the legs slower feet and weaker kicks. Simple areas for now; named injuries (a hurt hand
+that weakens punches, a knee) come later.
+
+**Training light.** While hurt, the light sessions still go ahead (film study, meditation, rehab, recovery, rest) and the
+rest become rest, so a hurt week isn't wasted. Rehab heals a day on top of the day each night heals, so a fighter hurt
+late in camp can still get fit or less hurt for the fight.
+
+**The doctor.** More than 7 days still to heal and the doctor won't clear the fighter: the fight is off. 7 or fewer and
+it's the player's call: fight hurt, or pull out. Later there may be a way to try to hide an injury from the doctor.
+
+**Pulling out** (on fight night, any time) calls the fight off. It costs no money; the penalty is the wasted camp (Kyle),
+and later perhaps some reputation once there is reputation.
+
+**Fighting hurt can make it worse:** a chance of 5% + 1% a day still to heal (3 days → 8%) that it gets worse, adding 7–28
+days out after the fight. The result screen says whether the injury held up (`TrainingCamp.after_fight`, rolled from the
+fight's seed so the same fight always says the same). With no career yet, those days out go nowhere; they're there for the
+career calendar.
+
+**Not yet:** the opponent's own camp (they always come in fresh for now; Kyle wants a hidden camp later, with scouting
+hints), hiding an injury, named injuries, and reputation for pulling out.
+
+**What to change:** `TANK_FREE_FATIGUE`, `TANK_PER_FATIGUE`, `TANK_FLOOR`, `HURT_PER_DAY`, `DOCTOR_MAX_DAYS`,
+`WORSEN_BASE`, `WORSEN_PER_DAY`, `WORSEN_DAYS_MIN`, `WORSEN_DAYS_MAX` at the top of `sim/world/training_camp.gd`; where each
+session hurts, whether it's light and rehab's `heals` in `data/sessions/`; what a hurt area does in the fight in
+`sim/fight/fighter_state.gd` (`HURT_SCALE`, `HEAD_HURT_STATS`, `LEG_HURT_STATS`, `MAX_BODY_DRAIN`). Tests: fight night in
+`tests/sim/world/test_training_camp.gd`, the starting condition in `tests/sim/fight/test_fighter_state.gd`, the planner's
+fight night in `tests/ui/test_camp_planner.gd`, the result line in `tests/game/test_main_scene.gd`. A fighter without a
+`condition` fights exactly as before (the golden fights don't change). Then update this section and D135.
 
 ---
 

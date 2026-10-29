@@ -68,6 +68,8 @@ const INJURY_DURABILITY_BASE: float = 1.5
 const INJURY_DAYS_MIN: int = 2
 const INJURY_DAYS_MAX: int = 10
 const SLOW_HEALER: float = 1.5
+## Where a session's injury is (its `injury_area`): a healing injury starts the fight hurt there (D135).
+const INJURY_AREAS: Array[String] = ["head", "body", "legs"]
 ## Party animals skip sessions: chance = −Discipline / 400 (25% at −100); disciplined fighters never do.
 const SKIP_PER_PARTY_POINT: float = 1.0 / 400.0
 
@@ -79,6 +81,26 @@ const INSTRUCTION_PUSH: float = 0.25
 const STYLE_COACHABLE_PER_POINT: float = 1.0 / 200.0
 const STYLE_SETS_AT: int = 30
 const STYLE_SET: float = 0.4
+
+## Fight night (docs/02 §3.7, D135). The gas tank: full up to TANK_FREE_FATIGUE fatigue, then TANK_PER_FATIGUE less a point
+## (fatigue 30 → 90%, 60 → 75%), never under TANK_FLOOR.
+const TANK_FREE_FATIGUE: float = 10.0
+const TANK_PER_FATIGUE: float = 0.005
+const TANK_FLOOR: float = 0.5
+## A healing injury starts the fight this hurt in its area for each day it still needs (3 days → 9%).
+const HURT_PER_DAY: float = 0.03
+## The doctor won't clear a fighter with more than this many days still to heal.
+const DOCTOR_MAX_DAYS: int = 7
+## Fighting hurt: a chance of WORSEN_BASE + WORSEN_PER_DAY a day still to heal that the injury gets worse,
+## adding WORSEN_DAYS_MIN–WORSEN_DAYS_MAX days out after the fight.
+const WORSEN_BASE: float = 0.05
+const WORSEN_PER_DAY: float = 0.01
+const WORSEN_DAYS_MIN: int = 7
+const WORSEN_DAYS_MAX: int = 28
+## What the doctor says on fight night.
+const FIT := "fit"
+const CLEARED_HURT := "cleared_hurt"
+const NOT_CLEARED := "not_cleared"
 
 ## What happened to one slot.
 const DONE := "done"
@@ -103,6 +125,7 @@ var stats: Dictionary = {}  # stat id → 0–100 (fractions kept, so small gain
 var style: StyleLeanings
 var fatigue: float = 0.0
 var injured_days: int = 0
+var injury_area: String = ""  # Where the injury that's healing is ("" when not hurt).
 var age: int
 var potential: float
 
@@ -140,11 +163,12 @@ func start_camp() -> void:
 
 
 ## Runs a camp of these week plans (data/week_plans ids, one per week) and returns each week's report.
-func run_camp(plan_ids: Array[String]) -> Array[Dictionary]:
+## With `ends_in_a_fight` the last week is fight week (run_plan's `fight_week`).
+func run_camp(plan_ids: Array[String], ends_in_a_fight: bool = false) -> Array[Dictionary]:
 	start_camp()
 	var weeks: Array[Dictionary] = []
-	for id in plan_ids:
-		weeks.append(run_week(id))
+	for i in plan_ids.size():
+		weeks.append(run_plan(_library.plan(plan_ids[i]), {}, ends_in_a_fight and i == plan_ids.size() - 1))
 	return weeks
 
 
@@ -154,15 +178,16 @@ func run_week(plan_id: String, played: Dictionary = {}) -> Dictionary:
 	return run_plan(_library.plan(plan_id), played)
 
 
-## One week of a plan given as data (week_plan@1: the planner's own week, D133), as run_week.
+## One week of a plan given as data (week_plan@1: the planner's own week, D134), as run_week.
 ## The report also gives `injury_odds` (the chance the week had of at least one injury), `skips_expected`
-## and whether it got the `variety` bonus.
-func run_plan(plan: Dictionary, played: Dictionary = {}) -> Dictionary:
+## and whether it got the `variety` bonus. In `fight_week` the fight is on Saturday evening (D135): the week
+## stops after Saturday morning, with no night's sleep or Sunday to recover from it.
+func run_plan(plan: Dictionary, played: Dictionary = {}, fight_week: bool = false) -> Dictionary:
 	var week := {
 		"plan": String(plan.get("id", "")), "slots": [], "gains": {}, "leanings": {}, "injuries": [],
 		"done": 0, "skipped": 0, "injured": 0, "chin_wear": 0.0,
 		"fatigue_start": fatigue, "fatigue_peak": fatigue, "fatigue_end": 0.0,
-		"injury_odds": 0.0, "skips_expected": 0.0, "variety": false,
+		"injury_odds": 0.0, "skips_expected": 0.0, "variety": false, "fight_week": fight_week,
 	}
 	var variety: float = VARIETY_BONUS if _groups_trained(plan) >= VARIETY_GROUPS else 1.0
 	week.variety = variety > 1.0
@@ -170,14 +195,19 @@ func run_plan(plan: Dictionary, played: Dictionary = {}) -> Dictionary:
 	var instruction: Dictionary = _instruction(plan.get("instruction"))
 	for day in DAYS:
 		for slot in SLOTS_PER_DAY:
+			if fight_week and day == DAYS - 1 and slot == SLOTS_PER_DAY - 1:
+				break  # Saturday evening is the fight.
 			var index: int = day * SLOTS_PER_DAY + slot
 			var outcome: String = _run_slot(plan.days[day][slot], day, float(played.get(index, AUTO_QUALITY)), variety, instruction, week)
 			week.slots.append({ "day": day, "slot": slot, "session": plan.days[day][slot], "result": outcome, "fatigue": fatigue })
 			week.fatigue_peak = maxf(week.fatigue_peak, fatigue)
+		if fight_week and day == DAYS - 1:
+			break
 		fatigue *= NIGHT_KEEPS
-		injured_days = maxi(0, injured_days - 1)
-	fatigue *= SUNDAY_KEEPS
-	injured_days = maxi(0, injured_days - 1)
+		_heal(1)
+	if not fight_week:
+		fatigue *= SUNDAY_KEEPS
+		_heal(1)
 	week.fatigue_end = fatigue
 	week.injury_odds = 1.0 - _unhurt
 	return week
@@ -186,14 +216,59 @@ func run_plan(plan: Dictionary, played: Dictionary = {}) -> Dictionary:
 ## What this week would probably do, without changing the camp (the planner shows it, D133): the same
 ## week on a copy that rolls no dice, so every session is done and nobody gets hurt; `injury_odds` and
 ## `skips_expected` say how likely the dice were to change that.
-func forecast(plan: Dictionary) -> Dictionary:
+func forecast(plan: Dictionary, fight_week: bool = false) -> Dictionary:
 	var copy := TrainingCamp.new(profile(), 0, _library)
 	copy.stats = stats.duplicate()
 	copy.fatigue = fatigue
 	copy.injured_days = injured_days
+	copy.injury_area = injury_area
 	copy._camp_gains = _camp_gains.duplicate()
 	copy._forecasting = true
-	return copy.run_plan(plan)
+	return copy.run_plan(plan, {}, fight_week)
+
+
+## How the camp sends the fighter in (docs/02 §3.7, D135): `fatigue`, the share of the gas tank they have (`tank`),
+## any injury still healing (`injury_area`, `injured_days`) and how hurt it starts them (`hurt`: area → 0–1),
+## what the doctor says (FIT, CLEARED_HURT or NOT_CLEARED) and the chance fighting hurt makes it worse.
+func fight_night() -> Dictionary:
+	var hurt: Dictionary = {}
+	var doctor: String = FIT
+	if injured_days > 0:
+		hurt[injury_area] = minf(1.0, injured_days * HURT_PER_DAY)
+		doctor = NOT_CLEARED if injured_days > DOCTOR_MAX_DAYS else CLEARED_HURT
+	return { "fatigue": fatigue, "tank": tank_at(fatigue), "injury_area": injury_area if injured_days > 0 else "",
+		"injured_days": injured_days, "hurt": hurt, "doctor": doctor,
+		"worsen_chance": WORSEN_BASE + WORSEN_PER_DAY * injured_days if injured_days > 0 else 0.0 }
+
+
+## The fighter@1 profile for the fight: profile() plus the `condition` fight night leaves them in (FighterState reads it).
+func fight_profile() -> Dictionary:
+	var out: Dictionary = profile()
+	var night: Dictionary = fight_night()
+	var hurt: Dictionary = {}
+	for area: String in night.hurt:
+		hurt[area] = snappedf(night.hurt[area], 0.001)
+	out.condition = { "tank": snappedf(night.tank, 0.001), "hurt": hurt }
+	return out
+
+
+## The share of the gas tank a fighter has at this fight-night fatigue.
+static func tank_at(value: float) -> float:
+	return clampf(1.0 - TANK_PER_FATIGUE * maxf(0.0, value - TANK_FREE_FATIGUE), TANK_FLOOR, 1.0)
+
+
+## After a fight taken hurt (fight_night()'s report): did the injury get worse? Seeded, so the same fight says the same.
+## {} when they weren't hurt, else { worse, area, days_out } (days out from the fight).
+static func after_fight(night: Dictionary, roll_seed: int) -> Dictionary:
+	var days: int = int(night.get("injured_days", 0))
+	if days <= 0:
+		return {}
+	var rng := RandomNumberGenerator.new()
+	rng.seed = roll_seed
+	var worse: bool = rng.randf() < float(night.worsen_chance)
+	if worse:
+		days += rng.randi_range(WORSEN_DAYS_MIN, WORSEN_DAYS_MAX)
+	return { "worse": worse, "area": String(night.injury_area), "days_out": days }
 
 
 ## How much each stat has gained since start_camp().
@@ -288,7 +363,7 @@ func skip_chance() -> float:
 func _run_slot(id: String, day: int, quality: float, variety: float, instruction: Dictionary, week: Dictionary) -> String:
 	var session: Dictionary = _library.session(id)
 	var trains: bool = float(session.xp) > 0.0
-	if injured_days > 0 and (trains or float(session.fatigue) > 0.0):
+	if injured_days > 0 and not session.get("light", false) and (trains or float(session.fatigue) > 0.0):
 		_add_fatigue(float(_library.session("rest").fatigue))  # Out hurt: the slot becomes rest.
 		week.injured += 1
 		return INJURED
@@ -298,6 +373,8 @@ func _run_slot(id: String, day: int, quality: float, variety: float, instruction
 		week.skipped += 1
 		return SKIPPED
 	_add_fatigue(float(session.fatigue))
+	if injured_days > 0 and float(session.get("heals", 0.0)) > 0.0:
+		_heal(int(session.heals))  # Rehab: a light session that heals faster (D135).
 	if not trains:
 		return RESTED
 	week.done += 1
@@ -307,8 +384,11 @@ func _run_slot(id: String, day: int, quality: float, variety: float, instruction
 		var days: int = _rng.randi_range(INJURY_DAYS_MIN, INJURY_DAYS_MAX)
 		if "slow_healer" in _profile.get("flaws", []):
 			days = ceili(days * SLOW_HEALER)
+		var area: String = String(session.get("injury_area", INJURY_AREAS[1]))
+		if days >= injured_days:
+			injury_area = area
 		injured_days = maxi(injured_days, days)
-		week.injuries.append({ "day": day, "session": id, "days_out": days })
+		week.injuries.append({ "day": day, "session": id, "days_out": days, "area": area })
 	var mult: float = clampf(quality, PLAYED_MIN, PLAYED_MAX) * learning() * fatigue_factor() * variety
 	for stat_id: String in session.trains:
 		var points: float = float(session.xp) * float(session.trains[stat_id]) * mult / xp_per_point(stat_id)
@@ -327,6 +407,13 @@ func _run_slot(id: String, day: int, quality: float, variety: float, instruction
 	for leaning: String in instruction:
 		_push(leaning, float(instruction[leaning]) * speed, week)
 	return DONE
+
+
+## Days of healing: the injury is gone at 0.
+func _heal(days: int) -> void:
+	injured_days = maxi(0, injured_days - days)
+	if injured_days == 0:
+		injury_area = ""
 
 
 ## A dice roll at this chance; a forecast never rolls (and never uses up the camp's dice).

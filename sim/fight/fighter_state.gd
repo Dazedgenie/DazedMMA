@@ -152,6 +152,8 @@ var combo_next_until: int = -1
 var queued_combo: String = ""
 ## Share of Striking and Takedown defense the primed read calls take away (0 = none, LiveCalls).
 var attention: float = 0.0
+## How much of the gas tank a camp left them (docs/02 §3.7, D135): 1 fresh, less when they come in tired.
+var tank_share: float = 1.0
 
 
 func _init(p_name: String, p_stats: Dictionary = {}, p_repertoire: Array[String] = ["jab"], p_work_rate: float = DEFAULT_WORK_RATE, p_style: StyleLeanings = null) -> void:
@@ -178,7 +180,20 @@ static func from_profile(p: Dictionary) -> FighterState:
 	f.tells = p.get("tells", []).duplicate(true)
 	f.combos.assign(p.get("combos", []))
 	f.profile = p
+	if p.get("condition") is Dictionary:
+		f.start_condition(p.condition)
 	return f
+
+
+## How a training camp sends the fighter in (fighter@1 `condition`, docs/02 §3.7, D135): `tank` is the share of
+## the gas tank they have all fight (a tired camp shrinks it), `hurt` how hurt an area already is (0–1, as hurt() reads it).
+func start_condition(condition: Dictionary) -> void:
+	tank_share = clampf(float(condition.get("tank", 1.0)), 0.0, 1.0)
+	var start_hurt: Dictionary = condition.get("hurt", {})
+	for area: String in start_hurt:
+		var toughness: float = int(stats.get("chin" if area == "head" else "durability", DEFAULT_STAT))
+		damage[area] = roundi(clampf(float(start_hurt[area]), 0.0, 1.0) * HURT_SCALE * (toughness + 50.0))
+	stamina = max_stamina()
 
 
 func is_free() -> bool:
@@ -235,7 +250,7 @@ func condition_reasons(id: String) -> Array[String]:
 
 
 func max_stamina() -> float:
-	return (TANK_BASE + TANK_PER_CARDIO * int(stats.get("cardio", DEFAULT_STAT))) * (1.0 - MAX_BODY_DRAIN * hurt("body"))
+	return (TANK_BASE + TANK_PER_CARDIO * int(stats.get("cardio", DEFAULT_STAT))) * tank_share * (1.0 - MAX_BODY_DRAIN * hurt("body"))
 
 
 func stamina_fraction() -> float:
@@ -244,7 +259,7 @@ func stamina_fraction() -> float:
 
 ## 0 at half a tank or more, rising to MAX_TIRED_PENALTY when empty.
 func tired() -> float:
-	var tank: float = TANK_BASE + TANK_PER_CARDIO * int(stats.get("cardio", DEFAULT_STAT))
+	var tank: float = (TANK_BASE + TANK_PER_CARDIO * int(stats.get("cardio", DEFAULT_STAT))) * tank_share
 	if stamina >= tank:
 		return 0.0  # A full fresh tank: skip the maths.
 	var f: float = clampf(stamina / (tank * (1.0 - MAX_BODY_DRAIN * hurt("body"))), 0.0, 1.0)
@@ -292,7 +307,7 @@ func spend_stamina(amount: float) -> void:
 func regen_tick() -> void:
 	var cardio: int = int(stats.get("cardio", DEFAULT_STAT))
 	var per_second: float = REGEN_BASE + REGEN_PER_CARDIO * cardio / 100.0
-	var tank: float = (TANK_BASE + TANK_PER_CARDIO * cardio) * (1.0 - MAX_BODY_DRAIN * hurt("body"))
+	var tank: float = (TANK_BASE + TANK_PER_CARDIO * cardio) * tank_share * (1.0 - MAX_BODY_DRAIN * hurt("body"))
 	stamina = minf(stamina + per_second / FightClock.TICKS_PER_SECOND, tank)
 
 
