@@ -92,6 +92,9 @@ var takedowns_landed: int = 0
 ## Submissions this fighter went for, and the ones that locked in (D126).
 var subs_tried: int = 0
 var subs_locked: int = 0
+## Of those, the leg locks (the ankle lock, kneebar and heel hook, D132).
+var leg_locks_tried: int = 0
+var leg_locks_locked: int = 0
 ## Throws and trips this fighter went for, and the ones that put the opponent down (D128).
 ## They count as takedowns too.
 var throws_tried: int = 0

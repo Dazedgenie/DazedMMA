@@ -71,7 +71,7 @@ func _events(sim: FightSim, type: String, actor: int = FightEvent.NO_ACTOR) -> A
 
 func test_every_submission_has_somewhere_to_lock_into_from_every_position_it_is_done_from() -> void:
 	var positions := PositionLibrary.shared()
-	for id: String in ["guillotine", "triangle", "armbar", "rear_naked_choke", "arm_triangle"]:
+	for id: String in ["guillotine", "triangle", "armbar", "rear_naked_choke", "arm_triangle", "ankle_lock", "kneebar", "heel_hook"]:
 		var action: Dictionary = _actions.get_action(id)
 		assert_eq(action.category, "submission")
 		for from: String in action.positions:

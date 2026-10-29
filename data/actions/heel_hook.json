@@ -1,0 +1,18 @@
+{
+	"schema": "action@2",
+	"id": "heel_hook",
+	"name": "Heel hook",
+	"category": "submission",
+	"positions": ["full_guard", "half_guard", "scramble"],
+	"roles": ["bottom", "neutral"],
+	"ranges": ["clinch"],
+	"phases_ms": { "telegraph": 0, "windup": 300, "active": 300, "recovery": 400 },
+	"stamina_cost": 6,
+	"flags_self": [],
+	"submission": { "base_success": 0.1, "partial_within": 0.15, "start_danger": 35, "step": 30, "escape_to": "scramble", "leg_lock": true, "ai_without_opening": ["scramble"] },
+	"stats": { "offense": ["submissions", "scrambles"], "defense": ["submission_defense", "scrambles"] },
+	"opportunities": [
+		{ "opponent_flag": "POSTURED_UP", "success_bonus": 0.15 }
+	],
+	"requires_technique": null
+}

@@ -708,7 +708,8 @@ func transition_for(i: int, action_id: String, result: String = PositionLibrary.
 ## takedown with the judges (Judging.TAKEDOWN_POINTS): the actor, or the opponent when the
 ## actor's move failed into a position under them (not a guard pull, D128). Moving to a better
 ## position on top (D130: a pass, the mount, the back) scores the control gained
-## (Judging.ADVANCE_POINTS_PER_CONTROL × the rise in the top's control score). Grapple resolution
+## (Judging.ADVANCE_POINTS_PER_CONTROL × the rise in the top's control score), and so does the
+## fighter on top getting past the legs when a leg lock from underneath misses (D132). Grapple resolution
 ## calls this when a takedown, clinch move, get-up or submission works (or fails into a new
 ## position, `result` "failed").
 func apply_transition(i: int, action_id: String, result: String = PositionLibrary.SUCCESS) -> bool:
@@ -728,12 +729,20 @@ func apply_transition(i: int, action_id: String, result: String = PositionLibrar
 		f.tied_up_ticks = 0
 		f.unanswered = 0
 	_place_bodies(i)
-	_emit(FightEvent.POSITION_CHANGED, i, { "action_id": action_id, "position": situation.position, "phase": situation.phase, "roles": roles.duplicate() })
+	var changed := { "action_id": action_id, "position": situation.position, "phase": situation.phase, "roles": roles.duplicate() }
+	if result == PositionLibrary.FAILED:
+		changed.failed = true
+	_emit(FightEvent.POSITION_CHANGED, i, changed)
+	var gained: float = float(positions.get_position(t.to).control_score.get(PositionLibrary.TOP, 0.0)) - control_before
 	if roles[i] == PositionLibrary.TOP and was_top[i]:
-		var gained: float = float(positions.get_position(t.to).control_score.get(PositionLibrary.TOP, 0.0)) - control_before
 		if gained > 0.0:
 			_round_points[i] += Judging.ADVANCE_POINTS_PER_CONTROL * gained
 			fighters[i].advances += 1
+	elif result == PositionLibrary.FAILED:
+		if roles[1 - i] == PositionLibrary.TOP and was_top[1 - i] and gained > 0.0:
+			# A leg lock from underneath that misses lets him past the legs (D132): his better position scores.
+			_round_points[1 - i] += Judging.ADVANCE_POINTS_PER_CONTROL * gained
+			fighters[1 - i].advances += 1
 	elif was_bottom and roles[i] != PositionLibrary.ATTACKER:
 		fighters[i].escapes += 1  # Out from underneath: back to guard, up, or on top (not a hold, D130).
 	if roles[i] == PositionLibrary.TOP and not was_top[i]:
@@ -807,6 +816,8 @@ func _start_action(i: int, id: String, decision: Decision = null) -> void:
 		f.feints_tried += 1
 	elif action.category == "submission":
 		f.subs_tried += 1
+		if ActionLibrary.is_leg_lock(action):
+			f.leg_locks_tried += 1
 	elif id == COLLAR_TIE:
 		f.collar_ties_tried += 1
 	if action.category == "strike" or action.category == "takedown" or action.category == "submission" or (action.category == "clinch" and situation.is_standing()):
@@ -1279,6 +1290,8 @@ func _lock_in(i: int, action: Dictionary) -> bool:
 	_hold = { "attacker": i, "action_id": action.id, "danger": danger, "beats": 0, "next_at": now + STRUGGLE_BEAT_TICKS,
 		"from": from, "from_roles": from_roles, "near": false }
 	fighters[i].subs_locked += 1
+	if ActionLibrary.is_leg_lock(action):
+		fighters[i].leg_locks_locked += 1
 	_round_points[i] += Judging.SUB_LOCK_POINTS
 	_emit(FightEvent.SUBMISSION_LOCKED, i, { "action_id": action.id, "danger": roundi(danger) })
 	return true
@@ -1299,13 +1312,19 @@ func struggle_share() -> float:
 	return Contest.chance(STRUGGLE_BASE, _average_stat(fighters[a], action.stats.offense), _average_stat(fighters[1 - a], action.stats.defense), bonus)
 
 
+## How far one beat moves a hold's danger: its own `step` (the heel hook's 30, D132), or STRUGGLE_STEP.
+func struggle_step(action_id: String) -> float:
+	return float(actions.get_action(action_id).submission.get("step", STRUGGLE_STEP))
+
+
 ## One beat of the struggle: the danger goes up or down, both fighters pay for it, and the hold
 ## ends in a tap at SUB_TAP or an escape at 0 or after the last beat.
 func _struggle_beat() -> void:
 	var a: int = _hold.attacker
 	var share: float = struggle_share()
 	var gained: bool = _rng.randf() < share
-	_hold.danger = float(_hold.danger) + (STRUGGLE_STEP if gained else -STRUGGLE_STEP)
+	var step: float = struggle_step(_hold.action_id)
+	_hold.danger = float(_hold.danger) + (step if gained else -step)
 	_hold.beats = int(_hold.beats) + 1
 	_hold.next_at = now + STRUGGLE_BEAT_TICKS
 	for k in fighters.size():

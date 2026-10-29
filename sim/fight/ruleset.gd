@@ -51,13 +51,16 @@ static func pro_with(p_rounds: int, p_round_seconds: int) -> Ruleset:
 
 
 ## True when this action may be used under these rules. Takedowns can be switched
-## off (a kickboxing bout, docs/08 §3), and elbows (D121); knees to a grounded
-## opponent and slams join here as those actions arrive.
+## off (a kickboxing bout, docs/08 §3), and elbows (D121) and the heel hook (D132, banned
+## under both amateur rulesets); knees to a grounded opponent and slams join here as those
+## actions arrive.
 func allows_action(action: Dictionary) -> bool:
 	if action.category == "takedown":
 		return bool(allows.get("takedowns", true))
 	if String(action.id).contains("elbow"):
 		return bool(allows.get("elbows", true))
+	if String(action.id).begins_with("heel_hook"):
+		return bool(allows.get("heel_hooks", true))
 	return true
 
 

@@ -1,0 +1,18 @@
+{
+	"schema": "action@2",
+	"id": "kneebar",
+	"name": "Kneebar",
+	"category": "submission",
+	"positions": ["half_guard", "scramble"],
+	"roles": ["top", "neutral"],
+	"ranges": ["clinch"],
+	"phases_ms": { "telegraph": 0, "windup": 300, "active": 300, "recovery": 500 },
+	"stamina_cost": 7,
+	"flags_self": [],
+	"submission": { "base_success": 0.05, "partial_within": 0.15, "start_danger": 25, "escape_to": "scramble", "leg_lock": true, "ai_without_opening": ["scramble"] },
+	"stats": { "offense": ["submissions", "strength"], "defense": ["submission_defense", "strength"] },
+	"opportunities": [
+		{ "opponent_flag": "ESCAPING", "success_bonus": 0.10 }
+	],
+	"requires_technique": null
+}

@@ -106,6 +106,8 @@ static func _describe(event: FightEvent, sim: FightSim) -> String:
 				return "[b]%s is out of the %s → %s[/b]%s" % [who, _action_name(event.data.action_id, sim).to_lower(), _position_name(event.data.position, sim), _roles(event, sim)]
 			if event.data.action_id == "":
 				return "[b]They come apart → %s[/b]" % _position_name(event.data.position, sim)
+			if event.data.get("failed", false):
+				return "[b]%s's %s misses and costs the position → %s[/b]%s" % [who, _action_name(event.data.action_id, sim).to_lower(), _position_name(event.data.position, sim), _roles(event, sim)]
 			return "[b]%s's %s → %s[/b]%s" % [who, _action_name(event.data.action_id, sim), _position_name(event.data.position, sim), _roles(event, sim)]
 		FightEvent.SUBMISSION_LOCKED:
 			return "[b]%s LOCKS IN the %s![/b] danger %d" % [who, _action_name(event.data.action_id, sim).to_lower(), event.data.danger]

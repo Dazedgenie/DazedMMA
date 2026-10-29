@@ -16,6 +16,12 @@
 		{ "action": "armbar", "from_role": "bottom", "to": "submission", "roles": { "actor": "attacker", "opponent": "defender" } },
 		{ "action": "armbar", "from_role": "bottom", "result": "partial", "to": "scramble", "roles": { "actor": "neutral", "opponent": "neutral" } },
 		{ "action": "sweep", "from_role": "bottom", "to": "full_guard", "roles": { "actor": "top", "opponent": "bottom" } },
-		{ "action": "sweep", "from_role": "bottom", "result": "partial", "to": "scramble", "roles": { "actor": "neutral", "opponent": "neutral" } }
+		{ "action": "sweep", "from_role": "bottom", "result": "partial", "to": "scramble", "roles": { "actor": "neutral", "opponent": "neutral" } },
+		{ "action": "ankle_lock", "from_role": "bottom", "to": "submission", "roles": { "actor": "attacker", "opponent": "defender" } },
+		{ "action": "ankle_lock", "from_role": "bottom", "result": "partial", "to": "scramble", "roles": { "actor": "neutral", "opponent": "neutral" } },
+		{ "action": "ankle_lock", "from_role": "bottom", "result": "failed", "to": "side_control", "roles": { "actor": "bottom", "opponent": "top" } },
+		{ "action": "heel_hook", "from_role": "bottom", "to": "submission", "roles": { "actor": "attacker", "opponent": "defender" } },
+		{ "action": "heel_hook", "from_role": "bottom", "result": "partial", "to": "scramble", "roles": { "actor": "neutral", "opponent": "neutral" } },
+		{ "action": "heel_hook", "from_role": "bottom", "result": "failed", "to": "side_control", "roles": { "actor": "bottom", "opponent": "top" } }
 	]
 }
