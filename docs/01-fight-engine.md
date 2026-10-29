@@ -2064,18 +2064,18 @@ Harness, no calls, 300 fights a pairing, seed 1. The pro column is after D140 wi
 |---|---|---|---|
 | Kicker vs Boxer | Kicker 44% → 44% | Kicker 34% | 26% → 45% |
 | Boxer vs Kicker | Boxer 53% → 53% | Boxer 63% | 23% → 45% |
-| Muay Thai vs Boxer | Muay Thai 60% → 60% | Muay Thai 47% | 99% → 100% |
-| Muay Thai vs Kicker | Muay Thai 82% → 82% | Muay Thai 92% | 40% → 59% |
-| Muay Thai vs Wrestler | Muay Thai 64% → 69% | Muay Thai 82% | 66% → 87% |
-| Wrestler vs Boxer | Wrestler 61% → 64% | Wrestler 62% | 71% → 85% |
-| Wrestler vs Kicker | Wrestler 63% → 63% (draws 2.7% → 2.3%) | Wrestler 62% | 35% → 44% |
+| Muay Thai vs Boxer | Muay Thai 60% → 60% | Muay Thai 71% | 99% → 100% |
+| Muay Thai vs Kicker | Muay Thai 82% → 82% | Muay Thai 93% | 40% → 63% |
+| Muay Thai vs Wrestler | Muay Thai 64% → 69% | Muay Thai 83% | 66% → 87% |
+| Wrestler vs Boxer | Wrestler 61% → 64% | Wrestler 62% | 71% → 93% |
+| Wrestler vs Kicker | Wrestler 63% → 63% (draws 2.7% → 2.3%) | Wrestler 69% | 35% → 64% |
 | Judoka vs Boxer | Judoka 63% → 62% | Judoka 51% | 50% → 76% |
 | BJJ vs Boxer | BJJ 46% → 46% | BJJ 57% | 85% → 98% |
 | Sambo vs Boxer | Sambo 53% → 53% | Sambo 61% | 78% → 93% |
 | Boxer vs Boxer | 49/51 → 49/51 | 50/50 | all of them, both |
 
-Across the 3,300 fights: pro draws 0.4%, finished 61%; PRIDE draws 0%, finished 76%, half of all fights inside the 10-minute
-first round. Noise at 300 fights is about ±3 points. The #14 exit test (Kicker vs Boxer within 60/40) is a pro test and still
+Across the 3,300 fights: pro draws 0.4%, finished 61%; PRIDE draws 0%, finished 79%, over half of all fights (54%) inside the
+10-minute first round. Noise at 300 fights is about ±3 points. The #14 exit test (Kicker vs Boxer within 60/40) is a pro test and still
 passes; under PRIDE rules the Boxer wins 65% (reported only).
 
 What it says:
@@ -2084,9 +2084,10 @@ What it says:
 - **Finish-first judging helps whoever does damage, not whoever holds.** The Judoka wins half his pro fights on decisions built on
   throws and time on top; under PRIDE the Boxer's damage outweighs them (63% → 51%). The Boxer out-damages the Kicker over a
   whole fight too.
-- **No elbows hurts the elbow fighters.** The Muay Thai fighter loses his elbows and drops against the Boxer (60% → 47%), whose
-  short punches in the clinch are still legal; he does better against the Wrestler and the Kicker, where his soccer kicks and
-  knees finish them (82%, 92%). The Wrestler loses his ground elbows but gets knees to the head instead, and ends about even.
+- **Elbows stay legal** (Kyle's pick, 2026-10-29, though PRIDE banned elbows to the head). With them banned in a first run the
+  Muay Thai fighter lost his elbows and dropped against the Boxer (60% → 47%), and the Wrestler lost his ground elbows. With them
+  the Muay Thai fighter beats the Boxer 71% (elbows and knees in the clinch for ten minutes) and the Wrestler finishes far more
+  of his fights (Boxer 93%, Kicker 64%) with ground elbows and knees to the head together.
 - In pro fights the knee on the ground to the body changes little: the Wrestler +3 against the Boxer, and the Muay Thai fighter
   +5 against the Wrestler (about the noise; the Wrestler spends some of his top time kneeing the body instead of punching).
 
@@ -2094,7 +2095,7 @@ To read it again, run the harness with `--ruleset=pride` and the pairings of §3
 
 ### 33.6 To change it, and the tests
 - The rules: `data/rulesets/pride.json` (`round_lengths`, `judging`, `allows`: `soccer_kicks`, `stomps`, `knees_to_head_grounded`,
-  `elbows`; `09` ruleset@1). Which moves the `soccer_kicks` and `stomps` keys cover, and the ground knee's target:
+  `elbows`, true under PRIDE by Kyle's pick; `09` ruleset@1). Which moves the `soccer_kicks` and `stomps` keys cover, and the ground knee's target:
   `Ruleset.allows_action()`, `Ruleset.allows_target()`.
 - The moves: `data/actions/soccer_kick.json`, `stomp.json`, `ground_knee.json`; who knows the ground knee: `techniques` in
   `data/fighters/wrestler.json` and `judoka.json`. What lands on a downed man: `strike.downed` (`FightSim._land_strike`), and a kick

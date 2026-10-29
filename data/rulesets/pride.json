@@ -10,7 +10,7 @@
 	"glove_oz": 4,
 	"gear": [],
 	"allows": {
-		"elbows": false,
+		"elbows": true,
 		"head_strikes_on_ground": true,
 		"knees_to_head_standing": true,
 		"knees_to_head_grounded": true,

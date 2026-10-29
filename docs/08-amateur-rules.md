@@ -33,7 +33,7 @@ rules. `data/rulesets/pride.json`:
 | Rule | PRIDE |
 |---|---|
 | Rounds | A 10-minute first round, then two of 5 minutes (`round_lengths`) |
-| Elbows | ✗ (PRIDE banned elbows to the head) |
+| Elbows | ✓ (PRIDE banned elbows to the head; Kyle kept them in, D141) |
 | Knees to the head | Standing and on the ground (`knees_to_head_grounded`) |
 | Soccer kicks and stomps | ✓ on a knocked-down opponent (`soccer_kicks`, `stomps`) |
 | Heel hooks / slams | ✓ |
