@@ -1063,9 +1063,9 @@ number below is a first guess for the harness; each is a named constant or a dat
 ### 24.1 Health (D120)
 A fighter's **health** is the head damage they can still take: `1 − head hurt`, where 10 × (Chin + 50) of head damage is all of
 it (Chin 50: 1,000). It doesn't come back between rounds (D99). It was always there underneath (hurt fighters are slower, defend
-worse and get rocked more easily, §8, `11` §3.2); now it has a bar and an end. The HUD's top bar shows each fighter's health as a
-big bar (green, yellow under 60%, red under 30%, with the percentage and ROCKED when they are), their stamina under it, and
-small body and leg bars (body damage shrinks the tank, leg damage slows the feet). `FighterState.health()`.
+worse and get rocked more easily, §8, `11` §3.2); now it has a bar and an end. The HUD's top bar shows it as the head of a body figure
+(D150, `06` §6.2): head, body and legs run green → yellow → red, with what's left of each beside it and ROCKED when they are
+(body damage shrinks the tank, leg damage slows the feet). `FighterState.health()`.
 
 ### 24.2 The referee (D120)
 The referee watches every clean head shot and stops the fight (a TKO, with the reason on the result) when:

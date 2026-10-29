@@ -22,7 +22,7 @@ playtest says "adjust".
 **Fight 1: Playtest 1, your first calls** (Wrestler vs Boxer, 2×)
 - [ ] Calls take a moment to reach him (the ring over the fighter), and he sometimes says "nah". Could you tell why?
 - [ ] Calling a lot runs your voice out.
-- [ ] On top, **1** is **Ground and pound!**, and the health bars drop.
+- [ ] On top, **1** is **Ground and pound!**, and the head on the damage figure turns yellow then red.
 - [ ] Shooting on the Boxer can get your head caught in a **guillotine** (rare). If it happens, the danger meter shows and
       **6** is **Defend the sub!** Did the meter make sense?
 - [ ] How did it end (decision, knockout, the referee, the towel), and did you see it coming? This fight often ends early.

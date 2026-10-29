@@ -36,7 +36,7 @@
 
 | Element | Shows | Notes |
 |---|---|---|
-| **Top bar** | Name, stamina bars, round, clock, speed, damage pips (head/body/legs), cuts | Damage pips go green → yellow → red. Opponent shows exact numbers only if scouted (D24 grades) |
+| **Top bar** | Name, stamina bars, round, clock, speed, damage pips (head/body/legs), cuts | Damage pips go green → yellow → red (built as the body figure, D150, §6.2). Opponent shows exact numbers only if scouted (D24 grades) |
 | **Judges estimate** | Rough round score ("≈ 10-9 you") | Hidden on Hard realism. Coach *Reading* skill improves accuracy |
 | **Fighter overhead** | **Delay ring** (call being processed, D5), ignore icon ("nah"), rocked stars, primed-read eye | Small, follows the fighter |
 | **Ground tag** | Range band (Long / Mid / Pocket / Clinch) or position (Half guard – top) | Text + icon. Big when the position changes, then shrinks |
@@ -103,7 +103,7 @@ screen; **Start fight** plays three rounds with the player as the **red corner**
 | Tell cue (D51) | When a scouted tell shows (the Kicker's jab blocked, the Wrestler's stance shift), the limb the move will come from glows and a **!** shows over the fighter, until the move starts or the tell's window runs out. Shape and colour, so it reads without colour | `arena_view.gd` `_on_event` |
 | Ground tag | Under the fighters: the range standing (Out of range / Long / Mid / Pocket), the position tied up ("Full guard · Wrestler on top", "Submission · Kicker's triangle choke"). It grows when it changes, then settles | `ArenaView.tag_text` |
 | Danger meter (D126) | While a submission is locked in: a red bar in the middle, 0 to 100, with the hold and the danger ("Kicker's TRIANGLE CHOKE on Wrestler · danger 60"). At 100 they tap, at 0 they're out. The fighters keep the pose of where it was locked from (a guillotine bends the defender over) | `FightHud.danger_text`, `fighter_figure.gd` |
-| Top bar | Names; a big **health** bar per fighter (the head damage they can still take, D120: green, yellow under 60%, red under 30%, with the percentage and ROCKED when they are); stamina under it; small body and leg bars (same colours); round clock, speed, and the judges' rough estimate of the round so far ("≈ 10-9 Wrestler", from `FightSim.round_points()` with no judge noise; under PRIDE rules who they'd give the whole fight to and why, "≈ Wrestler (control)", from `FightSim.fight_scores()`, D141). The damage pips of the first v0 became these bars | `ui/fight_hud.gd` |
+| Top bar | Names; a **body figure** per fighter (D150) whose head, body and legs run green → yellow → red with that area's damage, a readout beside it (HEAD 65% · BODY 94% · LEGS 100%: what's left of each, in the same colour; the head is health, D120, and at 0 the referee stops it) and ROCKED under it while they are. A part flashes white when a clean shot lands on it and a rocked head pulses. Both legs show the one legs area for now. Stamina is a thin bar underneath. Then the round clock, speed, and the judges' rough estimate of the round so far ("≈ 10-9 Wrestler", from `FightSim.round_points()` with no judge noise; under PRIDE rules who they'd give the whole fight to and why, "≈ Wrestler (control)", from `FightSim.fight_scores()`, D141). The figure replaced the health bar and small body and leg bars of D120 | `ui/fight_hud.gd`, `ui/body_damage_figure.gd` |
 | Plan panel | Each rule slot with how sharp it is right now (its reliability) and its cooldown, flashing green when it fires; the call being heard, the attempt in progress, the focus call with seconds left, primed reads with seconds left | `FightHud.plan_text` |
 | Opponent corner | A speech bubble with the AI corner's call, 3 s | `fight_hud.gd` |
 | Feed | Every event in words with the round clock; filter: All / Key moments / Explanations (why a takedown, call or rule didn't work, A16). A feint says whether the opponent bit, and a shot with nothing setting it up starts "blind" (D131, `01` §29.4) | `ui/fight_feed.gd` |
@@ -149,9 +149,11 @@ Enter presses the dialog's first button · F3 debug overlay · ` debug console.
   `game/fight_driver.gd`. What counts as a perfect call: `FightDriver.is_perfect_call`.
 - Camera zoom and follow: `ZOOM_STANDING`, `ZOOM_CLINCH`, `ZOOM_GROUND`, `CAMERA_SPEED`, `FOLLOW_SHARE` in `game/arena_view.gd`.
 - Body sizes, poses and phase colours: the constants and `pose_for` in `game/fighter_figure.gd`.
-- Pip colours, bubble and flash times: the constants at the top of `ui/fight_hud.gd`. What the feed calls a key moment: `FightFeed.kind_of`.
+- Bubble and flash times, the figure's size on the top bar (`FIGURE_SIZE`): the constants at the top of `ui/fight_hud.gd`.
+  The body figure's colours (`FRESH`, `HALF`, `DONE`), hit flash (`FLASH_SECONDS`), rocked pulse (`PULSE_SECONDS`,
+  `PULSE_LOW`) and shape (`_draw`): `ui/body_damage_figure.gd` (D150). What the feed calls a key moment: `FightFeed.kind_of`.
 - The matchups on the setup screen: `FightSetup.MATCHUPS`; the rules it offers: `FightSetup.RULESETS`.
 - Tests: `tests/game/test_fight_driver.gd` (speeds, pause, the bell, auto slow-mo, perfect calls, sliding, the towel, and
   speed never changing the fight), `tests/game/test_main_scene.gd` (a full three-round fight from setup to result, hotkeys,
   pause on Easy, the menu and the towel), `tests/game/test_arena_view.gd`, `tests/ui/test_fight_hud.gd`,
-  `tests/ui/test_fight_feed.gd`, and the towel in `tests/sim/fight/test_fight_sim.gd`.
+  `tests/ui/test_body_damage_figure.gd`, `tests/ui/test_fight_feed.gd`, and the towel in `tests/sim/fight/test_fight_sim.gd`.
