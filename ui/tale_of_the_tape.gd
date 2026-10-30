@@ -122,6 +122,13 @@ static func keys(red: Dictionary, blue: Dictionary, scouting: Dictionary = {}) -
 	if worst_gap <= -STAT_EDGE_STEPS:
 		out.append("A big edge to him in %s (%s against your %s): don't fight him there." % [String(TrainingCamp.STAT_NAMES[worst]).to_lower(),
 			TrainingCamp.grade(stat(blue, worst)), TrainingCamp.grade(stat(red, worst))])
+	# Cutting the cage against escaping it (D230): his Cage cutting against your Footwork, and yours against his.
+	if _grade_steps(stat(blue, "cage_cutting")) - _grade_steps(stat(red, "footwork")) >= STAT_EDGE_STEPS:
+		out.append("He cuts the cage off well (%s against your footwork %s): circle out early, before your back's on the fence." % [
+			TrainingCamp.grade(stat(blue, "cage_cutting")), TrainingCamp.grade(stat(red, "footwork"))])
+	elif _grade_steps(stat(red, "cage_cutting")) - _grade_steps(stat(blue, "footwork")) >= STAT_EDGE_STEPS:
+		out.append("You cut the cage off well (%s against his footwork %s): Cut the cage! (R) and trap him on the fence." % [
+			TrainingCamp.grade(stat(red, "cage_cutting")), TrainingCamp.grade(stat(blue, "footwork"))])
 	if String(scouting.get("how_to_beat", "")) != "":
 		out.append("Scouting: " + String(scouting.how_to_beat))
 	return out

@@ -46,7 +46,7 @@ func get_call(id: String) -> Dictionary:
 	return _calls[id]
 
 
-## Every call id, in hotkey order (1–9, then 0, then calls with no hotkey by id).
+## Every call id, in hotkey order (1–9, then 0, then letter keys like R, then calls with no hotkey by id).
 func ids() -> Array[String]:
 	var out: Array[String] = []
 	out.assign(_calls.keys())
@@ -58,6 +58,8 @@ func _order(id: String) -> int:
 	var key: Variant = _calls[id].get("hotkey")
 	if key == null:
 		return 100
+	if key is String:
+		return 50  # A letter key (Cut the cage! on R, D230).
 	return 10 if int(key) == 0 else int(key)
 
 

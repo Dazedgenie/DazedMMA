@@ -187,6 +187,16 @@ const PACE_SHIFT: float = 0.15
 const INTERCEPT_CLOSING: float = 0.04
 const INTERCEPT_BASE: float = 0.2
 const INTERCEPT_OUTSIDE: float = 0.5
+## Plant and counter (D230): being cut off (the opponent cutting from the inside), the chance
+## to meet him as he steps in goes up by this much: the check hook as the door shuts.
+const INTERCEPT_CUT_OFF: float = 0.2
+## Herding with a feint (D230): cutting the cage off, with the opponent circling within
+## HERD_FENCE of the fence, a cutter feints on a chance of HERD_RATE × Cage cutting / 100 a free
+## tick. If it bites, he plants for a beat (FightSim.BIT_FEET) and the cut closes the door.
+const HERD_RATE: float = 0.015
+const HERD_FENCE: float = 1.5
+## Closer to the centre than this, no fence is within HERD_FENCE.
+const CLEAR_OF_HERD: float = Octagon.APOTHEM - Octagon.BODY_MARGIN - HERD_FENCE - 0.01
 ## Nothing takes longer than this to land, so a walk-in further off than this many ticks can't be met yet.
 const REACH_LOOKAHEAD_TICKS: float = 12.0
 ## How fast the opponent's approach is tracked (share of the newest step).
@@ -225,6 +235,12 @@ const CUT_PER_RANGE: float = 0.4
 ## a move, or on a chance of ESCAPE_RATE × outside a tick.
 const ESCAPE_RATE: float = 0.5
 const ESCAPE_TICKS: int = 15
+## Being cut off (D230): an outside fighter circling by the fence (within SWITCH_FENCE) with
+## the opponent cutting him off from the inside reverses, all he can for REVERSE_TICKS, on a
+## chance of REVERSE_RATE × outside × Fight IQ / 100 a tick: a change of direction the cutter
+## has to read again (FightSim.CUT_READ_BASE).
+const REVERSE_RATE: float = 0.06
+const REVERSE_TICKS: int = 8
 ## Tied up (#15): chance per free tick to work from the clinch (× the work rate), from
 ## underneath in full guard (× the work rate), and in a scramble (flat: it's over fast).
 const CLINCH_RATE: float = 4.0
@@ -345,6 +361,9 @@ var _giving_ground: bool = false
 ## Circling out off the fence until this tick, and which way (±1, as in FightSim.way_toward_middle).
 var _escape_until: int = -1
 var _escape_way: int = 0
+## Reversing on a cutter until this tick, and which way (D230, REVERSE_RATE).
+var _reverse_until: int = -1
+var _reverse_way: int = 0
 ## Which way they circle in open space (±1), thought again at _way_at + SWITCH_EVERY.
 var _way: int = 1
 var _way_at: int = -SWITCH_EVERY
@@ -437,11 +456,28 @@ func choose(view: FightView, layer: DecisionLayer) -> Decision:
 			_met_advance = false
 		elif not _met_advance:
 			d = _meet_advance(view, layer)
+	if d == null:
+		d = _herd(view)
 	if d != null:
 		return d
 	if _leads(view, layer):
 		return _lead(view, layer)
 	return DecisionLayer.IDLE
+
+
+## Herding (D230): cutting him off as he circles by the fence, feint to plant his feet (HERD_RATE).
+func _herd(view: FightView) -> Decision:
+	if view.opponent.pos.length_squared() < CLEAR_OF_HERD * CLEAR_OF_HERD:
+		return null  # Open space: this runs every free tick, so the cheap test goes first.
+	if not view.cutting() or not view.opponent_circling() or not view.opponent.is_free():
+		return null
+	if Octagon.distance_to_fence(view.opponent.pos) - Octagon.BODY_MARGIN >= HERD_FENCE:
+		return null
+	if view.roll() >= HERD_RATE * view.me.effective_stat("cage_cutting") / 100.0:
+		return null
+	if not view.actions.has(FightSim.FEINT) or not _usable(view, view.actions.get_action(FightSim.FEINT)):
+		return null
+	return Decision.new(FightSim.FEINT, DecisionLayer.AI, "herds him with a feint")
 
 
 ## The opponent is down from a knockdown (D141, D142): follow him down to the ground and
@@ -708,6 +744,8 @@ func _meet_advance(view: FightView, layer: DecisionLayer) -> Decision:
 	_met_advance = true
 	var outside: float = clampf(-_lean(view, layer, StyleLeanings.RANGE) / 100.0, 0.0, 1.0)
 	var chance: float = (INTERCEPT_BASE + INTERCEPT_OUTSIDE * outside) * (0.5 + view.me.effective_stat("fight_iq") / 100.0)
+	if view.opponent_cutting() and view.opponent.pos.length_squared() < view.me.pos.length_squared():
+		chance += INTERCEPT_CUT_OFF  # Cut off: plant and counter.
 	if view.roll() >= chance:
 		return null
 	return Decision.new(options[_pick(view, weights)], DecisionLayer.AI, "meets him coming in")
@@ -1395,6 +1433,7 @@ func _plan_steps(view: FightView, layer: DecisionLayer, out: FeetPlan) -> void:
 	var o: FighterState = view.opponent
 	out.way = 0
 	out.cut = 0.0
+	out.anywhere = false
 	if me.is_rocked():
 		out.circle = 1.0
 		return
@@ -1412,6 +1451,20 @@ func _plan_steps(view: FightView, layer: DecisionLayer, out: FeetPlan) -> void:
 		out.circle = 1.0
 		out.way = _escape_way
 		return
+	if view.now < _reverse_until:
+		out.circle = 1.0
+		out.way = _reverse_way
+		return
+	if _feet_outside > 0.0 and view.opponent_cutting() and o.is_free() \
+			and me.pos.length_squared() >= CLEAR_OF_SWITCH * CLEAR_OF_SWITCH \
+			and o.pos.length_squared() < me.pos.length_squared() \
+			and view.roll() < REVERSE_RATE * _feet_outside * me.effective_stat("fight_iq") / 100.0:
+		# Cut off: turn back the other way before the door shuts.
+		_reverse_until = view.now + REVERSE_TICKS
+		_reverse_way = -view.circle_way()
+		out.circle = 1.0
+		out.way = _reverse_way
+		return
 	var pressed: bool = _feet_gap < _last_want - PRESSED_BY
 	var free_to_move: bool = pressed and _off_fence <= 0.0
 	out.circle = _feet_outside * (CIRCLE_PRESSED if free_to_move else CIRCLE_FREE)
@@ -1428,6 +1481,12 @@ func _plan_steps(view: FightView, layer: DecisionLayer, out: FeetPlan) -> void:
 			out.way = _way  # Near the fence it stays 0: the feet take the side toward the middle.
 	if not _giving_ground and not pressed:
 		out.cut = _feet_cut
+		var called: float = layer.calls.cut_focus()
+		if called >= 0.0:
+			# Cut the cage! (D230): shut the exits from wherever the opponent is, and don't circle.
+			out.cut = maxf(out.cut, called)
+			out.anywhere = true
+			out.circle = 0.0
 
 
 ## The way out off the fence: toward the middle when one side clearly is, else a coin flip.

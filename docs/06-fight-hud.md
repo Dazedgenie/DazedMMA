@@ -132,7 +132,7 @@ changes and pauses against the same fight run headless).
 | Held | 0 | The bell between rounds, the Esc menu, the towel question |
 
 ### 6.4 Keys (as built)
-1–9 intent calls (1 is Pressure! standing, Ground and pound! on top, Finish it! in a submission; 6 is Defend the shot!, or Defend the sub! caught in one; 5 is Clinch!, or Collar tie! in the clinch; 4 is Takedown!, or Pass! on top on the ground) · Q / E read calls (Q is Catch the kick!; E is Fire back!, D133: answer a defended strike with a combination, `01` §31.4) · Space slow-mo ·
+1–9 intent calls (1 is Pressure! standing, Ground and pound! on top, Finish it! in a submission; 6 is Defend the shot!, or Defend the sub! caught in one; 5 is Clinch!, or Collar tie! in the clinch; 4 is Takedown!, or Pass! on top on the ground) · Q / E read calls (Q is Catch the kick!; E is Fire back!, D133: answer a defended strike with a combination, `01` §31.4) · R Cut the cage! (D230: 15 s of cutting off the exits instead of following, `01` §20.4) · Space slow-mo ·
 F fast · P pause (Easy) · T throw in the towel (asks first; a TKO loss, D31) · M strike sounds on/off (D190) · Esc menu (pauses on every difficulty) ·
 Enter presses the dialog's first button · F3 debug overlay · ` debug console.
 

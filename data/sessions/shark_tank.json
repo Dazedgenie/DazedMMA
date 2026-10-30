@@ -1,0 +1,15 @@
+{
+	"schema": "session@1",
+	"id": "shark_tank",
+	"name": "Shark tank",
+	"kind": "striking",
+	"trains": { "cage_cutting": 0.6, "footwork": 0.2, "fight_iq": 0.2 },
+	"xp": 10,
+	"fatigue": 9,
+	"injury_risk": 0.001,
+	"injury_area": "legs",
+	"light": false,
+	"leanings": { "range": 0.05, "pace": 0.05 },
+	"chin_wear": 0,
+	"minigame": null
+}

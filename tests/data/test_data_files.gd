@@ -24,8 +24,10 @@ const TRIGGER_EVENTS: Array[String] = [
 const LEANINGS: Array[String] = ["pace", "range", "base", "risk"]
 const CATEGORIES: Array[String] = ["strike", "takedown", "defense", "movement", "clinch", "ground", "submission", "feint"]
 const ROLES: Array[String] = ["neutral", "top", "bottom", "attacker", "defender"]
+## Letters the fight screen already uses (game/main.gd): reads on Q and E, fast, pause, towel, sounds.
+const LETTER_KEYS_TAKEN: Array[String] = ["Q", "E", "F", "P", "T", "M"]
 ## What a focus call (docs/09 call@2) may hold.
-const FOCUS_KEYS: Array[String] = ["duration_ms", "leanings", "weights", "read_bonus", "sprawl_bonus", "struggle", "struggle_stamina", "cover_bonus"]
+const FOCUS_KEYS: Array[String] = ["duration_ms", "leanings", "weights", "read_bonus", "sprawl_bonus", "struggle", "struggle_stamina", "cover_bonus", "cut"]
 ## Where a submission (docs/09 action@2 `submission.escape_to`, D126) leaves the fight when the defender gets out.
 const ESCAPES: Array[String] = ["back", "scramble"]
 ## The minigames a session can be played as (D38, docs/02 §3.2).
@@ -318,7 +320,11 @@ func test_calls_are_an_attempt_a_focus_or_a_read() -> void:
 		var c: Dictionary = _items("calls")[id]
 		var where := "call '%s'" % id
 		var key: Variant = c.get("hotkey")
-		if key != null:
+		if key is String:
+			# A letter key (Cut the cage! on R, D230): one capital, not one the fight screen already uses.
+			if key.length() != 1 or key < "A" or key > "Z" or key in LETTER_KEYS_TAKEN:
+				problems.append("%s: a letter hotkey is one capital the fight screen doesn't already use" % where)
+		elif key != null:
 			if not key is float or key < 0 or key > 9 or fmod(key, 1.0) != 0.0:
 				problems.append("%s: hotkey is a digit 0–9 or null" % where)
 			else:

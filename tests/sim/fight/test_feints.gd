@@ -291,10 +291,12 @@ func test_a_smarter_fighter_sets_up_more_of_his_shots() -> void:
 	assert_almost_eq(FighterAI.setup_chance(FighterState.new("Even")), FighterAI.SETUP_BASE + FighterAI.SETUP_PER_IQ * 0.5, 0.001)
 
 
-func test_strikers_never_feint_on_their_own() -> void:
+func test_strikers_feint_only_to_herd_a_man_they_are_cutting_off() -> void:
 	var sim := FightSim.new(SEED, _roster.make_pair("kicker", "boxer"), _actions)
 	_ticks(sim, 3000)
-	assert_eq(_events(sim, FightEvent.FEINTED).size(), 0, "no shots to set up: striker fights play as they did")
+	for e in sim.events:
+		if e.type == FightEvent.ACTION_PHASE and e.data.phase == "telegraph" and e.data.action_id == FightSim.FEINT:
+			assert_eq(String(e.data.get("why", "")), "herds him with a feint", "no shots to set up: a striker's feints herd him by the fence (D232)")
 
 
 func test_a_blind_shot_is_easier_to_read_and_one_off_a_bite_is_harder() -> void:

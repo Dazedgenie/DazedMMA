@@ -10,25 +10,25 @@
 			"corners": [],
 			"rules": [],
 			"pinned": {
-				"winner_id": "kicker",
-				"method": "decision",
-				"result": "unanimous decision",
+				"winner_id": "boxer",
+				"method": "ko",
+				"result": "ko",
 				"end_round": 3,
-				"end_second": 300,
-				"events": 2024,
-				"knockdowns_red": 0,
+				"end_second": 169,
+				"events": 2213,
+				"knockdowns_red": 2,
 				"knockdowns_blue": 0,
-				"thrown_red": 147,
-				"landed_red": 99,
-				"thrown_blue": 98,
-				"landed_blue": 54,
+				"thrown_red": 156,
+				"landed_red": 76,
+				"thrown_blue": 122,
+				"landed_blue": 74,
 				"takedowns_red": 0,
 				"takedowns_blue": 0,
 				"calls_red": 0,
 				"calls_blue": 0,
 				"fired_red": 0,
 				"fired_blue": 0,
-				"event_hash": "4bb5b30d588a53dbc82a4025591b3ff8"
+				"event_hash": "87b3073b15994f550c5876f0d803f227"
 			}
 		},
 		{
@@ -52,21 +52,21 @@
 				"method": "tko",
 				"result": "tko",
 				"end_round": 2,
-				"end_second": 208,
-				"events": 1801,
+				"end_second": 70,
+				"events": 1301,
 				"knockdowns_red": 0,
 				"knockdowns_blue": 0,
-				"thrown_red": 79,
-				"landed_red": 52,
-				"thrown_blue": 27,
-				"landed_blue": 20,
+				"thrown_red": 56,
+				"landed_red": 29,
+				"thrown_blue": 30,
+				"landed_blue": 18,
 				"takedowns_red": 7,
 				"takedowns_blue": 0,
-				"calls_red": 28,
-				"calls_blue": 2,
-				"fired_red": 4,
+				"calls_red": 24,
+				"calls_blue": 0,
+				"fired_red": 3,
 				"fired_blue": 0,
-				"event_hash": "03764a80e23b1658056c820ab4eb706f"
+				"event_hash": "0319484593bee2915ef26838a4c19eb3"
 			}
 		},
 		{
@@ -104,7 +104,7 @@
 				"calls_blue": 1,
 				"fired_red": 0,
 				"fired_blue": 8,
-				"event_hash": "45502ce276452dffc97c25ab0c8510c4"
+				"event_hash": "15d2ad1d6fa81c59ec1864dd1a3295e3"
 			}
 		},
 		{

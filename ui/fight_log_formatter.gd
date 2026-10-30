@@ -205,10 +205,14 @@ static func condition_line(f: FighterState) -> String:
 	return " · ".join(parts)
 
 
-## How long fighter i spent circling and cutting off the cage (D119), e.g.
-## "Kicker circled 7:12 (48% of the fight) · cut off the cage 0:00 (0%)".
+## How long fighter i spent circling and cutting off the cage (D119), and how many times
+## they cut the opponent off onto the fence (D230), e.g.
+## "Kicker circled 7:12 (48% of the fight) · cut off the cage 0:00 (0%) · trapped him on the fence 3 times".
 static func movement_line(sim: FightSim, i: int) -> String:
-	return "%s circled %s · cut off the cage %s" % [_fighter(i, sim), _fight_time(sim.circling_ticks[i], sim.now), _fight_time(sim.cutting_ticks[i], sim.now)]
+	var line: String = "%s circled %s · cut off the cage %s" % [_fighter(i, sim), _fight_time(sim.circling_ticks[i], sim.now), _fight_time(sim.cutting_ticks[i], sim.now)]
+	if sim.cut_offs[i] > 0:
+		line += " · trapped him on the fence %d time%s" % [sim.cut_offs[i], "" if sim.cut_offs[i] == 1 else "s"]
+	return line
 
 
 ## Ticks as m:ss of fight time and a share of `total` ticks, e.g. "7:12 (48% of the fight)".

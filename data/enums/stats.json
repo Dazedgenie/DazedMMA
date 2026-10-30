@@ -5,7 +5,7 @@
 		"strength": "Physical", "speed": "Physical", "cardio": "Physical",
 		"recovery": "Physical", "durability": "Physical", "chin": "Physical",
 		"boxing": "Striking", "kicking": "Striking", "clinch_striking": "Striking",
-		"striking_defense": "Striking", "footwork": "Striking", "power": "Striking",
+		"striking_defense": "Striking", "footwork": "Striking", "cage_cutting": "Striking", "power": "Striking",
 		"takedowns": "Wrestling", "takedown_defense": "Wrestling", "clinch_control": "Wrestling", "scrambles": "Wrestling",
 		"top_control": "Grappling", "guard": "Grappling", "submissions": "Grappling",
 		"submission_defense": "Grappling",

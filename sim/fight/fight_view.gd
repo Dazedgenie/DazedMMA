@@ -51,6 +51,27 @@ func step() -> float:
 	return _sim_ref.get_ref().step_length(index)
 
 
+## Whether the opponent's feet are cutting the cage off on this fighter right now (D230): their
+## cut was working on their last step.
+func opponent_cutting() -> bool:
+	return _sim_ref.get_ref().is_cutting(1 - index)
+
+
+## Whether this fighter's own cut is working (D230), and whether the opponent's last step
+## circled (at least FightSim.CIRCLING_FROM of it round this fighter).
+func cutting() -> bool:
+	return _sim_ref.get_ref().is_cutting(index)
+
+
+func opponent_circling() -> bool:
+	return _sim_ref.get_ref().last_circling(1 - index) >= FightSim.CIRCLING_FROM
+
+
+## Which way round the opponent this fighter last circled (±1, as FightSim.way_toward_middle).
+func circle_way() -> int:
+	return _sim_ref.get_ref().circle_sign(index)
+
+
 func distance() -> float:
 	return me.pos.distance_to(opponent.pos)  # As FightSim.distance(), without the trip through the sim.
 

@@ -5,7 +5,7 @@
 	"template": null,
 	"frame": { "height_cm": 178, "reach_cm": 180, "build": "stocky" },
 	"stance": "orthodox",
-	"stats": { "takedowns": 65, "takedown_defense": 60, "clinch_control": 65, "strength": 65, "scrambles": 65, "submissions": 65, "submission_defense": 60, "top_control": 55, "cardio": 65, "boxing": 50, "kicking": 50, "striking_defense": 50, "power": 55, "chin": 60 },
+	"stats": { "takedowns": 65, "takedown_defense": 60, "clinch_control": 65, "strength": 65, "scrambles": 65, "submissions": 65, "submission_defense": 60, "top_control": 55, "cardio": 65, "boxing": 50, "kicking": 50, "striking_defense": 50, "power": 55, "chin": 60, "cage_cutting": 55 },
 	"personality": { "ego": 0, "discipline": 20, "coachable": 0, "loyal": 0 },
 	"style": { "pace": 10, "range": 40, "base": 50, "risk": 30 },
 	"gifts": [],
