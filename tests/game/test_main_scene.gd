@@ -80,8 +80,8 @@ func test_a_full_three_round_fight_plays_through_the_bell_to_the_result() -> voi
 			_main._start_next_round()
 	var sim: FightSim = _main.driver.sim
 	assert_true(sim.is_over())
-	assert_eq(_main.hud.dialog_title(), "Fight over")
-	assert_string_contains(_main.hud._dialog_body.get_parsed_text(), "cut off the cage", "how long each fighter circled and cut off (D119)")
+	assert_true(_main.result.visible, "the result screen (D173)")
+	assert_string_contains(_main.result.text(), "CUT OFF THE CAGE", "how long each fighter circled and cut off (D119)")
 	assert_true(FileAccess.file_exists(_main.last_record_path), "the fight is saved for the playtest notes")
 	if sim.events[-1].data.result in [FightSim.RESULT_KO, FightSim.RESULT_TKO]:
 		pass_test("finished inside the distance after %d breaks" % breaks)
@@ -103,7 +103,8 @@ func test_the_menu_holds_the_fight_and_the_towel_ends_it() -> void:
 	_press(KEY_T)
 	assert_eq(_main.hud.dialog_title(), "Throw in the towel?")
 	_main.driver.throw_towel()
-	assert_eq(_main.hud.dialog_title(), "Fight over")
+	assert_true(_main.result.visible)
+	assert_string_contains(_main.result.text(), "threw in the towel")
 	assert_eq(_main.state, _main.OVER)
 
 
@@ -127,9 +128,9 @@ func test_after_a_playtest_fight_the_next_one_is_offered() -> void:
 	_main.start_fight(_main.setup.settings())
 	_main._start_after_tip()
 	_main.driver.throw_towel()
-	var labels: Array = _main.hud._dialog_buttons.get_children().map(func(b: Button) -> String: return b.text)
-	assert_eq(labels[0], "Next: Playtest 2: catch the kick")
-	_main.hud._dialog_buttons.get_child(0).pressed.emit()
+	assert_eq(_main.result.button_labels()[0], "Next: Playtest 2: catch the kick")
+	_main.result.press(0)
+	assert_false(_main.result.visible, "the next fight hides the result")
 	assert_eq(_main.settings.step, "fight_2_catch_the_kick")
 	assert_eq(_main.settings.blue, "kicker")
 
@@ -168,4 +169,25 @@ func test_after_a_fight_taken_hurt_the_result_says_how_the_injury_held_up() -> v
 	assert_gt(_main.driver.sim.fighters[0].damage.body, 0, "he starts the fight hurt")
 	_main._process(1.0)
 	_main.driver.throw_towel()
-	assert_string_contains(_main.hud._dialog_body.get_parsed_text(), "body injury")
+	assert_string_contains(_main.result.text(), "body injury")
+
+
+func test_the_setup_sound_volume_reaches_the_fight_and_m_mutes_the_strikes() -> void:
+	var s: Dictionary = _main.setup.settings()
+	assert_eq(s.sound_volume, 1.0, "full volume by default (D190)")
+	s.sound_volume = 0.4
+	_main.start_fight(s)
+	assert_eq(_main.sounds.volume, 0.4)
+	_press(KEY_M)
+	assert_true(_main.sounds.muted)
+	_press(KEY_M)
+	assert_false(_main.sounds.muted)
+
+
+func test_the_version_line_hides_during_the_fight_so_the_call_bar_has_the_corner() -> void:
+	var version: Label = _main.get_node("UI/Version")
+	assert_true(version.visible, "on the setup")
+	_start()
+	assert_false(version.visible, "in the fight")
+	_main._back_to_setup()
+	assert_true(version.visible, "back on the setup")

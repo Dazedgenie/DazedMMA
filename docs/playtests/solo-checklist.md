@@ -23,6 +23,7 @@ playtest says "adjust".
 - [ ] Calls take a moment to reach him (the ring over the fighter), and he sometimes says "nah". Could you tell why?
 - [ ] Calling a lot runs your voice out.
 - [ ] On top, **1** is **Ground and pound!**, and the head on the damage figure turns yellow then red.
+- [ ] On top, **2** is **Go for the finish!** (D200): within a couple of seconds he passes or goes for a hold (the arm-triangle, or the choke from the back).
 - [ ] Shooting on the Boxer can get your head caught in a **guillotine** (rare). If it happens, the danger meter shows and
       **6** is **Defend the sub!** Did the meter make sense?
 - [ ] How did it end (decision, knockout, the referee, the towel), and did you see it coming? This fight often ends early.

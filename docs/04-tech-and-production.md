@@ -64,6 +64,25 @@ Key rules:
 - **CI**: GitHub Actions running headless Godot tests on every PR.
 - **Debug overlay** in the fight view: raw stats, flags, action phases, AI scores.
 
+### 2.4 Builds and platforms (D240)
+- **Presets** (`export_presets.cfg`): *Windows Desktop* (the playtest build), *Linux* (CI's self-check fight) and *Web*.
+  All three ship `data/*.json` with the build, because the game reads its data files at run time.
+- **Web:** thread support is **off** (`variant/thread_support=false`). A threaded browser build needs the page served with
+  cross-origin isolation headers, which GitHub Pages and most hosts don't send; without threads it runs anywhere. It uses
+  the `web_nothreads_release` template. The strike sounds still build "in the background" through `WorkerThreadPool`,
+  which on a no-threads build simply runs on the main thread.
+- **Symbols in the browser:** a desktop borrows glyphs the game's fonts lack (→ ▶ ✔ …) from the system's fonts; a browser
+  build can't, so they showed as boxes. `DisplayFont.add_symbols_fallback()` (called by `game/main.gd`) gives Godot's
+  default font and Barlow Condensed a fallback, `ui/fonts/DejaVuSans.ttf` (Bitstream Vera licence, `ui/fonts/DejaVu-LICENSE.txt`).
+  Any new symbol in a script or data file must be one some font draws: `tests/ui/test_display_font.gd` scans for them.
+- **Building it:** the Playtest build workflow exports Windows, Linux and Web on every push to `main` and every PR
+  (artifacts `ChinCheck-windows-<commit>` and `ChinCheck-web-<commit>`, kept 30 days). By hand, with Godot 4.7.2 and its
+  export templates: `godot --headless --export-release "Web" build/export/web/index.html`. To try it, serve the folder
+  (for example `python3 -m http.server` inside it) and open `index.html`; opening the file straight from disk doesn't work.
+- **To change it:** the presets' options in `export_presets.cfg` (or Godot's **Project → Export**); the fallback font in
+  `DisplayFont.SYMBOLS_PATH`; the workflow in `.github/workflows/playtest-build.yml`. Tests: `tests/game/test_export_presets.gd`,
+  `tests/ui/test_display_font.gd`.
+
 ---
 
 ## 3. Art pipeline (low-poly 3D, isometric camera: D80)
@@ -81,7 +100,7 @@ The hard part of AI-assisted art is **consistency**. Real-time 3D with one share
 4. **Placeholder first**: the prototype uses shapes/capsules. Art never blocks the simulation.
 
 ## 4. Audio
-- Prototype: free SFX libraries. Later: AI/stock music and commentary voice (text-only commentary at launch is fine).
+- Prototype: strike sounds are made in code (D190, `06` §6.8), so there are no sound licences to track; free SFX libraries for anything else. Later: AI/stock music and commentary voice (text-only commentary at launch is fine).
 
 ---
 

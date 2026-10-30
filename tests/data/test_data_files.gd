@@ -25,7 +25,7 @@ const LEANINGS: Array[String] = ["pace", "range", "base", "risk"]
 const CATEGORIES: Array[String] = ["strike", "takedown", "defense", "movement", "clinch", "ground", "submission", "feint"]
 const ROLES: Array[String] = ["neutral", "top", "bottom", "attacker", "defender"]
 ## What a focus call (docs/09 call@2) may hold.
-const FOCUS_KEYS: Array[String] = ["duration_ms", "leanings", "weights", "read_bonus", "sprawl_bonus", "struggle", "struggle_stamina", "cover_bonus"]
+const FOCUS_KEYS: Array[String] = ["duration_ms", "leanings", "weights", "read_bonus", "sprawl_bonus", "struggle", "struggle_stamina", "cover_bonus", "hunt"]
 ## Where a submission (docs/09 action@2 `submission.escape_to`, D126) leaves the fight when the defender gets out.
 const ESCAPES: Array[String] = ["back", "scramble"]
 ## The minigames a session can be played as (D38, docs/02 §3.2).
@@ -383,6 +383,12 @@ func test_calls_are_an_attempt_a_focus_or_a_read() -> void:
 			var struggle_stamina: Variant = focus.get("struggle_stamina", 0.0)
 			if not struggle_stamina is float or struggle_stamina < 0.0:
 				problems.append("%s: focus.struggle_stamina is stamina a beat, 0 or more" % where)
+			if focus.has("hunt"):
+				var hunt: Variant = focus.hunt
+				if not hunt is Dictionary or hunt.keys() != ["rate"] or not hunt.rate is float or hunt.rate <= 0.0 or hunt.rate > 1.0:
+					problems.append("%s: focus.hunt is {rate}, a chance a tick above 0 and up to 1 (D200)" % where)
+				if c.get("roles", []) != ["top"]:
+					problems.append("%s: a hunt is for the fighter on top (D200)" % where)
 	for id: String in _items("gameplans"):
 		var g: Dictionary = _items("gameplans")[id]
 		_expect_numbers(problems, "gameplan '%s'" % id, "leanings", g.get("leanings", {}), LEANINGS, -100, 100)
