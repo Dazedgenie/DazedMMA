@@ -366,7 +366,10 @@ func _build_calls(sim: FightSim) -> void:
 			continue
 		var key: Variant = call.get("hotkey")
 		var label: String = String(call.name).trim_suffix("!")
-		_add_call_button(id, "%d %s" % [int(key), label] if key != null else label)
+		if key is String:
+			_add_call_button(id, "%s %s" % [key, label])  # A letter key: Cut the cage! on R (D230).
+		else:
+			_add_call_button(id, "%d %s" % [int(key), label] if key != null else label)
 	for n in READ_KEYS.size():
 		if n < _read_ids.size():
 			_add_call_button(_read_ids[n], "%s %s" % [READ_KEYS[n], String(sim.calls.get_call(_read_ids[n]).name).trim_suffix("!")])

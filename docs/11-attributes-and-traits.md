@@ -56,7 +56,8 @@ Problems found while reading:
 | | **Clinch striking** | Knees and elbows in the clinch and against `HEAD_LOW` | |
 | | **Power** | Damage per strike; KO chance on clean shots | Ground-and-pound damage |
 | | **Striking defense** | The defense side of every strike (slip, block, parry) | |
-| | **Footwork** | Winning the range: getting to your distance, circling off the cage, cutting it off | Escape odds when pinned |
+| | **Footwork** | Winning the range: getting to your distance, circling off the cage | Escape odds when pinned; stops the cage being cut off |
+| | **Cage cutting** *(D230, the 24th stat)* | Cutting the cage off: aiming at the exit instead of following, taking the inside line, starting to cut further from the fence, herding with feints. Against the opponent's Footwork (`01` §20.5) | Trained in the Shark tank drill |
 | Wrestling | **Takedowns** | Shot, trip and throw success | |
 | | **Takedown defense** | Sprawl and stuff odds; getting up off the cage | |
 | | **Clinch control** | Winning clinch position, pinning to the cage, breaking free | |

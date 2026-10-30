@@ -74,15 +74,15 @@ Versions: position@2 added `transitions`; action@2 moved a takedown's `on_succes
 
 ### call@2 (examples: `takedown.json` attempt, `pressure.json` focus, `catch_the_kick.json` read)
 `name` (as shouted, "Takedown!"), `kind` (`now`/`read`), `tier` (`intent`/`technique`), `parent` (intent call it unlocks under),
-`hotkey` (a digit 0–9, or null; two calls may share a digit only if their `positions` never overlap, e.g. 1 for Pressure! standing and Ground and pound! in full guard, D121), `voice_cost`, `positions` (where it can be acted on), `roles` (optional:
+`hotkey` (a digit 0–9, a capital letter the fight screen doesn't already use (Q, E, F, P, T and M are taken: Cut the cage! is "R", D230), or null; two calls may share a digit only if their `positions` never overlap, e.g. 1 for Pressure! standing and Ground and pound! in full guard, D121), `voice_cost`, `positions` (where it can be acted on), `roles` (optional:
 `neutral`/`top`/`bottom`), `actions`, `requires_technique` (an action id the fighter must know, or null), `then` (optional, an attempt's: action ids
 tried straight after the first move is over, the first that would work; *Feint!* feints, then shoots or ties up off it, D131, `docs/01` §29.3a).
 A now call is one of two kinds (`docs/01` §22.2):
 - an **attempt**: `actions` lists the moves to try, in order (the first that would work right now is used), and no `focus`;
-- a **focus**: `actions` is empty and `focus: {duration_ms, leanings, weights, read_bonus, sprawl_bonus, cover_bonus, struggle, struggle_stamina, hunt}` says how the fighter
+- a **focus**: `actions` is empty and `focus: {duration_ms, leanings, weights, read_bonus, sprawl_bonus, cover_bonus, struggle, struggle_stamina, hunt, cut}` says how the fighter
   fights for that long: `leanings` adds points to Pace/Range/Base/Risk (−100 to 100), `weights` multiplies the AI's weight for
   an action id or category (0–10), `read_bonus` adds to the chance to read the opponent's moves of a category (0–1),
-  `sprawl_bonus` to the chance to sprawl on a shot (0–1), `cover_bonus` to a rocked fighter's chance to cover up (0–1: Survive!'s 1 makes him, D180), `struggle` to their side's chance to win each beat of a submission (0–0.5: Finish it! for the attacker, Defend the sub! for the defender, D126) `struggle_stamina` the extra stamina each beat costs them, and `hunt: {rate}` sends the fighter on top after a hold for that long (*Go for the finish!*, D200, `docs/01` §25.7): `rate` is his chance a free tick (above 0, up to 1) to go for it or for a position that has one; only for a call with `roles: ["top"]`. All optional except `duration_ms`.
+  `sprawl_bonus` to the chance to sprawl on a shot (0–1), `cover_bonus` to a rocked fighter's chance to cover up (0–1: Survive!'s 1 makes him, D180), `struggle` to their side's chance to win each beat of a submission (0–0.5: Finish it! for the attacker, Defend the sub! for the defender, D126) `struggle_stamina` the extra stamina each beat costs them, and `hunt: {rate}` sends the fighter on top after a hold for that long (*Go for the finish!*, D200, `docs/01` §25.7): `rate` is his chance a free tick (above 0, up to 1) to go for it or for a position that has one; only for a call with `roles: ["top"]`. `cut` (0–1, *Cut the cage!*, D230) has them cut the cage off at least that hard, from anywhere in the cage, without circling (`01` §20.5). All optional except `duration_ms`.
 
 A read call has `actions` (what the fighter reacts with) and `read: {trigger, duration_ms, attention_cost}`: primed for
 `duration_ms`, it reacts to the trigger once; while primed, Striking and Takedown defense drop by `attention_cost` (0–0.5).

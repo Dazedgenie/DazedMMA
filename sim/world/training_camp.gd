@@ -117,7 +117,7 @@ const STATS_PATH := "res://data/enums/stats.json"
 const STAT_NAMES := {
 	"strength": "Strength", "speed": "Speed", "cardio": "Cardio", "recovery": "Recovery", "durability": "Durability",
 	"chin": "Chin", "boxing": "Boxing", "kicking": "Kicking", "clinch_striking": "Clinch striking",
-	"striking_defense": "Striking defense", "footwork": "Footwork", "power": "Power", "takedowns": "Takedowns",
+	"striking_defense": "Striking defense", "footwork": "Footwork", "cage_cutting": "Cage cutting", "power": "Power", "takedowns": "Takedowns",
 	"takedown_defense": "Takedown defense", "clinch_control": "Clinch control", "scrambles": "Scrambles",
 	"top_control": "Top control", "guard": "Guard", "submissions": "Submissions",
 	"submission_defense": "Submission defense", "fight_iq": "Fight IQ", "composure": "Composure", "heart": "Heart",

@@ -93,6 +93,13 @@ func test_the_keys_name_a_big_stat_gap_each_way_and_the_scouting_card() -> void:
 	assert_eq(TaleOfTheTape.keys(_profile({}), _profile({})), [] as Array[String], "an even match has no keys")
 
 
+func test_the_keys_name_a_cage_cutter_against_poor_feet() -> void:
+	var trapped: String = "\n".join(TaleOfTheTape.keys(_profile({ "footwork": 35 }), _profile({ "cage_cutting": 75 })))
+	assert_string_contains(trapped, "He cuts the cage off well (A against your footwork C)")
+	var trapper: String = "\n".join(TaleOfTheTape.keys(_profile({ "cage_cutting": 75 }), _profile({ "footwork": 35 })))
+	assert_string_contains(trapper, "Cut the cage! (R)")
+
+
 func test_the_keys_name_reach_then_height_and_a_southpaw() -> void:
 	assert_string_contains(TaleOfTheTape.keys(_profile({}, 180, 190), _profile({}))[0], "You have 10 cm more reach")
 	assert_string_contains(TaleOfTheTape.keys(_profile({}), _profile({}, 186, 182))[0], "He's 6 cm taller")

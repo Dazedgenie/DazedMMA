@@ -211,11 +211,31 @@ const NEAR_FINISH: float = 80.0
 ## In open space a circling fighter keeps their direction unless one way is clearly
 ## more open (by this much, in metres toward the middle).
 const CIRCLE_SIDE_DEADBAND: float = 0.3
-## Cutting off the cage (D107): the cut fades in as the opponent goes from CUT_FROM to
-## CUT_FULL metres out from the middle: it's the fence that traps them, so in open space
-## there's no way out to shut.
+## Cutting off the cage (D107, D230): the cut fades in as the opponent goes from the cutter's
+## reach to CUT_FULL metres out from the middle: it's the fence that traps them, so deep in
+## open space there's no way out to shut. The reach is CUT_FROM at Cage cutting 50, CUT_EARLY
+## closer to the middle at 100 (and further out below 50): good cutters start shutting the
+## exits while the opponent still has room. On a Cut the cage! call (FeetPlan.anywhere) it's
+## CUT_CALLED_FROM, or the cutter's own reach if that's closer in.
 const CUT_FROM: float = 3.0
+const CUT_EARLY: float = 0.5
+const CUT_CALLED_FROM: float = 1.0
 const CUT_FULL: float = 4.0
+## Aiming at the exit, not the man (D230): the cutter's spot leads the opponent's sideways
+## drift by CUT_LEAD_TICKS, as the cutter reads it. The read catches up with a change of
+## direction by CUT_READ_BASE + CUT_READ_PER_SHARE × the cutter's Cage cutting share (vs
+## the opponent's Footwork) of the gap each tick: a reversal fools a poor reader for longer.
+const CUT_LEAD_TICKS: float = 5.0
+const CUT_READ_BASE: float = 0.1
+const CUT_READ_PER_SHARE: float = 0.5
+## A fighter who reaches the fence within CUT_OFF_TICKS of the opponent's cut working, after at
+## least CUT_OFF_FROM_TICKS in the centre, was cut off onto it (FightSim.cut_offs): walked from
+## open space onto the fence, not just stepping in and out by it.
+const CUT_OFF_TICKS: int = 10
+const CUT_OFF_FROM_TICKS: int = 30
+## Bitten on a feint (D131), a fighter's feet move this share of a step: weight back and hands up,
+## he plants for a beat, which is what a cutter herding him with a feint wants (D230).
+const BIT_FEET: float = 0.4
 ## What counts as circling for the time reported after a fight (D119): a step where at
 ## least this much of it goes round the opponent (an outside fighter's everyday drift
 ## sideways, 0.25 × how far outside they lean, doesn't count).
@@ -300,9 +320,18 @@ var _cutting: Array[float] = [0.0, 0.0]
 var _circle_sign: Array[float] = [1.0, 1.0]
 ## Fight time (ticks) each fighter spent circling (a step at least CIRCLING_FROM round
 ## the opponent) and cutting off the cage (pressing or holding with the cut working: the
-## opponent out past CUT_FROM), reported after the fight (D119). Read-only; never changes the fight.
+## opponent out past their reach), reported after the fight (D119). Read-only; never changes the fight.
 var circling_ticks: Array[int] = [0, 0]
 var cutting_ticks: Array[int] = [0, 0]
+## Times each fighter cut the opponent off onto the fence (D230): the opponent got near the
+## fence while this fighter's cut was working. Read-only.
+var cut_offs: Array[int] = [0, 0]
+## The last tick each fighter's cut was working (cut_offs), and the opponent's sideways
+## drift as each fighter reads it (m per tick, CUT_READ_BASE).
+var _cut_at: Array[int] = [-1000, -1000]
+## The tick each fighter's cage proximity last turned to the centre (CUT_OFF_FROM_TICKS).
+var _centre_since: Array[int] = [0, 0]
+var _drift: Array[Vector2] = [Vector2.ZERO, Vector2.ZERO]
 ## How far each fighter moved on their last tick (zero when they stood still).
 var _strides: Array[Vector2] = [Vector2.ZERO, Vector2.ZERO]
 ## Walking pace (m per tick), footwork-contest share and footwork edge per fighter, as of _feet_at.
@@ -310,6 +339,10 @@ var _feet_at: int = -FEET_EVERY
 var _step: Array[float] = [0.0, 0.0]
 var _share: Array[float] = [0.5, 0.5]
 var _feet_edge: Array[float] = [1.0, 1.0]
+## Cutting the cage (D230), as of _feet_at: the Cage cutting vs Footwork contest share, and
+## how far out from the middle the cut starts working (CUT_FROM − CUT_EARLY × (Cage cutting − 50) / 50).
+var _cut_share: Array[float] = [0.5, 0.5]
+var _cut_reach: Array[float] = [CUT_FROM, CUT_FROM]
 
 
 ## `p_rules` is a Ruleset (null = pro rules), or a round count with
@@ -589,7 +622,7 @@ func _advance_fighter(i: int) -> void:
 		if situation.is_standing():
 			var feet: FeetPlan = decisions[i].plan_feet(seen)
 			if f.stagger_ticks <= 0:
-				_move(i, feet.want, feet.circle, feet.cut, feet.way)
+				_move(i, feet.want, feet.circle, feet.cut, feet.way, feet.anywhere)
 		var decision: Decision = decisions[i].decide(seen)
 		if not decision.is_idle():
 			_start_action(i, decision.action_id, decision)
@@ -619,6 +652,16 @@ func last_circling(i: int) -> float:
 
 func last_cutting(i: int) -> float:
 	return _cutting[i]
+
+
+## Whether fighter i's cut was working on their last step (the opponent out past their reach, D230).
+func is_cutting(i: int) -> bool:
+	return _cut_at[i] >= now - 1
+
+
+## Which way round the opponent fighter i last circled (±1).
+func circle_sign(i: int) -> int:
+	return 1 if _circle_sign[i] > 0.0 else -1
 
 
 func move_speed(f: FighterState) -> float:
@@ -656,6 +699,9 @@ func _refresh_feet() -> void:
 		_step[i] = (MOVE_BASE + MOVE_PER_STAT * (footwork[i] + fighters[i].effective_stat("speed")) / 200.0) / FightClock.TICKS_PER_SECOND
 		_share[i] = Contest.chance(Contest.STRIKE_BASE, footwork[i], footwork[1 - i])
 		_feet_edge[i] = footwork_edge(_share[i])
+		var cutting: float = fighters[i].effective_stat("cage_cutting")
+		_cut_share[i] = Contest.chance(Contest.STRIKE_BASE, cutting, footwork[1 - i])
+		_cut_reach[i] = CUT_FROM - CUT_EARLY * (cutting - 50.0) / 50.0
 
 
 ## The feet: step toward the preferred distance and circle as much as the fighter
@@ -664,10 +710,13 @@ func _refresh_feet() -> void:
 ## it; the rest slides along it. Pressing someone who is on the move, they aim where
 ## that fighter is going: how far ahead is the presser's share of a Footwork contest.
 ## Chasing someone who's getting away, they keep up only as well as their footwork
-## edge lets them, and cutting the cage off (`cut`, 0–1) they step sideways toward the
-## spot between the opponent and the middle, as much as the edge lets them (D107):
-## good feet get out, bad feet get trapped.
-func _move(i: int, want: float, circle: float, cut: float = 0.0, way: int = 0) -> void:
+## edge lets them. Cutting the cage off (`cut`, 0–1, D107, D230) they don't follow:
+## they step across toward the spot between the opponent and the middle, ahead of the
+## way the opponent is drifting, as much as their Cage cutting share against the
+## opponent's Footwork lets them, and close the distance with what's left of the step
+## (the diagonal step). Good cutters start further from the fence; `anywhere` (the
+## Cut the cage! call) starts at CUT_CALLED_FROM.
+func _move(i: int, want: float, circle: float, cut: float = 0.0, way: int = 0, anywhere: bool = false) -> void:
 	var f: FighterState = fighters[i]
 	var o: FighterState = fighters[1 - i]
 	var from: Vector2 = f.pos
@@ -681,20 +730,32 @@ func _move(i: int, want: float, circle: float, cut: float = 0.0, way: int = 0) -
 	_wants[i] = want
 	_circling[i] = circle
 	_cutting[i] = cut
+	_drift[i] = _drift[i].lerp(_strides[1 - i], CUT_READ_BASE + CUT_READ_PER_SHARE * _cut_share[i])
+	var across: Vector2 = Vector2.ZERO
+	if cut > 0.0:
+		var out: float = o.pos.length()
+		var reach: float = minf(_cut_reach[i], CUT_CALLED_FROM) if anywhere else _cut_reach[i]
+		if out > reach:
+			var fade: float = clampf((out - reach) / maxf(CUT_FULL - reach, 0.01), 0.0, 1.0)
+			across = _cut_step(i, toward, apart, step) * cut * fade * _cut_share[i]
+			cutting_ticks[i] += 1
+			_cut_at[i] = now
 	var stride: Vector2 = toward * radial
-	if radial > 0.0 and _strides[1 - i] != Vector2.ZERO:
+	if across == Vector2.ZERO and radial > 0.0 and _strides[1 - i] != Vector2.ZERO:
 		var ahead: Vector2 = o.pos + _strides[1 - i] * (apart / step) * (1.0 - _share[1 - i])
 		if ahead != f.pos:
 			stride = (ahead - f.pos).normalized() * radial
+	if across != Vector2.ZERO:
+		# Shut the exit first, close the distance with what's left of the step.
+		stride = stride.limit_length(sqrt(maxf(0.0, step * step - across.length_squared()))) + across
 	if circle > 0.0:
 		stride += _circle_side(i, toward, way) * step * circle
 		if circle >= CIRCLING_FROM:
 			circling_ticks[i] += 1
-	if cut > 0.0 and o.pos.length_squared() > CUT_FROM * CUT_FROM:
-		stride += _cut_step(i, toward, apart, step) * cut * _share[i]
-		cutting_ticks[i] += 1
 	if stride.length() > step:
 		stride = stride.normalized() * step
+	if f.bit_ticks > 0:
+		stride *= BIT_FEET
 	# The fence stops the part of the step that goes into it; the rest slides along it.
 	f.pos = Octagon.keep_inside(f.pos + stride)
 	var effort: float = (f.pos - from).length() / step if step > 0.0 else 0.0
@@ -714,15 +775,16 @@ func _push(k: int, metres: float) -> void:
 
 
 ## The sideways step that puts fighter k between the opponent and the middle of the cage,
-## as far from them as now: at most a step, and nothing while the opponent is in the middle.
+## as far from them as now, led ahead of the opponent's drift as k reads it (D230): at most a
+## step, and nothing while the opponent is right in the middle.
 func _cut_step(k: int, toward_opponent: Vector2, apart: float, step: float) -> Vector2:
 	var o: Vector2 = fighters[1 - k].pos
 	var out: float = o.length()
-	if out <= CUT_FROM:
+	if out <= 0.01:
 		return Vector2.ZERO
-	var spot: Vector2 = o - o / out * apart
+	var spot: Vector2 = o - o / out * apart + _drift[k] * CUT_LEAD_TICKS
 	var side := Vector2(-toward_opponent.y, toward_opponent.x)
-	return side * clampf((spot - fighters[k].pos).dot(side), -step, step) * clampf((out - CUT_FROM) / (CUT_FULL - CUT_FROM), 0.0, 1.0)
+	return side * clampf((spot - fighters[k].pos).dot(side), -step, step)
 
 
 ## Which way fighter k circles: sideways (relative to the opponent), `way` if the
@@ -754,7 +816,13 @@ func _update_space() -> void:
 	_announce(0, Octagon.band(apart) if situation.is_standing() else Octagon.BAND_CLINCH, FightEvent.RANGE_CHANGED, FightEvent.NO_ACTOR, "band")
 	for i in fighters.size():
 		var proximity: String = Octagon.proximity(fighters[i].pos, apart)
+		var was: String = _shown[1 + i]
 		_announce(1 + i, proximity, FightEvent.CAGE_CHANGED, i, "proximity")
+		if _shown[1 + i] != was:
+			if was == Octagon.CAGE_CENTRE and now - _centre_since[i] >= CUT_OFF_FROM_TICKS and now - _cut_at[1 - i] <= CUT_OFF_TICKS:
+				cut_offs[1 - i] += 1
+			if _shown[1 + i] == Octagon.CAGE_CENTRE:
+				_centre_since[i] = now
 		if proximity == Octagon.CAGE_PINNED:
 			_round_control[1 - i] += 1
 			if held_on_fence(i):
@@ -784,9 +852,11 @@ func _to_corners() -> void:
 	_circling = [0.0, 0.0]
 	_cutting = [0.0, 0.0]
 	_strides = [Vector2.ZERO, Vector2.ZERO]
+	_drift = [Vector2.ZERO, Vector2.ZERO]
 	for i in fighters.size():
 		fighters[i].pos = START_POSITIONS[i]
 	_shown = [band(), cage_proximity(0), cage_proximity(1)]
+	_centre_since = [now, now]
 	_candidate = _shown.duplicate()
 	_held = [0, 0, 0]
 

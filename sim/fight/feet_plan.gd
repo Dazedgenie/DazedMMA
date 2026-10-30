@@ -14,3 +14,6 @@ var circle: float = 0.0
 var way: int = 0
 ## How hard they cut the cage off: 0 = not at all, 1 = all their feet allow.
 var cut: float = 0.0
+## Cut the cage! (D230): cut off the exits even out in open space (FightSim.CUT_CALLED_FROM),
+## not just as the fence closes in.
+var anywhere: bool = false

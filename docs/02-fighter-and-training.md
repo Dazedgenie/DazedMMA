@@ -155,6 +155,7 @@ fatigue they add (or take away), their injury risk, any style push, any chin wea
 | Thai pads | Kicking 50%, Clinch striking 30%, Power 20% | 10 | 10 | 0.1% | Base −0.1 |
 | Wrestling drills (wrestling chain) | Takedowns 50%, Scrambles 30%, Clinch control 20% | 10 | 12 | 0.15% | Base +0.1 |
 | Sprawl drills (sprawl reflex) | Takedown defense 60%, Scrambles 20%, Speed 20% | 10 | 10 | 0.1% | Base −0.05 |
+| Shark tank (D230: one fighter holds the centre and cuts off, the other tries not to get trapped) | Cage cutting 60%, Footwork 20%, Fight IQ 20% | 10 | 9 | 0.1% | Range +0.05, Pace +0.05 |
 | Clinch work | Clinch control 50%, Clinch striking 30%, Strength 20% | 10 | 10 | 0.1% | Range +0.1 |
 | Rolling (rolling puzzle) | Top control 30%, Guard 30%, Submissions 20%, Submission defense 20% | 10 | 10 | 0.1% | Base +0.1 |
 | Strength & conditioning | Strength 50%, Speed 25%, Durability 25% | 10 | 12 | 0.1% | |

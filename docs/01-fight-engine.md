@@ -627,7 +627,7 @@ to be, how much to circle and which way, and how hard to cut the cage off. `Figh
 | Back toward the centre | An outside fighter (Range below 0) who is further from the middle than the opponent circles round the opponent toward it while giving ground or while the opponent is busy throwing, and pivots instead of backing off. Both grow with how much further out they are (all of it from 1 m further out) and with how far outside they lean (all of it at Range −100) | `CENTRE_PULL` 1.0, `CENTRE_PULL_OVER` 1.0 m and `PIVOT` 1.0 in `fighter_ai.gd` |
 | Off the fence | With the fence within 1.5 m behind them, everyone backs up less (not at all at the fence), so a pressure fighter who gets backed up plants and fights. Outside fighters also circle out: all they can for 1.5 s, toward the side nearer the middle (a coin flip when neither side is clearly more open), the moment the opponent commits to a move, or else on a chance of 50% × how far outside they lean, each tick | `FENCE_SENSE` 1.5 m, `ESCAPE_TICKS` 15 and `ESCAPE_RATE` 0.5 in `fighter_ai.gd` |
 | Changing direction | In open space (the fence more than 0.8 m away), circling fighters think again every 3 s and switch direction 40% of the time, so they don't circle the same way all fight. Closer to the fence they circle toward the middle | `SWITCH_EVERY` 30 ticks, `SWITCH_CHANCE` 0.4 and `SWITCH_FENCE` 0.8 m in `fighter_ai.gd` |
-| Cutting off the cage | Pressing or holding (not while giving ground, rocked, or swarming a hurt opponent), a fighter steps sideways toward the spot between the opponent and the middle, as far from the opponent as now. How hard: 0.6 at Range 0, ±0.4 at Range ±100. It fades in as the opponent goes from 3 m to 4 m out from the middle, because it's the fence that traps: in open space there's no way out to shut. The sideways step is × the presser's Footwork contest share | `CUT_BASE` 0.6 and `CUT_PER_RANGE` 0.4 in `fighter_ai.gd`; `CUT_FROM` 3.0 m and `CUT_FULL` 4.0 m in `sim/fight/fight_sim.gd` |
+| Cutting off the cage | Pressing or holding (not while giving ground, rocked, or swarming a hurt opponent), a fighter steps sideways toward the spot between the opponent and the middle, as far from the opponent as now. How hard: 0.6 at Range 0, ±0.4 at Range ±100. It fades in as the opponent goes from 3 m to 4 m out from the middle, because it's the fence that traps: in open space there's no way out to shut. The sideways step is × the presser's Footwork contest share. **Since D230 (§20.5)** the reach depends on the Cage cutting stat, the step leads the opponent's drift, comes before closing in, and is × Cage cutting against the opponent's Footwork | `CUT_BASE` 0.6 and `CUT_PER_RANGE` 0.4 in `fighter_ai.gd`; `CUT_FROM` 3.0 m and `CUT_FULL` 4.0 m in `sim/fight/fight_sim.gd` |
 | Chasing | Walking in on someone whose last step was away, a fighter keeps up only by their footwork edge = (2 × Footwork contest share)², at most 1. Even feet get all of the chase; the Boxer's 50 against the Kicker's 70 (a 30% share) gets about a third | `FightSim.footwork_edge()` in `fight_sim.gd` |
 | The fence | The fence stops the part of a step that goes into it, and the rest slides along it. Before D107 a fighter who walked into the fence slid along it at full pace, so backing straight up turned into a sprint along the fence. Walking costs stamina for the distance actually covered | `FightSim._move()` in `fight_sim.gd` |
 
@@ -670,7 +670,7 @@ already do and changes nothing in the fight: the balance CSV of 160 fights was i
 | Counted as | When a tick counts | To change it |
 |---|---|---|
 | Circling | The fighter steps, and at least 40% of the step goes round the opponent: circling off a fighter in their face, back toward the middle, out off the fence, or away while rocked. An outside fighter's everyday drift sideways (0.25 × how far outside they lean, 0.15 of a step for the Kicker) doesn't count | `CIRCLING_FROM` 0.4 in `sim/fight/fight_sim.gd` |
-| Cutting off the cage | The fighter steps while pressing or holding, with the cut working: the opponent more than 3 m out from the middle (`CUT_FROM`, §20.2). It counts while they're already in the way and don't need to step across | The `cut > 0.0` branch in `FightSim._move()` |
+| Cutting off the cage | The fighter steps while pressing or holding, with the cut working: the opponent further out from the middle than the cutter's reach (3 m at Cage cutting 50, §20.5; it was 3 m for everyone before D230). It counts while they're already in the way and don't need to step across | The `cut > 0.0` branch in `FightSim._move()` |
 
 Both are counted in `FightSim._move()` into `FightSim.circling_ticks` and `cutting_ticks` (one per fighter, ticks of fight
 time). Ticks a fighter doesn't move (throwing, staggered, tied up, down) count as neither.
@@ -714,6 +714,65 @@ and a joined-up cage game. Kyle took the plan in seven phases, starting with the
 **Kyle's answers (D251):** bring takedown volume closer to real fights (the grapplers try 24–42 shots a fight in the harness,
 about 4 per 15 minutes in the UFC); catch-kicks stay a coached move (D103); test switching off the blanket call costs (D115)
 after phase 2; replace D12's flat +10–20% coaching target with how often a called move wins the exchange it was called for.
+
+### 20.5 Cutting the cage (D230–D232)
+Kyle (2026-10-30): "we also need to work on a cut the cage call and the ai around that. currently the ai just kind of circles
+following. we can make cage cutting its own stat if needed as thats something some fighters can become well known for." He
+sent two guides as the source: [the art of cutting the cage](https://mmaguidr.com/art-of-cutting-the-cage-ring-generalship-101/)
+and [MMA cage cutting](https://middleeasy.com/guides/mma-cage-cutting/). Their main points: take away the next exit instead
+of following the man ("chasing his shadow"), step diagonally to cut off his path and mirror his escape, hold the inside line
+(you cover less ground than he does going round you), don't crowd him, and use feints to make the exit predictable. The man
+being cut off reverses direction, plants and counters (the check hook), or bursts through the open side. Cage control alone
+isn't offence. Before D230 the cut only worked once the opponent was 3 m out from the middle, so most pressing was a chase
+with the presser aiming a little ahead.
+
+Kyle's picks on the decision cards: a new **Cage cutting** stat (D230), the call as a **15-second focus on key R** (D231),
+and **herding with feints now, strikes aimed at the escape side later** (D232).
+
+| Behaviour | What the fighter does | To change it |
+|---|---|---|
+| The Cage cutting stat | The 24th stat (`data/enums/stats.json`, Striking group, `11` §2.2). The cut's sideways step is × the cutter's Cage cutting contest share against the opponent's **Footwork** (it was Footwork against Footwork), and the stat sets the reach below. Tired, a hurt leg or a limp lower it, like Footwork. Missing from a fighter file = 50 | `FightSim._refresh_feet()`; `LEG_HURT_STATS` and `LIMP_STATS` in `sim/fight/fighter_state.gd` |
+| Starting earlier | The cut fades in as the opponent goes from the cutter's reach to 4 m out from the middle. Reach = 3 m at Cage cutting 50, 0.5 m closer to the middle at 100 and 0.5 m further out at 0: a great cutter starts shutting the exits while there's still room | `CUT_FROM` 3.0, `CUT_EARLY` 0.5 and `CUT_FULL` 4.0 m in `sim/fight/fight_sim.gd` |
+| Aiming at the exit | Cutting, the presser doesn't aim ahead of the man the way a chase does: he steps toward the spot between the opponent and the middle, led by where the opponent is drifting (half a second of his sideways steps). His read of that drift catches up with a change of direction by 10% + 50% × his Cage cutting share of the gap a tick, so a good reader is fooled by a reversal for less time | `CUT_LEAD_TICKS` 5, `CUT_READ_BASE` 0.1, `CUT_READ_PER_SHARE` 0.5 in `fight_sim.gd`; `FightSim._cut_step()` |
+| The diagonal step | The step across comes first and the step in gets what's left of his walking pace, so cutting off he closes the distance more slowly and doesn't run past the exit | `FightSim._move()` |
+| Reversing (the man being cut off) | An outside fighter circling by the fence (within 0.8 m) with the opponent cutting from the inside turns back the other way, all he can for 0.8 s, on a chance of 6% × how far outside he leans × Fight IQ / 100 a tick | `REVERSE_RATE` 0.06, `REVERSE_TICKS` 8 in `sim/fight/fighter_ai.gd` |
+| Plant and counter | Being cut off, the chance to meet the cutter with a strike as he steps in (§20) goes up by 0.2 | `INTERCEPT_CUT_OFF` 0.2 in `fighter_ai.gd` |
+| Herding with a feint | Cutting the cage off with the opponent circling within 1.5 m of the fence, the cutter feints (D131) on a chance of 1.5% × Cage cutting / 100 a free tick. A feint that bites now also plants the feet: a bitten fighter's feet move 40% of a step while it lasts (D131's 1 s), so the cut closes the door. This works for every feint, the ones before a shot too | `HERD_RATE` 0.015, `HERD_FENCE` 1.5 m in `fighter_ai.gd`; `BIT_FEET` 0.4 in `fight_sim.gd` |
+| *Cut the cage!* (key **R**) | A 15 s focus call (`data/calls/cut_the_cage.json`, voice 20): Range +30, Pace +20, he cuts all his stat allows (`cut` 1.0) from anywhere in the cage (reach 1 m, or his own if that's closer in) and doesn't circle. Number keys 0–9 are all taken standing, so it's the first call on a letter key; the call bar shows it as *R Cut the cage* | the call's file; `CUT_CALLED_FROM` 1.0 m in `fight_sim.gd`; `FighterAI._plan_steps()` |
+| Cut off onto the fence | Reported after the fight next to the cutting time: how many times the opponent was walked from open space onto the fence: his cage proximity changed from the centre (after at least 3 s there) to near the fence within 1 s of this fighter's cut working. The result screen and debug console add *trapped him on the fence N times* to the movement line (§20.3); the harness adds it to the **Circling** line and the CSV (`cut_offs_red`, `cut_offs_blue`) | `CUT_OFF_TICKS` 10 and `CUT_OFF_FROM_TICKS` 30 in `fight_sim.gd`; `FightSim.cut_offs` |
+
+Who is good at it (the test fighters in `data/fighters/`, which the opponent style sheets build on, D160). Kyle was asked which styles
+should be known for it; these are the first guesses: Pressure wrestler 75; Pressure boxer, Brawler, Dirty boxer and
+Ground-and-pound wrestler 65; Wrestle-boxer and Sprawl-and-brawl 60; Muay Thai and Sambo 55; Leg-kick specialist and Judoka 50;
+Submission grappler and Counter-striker 40; Range kicker and Karate 35. The escape artists keep their high Footwork, which
+is what stops them being cut off.
+
+Training it: the **Shark tank** session (`data/sessions/shark_tank.json`, `02` §3.5): Cage cutting 60%, Footwork 20%, Fight IQ
+20%. On the fight setup, a key to the fight says when one fighter's Cage cutting is two grades or more above the other's
+Footwork (`TaleOfTheTape.keys`).
+
+Measured (100 fights a pairing, pro rules; main before D230 for comparison, 60 fights a pairing):
+
+| | Before D230 | After |
+|---|---|---|
+| Kicker vs Boxer (Kicker red / Kicker blue) | 38% / 45% | 47% / 40% (inside the 60/40 test: 56.5%) |
+| Boxer cutting off the Kicker | 18–19% of the fight | 33% |
+| One fighter chasing the other (the INFO line) | 30–35% of standing time | 30% |
+| Wrestler vs Kicker: the Wrestler wins | 50% | 67% |
+| Brawler vs Kicker: the Brawler wins | 60% | 71% |
+| Pressure wrestler vs Counter-striker: the Pressure wrestler wins | 62% | 72% |
+
+Good cutters now beat the outside fighters clearly more often. Kyle was asked how hard that should be (tone it down so every
+style stays in 37–63%, keep it, or keep it and give the kickers more Footwork) and picked **keep it as built** (2026-10-30):
+cage cutters really are a nightmare for kickers, and an outside fighter answers with Footwork training and *Circle out!*. A
+toned-down try (Pressure boxer 60, Brawler 50 …) kept every style between 38% and 65% on the style table. As built, on the style table (`tools/style_sheets.gd --fights=60`, D160), every style
+wins between 38% and 67% (main: 37–65%). The biggest moves: Brawler 43% → 53%, Sprawl-and-brawl 57% → 65%, Judo thrower 57% → 65%,
+Counter-striker 47% → 38%, Wrestle-boxer 52% → 42%, Range kicker 47% → 40%, and the Leg-kick specialist 48% → 40% (Kyle asked for
+at least 36%). The first 30-fights-a-style table had him at 33%, but that was noise.
+
+Not yet: strikes thrown at the side the man circles toward, so circling into the power hand gets hit (Kyle: later, D232); the
+AI corner and the coaching bots making the call; what happens once he's pinned on the fence is the cage pressure work (§39).
+Tested in `tests/sim/fight/test_cage_cutting.gd`.
 
 ## 21. Clinch, takedowns and the ground in the engine (#15, D98, D108, D109)
 What `sim/` does for §4, §5.1 and D29 in the Phase 1 playtest. The scope is the trimmed one (D98): one clinch position, the

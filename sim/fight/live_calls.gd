@@ -346,6 +346,14 @@ func struggle_bonus() -> float:
 	return float(focus.call.focus.get("struggle", 0.0))
 
 
+## How hard Cut the cage! has the fighter cut off the cage (D230): its focus's `cut` (0–1),
+## or −1 when no such focus is on.
+func cut_focus() -> float:
+	if focus.is_empty():
+		return -1.0
+	return float(focus.call.focus.get("cut", -1.0))
+
+
 ## The extra stamina each beat of a struggle costs while a struggle call's focus is on.
 func struggle_stamina() -> float:
 	if focus.is_empty():

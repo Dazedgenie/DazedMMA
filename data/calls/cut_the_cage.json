@@ -1,0 +1,14 @@
+{
+	"schema": "call@2",
+	"id": "cut_the_cage",
+	"name": "Cut the cage!",
+	"kind": "now",
+	"tier": "intent",
+	"parent": null,
+	"hotkey": "R",
+	"voice_cost": 20,
+	"positions": ["standing"],
+	"actions": [],
+	"focus": { "duration_ms": 15000, "leanings": { "range": 30, "pace": 20 }, "cut": 1.0 },
+	"requires_technique": null
+}

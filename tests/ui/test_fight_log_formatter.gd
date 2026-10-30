@@ -199,6 +199,8 @@ func test_the_movement_line_says_how_long_each_fighter_circled_and_cut_off() -> 
 	_sim.cutting_ticks[1] = 905
 	assert_eq(_plain(FightLogFormatter.movement_line(_sim, 0)), "%s circled 7:12 (48%% of the fight) · cut off the cage 0:00 (0%% of the fight)" % _sim.fighters[0].name)
 	assert_string_contains(_plain(FightLogFormatter.movement_line(_sim, 1)), "cut off the cage 1:30 (10% of the fight)")
+	_sim.cut_offs[1] = 3
+	assert_string_ends_with(_plain(FightLogFormatter.movement_line(_sim, 1)), "· trapped him on the fence 3 times", "cut off onto the fence (D230)")
 
 
 func test_a_submission_locking_in_its_beats_and_the_tap_read_naturally() -> void:

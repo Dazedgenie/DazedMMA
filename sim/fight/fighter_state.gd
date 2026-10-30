@@ -45,12 +45,12 @@ const REACTION_TICKS_PER_SPEED: float = 0.02
 ## Sets (stat id → true): effective_stat runs thousands of times a fight.
 const FATIGUE_EXEMPT := { "cardio": true, "recovery": true, "durability": true, "chin": true, "fight_iq": true, "composure": true, "heart": true }
 const HEAD_HURT_STATS := { "speed": true, "striking_defense": true, "fight_iq": true }
-const LEG_HURT_STATS := { "footwork": true, "speed": true, "kicking": true }
+const LEG_HURT_STATS := { "footwork": true, "cage_cutting": true, "speed": true, "kicking": true }
 ## The two legs (D144): each is fully hurt at this share of the legs' damage scale (one leg kicked
 ## to pieces is a leg gone while the other is fresh). A buckled leg leaves him limping: these stats
 ## a further LIMP_PENALTY down (slower, weaker kicks, easier to take down).
 const LEG_SHARE: float = 0.3
-const LIMP_STATS := { "footwork": true, "speed": true, "kicking": true, "takedown_defense": true }
+const LIMP_STATS := { "footwork": true, "cage_cutting": true, "speed": true, "kicking": true, "takedown_defense": true }
 const LIMP_PENALTY: float = 0.2
 const LEFT_LEG: int = 0
 const RIGHT_LEG: int = 1

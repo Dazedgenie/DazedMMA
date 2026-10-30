@@ -421,9 +421,10 @@ func _pair_lines(of_rows: Array[Dictionary], names: Dictionary) -> PackedStringA
 		red, _pct(average(of_rows, "fence_red")), _pct(average(of_rows, "pinned_red")),
 		blue, _pct(average(of_rows, "fence_blue")), _pct(average(of_rows, "pinned_blue")),
 		red, _pct(average(of_rows, "centre_red")), blue, _pct(average(of_rows, "centre_blue")), _pct(average(of_rows, "chase"))])
-	lines.append("  Circling   %s %s, %s %s · cutting off the cage: %s %s, %s %s" % [
+	lines.append("  Circling   %s %s, %s %s · cutting off the cage: %s %s, %s %s · cut off onto the fence %s %.1f, %s %.1f a fight (D230)" % [
 		red, _time_line(of_rows, "circling_red"), blue, _time_line(of_rows, "circling_blue"),
-		red, _time_line(of_rows, "cutting_red"), blue, _time_line(of_rows, "cutting_blue")])
+		red, _time_line(of_rows, "cutting_red"), blue, _time_line(of_rows, "cutting_blue"),
+		red, average(of_rows, "cut_offs_red"), blue, average(of_rows, "cut_offs_blue")])
 	lines.append("  Grappling  takedowns %s %.1f of %.1f a fight, %s %.1f of %.1f · clinch %s of the fight · ground %s (%s on top %s, %s on top %s)" % [
 		red, average(of_rows, "takedowns_red"), average(of_rows, "shots_red"), blue, average(of_rows, "takedowns_blue"), average(of_rows, "shots_blue"),
 		_pct(average(of_rows, "clinch")), _pct(average(of_rows, "ground")), red, _pct(average(of_rows, "top_red")), blue, _pct(average(of_rows, "top_blue"))])

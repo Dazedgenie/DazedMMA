@@ -181,6 +181,14 @@ func _unhandled_input(event: InputEvent) -> void:
 			make_call(hud.read_call(0))
 		KEY_E:
 			make_call(hud.read_call(1))
+		KEY_R:
+			# Calls on a letter key (Cut the cage!, D230).
+			handled = false
+			for id in driver.sim.calls.ids():
+				if driver.sim.calls.get_call(id).get("hotkey") == "R" and hud.is_allowed(id):
+					make_call(id)
+					handled = true
+					break
 		_:
 			handled = false
 			if key >= KEY_0 and key <= KEY_9:
@@ -189,7 +197,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				var on_key: Array[String] = []
 				for id in driver.sim.calls.ids():
 					var hotkey: Variant = driver.sim.calls.get_call(id).get("hotkey")
-					if hotkey != null and int(hotkey) == key - KEY_0 and hud.is_allowed(id):
+					if hotkey != null and not hotkey is String and int(hotkey) == key - KEY_0 and hud.is_allowed(id):
 						on_key.append(id)
 				for id in on_key:
 					if FightHud.call_problem(driver.sim, driver.player, driver.sim.calls.get_call(id)) == "" or id == on_key[-1]:

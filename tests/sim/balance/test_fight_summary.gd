@@ -65,8 +65,8 @@ func test_every_strike_that_rolled_odds_counts_as_an_exchange() -> void:
 	sim.run_to_end()
 	var rolled: int = 0
 	for e in sim.events:
-		if e.data.has("odds"):
-			rolled += 1
+		if e.data.has("odds") and e.type != FightEvent.FEINTED:
+			rolled += 1  # A feint isn't an exchange (strikers feint to herd a man by the fence, D232).
 	var row: Dictionary = FightSummary.of(sim)
 	assert_gt(row.exchanges, 0)
 	assert_eq(row.exchanges, rolled)
