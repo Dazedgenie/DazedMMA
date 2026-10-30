@@ -99,10 +99,11 @@ screen; **Start fight** plays three rounds with the player as the **red corner**
 ### 6.2 What's on screen (v0)
 | Element | v0 | Code |
 |---|---|---|
-| Cage and fighters | Grey-box octagon and fence, orthographic isometric camera that follows the fighters and moves in for the clinch and closer still for the ground (D80). Fighters are capsule bodies with stick limbs that act out the move: punches reach out, kicks lift the leg (the rear one, the lead one for a teep), shots and sprawls drop the hips, the bottom fighter lies on their back, the top fighter postures up and drives down ground punches and elbows (pulled down flat while tied up), and the bottom fighter reaches up to tie up (D121). They slide between ticks | `game/arena_view.gd`, `game/fighter_figure.gd` |
+| Cage and fighters | Grey-box octagon and fence, orthographic isometric camera that follows the fighters and moves in for the clinch and closer still for the ground (D80). Fighters are capsule bodies with stick limbs that act out the move: punches reach out, kicks lift the leg (the rear one, the lead one for a teep), shots and sprawls drop the hips, the bottom fighter lies on their back, the top fighter postures up and drives down ground punches and elbows (pulled down flat while tied up), and the bottom fighter reaches up to tie up (D121). On the ground the two are laid out by the position: guard, half guard, side control, mount and the back each look different (D210, §6.10). They slide between ticks | `game/arena_view.gd`, `game/fighter_figure.gd` |
 | Over each fighter | The move's name, coloured by phase (telegraph yellow, wind-up orange, active red, recovery grey); the **delay ring** while a call is being processed, shrinking as the fighter gets to it; **nah** when a call is ignored; **READ** while a read call is primed; stars when rocked | `fighter_figure.gd` |
 | Tell cue (D51) | When a scouted tell shows (the Kicker's jab blocked, the Wrestler's stance shift), the limb the move will come from glows and a **!** shows over the fighter, until the move starts or the tell's window runs out. Shape and colour, so it reads without colour | `arena_view.gd` `_on_event` |
 | Ground tag | Under the fighters: the range standing (Out of range / Long / Mid / Pocket), the position tied up ("Full guard · Wrestler on top", "Submission · Kicker's triangle choke"). It grows when it changes, then settles | `ArenaView.tag_text` |
+| Position diagram (D210) | On the left above the call bar while the fight is on the ground: a top-down stick drawing of the position in the corners' colours and its name ("MOUNT · WRESTLER ON TOP"; in a hold, "TRIANGLE CHOKE FROM FULL GUARD"). §6.10 | `ui/position_diagram.gd`, `FightHud.position_text` |
 | Danger meter (D126) | While a submission is locked in: a red bar in the middle, 0 to 100, with the hold and the danger ("Kicker's TRIANGLE CHOKE on Wrestler · danger 60"). At 100 they tap, at 0 they're out. The fighters keep the pose of where it was locked from (a guillotine bends the defender over) | `FightHud.danger_text`, `fighter_figure.gd` |
 | Top bar | Names; a **body figure** per fighter (D150) whose head, body and legs run green → yellow → red with that area's damage, a readout beside it (HEAD 65% · BODY 94% · LEGS 100%: what's left of each, in the same colour; the head is health, D120, and at 0 the referee stops it) and ROCKED under it while they are. A part flashes white when a clean shot lands on it and a rocked head pulses. Each leg shows its own damage (D144), drawn facing you, and a low kick flashes the leg it hit. Stamina is a thin bar underneath. Then the round clock, speed, and the judges' rough estimate of the round so far ("≈ 10-9 Wrestler", from `FightSim.round_points()` with no judge noise; under PRIDE rules who they'd give the whole fight to and why, "≈ Wrestler (control)", from `FightSim.fight_scores()`, D141). The figure replaced the health bar and small body and leg bars of D120. The names, round clock, round banner and ROCKED are in the display font (Barlow Condensed, D171) | `ui/fight_hud.gd`, `ui/body_damage_figure.gd` |
 | Plan panel | Each rule slot with how sharp it is right now (its reliability) and its cooldown, flashing green when it fires; the call being heard, the attempt in progress, the focus call with seconds left, primed reads with seconds left | `FightHud.plan_text` |
@@ -143,7 +144,8 @@ Enter presses the dialog's first button · F3 debug overlay · ` debug console.
 - **Judges' estimate on Hard / the coach's Reading skill:** there's no Hard and no coach skills yet; the estimate ignores judge noise and tie-breaks.
 - **Sound** beyond the strikes (§6.8): the flourish's sting, the bell, the crowd, music; and **colour-blind modes, text size, reduced flashing** (§5).
 - **The corner screen (§4):** between rounds shows the cards and the rule slots only (no cutman, D30 is out of the prototype's scope, `10` §1).
-- **Max 3 attention-grabbers (§5)** isn't enforced; the ground **position overlay** is the tag's text for now.
+- **Max 3 attention-grabbers (§5)** isn't enforced. The ground **position overlay** is the diagram on the left (D210, §6.10),
+  not drawn over the cage; leg locks have no drawing yet.
 
 ### 6.6 To change it, and the tests
 - Speeds and slow-mo lengths: `FAST_RATE`, `NORMAL_RATES`, `SLOW_SHARE`, `AUTO_SLOW_SECONDS`, `FLOURISH_SECONDS` at the top of
@@ -248,3 +250,58 @@ cage in the same corner-board look as the camp screens and the setup (D170, D172
 `FightResultCard.sheet` and `sheet_rows`; the judges' table: `judges_bbcode`; the layout: `_init` and `_build_fighter`,
 all in `ui/result_card.gd`. The notes and buttons: `_on_fight_over` in `game/main.gd`. Tests:
 `tests/ui/test_result_card.gd` and the result in `tests/game/test_main_scene.gd`.
+
+### 6.10 Ground positions you can tell apart (D210)
+Kyle, 2026-10-30: "lets try to visually begin differentiating the different positions on the ground instead of all
+looking like closed guard". He picked the grey-box bodies laid out per position plus a small diagram on the HUD (the
+position overlay §5 planned), over the bodies alone or proper 3D models first.
+
+**Why every position looked like closed guard.** The sim puts tangled-up fighters 0.4 m apart (`FightSim.TANGLED_GAP`)
+and knows nothing about where their bodies are; the view drew them face to face, the man underneath on his back with his
+feet toward the man on top. Only the top man's lean changed with the position. Now the view lays them out (presentation
+only: `ArenaView.ground_spots`, it never changes the fight).
+
+**The 3D view.** The man underneath stays on his sim spot and lies across the screen (his feet toward whichever side the
+sim has the top man on), turned `LIE_TURN` (0.45 rad) so his feet point a little away from the camera: a man lying across
+him then isn't seen end-on, and neither hides the other. The man on top goes to his spot in the position, measured from
+the other man's hips (`ArenaView.GROUND_LAYOUTS`):
+
+| Position | Where the top man is | The top man | The man underneath |
+|---|---|---|---|
+| Full guard | 0.55 m toward his feet, facing him | On his knees, leaning in | Legs up and spread round the waist |
+| Half guard | 0.2 m toward his feet, 0.25 m to the far side, angled | Chest low on his, free leg back, the other caught | One leg hooked over, the other flat |
+| Side control | 0.35 m up by his chest, 0.55 m to the far side, across him | Lying across his chest, knees by his hip | Knees bent, hands framing |
+| Mount | On his belly (0.2 m up from the hips), facing his head | Sat up, knees spread either side | Flat, hands pushing on the hips |
+| Back control | 0.5 m behind him, facing the same way | Sat behind, legs round the waist, arms round the neck | Sat up facing the camera (`facing_camera`), legs out |
+
+A kneeling leg shows just the thigh (`kneel`, `KNEEL_LENGTH` 0.65 of the leg); `spread` opens the legs sideways. When the
+position changes, the top man slides and turns to his new spot (`LAYOUT_SPEED` 6 per second: most of the way in half a
+second), so a pass or taking the mount is something you see happen. In a submission they keep the layout of where it was
+locked from (an armbar from mount looks like mount); leg locks and the scramble stay face to face as before.
+
+**The diagram.** While the fight is on the ground, a panel on the left above the call bar shows a top-down stick drawing
+of the position: the man underneath with his head to the left, the man on top drawn over him, each in his corner's colour,
+outlined so where they cross reads as over and under (on the back the man with the back is drawn underneath, his arms over
+the other's neck). The caption is the position and who's on top in the display font ("SIDE CONTROL · WRESTLER ON TOP"),
+or the hold and where it was locked from ("TRIANGLE CHOKE FROM FULL GUARD"). The scramble draws both up on their knees.
+Standing, in the clinch and in a leg lock the panel is hidden.
+
+**Front and back (D211).** Kyle, after the first screenshots: "Are we able to do something with the models so we can
+differentiate between their front and back?" He picked a face, shorts and gloves (over a two-tone body, or a face alone).
+Each fighter now has a skin-coloured face with two eyes on the front of the head, dark fight shorts (a band round the hips
+and over the top of each thigh) with a white stripe down the front of the waistband, dark gloves on the ends of the arms,
+and skin-coloured feet with the toes pointing forward. Gloves and feet ride the ends of the arms and legs as they stretch
+but keep their own shape; a kneeling leg (only the thigh shows) hides its foot. It reads standing and on the ground: you
+can see which way the man underneath is lying from his face and toes, and that the man on the back is facing his back.
+
+**To change it:** where the top man goes and which way he faces: `ArenaView.GROUND_LAYOUTS` (`at` is metres toward the
+other man's feet and to his far side; `face` is the way he faces in the same frame; `facing_camera` sits the man
+underneath up facing you); the turn: `LIE_TURN`; how fast he slides: `LAYOUT_SPEED`, all in `game/arena_view.gd`. The
+poses: the `match where` blocks in `FighterFigure.pose_for` (`game/fighter_figure.gd`), with `KNEEL_LENGTH`. The
+drawings: `PositionDiagram.POSES` (head, hips, hands, knees and feet in a 100 × 80 box; `top_under` draws the top man
+first), line widths and the outline at the top of `ui/position_diagram.gd`; the face, shorts, gloves and feet: their
+colours (`FACE_COLOUR`, `GEAR_COLOUR`) and sizes (`GLOVE_RADIUS`, `FOOT_LENGTH`, `SHORTS_HEIGHT`) at the top of
+`game/fighter_figure.gd`, built in `_build`; the panel's height `FightHud.DIAGRAM_HEIGHT`
+and its caption `FightHud.position_text`. A new position needs a layout, a pose and a drawing (the diagram test checks
+every position has one). Tests: `tests/game/test_arena_view.gd` (each position's layout, holds and leg locks, the slide,
+the poses) and `tests/ui/test_fight_hud.gd` (the diagram, its caption, the panel only on the ground).
