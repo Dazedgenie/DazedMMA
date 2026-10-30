@@ -22,6 +22,8 @@ const AREAS: Array[String] = ["head", "body", "legs"]
 ## The top bar's figure, at 1080p.
 const FIGURE_SIZE := Vector2(60.0, 96.0)
 ## Real seconds the opponent corner's call stays up, a fired rule flashes, the banner shows.
+## The ground position diagram's height on the left (D210); its panel sits just above the call bar.
+const DIAGRAM_HEIGHT: float = 220.0
 const BUBBLE_SECONDS: float = 3.0
 const FLASH_SECONDS: float = 1.2
 const BANNER_SECONDS: float = 1.6
@@ -50,6 +52,9 @@ var _read_ids: Array[String] = []
 var _speed_buttons: Dictionary = {}  # "slow"/"fast"/"pause" → Button
 var _banner: Label
 var _danger_panel: PanelContainer
+var _position_panel: PanelContainer
+var _position_label: Label
+var _diagram: PositionDiagram
 var _danger_label: Label
 var _danger: ProgressBar
 var _dialog: PanelContainer
@@ -149,6 +154,21 @@ static func danger_text(sim: FightSim) -> String:
 
 
 ## One line of the figure's readout, e.g. "HEAD 65%": what's left of that area.
+## The ground diagram's caption (D210): the position and who's on top, or the hold and where it was locked from.
+static func position_text(sim: FightSim) -> String:
+	var where: String = PositionDiagram.position_for(sim)
+	if where == "":
+		return ""
+	var name: String = String(sim.positions.get_position(where).name).to_upper()
+	var hold: Dictionary = sim.hold()
+	if not hold.is_empty():
+		return "%s FROM %s" % [String(sim.actions.get_action(hold.action_id).name).to_upper(), name]
+	var top: int = sim.situation.roles.find(PositionLibrary.TOP)
+	if top < 0:
+		return name
+	return "%s · %s %s" % [name, sim.fighters[top].name.to_upper(), sim.positions.top_label(where).to_upper()]
+
+
 static func area_text(f: FighterState, area: String) -> String:
 	return "%s %d%%" % [area.to_upper(), roundi((1.0 - f.hurt(area)) * 100.0)]
 
@@ -287,6 +307,10 @@ func _refresh(delta: float) -> void:
 	if not hold.is_empty():
 		_danger.value = clampf(float(hold.danger), 0.0, FightSim.SUB_TAP)
 		_danger_label.text = danger_text(sim)
+	_diagram.show_fight(sim, FIGHTER_COLOURS)
+	_position_panel.visible = _diagram.where != ""
+	if _position_panel.visible:
+		_position_label.text = position_text(sim)
 	_speed_buttons.slow.button_pressed = driver.speed == FightDriver.SLOW
 	_speed_buttons.fast.button_pressed = driver.speed == FightDriver.FAST
 	_speed_buttons.pause.button_pressed = driver.paused
@@ -453,6 +477,28 @@ func _build() -> void:
 	_plan.add_theme_font_size_override("normal_font_size", 18)
 	_plan.add_theme_font_size_override("bold_font_size", 18)
 	plan_panel.add_child(_plan)
+
+	# Ground position diagram (left, above the call bar; D210): only while the fight is on the ground.
+	_position_panel = _panel()
+	_position_panel.anchor_top = 1.0
+	_position_panel.anchor_bottom = 1.0
+	_position_panel.offset_left = 16.0
+	_position_panel.offset_right = 376.0
+	_position_panel.offset_top = -164.0 - DIAGRAM_HEIGHT - 60.0
+	_position_panel.offset_bottom = -164.0
+	_position_panel.visible = false
+	add_child(_position_panel)
+	var position_column := VBoxContainer.new()
+	_position_panel.add_child(position_column)
+	_position_label = Label.new()
+	_position_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_position_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	DisplayFont.apply(_position_label, 24)
+	position_column.add_child(_position_label)
+	_diagram = PositionDiagram.new()
+	_diagram.custom_minimum_size = Vector2(0.0, DIAGRAM_HEIGHT)
+	_diagram.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	position_column.add_child(_diagram)
 
 	# Opponent corner (right, above the feed).
 	_bubble = _panel(Color(0.98, 0.97, 0.9, 0.95))

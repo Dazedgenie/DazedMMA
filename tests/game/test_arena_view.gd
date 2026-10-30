@@ -132,3 +132,94 @@ func test_in_a_leg_lock_the_attacker_lies_back_holding_the_leg_out() -> void:
 	assert_eq(figure.pose_for(sim, 0).lie, 1.0, "lying back with the foot (D132)")
 	assert_gt(figure.pose_for(sim, 1).leg_lead, guard.leg_lead, "his leg out straight in the lock")
 	assert_string_contains(ArenaView.tag_text(sim), "ankle lock")
+
+
+## The top man's spot against the man underneath (fighter 1): [metres toward his feet, metres to his side, facing · his].
+func _against_bottom(sim: FightSim) -> Array[float]:
+	var spots: Array[Vector2] = [sim.fighters[0].pos, sim.fighters[1].pos]
+	var placed: Array[Dictionary] = ArenaView.ground_spots(sim, spots)
+	var feet: Vector2 = Vector2.from_angle(placed[1].facing)
+	var d: Vector2 = placed[0].at - placed[1].at
+	return [d.dot(feet), absf(d.dot(feet.orthogonal())), Vector2.from_angle(placed[0].facing).dot(feet)]
+
+
+func test_standing_the_view_keeps_them_where_the_sim_has_them_face_to_face() -> void:
+	var sim: FightSim = _sim()
+	var spots: Array[Vector2] = [sim.fighters[0].pos, sim.fighters[1].pos]
+	var placed: Array[Dictionary] = ArenaView.ground_spots(sim, spots)
+	assert_eq(placed[0].at, spots[0])
+	assert_almost_eq(Vector2.from_angle(placed[0].facing).dot((spots[1] - spots[0]).normalized()), 1.0, 0.001)
+
+
+func test_each_ground_position_puts_the_top_man_somewhere_different() -> void:
+	var sim: FightSim = _sim()
+	sim.apply_transition(0, "double_leg")  # The Wrestler on top of the Kicker.
+	var guard: Array[float] = _against_bottom(sim)
+	assert_gt(guard[0], 0.3, "in the guard he kneels by the other man's feet (D210)")
+	assert_lt(guard[2], -0.9, "facing him")
+	sim.apply_transition(0, "guard_pass", PositionLibrary.PARTIAL)
+	var half: Array[float] = _against_bottom(sim)
+	assert_lt(half[0], guard[0], "half guard: further up his body")
+	assert_gt(half[1], 0.1, "and off to one side")
+	sim.apply_transition(0, "guard_pass")
+	var side: Array[float] = _against_bottom(sim)
+	assert_lt(side[0], 0.0, "side control: up by his chest")
+	assert_gt(side[1], 0.4, "from the side")
+	assert_lt(absf(side[2]), 0.2, "across him")
+	sim.apply_transition(0, "take_mount")
+	var mount: Array[float] = _against_bottom(sim)
+	assert_lt(Vector2(mount[0], mount[1]).length(), 0.35, "mount: sat on him")
+	assert_lt(mount[2], -0.9, "facing his head")
+	sim.apply_transition(0, "take_back")
+	var back: Array[float] = _against_bottom(sim)
+	assert_lt(back[0], -0.3, "the back: behind him")
+	assert_gt(back[2], 0.9, "facing the same way he does")
+
+
+func test_a_hold_is_laid_out_where_it_was_locked_from_and_a_leg_lock_is_left_alone() -> void:
+	var sim: FightSim = _sim()
+	sim.apply_transition(0, "double_leg")
+	sim.apply_transition(0, "guard_pass")
+	sim.apply_transition(0, "take_mount")
+	assert_true(sim._lock_in(0, sim.actions.get_action("armbar")))
+	assert_lt(_against_bottom(sim)[2], -0.9, "the armbar from mount keeps the mount's layout")
+	var legs: FightSim = _sim()
+	legs.apply_transition(1, "double_leg")
+	assert_true(legs._lock_in(0, legs.actions.get_action("ankle_lock")))
+	var spots: Array[Vector2] = [legs.fighters[0].pos, legs.fighters[1].pos]
+	assert_eq(ArenaView.ground_spots(legs, spots)[1].at, spots[1], "a leg lock stays as the sim has it")
+
+
+func test_the_man_underneath_wraps_his_legs_in_the_guard_and_is_flattened_in_mount() -> void:
+	var sim: FightSim = _sim()
+	var figure := FighterFigure.new(Color.RED)
+	add_child_autofree(figure)
+	sim.apply_transition(0, "double_leg")
+	var guard: Dictionary = figure.pose_for(sim, 1)
+	assert_gt(guard.spread, 0.0, "legs apart round his waist (D210)")
+	assert_eq(figure.pose_for(sim, 0).kneel, 1.0, "the top man is on his knees")
+	sim.apply_transition(0, "guard_pass")
+	sim.apply_transition(0, "take_mount")
+	assert_lt(figure.pose_for(sim, 1).leg_lead, guard.leg_lead - 0.5, "flat under the mount")
+	assert_gt(figure.pose_for(sim, 0).spread, 0.5, "astride him")
+
+
+func test_the_view_slides_the_top_man_round_to_his_new_spot() -> void:
+	var view := ArenaView.new()
+	add_child_autofree(view)
+	var sim: FightSim = _sim()
+	sim.apply_transition(0, "double_leg")
+	view.watch(FightDriver.new(sim))
+	view._process(0.016)
+	var guard_at: Vector2 = Vector2(view.figures[0].position.x, view.figures[0].position.z)
+	sim.apply_transition(0, "guard_pass")
+	var spots: Array[Vector2] = [sim.fighters[0].pos, sim.fighters[1].pos]
+	var want: Vector2 = ArenaView.ground_spots(sim, spots)[0].at
+	view._process(0.016)
+	var moving: Vector2 = Vector2(view.figures[0].position.x, view.figures[0].position.z)
+	assert_gt(moving.distance_to(want), 0.1, "not there in one frame")
+	for n in 120:
+		view._process(0.016)
+	assert_almost_eq(Vector2(view.figures[0].position.x, view.figures[0].position.z).distance_to(want), 0.0, 0.01,
+		"there within two seconds")
+	assert_ne(guard_at, want)

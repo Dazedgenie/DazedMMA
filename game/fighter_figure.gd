@@ -21,6 +21,8 @@ const LEG_LENGTH: float = 0.9
 const HIP_WIDTH: float = 0.12
 const SHOULDER_WIDTH: float = 0.24
 const OVERHEAD: float = 2.05
+## A kneeling leg shows only the thigh: this share of the whole leg (D210).
+const KNEEL_LENGTH: float = 0.65
 ## How quickly the pose follows the move (per second; higher is snappier).
 const POSE_SPEED: float = 14.0
 ## How far each phase of a move goes, as a share of the full extension.
@@ -89,7 +91,8 @@ func show_state(sim: FightSim, i: int, at: Vector2, toward: Vector2, delta: floa
 ## The pose (joint angles and heights) for fighter i right now: plain numbers, so it can be tested.
 ## Keys: hip_y, lean (radians, forward is negative), lie (0 standing, 1 flat on the back),
 ## arm_lead/arm_rear and leg_lead/leg_rear (radians forward from hanging down),
-## reach_lead/reach_rear (arm stretch, 1 = normal).
+## reach_lead/reach_rear (arm stretch, 1 = normal), spread (legs apart, radians each way),
+## kneel (0 to 1: the legs shorten to thighs, knees on the mat).
 func pose_for(sim: FightSim, i: int) -> Dictionary:
 	var f: FighterState = sim.fighters[i]
 	var p: Dictionary = _rest_pose()
@@ -106,9 +109,36 @@ func pose_for(sim: FightSim, i: int) -> Dictionary:
 		p.arm_rear = 2.4
 		p.leg_lead = 0.4
 		p.leg_rear = 0.4
-		if where == "back_control" and not f.is_down():  # Sat up with him behind (D130).
-			p.lie = 0.4
-			p.hip_y = 0.3
+		if role == PositionLibrary.BOTTOM and not f.is_down():
+			match where:  # D210: what his legs and hands are doing underneath.
+				"full_guard":  # Legs up and wrapped round his waist.
+					p.leg_lead = 1.0
+					p.leg_rear = 1.0
+					p.spread = 0.5
+				"half_guard":  # One leg hooked over his, the other flat under it.
+					p.leg_lead = 0.9
+					p.leg_rear = 0.1
+					p.spread = 0.35
+				"side_control":  # Flat, knees bent, hands framing on his neck and hip.
+					p.leg_lead = 0.55
+					p.leg_rear = 0.25
+					p.arm_lead = 1.6
+					p.arm_rear = 2.0
+				"mount":  # Pinned flat, hands pushing on his hips.
+					p.leg_lead = 0.15
+					p.leg_rear = 0.15
+					p.arm_lead = 1.3
+					p.arm_rear = 1.3
+				"back_control":  # Sat up with him behind (D130), legs out in front.
+					p.lie = 0.25
+					p.hip_y = 0.3
+					p.leg_lead = 1.1
+					p.leg_rear = 1.1
+					p.spread = 0.15
+					p.arm_lead = 2.3
+					p.arm_rear = 2.3
+					p.reach_lead = 0.75
+					p.reach_rear = 0.75
 	elif f.liver_ticks > 0:
 		# A liver shot taking him (D143): bent over it, hands dropped to the body.
 		p.hip_y = HIP_HEIGHT * 0.85
@@ -122,18 +152,37 @@ func pose_for(sim: FightSim, i: int) -> Dictionary:
 		p.leg_rear = 0.9
 		p.arm_lead = 1.2
 		p.arm_rear = 1.2
-		match where:  # D130: sat up on the chest, flat across it, or behind with the hooks in.
-			"mount":
+		p.kneel = 1.0
+		match where:  # D130, D210: on his knees in the guard, sat up on the chest, flat across it, or behind with the hooks in.
+			"half_guard":  # Chest down on his, the free leg back, the other caught between his.
+				p.lean = -1.1
 				p.hip_y = 0.5
+				p.leg_lead = 0.1
+				p.leg_rear = 1.1
+				p.spread = 0.2
+			"mount":  # Sat on his belly, knees either side of him.
+				p.hip_y = 0.55
 				p.lean = -0.25
-			"side_control":
+				p.leg_lead = 0.2
+				p.leg_rear = 0.2
+				p.spread = 0.75
+			"side_control":  # Chest across his chest, knees by his hip.
 				p.hip_y = 0.4
 				p.lean = -1.3
-			"back_control":
-				p.hip_y = 0.35
-				p.lean = -0.2
-				p.arm_lead = 1.75
-				p.arm_rear = 1.75
+				p.leg_lead = 0.6
+				p.leg_rear = 0.6
+				p.spread = 0.25
+			"back_control":  # Sat behind him, legs round his waist, arms round his neck.
+				p.hip_y = 0.32
+				p.lean = 0.15
+				p.kneel = 0.0
+				p.leg_lead = 1.45
+				p.leg_rear = 1.45
+				p.spread = 0.4
+				p.arm_lead = 1.9
+				p.arm_rear = 1.7
+				p.reach_lead = 0.8
+				p.reach_rear = 0.8
 		if f.tied_up_ticks > 0:  # Pulled down into the guard (D121).
 			p.lean = -1.1
 			p.arm_lead = 0.6
@@ -143,6 +192,7 @@ func pose_for(sim: FightSim, i: int) -> Dictionary:
 		p.lean = -0.6
 		p.leg_lead = 0.9
 		p.leg_rear = 0.5
+		p.kneel = 1.0
 	elif not hold.is_empty():
 		p.lean = -0.9 if int(hold.attacker) != i else -0.3  # The guillotine: head trapped under the arm.
 		p.arm_lead = 1.75
@@ -390,15 +440,18 @@ func _apply_pose(f: FighterState) -> void:
 	_arms[1].rotation.x = _pose.arm_rear
 	_arm_meshes[0].scale.y = _pose.reach_lead
 	_arm_meshes[1].scale.y = _pose.reach_rear
-	_legs[0].rotation.x = _pose.leg_lead
-	_legs[1].rotation.x = _pose.leg_rear
-	_leg_meshes[1].scale.y = lerpf(1.0, 0.55, _pose.knee_short)
+	_legs[0].rotation = Vector3(_pose.leg_lead, 0.0, lead * _pose.spread)
+	_legs[1].rotation = Vector3(_pose.leg_rear, 0.0, -lead * _pose.spread)
+	var thighs: float = lerpf(1.0, KNEEL_LENGTH, _pose.kneel)
+	_leg_meshes[0].scale.y = thighs
+	_leg_meshes[1].scale.y = lerpf(1.0, 0.55, _pose.knee_short) * thighs
 	_body_material.albedo_color = colour.darkened(0.45) if f.is_down() else colour
 
 
 static func _rest_pose() -> Dictionary:
 	return { "hip_y": HIP_HEIGHT, "lean": -0.08, "lie": 0.0, "twist": 0.0, "arm_lead": 2.0, "arm_rear": 1.85,
-		"leg_lead": 0.12, "leg_rear": -0.12, "reach_lead": 1.0, "reach_rear": 1.0, "knee_short": 0.0 }
+		"leg_lead": 0.12, "leg_rear": -0.12, "reach_lead": 1.0, "reach_rear": 1.0, "knee_short": 0.0,
+		"spread": 0.0, "kneel": 0.0 }
 
 
 func _build() -> void:
