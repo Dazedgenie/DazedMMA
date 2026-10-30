@@ -59,8 +59,9 @@ func write(text: String) -> void:
 		print_rich(text)
 
 
-func run_test_fight() -> SimCheck:
-	var fight_seed: int = randi()
+## A scripted test fight on a random seed (printed, so it can be replayed), or on `p_seed`.
+func run_test_fight(p_seed: int = -1) -> SimCheck:
+	var fight_seed: int = p_seed if p_seed >= 0 else randi()
 	write("")
 	write("[b]▶ Test fight[/b]  seed %d, 1 round of %d s" % [fight_seed, SimCheck.ROUND_SECONDS])
 	var check: SimCheck = SimCheck.run(fight_seed, _actions)
