@@ -698,7 +698,10 @@ Measured (100 fights a pairing, pro rules; main before D230 for comparison, 60 f
 Good cutters now beat the outside fighters clearly more often. Kyle was asked how hard that should be (tone it down so every
 style stays in 37–63%, keep it, or keep it and give the kickers more Footwork) and picked **keep it as built** (2026-10-30):
 cage cutters really are a nightmare for kickers, and an outside fighter answers with Footwork training and *Circle out!*. A
-toned-down try (Pressure boxer 60, Brawler 50 …) kept every style between 38% and 65% on the style table. The 15-style table for the version as built is in the PR (D230) and goes here once measured at 60 fights a style.
+toned-down try (Pressure boxer 60, Brawler 50 …) kept every style between 38% and 65% on the style table. As built, on the style table (`tools/style_sheets.gd --fights=60`, D160), every style
+wins between 38% and 67% (main: 37–65%). The biggest moves: Brawler 43% → 53%, Sprawl-and-brawl 57% → 65%, Judo thrower 57% → 65%,
+Counter-striker 47% → 38%, Wrestle-boxer 52% → 42%, Range kicker 47% → 40%, and the Leg-kick specialist 48% → 40% (Kyle asked for
+at least 36%). The first 30-fights-a-style table had him at 33%, but that was noise.
 
 Not yet: strikes thrown at the side the man circles toward, so circling into the power hand gets hit (Kyle: later, D232); the
 AI corner and the coaching bots making the call; what happens once he's pinned on the fence is the cage pressure work (§39).
