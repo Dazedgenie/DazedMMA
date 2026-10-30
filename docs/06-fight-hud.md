@@ -112,7 +112,7 @@ screen; **Start fight** plays three rounds with the player as the **red corner**
 | Call bar | 1–9 intent calls and Q/E read calls, clickable (key 1 is Pressure! standing, Ground and pound! on top and Finish it! in a submission; key 6 is Defend the shot! standing and Defend the sub! caught in one; key 5 is Clinch! standing and Collar tie! in the clinch; key 4 is Takedown! standing and in the clinch and Pass! on top on the ground; key 7 is Feint! standing and Get up! on the ground; key 2 is Circle out! standing and Go for the finish! on top, D121, D126, D129, D130, D131, D200: the key makes whichever works from here); a call that can't be made from here is dimmed with the reason as its tooltip (no voice, not from this position, not learned). Pressing a dimmed call's key puts the reason in the feed. The call being acted on is tinted green | `fight_hud.gd` |
 | Perfect call (D52) | A move your call started that works as a counter (a takedown that lands, a strike that lands in the opponent's wind-up or recovery): "PERFECT CALL" in the middle, a feed line and 1.2 s of slow-mo | `FightDriver.is_perfect_call` |
 | Between rounds | The bell stops the fight: each judge's card for the round, the totals, both fighters' stamina and damage, and your rule slots to change for the next round | `game/main.gd` |
-| Result | How it ended, the cards, strikes and takedowns, the seed, your corner's calls and where the fight was saved (D118); Next (in a playtest), Fight again, Change setup, Open saved fights | `game/main.gd` |
+| Result | The result screen (§6.9, D173): a full-screen card with the verdict, both figures as they finished, the fight sheet, the judges' cards round by round and your corner's grade; the seed and where the fight was saved (D118); Next (in a playtest), Fight again, Change setup, Open saved fights | `ui/result_card.gd`, `game/main.gd` |
 | Debug overlay (F3) | Seed, tick, fps, distance, range, position, and per fighter: the move and phase, flags, stamina, damage, hurt, wanted distance, circling, cutting off, cage, voice and trust. The 3D view adds the near-the-fence and pinned lines and each fighter's wanted-distance ring (what the old cage view showed, D106) | `ui/debug_overlay.gd` |
 | Debug console (`) | The full log of the fight on screen with every odds breakdown, plus "Run test fight" | `ui/debug_console.gd` |
 
@@ -219,3 +219,32 @@ out a strike's version. Tests: `tests/game/test_strike_sounds.gd`.
 
 **Not yet:** sounds for anything but strikes (the bell, the crowd, the referee, the flourish's sting, a knockdown hitting
 the canvas, grappling), sounds placed left/right by where the fighters stand, and a sound settings menu.
+
+### 6.9 The result screen (D173)
+When the fight ends (the bell after the last round, a stoppage, a tap or the towel), a full-screen card opens over the
+cage in the same corner-board look as the camp screens and the setup (D170, D172).
+
+- **The verdict:** the winner's name and WINS in his corner's colour (DRAW in grey), and under it how and when: "by
+  TKO (the referee stops it: nothing left) · Round 2, 3:41" (the time is how far into the round it ended), or "by
+  unanimous decision (29-28, 29-28, 30-27) · after 3 rounds".
+- **Both fighters as they finished:** the body figure (D150) and the HEAD · BODY · LEGS readout for each.
+- **The fight sheet**, face to face like the tale of the tape (the better number lit in its corner's colour): strikes
+  landed of thrown, then to the head, body and legs; knockdowns scored; takedowns landed of tried; control time (time
+  on top in any ground position, or holding a submission); submission tries (leg locks too); and, under a line, how
+  long each man circled and cut off the cage (D119).
+- **The judges:** each judge's card round by round, each round's score in the colour of the man who won it, and the
+  totals in bold. A finish shows the rounds scored before it and says the cards didn't decide it; under PRIDE rules
+  (D141) each judge's pick and what decided it.
+- **Your corner's grade:** a letter (docs/11 §2.4) with the calls made, perfect and ignored, the takedowns from your
+  calls and from your drilled rules, and how often your rules fired. It starts at 50 (a C) and goes up 8 for each
+  perfect call, 6 for each takedown from your call and 4 for each from a drilled rule, and down 5 for each call he
+  ignored (0 to 100; a perfect call that was also a takedown counts both ways). With no calls and nothing from your
+  rules there's no grade.
+- Under it: a hurt fighter's injury after the fight (D135), the seed and where the fight was saved, then the buttons:
+  Next (in a playtest) or Fight again in red, Change setup, Open saved fights.
+
+**To change it:** the corner grade's numbers: `CORNER_START`, `PER_PERFECT_CALL`, `PER_CALL_TAKEDOWN`,
+`PER_RULE_TAKEDOWN`, `PER_IGNORED_CALL`, and its colours `GRADE_COLOURS`; what's on the sheet and what counts as control:
+`FightResultCard.sheet` and `sheet_rows`; the judges' table: `judges_bbcode`; the layout: `_init` and `_build_fighter`,
+all in `ui/result_card.gd`. The notes and buttons: `_on_fight_over` in `game/main.gd`. Tests:
+`tests/ui/test_result_card.gd` and the result in `tests/game/test_main_scene.gd`.
