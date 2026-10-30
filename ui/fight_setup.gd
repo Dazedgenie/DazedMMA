@@ -22,7 +22,7 @@ const DEFAULT_BLUE := "kicker"
 ## The rules the fight is held under: label, data/rulesets id (D141: PRIDE).
 const RULESETS: Array = [["Pro (unified rules)", "pro"], ["PRIDE rules", "pride"], ["Amateur, 18+", "amateur_adult"], ["Amateur, 16–17", "amateur_teen"]]
 const SPEEDS: Array = [["Normal is 2× fight time", 2.0], ["Normal is 1× fight time", 1.0]]
-const HELP := "[b]Keys[/b]  1–9 calls · Q/E read calls · Space slow-mo · F fast · P pause (Easy) · T towel · Esc menu · F3 debug overlay · ` console"
+const HELP := "[b]Keys[/b]  1–9 calls · Q/E read calls · Space slow-mo · F fast · P pause (Easy) · T towel · M sound · Esc menu · F3 debug overlay · ` console"
 const BACKGROUND := Color(0.06, 0.07, 0.09)
 const CARD := Color("#1b1f26")
 const TEXT := Color("#e9ecef")
@@ -48,6 +48,7 @@ var _difficulty: OptionButton
 var _tells: CheckBox
 var _auto_slow: CheckBox
 var _flourish: CheckBox
+var _sound: HSlider
 var _seed: LineEdit
 var _rules_box: VBoxContainer
 var _rules: RuleSlots
@@ -163,6 +164,18 @@ func _init(p_roster: FighterLibrary = null, p_actions: ActionLibrary = null) -> 
 	_tells = _toggle(toggles, "Tell cue", true)
 	_auto_slow = _toggle(toggles, "Auto slow-mo", true)
 	_flourish = _toggle(toggles, "Perfect-call flourish", true)
+	var sound_label := Label.new()
+	sound_label.text = "Sound"
+	toggles.add_child(sound_label)
+	_sound = HSlider.new()  # Strike sounds' volume, 0–100% (D190).
+	_sound.min_value = 0.0
+	_sound.max_value = 1.0
+	_sound.step = 0.05
+	_sound.value = 1.0
+	_sound.custom_minimum_size = Vector2(110.0, 0.0)
+	_sound.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_sound.tooltip_text = "Strike sounds. M mutes them during a fight."
+	toggles.add_child(_sound)
 	var rules_title := Label.new()
 	rules_title.text = "Drilled rules for your fighter"
 	rules_title.add_theme_color_override("font_color", DIM)
@@ -191,7 +204,7 @@ func _init(p_roster: FighterLibrary = null, p_actions: ActionLibrary = null) -> 
 
 
 ## What was picked: {label, red, blue, ruleset (data/rulesets id), normal_rate, easy, tell_cues, auto_slow,
-## flourishes, rules ([[slot, rule id, drilled], …]), seed (-1 = random), tester}, and for a
+## flourishes, sound_volume (0–1, D190), rules ([[slot, rule id, drilled], …]), seed (-1 = random), tester}, and for a
 ## playtest fight also {step, calls (the call bar's calls, [] = all), tip}.
 func settings() -> Dictionary:
 	var typed: String = _seed.text.strip_edges()
@@ -201,6 +214,7 @@ func settings() -> Dictionary:
 		"ruleset": String(RULESETS[maxi(0, _ruleset.selected)][1]),
 		"easy": _difficulty.selected == 1,
 		"tell_cues": _tells.button_pressed, "auto_slow": _auto_slow.button_pressed, "flourishes": _flourish.button_pressed,
+		"sound_volume": _sound.value,
 		"rules": _rules.picked(),
 		"seed": int(typed) if typed.is_valid_int() else -1,
 		"tester": _tester.text.strip_edges(),
