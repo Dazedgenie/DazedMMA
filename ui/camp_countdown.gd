@@ -9,6 +9,8 @@ const PIP_GAP: float = 8.0
 const FIGHT_W: float = 96.0
 const FONT_SIZE: int = 15
 const SMALL: int = 12
+## Narrower weeks than this don't show the plan's name under the week.
+const SUB_MIN_W: float = 90.0
 const TEXT := Color("#e9ecef")
 const DIM := Color("#8a8f98")
 const TRACK := Color("#22272f")
@@ -68,13 +70,15 @@ func _draw() -> void:
 			box.border_color = RED
 		draw_style_box(box, rect)
 		var colour: Color = TEXT if i <= run else DIM
-		draw_string(display, Vector2(x, 24.0), "WEEK %d" % (i + 1), HORIZONTAL_ALIGNMENT_CENTER, w, FONT_SIZE + 3, colour)
+		var label_y: float = 24.0 if w >= SUB_MIN_W else 33.0
+		draw_string(display, Vector2(x, label_y), "WEEK %d" % (i + 1), HORIZONTAL_ALIGNMENT_CENTER, w, FONT_SIZE + 3, colour)
 		var under: String = ""
 		if i < history.size():
 			under = String(history[i].get("plan", ""))
 		elif i == run:
 			under = "fight week" if i == weeks - 1 else "now"
-		draw_string(font, Vector2(x + 4.0, 41.0), under, HORIZONTAL_ALIGNMENT_CENTER, w - 8.0, SMALL, DIM)
+		if w >= SUB_MIN_W:  # Too narrow to read, so the plan's name is left to the tooltip.
+			draw_string(font, Vector2(x + 4.0, 41.0), under, HORIZONTAL_ALIGNMENT_CENTER, w - 8.0, SMALL, DIM)
 		if i < history.size() and bool(history[i].get("hurt", false)):
 			draw_circle(Vector2(x + w - 9.0, 9.0), 4.0, RED, true, -1.0, true)
 		x += w + PIP_GAP

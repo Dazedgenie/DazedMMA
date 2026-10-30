@@ -399,7 +399,7 @@ func _build() -> void:
 		var block := VBoxContainer.new()
 		block.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var name_label := Label.new()
-		name_label.add_theme_font_size_override("font_size", 26)
+		DisplayFont.apply(name_label, 32)
 		name_label.add_theme_color_override("font_color", FIGHTER_COLOURS[i])
 		name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT if i == 0 else HORIZONTAL_ALIGNMENT_RIGHT
 		block.add_child(name_label)
@@ -422,7 +422,7 @@ func _build() -> void:
 			_area_labels[i].append(line)
 		var rocked := Label.new()
 		rocked.text = "ROCKED"
-		rocked.add_theme_font_size_override("font_size", 18)
+		DisplayFont.apply(rocked, 22)
 		rocked.add_theme_color_override("font_color", PIP_COLOURS[2])
 		rocked.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT if i == 0 else HORIZONTAL_ALIGNMENT_RIGHT
 		rocked.visible = false
@@ -527,7 +527,7 @@ func _build() -> void:
 	_banner.offset_left = -500.0
 	_banner.offset_right = 500.0
 	_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_banner.add_theme_font_size_override("font_size", 56)
+	DisplayFont.apply(_banner, 76)
 	_banner.add_theme_color_override("font_outline_color", Color.BLACK)
 	_banner.add_theme_constant_override("outline_size", 12)
 	_banner.visible = false
@@ -563,7 +563,7 @@ func _build() -> void:
 	dialog_column.add_theme_constant_override("separation", 14)
 	_dialog.add_child(dialog_column)
 	_dialog_title = Label.new()
-	_dialog_title.add_theme_font_size_override("font_size", 34)
+	DisplayFont.apply(_dialog_title, 44)
 	_dialog_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	dialog_column.add_child(_dialog_title)
 	_dialog_body = RichTextLabel.new()
@@ -587,7 +587,7 @@ func _centre_block() -> VBoxContainer:
 	block.custom_minimum_size = Vector2(340.0, 0.0)
 	_clock = Label.new()
 	_clock.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_clock.add_theme_font_size_override("font_size", 32)
+	DisplayFont.apply(_clock, 42)
 	block.add_child(_clock)
 	_speed = Label.new()
 	_speed.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

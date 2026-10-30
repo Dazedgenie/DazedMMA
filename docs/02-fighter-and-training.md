@@ -468,8 +468,8 @@ conditioning green (Sprints, Strength & conditioning, Roadwork), mind purple (Fi
 the week's heading, the card headings, the weeks along the top, the gauges' numbers, the stat numbers and *Fight!*.
 Body text stays in Godot's default font. The other screens get it as each one gets its pass.
 
-**Not yet:** drag and drop between slots, fight night as its own card (next), the fight setup's tale of the tape and the
-result screen, the minigame screen in the same look, and sounds.
+**Not yet:** drag and drop between slots, the fight setup's tale of the tape and the result screen, the minigame screen
+in the same look, and sounds. Fight night is its own card now (§3.11).
 
 **What to change:** the layout and colours of the screen (`BACKGROUND`, `CARD`, `RED_CORNER`), the gauges' bands
 (`FATIGUE_BANDS`, `INJURY_BANDS`, `INJURY_FULL`) and the fight's day (`FIGHT_DAY`) in `ui/camp_planner.gd`; the kinds'
@@ -478,6 +478,37 @@ colours and names (`KIND_COLOURS`, `KIND_NAMES`) and the tile's size in `ui/sess
 `ui/stat_bars.gd`, the weeks along the top in `ui/camp_countdown.gd`, the font in `ui/display_font.gd`. Tests:
 `tests/ui/test_camp_planner.gd`, `tests/ui/test_fatigue_line.gd`, and the kinds in `tests/data/test_data_files.gd`.
 Presentation only: camps and fights don't change. Then update this section and D170.
+
+### 3.11 The fight night card (D171)
+
+Kyle (2026-10-30) said yes to fight night as its own full-screen card, to keeping the opponent off it (the head-to-head is
+the fight setup's tale of the tape, next), and to the display font on the fight screen too.
+
+**Try it:** run a camp to the end (*Run every week left like this one*). The card opens over the planner.
+
+**The card** (`ui/fight_night_card.gd`) says how the camp sends the fighter in (`TrainingCamp.fight_night`, §3.7), under
+**FIGHT NIGHT** and "Saturday evening · vs Kicker · after a 6-week camp":
+
+- **The fighter**: name and age over a big body figure (D150) showing a healing injury where it is, as he'll start the fight.
+- **Gas tank**: the share of the tank he has for the whole fight, big, with a bar (green when full, yellow from 85%, red
+  under it). **Fatigue**: the number and how he feels (fresh, a little tired, worn down), in the same colours as the
+  planner's gauge. **Injury**: the area and days to heal, and how hurt it starts him there and what that does
+  (*slower feet and weaker kicks*), or *None*.
+- **The doctor**: the verdict as a tilted stamp: **CLEARED** (green), **CLEARED TO FIGHT HURT** (yellow, with the chance
+  fighting on it makes it worse), **NOT CLEARED** (red, more than 7 days still to heal: the fight is off) or **PULLED OUT**
+  (grey).
+- **The camp**: its weeks ending in FIGHT (OFF when the fight is off; hover a week for what it did) and what it added: the
+  six biggest gains, and the Chin worn by hard sparring.
+- **Buttons**: *Back to the camp* (the planner as it was, with a *Fight night* button to come back), *Pull out of the
+  fight*, and a big red **Fight!** (off when the fight is off).
+
+**The display font on the fight screen.** The fighters' names, the round clock, the round banner, ROCKED and the dialog
+titles (*End of round 1*, *Fight over*) are in Barlow Condensed now (§3.10). Nothing else on the fight screen changed.
+
+**What to change:** the stamps' words and colours (`STAMPS`), its tilt (`STAMP_TILT`), how many gains it lists
+(`GAINS_SHOWN`) and the colours at the top of `ui/fight_night_card.gd`; when it opens in `CampPlanner._refresh`
+(`ui/camp_planner.gd`). Tests: `tests/ui/test_fight_night_card.gd`. Presentation only: camps and fights don't change.
+Then update this section and D171.
 
 ---
 
