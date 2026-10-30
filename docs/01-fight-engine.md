@@ -2536,7 +2536,7 @@ What it says:
   against the Boxer when it applied to him), so it was taken out.
 - **Inside 60/40 stays inside**, and Dirty boxer vs Muay Thai comes in from 19/81. **Five matchups that were already outside moved
   3.5–8.5 points further out** (the Dirty boxer and the Pressure wrestler against the Boxer, Muay Thai and the Judoka against the
-  Wrestler, the Judoka against the Boxer); Kyle's rule says they shouldn't, so they're the next thing to tune. 100-fight runs
+  Wrestler, the Judoka against the Boxer); Kyle's rule said they shouldn't; shown the five, he kept them as they are (2026-10-30, "Fine as it is"). 100-fight runs
   swing ±5 points, so read these at 200 fights or more.
 - Tuning tried, so nobody walks the same dead ends: the man on the fence tiring 0.4 a second and the holder's knees +10% (the Dirty
   boxer at 86–92% against the Boxer); spin-offs that only turned him round, so the striker never got out (the same); a stuffed shot
