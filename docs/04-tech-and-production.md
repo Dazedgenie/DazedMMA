@@ -79,6 +79,11 @@ Key rules:
   (artifacts `ChinCheck-windows-<commit>` and `ChinCheck-web-<commit>`, kept 30 days). By hand, with Godot 4.7.2 and its
   export templates: `godot --headless --export-release "Web" build/export/web/index.html`. To try it, serve the folder
   (for example `python3 -m http.server` inside it) and open `index.html`; opening the file straight from disk doesn't work.
+- **Hosted on GitHub Pages (D241):** the same workflow's `pages` job publishes the browser build to the repo's Pages
+  address (`https://dazedgenie.github.io/DazedMMA/`) on every push to `main` (or **Run workflow** on `main`). It needs Pages
+  switched on once: **Settings → Pages → Source: GitHub Actions**. Pages for a private repo needs a paid GitHub plan
+  (Pro or above); the game page is public even though the code stays private. Until Pages is on, the job writes
+  "The web build isn't on GitHub Pages yet" in the run's summary and stays green, so `main` doesn't go red over it.
 - **To change it:** the presets' options in `export_presets.cfg` (or Godot's **Project → Export**); the fallback font in
   `DisplayFont.SYMBOLS_PATH`; the workflow in `.github/workflows/playtest-build.yml`. Tests: `tests/game/test_export_presets.gd`,
   `tests/ui/test_display_font.gd`.

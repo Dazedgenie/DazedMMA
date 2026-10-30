@@ -12,6 +12,7 @@ childhood vignettes come with the vertical slice (Phase 2).
 - Engine: Godot 4.7 · low-poly 3D with an isometric camera · Windows first, with Linux and browser builds (D240)
 
 ## Playing it
+- **In the browser:** `https://dazedgenie.github.io/DazedMMA/` once GitHub Pages is switched on (D241).
 - **Download:** on GitHub, **Actions → Playtest build**, the newest green run on `main`, then under **Artifacts**
   `ChinCheck-windows-<commit>` (Windows) or `ChinCheck-web-<commit>` (the browser build: unzip it and serve the folder,
   or upload the zip to itch.io as an HTML game). More in [`docs/playtests/README.md`](docs/playtests/README.md) §1.
