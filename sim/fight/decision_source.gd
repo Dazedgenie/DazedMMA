@@ -57,6 +57,12 @@ func adjust_cover(_view: FightView, chance: float) -> float:
 	return chance
 
 
+## The hunt for a hold a focus call asked for (*Go for the finish!*, D200): {since, rate}, the tick
+## it was called and the top fighter's chance a free tick to work for the hold; empty when none.
+func hunt(_view: FightView) -> Dictionary:
+	return {}
+
+
 ## This tick's footwork after the AI planned it, e.g. stepping in to shoot on a call.
 ## Only asked of sources with `steers_feet` on.
 func adjust_feet(_view: FightView, _feet: FeetPlan) -> void:
