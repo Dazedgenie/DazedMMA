@@ -35,6 +35,8 @@ To build it yourself instead: install Godot 4.7.2 with its export templates, the
 `index.html` and the files beside it (about 40 MB). Upload the zip to itch.io as an HTML game, or unzip it and put the
 folder on any web host, GitHub Pages included. To try it on your own computer, serve the folder
 (`python3 -m http.server` inside it, then open `http://localhost:8000`); double-clicking `index.html` doesn't work.
+Once GitHub Pages is switched on for the repo, every push to `main` also puts it online at
+`https://dazedgenie.github.io/DazedMMA/` (D241, `04` §2.4).
 Playtests should still use the Windows build: its saved fights land in a folder testers can send (`user://fights/`), and
 a browser keeps them in its own storage instead.
 
