@@ -287,7 +287,7 @@ func _refresh(delta: float) -> void:
 			label.add_theme_color_override("font_color", BodyDamageFigure.damage_colour(f.hurt(AREAS[a])))
 		_rocked[i].visible = f.is_rocked()
 	_clock.text = sim.clock.display()
-	_speed.text = "⏵ " + driver.label()
+	_speed.text = "▶ " + driver.label()
 	_judges.text = judges_estimate(sim)
 	var calls: LiveCalls = sim.decisions[driver.player].calls
 	_voice.value = calls.voice(sim.now)
