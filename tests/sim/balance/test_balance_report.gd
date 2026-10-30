@@ -44,7 +44,7 @@ func test_one_draw_in_a_hundred_meets_the_draw_target() -> void:
 func test_six_draws_in_a_hundred_miss_the_draw_target() -> void:
 	var c: Dictionary = _check(_report(_draws(6, 100)), "Draws")
 	assert_eq(c.status, BalanceReport.MISSED)
-	assert_eq(c.value, "6.0%")
+	assert_eq(c.value, "6.0% (2.8–12.5%)", "with its 95% range (D250)")
 
 
 func test_ten_ten_cards_count_against_all_judges_cards() -> void:
@@ -66,7 +66,7 @@ func test_the_showcase_check_counts_wins_by_fighter_not_by_corner() -> void:
 	var rows: Array[Dictionary] = [_row(), _row(), _row({ "red": "boxer", "blue": "kicker", "winner_id": "boxer" }), _row({ "red": "boxer", "blue": "kicker", "winner_id": "boxer" })]
 	var c: Dictionary = _check(_report(rows), "Kicker vs Boxer")
 	assert_eq(c.status, BalanceReport.MET)
-	assert_eq(c.value, "favourite wins 50.0%")
+	assert_eq(c.value, "favourite wins 50.0% (15.0–85.0%), too close to 60% to tell at this many fights")
 
 
 func test_other_pairs_skip_the_showcase_check() -> void:
@@ -248,7 +248,7 @@ func _coaching(none_wins: int, style: String, wins: int) -> BalanceReport:
 func test_good_coaching_meets_the_target_when_it_adds_10_to_20_percent() -> void:
 	var c: Dictionary = _check(_coaching(10, Corner.IDEAL, 13), "Kicker coached against the Boxer: good coaching")
 	assert_eq(c.status, BalanceReport.MET)
-	assert_eq(c.value, "+15.0% (50.0% → 65.0%, 20 and 20 fights)")
+	assert_eq(c.value, "+15.0% (-1.1 to +31.1), 50.0% → 65.0%, 20 fights paired by seed")
 	assert_eq(_check(_coaching(10, Corner.IDEAL, 16), "Kicker coached against the Boxer: good coaching").status, BalanceReport.MISSED, "+30% is too much")
 	assert_eq(_check(_coaching(10, Corner.IDEAL, 11), "Kicker coached against the Boxer: good coaching").status, BalanceReport.MISSED, "+5% too little")
 
@@ -276,8 +276,53 @@ func test_a_bot_in_blues_corner_counts_for_the_fighter_it_coaches() -> void:
 		rows.append(_row({ "seed": n + 1, "corner_blue": Corner.IDEAL, "corner_red": Corner.NONE,
 			"winner": "blue" if n < 13 else "red", "winner_id": "boxer" if n < 13 else "kicker" }))
 	var c: Dictionary = _check(_report(rows), "Boxer coached against the Kicker: good coaching")
-	assert_eq(c.value, "+15.0% (50.0% → 65.0%, 20 and 20 fights)")
+	assert_eq(c.value, "+15.0% (-25.9 to +55.9), 50.0% → 65.0%, 20 fights paired by seed",
+		"seeds 1–10 the Boxer lost without a coach and won with one, 14–20 the other way")
 	assert_eq(c.status, BalanceReport.MET)
+
+
+func test_coaching_is_compared_seed_by_seed_which_narrows_the_range() -> void:
+	# The Kicker wins seeds 1–10 without the coach and 1–14 with it.
+	var paired: Array[Dictionary] = _coached(Corner.NONE, 10)
+	paired.append_array(_coached(Corner.IDEAL, 14))
+	assert_eq(_check(_report(paired), "Kicker coached against the Boxer: good coaching").value,
+		"+20.0% (+2.0 to +38.0), 50.0% → 70.0%, 20 fights paired by seed")
+	# The same wins on seeds that don't match can only be compared as two separate shares.
+	var unpaired: Array[Dictionary] = _coached(Corner.NONE, 10)
+	for row in _coached(Corner.IDEAL, 14):
+		unpaired.append(row.merged({ "seed": row.seed + 100 }, true))
+	assert_eq(_check(_report(unpaired), "Kicker coached against the Boxer: good coaching").value,
+		"+20.0% (-10.5 to +50.5), 50.0% → 70.0%, 20 and 20 fights, not paired")
+
+
+# --- Ranges and the run (D250) ---------------------------------------------------------------
+
+func test_the_wins_line_gives_each_corners_share_with_its_95_percent_range() -> void:
+	var rows: Array[Dictionary] = []
+	for n in 100:
+		rows.append(_row({ "seed": n + 1, "winner": "red" if n < 50 else "blue" }))
+	var text: String = _report(rows).summary({ "kicker": "Kicker", "boxer": "Boxer" })
+	assert_string_contains(text, "Wins       Kicker (red) 50.0% (40.4–59.6%) · Boxer (blue) 50.0% (40.4–59.6%) · draw 0.0% (95% ranges, D250)")
+
+
+func test_the_showcase_check_says_when_enough_fights_put_it_clear_of_the_line() -> void:
+	var rows: Array[Dictionary] = []
+	for n in 400:
+		rows.append(_row({ "seed": n + 1, "winner": "red" if n < 200 else "blue", "winner_id": "kicker" if n < 200 else "boxer" }))
+	var c: Dictionary = _check(_report(rows), "Kicker vs Boxer")
+	assert_eq(c.value, "favourite wins 50.0% (45.1–54.9%)", "no warning: the whole range is under 60%")
+
+
+func test_the_summary_starts_with_what_the_run_was_made_from() -> void:
+	var text: String = _report([_row()]).summary({}, { "commit": "abc1234", "data": "0f0f0f0f", "godot": "4.7.2.stable" })
+	assert_true(text.begins_with("Run: commit abc1234 · data files 0f0f0f0f · Godot 4.7.2.stable\n"))
+	assert_false(_report([_row()]).summary().begins_with("Run:"), "no run given, no line")
+
+
+func test_the_summary_says_who_chose_each_fighters_moves() -> void:
+	var report: BalanceReport = _report([_row({ "chosen_ai_red": 90, "chosen_call_red": 8, "chosen_rule_red": 2, "chosen_ai_blue": 50 })])
+	var text: String = report.summary({ "kicker": "Kicker", "boxer": "Boxer" })
+	assert_string_contains(text, "Chosen by  Kicker (red) own AI 90.0% · calls 8.0% · rules 2.0% · commands 0.0% of 100 moves a fight · Boxer (blue) own AI 100.0%")
 
 
 # --- Drilled rules (#17) --------------------------------------------------------------------
@@ -290,7 +335,7 @@ func test_a_fighters_drilled_rules_are_reported_against_the_same_fights_without_
 	var report: BalanceReport = _report(rows)
 	var c: Dictionary = _check(report, "Kicker drilled (catch_kick_and_shoot@80) against the Boxer")
 	assert_eq(c.status, BalanceReport.INFO)
-	assert_eq(c.value, "+20.0% (50.0% → 70.0%, 20 and 20 fights)")
+	assert_eq(c.value, "+20.0% (+2.0 to +38.0), 50.0% → 70.0%, 20 fights paired by seed")
 	assert_eq(report.uncoached().size(), 20, "rules fights are kept out of the engine's own targets")
 	assert_eq(report.pairs(), ["kicker:boxer", "kicker:boxer red rules catch_kick_and_shoot@80"] as Array[String])
 	assert_string_contains(report.summary(), "Rules      kicker (red) drilled catch_kick_and_shoot@80, fired 4.0 times a fight")

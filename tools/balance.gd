@@ -16,6 +16,9 @@ extends MainLoop
 ## --jobs=N plays the fights in N Godot processes at once (default: one per CPU core; --jobs=1 plays
 ## them all in this one). The CSV and summary are the same whatever N is (D123, docs/01 §2.3).
 ## Writes <out>/balance.csv (one line per fight) and <out>/summary.txt, and prints the summary.
+## Also <out>/run.json, what the run was made from and how fast it went (D250, docs/01 §2.4): the
+## arguments, the commit, a hash of data/, the Godot version and the time a simulated tick took.
+## To compare two runs fight by fight, use tools/balance_compare.gd.
 ## A 3-round fight takes just under a second on one core, so 100 fights per pair is ~1.5 minutes,
 ## divided by the number of cores.
 
@@ -85,43 +88,63 @@ func _initialize() -> void:
 		if file == null:
 			printerr("Couldn't write %s (error %d)" % [rows_path, FileAccess.get_open_error()])
 			return
-		file.store_var(_play(jobs, HarnessJobs.share(jobs.size(), processes, worker), roster, actions, rules))  # Binary, so floats come back exactly.
+		var played: Dictionary = _play(jobs, HarnessJobs.share(jobs.size(), processes, worker), roster, actions, rules)
+		file.store_var(played)  # Binary, so floats come back exactly.
 		return
 	var dir: String = ProjectSettings.globalize_path("res://").path_join(out_dir) if out_dir.is_relative_path() else out_dir
 	DirAccess.make_dir_recursive_absolute(dir)
 	var started: int = Time.get_ticks_msec()
 	print("Playing %d fights in %d process%s." % [jobs.size(), processes, "" if processes == 1 else "es"])
-	var rows: Array[Dictionary] = _play_shared(jobs, processes, dir, roster, actions, rules, started)
-	if rows.is_empty():
+	var played: Dictionary = _play_shared(jobs, processes, dir, roster, actions, rules, started)
+	if played.rows.is_empty():
 		return
-	print("All %d fights done in %.0f s." % [jobs.size(), (Time.get_ticks_msec() - started) / 1000.0])
+	var seconds: float = (Time.get_ticks_msec() - started) / 1000.0
+	print("All %d fights done in %.0f s." % [jobs.size(), seconds])
 	var report := BalanceReport.new()
-	for row in rows:
+	for row in played.rows:
 		report.add(row)
-	var summary: String = report.summary(names)
+	var run := { "commit": _commit(), "data": data_hash(), "godot": Engine.get_version_info().string }
+	var summary: String = report.summary(names, run)
+	var ticks: float = 0.0
+	for row in played.rows:
+		ticks += float(row.fight_seconds) * FightClock.TICKS_PER_SECOND
+	var tick_usec: float = played.usec / ticks if ticks > 0.0 else 0.0
+	run.merge({ "args": " ".join(OS.get_cmdline_user_args()), "fights": jobs.size(), "seeds": [first_seed, first_seed + fights - 1],
+		"pairs": Array(pairs), "ruleset": ruleset_id, "corners": Array(corners), "processes": processes,
+		"seconds": snappedf(seconds, 0.1), "simulated_ticks": int(ticks), "usec_per_tick": snappedf(tick_usec, 0.1),
+		"made": Time.get_datetime_string_from_system(true) + "Z" })
 	_write(dir.path_join("balance.csv"), report.csv())
 	_write(dir.path_join("summary.txt"), summary)
+	_write(dir.path_join("run.json"), JSON.stringify(run, "  ") + "\n")
 	print("")
 	print(summary)
-	print("Wrote %s and summary.txt" % dir.path_join("balance.csv"))
+	# Not in summary.txt, which must come out the same whatever --jobs is (D123).
+	print("Speed: %.0f µs of computer time a simulated tick, with %d process%s at once (D105's budget is 100 µs; this includes the harness's own counting) (D250)" % [
+		tick_usec, processes, "" if processes == 1 else "es"])
+	print("Wrote %s, summary.txt and run.json" % dir.path_join("balance.csv"))
 
 
 ## Plays the jobs at `indexes` in this process, printing progress at the end of each group.
-func _play(jobs: Array[Dictionary], indexes: Array[int], roster: FighterLibrary, actions: ActionLibrary, rules: Ruleset, started: int = -1) -> Array[Dictionary]:
+## Returns { rows, usec }: the rows in order and the microseconds spent playing them.
+func _play(jobs: Array[Dictionary], indexes: Array[int], roster: FighterLibrary, actions: ActionLibrary, rules: Ruleset, started: int = -1) -> Dictionary:
 	var rows: Array[Dictionary] = []
+	var usec: int = 0
 	for i in indexes.size():
 		var job: Dictionary = jobs[indexes[i]]
+		var before: int = Time.get_ticks_usec()
 		rows.append(HarnessJobs.run(job, roster, actions, rules))
+		usec += Time.get_ticks_usec() - before
 		var last_of_group: bool = i == indexes.size() - 1 or jobs[indexes[i + 1]].group != job.group
 		if started >= 0 and last_of_group:
 			print("%s: done (%.0f s so far)" % [job.group, (Time.get_ticks_msec() - started) / 1000.0])
-	return rows
+	return { "rows": rows, "usec": usec }
 
 
 ## Plays every job: share 0 here, the other shares in extra Godot processes
 ## started with the same arguments plus --worker=k, each writing its rows to a
-## file in `dir`. Returns the rows in job order, or [] if a process failed.
-func _play_shared(jobs: Array[Dictionary], processes: int, dir: String, roster: FighterLibrary, actions: ActionLibrary, rules: Ruleset, started: int) -> Array[Dictionary]:
+## file in `dir`. Returns { rows, usec }: the rows in job order (none if a process failed)
+## and the microseconds all the processes spent playing fights.
+func _play_shared(jobs: Array[Dictionary], processes: int, dir: String, roster: FighterLibrary, actions: ActionLibrary, rules: Ruleset, started: int) -> Dictionary:
 	var args: PackedStringArray = ["--headless", "--path", ProjectSettings.globalize_path("res://"), "--script", "res://tools/balance.gd", "--"]
 	for arg in OS.get_cmdline_user_args():
 		if not arg.begins_with("--jobs=") and not arg.begins_with("--worker=") and not arg.begins_with("--rows="):
@@ -132,7 +155,9 @@ func _play_shared(jobs: Array[Dictionary], processes: int, dir: String, roster: 
 		paths.append(dir.path_join(".rows_%d.bin" % k))
 		DirAccess.remove_absolute(paths[-1])
 		pids.append(OS.create_process(OS.get_executable_path(), args + PackedStringArray(["--jobs=%d" % processes, "--worker=%d" % k, "--rows=" + paths[-1]])))
-	var parts: Array = [_play(jobs, HarnessJobs.share(jobs.size(), processes, 0), roster, actions, rules, started if processes == 1 else -1)]
+	var own: Dictionary = _play(jobs, HarnessJobs.share(jobs.size(), processes, 0), roster, actions, rules, started if processes == 1 else -1)
+	var parts: Array = [own.rows]
+	var usec: int = own.usec
 	if processes > 1:
 		print("Process 1 of %d done (%.0f s so far)." % [processes, (Time.get_ticks_msec() - started) / 1000.0])
 	for k in pids.size():
@@ -142,12 +167,48 @@ func _play_shared(jobs: Array[Dictionary], processes: int, dir: String, roster: 
 		var saved: Variant = file.get_var() if file != null else null
 		file = null  # Closes it before it's removed.
 		DirAccess.remove_absolute(paths[k])
-		if pids[k] < 0 or not saved is Array:
+		if pids[k] < 0 or not saved is Dictionary or not saved.get("rows") is Array:
 			printerr("Process %d of %d failed (exit code %d): no rows from it." % [k + 2, processes, OS.get_process_exit_code(pids[k]) if pids[k] >= 0 else -1])
-			return []
-		parts.append(saved)
+			return { "rows": [] as Array[Dictionary], "usec": 0 }
+		parts.append(saved.rows)
+		usec += int(saved.usec)
 		print("Process %d of %d done (%.0f s so far)." % [k + 2, processes, (Time.get_ticks_msec() - started) / 1000.0])
-	return HarnessJobs.merge(parts, jobs.size())
+	return { "rows": HarnessJobs.merge(parts, jobs.size()), "usec": usec }
+
+
+## The commit the run was made from (with "+changes" when files differ from it), or "unknown" without git.
+static func _commit() -> String:
+	var out: Array = []
+	var at: String = ProjectSettings.globalize_path("res://")
+	if OS.execute("git", ["-C", at, "rev-parse", "--short", "HEAD"], out) != 0 or out.is_empty():
+		return "unknown"
+	var commit: String = str(out[0]).strip_edges()
+	var status: Array = []
+	if OS.execute("git", ["-C", at, "status", "--porcelain", "--untracked-files=no"], status) == 0 and not str(status[0]).strip_edges().is_empty():
+		commit += "+changes"
+	return commit
+
+
+## A short hash of every file in data/ (names and contents), so two runs show whether
+## they used the same fighters, moves and numbers (D250).
+static func data_hash() -> String:
+	var files: PackedStringArray = []
+	_list_files("res://data", files)
+	files.sort()
+	var ctx := HashingContext.new()
+	ctx.start(HashingContext.HASH_MD5)
+	for path in files:
+		ctx.update(path.to_utf8_buffer())
+		ctx.update(FileAccess.get_file_as_bytes(path))
+	return ctx.finish().hex_encode().left(8)
+
+
+static func _list_files(dir: String, into: PackedStringArray) -> void:
+	for sub in DirAccess.get_directories_at(dir):
+		_list_files(dir.path_join(sub), into)
+	for file in DirAccess.get_files_at(dir):
+		if not file.ends_with(".import") and not file.ends_with(".uid"):
+			into.append(dir.path_join(file))
 
 
 func _write(path: String, text: String) -> void:

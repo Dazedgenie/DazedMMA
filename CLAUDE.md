@@ -13,6 +13,7 @@
   CI (`.github/workflows/tests.yml`) runs them on every PR and posts a readable table in the run summary.
 - Run the headless sim: `godot --headless --script res://tools/run_sim.gd`
 - Run the balance harness: `godot --headless --script res://tools/balance.gd -- --fights=100 --pairs=kicker:boxer` (CSV + summary in `build/balance/`). It uses every CPU core (`--jobs=N` to change; same results either way): `docs/01-fight-engine.md` §2.3 (D123).
+- How sure a balance number is (95% ranges, coaching compared seed by seed, `run.json`, the speed line, who chose the moves) and comparing two runs with `tools/balance_compare.gd`: `docs/01-fight-engine.md` §2.4 (D250). The AI improvement plan and Kyle's answers: §20.4 (D251).
 - How fighters move round the cage (holding the centre, cutting off, getting off the fence) and the numbers to tune it: `docs/01-fight-engine.md` §20.2 (D107).
 - How long each fighter circled and cut off the cage, reported after every fight (what counts, the numbers to change it): `docs/01-fight-engine.md` §20.3 (D119).
 - Smoke-run the main scene: `godot --headless --quit-after 30`
@@ -39,7 +40,7 @@
 - Flash knockdowns (one big shot dropping a fresh man, and what the four rocked-and-dropped changes did to fights together): `docs/01-fight-engine.md` §37 (D145).
 - Striking defence (checking a low kick, slipping a straight punch, covering up: who has which, when they have to be up, what a checked kick does to the kicker, the counter off the slip, covering up when rocked and on *Survive!*, the numbers to tune them): `docs/01-fight-engine.md` §38 (D180).
 - *Go for the finish!* (key 2 on top: a 10 s hunt for a hold, passing to get to one, one hold a call; what it does to fights, the numbers to tune it): `docs/01-fight-engine.md` §25.7 (D200).
-- The browser build and the name (the *Web* export preset with threads off, the Playtest build's `ChinCheck-web` download, the symbols fallback font, Chin Check by Lampsmoke Games): `docs/04-tech-and-production.md` §2.4 (D240).
+- The browser build and the name (the *Web* export preset with threads off, the Playtest build's `ChinCheck-web` download, the symbols fallback font, publishing it to GitHub Pages, Chin Check by Lampsmoke Games): `docs/04-tech-and-production.md` §2.4 (D240, D241).
 - Strike sounds (each strike's connected, missed and blocked sound made in code, which version a check, slip or cover-up plays, the Sound slider and M to mute, `tools/strike_sounds.gd` to hear them as WAV files, the numbers to tune them): `docs/06-fight-hud.md` §6.8 (D190).
 - How the ground positions look (the bodies laid out per position in the 3D view, the top-down position diagram on the HUD, the fighters' face, shorts, gloves and feet, the numbers and drawings to change them): `docs/06-fight-hud.md` §6.10 (D210, D211).
 - The cage clinch (driving him to the fence, being held there, spinning off and turning him, a shot on the fence pressing him there, who leans in with the `fence_drive` tendency, the numbers to tune it): `docs/01-fight-engine.md` §39 (D220).

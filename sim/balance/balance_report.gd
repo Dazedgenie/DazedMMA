@@ -171,14 +171,17 @@ func checks() -> Array[Dictionary]:
 	if plain.is_empty():
 		return coaching_checks() + rule_checks()
 	var draws: float = method_share(plain, FightSummary.METHOD_DRAW)
-	out.append(_check("Draws under 2%", "D97", _pct(draws), draws < DRAWS_UNDER))
+	out.append(_check("Draws under 2%", "D97", _share_text(plain, draws), draws < DRAWS_UNDER))
 	var even: float = even_card_share(plain)
 	out.append(_check("10-10 rounds very rare (under 2% of judges' cards)", "D97", _pct(even), even < EVEN_CARDS_UNDER))
 	var showcase: Array[Dictionary] = plain.filter(_is_showcase)
 	if not showcase.is_empty():
 		var best: float = maxf(fighter_win_share(showcase, SHOWCASE[0]), fighter_win_share(showcase, SHOWCASE[1]))
-		out.append(_check("Kicker vs Boxer within 60/40, the exit test for the AI", "#14, docs/12 §4",
-			"favourite wins %s" % _pct(best), best <= SHOWCASE_WITHIN))
+		var spread: Vector2 = BalanceStats.wilson(best * showcase.size(), showcase.size())
+		var value: String = "favourite wins %s" % BalanceStats.share_text(best, spread)
+		if spread.x <= SHOWCASE_WITHIN and spread.y > SHOWCASE_WITHIN:
+			value += ", too close to 60% to tell at this many fights"  # D250: the range crosses the line.
+		out.append(_check("Kicker vs Boxer within 60/40, the exit test for the AI", "#14, docs/12 §4", value, best <= SHOWCASE_WITHIN))
 	for opponent in WRESTLER_OPPONENTS:
 		var pair: Array[Dictionary] = plain.filter(func(row: Dictionary) -> bool:
 			return [row.red, row.blue] == [WRESTLER, opponent] or [row.blue, row.red] == [WRESTLER, opponent])
@@ -208,74 +211,102 @@ func checks() -> Array[Dictionary]:
 
 
 ## For each fighter coached by a bot (in either corner, the other corner empty) against an
-## opponent, next to the same two fighters without calls (either way round): what the bot
-## did to the coached fighter's wins. The ideal caller should add +10–20% (D12), the spam
-## caller should cost wins; the AI corner (D68) is reported.
+## opponent, next to the same two fighters without calls: what the bot did to the coached
+## fighter's wins, with its 95% range (D250). The ideal caller should add +10–20% (D12), the
+## spam caller should cost wins; the AI corner (D68) is reported.
 func coaching_checks() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
-	var coached: Dictionary = {}  # "id:opponent" → style → [scores]
+	var coached: Dictionary = {}  # "id:opponent" → style → [rows, side]
 	for row in rows:
 		var side: String = coached_side(row)
 		if side == "":
 			continue
-		var key: String = "%s:%s" % [row[side], row[_other(side)]]
-		var by_style: Dictionary = coached.get_or_add(key, {})
-		by_style.get_or_add(corner(row, side), []).append(1.0 if row.winner == side else 0.0)
-	var plain: Array[Dictionary] = uncoached()
+		var by_style: Dictionary = coached.get_or_add("%s:%s" % [row[side], row[_other(side)]], {})
+		by_style.get_or_add(corner(row, side), []).append([row, side])
+	var plain: Dictionary = _by_fight(uncoached())
 	for key: String in coached:
 		var ids: PackedStringArray = key.split(":")
-		var base_scores: Array = []
-		for row in plain:
-			if [row.red, row.blue] == [ids[0], ids[1]] or [row.red, row.blue] == [ids[1], ids[0]]:
-				base_scores.append(_side_score(row, ids[0]))
-		if base_scores.is_empty():
-			continue
-		var base: float = _mean(base_scores)
 		var who: String = "%s coached against the %s" % [ids[0].capitalize(), ids[1].capitalize()]
 		for style: String in [Corner.IDEAL, Corner.SPAM, Corner.AI]:
 			if not coached[key].has(style):
 				continue
-			var with_bot: float = _mean(coached[key][style])
-			var gain: float = with_bot - base
-			var value: String = "%+.1f%% (%s → %s, %d and %d fights)" % [gain * 100.0, _pct(base), _pct(with_bot), base_scores.size(), coached[key][style].size()]
+			var change: Dictionary = _change(coached[key][style], plain, ids)
+			if change.is_empty():
+				continue
 			match style:
 				Corner.IDEAL:
-					out.append(_check("%s: good coaching adds +10–20%% wins" % who, "D12", value,
-						gain >= COACHING_GAIN_MIN and gain <= COACHING_GAIN_MAX))
+					out.append(_check("%s: good coaching adds +10–20%% wins" % who, "D12", change.text,
+						change.mean >= COACHING_GAIN_MIN and change.mean <= COACHING_GAIN_MAX))
 				Corner.SPAM:
-					out.append(_check("%s: spam calls win less than no calls" % who, "D12", value, gain < 0.0))
+					out.append(_check("%s: spam calls win less than no calls" % who, "D12", change.text, change.mean < 0.0))
 				Corner.AI:
-					out.append(_info("%s: the AI corner" % who, "D68", value))
+					out.append(_info("%s: the AI corner" % who, "D68", change.text))
 	return out
 
 
 ## For each fighter with drilled rules (the other with none, no coaching bots) against an
-## opponent, next to the same two fighters without rules: what the rules did to their wins
-## (#17, reported with no pass mark yet).
+## opponent, next to the same two fighters without rules: what the rules did to their wins,
+## with its 95% range (#17, D250; reported with no pass mark yet).
 func rule_checks() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
-	var ruled: Dictionary = {}  # "id:opponent" → rules → [scores]
+	var ruled: Dictionary = {}  # "id:opponent" → rules → [rows, side]
 	for row in rows:
 		var side: String = ruled_side(row)
 		if side == "":
 			continue
 		var by_rules: Dictionary = ruled.get_or_add("%s:%s" % [row[side], row[_other(side)]], {})
-		by_rules.get_or_add(drilled(row, side), []).append(1.0 if row.winner == side else 0.0)
-	var plain: Array[Dictionary] = uncoached()
+		by_rules.get_or_add(drilled(row, side), []).append([row, side])
+	var plain: Dictionary = _by_fight(uncoached())
 	for key: String in ruled:
 		var ids: PackedStringArray = key.split(":")
-		var base_scores: Array = []
-		for row in plain:
-			if [row.red, row.blue] == [ids[0], ids[1]] or [row.red, row.blue] == [ids[1], ids[0]]:
-				base_scores.append(_side_score(row, ids[0]))
-		if base_scores.is_empty():
-			continue
-		var base: float = _mean(base_scores)
 		for rules: String in ruled[key]:
-			var with_rules: float = _mean(ruled[key][rules])
-			out.append(_info("%s drilled (%s) against the %s" % [ids[0].capitalize(), rules, ids[1].capitalize()], "#17",
-				"%+.1f%% (%s → %s, %d and %d fights)" % [(with_rules - base) * 100.0, _pct(base), _pct(with_rules), base_scores.size(), ruled[key][rules].size()]))
+			var change: Dictionary = _change(ruled[key][rules], plain, ids)
+			if not change.is_empty():
+				out.append(_info("%s drilled (%s) against the %s" % [ids[0].capitalize(), rules, ids[1].capitalize()], "#17", change.text))
 	return out
+
+
+## Fights without calls or rules by "red:blue#seed", to find the plain twin of a coached fight.
+static func _by_fight(of_rows: Array[Dictionary]) -> Dictionary:
+	var out: Dictionary = {}
+	for row in of_rows:
+		out["%s#%s" % [fighters_key(row), row.seed]] = row
+	return out
+
+
+## What a coach or drilled rules did to fighter ids[0]'s wins against ids[1]: `changed` is
+## [row, side the fighter was on] for each fight with them, `plain` the fights without (_by_fight).
+## When every changed fight has a plain twin (same corners, same seed: the harness plays them
+## so), each seed is one paired difference; otherwise the shares are compared unpaired, against
+## the plain fights between the two either way round. Returns { mean, text } or {} with no plain fights.
+static func _change(changed: Array, plain: Dictionary, ids: PackedStringArray) -> Dictionary:
+	var after: Array = []
+	var before: Array = []
+	var diffs: Array = []
+	for entry: Array in changed:
+		var row: Dictionary = entry[0]
+		var side: String = entry[1]
+		after.append(1.0 if row.winner == side else 0.0)
+		var twin: Dictionary = plain.get("%s#%s" % [fighters_key(row), row.seed], {})
+		if not twin.is_empty():
+			before.append(1.0 if twin.winner == side else 0.0)
+			diffs.append(after[-1] - before[-1])
+	var change: Dictionary
+	var how: String
+	if diffs.size() == changed.size():
+		change = BalanceStats.paired(diffs)
+		how = "%d fights paired by seed" % diffs.size()
+	else:
+		before.clear()
+		for row: Dictionary in plain.values():
+			if [row.red, row.blue] == [ids[0], ids[1]] or [row.red, row.blue] == [ids[1], ids[0]]:
+				before.append(_side_score(row, ids[0]))
+		if before.is_empty():
+			return {}
+		change = BalanceStats.unpaired(before, after)
+		how = "%d and %d fights, not paired" % [before.size(), after.size()]
+	return { "mean": change.mean, "text": "%s, %s → %s, %s" % [BalanceStats.change_text(change),
+		_pct(BalanceStats.mean(before)), _pct(BalanceStats.mean(after)), how] }
 
 
 ## "red" or "blue" when exactly one corner has a coaching bot (and no rules either side), else "".
@@ -311,13 +342,6 @@ static func _other(side: String) -> String:
 	return "blue" if side == "red" else "red"
 
 
-static func _mean(values: Array) -> float:
-	var total: float = 0.0
-	for v: float in values:
-		total += v
-	return total / values.size() if not values.is_empty() else 0.0
-
-
 static func _is_showcase(row: Dictionary) -> bool:
 	return [row.red, row.blue] == SHOWCASE or [row.blue, row.red] == SHOWCASE
 
@@ -351,9 +375,13 @@ static func _csv_cell(value: Variant) -> String:
 
 
 ## The readable report: one block per pairing, then the targets.
-## `names` maps fighter id → display name (ids are used when missing).
-func summary(names: Dictionary = {}) -> String:
+## `names` maps fighter id → display name (ids are used when missing). `run` is what the
+## run was made from (D250): { commit, data, godot }, shown first when given.
+func summary(names: Dictionary = {}, run: Dictionary = {}) -> String:
 	var out: PackedStringArray = []
+	if not run.is_empty():
+		out.append("Run: commit %s · data files %s · Godot %s" % [run.get("commit", "?"), run.get("data", "?"), run.get("godot", "?")])
+		out.append("")
 	for pair in pairs():
 		out.append_array(_pair_lines(rows_for(pair), names))
 		out.append("")
@@ -374,7 +402,8 @@ func _pair_lines(of_rows: Array[Dictionary], names: Dictionary) -> PackedStringA
 			lines.append("  Corner     %s's corner: %s caller, %.1f calls a fight" % [red if side == "red" else blue, corner(first, side), average(of_rows, "calls_" + side)])
 		if drilled(first, side) != "":
 			lines.append("  Rules      %s drilled %s, fired %.1f times a fight" % [red if side == "red" else blue, drilled(first, side), average(of_rows, "fired_" + side)])
-	lines.append("  Wins       %s %s · %s %s · draw %s" % [red, _pct(win_share(of_rows, "red")), blue, _pct(win_share(of_rows, "blue")), _pct(method_share(of_rows, FightSummary.METHOD_DRAW))])
+	lines.append("  Wins       %s %s · %s %s · draw %s (95%% ranges, D250)" % [red, _share_text(of_rows, win_share(of_rows, "red")),
+		blue, _share_text(of_rows, win_share(of_rows, "blue")), _pct(method_share(of_rows, FightSummary.METHOD_DRAW))])
 	lines.append("  How        KO %s · TKO %s · submission %s · decision %s · draw %s" % [
 		_pct(method_share(of_rows, FightSummary.METHOD_KO)), _pct(method_share(of_rows, FightSummary.METHOD_TKO)),
 		_pct(method_share(of_rows, FightSummary.METHOD_SUB)),
@@ -427,9 +456,29 @@ func _pair_lines(of_rows: Array[Dictionary], names: Dictionary) -> PackedStringA
 	lines.append("  Defence    %s checks %.1f of %.1f worked, slips %.1f of %.1f, %.1f hits on the guard · %s %.1f of %.1f, %.1f of %.1f, %.1f (D180)" % [
 		red, average(of_rows, "checked_red"), average(of_rows, "checks_red"), average(of_rows, "slipped_red"), average(of_rows, "slips_red"), average(of_rows, "covered_hits_red"),
 		blue, average(of_rows, "checked_blue"), average(of_rows, "checks_blue"), average(of_rows, "slipped_blue"), average(of_rows, "slips_blue"), average(of_rows, "covered_hits_blue")])
+	lines.append("  Chosen by  %s %s · %s %s (D250)" % [red, _chosen_line(of_rows, "red"), blue, _chosen_line(of_rows, "blue")])
 	lines.append("  Tired      someone under 50%% of the tank in %s of fights" % _pct(tired_share(of_rows)))
 	lines.append("  Odds       %s of exchanges hit the 5–95%% clamp" % _pct(clamped_share(of_rows)))
 	return lines
+
+
+## Who chose a side's moves, as shares: "own AI 97.1% · calls 2.4% · rules 0.5% · commands 0.0% of 312 moves a fight".
+static func _chosen_line(of_rows: Array[Dictionary], side: String) -> String:
+	var counts: Array[float] = []
+	var total: float = 0.0
+	for layer: String in FightSummary.CHOOSERS:
+		counts.append(average(of_rows, "chosen_%s_%s" % [layer, side]))
+		total += counts[-1]
+	var parts: PackedStringArray = []
+	var names: Array[String] = ["own AI", "calls", "rules", "commands"]
+	for n in counts.size():
+		parts.append("%s %s" % [names[n], _pct(counts[n] / total if total > 0.0 else 0.0)])
+	return "%s of %.0f moves a fight" % [" · ".join(parts), total]
+
+
+## A share of these fights with its 95% range (D250): "55.0% (45.3–64.4%)".
+static func _share_text(of_rows: Array[Dictionary], fraction: float) -> String:
+	return BalanceStats.share_text(fraction, BalanceStats.wilson(fraction * of_rows.size(), of_rows.size()))
 
 
 ## A fight-seconds column as "m:ss a fight (share of fight time)", e.g. "6:12 a fight (41%)" (D119).

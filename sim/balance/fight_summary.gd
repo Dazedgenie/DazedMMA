@@ -12,7 +12,9 @@ extends RefCounted
 ## feints thrown and bitten on, and shots taken blind and how many still worked, D131;
 ## combinations thrown, the strikes after the first in them and how many landed, D133),
 ## each corner's coaching bot and how many calls it made (Corner, D12, D68), and each
-## fighter's drilled rules and how often they fired (DrilledRules, #17).
+## fighter's drilled rules and how often they fired (DrilledRules, #17), and which
+## layer chose each fighter's moves: their own AI, a call, a drilled rule or a
+## command (D250, docs/01 §2.4).
 ## BalanceReport turns rows into the CSV and the summary.
 
 ## Every key a row has, in CSV column order.
@@ -39,10 +41,14 @@ const COLUMNS: Array[String] = [
 	"checks_red", "checked_red", "slips_red", "slipped_red", "covered_hits_red",
 	"checks_blue", "checked_blue", "slips_blue", "slipped_blue", "covered_hits_blue",
 	"calls_red", "calls_blue", "fired_red", "fired_blue",
+	"chosen_ai_red", "chosen_call_red", "chosen_rule_red", "chosen_command_red",
+	"chosen_ai_blue", "chosen_call_blue", "chosen_rule_blue", "chosen_command_blue",
 ]
 const SIDES: Array[String] = ["red", "blue"]
 ## The ground positions whose share of the fight each row reports (D130).
 const GROUND_POSITIONS: Array[String] = ["full_guard", "half_guard", "side_control", "mount", "back_control"]
+## The decision layers a move can be chosen by, as the chosen_* columns name them (DecisionLayer, D250).
+const CHOOSERS: Array[String] = [DecisionLayer.AI, DecisionLayer.CALL, DecisionLayer.RULE, DecisionLayer.COMMAND]
 
 const METHOD_KO := "ko"
 const METHOD_TKO := "tko"
@@ -208,6 +214,8 @@ static func of(sim: FightSim, lows: Array[float] = [], moves: Dictionary = {}) -
 		row["combos_" + side] = f.combos_thrown
 		row["combo_strikes_" + side] = f.combo_strikes
 		row["combo_landed_" + side] = f.combo_landed
+		for layer: String in CHOOSERS:
+			row["chosen_%s_%s" % [layer, side]] = 0
 		row["top_" + side] = _share_of(moves.get("top", [0, 0])[i], ticks)
 		row["circling_" + side] = _seconds(sim.circling_ticks[i])
 		row["cutting_" + side] = _seconds(sim.cutting_ticks[i])
@@ -217,6 +225,12 @@ static func of(sim: FightSim, lows: Array[float] = [], moves: Dictionary = {}) -
 		match e.type:
 			FightEvent.ROCKED:
 				row["rocked_" + SIDES[e.actor]] += 1
+			FightEvent.ACTION_PHASE:
+				# A move starting says which layer chose it (D250); a combination's follow-ups are the AI's.
+				if e.data.has("by"):
+					var chooser: String = "chosen_%s_%s" % [e.data.by, SIDES[e.actor]]
+					if row.has(chooser):
+						row[chooser] += 1
 			FightEvent.CALL_HEARD:
 				row["calls_" + SIDES[e.actor]] += 1
 			FightEvent.RULE_ANSWERED:
