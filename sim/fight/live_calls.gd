@@ -295,7 +295,7 @@ func on_event(view: FightView, event: FightEvent) -> void:
 		if read.notice < 0 and _triggers.matches(read.call.read.trigger, event, view.index):
 			# Fighters step in turn each tick: a move started after this fighter's step is
 			# first seen next tick (as the AI's reads, docs/01 §20).
-			read.seen = event.tick + (1 if event.actor > view.index else 0)
+			read.seen = event.tick + (1 if view.steps_after_me(event.actor) else 0)
 			read.notice = read.seen + view.me.reaction_ticks()
 			read.move = event.data.action_id
 	_settle()

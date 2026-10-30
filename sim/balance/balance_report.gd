@@ -376,11 +376,12 @@ static func _csv_cell(value: Variant) -> String:
 
 ## The readable report: one block per pairing, then the targets.
 ## `names` maps fighter id → display name (ids are used when missing). `run` is what the
-## run was made from (D250): { commit, data, godot }, shown first when given.
+## run was made from (D250): { commit, data, godot, and order when blue stepped first (D252) }, shown first when given.
 func summary(names: Dictionary = {}, run: Dictionary = {}) -> String:
 	var out: PackedStringArray = []
 	if not run.is_empty():
-		out.append("Run: commit %s · data files %s · Godot %s" % [run.get("commit", "?"), run.get("data", "?"), run.get("godot", "?")])
+		out.append("Run: commit %s · data files %s · Godot %s%s" % [run.get("commit", "?"), run.get("data", "?"), run.get("godot", "?"),
+			(" · " + str(run.order)) if run.has("order") else ""])
 		out.append("")
 	for pair in pairs():
 		out.append_array(_pair_lines(rows_for(pair), names))

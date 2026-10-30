@@ -19,8 +19,14 @@ extends MainLoop
 ## Also <out>/run.json, what the run was made from and how fast it went (D250, docs/01 §2.4): the
 ## arguments, the commit, a hash of data/, the Godot version and the time a simulated tick took.
 ## To compare two runs fight by fight, use tools/balance_compare.gd.
+## --blue-first has blue step before red every tick instead of after, to see what going
+## second is worth (the corner-lean check, D252, docs/01 §2.5). Real fights never do it.
 ## A 3-round fight takes just under a second on one core, so 100 fights per pair is ~1.5 minutes,
 ## divided by the number of cores.
+
+
+## --blue-first: blue steps before red every tick (D252).
+var _blue_first: bool = false
 
 
 func _initialize() -> void:
@@ -55,6 +61,8 @@ func _initialize() -> void:
 			processes = maxi(1, int(arg.trim_prefix("--jobs=")))
 		elif arg.begins_with("--worker="):
 			worker = int(arg.trim_prefix("--worker="))
+		elif arg == "--blue-first":
+			_blue_first = true
 		elif arg.begins_with("--rows="):
 			rows_path = arg.trim_prefix("--rows=")
 		elif arg.begins_with("--rules="):
@@ -104,6 +112,8 @@ func _initialize() -> void:
 	for row in played.rows:
 		report.add(row)
 	var run := { "commit": _commit(), "data": data_hash(), "godot": Engine.get_version_info().string }
+	if _blue_first:
+		run.order = "blue steps first each tick"
 	var summary: String = report.summary(names, run)
 	var ticks: float = 0.0
 	for row in played.rows:
@@ -132,7 +142,7 @@ func _play(jobs: Array[Dictionary], indexes: Array[int], roster: FighterLibrary,
 	for i in indexes.size():
 		var job: Dictionary = jobs[indexes[i]]
 		var before: int = Time.get_ticks_usec()
-		rows.append(HarnessJobs.run(job, roster, actions, rules))
+		rows.append(HarnessJobs.run(job, roster, actions, rules, _blue_first))
 		usec += Time.get_ticks_usec() - before
 		var last_of_group: bool = i == indexes.size() - 1 or jobs[indexes[i + 1]].group != job.group
 		if started >= 0 and last_of_group:

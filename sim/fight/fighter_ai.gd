@@ -1789,7 +1789,7 @@ func _saw_start(view: FightView, event: FightEvent, layer: DecisionLayer) -> voi
 		chance *= ROCKED_READ
 	# Fighters step in turn each tick: a move started after this fighter's step is
 	# first seen next tick, so the reaction time counts from then (fair to both corners).
-	var seen: int = event.tick + (1 if event.actor > view.index else 0)
+	var seen: int = event.tick + (1 if view.steps_after_me(event.actor) else 0)
 	_opp = { "id": id, "category": action.category, "at": event.tick,
 		"notice": seen + f.reaction_ticks(), "read": view.roll() < chance, "decided": false }
 

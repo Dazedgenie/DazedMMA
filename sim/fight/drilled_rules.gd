@@ -134,7 +134,7 @@ func on_event(view: FightView, event: FightEvent) -> void:
 			continue
 		# Fighters step in turn each tick: a move started after this fighter's step is
 		# first seen next tick (as the AI's reads and read calls, docs/01 §20).
-		var seen: int = event.tick + (1 if event.actor > view.index else 0)
+		var seen: int = event.tick + (1 if view.steps_after_me(event.actor) else 0)
 		_armed = { "entry": entry, "started": event.tick, "notice": seen + view.me.reaction_ticks(), "move": String(event.data.get("action_id", "")) }
 	_settle()
 
