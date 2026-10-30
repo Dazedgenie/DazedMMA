@@ -3,7 +3,7 @@ extends Node3D
 ## the red corner through three rounds in the grey-box view (ArenaView) with HUD v0
 ## (FightHud), the speed controls (FightDriver) and the hotkeys of docs/06 §3. Blue's
 ## corner is the AI corner (D68). The bell holds the fight between rounds so the
-## drilled rules can be changed; the result screen offers a rematch.
+## drilled rules can be changed; the result screen (FightResultCard, D173) offers a rematch.
 ##
 ## For the playtest (#20, D118): a playtest fight opens on its tip card and limits the
 ## call bar to its calls; every fight is saved as a FightRecord in user://fights/ for the
@@ -23,6 +23,8 @@ var arena: ArenaView
 var hud: FightHud
 var setup: FightSetup
 var planner: CampPlanner
+## The result screen (D173), over the fight when it's over.
+var result: FightResultCard
 var overlay: DebugOverlay
 var driver: FightDriver
 var state: String = SETUP
@@ -59,6 +61,9 @@ func _ready() -> void:
 	setup.start_pressed.connect(start_fight)
 	setup.camp_pressed.connect(open_camp)
 	ui.add_child(setup)
+	result = FightResultCard.new()
+	result.visible = false
+	ui.add_child(result)
 	ui.move_child($UI/Version, -1)  # Over the full-screen setup.
 	_console = $UI/DebugConsole
 	ui.move_child(_console, -1)
@@ -100,6 +105,7 @@ func start_fight(p_settings: Dictionary) -> void:
 	overlay.driver = driver
 	_console.watch(sim, "%s, seed %d" % [settings.get("label", ""), fight_seed])
 	setup.visible = false
+	result.visible = false
 	_close_camp()
 	state = FIGHT
 	last_record_path = ""
@@ -266,29 +272,20 @@ func _current_rules() -> Array:
 	return out
 
 
-func _on_fight_over(event: FightEvent) -> void:
+func _on_fight_over(_event: FightEvent) -> void:
 	state = OVER
 	var sim: FightSim = driver.sim
 	var record: Dictionary = FightRecord.build(sim, settings, driver.player)
 	if record_dir != "":
 		last_record_path = FightRecord.save(record, record_dir)
-	var lines: Array[String] = [FightLogFormatter.result_text(event, sim), ""]
-	for i in sim.fighters.size():
-		var f: FighterState = sim.fighters[i]
-		lines.append("%s: landed %d of %d strikes, %d of %d takedowns, damage taken head %d · body %d · legs %d" % [f.name,
-			f.strikes_landed, f.strikes_thrown, f.takedowns_landed, f.takedowns_tried, f.damage.head, f.damage.body, f.damage.legs])
-		lines.append("  " + FightLogFormatter.movement_line(sim, i))
-	var stats: Dictionary = record.stats
-	lines.append("Your corner: %d calls (%d ignored), %d perfect, takedowns from your calls %d, from your rules %d" % [
-		stats.calls_made, stats.calls_ignored, stats.perfect_calls, stats.takedowns_by_call, stats.takedowns_by_rule])
+	var notes: Array[String] = []
 	var injury: Dictionary = TrainingCamp.after_fight(settings.get("camp", {}), sim.fight_seed)
 	if not injury.is_empty():
-		lines.append(("[color=#ff8787]Fighting hurt made the %s injury worse: out %d days.[/color]" if injury.worse
+		notes.append(("[color=#ff8787]Fighting hurt made the %s injury worse: out %d days.[/color]" if injury.worse
 			else "The %s injury held up: %d more days to heal.") % [injury.area, injury.days_out])
-	lines.append("")
-	lines.append("[color=#8a8f98]Seed %d (type it in the setup to replay this fight's start)[/color]" % sim.fight_seed)
+	notes.append("Seed %d (type it in the setup to replay this fight's start)" % sim.fight_seed)
 	if last_record_path != "":
-		lines.append("[color=#8a8f98]Saved for the playtest notes: %s[/color]" % ProjectSettings.globalize_path(last_record_path))
+		notes.append("Saved for the playtest notes: %s" % ProjectSettings.globalize_path(last_record_path))
 	var buttons: Array = []
 	var next: Dictionary = Playtest.next_step(String(settings.get("step", ""))) if settings.get("step", "") != "" else {}
 	if not next.is_empty():
@@ -297,7 +294,8 @@ func _on_fight_over(event: FightEvent) -> void:
 	buttons.append(["Change setup", _back_to_setup])
 	if last_record_path != "":
 		buttons.append(["Open saved fights", func() -> void: OS.shell_open(ProjectSettings.globalize_path(record_dir))])
-	hud.show_dialog("Fight over", "\n".join(lines), buttons)
+	hud.hide_dialog()
+	result.show_result(sim, driver.player, record.stats, notes, buttons)
 
 
 ## `-- --self-check`: the self-check fight from the debug console, printed, then quit with
@@ -343,6 +341,7 @@ func _back_to_setup() -> void:
 	_close_camp()
 	hud.hide_dialog()
 	hud.visible = false
+	result.visible = false
 	state = SETUP
 	if driver != null:
 		driver.held = true
