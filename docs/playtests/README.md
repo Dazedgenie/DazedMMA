@@ -31,6 +31,13 @@ It exports the game for Windows, checks a Linux export of the same project start
 To build it yourself instead: install Godot 4.7.2 with its export templates, then
 `godot --headless --export-release "Windows Desktop" build/export/windows/ChinCheck.exe` (presets in `export_presets.cfg`).
 
+**The browser build** (D240, `04` §2.4) comes from the same run: download `ChinCheck-web-<commit>` instead. It's a zip of
+`index.html` and the files beside it (about 40 MB). Upload the zip to itch.io as an HTML game, or unzip it and put the
+folder on any web host, GitHub Pages included. To try it on your own computer, serve the folder
+(`python3 -m http.server` inside it, then open `http://localhost:8000`); double-clicking `index.html` doesn't work.
+Playtests should still use the Windows build: its saved fights land in a folder testers can send (`user://fights/`), and
+a browser keeps them in its own storage instead.
+
 ## 2. Running a session
 
 Follow [`script.md`](script.md). In short: each tester plays four fights (fight 1, fight 2 at one speed, fight 2 again at

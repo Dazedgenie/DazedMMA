@@ -38,6 +38,7 @@
 - A leg giving out (the two legs tracked apart, low kicks on the front leg, switching stance, the buckle and the limp, the numbers to tune them): `docs/01-fight-engine.md` §36 (D144).
 - Flash knockdowns (one big shot dropping a fresh man, and what the four rocked-and-dropped changes did to fights together): `docs/01-fight-engine.md` §37 (D145).
 - Striking defence (checking a low kick, slipping a straight punch, covering up: who has which, when they have to be up, what a checked kick does to the kicker, the counter off the slip, covering up when rocked and on *Survive!*, the numbers to tune them): `docs/01-fight-engine.md` §38 (D180).
+- The browser build and the name (the *Web* export preset with threads off, the Playtest build's `ChinCheck-web` download, the symbols fallback font, Chin Check by Lampsmoke Games): `docs/04-tech-and-production.md` §2.4 (D240).
 - Strike sounds (each strike's connected, missed and blocked sound made in code, which version a check, slip or cover-up plays, the Sound slider and M to mute, `tools/strike_sounds.gd` to hear them as WAV files, the numbers to tune them): `docs/06-fight-hud.md` §6.8 (D190).
 - Drilled rules (two slots, reliability, cooldown, opponents adapting, the presets, `--rules` in the harness): `docs/01-fight-engine.md` §23 (D116).
 - Speed budget (1000× fight time), the timing checks and how to speed things up without changing fights: `docs/01-fight-engine.md` §2.1 (D105).
