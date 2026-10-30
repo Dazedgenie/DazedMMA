@@ -11,7 +11,7 @@
 	"gifts": [],
 	"flaws": [],
 	"techniques": ["jab", "cross", "overhand", "double_leg", "ground_elbow", "take_back"],
-	"tendencies": { "work_rate": 0.022, "actions": { "jab": 1.0, "cross": 0.6, "overhand": 0.5, "double_leg": 1.6, "feint": 0.8 } },
+	"tendencies": { "work_rate": 0.022, "actions": { "jab": 1.0, "cross": 0.6, "overhand": 0.5, "double_leg": 1.6, "feint": 0.8, "fence_drive": 2.0 } },
 	"tells": [
 		{ "trigger": "own_jab_blocked", "action": "double_leg", "chance": 0.5, "within_ms": 1000 }
 	]

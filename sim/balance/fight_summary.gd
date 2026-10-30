@@ -6,7 +6,8 @@ extends RefCounted
 ## an exchange's odds hit the 5–95% clamp, how the fighters moved (time on the
 ## fence, who held the centre, how much of it was a chase, how long each one circled
 ## and cut off the cage, D119), and the grappling
-## (takedowns tried and landed, time in the clinch, on the ground and on top, #15;
+## (takedowns tried and landed, time in the clinch, on the ground and on top, #15; time
+## holding the other man on the fence in the clinch, drives to the fence and spin-offs, D220;
 ## submissions tried and locked in, D126, and the leg locks among them and fights they ended, D132; time in each ground position, passes and escapes, D130;
 ## feints thrown and bitten on, and shots taken blind and how many still worked, D131;
 ## combinations thrown, the strikes after the first in them and how many landed, D133),
@@ -32,6 +33,8 @@ const COLUMNS: Array[String] = [
 	"throws_red", "throws_landed_red", "throws_blue", "throws_landed_blue",
 	"collar_ties_red", "collar_ties_won_red", "clinch_knees_red", "tied_knees_red",
 	"collar_ties_blue", "collar_ties_won_blue", "clinch_knees_blue", "tied_knees_blue",
+	"fence_hold_red", "fence_drives_red", "fence_drives_won_red", "spin_offs_red", "spin_offs_won_red",
+	"fence_hold_blue", "fence_drives_blue", "fence_drives_won_blue", "spin_offs_blue", "spin_offs_won_blue",
 	"full_guard", "half_guard", "side_control", "mount", "back_control", "advances_red", "escapes_red", "advances_blue", "escapes_blue",
 	"feints_red", "feints_bit_red", "blind_red", "blind_landed_red", "feints_blue", "feints_bit_blue", "blind_blue", "blind_landed_blue",
 	"combos_red", "combo_strikes_red", "combo_landed_red", "combos_blue", "combo_strikes_blue", "combo_landed_blue",
@@ -86,7 +89,7 @@ static func setup(fight_seed: int, roster: FighterLibrary, actions: ActionLibrar
 static func play(sim: FightSim) -> Dictionary:
 	var lows: Array[float] = [1.0, 1.0]
 	var moves := { "standing": 0, "chase": 0, "fence": [0, 0], "pinned": [0, 0], "centre": [0, 0],
-		"ticks": 0, "clinch": 0, "ground": 0, "top": [0, 0] }
+		"ticks": 0, "clinch": 0, "ground": 0, "top": [0, 0], "fence_hold": [0, 0] }
 	while not sim.is_over():
 		var before: Array[Vector2] = [sim.fighters[0].pos, sim.fighters[1].pos]
 		var round_before: int = sim.clock.current_round
@@ -112,6 +115,10 @@ static func count_movement(sim: FightSim, before: Array[Vector2], moves: Diction
 	if not sim.situation.is_standing():
 		var key: String = "clinch" if sim.situation.phase == PositionLibrary.CLINCH else "ground"
 		moves[key] = moves.get(key, 0) + 1
+		if key == "clinch":
+			for i in 2:
+				if sim.held_on_fence(1 - i):
+					moves.fence_hold[i] += 1  # Fighter i holds the other on the fence (D220).
 		if GROUND_POSITIONS.has(sim.situation.position):
 			moves[sim.situation.position] = moves.get(sim.situation.position, 0) + 1
 		for i in 2:
@@ -193,6 +200,11 @@ static func of(sim: FightSim, lows: Array[float] = [], moves: Dictionary = {}) -
 		row["collar_ties_won_" + side] = f.collar_ties_won
 		row["clinch_knees_" + side] = f.clinch_knees_landed
 		row["tied_knees_" + side] = f.tied_knees_landed
+		row["fence_hold_" + side] = _share_of(moves.get("fence_hold", [0, 0])[i], ticks)
+		row["fence_drives_" + side] = f.fence_drives_tried
+		row["fence_drives_won_" + side] = f.fence_drives_won
+		row["spin_offs_" + side] = f.spin_offs_tried
+		row["spin_offs_won_" + side] = f.spin_offs_won
 		row["advances_" + side] = f.advances
 		row["escapes_" + side] = f.escapes
 		row["feints_" + side] = f.feints_tried

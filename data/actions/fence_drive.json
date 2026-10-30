@@ -1,0 +1,19 @@
+{
+	"schema": "action@2",
+	"id": "fence_drive",
+	"name": "Drive to the fence",
+	"category": "clinch",
+	"basic": true,
+	"positions": ["clinch"],
+	"ranges": ["clinch"],
+	"phases_ms": { "telegraph": 0, "windup": 200, "active": 300, "recovery": 200 },
+	"stamina_cost": 5,
+	"flags_self": [],
+	"clinch": { "base_success": 0.5, "drives_m": 4.0 },
+	"stats": { "offense": ["clinch_control", "strength"], "defense": ["clinch_control", "strength"] },
+	"opportunities": [
+		{ "opponent_flag": "POSTURE_BROKEN", "success_bonus": 0.10 },
+		{ "own_flag": "POSTURE_BROKEN", "success_bonus": -0.15 }
+	],
+	"requires_technique": null
+}

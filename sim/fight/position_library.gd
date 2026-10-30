@@ -28,6 +28,9 @@ const MOVING_CATEGORIES := { "takedown": true, "clinch": true, "ground": true, "
 const TOP_LABEL := "on top"
 const PARTIAL := "partial"
 const FAILED := "failed"
+## A shot at a man with his back on the fence that doesn't put him down presses him there
+## instead (D220): the shooter stays on him, tied up against the fence.
+const PRESSED := "pressed"
 
 static var _default: PositionLibrary
 
@@ -68,9 +71,11 @@ func get_position(id: String) -> Dictionary:
 ## True when a fighter in `role` has somewhere to take the fight with this move from position
 ## `id` (D130): a move that moves the fight needs a transition for that role here, so one move
 ## can work from different roles in different positions (the armbar: the bottom of full guard
-## and the top of mount). Strikes, defenses and tie-ups don't move the fight, so they always do.
+## and the top of mount). Strikes, defenses, tie-ups and the cage clinch's drive and spin-off (D220)
+## don't move the fight, so they always do.
 func leads_somewhere(id: String, role: String, action: Dictionary) -> bool:
-	if not MOVING_CATEGORIES.has(action.category) or action[action.category].has("ties_up_ms"):
+	var block: Dictionary = action.get(action.category, {})
+	if not MOVING_CATEGORIES.has(action.category) or block.has("ties_up_ms") or block.has("drives_m") or block.get("turns", false):
 		return true
 	return not transition(id, role, action.id).is_empty()
 

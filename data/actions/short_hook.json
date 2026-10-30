@@ -11,6 +11,7 @@
 	"strike": { "target": "head", "base_damage": 6 },
 	"stats": { "offense": ["boxing", "clinch_striking"], "defense": ["striking_defense"] },
 	"opportunities": [
+		{ "opponent_flag": "HELD_ON_FENCE", "success_bonus": 0.05 },
 		{ "own_flag": "POSTURE_BROKEN", "success_bonus": -0.15 }
 	],
 	"requires_technique": null

@@ -12,7 +12,7 @@
 	"clinch": { "base_success": 0.35 },
 	"stats": { "offense": ["clinch_control", "strength", "footwork"], "defense": ["clinch_control"] },
 	"opportunities": [
-		{ "own_flag": "BACK_TO_CAGE", "success_bonus": -0.15 },
+		{ "own_flag": "BACK_TO_CAGE", "success_bonus": -0.10 },
 		{ "own_flag": "POSTURE_BROKEN", "success_bonus": -0.10 }
 	],
 	"requires_technique": null

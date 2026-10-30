@@ -173,6 +173,23 @@ const COMBO_WINDOW_TICKS: int = 2
 const GRAPPLES := { "takedown": true, "clinch": true, "ground": true, "submission": true }
 ## The collar tie (D129, docs/01 §27): a clinch move whose `ties_up_ms` breaks the opponent's posture.
 const COLLAR_TIE := "collar_tie"
+## The cage clinch (D220, docs/01 §39). The drive to the fence (a clinch move whose `drives_m`
+## walks the opponent back), and two ways off it whose `turns` swaps the two round: the spin-off
+## (and away: the clinch position sends it to standing) and turning him onto the fence (the clinch goes on).
+const FENCE_DRIVE := "fence_drive"
+const SPIN_OFF := "spin_off"
+const TURN_HIM := "turn_him"
+## The flag of the man held with his back on the fence in the clinch (held_on_fence).
+const HELD_ON_FENCE := "HELD_ON_FENCE"
+## A drive that works walks the clinch back this fast (m/s), until the opponent's back is on
+## the fence or the drive's `drives_m` is used up.
+const DRIVE_SPEED: float = 1.5
+## Held on the fence in the clinch, the man with his back to it carries the other's weight:
+## this much more stamina a second than the clinch already costs (0.4, `clinch.json`).
+const FENCE_HOLD_DRAIN_PER_S: float = 0.1
+## A shot at a man on the fence that half works leaves the shooter on him, tied up against the
+## fence, this often (the "pressed" transition); otherwise it's the scramble, as anywhere else.
+const PRESSED_CHANCE: float = 0.25
 const COVERED := "COVERED"
 ## A locked submission is fought for in beats, one every STRUGGLE_BEAT_TICKS (D126). Each beat
 ## the attacker wins with Contest.chance(STRUGGLE_BASE, the hold's offense stats, its defense
@@ -257,6 +274,9 @@ var _fight_scores: Dictionary = { Judging.FINISH: [0.0, 0.0], Judging.CONTROL: [
 ## The submission being fought for (D126), or empty: {attacker, action_id, danger, beats,
 ## next_at (tick of the next beat), from and from_roles (where it was locked from), near}.
 var _hold: Dictionary = {}
+## A drive to the fence under way (D220), or empty: {by (the driver), dir (unit vector, the
+## way he walks the other man), left (metres still to go)}.
+var _drive: Dictionary = {}
 ## What the current position does to each fighter every tick (its data, worked out
 ## when the position changes): stamina drained, judges' control points, strike damage ×.
 var _drain: Array[float] = [0.0, 0.0]
@@ -391,6 +411,7 @@ func tick() -> void:
 		for k in 2:
 			_round_points[k] += _control[k]
 			_round_grappling[k] += _control[k]
+	_drive_step()
 	_update_space()
 	if clock.tick():
 		_end_round()
@@ -411,6 +432,16 @@ func band() -> String:
 ## "centre", "near" or "pinned" for fighter i.
 func cage_proximity(i: int) -> String:
 	return Octagon.proximity(fighters[i].pos, distance())
+
+
+## True while fighter i is held with his back on the fence in the clinch (D220, HELD_ON_FENCE):
+## pinned, and nearer the fence than the man holding him. Tied up along the fence both can be
+## pinned (BACK_TO_CAGE); only the one with his back to it is held.
+func held_on_fence(i: int) -> bool:
+	if situation.position != PositionLibrary.CLINCH:
+		return false
+	var gap: float = Octagon.distance_to_fence(fighters[i].pos)
+	return gap - Octagon.BODY_MARGIN < Octagon.PINNED_WITHIN and gap < Octagon.distance_to_fence(fighters[1 - i].pos)
 
 
 func run_to_end() -> void:
@@ -726,6 +757,8 @@ func _update_space() -> void:
 		_announce(1 + i, proximity, FightEvent.CAGE_CHANGED, i, "proximity")
 		if proximity == Octagon.CAGE_PINNED:
 			_round_control[1 - i] += 1
+			if held_on_fence(i):
+				fighters[i].spend_stamina(FENCE_HOLD_DRAIN_PER_S / FightClock.TICKS_PER_SECOND)  # Carrying his weight (D220).
 
 
 func _announce(slot: int, value: String, type: String, actor: int, field: String) -> void:
@@ -745,6 +778,7 @@ func _announce(slot: int, value: String, type: String, actor: int, field: String
 func _to_corners() -> void:
 	situation.reset()
 	_hold = {}  # Saved by the bell.
+	_drive = {}
 	_position_effects()
 	_wants = [0.0, 0.0]
 	_circling = [0.0, 0.0]
@@ -793,6 +827,7 @@ func apply_transition(i: int, action_id: String, result: String = PositionLibrar
 	roles[i] = t.roles.actor
 	roles[1 - i] = t.roles.opponent
 	situation.set_to(positions.get_position(t.to), roles)
+	_drive = {}
 	_position_effects()
 	for f in fighters:
 		f.clear_action()
@@ -838,6 +873,7 @@ func apply_transition(i: int, action_id: String, result: String = PositionLibrar
 ## come apart where they are, a standing gap apart.
 func _break_apart(i: int) -> void:
 	situation.reset()
+	_drive = {}
 	for f in fighters:
 		f.tied_up_ticks = 0
 		f.unanswered = 0
@@ -896,6 +932,10 @@ func _start_action(i: int, id: String, decision: Decision = null) -> void:
 			f.leg_locks_tried += 1
 	elif id == COLLAR_TIE:
 		f.collar_ties_tried += 1
+	elif id == FENCE_DRIVE:
+		f.fence_drives_tried += 1
+	elif id == SPIN_OFF or id == TURN_HIM:
+		f.spin_offs_tried += 1
 	_start_combo(i, id, decision)
 	if action.category == "strike" or action.category == "takedown" or action.category == "submission" or (action.category == "clinch" and situation.is_standing()):
 		_round_aggression[i] += 1.0
@@ -1003,7 +1043,8 @@ func phase_ticks(f: FighterState, id: String, phase: String) -> int:
 
 
 ## Flags fighter i carries right now: from their current action's phase (docs/09
-## flags_self), BACK_TO_CAGE when pinned, HANDS_LOW when exhausted or rocked,
+## flags_self), BACK_TO_CAGE when pinned (and HELD_ON_FENCE when it's his back the other man has
+## on it in the clinch, D220), HANDS_LOW when exhausted or rocked,
 ## POSTURE_BROKEN while tied up from the bottom, HEAD_LOW while stuck under a sprawl,
 ## DOWN while knocked down (soccer kicks and stomps need it, D141).
 func active_flags(i: int) -> Array[String]:
@@ -1011,6 +1052,8 @@ func active_flags(i: int) -> Array[String]:
 	var out: Array[String] = []
 	if cage_proximity(i) == Octagon.CAGE_PINNED:
 		out.append("BACK_TO_CAGE")
+		if held_on_fence(i):
+			out.append(HELD_ON_FENCE)
 	if f.stamina_fraction() < HANDS_LOW_BELOW or f.is_rocked() or f.winded_ticks > 0 or f.liver_ticks > 0:
 		out.append("HANDS_LOW")
 	if f.tied_up_ticks > 0:
@@ -1044,6 +1087,8 @@ func flags_ahead(i: int, ahead: int) -> Array[String]:
 	var out: Array[String] = []
 	if cage_proximity(i) == Octagon.CAGE_PINNED:
 		out.append("BACK_TO_CAGE")
+		if held_on_fence(i):
+			out.append(HELD_ON_FENCE)
 	if f.stamina_fraction() < HANDS_LOW_BELOW or f.is_rocked() or f.winded_ticks > ahead or f.liver_ticks > 0:
 		out.append("HANDS_LOW")
 	if f.tied_up_ticks > ahead:
@@ -1120,6 +1165,8 @@ func odds_breakdown(i: int, id: String, ahead: int = 0) -> OddsBreakdown:
 				own_flags = active_flags(i)
 			if own_flags.has(opp.own_flag):
 				b.add_bonus("own " + String(opp.own_flag), float(opp.success_bonus))
+			elif opp.get("required", false) and b.missing == "":
+				b.missing = "own " + String(opp.own_flag)  # The spin-off needs his own back on the fence (D220).
 		elif opponent_flags.has(opp.opponent_flag):
 			b.add_bonus(opp.opponent_flag, float(opp.success_bonus))
 		elif opp.get("required", false) and b.missing == "":
@@ -1372,7 +1419,7 @@ func _make_contact(i: int, action: Dictionary) -> void:
 			fighters[i].grip = b
 			_meet_shot(1 - i)  # Already sprawling as it arrives?
 			return
-		stopped.reason = "nothing to catch"
+		stopped.reason = "not on the fence" if b.missing == "own " + HELD_ON_FENCE else "nothing to catch"
 		stopped.chance = 0.0
 		stopped.odds = b.to_dict()
 	_emit(FightEvent.GRAPPLE_STOPPED, i, stopped)
@@ -1424,9 +1471,17 @@ func _finish_grip(i: int) -> bool:
 	elif roll < b.chance + float(action[action.category].get("partial_within", 0.0)) \
 			and not transition_for(i, action.id, PositionLibrary.PARTIAL).is_empty():
 		result = PositionLibrary.PARTIAL
+	if result != PositionLibrary.SUCCESS and _pressed_on_fence(i, action, b, result):
+		return true
 	if result == PositionLibrary.SUCCESS and action[action.category].has("ties_up_ms"):
 		_tie_up(i, action, b)
 		return false  # The fight stays where it is; the move goes on to its recovery.
+	if result == PositionLibrary.SUCCESS and action[action.category].has("drives_m"):
+		_start_drive(i, action, b)
+		return false  # Still the clinch, walking back to the fence (D220).
+	if result == PositionLibrary.SUCCESS and action[action.category].get("turns", false):
+		_turn(i, action, b)
+		return apply_transition(i, action.id)  # The spin-off comes away; turning him onto it stays tied up.
 	if result == "" or transition_for(i, action.id, result).is_empty():
 		if f.blind_shot:
 			f.spend_stamina(BLIND_STUFFED_STAMINA)
@@ -1479,6 +1534,63 @@ func _tie_up(i: int, action: Dictionary, b: OddsBreakdown) -> void:
 	if not o.is_free() and actions.get_action(o.action_id).category == "strike":
 		o.clear_action()
 	_emit(FightEvent.GRAPPLE_WON, i, { "action_id": action.id, "result": "tied_up", "chance": b.chance, "odds": b.to_dict() })
+
+
+# --- The cage clinch (D220, docs/01 §39) --------------------------------------
+
+## A shot at a man whose back was on the fence at contact that half works (D220): on a chance of
+## PRESSED_CHANCE the shooter stays on him, tied up against the fence (the clinch), instead of
+## the scramble. True when the fight moved to the clinch.
+func _pressed_on_fence(i: int, action: Dictionary, b: OddsBreakdown, result: String) -> bool:
+	if result != PositionLibrary.PARTIAL or not situation.is_standing() or not _has_bonus(b, "BACK_TO_CAGE") \
+			or transition_for(i, action.id, PositionLibrary.PRESSED).is_empty():
+		return false
+	if _rng.randf() >= PRESSED_CHANCE:
+		return false
+	_emit(FightEvent.GRAPPLE_WON, i, { "action_id": action.id, "result": PositionLibrary.PRESSED, "chance": b.chance, "odds": b.to_dict() })
+	return apply_transition(i, action.id, PositionLibrary.PRESSED)
+
+
+## A drive to the fence works: fighter i walks the opponent straight back, DRIVE_SPEED a second,
+## until his back is on the fence (pinned) or the move's `drives_m` is used up (_drive_step).
+func _start_drive(i: int, action: Dictionary, b: OddsBreakdown) -> void:
+	var dir: Vector2 = fighters[1 - i].pos - fighters[i].pos
+	_drive = { "by": i, "dir": dir.normalized() if dir.length() > 0.0 else Vector2.RIGHT, "left": float(action.clinch.drives_m) }
+	fighters[i].fence_drives_won += 1
+	_emit(FightEvent.GRAPPLE_WON, i, { "action_id": action.id, "result": "driven", "chance": b.chance, "odds": b.to_dict() })
+
+
+## One tick of a drive under way: the opponent goes back (the fence stops the part of the step
+## that goes into it, so he slides along it onto it), and the driver stays chest to chest.
+func _drive_step() -> void:
+	if _drive.is_empty():
+		return
+	var k: int = _drive.by
+	if situation.position != PositionLibrary.CLINCH or float(_drive.left) <= 0.0 or held_on_fence(1 - k):
+		_drive = {}
+		return
+	var step: float = minf(float(_drive.left), DRIVE_SPEED / FightClock.TICKS_PER_SECOND)
+	var o: FighterState = fighters[1 - k]
+	o.pos = Octagon.keep_inside(o.pos + _drive.dir * step)
+	fighters[k].pos = Octagon.keep_inside(o.pos - _drive.dir * TANGLED_GAP)
+	_drive.left = float(_drive.left) - step
+
+
+## A drive to the fence under way (D220): {by, dir, left}, or empty. Read-only.
+func drive() -> Dictionary:
+	return _drive
+
+
+## A spin-off or a turn works: fighter i, his back on the fence, turns the two of them round, so
+## the other man's back is on it now. Any drive stops. Spinning off he then comes away (standing,
+## a step off the man now on the fence); turning him, he holds him there.
+func _turn(i: int, action: Dictionary, b: OddsBreakdown) -> void:
+	var spot: Vector2 = fighters[i].pos
+	fighters[i].pos = fighters[1 - i].pos
+	fighters[1 - i].pos = spot
+	_drive = {}
+	fighters[i].spin_offs_won += 1
+	_emit(FightEvent.GRAPPLE_WON, i, { "action_id": action.id, "result": "turned", "chance": b.chance, "odds": b.to_dict() })
 
 
 # --- Submissions (D126, docs/01 §25) ------------------------------------------

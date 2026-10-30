@@ -11,7 +11,7 @@
 	"gifts": ["heavy_hands"],
 	"flaws": [],
 	"techniques": ["jab", "cross", "overhand", "double_leg", "ground_elbow"],
-	"tendencies": { "work_rate": 0.016, "actions": { "jab": 1.0, "cross": 0.8, "overhand": 0.6, "double_leg": 1.3, "ground_punch": 2.0, "ground_elbow": 2.0 } },
+	"tendencies": { "work_rate": 0.016, "actions": { "jab": 1.0, "cross": 0.8, "overhand": 0.6, "double_leg": 1.3, "ground_punch": 2.0, "ground_elbow": 2.0, "fence_drive": 3.0 } },
 	"tells": [
 		{ "trigger": "own_jab_blocked", "action": "double_leg", "chance": 0.5, "within_ms": 1000 }
 	]
