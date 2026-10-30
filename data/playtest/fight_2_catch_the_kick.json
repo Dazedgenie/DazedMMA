@@ -5,7 +5,7 @@
 	"order": 2,
 	"red": "wrestler",
 	"blue": "kicker",
-	"calls": ["pressure", "circle_out", "takedown", "ground_and_pound", "finish_it", "defend_the_sub", "catch_the_kick"],
+	"calls": ["pressure", "circle_out", "takedown", "ground_and_pound", "go_for_the_finish", "finish_it", "defend_the_sub", "catch_the_kick"],
 	"rules": [],
 	"tell_cue": true,
 	"tip": "The Kicker throws a body kick right after his jab gets blocked, and his leg glows when it's coming. Press Q (Catch the kick!) before it lands and your Wrestler catches the leg and takes him down; Space slows the fight if you need time."

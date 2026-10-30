@@ -835,7 +835,7 @@ A new call replaces one of the same kind still being processed (logged as `repla
 | Kind | Calls | What the fighter does |
 |---|---|---|
 | **Attempt** | Takedown!, Clinch!, Get up!, Feint! | Goes for the first of the call's moves that would work right now: in range, the stamina for it, and the opening it needs there when it lands. *Takedown!* lists following a knocked-down man down first (D142, §34), then the catch-kick single, so a Takedown! call that lands while the opponent's leg is up (or will be as the catch lands) becomes the catch-kick (§5.1); otherwise the double-leg. Out of range, the fighter steps straight in to the nearest band one of the moves reaches from, for up to **2 s**, then gives up (`infeasible`, *"couldn't get in range"*). An attempt with a `then` list (*Feint!*, §29.3a) goes on once its first move is over: straight into the first of the `then` moves that would work |
-| **Focus** | Pressure!, Circle out!, Work the range!, Defend the shot!, Survive!, Stay safe! | For **15 s** the fighter's style leanings and move weights tilt, like a short gameplan, then it's back to the gameplan (`expired`). Calling it again starts the 15 s again; a different focus replaces it. The AI looks at its leanings and range plan again straight away when a focus starts or ends |
+| **Focus** | Pressure!, Circle out!, Work the range!, Defend the shot!, Survive!, Stay safe! | For **15 s** the fighter's style leanings and move weights tilt, like a short gameplan, then it's back to the gameplan (`expired`). Calling it again starts the 15 s again; a different focus replaces it. The AI looks at its leanings and range plan again straight away when a focus starts or ends. *Go for the finish!* (D200, §25.7) is a 10 s focus that sends the fighter on top after a hold |
 | **Read** (D49) | Catch the kick! | Primed for 6 s. When the trigger comes (`opp_kick_starts`: the opponent starts a body kick or teep), the fighter reacts with their own reaction time (D93) and catches as the leg comes up (a quick fighter waits for it). It fires once (`fired`), and comes back as `missed` if the kick was over first. While primed it costs attention: Striking and Takedown defense −15% (`attention_cost`). Up to 2 reads at once (D67), costs added; a third replaces the oldest |
 
 What each focus does (`focus` in each call's file): **Pressure** Pace +60, Range +50 (walks the opponent down, cuts the cage).
@@ -1198,6 +1198,7 @@ judges (`Judging.SUB_LOCK_POINTS`).
 |---|---|---|---|
 | *Finish it!* | 1 (Pressure! standing, Ground and pound! on top) | The attacker's corner | +15% to win each beat for 5 s; each beat costs the attacker 2 more stamina |
 | *Defend the sub!* | 6 (Defend the shot! standing) | The defender's corner | −15% to the attacker's chance each beat for 5 s; each beat costs the defender 2 more stamina |
+| *Go for the finish!* (D200, §25.7) | 2 (Circle out! standing) | The top fighter's corner, before there's a hold | For 10 s he hunts a hold: one he knows from where he is, or the position that has one |
 
 Both are focus calls in `data/calls/` (`focus.struggle`, `focus.struggle_stamina`, `09` call@2) and only work in the submission
 position, from their own side. They come through the normal pipeline (voice 15, delay, compliance, §22), so a call made the
@@ -1249,6 +1250,42 @@ meter), `tests/ui/test_fight_log_formatter.gd` (the feed lines and "wins by subm
 count as finishes) and `tests/data/test_data_files.gd` (the `submission` block, `failed` transitions, the new roles and focus
 keys). After changing a number, run the harness with all six cross-style pairings and read the **How** (submission share) and
 **Subs** (tried and locked a fight) lines.
+
+### 25.7 *Go for the finish!* (D200)
+Kyle asked for it (2026-10-30: "wrestler needs a go for the finish call to go for a submission on the ground") and picked the
+10 s hunt, for anyone on top. *Finish it!* only pushes a hold that's already locked; nothing told a fighter to go for one, and
+on his own the Wrestler looks for a better position or a hold about every 20 s, and from the top of full guard (where he spends
+most of his time on the ground) he knows no hold at all.
+
+| | |
+|---|---|
+| Key, voice | **2** on top of full guard, half guard, side control, mount or the back (key 2 is *Circle out!* standing); voice 20; a focus call through the normal pipeline (delay, compliance, §22) |
+| What he does for 10 s | Works for the finish instead of the ground and pound: on a chance of 0.5 a free tick (`focus.hunt.rate`, against about 0.006 on his own), **a hold he knows from where he is**, over anything else, without waiting for its opening and however recently he tried one (on his own, 45 s, §25.4). The Wrestler: the arm-triangle from side control and mount, the rear-naked choke from the back. **With none from here he works to a position that has one**: the guard pass from full guard and half guard, the mount or the back. An escape underneath (`ESCAPING`) that the hold's opening is for is taken every time |
+| When it's over | **One hold a call**: once he has tried a hold (locked or not), he's back to his own pace; or after 10 s. If it locks, *Finish it!* (key 1) still pushes the struggle: it's a second call, so the player picks when to push |
+| Who | Anyone on top. Everyone knows the rear-naked choke, so anyone can take the call: the more holds a fighter knows on top, the sooner he gets to one (the Wrestler, BJJ and Judoka know the arm-triangle; BJJ and the Judoka the armbar from mount; the Sambo fighter the kneebar from half guard) |
+| The AI corner | Doesn't call it, so fights without the player's calls are as before (the golden fights are unchanged) |
+
+**What it does to fights** (a scratch bot in red's corner, 100 fights a pairing, seeds 1–100, pro rules, no other corners; the
+bot calls it once each time the Wrestler gets on top, about 10 calls a fight, or every time the last one is over and it has 50
+voice, about 25–30):
+
+| Wrestler against | No calls: wins · by submission | Once each time on top | Every time it can |
+|---|---|---|---|
+| Boxer | 64% · 15% | 60% · 31% | 46% · 33% |
+| Kicker | 51% · 11% | 80% · 24% | 64% · 32% |
+
+The call doubles the Wrestler's submissions, but whether it wins him fights depends on who's underneath. Against the Kicker it's
+worth about +25%: he gives up holds. Against the Boxer, the ground and pound finishes him anyway, and a missed hold costs the
+position (the arm-triangle's escape is to the back, §28.2), so the call loses a few percent, and spamming it costs a lot. Pick
+the call for the man underneath. A gentler hunt (a rate of 0.2 or 0.08 a tick) changed these by no more than the noise of 100
+fights: what the call is worth comes from the hold it buys, not how fast he goes for it.
+
+**To change it:** `data/calls/go_for_the_finish.json` (the key, voice, `focus.duration_ms`, `focus.hunt.rate`, `09` call@2);
+what a hunt does: `FighterAI._work_position()` and `_punish_escape()` (`_hunting()`); the hook: `DecisionSource.hunt()`,
+`LiveCalls.hunt()`. Tested in `tests/sim/fight/test_go_for_the_finish.gd` (the key and positions, a hold within a couple of
+seconds from side control, mount and the back, passing first from the guard, the call overriding his own wait, one hold a call,
+the 10 s, nothing from underneath, the AI corner never calling it), `tests/sim/fight/test_live_calls.gd` (the catalogue) and
+`tests/data/test_data_files.gd` (the `hunt` block).
 
 ## 26. Throws and the guard game (D128)
 Kyle asked for throws so judo and BJJ fighters become possible (2026-10-28, after the fight-styles overview flagged "no
@@ -1487,6 +1524,7 @@ tie-ups don't move the fight, so this changes nothing for them, and nothing that
 - *Get up!* (key 7) now works from under every position and calls the way out from there: up from full guard or half guard,
   back to guard from side control, the bridge from mount, turning out of the back.
 - *Ground and pound!* and *Survive!* work in every ground position.
+- *Go for the finish!* (D200, key 2, §25.7) sends the top fighter after a hold for 10 s, passing to get to one.
 
 ### 28.6 On screen and in the harness
 - The tag under the fighters names the position and who's on top, "Back control · Wrestler has the back" (a position's
