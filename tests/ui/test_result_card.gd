@@ -1,5 +1,5 @@
 extends GutTest
-## The result screen (ui/result_card.gd, D173, docs/06 §6.8): the verdict and when, both figures as they finished,
+## The result screen (ui/result_card.gd, D173, docs/06 §6.9): the verdict and when, both figures as they finished,
 ## the fight sheet, the judges' cards round by round, and your corner's grade.
 
 var _roster: FighterLibrary

@@ -1,6 +1,6 @@
 class_name FightResultCard
 extends PanelContainer
-## The result screen (D173, docs/06 §6.8): the full-screen card when a fight is over. A big verdict (who won, how,
+## The result screen (D173, docs/06 §6.9): the full-screen card when a fight is over. A big verdict (who won, how,
 ## and when), both body figures as they finished, the fight sheet face to face (strikes by head, body and legs,
 ## knockdowns, takedowns, control time, submission attempts, circling and cutting off), the judges' cards round by
 ## round, and a letter grade for your corner with what earned it. The buttons are main.gd's (fight again, the next

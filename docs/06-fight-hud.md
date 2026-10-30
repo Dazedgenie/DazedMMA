@@ -91,6 +91,7 @@ screen; **Start fight** plays three rounds with the player as the **red corner**
 | Speed | Normal is 2× fight time (D9), or 1× for the playtest's comparison (D91) |
 | Difficulty | Normal, or Easy: P pauses the fight (D50) |
 | Tell cue, Auto slow-mo, Perfect-call flourish | On/off, so the playtest can compare (D51–D53) |
+| Sound | The strike sounds' volume, 0–100% (§6.8, D190); M mutes them during a fight |
 | Drilled rules | Your fighter's two slots and the Drilled slider (`01` §23). Only rules whose move your fighter knows are offered |
 | Seed | Blank for a random fight; type a number to get the same opening again (the result screen shows it) |
 | Training camp first | Opens the camp planner for your fighter (`02` §3.6, D134); its *Fight!* starts this fight with the fighter as the camp left them. *Start fight* skips the camp |
@@ -111,7 +112,7 @@ screen; **Start fight** plays three rounds with the player as the **red corner**
 | Call bar | 1–9 intent calls and Q/E read calls, clickable (key 1 is Pressure! standing, Ground and pound! on top and Finish it! in a submission; key 6 is Defend the shot! standing and Defend the sub! caught in one; key 5 is Clinch! standing and Collar tie! in the clinch; key 4 is Takedown! standing and in the clinch and Pass! on top on the ground; key 7 is Feint! standing and Get up! on the ground, D121, D126, D129, D130, D131: the key makes whichever works from here); a call that can't be made from here is dimmed with the reason as its tooltip (no voice, not from this position, not learned). Pressing a dimmed call's key puts the reason in the feed. The call being acted on is tinted green | `fight_hud.gd` |
 | Perfect call (D52) | A move your call started that works as a counter (a takedown that lands, a strike that lands in the opponent's wind-up or recovery): "PERFECT CALL" in the middle, a feed line and 1.2 s of slow-mo | `FightDriver.is_perfect_call` |
 | Between rounds | The bell stops the fight: each judge's card for the round, the totals, both fighters' stamina and damage, and your rule slots to change for the next round | `game/main.gd` |
-| Result | The result screen (§6.8, D173): a full-screen card with the verdict, both figures as they finished, the fight sheet, the judges' cards round by round and your corner's grade; the seed and where the fight was saved (D118); Next (in a playtest), Fight again, Change setup, Open saved fights | `ui/result_card.gd`, `game/main.gd` |
+| Result | The result screen (§6.9, D173): a full-screen card with the verdict, both figures as they finished, the fight sheet, the judges' cards round by round and your corner's grade; the seed and where the fight was saved (D118); Next (in a playtest), Fight again, Change setup, Open saved fights | `ui/result_card.gd`, `game/main.gd` |
 | Debug overlay (F3) | Seed, tick, fps, distance, range, position, and per fighter: the move and phase, flags, stamina, damage, hurt, wanted distance, circling, cutting off, cage, voice and trust. The 3D view adds the near-the-fence and pinned lines and each fighter's wanted-distance ring (what the old cage view showed, D106) | `ui/debug_overlay.gd` |
 | Debug console (`) | The full log of the fight on screen with every odds breakdown, plus "Run test fight" | `ui/debug_console.gd` |
 
@@ -132,7 +133,7 @@ changes and pauses against the same fight run headless).
 
 ### 6.4 Keys (as built)
 1–9 intent calls (1 is Pressure! standing, Ground and pound! on top, Finish it! in a submission; 6 is Defend the shot!, or Defend the sub! caught in one; 5 is Clinch!, or Collar tie! in the clinch; 4 is Takedown!, or Pass! on top on the ground) · Q / E read calls (Q is Catch the kick!; E is Fire back!, D133: answer a defended strike with a combination, `01` §31.4) · Space slow-mo ·
-F fast · P pause (Easy) · T throw in the towel (asks first; a TKO loss, D31) · Esc menu (pauses on every difficulty) ·
+F fast · P pause (Easy) · T throw in the towel (asks first; a TKO loss, D31) · M strike sounds on/off (D190) · Esc menu (pauses on every difficulty) ·
 Enter presses the dialog's first button · F3 debug overlay · ` debug console.
 
 ### 6.5 Not in v0 yet
@@ -140,7 +141,7 @@ Enter presses the dialog's first button · F3 debug overlay · ` debug console.
 - **Gameplan picker:** live fights have no gameplan yet, so the plan panel says "own game".
 - **Scouting grades (D24) everywhere:** the setup's tale of the tape scouts the opponent as grades (§6.7); anywhere else that shows his stats still shows them exactly; **cuts** don't exist in the engine yet.
 - **Judges' estimate on Hard / the coach's Reading skill:** there's no Hard and no coach skills yet; the estimate ignores judge noise and tie-breaks.
-- **Sound** (the flourish's sting) and **colour-blind modes, text size, reduced flashing** (§5).
+- **Sound** beyond the strikes (§6.8): the flourish's sting, the bell, the crowd, music; and **colour-blind modes, text size, reduced flashing** (§5).
 - **The corner screen (§4):** between rounds shows the cards and the rule slots only (no cutman, D30 is out of the prototype's scope, `10` §1).
 - **Max 3 attention-grabbers (§5)** isn't enforced; the ground **position overlay** is the tag's text for now.
 
@@ -184,7 +185,42 @@ the bar drawing: the constants and `_draw` in `ui/tale_of_the_tape.gd`. The figh
 shrinks (`NAME_SIZE`, `NAME_MIN_SIZE`, `NAME_W`): `ui/fight_setup.gd`. The grades themselves: `TrainingCamp.GRADES`
 (docs/11 §2.4). Tests: `tests/ui/test_fight_setup.gd`.
 
-### 6.8 The result screen (D173)
+### 6.8 Strike sounds (D190)
+Every strike has one sound of its own in three versions, **connected**, **missed** and **blocked**, made in code when the
+game opens (`game/strike_sounds.gd`, about half a second on another thread; no audio files). Each is built from three layers:
+
+| Layer | What it is | How it differs by strike |
+|---|---|---|
+| Swish | the arm or leg moving through the air: noise swept up and down a band | short and high for a jab, long and low for a head kick |
+| Thump | the weight landing: a low tone that drops in pitch | ~150 Hz for a jab, ~55–85 Hz for kicks, knees and the stomp |
+| Snap | the skin and glove: a short burst of bright noise | sharpest for elbows and leg kicks, a dull thud for body shots and the teep |
+
+- **Connected** is all three. **Missed** is the same swish on its own, longer and louder, as the limb carries on past.
+  **Blocked** is the same swish and thump with everything muffled (on the guard, the forearms or a shin). The swish and the
+  thump's pitch never change between versions, which is what keeps them the same strike.
+- **Which version plays** (`StrikeSounds.outcome_for`, from the fight's events): a landed strike is connected, unless it
+  landed through a fighter covering up (`covered`, D180), which is blocked. A checked kick is blocked. A slipped punch is
+  missed (it whooshes past his head; `SLIP_OUTCOME`). Any other miss, out of range or a lost roll, is missed. Only strikes
+  make sounds; takedowns, grappling and the defences themselves are silent.
+- **How loud:** a landed shot is louder (up to 7 dB) and a little deeper the more damage it does, from 2 damage (lightest)
+  to 14 (heaviest). Every sound plays at a random pitch within ±4% so repeats don't sound the same. Both fighters' strikes
+  sound the same.
+- **Volume:** the setup's **Sound** slider (0–100%) and **M** during a fight (mute/unmute, said in the feed).
+- **Listen without the game:** `godot --headless --script res://tools/strike_sounds.gd` writes `build/strike_sounds/<strike>.wav`
+  (connected, missed, blocked with a pause between) and `all_strikes.wav` (every strike in turn).
+
+**To change it:** a strike's sound is its line in `StrikeSounds.RECIPES` (`thump` pitch in Hz, `decay` how long it rings,
+`snap` and `bright` the slap's loudness and sharpness, `swish` the whoosh's length, `tone` how high it sits, `gain`
+loudness; each is explained above the table). A new strike needs a line (the test below fails until it has one). The
+versions' loudness against each other: `OUTCOME_DB`; damage to loudness: `LIGHT_DAMAGE`, `HEAVY_DAMAGE`, `LIGHT_DB`,
+`LIGHT_PITCH`, `HEAVY_PITCH`; random pitch: `PITCH_JITTER`; the overall level: `BASE_DB`; how many play at once: `VOICES`.
+How each layer is shaped is `StrikeSounds.render`. To use recorded sounds later, `stream()` is the one place that hands
+out a strike's version. Tests: `tests/game/test_strike_sounds.gd`.
+
+**Not yet:** sounds for anything but strikes (the bell, the crowd, the referee, the flourish's sting, a knockdown hitting
+the canvas, grappling), sounds placed left/right by where the fighters stand, and a sound settings menu.
+
+### 6.9 The result screen (D173)
 When the fight ends (the bell after the last round, a stoppage, a tap or the towel), a full-screen card opens over the
 cage in the same corner-board look as the camp screens and the setup (D170, D172).
 
