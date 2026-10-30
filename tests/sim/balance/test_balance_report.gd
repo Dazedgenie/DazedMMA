@@ -185,6 +185,13 @@ func test_the_summary_counts_collar_ties_and_clinch_knees() -> void:
 	assert_string_contains(text, "Clinch     Muay Thai (red) collar ties 3.0 of 5.0 won, knees landed 8.0 (4.0 from the tie) · Boxer (blue) 0.0 of 0.0, 0.0 (0.0) (D129)")
 
 
+func test_the_summary_counts_time_on_the_fence_drives_and_spin_offs() -> void:
+	var report: BalanceReport = _report([_row({ "red": "dirty_boxer", "fence_hold_red": 0.2, "fence_drives_red": 3, "fence_drives_won_red": 2,
+		"spin_offs_blue": 4, "spin_offs_won_blue": 1, "fence_hold_blue": 0.05 })])
+	var text: String = report.summary({ "dirty_boxer": "Dirty boxer", "boxer": "Boxer" })
+	assert_string_contains(text, "Cage       Dirty boxer (red) holds him on the fence 20.0% of the fight, drives 2.0 of 3.0 won, spin-offs 0.0 of 0.0 · Boxer (blue) 5.0%, 0.0 of 0.0, 1.0 of 4.0 (D220)")
+
+
 func test_the_sambo_fighter_is_reported_against_the_strikers_the_wrestler_and_the_bjj_fighter() -> void:
 	var rows: Array[Dictionary] = [
 		_row({ "red": "sambo", "blue": "bjj", "winner_id": "bjj" }),

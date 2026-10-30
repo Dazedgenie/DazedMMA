@@ -53,7 +53,7 @@ const BAND_SPOTS := {
 	Octagon.BAND_POCKET: [Octagon.MIN_GAP, Octagon.POCKET_WITHIN - 0.05],
 }
 ## Flags that come from how a fighter is or where they stand, not from a move: anyone sees them.
-const STATE_FLAGS := { "HANDS_LOW": true, "BACK_TO_CAGE": true }
+const STATE_FLAGS := { "HANDS_LOW": true, "BACK_TO_CAGE": true, "HELD_ON_FENCE": true }
 ## The opponent knocked down (D141, D142): the chance a free tick of following him down, or of a
 ## soccer kick or a stomp where the rules allow them (× 0.5 to 1.5 from the Risk leaning).
 const DOWNED_RATE: float = 0.3
@@ -274,6 +274,14 @@ const ESCAPE_SUB: float = 0.5
 ## Nobody ties up a head that's already tied.
 const COLLAR_RATE: float = 2.0
 const COLLARED_ESCAPE: float = 3.0
+## The cage clinch (D220, docs/01 §39). How much a fighter likes fighting on the fence is his
+## `fence_drive` tendency (1 when it isn't set, fence_liking): standing, he ties up an opponent
+## whose back is on the fence that many times as often, and in the clinch he drives to the fence
+## by it like any move's tendency. Holding the other man on the fence he works FENCE_WORK × as
+## often (knees, short punches, the shot) and breaks only 1 / fence_liking as often: he stays.
+## Held there himself, he picks the spin-off (and away) by how little he likes the clinch, as the
+## break, and turning him onto the fence by how much he likes it (clinch_liking).
+const FENCE_WORK: float = 1.0
 ## In a scramble: back to the feet × (1 − Base / 100), the top × (1 + Base / 100).
 ## Switching direction (D107): away from the fence (further than SWITCH_FENCE), circling
 ## fighters think again every SWITCH_EVERY ticks and change direction on a chance of
@@ -773,10 +781,14 @@ func _tied(view: FightView, layer: DecisionLayer) -> Decision:
 	var rate: float = SCRAMBLE_RATE
 	var collared: bool = position == PositionLibrary.CLINCH and f.tied_up_ticks > 0
 	var holding: bool = position == PositionLibrary.CLINCH and view.opponent.tied_up_ticks > 0
+	var fenced: bool = position == PositionLibrary.CLINCH and view.held_on_fence()
+	var fencing: bool = position == PositionLibrary.CLINCH and view.opponent_held_on_fence()
 	if position == PositionLibrary.CLINCH:
 		rate = CLINCH_RATE * f.work_rate
 		if collared or holding:
 			rate *= COLLAR_RATE
+		if fencing:
+			rate *= FENCE_WORK
 	elif view.my_role() == PositionLibrary.TOP:
 		return _pound(view, layer)
 	elif position != PositionLibrary.SCRAMBLE:
@@ -813,6 +825,20 @@ func _tied(view: FightView, layer: DecisionLayer) -> Decision:
 				if collared:
 					w *= COLLARED_ESCAPE
 					reason = "fights out of the collar tie"
+				if fenced:
+					reason = "fights off the fence"
+				elif fencing:
+					w /= maxf(1.0, fence_liking(f))  # He's got him where he wants him.
+			FightSim.FENCE_DRIVE:
+				if fencing or fenced or not view.drive().is_empty():
+					w = 0.0  # Already on the fence, or walking there.
+				reason = "drives him to the fence"
+			FightSim.SPIN_OFF:
+				w *= maxf(CLINCH_BREAK_MIN, 1.0 - base - range_leaning / 2.0)  # Wants out, like the break.
+				reason = "spins off the fence"
+			FightSim.TURN_HIM:
+				w *= clinch_liking(base * 100.0, range_leaning * 100.0)  # Wants to stay, with him on the fence.
+				reason = "turns him onto the fence"
 			FightSim.COLLAR_TIE:
 				if holding:
 					w = 0.0
@@ -1081,6 +1107,11 @@ static func style_weight(base_leaning: float, action: Dictionary) -> float:
 	return 1.0
 
 
+## How much a fighter likes fighting on the fence (D220): his `fence_drive` tendency, 1 if unset.
+static func fence_liking(f: FighterState) -> float:
+	return float(f.tendencies.get(FightSim.FENCE_DRIVE, 1.0))
+
+
 ## How much a fighter likes tying up (0–1): Base / 100 + Range / 200. Grapplers and
 ## inside fighters clinch; outside strikers don't.
 static func clinch_liking(base_leaning: float, range_leaning: float) -> float:
@@ -1137,8 +1168,8 @@ func _pick(view: FightView, weights: Array[float]) -> int:
 
 ## Odds with only what anyone can see (the opponent's state flags), no reads.
 func _seen_chance(_view: FightView, action: Dictionary, b: OddsBreakdown) -> float:
-	if _needs_opening(action):
-		return 0.0
+	if _needs_opening(action) or b.missing.begins_with("own "):
+		return 0.0  # A read has to spot it, or it needs his own back on the fence and it isn't (D220).
 	var bonus: float = 0.0
 	for x: Dictionary in b.bonuses:
 		if STATE_FLAGS.has(x.name):
@@ -1153,7 +1184,7 @@ static func _plain_chance(b: OddsBreakdown) -> float:
 ## True for moves that only work with an opening a read has to spot (the catch-kick).
 static func _needs_opening(action: Dictionary) -> bool:
 	for opp: Dictionary in action.opportunities:
-		if opp.get("required", false) and not STATE_FLAGS.has(opp.get("opponent_flag", "")):
+		if opp.get("required", false) and opp.has("opponent_flag") and not STATE_FLAGS.has(opp.opponent_flag):
 			return true
 	return false
 

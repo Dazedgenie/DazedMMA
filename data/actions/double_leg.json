@@ -17,6 +17,7 @@
 		{ "opponent_flag": "BACK_TO_CAGE", "success_bonus": 0.15 },
 		{ "opponent_flag": "LEANING", "success_bonus": 0.10 },
 		{ "opponent_flag": "BIT_ON_FEINT", "success_bonus": 0.10 },
+		{ "own_flag": "HELD_ON_FENCE", "success_bonus": 0.15 },
 		{ "own_flag": "BLIND_SHOT", "success_bonus": -0.20 }
 	],
 	"requires_technique": null

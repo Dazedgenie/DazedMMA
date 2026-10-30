@@ -197,6 +197,9 @@ func test_values_come_from_the_allowed_lists() -> void:
 				problems.append("action '%s': %s.partial_within is a chance, 0 or more" % [id, category])
 			elif block.has("ties_up_ms") and ((category != "ground" and category != "clinch") or not block.ties_up_ms is float or block.ties_up_ms <= 0.0):
 				problems.append("action '%s': ties_up_ms (how long a tie-up breaks the opponent's posture) is a ground or clinch move's, in ms (D121, D129)" % id)
+			elif (block.has("drives_m") or block.has("turns")) and (category != "clinch" or not block.get("drives_m", 1.0) is float \
+					or block.get("drives_m", 1.0) <= 0.0 or not block.get("turns", false) is bool):
+				problems.append("action '%s': drives_m (metres walked back to the fence, above 0) and turns (true or false) are a clinch move's (D220)" % id)
 			elif (block.has("throw") or block.has("landing_damage")) and (category != "takedown" or not block.get("throw", false) is bool \
 					or not block.get("landing_damage", 0.0) is float or block.get("landing_damage", 0.0) < 0.0):
 				problems.append("action '%s': throw (true or false) and landing_damage (0 or more) are a takedown's (D128)" % id)
@@ -261,8 +264,8 @@ func test_references_point_to_things_that_exist() -> void:
 			if o.has("own_flag") == o.has("opponent_flag"):
 				problems.append("%s: each opportunity names one flag, opponent_flag or own_flag" % where)
 			_expect_key(problems, where, "flag", o.get("own_flag", o.get("opponent_flag")), flags)
-			if o.has("own_flag") and o.get("required", false):
-				problems.append("%s: only an opponent_flag opportunity can be required" % where)
+			if o.has("own_flag") and o.get("required", false) and o.own_flag != "HELD_ON_FENCE":
+				problems.append("%s: an own_flag opportunity can be required only for HELD_ON_FENCE (the spin-off, D220)" % where)
 			if o.has("ai_takes") and (not o.ai_takes is bool or not o.get("required", false)):
 				problems.append("%s: ai_takes (true or false) goes on a required opening (D128)" % where)
 			if o.has("target") and o.target not in ["head", "body", "legs"]:
@@ -426,8 +429,8 @@ func test_position_transitions_lead_somewhere_real() -> void:
 			_expect_ids(problems, where, "positions", [t.get("to")])
 			if t.get("from_role") not in p.get("roles", []):
 				problems.append("%s: transition '%s' starts from role '%s', not one of %s" % [where, t.get("action"), t.get("from_role"), p.get("roles", [])])
-			if t.get("result", "success") not in ["success", "partial", "failed"]:
-				problems.append("%s: transition '%s' has result '%s', not success, partial or failed" % [where, t.get("action"), t.get("result")])
+			if t.get("result", "success") not in ["success", "partial", "failed", "pressed"]:
+				problems.append("%s: transition '%s' has result '%s', not success, partial, failed or pressed" % [where, t.get("action"), t.get("result")])
 			var key: String = "%s/%s/%s" % [t.get("action"), t.get("from_role"), t.get("result", "success")]
 			if seen.has(key):
 				problems.append("%s: '%s' from '%s' (%s) is listed twice" % [where, t.get("action"), t.get("from_role"), t.get("result", "success")])

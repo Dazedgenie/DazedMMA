@@ -2407,3 +2407,123 @@ a good kicker hides his kicks from it, too early does nothing, it doesn't stop p
 straight punches and the uppercut punishes it; through the guard half the head damage and the body open; a covered rocked man
 has his hands up and the referee lets it go on; the AI checks what it reads, only a fighter who knows the slip slips and counters
 off it, and covers up when rocked, always on *Survive!*).
+
+## 39. The cage clinch: driving him to the fence, holding him there and getting off it (D220)
+Kyle asked for fighters to be "pushed and held up against the cage more", leaning into the grapplers and dirty boxers
+(2026-10-30). Before this the fence only mattered on the feet: fighters were backed onto it a lot (the Boxer was pinned 86% of
+his standing time against the Pressure wrestler), but nobody walked anyone onto it in the clinch, and two fighters tied up along
+the fence were both "pinned", so it changed nothing between them. Kyle picked who leans in (the Wrestler, Pressure wrestler,
+Ground-and-pound wrestler, Dirty boxer and Muay Thai fighter), how much (about a fifth of their fights on the fence, a real part
+of their game) and the balance rule (matchups inside 60/40 stay inside, and the ones already outside don't move further out). The
+walk-up to the fence on the feet (cutting the cage off) is the *Cut the cage* work (D230–D239, §20.2); this section starts once
+they're tied up. Every number is a first guess for the harness; each is a named constant or a data field, listed in §39.6.
+
+### 39.1 The moves
+All three are *everyone*'s (`basic`), clinch moves, and don't change the position on their own.
+
+| Move | Timing (telegraph · wind-up · active · recovery) | Odds (base + attack − defense stats) | What it does |
+|---|---|---|---|
+| Drive to the fence (`fence_drive.json`) | 0 · 0.2 · 0.3 · 0.2 s | 50% + (Clinch control, Strength) − (Clinch control, Strength). +10% on a head pulled down (the collar tie), −15% with his own pulled down | Walks the other man straight back, **1.5 m a second**, until his back is on the fence (or 4 m are used up). Still the clinch, chest to chest. The log says *"Dirty boxer DRIVES HIM TO THE FENCE"* |
+| Spin off the fence (`spin_off.json`) | 0 · 0.2 · 0.2 · 0.2 s | 55% + (Clinch control, Footwork) − (Clinch control, Strength). −15% with his own head pulled down | **Only for the man held on the fence.** Turns the two of them round and comes away: they're standing, and it's the other man's back on the fence now |
+| Turn him onto the fence (`turn_him.json`) | 0 · 0.2 · 0.3 · 0.2 s | 40% + (Clinch control, Strength) − (Clinch control, Strength). −15% with his own head pulled down | **Only for the man held on the fence.** Turns them round and keeps hold: still the clinch, the other man's back on it |
+
+### 39.2 Held on the fence
+In the clinch, the man whose back is on the fence (within 0.5 m of it, and nearer it than the other man) is **held on the fence**
+(the flag `HELD_ON_FENCE`). Tied up along the fence both can be within half a metre of it (`BACK_TO_CAGE` both, as before); only
+the one with his back to it is held. On the feet nobody is held: that's still `BACK_TO_CAGE` (§18).
+
+| | What changes | Where it lives |
+|---|---|---|
+| **He carries the weight** | 0.1 stamina a second more than the clinch already costs (0.4) | `FightSim.FENCE_HOLD_DRAIN_PER_S` |
+| **Knees and short punches** | The holder's knee, short uppercut and short hook are +5% on him | the `HELD_ON_FENCE` opportunity in `knee.json`, `short_uppercut.json`, `short_hook.json` |
+| **Getting out** | He breaks at −10% (−15% until D220, when it counted for both men along the fence); or spins off, or turns him (§39.1) | the `own_flag` `BACK_TO_CAGE` opportunity in `clinch_break.json` |
+| **The judges** | Time with the other man pinned on the fence scores control, as it already did (§11, `Judging.FENCE_CONTROL_PER_S`) | unchanged |
+| **A level change off it** | His own double leg from the clinch is +15% with his back on the fence (the fence holds him up for the shot). Without it the Wrestler held there by the clinch fighters lost 11–12 points of wins against each of them | the `own_flag` `HELD_ON_FENCE` opportunity in `double_leg.json` |
+
+Takedowns from the clinch on a man on the fence keep their +15% (§21.1).
+
+### 39.3 A shot on the fence
+A double leg at a man whose back was on the fence as it made contact, that **half works**, leaves the shooter on him, tied up
+against the fence (the clinch) one time in four, instead of the scramble: *"Wrestler's Double-leg takedown doesn't get him down,
+but he PRESSES HIM ON THE FENCE"*. No takedown points. It's the `pressed` transition in `data/positions/standing.json`
+(`09`), on a chance of `FightSim.PRESSED_CHANCE` (0.25). At 0.5, and with stuffed shots pressing him too, it put the Pressure
+wrestler at 90% against the Boxer (from 76%).
+
+### 39.4 The fighter AI and who leans in
+How much a fighter likes fighting on the fence is his **`fence_drive` tendency** (1 when it isn't set): it's how often he picks
+the drive, like any move's tendency, and how long he stays once he has the other man there.
+
+| Where | What the fighter does | To change it |
+|---|---|---|
+| In the clinch, in open space | Picks the drive by its tendency and odds. Never drives a man already held on the fence, or while a drive is under way | `fence_drive` in a fighter's `tendencies` |
+| Holding him on the fence | Breaks only 1 / `fence_drive` as often (he stays), and works his knees, short punches and shots from there | `FighterAI.fence_liking()`; `FENCE_WORK` (1.0: no extra work rate, see §39.5) |
+| Held on the fence himself | Spins off by how little he likes the clinch (the break's weight, 1 − Base/100 − Range/200), turns him by how much he likes it (`clinch_liking`) | `_tied()` in `sim/fight/fighter_ai.gd` |
+
+Who leans in (Kyle's pick): the Ground-and-pound wrestler at `fence_drive` 3, the Pressure wrestler at 2, the Wrestler, the
+Dirty boxer and the Muay Thai fighter at 1.5. Everyone else is at 1. Two things tried and taken out: tying up an opponent already pinned on
+the feet × `fence_drive` more often (it doubled the Dirty boxer's clinches against a Boxer he has on the fence 86% of the time,
+and put him at 78%), and holders working 1.25 × as often. The Dirty boxer's Clinch striking is **60 (was 65)**, to keep him
+near his old 65% against the Boxer now that he can hold him there.
+
+### 39.5 Balance
+Harness, no calls, 200 fights a pairing, seed 1, pro rules: main (D180) → now. Wins are the first-named fighter's; *held* is
+the share of the fight he had the other man on the fence in the clinch (the **Cage** line).
+
+| Pairing | Wins: main → now | Held on the fence now | Inside 60/40? |
+|---|---|---|---|
+| Kicker vs Boxer | 45% → 45% | – | yes, unchanged |
+| Wrestler vs Kicker | 51.5% → 51.5% | 0% | yes, unchanged |
+| Wrestler vs Boxer | 65% → 65.5% | 0.3% | outside, unchanged |
+| Pressure wrestler vs Kicker | 95% → 96.5% | 0.1% | outside, about the same |
+| Pressure wrestler vs Boxer | 73.5% → 77% | 2.8% | outside, **3.5 points further** |
+| Ground-and-pound wrestler vs Kicker / Boxer | 81% / 85% → 80.5% / 83.5% | 0.1% / 0.2% | outside, unchanged |
+| Dirty boxer vs Kicker | 12.5% → 12.5% | 1.4% | outside, unchanged |
+| Dirty boxer vs Boxer | 62% → 67.5% | **40%** | outside, **5.5 points further** |
+| Dirty boxer vs Wrestler | 59% → 59% | 11.5% | yes, unchanged |
+| Dirty boxer vs Muay Thai | 19% → 54% | 34% | **now inside** |
+| Muay Thai vs Kicker | 79% → 75.5% | 1.6% | outside, closer |
+| Muay Thai vs Boxer | 53% → 55% | 9.4% | yes |
+| Muay Thai vs Wrestler | 66.5% → 70.5% | 7.1% | outside, **4 points further** |
+| Judoka vs Boxer | 69.5% → 73% | 6.8% (he doesn't lean in: these start on the fence) | outside, **3.5 points further** |
+| Judoka vs Wrestler | 77% → 85.5% | 6% | outside, **8.5 points further** |
+| BJJ vs Boxer | 56.5% → 57.5% | 0.4% | yes |
+| Sambo vs Boxer | 68.5% → 63% | 0% | outside, closer |
+
+What it says:
+- **The clinch fighters live on the fence now.** The Dirty boxer has the Boxer's back on the fence for 40% of the fight and the
+  Muay Thai fighter's for a third; the Muay Thai fighter holds the Boxer there about a tenth of the fight (with about 5 drives).
+- **The wrestlers hardly get there yet (0–3%).** They shoot from where they stand rather than tie up, and against the Kicker
+  and the Boxer the opponent is seldom pinned in reach of a clinch: getting him there is the walk-up (*Cut the cage*, D230–D239).
+  Weighting their clinch entries on a pinned man by their liking for the fence didn't move it (and put the Dirty boxer at 78%
+  against the Boxer when it applied to him), so it was taken out.
+- **Inside 60/40 stays inside**, and Dirty boxer vs Muay Thai comes in from 19/81. **Five matchups that were already outside moved
+  3.5–8.5 points further out** (the Dirty boxer and the Pressure wrestler against the Boxer, Muay Thai and the Judoka against the
+  Wrestler, the Judoka against the Boxer); Kyle's rule says they shouldn't, so they're the next thing to tune. 100-fight runs
+  swing ±5 points, so read these at 200 fights or more.
+- Tuning tried, so nobody walks the same dead ends: the man on the fence tiring 0.4 a second and the holder's knees +10% (the Dirty
+  boxer at 86–92% against the Boxer); spin-offs that only turned him round, so the striker never got out (the same); a stuffed shot
+  on the fence pressing him there half the time (the Pressure wrestler at 90% against the Boxer).
+
+Golden fights (§2.2): one of the four changes (Wrestler vs Boxer with the sprawl rule: the Boxer holds the Wrestler on the fence
+now and then and spins off it), re-pinned.
+
+### 39.6 To change it, and the tests
+- The moves: `data/actions/fence_drive.json` (`clinch.drives_m`, 4), `spin_off.json`, `turn_him.json` (`clinch.turns`; `09`
+  action@2); the spin-off comes away because `data/positions/clinch.json` sends it to standing.
+- Held on the fence: `FightSim.held_on_fence()`, `HELD_ON_FENCE`, `FENCE_HOLD_DRAIN_PER_S` (0.1), `DRIVE_SPEED` (1.5 m/s),
+  `_drive_step()`, `_turn()`; the knee and short-punch bonuses in their files; the break in `clinch_break.json`.
+- A shot on the fence: `FightSim.PRESSED_CHANCE` (0.25), `_pressed_on_fence()`, the `pressed` transition in `standing.json`.
+- The AI: `FighterAI.fence_liking()`, `FENCE_WORK`, the `clinch_break`, `fence_drive`, `spin_off` and `turn_him` cases in `_tied()`;
+  who leans in: `fence_drive` in `data/fighters/*.json`.
+- The harness: a **Cage** line for every pairing (time each fighter held the other on the fence, drives and spin-offs tried and
+  won) and CSV columns `fence_hold_*`, `fence_drives_*`, `fence_drives_won_*`, `spin_offs_*`, `spin_offs_won_*` (spin-offs
+  count turning him too).
+- The feed lines: `ui/fight_log_formatter.gd`.
+
+Tested in `tests/sim/fight/test_cage_clinch.gd` (who is held, along the fence only the one nearer it, not on the feet; he tires
+faster; the knees and short punches; the judges; a drive walks him back at its pace onto the fence and stops when the clinch
+does; spinning off comes away with the other man on the fence, turning him keeps the clinch, only the man on the fence can do
+either; a shot on the fence that half works presses him there about a quarter of the time, never in open space; the AI drives
+by its liking, never a man already there, stays when it likes it, works to get off it; who leans in; the Dirty boxer holds
+the Boxer on the fence in real fights), `tests/sim/balance/test_balance_report.gd` (the Cage line), `tests/ui/test_fight_log_formatter.gd`
+and `tests/data/test_data_files.gd` (`drives_m`, `turns`, a required `HELD_ON_FENCE`, the `pressed` result).

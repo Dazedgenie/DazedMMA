@@ -408,6 +408,11 @@ func _pair_lines(of_rows: Array[Dictionary], names: Dictionary) -> PackedStringA
 	lines.append("  Clinch     %s collar ties %.1f of %.1f won, knees landed %.1f (%.1f from the tie) · %s %.1f of %.1f, %.1f (%.1f) (D129)" % [
 		red, average(of_rows, "collar_ties_won_red"), average(of_rows, "collar_ties_red"), average(of_rows, "clinch_knees_red"), average(of_rows, "tied_knees_red"),
 		blue, average(of_rows, "collar_ties_won_blue"), average(of_rows, "collar_ties_blue"), average(of_rows, "clinch_knees_blue"), average(of_rows, "tied_knees_blue")])
+	lines.append("  Cage       %s holds him on the fence %s of the fight, drives %.1f of %.1f won, spin-offs %.1f of %.1f · %s %s, %.1f of %.1f, %.1f of %.1f (D220)" % [
+		red, _pct(average(of_rows, "fence_hold_red")), average(of_rows, "fence_drives_won_red"), average(of_rows, "fence_drives_red"),
+		average(of_rows, "spin_offs_won_red"), average(of_rows, "spin_offs_red"),
+		blue, _pct(average(of_rows, "fence_hold_blue")), average(of_rows, "fence_drives_won_blue"), average(of_rows, "fence_drives_blue"),
+		average(of_rows, "spin_offs_won_blue"), average(of_rows, "spin_offs_blue")])
 	lines.append("  Positions  full guard %s · half guard %s · side control %s · mount %s · back %s of the fight · better positions on top %s %.1f, %s %.1f · out from under %s %.1f, %s %.1f a fight (D130)" % [
 		_pct(average(of_rows, "full_guard")), _pct(average(of_rows, "half_guard")), _pct(average(of_rows, "side_control")),
 		_pct(average(of_rows, "mount")), _pct(average(of_rows, "back_control")),
