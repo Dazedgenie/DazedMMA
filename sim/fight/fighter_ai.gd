@@ -383,10 +383,9 @@ var _feet_gap: float = 0.0
 var _feet_outside: float = 0.0
 var _feet_cut: float = 0.0
 ## How fast the opponent walks toward this fighter (m per tick, negative = away),
-## from where they were seen last; and whether this advance has been met already.
+## from their latest step (D253); and whether this advance has been met already.
 var _closing: float = 0.0
 var _seen_at: int = -1
-var _seen_pos: Vector2 = Vector2.ZERO
 var _met_advance: bool = false
 ## action id → landing record (0–1).
 var _working: Dictionary = {}
@@ -1314,12 +1313,13 @@ func _odds(view: FightView, id: String) -> OddsBreakdown:
 func _track(view: FightView) -> void:
 	var o: FighterState = view.opponent
 	if _seen_at >= 0 and view.now > _seen_at:
-		var step: Vector2 = (o.pos - _seen_pos) / float(view.now - _seen_at)
+		# His latest step, not how far he got since this fighter last looked: with the two taking
+		# turns to step first, he may have stepped twice since then or not at all (D253).
+		var step: Vector2 = view.opponent_stride()
 		var to_me: Vector2 = view.me.pos - o.pos
 		var toward: float = step.dot(to_me.normalized()) if to_me.length() > 0.0 else 0.0
 		_closing = lerpf(_closing, toward, CLOSING_MEMORY)
 	_seen_at = view.now
-	_seen_pos = o.pos
 
 
 ## True once the opponent's current move has registered with this fighter (read, a

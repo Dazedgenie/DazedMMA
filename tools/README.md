@@ -43,8 +43,8 @@ seeds:
     godot --headless --script res://tools/balance_compare.gd -- --before=build/before/balance.csv --after=build/balance/balance.csv --columns=shots_red
 
 `mirror_check.gd` checks a fight has no corner built in (D252, `docs/01` §2.5): it plays `--red` vs `--blue` on `--seed`,
-and the same two in the other corners with blue stepping first, and prints the tick where the two stop mirroring each other.
-The harness's `--blue-first` plays a whole run with blue stepping first.
+and the same two in the other corners with blue stepping first on the first tick (the two then take turns, D253), and prints
+the tick where the two stop mirroring each other. The harness's `--blue-first` plays a whole run that way.
 
     godot --headless --script res://tools/mirror_check.gd -- --red=kicker --blue=boxer --seed=1
 

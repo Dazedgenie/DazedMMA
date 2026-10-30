@@ -194,15 +194,15 @@ Wrestler's calls chose about 17% of his moves against the Kicker (12 fights).
 (`BalanceReport._change`, `BalanceCompare.report`) and what `run.json` holds (`tools/balance.gd`). Tests:
 `tests/sim/balance/test_balance_stats.gd`, `test_balance_report.gd`, `test_balance_compare.gd`, `test_fight_summary.gd`.
 
-### 2.5 Neither corner has an edge (D252)
+### 2.5 Neither corner has an edge (D252, D253)
 
-The two fighters take turns inside each tick: red steps first (decides, moves, starts and lands his move), then blue
-(`FightSim.step_order`, `[0, 1]` in every real fight). That's the only difference between the corners. Everything that
-used to go by a fighter's number now goes by the step order instead: when a move started this tick is first seen (the
+The two fighters step one after the other inside each tick: one decides, moves, starts and lands his move, then the other
+(`FightSim.step_order`). Until D253 red always stepped first; now they take turns, a tick each (below). That order is the
+only difference between the corners. Everything that used to go by a fighter's number now goes by the step order instead: when a move started this tick is first seen (the
 other fighter sees it next tick if it started after his own step: `FightView.steps_after_me`, used by the AI's reads, the
 drilled rules and the live calls' reads), which fighter rolls first when an event comes in (`FightSim._emit`), and the
-judges' noise (round cards and PRIDE's whole-fight judging). None of that changed a fight, because the step order is the
-same as before.
+judges' noise (round cards and PRIDE's whole-fight judging). None of that changed a fight on its own
+(D252 kept red stepping first).
 
 **What the step order is worth** (2026-10-30, 400 fights each of Kicker, Boxer and Wrestler against themselves, played once
 with red stepping first and once with blue): whoever stepped second won about 51% and whoever stepped first about 48%
@@ -224,9 +224,43 @@ stepping first (its summary says so at the top), so `tools/balance_compare.gd` c
 the other, in a fixed order (`Octagon.keep_inside`), so the mirror of that spot can come out a few millimetres different and
 the two fights part from there. It favours no corner (both fighters use every part of the cage); the test's seeds avoid it.
 
-**Not changed yet:** the step-order edge itself. Taking turns to step first, or both fighters moving at once from where they
-stood at the start of the tick, would remove it but changes every fight (the golden fights get re-pinned), so it waits for
-Kyle's call.
+**Taking turns (D253, Kyle picked it 2026-10-30).** Red steps first on even ticks and blue on odd ticks
+(`FightSim.first_at`; `first_step` says who has the fight's first tick, 0 = red, and only the corner check sets it to 1). At
+10 ticks a second the two swap ten times a second, so neither keeps the edge of stepping second. Two parts of the AI had
+quietly assumed the old order and had to change with it:
+
+- **How fast the opponent is walking in.** The AI's tracking (`FighterAI._track`) used to measure it from where the
+  opponent stood when it last looked. With a fixed order that gap was always exactly one of his steps; with turns it is
+  sometimes two steps and sometimes none, so the Kicker read the Boxer as charging one tick and standing still the next and
+  stopped keeping his range (Kicker vs Boxer fell to 5%, Wrestler vs Kicker rose to 97%). It now reads the opponent's
+  latest step itself (`FightView.opponent_stride`), which is the same whatever the order.
+- **When his move lands.** The AI's look ahead ("his move hits in 3 ticks", "he's winded for 4 more") counts ticks from
+  where it stands. Whether the other fighter's counters have already ticked down this tick depends on who stepped first,
+  and that now changes tick to tick, so the look ahead counts the other fighter's turns instead
+  (`FightSim.turns_before`, used by `phase_ahead` and `flags_ahead`).
+
+**What it did** (2026-10-30, 100 fights a pairing, seed 1, before → after): Kicker vs Boxer 47 → 49% (Kicker), Wrestler vs
+Kicker 61 → 68%, Wrestler vs Boxer 73 → 59%, Judoka vs Kicker 21 → 29%, Judoka vs Boxer 75 → 61%, Judoka vs Wrestler 88 → 87%,
+BJJ vs Kicker 11 → 7%, BJJ vs Boxer 54 → 61%, BJJ vs Wrestler 75 → 73%, Muay Thai vs Kicker 84 → 80%, vs Boxer 60 → 61%, vs
+Wrestler 66 → 77%, the check fighters 74 → 70% (the first fighter named wins). At 100 fights a pairing the 95% range is about
+±10 points, so most of these are the dice; Wrestler vs Boxer, Judoka vs Boxer and Muay Thai vs Wrestler moved more than that.
+
+**The mirrors after it** (400 fights each, seed 1): Kicker mirror red 48.0% blue 50.5%, Boxer mirror 50.7% against 49.2%,
+Wrestler mirror 49.0% against 50.7%, so the corners now win the same within the dice. One thing still leans: in the Boxer and
+Wrestler mirrors the fighter who steps second on the first tick is "nearer the centre" more often (blue 59% of standing time
+against 40% in the Boxer mirror; 59% against 39% the other way round with `--blue-first`; the Kicker mirror is 50/50). It is the
+same on the ticks where red steps first and the ticks where blue does, and the two stand on average within 6 cm of the same
+distance from the centre (40 Boxer mirrors: 1.56 m and 1.62 m), so it's which of the two is a hair further inside, set early
+and kept, rather than an edge in the fight. Worth watching if a later change makes holding the centre count for more.
+
+Every fight is different from before, so the golden fights were re-pinned, and five tests that had counted on red stepping
+first were changed: two toy fights in `test_fighter_ai.gd` use seed 1 (on the old seed the toy Kicker now stands off and
+barely kicks), *Fire back!*'s timing allows for which fighter stepped first on the tick of the miss, the self-check test
+uses seed 4 for seed 2 (which now ends in a guillotine before the bell), and the fight screen's between-rounds test uses a
+fight that reaches round 2 (and can no longer wait forever on one that doesn't).
+
+**To change it:** `FightSim.first_at` is the whole rule. Making both fighters move at once from where they stood at the start
+of the tick would be the other way to remove the edge; it is a bigger change (every move would need resolving in pairs).
 ---
 
 ## 3. Spatial model (D2, D33)

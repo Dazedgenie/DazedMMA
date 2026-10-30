@@ -41,10 +41,15 @@ func _init(p_sim: FightSim, p_index: int) -> void:
 	_situation = p_sim.situation
 
 
-## True when fighter `actor` steps after this one each tick, so what they start this tick is
-## first seen on the next (FightSim.steps_later; red steps first in every real fight).
+## True when fighter `actor` steps after this one this tick, so what they start this tick is
+## first seen on the next (FightSim.steps_later; the two take turns stepping first, D253).
 func steps_after_me(actor: int) -> bool:
 	return _sim().steps_later(actor, index)
+
+
+## The opponent's latest step on their feet (FightSim.last_stride).
+func opponent_stride() -> Vector2:
+	return _sim().last_stride(1 - index)
 
 
 func band() -> String:

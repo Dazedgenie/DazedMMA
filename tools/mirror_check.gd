@@ -1,7 +1,7 @@
 extends MainLoop
 ## Checks a fight has no corner built into it (D252, docs/01 §2.5): plays --red vs --blue on
-## --seed with red stepping first, as every real fight does, and the same two fighters in the
-## other corners with blue stepping first. Those two should be the same fight mirrored through
+## --seed with red stepping first on the first tick, as every real fight does (they take turns after,
+## D253), and the same two fighters in the other corners with blue stepping first on it. Those two should be the same fight mirrored through
 ## the cage's centre. Prints the first tick where they part, with each one's last events, or
 ## that they never did.
 ##
@@ -33,7 +33,7 @@ func _initialize() -> void:
 			return
 	var usual: FightSim = FightSummary.setup(fight_seed, roster, actions, red, blue, rounds, seconds)
 	var swapped: FightSim = FightSummary.setup(fight_seed, roster, actions, blue, red, rounds, seconds)
-	swapped.step_order = [1, 0]
+	swapped.first_step = 1
 	var tick: int = MirrorCheck.first_difference(usual, swapped)
 	if tick < 0:
 		print("%s vs %s, seed %d: the same fight both ways round, %d ticks, %d events." % [red, blue, fight_seed, usual.now, usual.events.size()])

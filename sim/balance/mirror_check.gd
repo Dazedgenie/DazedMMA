@@ -1,8 +1,8 @@
 class_name MirrorCheck
 extends RefCounted
-## Plays a fight and its mirror tick by tick (D252, docs/01 §2.5): `usual` has red stepping
-## first, `swapped` the same two fighters in the other corners with blue stepping first
-## (FightSim.step_order). With no corner built into the engine they're the same fight, each
+## Plays a fight and its mirror tick by tick (D252, D253, docs/01 §2.5): `usual` has red stepping
+## first on the first tick, `swapped` the same two fighters in the other corners with blue stepping
+## first on it (FightSim.first_step; they take turns after). With no corner built into the engine they're the same fight, each
 ## fighter's spot turned half way round the cage's centre.
 
 

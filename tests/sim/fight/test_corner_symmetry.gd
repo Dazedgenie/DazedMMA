@@ -1,7 +1,7 @@
 extends GutTest
 ## Neither corner has an edge built into the engine (D252, docs/01 §2.5): the only difference
-## between red and blue is that red steps first each tick. Two fighters on a seed, and the same
-## two in the other corners with blue stepping first, are the same fight mirrored through the
+## between red and blue is that red steps first on the first tick (they take turns after, D253). Two fighters on a seed, and the same
+## two in the other corners with blue stepping first on it, are the same fight mirrored through the
 ## cage's centre (MirrorCheck).
 ##
 ## If one of these fails after a change, run tools/mirror_check.gd on it to see the tick the
@@ -22,7 +22,7 @@ func before_all() -> void:
 func _parts_at(red: String, blue: String, fight_seed: int) -> int:
 	var usual: FightSim = FightSummary.setup(fight_seed, _roster, _actions, red, blue, 1, 120)
 	var swapped: FightSim = FightSummary.setup(fight_seed, _roster, _actions, blue, red, 1, 120)
-	swapped.step_order = [1, 0]
+	swapped.first_step = 1
 	return MirrorCheck.first_difference(usual, swapped)
 
 
@@ -49,5 +49,5 @@ func test_a_grappler_against_a_striker_plays_the_same_from_either_corner() -> vo
 func test_the_mirror_check_spots_fights_that_part() -> void:
 	var usual: FightSim = FightSummary.setup(1, _roster, _actions, "boxer", "boxer", 1, 120)
 	var other_seed: FightSim = FightSummary.setup(2, _roster, _actions, "boxer", "boxer", 1, 120)
-	other_seed.step_order = [1, 0]
+	other_seed.first_step = 1
 	assert_gt(MirrorCheck.first_difference(usual, other_seed), -1, "two different fights")
