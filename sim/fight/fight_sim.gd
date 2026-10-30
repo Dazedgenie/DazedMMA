@@ -292,6 +292,9 @@ var command_log: Array[FightCommand] = []
 var judge_totals: Array = []
 
 var _rng := RandomNumberGenerator.new()
+## Which fighter steps first each tick: red, then blue. Only the corner-lean check swaps it
+## (D252, docs/01 §2.5), to see what stepping second is worth; fights never do.
+var step_order: Array[int] = [0, 1]
 var _pending: Array[FightCommand] = []
 var _fight_over: bool = false
 var _round_points: Array[float] = [0.0, 0.0]  # effective striking this round, by who scored it
@@ -462,7 +465,7 @@ func tick() -> void:
 	if _fight_over:  # The towel came in.
 		now += 1
 		return
-	for i in fighters.size():
+	for i in step_order:
 		_advance_fighter(i)
 		if _fight_over:
 			now += 1
@@ -481,6 +484,12 @@ func tick() -> void:
 	if clock.tick():
 		_end_round()
 	now += 1
+
+
+## True when fighter `a` steps after fighter `b` each tick (step_order): what `a` starts in a
+## tick, `b` first sees on the next one.
+func steps_later(a: int, b: int) -> bool:
+	return step_order.find(a) > step_order.find(b)
 
 
 func distance() -> float:
@@ -2070,11 +2079,11 @@ func _end_round() -> void:
 		return
 	var cards: Array = []
 	for j in Judging.JUDGES:
-		var seen: Array[float] = []
-		var aggression: Array[float] = []
-		for i in 2:
-			seen.append(_round_points[i] * (1.0 + _rng.randf_range(-Judging.JUDGE_NOISE, Judging.JUDGE_NOISE)))
-			aggression.append(_round_aggression[i] * (1.0 + _rng.randf_range(-Judging.JUDGE_NOISE, Judging.JUDGE_NOISE)))
+		var seen: Array[float] = [0.0, 0.0]
+		var aggression: Array[float] = [0.0, 0.0]
+		for i in step_order:  # In step order, so a fight with blue stepping first is the mirror of red first (D252).
+			seen[i] = _round_points[i] * (1.0 + _rng.randf_range(-Judging.JUDGE_NOISE, Judging.JUDGE_NOISE))
+			aggression[i] = _round_aggression[i] * (1.0 + _rng.randf_range(-Judging.JUDGE_NOISE, Judging.JUDGE_NOISE))
 		var card: Array[int] = Judging.round_card(seen, _round_knockdowns, [aggression, _round_control], _round_impact)
 		judge_totals[j][0] += card[0]
 		judge_totals[j][1] += card[1]
@@ -2133,9 +2142,9 @@ func _whole_fight_verdict() -> void:
 	for j in Judging.JUDGES:
 		var seen: Dictionary = {}
 		for what: String in Judging.WHOLE_FIGHT_ORDER:
-			seen[what] = []
-			for i in 2:
-				seen[what].append(float(_fight_scores[what][i]) * (1.0 + _rng.randf_range(-Judging.JUDGE_NOISE, Judging.JUDGE_NOISE)))
+			seen[what] = [0.0, 0.0]
+			for i in step_order:  # As the round cards (D252).
+				seen[what][i] = float(_fight_scores[what][i]) * (1.0 + _rng.randf_range(-Judging.JUDGE_NOISE, Judging.JUDGE_NOISE))
 		var pick: Dictionary = Judging.whole_fight_pick(seen)
 		picks.append(int(pick.winner))
 		on.append(String(pick.on))
@@ -2194,7 +2203,7 @@ func _emit(type: String, actor: int = FightEvent.NO_ACTOR, data: Dictionary = {}
 		return  # Nothing happens after the end, even later in the same tick (a call answered as the KO lands).
 	var event := FightEvent.new(now, clock.current_round, type, actor, data)
 	events.append(event)
-	for k in decisions.size():
+	for k in step_order:  # Both see it in step order, as they roll their reactions (D252).
 		decisions[k].on_event(views[k], event)
 		if corners[k] != null:
 			corners[k].on_event(views[k], event)
