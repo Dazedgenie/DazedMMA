@@ -425,6 +425,7 @@ func _pair_lines(of_rows: Array[Dictionary], names: Dictionary) -> PackedStringA
 		red, _time_line(of_rows, "circling_red"), blue, _time_line(of_rows, "circling_blue"),
 		red, _time_line(of_rows, "cutting_red"), blue, _time_line(of_rows, "cutting_blue"),
 		red, average(of_rows, "cut_offs_red"), blue, average(of_rows, "cut_offs_blue")])
+	lines.append("  Cut off    %s · %s (D233)" % [_cut_off_line(of_rows, red, "red", "blue"), _cut_off_line(of_rows, blue, "blue", "red")])
 	lines.append("  Grappling  takedowns %s %.1f of %.1f a fight, %s %.1f of %.1f · clinch %s of the fight · ground %s (%s on top %s, %s on top %s)" % [
 		red, average(of_rows, "takedowns_red"), average(of_rows, "shots_red"), blue, average(of_rows, "takedowns_blue"), average(of_rows, "shots_blue"),
 		_pct(average(of_rows, "clinch")), _pct(average(of_rows, "ground")), red, _pct(average(of_rows, "top_red")), blue, _pct(average(of_rows, "top_blue"))])
@@ -483,6 +484,18 @@ static func _share_text(of_rows: Array[Dictionary], fraction: float) -> String:
 
 
 ## A fight-seconds column as "m:ss a fight (share of fight time)", e.g. "6:12 a fight (41%)" (D119).
+## Being cut off (D233), for one side: how often he got back to the middle of the times he was
+## cut off onto the fence, how long he was shut in, and what cutting him off cost the other man.
+static func _cut_off_line(of_rows: Array[Dictionary], who: String, side: String, other: String) -> String:
+	var trapped: float = average(of_rows, "cut_offs_" + other)
+	if trapped < 0.05:
+		return "%s never cut off" % who
+	var escaped: float = average(of_rows, "cage_escapes_" + side)
+	var seconds: int = roundi(average(of_rows, "shut_in_" + side))
+	return "%s got back to the middle %.1f of %.1f times a fight (%s), shut in %d:%02d, %.0f damage to the man cutting him off" % [
+		who, escaped, trapped, _pct(escaped / trapped if trapped > 0.0 else 0.0), seconds / 60, seconds % 60, average(of_rows, "cut_hurt_" + other)]
+
+
 static func _time_line(of_rows: Array[Dictionary], key: String) -> String:
 	var seconds: int = roundi(average(of_rows, key))
 	return "%d:%02d a fight (%.0f%%)" % [seconds / 60, seconds % 60, time_share(of_rows, key) * 100.0]

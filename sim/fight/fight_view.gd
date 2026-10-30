@@ -72,6 +72,25 @@ func circle_way() -> int:
 	return _sim_ref.get_ref().circle_sign(index)
 
 
+## Being cut off (D233), as the cutter's last read of this fighter's escape routes has it: which
+## way round him the best open route goes (±1, 0 = none), and whether every way out is shut.
+func way_out() -> int:
+	return _sim_ref.get_ref().way_out(index)
+
+
+func shut_in() -> bool:
+	return _sim_ref.get_ref().is_shut_in(index)
+
+
+## Shut in, which way round the cutter to burst out (±1), and whether the opponent is bursting out (D234).
+func burst_way() -> int:
+	return _sim_ref.get_ref().burst_way(index)
+
+
+func opponent_bursting() -> bool:
+	return _sim_ref.get_ref().is_bursting(1 - index)
+
+
 func distance() -> float:
 	return me.pos.distance_to(opponent.pos)  # As FightSim.distance(), without the trip through the sim.
 

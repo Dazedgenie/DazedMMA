@@ -221,10 +221,22 @@ const CUT_FROM: float = 3.0
 const CUT_EARLY: float = 0.5
 const CUT_CALLED_FROM: float = 1.0
 const CUT_FULL: float = 4.0
-## Aiming at the exit, not the man (D230): the cutter's spot leads the opponent's sideways
-## drift by CUT_LEAD_TICKS, as the cutter reads it. The read catches up with a change of
+## Aiming at the exit, not the man (D230, D233): the cutter steps the way (one of CUT_TURNS,
+## in degrees off straight at him) that leaves the opponent's best escape route worth least
+## (EscapeRoutes), thought again every ROUTES_EVERY ticks. The routes the opponent has been
+## drifting along are quicker for him; the cutter's read of that drift catches up with a change of
 ## direction by CUT_READ_BASE + CUT_READ_PER_SHARE × the cutter's Cage cutting share (vs
 ## the opponent's Footwork) of the gap each tick: a reversal fools a poor reader for longer.
+## Bursting out (D234): shut in, an outside fighter sprints round the cutter, his walking pace
+## and BURST_EXTRA more of it × his footwork edge (poor feet barely get any quicker), at
+## BURST_STAMINA × what the steps would cost.
+const BURST_EXTRA: float = 0.3
+const BURST_STAMINA: float = 2.0
+const CUT_TURNS: Array[float] = [0.0, 45.0, -45.0, 90.0, -90.0]
+const ROUTES_EVERY: int = 5
+## Holding the door shut (D230, D233): with every way out shut, the cutter mirrors him instead,
+## stepping toward the spot between him and the middle, as far from him as now, led CUT_LEAD_TICKS
+## ahead of his drift as the cutter reads it.
 const CUT_LEAD_TICKS: float = 5.0
 const CUT_READ_BASE: float = 0.1
 const CUT_READ_PER_SHARE: float = 0.5
@@ -332,6 +344,26 @@ var _cut_at: Array[int] = [-1000, -1000]
 ## The tick each fighter's cage proximity last turned to the centre (CUT_OFF_FROM_TICKS).
 var _centre_since: Array[int] = [0, 0]
 var _drift: Array[Vector2] = [Vector2.ZERO, Vector2.ZERO]
+## Escape routes (D233): each cutter's read of the opponent's ways out, when it was last walked,
+## and the step it picked (degrees off straight at him, CUT_TURNS). For the fighter being cut
+## off: which way round the cutter his best open route goes (±1, 0 = none) and whether every
+## route that keeps room off the fence is shut, as of the cutter's last read.
+var _routes: Array[EscapeRoutes] = [EscapeRoutes.new(), EscapeRoutes.new()]
+var _routes_at: Array[int] = [-1000, -1000]
+var _cut_turn: Array[float] = [0.0, 0.0]
+var _way_out: Array[int] = [0, 0]
+var _least_bad: Array[int] = [0, 0]
+## The last tick each fighter burst out (D234).
+var _burst_at: Array[int] = [-1000, -1000]
+var _shut_in: Array[bool] = [false, false]
+## Reported after the fight (D233), read-only: times each fighter got back to the middle after
+## being cut off onto the fence (cage_escapes vs the opponent's cut_offs), ticks each spent shut in
+## (every way out shut while being cut off), and damage each took while cutting the cage off.
+var cage_escapes: Array[int] = [0, 0]
+var shut_in_ticks: Array[int] = [0, 0]
+var cut_damage_taken: Array[int] = [0, 0]
+## Cut off onto the fence and not back in the middle yet (cage_escapes).
+var _trapped: Array[bool] = [false, false]
 ## How far each fighter moved on their last tick (zero when they stood still).
 var _strides: Array[Vector2] = [Vector2.ZERO, Vector2.ZERO]
 ## Walking pace (m per tick), footwork-contest share and footwork edge per fighter, as of _feet_at.
@@ -622,7 +654,7 @@ func _advance_fighter(i: int) -> void:
 		if situation.is_standing():
 			var feet: FeetPlan = decisions[i].plan_feet(seen)
 			if f.stagger_ticks <= 0:
-				_move(i, feet.want, feet.circle, feet.cut, feet.way, feet.anywhere)
+				_move(i, feet.want, feet.circle, feet.cut, feet.way, feet.anywhere, feet.burst)
 		var decision: Decision = decisions[i].decide(seen)
 		if not decision.is_idle():
 			_start_action(i, decision.action_id, decision)
@@ -716,7 +748,7 @@ func _refresh_feet() -> void:
 ## opponent's Footwork lets them, and close the distance with what's left of the step
 ## (the diagonal step). Good cutters start further from the fence; `anywhere` (the
 ## Cut the cage! call) starts at CUT_CALLED_FROM.
-func _move(i: int, want: float, circle: float, cut: float = 0.0, way: int = 0, anywhere: bool = false) -> void:
+func _move(i: int, want: float, circle: float, cut: float = 0.0, way: int = 0, anywhere: bool = false, burst: bool = false) -> void:
 	var f: FighterState = fighters[i]
 	var o: FighterState = fighters[1 - i]
 	var from: Vector2 = f.pos
@@ -724,6 +756,9 @@ func _move(i: int, want: float, circle: float, cut: float = 0.0, way: int = 0, a
 	var apart: float = gap.length()
 	var toward: Vector2 = gap.normalized() if apart > 0.0 else Vector2.RIGHT
 	var step: float = step_length(i)
+	if burst:
+		step *= 1.0 + BURST_EXTRA * _feet_edge[i]
+		_burst_at[i] = now
 	var radial: float = clampf(apart - want, -step, step)
 	if radial > 0.0 and _strides[1 - i].dot(toward) > 0.0:
 		radial *= _feet_edge[i]  # Chasing someone who's getting away.
@@ -740,6 +775,8 @@ func _move(i: int, want: float, circle: float, cut: float = 0.0, way: int = 0, a
 			across = _cut_step(i, toward, apart, step) * cut * fade * _cut_share[i]
 			cutting_ticks[i] += 1
 			_cut_at[i] = now
+			if _shut_in[1 - i]:
+				shut_in_ticks[1 - i] += 1
 	var stride: Vector2 = toward * radial
 	if across == Vector2.ZERO and radial > 0.0 and _strides[1 - i] != Vector2.ZERO:
 		var ahead: Vector2 = o.pos + _strides[1 - i] * (apart / step) * (1.0 - _share[1 - i])
@@ -759,7 +796,7 @@ func _move(i: int, want: float, circle: float, cut: float = 0.0, way: int = 0, a
 	# The fence stops the part of the step that goes into it; the rest slides along it.
 	f.pos = Octagon.keep_inside(f.pos + stride)
 	var effort: float = (f.pos - from).length() / step if step > 0.0 else 0.0
-	f.spend_stamina(MOVE_STAMINA_PER_S * effort * effort / FightClock.TICKS_PER_SECOND)
+	f.spend_stamina(MOVE_STAMINA_PER_S * effort * effort * (BURST_STAMINA if burst else 1.0) / FightClock.TICKS_PER_SECOND)
 	var after: Vector2 = f.pos - o.pos
 	if after.length() < Octagon.MIN_GAP:
 		f.pos = Octagon.keep_inside(o.pos + (after.normalized() if after.length() > 0.0 else -toward) * Octagon.MIN_GAP)
@@ -774,17 +811,58 @@ func _push(k: int, metres: float) -> void:
 		fighters[k].pos = Octagon.keep_inside(fighters[k].pos + away.normalized() * metres)
 
 
-## The sideways step that puts fighter k between the opponent and the middle of the cage,
-## as far from them as now, led ahead of the opponent's drift as k reads it (D230): at most a
-## step, and nothing while the opponent is right in the middle.
+## The sideways part of the step that shuts the opponent's best way out (D233): every
+## ROUTES_EVERY ticks fighter k walks the opponent's escape routes, tries each of CUT_TURNS
+## and keeps the one that leaves the best route worth least (straight at him when none is
+## better), and reads for the opponent which way out is open. Once every way is shut, he holds
+## it shut: mirroring him on the inside line (CUT_LEAD_TICKS). At most a step.
 func _cut_step(k: int, toward_opponent: Vector2, apart: float, step: float) -> Vector2:
-	var o: Vector2 = fighters[1 - k].pos
-	var out: float = o.length()
-	if out <= 0.01:
-		return Vector2.ZERO
-	var spot: Vector2 = o - o / out * apart + _drift[k] * CUT_LEAD_TICKS
+	var f: FighterState = fighters[k]
+	if now >= _routes_at[k] + ROUTES_EVERY or now < _routes_at[k]:
+		_routes_at[k] = now
+		var o: FighterState = fighters[1 - k]
+		var routes: EscapeRoutes = _routes[k]
+		routes.walk(o.pos, _step[1 - k], _drift[k])
+		var best: float = INF
+		for turn in CUT_TURNS:
+			var worth: float = routes.best_worth(Octagon.keep_inside(f.pos + toward_opponent.rotated(deg_to_rad(turn)) * step), step)
+			if worth < best - 0.001:
+				best = worth
+				_cut_turn[k] = turn
+		routes.read(f.pos, step, -toward_opponent)
+		_way_out[1 - k] = routes.way
+		_least_bad[1 - k] = routes.least_shut
+		_shut_in[1 - k] = not routes.open
 	var side := Vector2(-toward_opponent.y, toward_opponent.x)
-	return side * clampf((spot - fighters[k].pos).dot(side), -step, step)
+	if _shut_in[1 - k]:
+		var o: Vector2 = fighters[1 - k].pos
+		var out: float = o.length()
+		if out <= 0.01:
+			return Vector2.ZERO
+		var spot: Vector2 = o - o / out * apart + _drift[k] * CUT_LEAD_TICKS
+		return side * clampf((spot - f.pos).dot(side), -step, step)
+	return side * (toward_opponent.rotated(deg_to_rad(_cut_turn[k])).dot(side) * step)
+
+
+## Which way out fighter i's best open escape route goes round the opponent (±1, as
+## circle_sign), 0 when none is, and whether he's shut in (every way out shut), as of the
+## opponent's last read while cutting him off (D233). Only meaningful while is_cutting(1 − i).
+func way_out(i: int) -> int:
+	return _way_out[i]
+
+
+func is_shut_in(i: int) -> bool:
+	return _shut_in[i] and is_cutting(1 - i)
+
+
+## Shut in, which way round the cutter the least shut route goes (±1): where to burst out (D234).
+func burst_way(i: int) -> int:
+	return _least_bad[i] if _least_bad[i] != 0 else circle_sign(i)
+
+
+## Whether fighter i burst out on their last step (D234).
+func is_bursting(i: int) -> bool:
+	return _burst_at[i] >= now - 1
 
 
 ## Which way fighter k circles: sideways (relative to the opponent), `way` if the
@@ -821,8 +899,14 @@ func _update_space() -> void:
 		if _shown[1 + i] != was:
 			if was == Octagon.CAGE_CENTRE and now - _centre_since[i] >= CUT_OFF_FROM_TICKS and now - _cut_at[1 - i] <= CUT_OFF_TICKS:
 				cut_offs[1 - i] += 1
+				_trapped[i] = true
 			if _shown[1 + i] == Octagon.CAGE_CENTRE:
 				_centre_since[i] = now
+				if _trapped[i] and situation.is_standing():
+					cage_escapes[i] += 1  # Back to the middle after being cut off (D233).
+				_trapped[i] = false
+		if not situation.is_standing():
+			_trapped[i] = false  # Tied up or taken down: he didn't get out.
 		if proximity == Octagon.CAGE_PINNED:
 			_round_control[1 - i] += 1
 			if held_on_fence(i):
@@ -853,6 +937,12 @@ func _to_corners() -> void:
 	_cutting = [0.0, 0.0]
 	_strides = [Vector2.ZERO, Vector2.ZERO]
 	_drift = [Vector2.ZERO, Vector2.ZERO]
+	_routes_at = [-1000, -1000]
+	_shut_in = [false, false]
+	_way_out = [0, 0]
+	_least_bad = [0, 0]
+	_burst_at = [-1000, -1000]
+	_trapped = [false, false]
 	for i in fighters.size():
 		fighters[i].pos = START_POSITIONS[i]
 	_shown = [band(), cage_proximity(0), cage_proximity(1)]
@@ -1416,6 +1506,8 @@ func _land_strike(i: int, action: Dictionary) -> void:
 		scale *= float(actions.get_action(defender.action_id).defense.head_share)  # Through the guard (D180).
 	var dealt: int = maxi(1, roundi(strike_damage(attacker, action.id) * scale))
 	var was_rocked: bool = defender.is_rocked()
+	if is_cutting(1 - i):
+		cut_damage_taken[1 - i] += dealt  # What walking him down cost (D233).
 	defender.damage[target] += dealt
 	var leg: int = -1
 	if target == "legs":

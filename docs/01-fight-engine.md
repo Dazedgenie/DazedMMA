@@ -89,9 +89,9 @@ pinned on purpose, and the PR then shows the old and new numbers side by side.
 
 | Fight | Covers |
 |---|---|
-| Kicker vs Boxer, no corners (seed 35002) | The striking engine and judges on their own: a decision |
-| Wrestler vs Kicker, ideal corner vs AI corner, Wrestler drilled on catch-kick-and-shoot at 80% (seed 35006) | Calls, a drilled rule firing, takedowns, ground and pound, feints (D131): a TKO for the Wrestler in round 2 (since D131; a split decision for the Kicker after D130) |
-| Wrestler vs Boxer, AI corner for the Boxer, Boxer drilled on sprawl-on-the-shot at 80% (seed 35011; 35007 until D130, when it became a decision) | Sprawls, the opponent's corner and rules, passes, side control and the back (D130), blind shots (D131): a unanimous decision for the Wrestler (since D131; a TKO in round 3 after D130) |
+| Kicker vs Boxer, no corners (seed 35002) | The striking engine and judges on their own: a KO for the Boxer in round 3 (since D233; a decision before) |
+| Wrestler vs Kicker, ideal corner vs AI corner, Wrestler drilled on catch-kick-and-shoot at 80% (seed 35006) | Calls, a drilled rule firing, takedowns, ground and pound, feints (D131): a decision for the Wrestler (since D233; a TKO for the Wrestler in round 2 after D131) |
+| Wrestler vs Boxer, AI corner for the Boxer, Boxer drilled on sprawl-on-the-shot at 80% (seed 35011; 35007 until D130, when it became a decision) | Sprawls, the opponent's corner and rules, passes, side control and the back (D130), blind shots (D131): a decision for the Wrestler (since D131; a TKO in round 3 after D130) |
 | The check fighters, amateur adult rules (seed 35001) | A ruleset other than pro: 3 × 3:00, a split decision |
 
 **What's pinned:** each fight's winner, result, the round and second it ended, the number of events, knockdowns, strikes
@@ -733,9 +733,9 @@ and **herding with feints now, strikes aimed at the escape side later** (D232).
 |---|---|---|
 | The Cage cutting stat | The 24th stat (`data/enums/stats.json`, Striking group, `11` §2.2). The cut's sideways step is × the cutter's Cage cutting contest share against the opponent's **Footwork** (it was Footwork against Footwork), and the stat sets the reach below. Tired, a hurt leg or a limp lower it, like Footwork. Missing from a fighter file = 50 | `FightSim._refresh_feet()`; `LEG_HURT_STATS` and `LIMP_STATS` in `sim/fight/fighter_state.gd` |
 | Starting earlier | The cut fades in as the opponent goes from the cutter's reach to 4 m out from the middle. Reach = 3 m at Cage cutting 50, 0.5 m closer to the middle at 100 and 0.5 m further out at 0: a great cutter starts shutting the exits while there's still room | `CUT_FROM` 3.0, `CUT_EARLY` 0.5 and `CUT_FULL` 4.0 m in `sim/fight/fight_sim.gd` |
-| Aiming at the exit | Cutting, the presser doesn't aim ahead of the man the way a chase does: he steps toward the spot between the opponent and the middle, led by where the opponent is drifting (half a second of his sideways steps). His read of that drift catches up with a change of direction by 10% + 50% × his Cage cutting share of the gap a tick, so a good reader is fooled by a reversal for less time | `CUT_LEAD_TICKS` 5, `CUT_READ_BASE` 0.1, `CUT_READ_PER_SHARE` 0.5 in `fight_sim.gd`; `FightSim._cut_step()` |
+| Aiming at the exit | Cutting, the presser doesn't aim ahead of the man the way a chase does: he steps toward the spot between the opponent and the middle, led by where the opponent is drifting (half a second of his sideways steps). His read of that drift catches up with a change of direction by 10% + 50% × his Cage cutting share of the gap a tick, so a good reader is fooled by a reversal for less time. **Since D233** he picks the step that shuts the man's best escape route, and keeps this aim for holding the door shut once every route is (§20.6) | `CUT_LEAD_TICKS` 5, `CUT_READ_BASE` 0.1, `CUT_READ_PER_SHARE` 0.5 in `fight_sim.gd`; `FightSim._cut_step()` |
 | The diagonal step | The step across comes first and the step in gets what's left of his walking pace, so cutting off he closes the distance more slowly and doesn't run past the exit | `FightSim._move()` |
-| Reversing (the man being cut off) | An outside fighter circling by the fence (within 0.8 m) with the opponent cutting from the inside turns back the other way, all he can for 0.8 s, on a chance of 6% × how far outside he leans × Fight IQ / 100 a tick | `REVERSE_RATE` 0.06, `REVERSE_TICKS` 8 in `sim/fight/fighter_ai.gd` |
+| Reversing (the man being cut off) | An outside fighter circling by the fence (within 0.8 m) with the opponent cutting from the inside turns back the other way, all he can for 0.8 s, on a chance of 6% × how far outside he leans × Fight IQ / 100 a tick. **Since D233** only when the way he's going is shut and the other way is open (§20.6) | `REVERSE_RATE` 0.06, `REVERSE_TICKS` 8 in `sim/fight/fighter_ai.gd` |
 | Plant and counter | Being cut off, the chance to meet the cutter with a strike as he steps in (§20) goes up by 0.2 | `INTERCEPT_CUT_OFF` 0.2 in `fighter_ai.gd` |
 | Herding with a feint | Cutting the cage off with the opponent circling within 1.5 m of the fence, the cutter feints (D131) on a chance of 1.5% × Cage cutting / 100 a free tick. A feint that bites now also plants the feet: a bitten fighter's feet move 40% of a step while it lasts (D131's 1 s), so the cut closes the door. This works for every feint, the ones before a shot too | `HERD_RATE` 0.015, `HERD_FENCE` 1.5 m in `fighter_ai.gd`; `BIT_FEET` 0.4 in `fight_sim.gd` |
 | *Cut the cage!* (key **R**) | A 15 s focus call (`data/calls/cut_the_cage.json`, voice 20): Range +30, Pace +20, he cuts all his stat allows (`cut` 1.0) from anywhere in the cage (reach 1 m, or his own if that's closer in) and doesn't circle. Number keys 0–9 are all taken standing, so it's the first call on a letter key; the call bar shows it as *R Cut the cage* | the call's file; `CUT_CALLED_FROM` 1.0 m in `fight_sim.gd`; `FighterAI._plan_steps()` |
@@ -772,7 +772,51 @@ at least 36%). The first 30-fights-a-style table had him at 33%, but that was no
 
 Not yet: strikes thrown at the side the man circles toward, so circling into the power hand gets hit (Kyle: later, D232); the
 AI corner and the coaching bots making the call; what happens once he's pinned on the fence is the cage pressure work (§39).
-Tested in `tests/sim/fight/test_cage_cutting.gd`.
+Tested in `tests/sim/fight/test_cage_cutting.gd`. Since D233 the cutter picks his step from the opponent's escape routes (§20.6).
+
+### 20.6 Escape routes and being shut in (D233, D234)
+An outside review of the AI (2026-10-30, `fighter-ai-doc/ai-research-review.md` §3 in the project files) said cage cutting
+should be about the ways out the man still has, not the distance to him: sample his escape paths, score them by who gets
+where first, step to make his best one worse, and give the man being cut off real choices. Kyle picked "Merge #81, escape
+routes next" (D233), and when asked what a fighter does with every way out shut, "Pick by style" (D234).
+
+| Behaviour | What the fighter does | To change it |
+|---|---|---|
+| Escape routes | From where the man being cut off stands, 8 straight routes (the first toward the middle, the rest round from it, 45° apart), each walked 2 steps of 1.2 m and slid along the fence where they meet it. Routes heading back into the fence don't count. A route's **margin** is, at its worst point, the cutter's time to get within punching reach (1.5 m, the pocket) plus 0.2 s to react, less the man's time to get there plus up to 0.4 s to turn off the way he's drifting (all of it straight back, half turning square). Positive: he gets along it clear. A route is **worth** its margin (at most 1 s) plus 0.4 s for every metre further off the fence it ends | `HEADINGS` 8, `SAMPLES` 2, `SAMPLE_M` 1.2, `THREAT_REACH` 1.5 m, `CHASER_LAG_TICKS` 2, `TURN_TICKS` 4, `MARGIN_CAP` 10, `SPACE_TICKS_PER_M` 4, `BACK_INTO` 0.2 in `sim/fight/escape_routes.gd` |
+| Aiming at the exit | Cutting (§20.5), every 0.5 s the cutter walks the man's routes and tries five steps: straight at him, 45° either way and straight across either way. He takes the one that leaves the man's best route worth least (straight at him when nothing is better). The drift he reads (§20.5's read) makes the routes the man was already going along quicker for him, so a good reader shuts those first. The step across is still × his Cage cutting share and fades in with the reach, as before | `CUT_TURNS` and `ROUTES_EVERY` 5 in `fight_sim.gd`; `FightSim._cut_step()` |
+| Holding the door shut | With every way out shut, the cutter mirrors him instead: he steps toward the spot between the man and the middle, half a second ahead of his drift (D230's old aim), so a man sliding along the fence stays in front of him | `CUT_LEAD_TICKS` 5 in `fight_sim.gd` |
+| Seeing the open door (the man being cut off) | The cutter's read also says, for the man, which way round the cutter his best open route goes. D230's reverse now only happens when the way he's circling is shut and the other way is open, and he turns toward it: same chance, 6% × how far outside he leans × Fight IQ / 100 a tick | `REVERSE_RATE` 0.06 in `fighter_ai.gd`; `FightView.way_out()` |
+| Shut in: bursting out (outside fighters, Range below 0: Range kicker, Karate, Counter-striker) | He sprints round the cutter along the least shut way, all he can for 0.6 s: his walking pace and up to 30% more × his footwork edge (§20.2: even feet get all 30%, Footwork 20 against 50 about 5%), at twice the stamina a step costs. A chance of 10% × Fight IQ / 100 a tick, at most once every 3 s. It comes before D107's circling off the fence | `BURST_TICKS` 6, `BURST_RATE` 0.1, `BURST_EVERY` 30 in `fighter_ai.gd`; `BURST_EXTRA` 0.3, `BURST_STAMINA` 2.0 in `fight_sim.gd` |
+| Catching the burst (the cutter) | Once a burst, the cutter throws his best strike at the man going past on a chance of 30% × Cage cutting / 100 | `CATCH_RATE` 0.3 in `fighter_ai.gd`; `FighterAI._catch_burst()` |
+| Shut in: tying him up (grapplers: clinch liking at least 0.4 and something to do in the clinch: the wrestlers, Judoka, Sambo, BJJ, Muay Thai, Dirty boxer) | A clinch entry on a chance of 10% a free tick once the cutter is in reach. What happens on the fence after that is §39 | `TIE_UP_FROM` 0.4, `TIE_UP_RATE` 0.1 in `fighter_ai.gd` |
+| Shut in: planting and countering (everyone else: Boxer, Brawler, Leg-kick specialist, Sprawl-and-brawl) | He stops circling and stands his ground, and the chance to meet the cutter with a strike as he steps in goes up another 0.2 on top of D230's 0.2 | `INTERCEPT_SHUT_IN` 0.2 in `fighter_ai.gd` |
+| Reported after the fight | Next to D230's cut-offs: how many times a fighter cut off onto the fence got back to the middle (his cage proximity back to the centre while still standing), how long he was shut in (every way out shut while being cut off), and the damage the cutter took while cutting him off. The harness adds a **Cut off** line and the CSV columns `cage_escapes_*`, `shut_in_*` and `cut_hurt_*`; the result screen and debug console add *got back to the middle N of M times he was trapped* to the movement line | `FightSim.cage_escapes`, `shut_in_ticks`, `cut_damage_taken`; `BalanceReport._cut_off_line()`; `FightLogFormatter.movement_line()` |
+
+The review's other numbers: the man's time with every way out shut is the *shut in* time; "interception rate" is the catch
+above and the counters as the cutter steps in; clinch conversions per pin are §39's.
+
+Measured (200 fights a pairing, pro rules, same seeds as main):
+
+| | Main (D230) | With D233–D234 |
+|---|---|---|
+| Kicker vs Boxer: the Boxer wins | 57.5% | 57.5% |
+| Pressure wrestler vs Counter-striker: the Pressure wrestler wins | 68% | 67% |
+| Brawler vs Kicker: the Brawler wins | 69% | 74% |
+| Wrestler vs Kicker: the Wrestler wins | 60.5% | 62.5% |
+| Karate vs Boxer: Karate wins | 92.5% | 91% |
+| Kicker cut off by the Boxer (a fight) | | 27 times, back to the middle 98% of them, shut in 1:42, 143 damage to the Boxer |
+| Counter-striker cut off by the Pressure wrestler (a fight) | | 19 times, back to the middle 90%, shut in 1:15, 76 damage to the cutter |
+
+On the 15-style table (`tools/style_sheets.gd --fights=60`, D160): being measured against main, numbers to follow in this section.
+
+What the numbers say: being walked onto the fence is common (the Kicker 27 times a fight) but short, because nearly every
+time he gets back to the middle; the cutter wins by what he lands while he's there, not by keeping him there. Speed: the route
+check costs about 5 µs a simulated tick on the cloud machines, and fights with D233–D234 run about 9% slower than main (125 →
+136 µs a tick; D105's 100 µs budget was already passed, §2.4's speed line).
+
+Not yet: feints that change which route the man thinks is shut (the review's idea; D232's feints still plant his feet); the
+route check for the man himself away from a cutter; the AI corner calling *Cut the cage!*. Tested in
+`tests/sim/fight/test_cage_cutting.gd`.
 
 ## 21. Clinch, takedowns and the ground in the engine (#15, D98, D108, D109)
 What `sim/` does for §4, §5.1 and D29 in the Phase 1 playtest. The scope is the trimmed one (D98): one clinch position, the

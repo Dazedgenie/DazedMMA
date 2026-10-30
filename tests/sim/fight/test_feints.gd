@@ -264,15 +264,16 @@ func test_a_blind_shot_that_is_defended_costs_more_stamina() -> void:
 # --- The fighter AI ---------------------------------------------------------------
 
 func test_grapplers_feint_before_some_shots_and_shoot_off_the_feint() -> void:
-	var sim := FightSim.new(SEED, [_roster.make("wrestler"), FighterState.new("Statue", {}, [], 0.0)], _actions)
-	for k in 3000:
-		sim.tick()
-		if not sim.situation.is_standing():
-			sim._break_apart(1)
 	var starts: Array[Dictionary] = []
-	for e in _events(sim, FightEvent.ACTION_PHASE, 0):
-		if e.data.phase == "telegraph":
-			starts.append({ "id": e.data.action_id, "why": String(e.data.get("why", "")), "blind": e.data.get("blind", false) })
+	for s in 2:  # Two fights: shut in on the fence, he ties the statue up instead now and then (D234).
+		var sim := FightSim.new(SEED + s, [_roster.make("wrestler"), FighterState.new("Statue", {}, [], 0.0)], _actions)
+		for k in 3000:
+			sim.tick()
+			if not sim.situation.is_standing():
+				sim._break_apart(1)
+		for e in _events(sim, FightEvent.ACTION_PHASE, 0):
+			if e.data.phase == "telegraph":
+				starts.append({ "id": e.data.action_id, "why": String(e.data.get("why", "")), "blind": e.data.get("blind", false) })
 	var feints: int = 0
 	for n in starts.size():
 		if starts[n].id != "feint":
