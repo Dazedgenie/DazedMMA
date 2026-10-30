@@ -103,7 +103,7 @@ screen; **Start fight** plays three rounds with the player as the **red corner**
 | Over each fighter | The move's name, coloured by phase (telegraph yellow, wind-up orange, active red, recovery grey); the **delay ring** while a call is being processed, shrinking as the fighter gets to it; **nah** when a call is ignored; **READ** while a read call is primed; stars when rocked | `fighter_figure.gd` |
 | Tell cue (D51) | When a scouted tell shows (the Kicker's jab blocked, the Wrestler's stance shift), the limb the move will come from glows and a **!** shows over the fighter, until the move starts or the tell's window runs out. Shape and colour, so it reads without colour | `arena_view.gd` `_on_event` |
 | Ground tag | Under the fighters: the range standing (Out of range / Long / Mid / Pocket), the position tied up ("Full guard · Wrestler on top", "Submission · Kicker's triangle choke"). It grows when it changes, then settles | `ArenaView.tag_text` |
-| Position diagram (D210) | On the left above the call bar while the fight is on the ground: a top-down stick drawing of the position in the corners' colours and its name ("MOUNT · WRESTLER ON TOP"; in a hold, "TRIANGLE CHOKE FROM FULL GUARD"). §6.8 | `ui/position_diagram.gd`, `FightHud.position_text` |
+| Position diagram (D210) | On the left above the call bar while the fight is on the ground: a top-down stick drawing of the position in the corners' colours and its name ("MOUNT · WRESTLER ON TOP"; in a hold, "TRIANGLE CHOKE FROM FULL GUARD"). §6.9 | `ui/position_diagram.gd`, `FightHud.position_text` |
 | Danger meter (D126) | While a submission is locked in: a red bar in the middle, 0 to 100, with the hold and the danger ("Kicker's TRIANGLE CHOKE on Wrestler · danger 60"). At 100 they tap, at 0 they're out. The fighters keep the pose of where it was locked from (a guillotine bends the defender over) | `FightHud.danger_text`, `fighter_figure.gd` |
 | Top bar | Names; a **body figure** per fighter (D150) whose head, body and legs run green → yellow → red with that area's damage, a readout beside it (HEAD 65% · BODY 94% · LEGS 100%: what's left of each, in the same colour; the head is health, D120, and at 0 the referee stops it) and ROCKED under it while they are. A part flashes white when a clean shot lands on it and a rocked head pulses. Each leg shows its own damage (D144), drawn facing you, and a low kick flashes the leg it hit. Stamina is a thin bar underneath. Then the round clock, speed, and the judges' rough estimate of the round so far ("≈ 10-9 Wrestler", from `FightSim.round_points()` with no judge noise; under PRIDE rules who they'd give the whole fight to and why, "≈ Wrestler (control)", from `FightSim.fight_scores()`, D141). The figure replaced the health bar and small body and leg bars of D120. The names, round clock, round banner and ROCKED are in the display font (Barlow Condensed, D171) | `ui/fight_hud.gd`, `ui/body_damage_figure.gd` |
 | Plan panel | Each rule slot with how sharp it is right now (its reliability) and its cooldown, flashing green when it fires; the call being heard, the attempt in progress, the focus call with seconds left, primed reads with seconds left | `FightHud.plan_text` |
@@ -257,12 +257,22 @@ the other's neck). The caption is the position and who's on top in the display f
 or the hold and where it was locked from ("TRIANGLE CHOKE FROM FULL GUARD"). The scramble draws both up on their knees.
 Standing, in the clinch and in a leg lock the panel is hidden.
 
+**Front and back (D211).** Kyle, after the first screenshots: "Are we able to do something with the models so we can
+differentiate between their front and back?" He picked a face, shorts and gloves (over a two-tone body, or a face alone).
+Each fighter now has a skin-coloured face with two eyes on the front of the head, dark fight shorts (a band round the hips
+and over the top of each thigh) with a white stripe down the front of the waistband, dark gloves on the ends of the arms,
+and skin-coloured feet with the toes pointing forward. Gloves and feet ride the ends of the arms and legs as they stretch
+but keep their own shape; a kneeling leg (only the thigh shows) hides its foot. It reads standing and on the ground: you
+can see which way the man underneath is lying from his face and toes, and that the man on the back is facing his back.
+
 **To change it:** where the top man goes and which way he faces: `ArenaView.GROUND_LAYOUTS` (`at` is metres toward the
 other man's feet and to his far side; `face` is the way he faces in the same frame; `facing_camera` sits the man
 underneath up facing you); the turn: `LIE_TURN`; how fast he slides: `LAYOUT_SPEED`, all in `game/arena_view.gd`. The
 poses: the `match where` blocks in `FighterFigure.pose_for` (`game/fighter_figure.gd`), with `KNEEL_LENGTH`. The
 drawings: `PositionDiagram.POSES` (head, hips, hands, knees and feet in a 100 × 80 box; `top_under` draws the top man
-first), line widths and the outline at the top of `ui/position_diagram.gd`; the panel's height `FightHud.DIAGRAM_HEIGHT`
+first), line widths and the outline at the top of `ui/position_diagram.gd`; the face, shorts, gloves and feet: their
+colours (`FACE_COLOUR`, `GEAR_COLOUR`) and sizes (`GLOVE_RADIUS`, `FOOT_LENGTH`, `SHORTS_HEIGHT`) at the top of
+`game/fighter_figure.gd`, built in `_build`; the panel's height `FightHud.DIAGRAM_HEIGHT`
 and its caption `FightHud.position_text`. A new position needs a layout, a pose and a drawing (the diagram test checks
 every position has one). Tests: `tests/game/test_arena_view.gd` (each position's layout, holds and leg locks, the slide,
 the poses) and `tests/ui/test_fight_hud.gd` (the diagram, its caption, the panel only on the ground).

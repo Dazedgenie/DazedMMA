@@ -21,6 +21,12 @@ const LEG_LENGTH: float = 0.9
 const HIP_WIDTH: float = 0.12
 const SHOULDER_WIDTH: float = 0.24
 const OVERHEAD: float = 2.05
+const GLOVE_RADIUS: float = 0.075
+const FOOT_LENGTH: float = 0.2
+const SHORTS_HEIGHT: float = 0.24
+## The face and feet (skin), and the shorts and gloves (D211): they show which way he faces.
+const FACE_COLOUR := Color("#e8c4a0")
+const GEAR_COLOUR := Color("#22252b")
 ## A kneeling leg shows only the thigh: this share of the whole leg (D210).
 const KNEEL_LENGTH: float = 0.65
 ## How quickly the pose follows the move (per second; higher is snappier).
@@ -49,6 +55,8 @@ var _arms: Array[Node3D] = []  # [lead, rear] shoulder pivots
 var _legs: Array[Node3D] = []  # [lead, rear] hip pivots
 var _arm_meshes: Array[Node3D] = []  # arm pivots at the shoulder (stretch from there)
 var _leg_meshes: Array[Node3D] = []  # leg pivots at the hip
+var _gloves: Array[Node3D] = []  # [lead, rear], at the end of each arm
+var _feet: Array[Node3D] = []  # [lead, rear], at the end of each leg, toes forward
 var _move_label: Label3D
 var _call_label: Label3D
 var _ring: MeshInstance3D
@@ -445,6 +453,11 @@ func _apply_pose(f: FighterState) -> void:
 	var thighs: float = lerpf(1.0, KNEEL_LENGTH, _pose.kneel)
 	_leg_meshes[0].scale.y = thighs
 	_leg_meshes[1].scale.y = lerpf(1.0, 0.55, _pose.knee_short) * thighs
+	# Gloves and feet ride the ends of the stretched limbs but keep their own shape (D211).
+	for side in 2:
+		_gloves[side].scale.y = 1.0 / maxf(0.1, _arm_meshes[side].scale.y)
+		_feet[side].scale.y = 1.0 / maxf(0.1, _leg_meshes[side].scale.y)
+		_feet[side].visible = _pose.kneel < 0.5 and _leg_meshes[side].scale.y > 0.8  # Kneeling: only the thigh shows.
 	_body_material.albedo_color = colour.darkened(0.45) if f.is_down() else colour
 
 
@@ -469,6 +482,45 @@ func _build() -> void:
 	_head.material_override = _body_material
 	_head.position.y = TORSO_LENGTH / 2.0 + HEAD_RADIUS + 0.12
 	_torso.add_child(_head)
+	# Front and back (D211): a face on the front of the head, dark fight shorts, dark gloves, and feet
+	# with the toes forward, so you can tell which way he faces even lying down.
+	var face := MeshInstance3D.new()
+	var face_mesh := SphereMesh.new()
+	face_mesh.radius = HEAD_RADIUS * 0.72
+	face_mesh.height = HEAD_RADIUS * 1.44
+	face.mesh = face_mesh
+	face.material_override = _material(FACE_COLOUR)
+	face.scale = Vector3(1.0, 1.0, 0.45)
+	face.position = Vector3(0.0, -0.01, -HEAD_RADIUS * 0.72)
+	_head.add_child(face)
+	var eye_material: StandardMaterial3D = _material(GEAR_COLOUR)
+	for eye_x: float in [-0.04, 0.04]:
+		var eye := MeshInstance3D.new()
+		var eye_mesh := SphereMesh.new()
+		eye_mesh.radius = 0.018
+		eye_mesh.height = 0.036
+		eye.mesh = eye_mesh
+		eye.material_override = eye_material
+		eye.position = Vector3(eye_x, 0.025, -HEAD_RADIUS * 0.97)
+		_head.add_child(eye)
+	var gear_material: StandardMaterial3D = _material(GEAR_COLOUR)
+	var shorts := MeshInstance3D.new()
+	var shorts_mesh := CylinderMesh.new()
+	shorts_mesh.top_radius = BODY_RADIUS + 0.012
+	shorts_mesh.bottom_radius = BODY_RADIUS + 0.02
+	shorts_mesh.height = SHORTS_HEIGHT
+	shorts_mesh.radial_segments = 12
+	shorts.mesh = shorts_mesh
+	shorts.material_override = gear_material
+	shorts.position.y = SHORTS_HEIGHT / 2.0 - 0.06
+	_hips.add_child(shorts)
+	var band := MeshInstance3D.new()  # The waistband, in the corner's colour, with a white stripe down the front.
+	var band_mesh := BoxMesh.new()
+	band_mesh.size = Vector3(0.05, SHORTS_HEIGHT * 0.9, 0.02)
+	band.mesh = band_mesh
+	band.material_override = _material(Color.WHITE.lerp(colour, 0.15))
+	band.position = Vector3(0.0, 0.0, -(BODY_RADIUS + 0.018))
+	shorts.add_child(band)
 	var limb_material: StandardMaterial3D = _material(colour.lightened(0.25))
 	for side: float in [lead, -lead]:
 		var shoulder := Node3D.new()
@@ -481,6 +533,15 @@ func _build() -> void:
 		shoulder.add_child(arm_pivot)
 		_arms.append(shoulder)
 		_arm_meshes.append(arm_pivot)
+		var glove := MeshInstance3D.new()
+		var glove_mesh := SphereMesh.new()
+		glove_mesh.radius = GLOVE_RADIUS
+		glove_mesh.height = GLOVE_RADIUS * 2.0
+		glove.mesh = glove_mesh
+		glove.material_override = gear_material
+		glove.position.y = -ARM_LENGTH
+		arm_pivot.add_child(glove)
+		_gloves.append(glove)
 		var hip := Node3D.new()
 		hip.position = Vector3(side * HIP_WIDTH, 0.0, 0.0)
 		_hips.add_child(hip)
@@ -491,6 +552,24 @@ func _build() -> void:
 		hip.add_child(leg_pivot)
 		_legs.append(hip)
 		_leg_meshes.append(leg_pivot)
+		var leg_short := MeshInstance3D.new()  # The shorts' leg over the top of the thigh.
+		var leg_short_mesh := CylinderMesh.new()
+		leg_short_mesh.top_radius = LIMB_RADIUS * 1.25 + 0.03
+		leg_short_mesh.bottom_radius = LIMB_RADIUS * 1.25 + 0.022
+		leg_short_mesh.height = 0.22
+		leg_short_mesh.radial_segments = 10
+		leg_short.mesh = leg_short_mesh
+		leg_short.material_override = gear_material
+		leg_short.position.y = -0.09
+		leg_pivot.add_child(leg_short)
+		var foot := MeshInstance3D.new()
+		var foot_mesh := BoxMesh.new()
+		foot_mesh.size = Vector3(0.09, 0.06, FOOT_LENGTH)
+		foot.mesh = foot_mesh
+		foot.material_override = _material(FACE_COLOUR)
+		foot.position = Vector3(0.0, -LEG_LENGTH + 0.03, -FOOT_LENGTH / 2.0 + 0.04)  # Toes forward.
+		leg_pivot.add_child(foot)
+		_feet.append(foot)
 
 	_move_label = _label(44)
 	_move_label.position.y = OVERHEAD + 0.32

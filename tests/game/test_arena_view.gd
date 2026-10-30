@@ -223,3 +223,23 @@ func test_the_view_slides_the_top_man_round_to_his_new_spot() -> void:
 	assert_almost_eq(Vector2(view.figures[0].position.x, view.figures[0].position.z).distance_to(want), 0.0, 0.01,
 		"there within two seconds")
 	assert_ne(guard_at, want)
+
+
+func test_the_face_gloves_and_toes_are_on_the_front_of_the_fighter() -> void:
+	var sim: FightSim = _sim()
+	var figure := FighterFigure.new(Color.RED)
+	add_child_autofree(figure)
+	figure.show_state(sim, 0, Vector2.ZERO, Vector2(1.0, 0.0), 1.0)  # Facing +x on the canvas.
+	var head: Vector3 = figure._head.global_position
+	var face: Node3D = figure._head.get_child(0)
+	assert_gt(face.global_position.x, head.x + 0.05, "the face is on the front of the head (D211)")
+	for side in 2:
+		var foot: Node3D = figure._feet[side]
+		var foot_box: Vector3 = foot.global_position
+		var leg_end: Vector3 = figure._leg_meshes[side].to_global(Vector3(0.0, -FighterFigure.LEG_LENGTH, 0.0))
+		assert_gt(foot_box.x, leg_end.x, "toes forward")
+		assert_true(foot.visible, "standing, the feet show")
+	assert_gt(figure._gloves[0].global_position.x, figure._hips.global_position.x, "his guard is up in front of him")
+	sim.apply_transition(0, "double_leg")
+	figure.show_state(sim, 0, Vector2.ZERO, Vector2(1.0, 0.0), 1.0)
+	assert_false(figure._feet[0].visible, "kneeling on top, only the thigh shows")
