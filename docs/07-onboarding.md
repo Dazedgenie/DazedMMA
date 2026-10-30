@@ -40,7 +40,7 @@ each opening on a tip card of two sentences (§2):
 
 | Playtest fight | Step | Calls open | Also |
 |---|---|---|---|
-| 1: your first calls (Wrestler vs Boxer) | 4 | Pressure, Circle out, Takedown, and Ground and pound! on top; Finish it! and Defend the sub! in a hold | Voice meter, speed controls |
+| 1: your first calls (Wrestler vs Boxer) | 4 | Pressure, Circle out, Takedown, and Ground and pound! and Go for the finish! on top (D200); Finish it! and Defend the sub! in a hold | Voice meter, speed controls |
 | 2: catch the kick (Wrestler vs Kicker) | 6–7 | + Catch the kick! (Q) | Tell cue on; the perfect-call flourish |
 | 3: a drilled rule (Wrestler vs Kicker) | 8–9 | Every call, Get up and Survive for the ground, Feint! standing (D131) | Catch & shoot drilled at 80% |
 

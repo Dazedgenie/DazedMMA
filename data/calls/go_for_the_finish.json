@@ -1,0 +1,15 @@
+{
+	"schema": "call@2",
+	"id": "go_for_the_finish",
+	"name": "Go for the finish!",
+	"kind": "now",
+	"tier": "intent",
+	"parent": null,
+	"hotkey": 2,
+	"voice_cost": 20,
+	"positions": ["full_guard", "half_guard", "side_control", "mount", "back_control"],
+	"roles": ["top"],
+	"actions": [],
+	"focus": { "duration_ms": 10000, "hunt": { "rate": 0.5 } },
+	"requires_technique": null
+}

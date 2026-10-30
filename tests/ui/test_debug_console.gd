@@ -6,7 +6,9 @@ func test_run_test_fight_prints_the_fight_and_a_pass_verdict() -> void:
 	var console := DebugConsole.new()
 	console.echo_to_output = false
 	add_child_autofree(console)
-	var check: SimCheck = console.run_test_fight()
+	# A fixed seed: on a random one Red can guillotine Blue's scripted shot and win before the
+	# bell (seed 1063176708), and the check then fails on how the fight ended, not on the console.
+	var check: SimCheck = console.run_test_fight(1)
 	var text: String = console._log.get_parsed_text()
 	assert_true(check.passed())
 	assert_string_contains(text, "Test fight")
