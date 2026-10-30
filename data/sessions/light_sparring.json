@@ -2,6 +2,7 @@
 	"schema": "session@1",
 	"id": "light_sparring",
 	"name": "Light sparring",
+	"kind": "sparring",
 	"trains": { "striking_defense": 0.25, "footwork": 0.15, "boxing": 0.15, "kicking": 0.1, "fight_iq": 0.15, "composure": 0.2 },
 	"xp": 12,
 	"fatigue": 10,

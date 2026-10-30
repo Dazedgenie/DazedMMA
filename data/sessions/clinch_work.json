@@ -2,6 +2,7 @@
 	"schema": "session@1",
 	"id": "clinch_work",
 	"name": "Clinch work",
+	"kind": "wrestling",
 	"trains": { "clinch_control": 0.5, "clinch_striking": 0.3, "strength": 0.2 },
 	"xp": 10,
 	"fatigue": 10,

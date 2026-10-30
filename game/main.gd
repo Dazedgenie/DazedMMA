@@ -315,6 +315,7 @@ func open_camp(p_settings: Dictionary) -> void:
 	settings = p_settings
 	_close_camp()
 	planner = CampPlanner.new(_roster.profile(settings.red), randi())
+	planner.opponent_name = String(_roster.profile(settings.blue).get("name", ""))
 	planner.fight_pressed.connect(_fight_after_camp)
 	planner.back_pressed.connect(_back_to_setup)
 	$UI.add_child(planner)

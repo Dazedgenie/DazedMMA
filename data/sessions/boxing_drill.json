@@ -2,6 +2,7 @@
 	"schema": "session@1",
 	"id": "boxing_drill",
 	"name": "Boxing drills",
+	"kind": "striking",
 	"trains": { "boxing": 0.5, "footwork": 0.25, "striking_defense": 0.25 },
 	"xp": 10,
 	"fatigue": 8,

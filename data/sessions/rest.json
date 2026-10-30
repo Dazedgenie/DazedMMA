@@ -2,6 +2,7 @@
 	"schema": "session@1",
 	"id": "rest",
 	"name": "Rest",
+	"kind": "recovery",
 	"trains": {},
 	"xp": 0,
 	"fatigue": -20,

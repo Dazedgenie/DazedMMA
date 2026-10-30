@@ -2,6 +2,7 @@
 	"schema": "session@1",
 	"id": "film_study",
 	"name": "Film study",
+	"kind": "mind",
 	"trains": { "fight_iq": 1.0 },
 	"xp": 8,
 	"fatigue": 2,

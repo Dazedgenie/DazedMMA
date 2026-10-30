@@ -224,8 +224,8 @@ change, so the golden fights don't need re-pinning (unless a fighter file gets f
 
 The camp is now on screen. On the fight setup (`06` §6.1), **Training camp first** opens the planner for the red corner's
 fighter (`ui/camp_planner.gd`); its **Fight!** button starts the same fight with the fighter as the camp left them. It is
-the first look at §3.1's planner, so it's plain: dropdowns, not drag and drop. The first minigame, mitt work, plays from
-it (§3.9).
+the first look at §3.1's planner. It started plain (dropdowns); since D170 it is the camp week HUD of §3.10: tiles you
+click, not drag and drop yet. The first minigame, mitt work, plays from it (§3.9).
 
 **Try it:** run the game, pick a fight, press *Training camp first*, pick a focus week, change a slot or two, watch the
 forecast, run the weeks, then *Fight!*.
@@ -245,7 +245,7 @@ Striker, Push the pace, Wrestler, All out, Taper, and five focus weeks made for 
 | Jiu-jitsu focus | Top control and Guard, then Submissions and Submission defense (rolling five times) | ~37 | ~2% |
 | Defense focus | Takedown defense (sprawls three times), then Fight IQ, Composure and Striking defense | ~42 | ~2% |
 
-Every slot (Monday to Saturday, morning and evening) is a dropdown of all the sessions, and the *Instruction* picks a
+Every slot (Monday to Saturday, morning and evening) is a tile that opens a list of all the sessions (§3.10), and the *Instruction* picks a
 gameplan to push the style with (§3.5). Change anything and the week becomes a *Custom week*: you can build one from
 scratch the same way. The week stays on screen after it runs, so the next week starts from it.
 
@@ -404,7 +404,7 @@ calls get longer: from Boxing 40 three-punch calls and the first slip and roll, 
 defence in the middle. The newest calls come up twice as often. **Tired hands:** from fatigue 40 at that point of the week
 (the forecast's fatigue before the session) the timing windows shrink in a line to 60% at fatigue 100.
 
-**In the planner.** A *Play* box sits beside every session with a minigame built so far (only Boxing drills), up to 3 a
+**In the planner.** A *Play* box sits on every session's tile with a minigame built so far (only Boxing drills), up to 3 a
 week (§3.1). *Run week* plays the ticked ones first, in order, then runs the week with their scores; the week's log says
 "played Boxing drills × 1.35". *Run every week left* doesn't play them. If the fighter is hurt by then, the session
 becomes rest and the round doesn't count, as any session would.
@@ -421,6 +421,63 @@ round instead of before, and the onboarding's first week (`07`).
 sounds in `ui/mitt_work_screen.gd`; how many a week (`PLAY_MAX`) and which minigames can be played (`PLAYABLE`) in
 `ui/camp_planner.gd`. Tests: `tests/sim/world/test_mitt_work.gd`, `tests/ui/test_mitt_work_screen.gd` and the planner's
 in `tests/ui/test_camp_planner.gd`. Fights don't change. Then update this section and D137.
+
+### 3.10 The camp week HUD (D170)
+
+Kyle (2026-10-29): "Why don't we start on some visual upgrades. Maybe a visual hud for the week and features outside of the
+cage". Three looks were mocked up with a real forecast week; he picked **A, the corner board**: the fight screen's dark
+panels and red corner carried over, so the whole game looks like one thing. The planner (§3.6) is its first screen; the
+same look goes to fight night, then the fight setup as a tale of the tape, then the result screen (Kyle's order).
+
+**Try it:** *Training camp first* on the fight setup, pick *Speed focus*, click a tile and pick another session, tick
+*Play* on a Boxing drills tile, then run the weeks to fight night.
+
+**The screen**, top to bottom:
+
+- **Top bar.** The fighter's name and age (scouted potential under it), the camp as a row of weeks ending in **FIGHT**
+  (`ui/camp_countdown.gd`): weeks run are filled with their week plan's name and a red dot if he got hurt that week
+  (hover one for what it did), the week on screen is outlined in red, and FIGHT turns grey to OFF if he's pulled out or
+  the doctor says no. On the right, the days to the fight from the Monday of the week on screen (the fight is the last
+  week's Saturday evening, D135: 5 × 7 + 5 = 40 days in a 6-week camp), then *Fight week* and *Fight night*, with who
+  it's against under it.
+- **Condition card** (left). The body figure from the fight screen (D150) shows a healing injury where it is, as fight
+  night would start him (D135), with how he feels (*Fresh, no injuries* or *Hurt (legs): 5 more days to heal*), his Chin
+  and his gas tank. Three gauges: fatigue now, this week's peak and the chance of an injury this week, each green, yellow
+  or red (fatigue: under 20, under 40, 40 and up, where he starts learning less; injury: under 3%, under 6%, more). Under
+  them the camp's length, age and potential boxes (§3.6) and the camp so far, one entry a week.
+- **The week** (middle). *Start from* and *Instruction* as before, then the week as tiles (`ui/session_tile.gd`): each
+  session's name with a stripe in its kind's colour and the fatigue it leaves him at (or *out hurt* / *skipped* once a
+  week has run). Clicking a tile opens every session grouped by kind, with what each does to fatigue. A tile that can be
+  played has a *Play* box, and a ticked one is outlined in yellow. In fight week Saturday evening's tile is the fight.
+  Under the tiles the week's fatigue as a line (`ui/fatigue_line.gd`) lined up with the day columns: where he starts,
+  then after each session, with the dashed line at 40 where he learns less and the peak marked. Then the kinds' colours,
+  and the forecast's notes (§3.6) as before. On fight night the tiles and line show how the last week went.
+- **Stats** (right). Every stat as a bar 0–100 in its group (`ui/stat_bars.gd`): grey to where it started, green for
+  what the camp added (red for a loss), a yellow tick where this week's forecast takes it, and the number, grade and
+  camp change at the right. A gain under a point is a sliver on a 0–100 bar, so the green part is always at least a few
+  pixels wide.
+
+**Kinds of training.** Each session now says what kind it is (`kind` in `data/sessions`, `09` session@1), and the tile,
+the session list and the legend colour it: striking red (Boxing drills, Heavy bag, Thai pads), wrestling blue
+(Wrestling drills, Sprawl drills, Clinch work), grappling pink (Rolling), sparring orange (Light and Hard sparring),
+conditioning green (Sprints, Strength & conditioning, Roadwork), mind purple (Film study, Meditation) and recovery teal
+(Recovery, Rehab, Rest). Grappling wasn't in the mockup; it got its own colour so Rolling doesn't look like wrestling.
+
+**The display font.** Kyle asked for one bold condensed font for headings and big numbers: **Barlow Condensed Bold**
+(SIL Open Font License, `ui/fonts/`), set by `ui/display_font.gd`. On this screen it's the name, the days to the fight,
+the week's heading, the card headings, the weeks along the top, the gauges' numbers, the stat numbers and *Fight!*.
+Body text stays in Godot's default font. The other screens get it as each one gets its pass.
+
+**Not yet:** drag and drop between slots, fight night as its own card (next), the fight setup's tale of the tape and the
+result screen, the minigame screen in the same look, and sounds.
+
+**What to change:** the layout and colours of the screen (`BACKGROUND`, `CARD`, `RED_CORNER`), the gauges' bands
+(`FATIGUE_BANDS`, `INJURY_BANDS`, `INJURY_FULL`) and the fight's day (`FIGHT_DAY`) in `ui/camp_planner.gd`; the kinds'
+colours and names (`KIND_COLOURS`, `KIND_NAMES`) and the tile's size in `ui/session_tile.gd`; a session's kind in its
+`data/sessions` file (the kinds are `TrainingLibrary.KINDS`); the chart in `ui/fatigue_line.gd`, the bars in
+`ui/stat_bars.gd`, the weeks along the top in `ui/camp_countdown.gd`, the font in `ui/display_font.gd`. Tests:
+`tests/ui/test_camp_planner.gd`, `tests/ui/test_fatigue_line.gd`, and the kinds in `tests/data/test_data_files.gd`.
+Presentation only: camps and fights don't change. Then update this section and D170.
 
 ---
 

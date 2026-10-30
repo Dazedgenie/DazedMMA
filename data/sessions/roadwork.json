@@ -2,6 +2,7 @@
 	"schema": "session@1",
 	"id": "roadwork",
 	"name": "Roadwork",
+	"kind": "conditioning",
 	"trains": { "cardio": 0.7, "recovery": 0.3 },
 	"xp": 10,
 	"fatigue": 10,
