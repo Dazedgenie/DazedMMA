@@ -103,6 +103,65 @@ At the start of every new career:
 
 Name generators need some care: promotion names should sound plausible without copying real brands.
 
+### 7.1 Opponent style sheets (D160)
+The ~600 world fighters are made from **style sheets** (`data/styles/`, `09` style@1). Each sheet names a hand-built
+**signature fighter** in `data/fighters/` and says how far opponents of that style may differ from it. A generated opponent
+keeps the style's moves, combinations and tell, so scouting a style works on every fighter of it; their stats, style
+leanings, move preferences, personality, height and stance differ a little, and a **quality level** (−30 to +30 on every stat)
+sets how good they are. Each sheet also carries a **scouting card**: how they fight, strengths, weaknesses, the tell and how
+to beat them.
+
+| Style | Signature fighter | Roots | Fights by |
+|---|---|---|---|
+| Range kicker | `kicker` | Karate/TKD, Dutch kickboxing | Teeps and kicks from range; tell: body kick after a blocked jab |
+| Pressure boxer | `boxer` | Boxing gym kid, street kid | Walking you down to trade combinations in the pocket |
+| Wrestle-boxer | `wrestler` | Wrestling family, Dagestan | Jab and overhand to get close, then the double leg; tell: stance shift before the shot |
+| Submission grappler | `bjj` | Jiu-jitsu prodigy, Rio | Clinch or guard pull, then submissions from anywhere |
+| Judo thrower | `judoka` | Judo/sambo household | Clinch, trips and throws, then the back |
+| Sambo leg-locker | `sambo` | Judo/sambo household, Dagestan | Takedowns and throws, leg locks in scrambles |
+| Muay Thai clinch fighter | `muay_thai` | Muay Thai camp, Bangkok | Collar tie, knees and elbows |
+| **Counter-striker** (new) | `counter_striker` | Boxing gym kid, karate, late starter | Waits for you to lead, then counters (Pace −70, Risk −30); tell: a counter right hand after you miss |
+| **Sprawl-and-brawl** (new) | `sprawl_brawl` | Boxing gym kid, street kid, college football | Stuffs takedowns (TDD 75, Base −70) and keeps it standing; tell: body hook after a blocked jab |
+| **Brawler** (new) | `brawler` | Street kid, farm kid | Hooks and overhands, hunting the knockout (Pace +70, Risk +70, Power 70, Heavy hands); tell: overhand after a blocked jab |
+| **Pressure wrestler** (new) | `pressure_wrestler` | Wrestling family, Dagestan | Relentless pace (Pace +80, Cardio 75), chained double legs and feints to set them up; tell: shoots behind a blocked jab |
+| **Karate point fighter** (new) | `karate` | Karate/TKD | Far outside (Range −80, Footwork 75), feints, straight punches and head kicks; often southpaw (35%); tell: head kick after a blocked jab |
+| **Leg-kick specialist** (new) | `leg_kicker` | Dutch kickboxing, Amsterdam, Muay Thai | Walks forward chopping the legs (leg kick ×2, calf kick ×1.6, the new 1-2-leg kick combination); tell: calf kick after a blocked jab |
+| **Dirty boxer** (new) | `dirty_boxer` | Boxing gym kid, street kid | Grabs the clinch (clinch entry ×3, Range +80) and works short uppercuts and hooks; tell: grabs the clinch after a blocked jab |
+| **Ground-and-pound wrestler** (new) | `gnp_wrestler` | Wrestling family, farm kid | Takedowns to hit, not to submit: Top control 70, ground punches and elbows ×2, no submissions of his own; tell: shoots behind a blocked jab |
+
+Every sheet uses the same variation for now: stats ±6, leanings ±12, move preferences ±20%, personality ±30, height ±4 cm.
+Check that a sheet's opponents fight in style with `tools/style_sheets.gd -- --fights=30` (prints the scouting cards, then
+a table of win rate against the other styles' signature fighters, finishes, output, shots, submissions, clinch and ground time).
+Kyle picked "recipe + scouting card" and all 15 styles (the first 10 plus five extras) on 2026-10-29. Run with all 15
+(2026-10-29, 30 opponents a style at level 0, each against the other 14 signature fighters in turn; reported, no pass marks):
+
+| Style | Wins | By KO/TKO | By sub | Strikes a minute | Shots a fight | Subs tried | Clinch | Ground |
+|---|---|---|---|---|---|---|---|---|
+| Range kicker | 47% | 3% | 0% | 9.8 | 0 | 1.1 | 1% | 15% |
+| Pressure boxer | 37% | 30% | 0% | 10.5 | 0 | 0.3 | 8% | 19% |
+| Wrestle-boxer | 60% | 10% | 10% | 6.3 | 33.7 | 1.4 | 4% | 51% |
+| Submission grappler | 53% | 0% | 37% | 6.8 | 10.3 | 2.4 | 4% | 46% |
+| Judo thrower | 50% | 7% | 17% | 6.4 | 41.6 | 1.9 | 6% | 43% |
+| Sambo leg-locker | 57% | 7% | 27% | 6.4 | 38.1 | 2.4 | 5% | 49% |
+| Muay Thai clinch fighter | 60% | 50% | 3% | 9.9 | 0 | 0.4 | 17% | 22% |
+| Counter-striker | 57% | 13% | 0% | 11.7 | 0 | 0.3 | 2% | 14% |
+| Sprawl-and-brawl | 63% | 50% | 3% | 11.6 | 0 | 0.5 | 9% | 13% |
+| Brawler | 50% | 47% | 0% | 8.6 | 0 | 0.3 | 6% | 23% |
+| Pressure wrestler | 47% | 17% | 3% | 8.3 | 33.1 | 0.6 | 4% | 57% |
+| Karate point fighter | 57% | 23% | 0% | 9.8 | 0 | 0.1 | 0% | 11% |
+| Leg-kick specialist | 40% | 17% | 3% | 14.0 | 0 | 0.4 | 7% | 20% |
+| Dirty boxer | 40% | 30% | 3% | 9.9 | 0 | 0.5 | 25% | 23% |
+| Ground-and-pound wrestler | 50% | 37% | 0% | 5.8 | 24.5 | 0.1 | 3% | 54% |
+
+Every style wins between 37% and 63%, and each wins its own way: the strikers by KO, the grapplers by submission, the
+wrestlers on top (51–57% of the fight on the ground), the Dirty boxer and Muay Thai fighter in the clinch (17–25%). The
+Leg-kick specialist first won 33%; Kyle asked for at least 36% (2026-10-29), so his Striking defense and Footwork went from 50
+to 55: 40% over 30 fights and 40% over 90. To watch: the Counter-striker throws about as much as the other strikers
+(counters and tells, not leads).
+
+Not yet: names and nationalities for generated fighters, picking a style mix per division and region, and showing the
+scouting card on screen (it comes with scouting, D51).
+
 ## 8. Resolved & open questions
 - W1 → **D55**: ~100 fighters **per division**.
 - W2 → **D56**: 6 men's divisions at launch.

@@ -1,5 +1,5 @@
 extends GutTest
-## The camp planner's fatigue line (ui/fatigue_line.gd, D160, docs/02 §3.10).
+## The camp planner's fatigue line (ui/fatigue_line.gd, D170, docs/02 §3.10).
 
 
 func test_it_starts_where_the_week_starts_and_follows_every_session() -> void:

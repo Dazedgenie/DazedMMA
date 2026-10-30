@@ -224,7 +224,7 @@ change, so the golden fights don't need re-pinning (unless a fighter file gets f
 
 The camp is now on screen. On the fight setup (`06` §6.1), **Training camp first** opens the planner for the red corner's
 fighter (`ui/camp_planner.gd`); its **Fight!** button starts the same fight with the fighter as the camp left them. It is
-the first look at §3.1's planner. It started plain (dropdowns); since D160 it is the camp week HUD of §3.10: tiles you
+the first look at §3.1's planner. It started plain (dropdowns); since D170 it is the camp week HUD of §3.10: tiles you
 click, not drag and drop yet. The first minigame, mitt work, plays from it (§3.9).
 
 **Try it:** run the game, pick a fight, press *Training camp first*, pick a focus week, change a slot or two, watch the
@@ -422,7 +422,7 @@ sounds in `ui/mitt_work_screen.gd`; how many a week (`PLAY_MAX`) and which minig
 `ui/camp_planner.gd`. Tests: `tests/sim/world/test_mitt_work.gd`, `tests/ui/test_mitt_work_screen.gd` and the planner's
 in `tests/ui/test_camp_planner.gd`. Fights don't change. Then update this section and D137.
 
-### 3.10 The camp week HUD (D160)
+### 3.10 The camp week HUD (D170)
 
 Kyle (2026-10-29): "Why don't we start on some visual upgrades. Maybe a visual hud for the week and features outside of the
 cage". Three looks were mocked up with a real forecast week; he picked **A, the corner board**: the fight screen's dark
@@ -477,7 +477,7 @@ colours and names (`KIND_COLOURS`, `KIND_NAMES`) and the tile's size in `ui/sess
 `data/sessions` file (the kinds are `TrainingLibrary.KINDS`); the chart in `ui/fatigue_line.gd`, the bars in
 `ui/stat_bars.gd`, the weeks along the top in `ui/camp_countdown.gd`, the font in `ui/display_font.gd`. Tests:
 `tests/ui/test_camp_planner.gd`, `tests/ui/test_fatigue_line.gd`, and the kinds in `tests/data/test_data_files.gd`.
-Presentation only: camps and fights don't change. Then update this section and D160.
+Presentation only: camps and fights don't change. Then update this section and D170.
 
 ---
 

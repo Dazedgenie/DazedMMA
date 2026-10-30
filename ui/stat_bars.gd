@@ -1,6 +1,6 @@
 class_name StatBars
 extends Control
-## The fighter's stats as bars on the camp planner (D160, docs/02 §3.10), in their groups: each stat's bar runs
+## The fighter's stats as bars on the camp planner (D170, docs/02 §3.10), in their groups: each stat's bar runs
 ## 0–100, the part the camp has added so far is green (a lost part red, past the bar's end), a tick marks where this
 ## week's forecast takes it, and the number, grade and camp change sit at the right.
 

@@ -1,6 +1,6 @@
 class_name FatigueLine
 extends Control
-## The week's fatigue as a line under the camp planner's tiles (D160, docs/02 §3.10): where the fighter starts the
+## The week's fatigue as a line under the camp planner's tiles (D170, docs/02 §3.10): where the fighter starts the
 ## week, then after each of the twelve sessions (TrainingCamp.forecast's slots), with a dashed line where being
 ## tired starts costing XP (TrainingCamp.FATIGUE_FREE) and the peak marked.
 

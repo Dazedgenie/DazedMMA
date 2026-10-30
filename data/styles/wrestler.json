@@ -1,0 +1,25 @@
+{
+	"schema": "style@1",
+	"id": "wrestler",
+	"name": "Wrestle-boxer",
+	"fighter": "wrestler",
+	"roots": [
+		"Wrestling family",
+		"Dagestan training trip"
+	],
+	"southpaw_chance": 0.15,
+	"variation": { "stats": 6, "style": 12, "tendencies": 0.2, "personality": 30, "height_cm": 4 },
+	"scouting": {
+		"summary": "Uses a jab and an overhand to get close, then shoots the double leg and grinds on top.",
+		"strengths": [
+			"Strong, relentless takedowns",
+			"Big gas tank and heavy top control"
+		],
+		"weaknesses": [
+			"Plain striking",
+			"Has to change levels to shoot, and you can see it coming"
+		],
+		"tell": "He shifts his stance just before he shoots the double leg.",
+		"how_to_beat": "Watch for the stance shift and sprawl. Make him strike with you on the feet."
+	}
+}

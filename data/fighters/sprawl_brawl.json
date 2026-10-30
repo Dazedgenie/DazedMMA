@@ -1,0 +1,19 @@
+{
+	"schema": "fighter@1",
+	"id": "sprawl_brawl",
+	"name": "Sprawl-and-brawl",
+	"template": null,
+	"frame": { "height_cm": 178, "reach_cm": 181, "build": "stocky" },
+	"stance": "orthodox",
+	"stats": { "boxing": 60, "power": 65, "takedown_defense": 75, "scrambles": 60, "strength": 60, "chin": 60, "striking_defense": 50, "footwork": 50, "cardio": 55, "takedowns": 40, "submissions": 40, "submission_defense": 50 },
+	"personality": { "ego": 0, "discipline": 0, "coachable": 0, "loyal": 0 },
+	"style": { "pace": 20, "range": 20, "base": -70, "risk": 10 },
+	"gifts": [],
+	"flaws": [],
+	"techniques": ["jab", "cross", "hook", "overhand", "uppercut", "body_hook", "leg_kick"],
+	"combos": ["one_two", "one_two_three", "cross_hook", "one_two_body_hook"],
+	"tendencies": { "work_rate": 0.015, "actions": { "jab": 1.0, "cross": 1.1, "hook": 1.0, "overhand": 0.6, "uppercut": 0.5, "body_hook": 0.6, "leg_kick": 0.5, "clinch_entry": 0.0 } },
+	"tells": [
+		{ "trigger": "own_jab_blocked", "action": "body_hook", "chance": 0.6, "within_ms": 1000 }
+	]
+}

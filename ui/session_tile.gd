@@ -1,6 +1,6 @@
 class_name SessionTile
 extends Button
-## One slot of the camp planner's week (D160, docs/02 §3.10): the session's name on a tile with a stripe in its
+## One slot of the camp planner's week (D170, docs/02 §3.10): the session's name on a tile with a stripe in its
 ## kind's colour, and the fatigue the forecast says the fighter is at after it. Pressing it opens the planner's
 ## session list. A Play box sits above that line when the session's minigame can be played (D137).
 

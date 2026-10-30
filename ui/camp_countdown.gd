@@ -1,6 +1,6 @@
 class_name CampCountdown
 extends Control
-## The camp as a row of weeks ending in the fight, across the top of the camp planner (D160, docs/02 §3.10):
+## The camp as a row of weeks ending in the fight, across the top of the camp planner (D170, docs/02 §3.10):
 ## weeks already run are filled (with their week plan and a red dot if he got hurt), the week on screen is
 ## outlined in the red corner's colour, and the fight sits at the end. Hovering a run week shows what it did.
 

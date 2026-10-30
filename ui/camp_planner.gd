@@ -7,7 +7,7 @@ extends PanelContainer
 ## says what it did. On fight night it says how the camp sends the fighter in (tired, hurt,
 ## what the doctor says, D135) and offers Fight! or Pull out. Up to PLAY_MAX sessions a week with a
 ## minigame built so far (mitt work, D137) can be ticked to Play: running the week plays them first and their
-## scores count in the camp. Laid out as the camp week HUD (D160, docs/02 §3.10): the camp's weeks counting down
+## scores count in the camp. Laid out as the camp week HUD (D170, docs/02 §3.10): the camp's weeks counting down
 ## to the fight along the top, the fighter's condition on the left, the week as coloured session tiles over a
 ## fatigue line in the middle, and the stats as bars on the right. Presentation only: TrainingCamp does the training.
 
@@ -35,7 +35,7 @@ const FIGHT_DAY: int = 5
 const DIM := "#8a8f98"
 const GAIN := "#69db7c"
 const LOSS := "#ff8787"
-## The HUD's colours (D160): the screen behind, the cards on it, and the red corner's.
+## The HUD's colours (D170): the screen behind, the cards on it, and the red corner's.
 const BACKGROUND := Color(0.08, 0.09, 0.11, 0.97)
 const CARD := Color("#1b1f26")
 const RED_CORNER := Color("#ff6b6b")

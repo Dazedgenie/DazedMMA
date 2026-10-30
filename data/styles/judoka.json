@@ -1,0 +1,24 @@
+{
+	"schema": "style@1",
+	"id": "judoka",
+	"name": "Judo thrower",
+	"fighter": "judoka",
+	"roots": [
+		"Judo / sambo household"
+	],
+	"southpaw_chance": 0.15,
+	"variation": { "stats": 6, "style": 12, "tendencies": 0.2, "personality": 30, "height_cm": 4 },
+	"scouting": {
+		"summary": "Fights for the clinch, then trips and throws you, and takes the back on the way down.",
+		"strengths": [
+			"Throws that a sprawl can't stop",
+			"Strong in the clinch"
+		],
+		"weaknesses": [
+			"Average striking",
+			"Needs the clinch to do anything"
+		],
+		"tell": null,
+		"how_to_beat": "Don't let him tie up: strike at range and break the clinch quickly."
+	}
+}
