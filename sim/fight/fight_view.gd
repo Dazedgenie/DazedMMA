@@ -41,6 +41,12 @@ func _init(p_sim: FightSim, p_index: int) -> void:
 	_situation = p_sim.situation
 
 
+## True when fighter `actor` steps after this one each tick, so what they start this tick is
+## first seen on the next (FightSim.steps_later; red steps first in every real fight).
+func steps_after_me(actor: int) -> bool:
+	return _sim().steps_later(actor, index)
+
+
 func band() -> String:
 	# As FightSim.band(), without the trip through the sim.
 	return Octagon.band(distance()) if _situation.is_standing() else Octagon.BAND_CLINCH

@@ -42,6 +42,12 @@ seeds:
 
     godot --headless --script res://tools/balance_compare.gd -- --before=build/before/balance.csv --after=build/balance/balance.csv --columns=shots_red
 
+`mirror_check.gd` checks a fight has no corner built in (D252, `docs/01` §2.5): it plays `--red` vs `--blue` on `--seed`,
+and the same two in the other corners with blue stepping first, and prints the tick where the two stop mirroring each other.
+The harness's `--blue-first` plays a whole run with blue stepping first.
+
+    godot --headless --script res://tools/mirror_check.gd -- --red=kicker --blue=boxer --seed=1
+
 `playtest_report.gd` adds up the playtest's saved fights (#20, D118, `docs/playtests/README.md` §3): one CSV line per fight
 (`game/playtest_report.gd`, `PlaytestReport.COLUMNS`) and a summary per playtest fight and per speed, with every fight
 re-run from its file to check it replays:

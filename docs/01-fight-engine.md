@@ -193,6 +193,40 @@ Wrestler's calls chose about 17% of his moves against the Kicker (12 fights).
 **To change it:** the 95% (`BalanceStats.Z`), the exit test's warning (`BalanceReport.checks`), how fights are paired
 (`BalanceReport._change`, `BalanceCompare.report`) and what `run.json` holds (`tools/balance.gd`). Tests:
 `tests/sim/balance/test_balance_stats.gd`, `test_balance_report.gd`, `test_balance_compare.gd`, `test_fight_summary.gd`.
+
+### 2.5 Neither corner has an edge (D252)
+
+The two fighters take turns inside each tick: red steps first (decides, moves, starts and lands his move), then blue
+(`FightSim.step_order`, `[0, 1]` in every real fight). That's the only difference between the corners. Everything that
+used to go by a fighter's number now goes by the step order instead: when a move started this tick is first seen (the
+other fighter sees it next tick if it started after his own step: `FightView.steps_after_me`, used by the AI's reads, the
+drilled rules and the live calls' reads), which fighter rolls first when an event comes in (`FightSim._emit`), and the
+judges' noise (round cards and PRIDE's whole-fight judging). None of that changed a fight, because the step order is the
+same as before.
+
+**What the step order is worth** (2026-10-30, 400 fights each of Kicker, Boxer and Wrestler against themselves, played once
+with red stepping first and once with blue): whoever stepped second won about 51% and whoever stepped first about 48%
+(2,400 fights; the gap is about the size of the noise, but it leaned the same way in 5 of the 6 runs). The first to step holds
+the centre more, because he moves first each tick: nearer the centre 60% of standing time against 38% in the Boxer mirror,
+56% against 45% in the Wrestler mirror. Strikes, damage and takedowns came out even. In real fights red always steps first,
+so this is the blue-corner lean.
+
+**The check:** `tests/sim/fight/test_corner_symmetry.gd` plays fights (two Boxers, two Wrestlers, a Kicker and a Boxer, a
+BJJ fighter and a Kicker, a Judoka and a Boxer) and the same two fighters in the other corners with blue stepping first, and
+checks they're the same fight mirrored through the cage's centre, tick by tick (`MirrorCheck`). By hand:
+
+    godot --headless --script res://tools/mirror_check.gd -- --red=kicker --blue=boxer --seed=1
+
+prints the tick where the two part, with each fight's last events. The harness's `--blue-first` plays a whole run with blue
+stepping first (its summary says so at the top), so `tools/balance_compare.gd` can set it against the usual run.
+
+**One known hair's-breadth difference:** a fighter squeezed into a corner of the cage is pushed off the two panels one after
+the other, in a fixed order (`Octagon.keep_inside`), so the mirror of that spot can come out a few millimetres different and
+the two fights part from there. It favours no corner (both fighters use every part of the cage); the test's seeds avoid it.
+
+**Not changed yet:** the step-order edge itself. Taking turns to step first, or both fighters moving at once from where they
+stood at the start of the tick, would remove it but changes every fight (the golden fights get re-pinned), so it waits for
+Kyle's call.
 ---
 
 ## 3. Spatial model (D2, D33)
