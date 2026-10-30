@@ -145,6 +145,54 @@ as text some values lose their last digit (21.900000000000002 came back as 21.9)
 out is `HarnessJobs.share`. If a process fails, the harness says which one and writes nothing. CI's balance snapshot uses
 the default, so it runs on all of the test machine's cores.
 
+
+### 2.4 How sure a balance number is (D250)
+
+A balance number is a handful of fights' luck as well as the engine. Near 50%, 100 fights pin a win share to about ±10
+points either way, 300 fights to about ±6 and 1,000 to about ±3. So the harness says how sure each number is, and how to
+compare two versions of the engine without the dice deciding.
+
+**Ranges.** The summary gives each corner's win share with its 95% range, e.g. `Kicker (red) 55.0% (45.3–64.4%)`: the true
+share is very likely inside it. It's the Wilson score range (`BalanceStats.wilson`), which stays inside 0–100% and behaves
+with few fights. The draws check and the Kicker vs Boxer exit test (60/40) show one too; when the exit test's range still
+crosses 60%, it adds "too close to 60% to tell at this many fights". MET and MISSED still go by the number itself.
+
+**Paired comparisons.** The harness plays a pair's coached fights, rules fights and plain fights on the same seeds (D123),
+and a fight's coaching bot gets its own random numbers (`FightSummary.corner_seed`), so a coached fight and its plain twin
+start from the same dice. The coaching and drilled-rule lines compare each fight with its twin: one difference per seed,
+then the mean and its 95% range (`BalanceStats.paired`). Luck that hits both fights alike cancels out. For example,
+`+15.0% (-1.1 to +31.1), 50.0% → 65.0%, 20 fights paired by seed`. If the seeds don't match up (an old CSV, or runs put
+together by hand), the line falls back to comparing the two win shares, says "not paired", and the range is wider.
+
+**Comparing two runs.** To see what a change did, run the harness before and after it with the same `--seed` and `--fights`,
+then:
+
+    godot --headless --script res://tools/balance_compare.gd -- --before=build/before/balance.csv --after=build/balance/balance.csv --columns=shots_red,shots_blue
+
+Per pairing it gives how many fights played out differently (another winner, result, ending or number of events), each
+corner's win share, draws and finishes before and after, and the seed-by-seed change with its range; `--columns` adds any
+numeric CSV column. A range that doesn't cross 0 is a real change. The logic is `sim/balance/balance_compare.gd`.
+
+**What a run was made from.** Each run writes `run.json` next to the CSV: the arguments, the commit (with `+changes` when
+files differ from it), a short hash of every file in `data/`, the Godot version, the seeds, how long it took and how much
+computer time one simulated tick took. The summary starts with the commit, the data hash and the Godot version. Two runs
+with different data hashes used different fighters, moves or numbers.
+
+**Speed.** The harness prints `Speed: N µs of computer time a simulated tick`. D105's budget is 100 µs (900 ms for 9,000
+ticks). The figure includes the harness's own counting each tick (movement shares, stamina lows), and with several processes
+on one machine they slow each other a little, so it reads a bit higher than the full-fight test. It's printed, not written
+to `summary.txt`, which must be the same whatever `--jobs` is (D123); `run.json` keeps it. On 2026-10-30, in a cloud
+session with 4 cores, Kicker vs Boxer and Wrestler vs Kicker came to about 120 µs a tick with one process or four.
+
+**Who chose the moves.** Each row counts the moves each fighter started by the layer that chose them (`chosen_ai_*`,
+`chosen_call_*`, `chosen_rule_*`, `chosen_command_*`, from the `by` on each move's first event, `DecisionLayer`), and the
+summary's *Chosen by* line gives the shares. A call that only tilts the AI (a focus, a read) counts as the AI's, and so do a
+combination's follow-ups; only calls and rules that pick the move themselves count as theirs. With the ideal corner the
+Wrestler's calls chose about 17% of his moves against the Kicker (12 fights).
+
+**To change it:** the 95% (`BalanceStats.Z`), the exit test's warning (`BalanceReport.checks`), how fights are paired
+(`BalanceReport._change`, `BalanceCompare.report`) and what `run.json` holds (`tools/balance.gd`). Tests:
+`tests/sim/balance/test_balance_stats.gd`, `test_balance_report.gd`, `test_balance_compare.gd`, `test_fight_summary.gd`.
 ---
 
 ## 3. Spatial model (D2, D33)
@@ -647,6 +695,25 @@ Measured on 40 fights a pairing (pro rules):
 Only outside fighters (Range below 0) circle unless they're rocked, so the Boxer and the Wrestler circle only when hurt.
 The Kicker never cuts off: he cuts only while pressing or holding with the opponent out by the fence, and the Boxer holds
 the centre (§20.2). Tested in `tests/sim/fight/test_fighter_ai.gd`, `tests/sim/balance/` and `tests/ui/`.
+
+### 20.4 Improving the AI: the plan (D250, D251)
+
+On 2026-10-30 a write-up of how the AI decides went out for an outside review, which said to keep the utility AI at the core
+but fix how it's measured first, then give failed moves costs of their own, intents that last, one memory of the opponent
+and a joined-up cage game. Kyle took the plan in seven phases, starting with the first:
+
+1. **Measure properly** (D250, §2.4): ranges on the numbers, paired comparisons, a record of each run, who chose the moves.
+2. **Outcome costs and one answer per threat:** a stuffed shot or a bitten-on feint costs the fighter something, and each
+   threat has one answer the AI weighs.
+3. **Intents that last:** a plan held for a few seconds instead of a fresh pick each tick.
+4. **Cage work joined up:** with the cage threads (D220s, D230s).
+5. **One memory of the opponent:** what he's seen, shared by the reads, the combinations and the gameplan.
+6. **The fight's arc and coaching:** rounds won and lost change the plan; coaching measured call by call.
+7. **Offline tuning and variety.**
+
+**Kyle's answers (D251):** bring takedown volume closer to real fights (the grapplers try 24–42 shots a fight in the harness,
+about 4 per 15 minutes in the UFC); catch-kicks stay a coached move (D103); test switching off the blanket call costs (D115)
+after phase 2; replace D12's flat +10–20% coaching target with how often a called move wins the exchange it was called for.
 
 ## 21. Clinch, takedowns and the ground in the engine (#15, D98, D108, D109)
 What `sim/` does for §4, §5.1 and D29 in the Phase 1 playtest. The scope is the trimmed one (D98): one clinch position, the

@@ -483,7 +483,7 @@ func _leads(view: FightView, layer: DecisionLayer) -> bool:
 
 
 ## Chance per free tick to lead with something: work rate × (1 + Pace / 200) × the moment,
-## at most 8 × the work rate.
+## at most LEAD_RATE_CAP (4) × the work rate.
 func lead_rate(view: FightView, layer: DecisionLayer) -> float:
 	var f: FighterState = view.me
 	var risk: float = _lean(view, layer, StyleLeanings.RISK)

@@ -13,6 +13,7 @@
   CI (`.github/workflows/tests.yml`) runs them on every PR and posts a readable table in the run summary.
 - Run the headless sim: `godot --headless --script res://tools/run_sim.gd`
 - Run the balance harness: `godot --headless --script res://tools/balance.gd -- --fights=100 --pairs=kicker:boxer` (CSV + summary in `build/balance/`). It uses every CPU core (`--jobs=N` to change; same results either way): `docs/01-fight-engine.md` §2.3 (D123).
+- How sure a balance number is (95% ranges, coaching compared seed by seed, `run.json`, the speed line, who chose the moves) and comparing two runs with `tools/balance_compare.gd`: `docs/01-fight-engine.md` §2.4 (D250). The AI improvement plan and Kyle's answers: §20.4 (D251).
 - How fighters move round the cage (holding the centre, cutting off, getting off the fence) and the numbers to tune it: `docs/01-fight-engine.md` §20.2 (D107).
 - How long each fighter circled and cut off the cage, reported after every fight (what counts, the numbers to change it): `docs/01-fight-engine.md` §20.3 (D119).
 - Smoke-run the main scene: `godot --headless --quit-after 30`
