@@ -17,3 +17,5 @@ var cut: float = 0.0
 ## Cut the cage! (D230): cut off the exits even out in open space (FightSim.CUT_CALLED_FROM),
 ## not just as the fence closes in.
 var anywhere: bool = false
+## Shut in by a cage cutter (D234): sprint out past his shoulder, quicker and costlier than a step.
+var burst: bool = false
