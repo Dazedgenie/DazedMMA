@@ -61,3 +61,10 @@ only when a change is meant to change fights, commit the file and say why in the
 
     godot --headless --script res://tools/golden.gd
     godot --headless --script res://tools/golden.gd -- --update
+
+`strike_sounds.gd` writes every strike's sounds (D190, `docs/06` §6.8) to `build/strike_sounds/` as WAV files: one per
+strike (connected, missed, blocked with a pause between) and `all_strikes.wav` with every strike in turn. `--only` picks
+some:
+
+    godot --headless --script res://tools/strike_sounds.gd
+    godot --headless --script res://tools/strike_sounds.gd -- --only=jab,leg_kick

@@ -81,7 +81,7 @@ The hard part of AI-assisted art is **consistency**. Real-time 3D with one share
 4. **Placeholder first**: the prototype uses shapes/capsules. Art never blocks the simulation.
 
 ## 4. Audio
-- Prototype: free SFX libraries. Later: AI/stock music and commentary voice (text-only commentary at launch is fine).
+- Prototype: strike sounds are made in code (D190, `06` §6.8), so there are no sound licences to track; free SFX libraries for anything else. Later: AI/stock music and commentary voice (text-only commentary at launch is fine).
 
 ---
 

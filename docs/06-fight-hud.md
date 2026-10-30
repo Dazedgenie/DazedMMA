@@ -91,6 +91,7 @@ screen; **Start fight** plays three rounds with the player as the **red corner**
 | Speed | Normal is 2× fight time (D9), or 1× for the playtest's comparison (D91) |
 | Difficulty | Normal, or Easy: P pauses the fight (D50) |
 | Tell cue, Auto slow-mo, Perfect-call flourish | On/off, so the playtest can compare (D51–D53) |
+| Sound | The strike sounds' volume, 0–100% (§6.8, D190); M mutes them during a fight |
 | Drilled rules | Your fighter's two slots and the Drilled slider (`01` §23). Only rules whose move your fighter knows are offered |
 | Seed | Blank for a random fight; type a number to get the same opening again (the result screen shows it) |
 | Training camp first | Opens the camp planner for your fighter (`02` §3.6, D134); its *Fight!* starts this fight with the fighter as the camp left them. *Start fight* skips the camp |
@@ -98,7 +99,7 @@ screen; **Start fight** plays three rounds with the player as the **red corner**
 ### 6.2 What's on screen (v0)
 | Element | v0 | Code |
 |---|---|---|
-| Cage and fighters | Grey-box octagon and fence, orthographic isometric camera that follows the fighters and moves in for the clinch and closer still for the ground (D80). Fighters are capsule bodies with stick limbs that act out the move: punches reach out, kicks lift the leg (the rear one, the lead one for a teep), shots and sprawls drop the hips, the bottom fighter lies on their back, the top fighter postures up and drives down ground punches and elbows (pulled down flat while tied up), and the bottom fighter reaches up to tie up (D121). On the ground the two are laid out by the position: guard, half guard, side control, mount and the back each look different (D210, §6.8). They slide between ticks | `game/arena_view.gd`, `game/fighter_figure.gd` |
+| Cage and fighters | Grey-box octagon and fence, orthographic isometric camera that follows the fighters and moves in for the clinch and closer still for the ground (D80). Fighters are capsule bodies with stick limbs that act out the move: punches reach out, kicks lift the leg (the rear one, the lead one for a teep), shots and sprawls drop the hips, the bottom fighter lies on their back, the top fighter postures up and drives down ground punches and elbows (pulled down flat while tied up), and the bottom fighter reaches up to tie up (D121). On the ground the two are laid out by the position: guard, half guard, side control, mount and the back each look different (D210, §6.9). They slide between ticks | `game/arena_view.gd`, `game/fighter_figure.gd` |
 | Over each fighter | The move's name, coloured by phase (telegraph yellow, wind-up orange, active red, recovery grey); the **delay ring** while a call is being processed, shrinking as the fighter gets to it; **nah** when a call is ignored; **READ** while a read call is primed; stars when rocked | `fighter_figure.gd` |
 | Tell cue (D51) | When a scouted tell shows (the Kicker's jab blocked, the Wrestler's stance shift), the limb the move will come from glows and a **!** shows over the fighter, until the move starts or the tell's window runs out. Shape and colour, so it reads without colour | `arena_view.gd` `_on_event` |
 | Ground tag | Under the fighters: the range standing (Out of range / Long / Mid / Pocket), the position tied up ("Full guard · Wrestler on top", "Submission · Kicker's triangle choke"). It grows when it changes, then settles | `ArenaView.tag_text` |
@@ -133,7 +134,7 @@ changes and pauses against the same fight run headless).
 
 ### 6.4 Keys (as built)
 1–9 intent calls (1 is Pressure! standing, Ground and pound! on top, Finish it! in a submission; 6 is Defend the shot!, or Defend the sub! caught in one; 5 is Clinch!, or Collar tie! in the clinch; 4 is Takedown!, or Pass! on top on the ground) · Q / E read calls (Q is Catch the kick!; E is Fire back!, D133: answer a defended strike with a combination, `01` §31.4) · Space slow-mo ·
-F fast · P pause (Easy) · T throw in the towel (asks first; a TKO loss, D31) · Esc menu (pauses on every difficulty) ·
+F fast · P pause (Easy) · T throw in the towel (asks first; a TKO loss, D31) · M strike sounds on/off (D190) · Esc menu (pauses on every difficulty) ·
 Enter presses the dialog's first button · F3 debug overlay · ` debug console.
 
 ### 6.5 Not in v0 yet
@@ -141,9 +142,9 @@ Enter presses the dialog's first button · F3 debug overlay · ` debug console.
 - **Gameplan picker:** live fights have no gameplan yet, so the plan panel says "own game".
 - **Scouting grades (D24) everywhere:** the setup's tale of the tape scouts the opponent as grades (§6.7); anywhere else that shows his stats still shows them exactly; **cuts** don't exist in the engine yet.
 - **Judges' estimate on Hard / the coach's Reading skill:** there's no Hard and no coach skills yet; the estimate ignores judge noise and tie-breaks.
-- **Sound** (the flourish's sting) and **colour-blind modes, text size, reduced flashing** (§5).
+- **Sound** beyond the strikes (§6.8): the flourish's sting, the bell, the crowd, music; and **colour-blind modes, text size, reduced flashing** (§5).
 - **The corner screen (§4):** between rounds shows the cards and the rule slots only (no cutman, D30 is out of the prototype's scope, `10` §1).
-- **Max 3 attention-grabbers (§5)** isn't enforced. The ground **position overlay** is the diagram on the left (D210, §6.8),
+- **Max 3 attention-grabbers (§5)** isn't enforced. The ground **position overlay** is the diagram on the left (D210, §6.9),
   not drawn over the cage; leg locks have no drawing yet.
 
 ### 6.6 To change it, and the tests
@@ -186,7 +187,42 @@ the bar drawing: the constants and `_draw` in `ui/tale_of_the_tape.gd`. The figh
 shrinks (`NAME_SIZE`, `NAME_MIN_SIZE`, `NAME_W`): `ui/fight_setup.gd`. The grades themselves: `TrainingCamp.GRADES`
 (docs/11 §2.4). Tests: `tests/ui/test_fight_setup.gd`.
 
-### 6.8 Ground positions you can tell apart (D210)
+### 6.8 Strike sounds (D190)
+Every strike has one sound of its own in three versions, **connected**, **missed** and **blocked**, made in code when the
+game opens (`game/strike_sounds.gd`, about half a second on another thread; no audio files). Each is built from three layers:
+
+| Layer | What it is | How it differs by strike |
+|---|---|---|
+| Swish | the arm or leg moving through the air: noise swept up and down a band | short and high for a jab, long and low for a head kick |
+| Thump | the weight landing: a low tone that drops in pitch | ~150 Hz for a jab, ~55–85 Hz for kicks, knees and the stomp |
+| Snap | the skin and glove: a short burst of bright noise | sharpest for elbows and leg kicks, a dull thud for body shots and the teep |
+
+- **Connected** is all three. **Missed** is the same swish on its own, longer and louder, as the limb carries on past.
+  **Blocked** is the same swish and thump with everything muffled (on the guard, the forearms or a shin). The swish and the
+  thump's pitch never change between versions, which is what keeps them the same strike.
+- **Which version plays** (`StrikeSounds.outcome_for`, from the fight's events): a landed strike is connected, unless it
+  landed through a fighter covering up (`covered`, D180), which is blocked. A checked kick is blocked. A slipped punch is
+  missed (it whooshes past his head; `SLIP_OUTCOME`). Any other miss, out of range or a lost roll, is missed. Only strikes
+  make sounds; takedowns, grappling and the defences themselves are silent.
+- **How loud:** a landed shot is louder (up to 7 dB) and a little deeper the more damage it does, from 2 damage (lightest)
+  to 14 (heaviest). Every sound plays at a random pitch within ±4% so repeats don't sound the same. Both fighters' strikes
+  sound the same.
+- **Volume:** the setup's **Sound** slider (0–100%) and **M** during a fight (mute/unmute, said in the feed).
+- **Listen without the game:** `godot --headless --script res://tools/strike_sounds.gd` writes `build/strike_sounds/<strike>.wav`
+  (connected, missed, blocked with a pause between) and `all_strikes.wav` (every strike in turn).
+
+**To change it:** a strike's sound is its line in `StrikeSounds.RECIPES` (`thump` pitch in Hz, `decay` how long it rings,
+`snap` and `bright` the slap's loudness and sharpness, `swish` the whoosh's length, `tone` how high it sits, `gain`
+loudness; each is explained above the table). A new strike needs a line (the test below fails until it has one). The
+versions' loudness against each other: `OUTCOME_DB`; damage to loudness: `LIGHT_DAMAGE`, `HEAVY_DAMAGE`, `LIGHT_DB`,
+`LIGHT_PITCH`, `HEAVY_PITCH`; random pitch: `PITCH_JITTER`; the overall level: `BASE_DB`; how many play at once: `VOICES`.
+How each layer is shaped is `StrikeSounds.render`. To use recorded sounds later, `stream()` is the one place that hands
+out a strike's version. Tests: `tests/game/test_strike_sounds.gd`.
+
+**Not yet:** sounds for anything but strikes (the bell, the crowd, the referee, the flourish's sting, a knockdown hitting
+the canvas, grappling), sounds placed left/right by where the fighters stand, and a sound settings menu.
+
+### 6.9 Ground positions you can tell apart (D210)
 Kyle, 2026-10-30: "lets try to visually begin differentiating the different positions on the ground instead of all
 looking like closed guard". He picked the grey-box bodies laid out per position plus a small diagram on the HUD (the
 position overlay §5 planned), over the bodies alone or proper 3D models first.
