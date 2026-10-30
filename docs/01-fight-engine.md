@@ -2316,3 +2316,89 @@ and the Wrestler vs Kicker fight plays out the same but its landed low kicks now
 
 Tested in `tests/sim/fight/test_flash_knockdowns.gd` (only a big shot can, a jab never drops a fresh man, a big head kick drops one
 with no rock first, nowhere to fall on the ground).
+
+## 38. Striking defence: checking kicks, slipping punches and covering up (D180)
+Before this, the only defence against a strike was not being there (stepping back from a strike he read, §20) or hitting first
+(a counter, §5). Kyle asked for the first batch of the moveset expansions: checking a kick, slipping a punch, covering up. On
+three decision cards he picked: check and cover up for everyone and the slip as a technique; a rocked fighter covering up
+sometimes on his own and always on *Survive!*; and a checked kick sending 60% of it back into the kicker's leg.
+
+### 38.1 The three moves
+They're `defense` moves (`09` action@2), like the sprawl.
+- **Check** (`check_kick`, everyone): he lifts his front shin. It's up at once (no wind-up) for 0.4 s and stops the **leg kick
+  and the calf kick** (`against_strikes`). Odds: 60% + (Striking defense and Kicking − the kicker's Kicking) / 100. When it
+  works the kick misses and lands on his shin: the kicker's kicking leg (his back leg) takes 60% of the kick (`CHECK_KICKER_SHARE`),
+  scored for the checker as leg damage, and it can buckle that leg (§36); the checker's front leg takes 20% (`CHECK_SHIN_SHARE`);
+  and the kicker is stuck on one leg 0.2 s longer (`ONE_LEG`, `CHECK_STUCK_TICKS`), where a cross finds him.
+- **Slip** (`slip`, a technique: the Boxer, Counter-striker, Dirty boxer and Muay Thai fighter): he moves his head off the line,
+  at once, for 0.4 s. It stops **the jab, the cross and the overhand**, not hooks or uppercuts, and the uppercut is +20% into a
+  man slipping (`SLIPPING`). Odds: 50% + (Striking defense and Speed − the puncher's Boxing) / 100. When it works the punch misses
+  and for 0.6 s his own strikes are +15% (*off the slip*, `SLIP_COUNTER_TICKS`, `SLIP_COUNTER_BONUS`), on top of the counter
+  bonus for catching the puncher in his recovery.
+- **Cover up** (`cover_up`, everyone, standing or in the clinch): hands high, elbows in, for 1.5 s (`COVERED` from its 0.1 s
+  wind-up). Half the head damage gets through (`head_share` 0.5), rolled as usual; the body hook, body kick and knee are +15%
+  into him; he can't throw while he's covered; and he isn't *hands low* while he's covered, rocked or tired. **The referee
+  doesn't count shots on the guard** toward stopping it (§24): he's defending himself. Without that, covering up made stoppages
+  far more common (Kicker vs Boxer TKOs went from 20% to 59%), the opposite of what covering up is for.
+
+A check or a slip has to be **up as the strike lands**: then it's one roll, and either way it's spent. Too early and it's over
+before the strike arrives; too late and the strike has landed. The feed says *"CHECKS the leg kick: it lands on his shin (4
+damage to the kicker's leg)"*, *"SLIPS the cross"*, and *"through the guard"* on a shot into a man covering up. A checked or
+slipped strike is a miss for the striker (`strike_missed`, reason `defended`): it counts as defended for tells, rules and
+*Fire back!* (`09` trigger@1), and the AI learns from it (§38.2).
+
+### 38.2 The AI
+- **Checking and slipping what he reads.** When a strike he's read registers (§7: a reaction time after it starts) and he has a
+  defence against it that will be up as it lands, he uses it: 60% + 30% × Striking defense / 100 (`GUARD_BASE`, `GUARD_PER_SD`).
+  If not, it's read like any other move (a counter or stepping back). So the jab is too quick to slip after a read, the cross
+  sometimes, the overhand and the low kicks most often.
+- **Off the slip, off the check.** A slip or a check that worked is followed by a strike within 0.6 s (*off the slip*, *off the
+  check*).
+- **Learning.** A checked or slipped strike counts as a miss on that move's record (`_working`, §20), so a kicker who keeps
+  getting checked throws fewer low kicks.
+- **Covering up.** Each time he's rocked he decides whether he covers up this time: 20% + 40% × Fight IQ / 100 (`COVER_BASE`,
+  `COVER_PER_IQ`, 40% for an average fighter), and while he's rocked and in range he covers up again as each one ends. *Survive!*
+  (key 8) makes him: its `cover_bonus` 1 (`09` call@2), so the AI corner's *Survive!* on a rock (§22.5) shells him up.
+
+### 38.3 Balance
+Harness, no calls, 300 fights a pairing, seed 1, main before this → now:
+
+| Pairing | Wins | Finished inside the distance | Checks a fight (worked) | Slips a fight (worked) |
+|---|---|---|---|---|
+| Kicker vs Boxer | Kicker 45% → 41% | 34% → 29% | the Boxer 7.9 (3.3) | none |
+| Muay Thai vs Kicker | Muay Thai 76% → 77% | 38% → 30% | Muay Thai 8.3 (4.0), the Kicker 0.9 (0.6) | none |
+| Boxer vs Counter-striker | Boxer 71% → 70% | 70% → 64% | the Boxer 0.8 (0.4) | the Boxer 11.0 (4.0), the Counter-striker 13.9 (5.7) |
+| Wrestler vs Boxer | Wrestler 64% → 68% | 72% → 65% | none | the Boxer 2.0 (1.0) |
+| Muay Thai vs Boxer | Muay Thai 56% → 58% | 98% → 99% | none | Muay Thai 3.8 (1.4), the Boxer 1.7 (0.7) |
+
+Across the 1,500 fights: finished 62% → 57%, draws 0.1% → 0.2%, 10-10 rounds 0%. The #14 exit test still passes: the Boxer wins
+59% against the Kicker (main 55%), because his checks make the Kicker kick less. Kyle was asked whether to keep that (card open).
+
+What it says:
+- **Fewer finishes, as covering up should give.** A rocked man covers up two times in five (an average Fight IQ), and shots on his guard do half
+  the damage and don't count for the referee.
+- **The check is the Muay Thai fighter's and the Boxer's answer to the Kicker:** they check about 8 low kicks a fight, and a little
+  under half of those work.
+- **The slip makes the Boxer and Counter-striker fights cagier,** with a handful of slips a fight each.
+- **The Muay Thai fighter needed retuning.** The Boxer covering up and slipping put Muay Thai vs Boxer at 70% (from 56%); his
+  `clinch_entry` tendency is 3.0 now (was 3.25), which brings it to 58% and leaves Muay Thai vs Kicker at 77%.
+
+The golden fights (§2.2) were re-pinned: three of the four change (the Boxer checks and slips, rocked fighters cover up).
+
+### 38.4 To change it, and the tests
+- The moves: `data/actions/check_kick.json`, `slip.json`, `cover_up.json` (timing, odds, `against_strikes`, `head_share`, who has
+  it: `basic`, or the fighters' `techniques`). The openings they leave: `SLIPPING` on the uppercut, `COVERED` on the body hook,
+  body kick and knee.
+- The check's damage and the slip's counter: `CHECK_KICKER_SHARE`, `CHECK_SHIN_SHARE`, `CHECK_STUCK_TICKS`, `SLIP_COUNTER_TICKS`,
+  `SLIP_COUNTER_BONUS` at the top of `sim/fight/fight_sim.gd` (`_strike_defended`); the guard and the referee in `_land_strike`
+  and `_referee`.
+- The AI: `GUARD_BASE`, `GUARD_PER_SD`, `COVER_BASE`, `COVER_PER_IQ` in `sim/fight/fighter_ai.gd` (`_guard`, `_cover`);
+  *Survive!*'s `cover_bonus` in `data/calls/survive.json`.
+- The harness's *Defence* line (checks and slips tried and worked, hits on the guard) and its CSV columns: `sim/balance/`.
+- The feed lines: `ui/fight_log_formatter.gd`.
+
+Tested in `tests/sim/fight/test_striking_defence.gd` (who has which; a check in time stops a low kick and hurts the kicker's leg,
+too early does nothing, it doesn't stop punches or body kicks; a slip in time makes a punch miss and leaves a counter, it's for
+straight punches and the uppercut punishes it; through the guard half the head damage and the body open; a covered rocked man
+has his hands up and the referee lets it go on; the AI checks what it reads, only a fighter who knows the slip slips and counters
+off it, and covers up when rocked, always on *Survive!*).

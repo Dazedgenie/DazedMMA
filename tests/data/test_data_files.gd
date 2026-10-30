@@ -25,7 +25,7 @@ const LEANINGS: Array[String] = ["pace", "range", "base", "risk"]
 const CATEGORIES: Array[String] = ["strike", "takedown", "defense", "movement", "clinch", "ground", "submission", "feint"]
 const ROLES: Array[String] = ["neutral", "top", "bottom", "attacker", "defender"]
 ## What a focus call (docs/09 call@2) may hold.
-const FOCUS_KEYS: Array[String] = ["duration_ms", "leanings", "weights", "read_bonus", "sprawl_bonus", "struggle", "struggle_stamina"]
+const FOCUS_KEYS: Array[String] = ["duration_ms", "leanings", "weights", "read_bonus", "sprawl_bonus", "struggle", "struggle_stamina", "cover_bonus"]
 ## Where a submission (docs/09 action@2 `submission.escape_to`, D126) leaves the fight when the defender gets out.
 const ESCAPES: Array[String] = ["back", "scramble"]
 ## The minigames a session can be played as (D38, docs/02 §3.2).
@@ -185,7 +185,11 @@ func test_values_come_from_the_allowed_lists() -> void:
 		if not (push is float) or push < 0.0:
 			problems.append("action '%s': strike.push_m is metres pushed back, 0 or more" % id)
 		var category: String = action.get("category", "")
-		if category in ["takedown", "defense", "clinch", "ground", "submission"]:
+		if category == "defense" and action.get("defense") is Dictionary and action.defense.has("head_share"):
+			var share: Variant = action.defense.head_share
+			if not share is float or share <= 0.0 or share >= 1.0 or action.defense.size() != 1:
+				problems.append("action '%s': a cover-up's defense block is just head_share, the share of head damage that gets through, between 0 and 1 (D180)" % id)
+		elif category in ["takedown", "defense", "clinch", "ground", "submission"]:
 			var block: Variant = action.get(category)
 			if not block is Dictionary or not block.get("base_success") is float:
 				problems.append("action '%s': a %s move needs a '%s' block with base_success" % [id, category, category])
@@ -204,6 +208,14 @@ func test_values_come_from_the_allowed_lists() -> void:
 			elif (block.has("leg_lock") or block.has("step")) and (category != "submission" or not block.get("leg_lock", false) is bool \
 					or not block.get("step", 20.0) is float or block.get("step", 20.0) <= 0.0 or block.get("step", 20.0) > 100.0):
 				problems.append("action '%s': leg_lock (true or false) and step (danger a beat, above 0 up to 100) are a submission's (D132)" % id)
+		if category == "defense" and action.get("defense") is Dictionary and not action.defense.has("head_share"):
+			var against: Array = action.defense.get("against_categories", []) + action.defense.get("against_strikes", [])
+			if against.is_empty():
+				problems.append("action '%s': a defense names what it stops: against_categories (moves of a category) or against_strikes (strikes by id, D180)" % id)
+			for strike_id: Variant in action.defense.get("against_strikes", []):
+				var strike: Dictionary = _items("actions").get(strike_id, {})
+				if strike.get("category", "") != "strike":
+					problems.append("action '%s': against_strikes names strikes, not '%s' (D180)" % [id, strike_id])
 		if category == "feint":
 			var feint: Variant = action.get("feint")
 			if not feint is Dictionary or not feint.get("base_success") is float or not feint.get("bites_ms") is float \
@@ -356,6 +368,9 @@ func test_calls_are_an_attempt_a_focus_or_a_read() -> void:
 			var sprawl: Variant = focus.get("sprawl_bonus", 0.0)
 			if not sprawl is float or sprawl < 0.0 or sprawl > 1.0:
 				problems.append("%s: focus.sprawl_bonus is a chance from 0 to 1" % where)
+			var cover: Variant = focus.get("cover_bonus", 0.0)
+			if not cover is float or cover < 0.0 or cover > 1.0:
+				problems.append("%s: focus.cover_bonus is a chance from 0 to 1 (D180)" % where)
 			var struggle: Variant = focus.get("struggle", 0.0)
 			if not struggle is float or struggle < 0.0 or struggle > 0.5:
 				problems.append("%s: focus.struggle is a push on a submission's beats, a chance from 0 to 0.5" % where)

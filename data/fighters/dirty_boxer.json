@@ -10,7 +10,7 @@
 	"style": { "pace": 40, "range": 80, "base": 10, "risk": 0 },
 	"gifts": [],
 	"flaws": [],
-	"techniques": ["jab", "cross", "hook", "body_hook", "short_uppercut", "short_hook", "knee"],
+	"techniques": ["jab", "cross", "hook", "body_hook", "short_uppercut", "short_hook", "knee", "slip"],
 	"combos": ["one_two", "one_two_body_hook"],
 	"tendencies": { "work_rate": 0.015, "actions": { "jab": 0.8, "cross": 0.8, "hook": 0.6, "body_hook": 0.6, "short_uppercut": 1.5, "short_hook": 1.5, "knee": 0.5, "clinch_entry": 3.0 } },
 	"tells": [

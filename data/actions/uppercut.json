@@ -14,7 +14,8 @@
 	"stats": { "offense": ["boxing", "power"], "defense": ["striking_defense"] },
 	"opportunities": [
 		{ "opponent_flag": "HEAD_LOW", "success_bonus": 0.25, "damage_multiplier": 1.4, "stops": true },
-		{ "opponent_flag": "COMING_IN", "success_bonus": 0.10, "stops": true }
+		{ "opponent_flag": "COMING_IN", "success_bonus": 0.10, "stops": true },
+		{ "opponent_flag": "SLIPPING", "success_bonus": 0.20 }
 	],
 	"requires_technique": null
 }

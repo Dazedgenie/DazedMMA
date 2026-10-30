@@ -1,0 +1,18 @@
+{
+	"schema": "action@2",
+	"id": "check_kick",
+	"name": "Check",
+	"category": "defense",
+	"basic": true,
+	"positions": ["standing"],
+	"ranges": ["mid", "pocket"],
+	"phases_ms": { "telegraph": 0, "windup": 0, "active": 400, "recovery": 200 },
+	"stamina_cost": 2,
+	"flags_self": [],
+	"defense": { "against_strikes": ["leg_kick", "calf_kick"], "base_success": 0.6 },
+	"stats": { "offense": ["striking_defense", "kicking"], "defense": ["kicking"] },
+	"opportunities": [
+		{ "own_flag": "BIT_ON_FEINT", "success_bonus": -0.10 }
+	],
+	"requires_technique": null
+}

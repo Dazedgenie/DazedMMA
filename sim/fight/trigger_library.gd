@@ -8,7 +8,7 @@ extends RefCounted
 ##
 ## Match fields (all optional, all must hold): `actor`, `action_ids` (the event's
 ## action is one of these), `phase` (action_phase events), `defended` (strike_missed
-## events: true = the opponent defended it, not "out of range" or "opponent down").
+## events: true = the opponent defended it, checks and slips included, not "out of range" or "opponent down").
 
 const DEFAULT_DIR := "res://data/triggers/"
 const SELF := "self"
@@ -68,8 +68,8 @@ func matches(id: String, event: FightEvent, viewer: int) -> bool:
 		return false
 	if m.has("phase") and event.data.get("phase", "") != m.phase:
 		return false
-	if m.has("defended") and bool(m.defended) == event.data.has("reason"):
-		return false
+	if m.has("defended") and bool(m.defended) != (String(event.data.get("reason", "defended")) == "defended"):
+		return false  # Checked or slipped (D180) is defended too.
 	return true
 
 
