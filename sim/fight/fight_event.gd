@@ -7,8 +7,8 @@ extends RefCounted
 
 const ACTION_PHASE := "action_phase"  # data: {action_id, phase}
 const ACTION_ENDED := "action_ended"  # data: {action_id}
-const STRIKE_LANDED := "strike_landed"  # data: {action_id, target, damage, chance, counter, odds, into?}  into: the opponent's move it stopped
-const STRIKE_MISSED := "strike_missed"  # data: {action_id, target, chance, odds? | reason?} reason: "out of range" / "opponent down"
+const STRIKE_LANDED := "strike_landed"  # data: {action_id, target, damage, chance, counter, odds, into?, covered?}  into: the opponent's move it stopped; covered: through his guard (D180)
+const STRIKE_MISSED := "strike_missed"  # data: {action_id, target, chance, odds? | reason?} reason: "out of range" / "opponent down" / "defended" (checked or slipped, by_action, D180)
 ## `odds` is OddsBreakdown.to_dict(): {base, attack, defense, stat_gap, bonuses: [{name, value}], chance, clamped?}
 const RANGE_CHANGED := "range_changed"  # data: {band}
 const POSITION_CHANGED := "position_changed"  # actor's action moved the fight. data: {action_id, position, phase, roles: [red, blue]}
@@ -16,11 +16,15 @@ const POSITION_CHANGED := "position_changed"  # actor's action moved the fight. 
 ## a position_changed follows. data: {action_id, result, chance, odds}
 const GRAPPLE_WON := "grapple_won"
 ## A takedown, clinch or ground move didn't work. data: {action_id, reason, chance?, odds?, by_action?}
-## reason: "out of range" / "opponent down" / "nothing to catch" (a required opening wasn't there, see odds.missing) /
+## reason: "out of range" / "opponent down" / "defended" (checked or slipped, by_action, D180) / "nothing to catch" (a required opening wasn't there, see odds.missing) /
 ## "defended" (lost the roll) / "sprawled on" / "stopped" (a strike into it stopped it, by_action says which)
 const GRAPPLE_STOPPED := "grapple_stopped"
 ## Actor's sprawl met the opponent's shot. data: {action_id (the sprawl), against (the shot), worked, chance, odds}
 const SPRAWLED := "sprawled"
+## Actor's check or slip (D180) met the opponent's strike. data: {action_id (the defence), against (the strike),
+## worked, chance, odds, damage? and leg? (a checked kick: what the kicker's leg took, and which leg)}. When it
+## worked a strike_missed (reason "defended", by_action) follows for the striker.
+const STRIKE_DEFENDED := "strike_defended"
 ## Actor's feint reached its active phase (D131). data: {action_id, bit (the opponent bit on it),
 ## chance?, odds? (no roll, and a reason instead: "out of range" / "opponent down")}
 const FEINTED := "feinted"

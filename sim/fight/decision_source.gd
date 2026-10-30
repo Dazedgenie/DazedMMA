@@ -52,6 +52,11 @@ func adjust_sprawl(_view: FightView, chance: float) -> float:
 	return chance
 
 
+## The chance a rocked fighter covers up (FighterAI, D180). Unchanged by default.
+func adjust_cover(_view: FightView, chance: float) -> float:
+	return chance
+
+
 ## This tick's footwork after the AI planned it, e.g. stepping in to shoot on a call.
 ## Only asked of sources with `steers_feet` on.
 func adjust_feet(_view: FightView, _feet: FeetPlan) -> void:

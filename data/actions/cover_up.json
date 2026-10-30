@@ -1,0 +1,18 @@
+{
+	"schema": "action@2",
+	"id": "cover_up",
+	"name": "Cover up",
+	"category": "defense",
+	"basic": true,
+	"positions": ["standing", "clinch"],
+	"ranges": ["mid", "pocket", "clinch"],
+	"phases_ms": { "telegraph": 0, "windup": 100, "active": 1500, "recovery": 200 },
+	"stamina_cost": 1,
+	"flags_self": [
+		{ "flag": "COVERED", "from": "windup", "to": "active" }
+	],
+	"defense": { "head_share": 0.5 },
+	"stats": { "offense": ["striking_defense"], "defense": [] },
+	"opportunities": [],
+	"requires_technique": null
+}

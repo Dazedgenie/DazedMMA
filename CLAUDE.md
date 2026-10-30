@@ -37,6 +37,7 @@
 - Liver shots (how a body shot finds the liver, the freeze and the fold, getting up winded, how often, the numbers to tune them): `docs/01-fight-engine.md` §35 (D143).
 - A leg giving out (the two legs tracked apart, low kicks on the front leg, switching stance, the buckle and the limp, the numbers to tune them): `docs/01-fight-engine.md` §36 (D144).
 - Flash knockdowns (one big shot dropping a fresh man, and what the four rocked-and-dropped changes did to fights together): `docs/01-fight-engine.md` §37 (D145).
+- Striking defence (checking a low kick, slipping a straight punch, covering up: who has which, when they have to be up, what a checked kick does to the kicker, the counter off the slip, covering up when rocked and on *Survive!*, the numbers to tune them): `docs/01-fight-engine.md` §38 (D180).
 - Drilled rules (two slots, reliability, cooldown, opponents adapting, the presets, `--rules` in the harness): `docs/01-fight-engine.md` §23 (D116).
 - Speed budget (1000× fight time), the timing checks and how to speed things up without changing fights: `docs/01-fight-engine.md` §2.1 (D105).
 - Golden fights: four pinned fights that fail a test whenever a change alters a fight. If the change is meant to, re-pin with `godot --headless --script res://tools/golden.gd -- --update`, commit `tests/golden/golden_fights.json` and say why in the PR: `docs/01-fight-engine.md` §2.2 (D122).

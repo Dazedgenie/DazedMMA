@@ -165,6 +165,13 @@ func sprawl_chance(view: FightView, chance: float) -> float:
 	return chance
 
 
+## The chance a rocked fighter covers up (D180), after every source's say.
+func cover_chance(view: FightView, chance: float) -> float:
+	for source in sources:
+		chance = source.adjust_cover(view, chance)
+	return chance
+
+
 ## Every fight event, for the AI and every source (FightSim calls it as events happen).
 func on_event(view: FightView, event: FightEvent) -> void:
 	ai.on_event(view, event, self)

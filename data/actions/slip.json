@@ -1,0 +1,19 @@
+{
+	"schema": "action@2",
+	"id": "slip",
+	"name": "Slip",
+	"category": "defense",
+	"positions": ["standing"],
+	"ranges": ["mid", "pocket"],
+	"phases_ms": { "telegraph": 0, "windup": 0, "active": 400, "recovery": 100 },
+	"stamina_cost": 2,
+	"flags_self": [
+		{ "flag": "SLIPPING", "from": "active", "to": "active" }
+	],
+	"defense": { "against_strikes": ["jab", "cross", "overhand"], "base_success": 0.5 },
+	"stats": { "offense": ["striking_defense", "speed"], "defense": ["boxing"] },
+	"opportunities": [
+		{ "own_flag": "BIT_ON_FEINT", "success_bonus": -0.10 }
+	],
+	"requires_technique": null
+}

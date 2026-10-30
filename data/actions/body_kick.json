@@ -12,6 +12,8 @@
 	],
 	"strike": { "target": "body", "base_damage": 8 },
 	"stats": { "offense": ["kicking", "power"], "defense": ["striking_defense"] },
-	"opportunities": [],
+	"opportunities": [
+		{ "opponent_flag": "COVERED", "success_bonus": 0.15 }
+	],
 	"requires_technique": null
 }

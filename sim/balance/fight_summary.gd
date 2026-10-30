@@ -33,6 +33,8 @@ const COLUMNS: Array[String] = [
 	"full_guard", "half_guard", "side_control", "mount", "back_control", "advances_red", "escapes_red", "advances_blue", "escapes_blue",
 	"feints_red", "feints_bit_red", "blind_red", "blind_landed_red", "feints_blue", "feints_bit_blue", "blind_blue", "blind_landed_blue",
 	"combos_red", "combo_strikes_red", "combo_landed_red", "combos_blue", "combo_strikes_blue", "combo_landed_blue",
+	"checks_red", "checked_red", "slips_red", "slipped_red", "covered_hits_red",
+	"checks_blue", "checked_blue", "slips_blue", "slipped_blue", "covered_hits_blue",
 	"calls_red", "calls_blue", "fired_red", "fired_blue",
 ]
 const SIDES: Array[String] = ["red", "blue"]
@@ -143,6 +145,8 @@ static func of(sim: FightSim, lows: Array[float] = [], moves: Dictionary = {}) -
 		"red": sim.fighters[0].id, "blue": sim.fighters[1].id,
 		"corner_red": _style(sim.corners[0]), "corner_blue": _style(sim.corners[1]), "calls_red": 0, "calls_blue": 0,
 		"rules_red": "", "rules_blue": "", "fired_red": 0, "fired_blue": 0,
+		"checks_red": 0, "checked_red": 0, "slips_red": 0, "slipped_red": 0, "covered_hits_red": 0,
+		"checks_blue": 0, "checked_blue": 0, "slips_blue": 0, "slipped_blue": 0, "covered_hits_blue": 0,
 		"winner": "draw" if winner < 0 else SIDES[winner],
 		"winner_id": "" if winner < 0 else sim.fighters[winner].id,
 		"result": end.data.result, "method": method_of(end.data.result),
@@ -214,7 +218,18 @@ static func of(sim: FightSim, lows: Array[float] = [], moves: Dictionary = {}) -
 					row.round_cards += 1
 					if card[0] == card[1]:
 						row.even_cards += 1
+			FightEvent.STRIKE_DEFENDED:
+				# Checks and slips that met a strike, and how many worked (D180).
+				var kind: String = "checks_" if sim.actions.get_action(e.data.against).strike.target == "legs" else "slips_"
+				row[kind + SIDES[e.actor]] += 1
+				if e.data.worked:
+					row[("checked_" if kind == "checks_" else "slipped_") + SIDES[e.actor]] += 1
+				row.exchanges += 1
+				if e.data.odds.get("clamped", false):
+					row.clamped += 1
 			FightEvent.STRIKE_LANDED, FightEvent.STRIKE_MISSED:
+				if e.type == FightEvent.STRIKE_LANDED and e.data.get("covered", false):
+					row["covered_hits_" + SIDES[1 - e.actor]] += 1
 				if e.data.has("odds"):
 					row.exchanges += 1
 					if e.data.odds.get("clamped", false):

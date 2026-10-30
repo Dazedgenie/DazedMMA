@@ -190,6 +190,7 @@ func test_a_move_that_is_not_the_next_one_is_no_part_of_the_combination() -> voi
 
 func test_strikers_throw_the_combinations_in_their_profile_and_nothing_else() -> void:
 	for pair: Array in [["boxer", "kicker"], ["muay_thai", "kicker"]]:
+		var thrown: int = 0  # The Muay Thai fighter throws about one a fight, so some fights have none.
 		for n in 3:
 			var sim := FightSim.new(SEED + n, _roster.make_pair(pair[0], pair[1]), _actions)
 			sim.run_to_end()
@@ -203,7 +204,8 @@ func test_strikers_throw_the_combinations_in_their_profile_and_nothing_else() ->
 						assert_eq(e.data.action_id, sim.combos.move(combo, int(e.data.step)), "%s: the %s's move %d" % [f.name, combo, int(e.data.step)])
 						assert_eq(last, sim.combos.move(combo, int(e.data.step) - 1), "%s: straight after the move before it" % f.name)
 					last = e.data.action_id
-			assert_gt(sim.fighters[0].combos_thrown, 0, "%s throws combinations (seed %d)" % [sim.fighters[0].name, SEED + n])
+			thrown += sim.fighters[0].combos_thrown
+		assert_gt(thrown, 0, "%s throws combinations" % pair[0])
 
 
 func test_the_boxer_mixes_his_combinations_up() -> void:

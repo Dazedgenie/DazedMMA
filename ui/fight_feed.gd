@@ -76,7 +76,7 @@ static func kind_of(event: FightEvent) -> String:
 		FightEvent.ROCKED, FightEvent.KNOCKDOWN, FightEvent.LIVER_SHOT, FightEvent.STANCE_SWITCHED, FightEvent.GOT_UP, FightEvent.GRAPPLE_WON, FightEvent.POSITION_CHANGED, \
 				FightEvent.SUBMISSION_LOCKED, FightEvent.SUBMISSION_ESCAPED, FightEvent.ROUND_ENDED, FightEvent.FIGHT_ENDED:
 			return KEY_MOMENT
-		FightEvent.SPRAWLED:
+		FightEvent.SPRAWLED, FightEvent.STRIKE_DEFENDED:
 			return KEY_MOMENT if event.data.get("worked", false) else EXPLANATION
 		FightEvent.GRAPPLE_STOPPED, FightEvent.COMMAND_REJECTED:
 			return EXPLANATION
