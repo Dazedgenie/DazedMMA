@@ -11,6 +11,8 @@ extends Node3D
 ##
 ## "Training camp first" on the setup opens the camp planner (CampPlanner, D133); its Fight!
 ## starts the same fight with the fighter as the camp left them (settings.red_profile).
+##
+## Strike sounds (StrikeSounds, D190) play during the fight at the setup's Sound volume; M mutes them.
 
 ## Smallest window the UI still fits in (the game opens windowed and resizable).
 const MIN_WINDOW_SIZE := Vector2i(960, 540)
@@ -24,6 +26,7 @@ var hud: FightHud
 var setup: FightSetup
 var planner: CampPlanner
 var overlay: DebugOverlay
+var sounds: StrikeSounds
 var driver: FightDriver
 var state: String = SETUP
 var settings: Dictionary = {}
@@ -47,6 +50,9 @@ func _ready() -> void:
 	_roster = FighterLibrary.load_dir()
 	arena = ArenaView.new()
 	add_child(arena)
+	sounds = StrikeSounds.new()
+	add_child(sounds)
+	sounds.build_in_background()
 	var ui: CanvasLayer = $UI
 	hud = FightHud.new()
 	hud.visible = false
@@ -93,6 +99,8 @@ func start_fight(p_settings: Dictionary) -> void:
 	driver.fight_over.connect(_on_fight_over)
 	arena.tell_cues = bool(settings.get("tell_cues", true))
 	arena.watch(driver)
+	sounds.volume = float(settings.get("sound_volume", 1.0))
+	sounds.watch(sim)
 	hud.pause_allowed = bool(settings.get("easy", false))
 	hud.allowed_calls = Array(settings.get("calls", []))
 	hud.watch(driver)
@@ -156,6 +164,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			_on_control("pause")
 		KEY_T:
 			_on_control("towel")
+		KEY_M:
+			sounds.muted = not sounds.muted
+			hud.feed.add_line(FightFeed.EXPLANATION, "[color=#8a8f98]Sound %s (M)[/color]" % ("off" if sounds.muted else "on"))
 		KEY_ESCAPE:
 			_open_menu()
 		KEY_Q:
