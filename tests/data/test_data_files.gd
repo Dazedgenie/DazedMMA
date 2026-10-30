@@ -212,6 +212,9 @@ func test_values_come_from_the_allowed_lists() -> void:
 			var against: Array = action.defense.get("against_categories", []) + action.defense.get("against_strikes", [])
 			if against.is_empty():
 				problems.append("action '%s': a defense names what it stops: against_categories (moves of a category) or against_strikes (strikes by id, D180)" % id)
+			var hidden: Variant = action.defense.get("hidden_by", 0.0)
+			if not hidden is float or hidden < 0.0 or (action.defense.has("hidden_by") and not action.defense.has("against_strikes")):
+				problems.append("action '%s': hidden_by (how much more the striker's skill above 50 counts against it, 0 or more) is a strike defence's (D180)" % id)
 			for strike_id: Variant in action.defense.get("against_strikes", []):
 				var strike: Dictionary = _items("actions").get(strike_id, {})
 				if strike.get("category", "") != "strike":

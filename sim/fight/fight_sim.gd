@@ -1124,6 +1124,9 @@ func odds_breakdown(i: int, id: String, ahead: int = 0) -> OddsBreakdown:
 			b.add_bonus(opp.opponent_flag, float(opp.success_bonus))
 		elif opp.get("required", false) and b.missing == "":
 			b.missing = opp.opponent_flag
+	if action.category == "defense" and action.defense.has("hidden_by") and b.defense > FighterState.DEFAULT_STAT:
+		# A good kicker hides his kicks (D180): his skill above average counts again against the check.
+		b.add_bonus("hidden", -float(action.defense.hidden_by) * (b.defense - FighterState.DEFAULT_STAT) / 100.0)
 	if action.category == "strike" and fighters[i].slip_counter_until >= now + maxi(ahead, 0):
 		b.add_bonus("off the slip", SLIP_COUNTER_BONUS)
 	if action.category == FEINT:

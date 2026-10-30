@@ -102,6 +102,15 @@ func test_a_check_up_as_the_low_kick_lands_stops_it_and_the_kicker_s_shin_pays()
 	assert_gt(checked, SEEDS * 4 / 5)
 
 
+func test_a_good_kicker_hides_his_kicks_from_the_check() -> void:
+	var average: FightSim = _pair({ "kicking": 50 }, {})
+	var good: FightSim = _pair({ "kicking": 70 }, {})
+	assert_does_not_have(_bonus_names(average.odds_breakdown(1, "check_kick")), "hidden")
+	var b: OddsBreakdown = good.odds_breakdown(1, "check_kick")
+	assert_has(_bonus_names(b), "hidden", "his Kicking above average counts again")
+	assert_almost_eq(b.chance, 0.6 - 0.2 - 0.5 * 0.2, 0.001)
+
+
 func test_a_check_too_early_is_spent_before_the_kick_arrives() -> void:
 	var sim: FightSim = _pair()
 	_queue(sim, 0, 1, "check_kick")

@@ -9,7 +9,7 @@
 	"phases_ms": { "telegraph": 0, "windup": 0, "active": 400, "recovery": 200 },
 	"stamina_cost": 2,
 	"flags_self": [],
-	"defense": { "against_strikes": ["leg_kick", "calf_kick"], "base_success": 0.6 },
+	"defense": { "against_strikes": ["leg_kick", "calf_kick"], "base_success": 0.6, "hidden_by": 0.5 },
 	"stats": { "offense": ["striking_defense", "kicking"], "defense": ["kicking"] },
 	"opportunities": [
 		{ "own_flag": "BIT_ON_FEINT", "success_bonus": -0.10 }

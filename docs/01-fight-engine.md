@@ -2321,12 +2321,15 @@ with no rock first, nowhere to fall on the ground).
 Before this, the only defence against a strike was not being there (stepping back from a strike he read, §20) or hitting first
 (a counter, §5). Kyle asked for the first batch of the moveset expansions: checking a kick, slipping a punch, covering up. On
 three decision cards he picked: check and cover up for everyone and the slip as a technique; a rocked fighter covering up
-sometimes on his own and always on *Survive!*; and a checked kick sending 60% of it back into the kicker's leg.
+sometimes on his own and always on *Survive!*; and a checked kick sending 60% of it back into the kicker's leg. On a fourth,
+when the checks put Kicker vs Boxer at 41/59, he picked "Kicker hides kicks better" (§38.3).
 
 ### 38.1 The three moves
 They're `defense` moves (`09` action@2), like the sprawl.
 - **Check** (`check_kick`, everyone): he lifts his front shin. It's up at once (no wind-up) for 0.4 s and stops the **leg kick
-  and the calf kick** (`against_strikes`). Odds: 60% + (Striking defense and Kicking − the kicker's Kicking) / 100. When it
+  and the calf kick** (`against_strikes`). Odds: 60% + (Striking defense and Kicking − the kicker's Kicking) / 100, and a good
+  kicker hides his kicks: his Kicking above 50 counts again at half (`hidden_by` 0.5, *hidden*), so the Kicker (70) is checked
+  10% less on top of the usual edge. When it
   works the kick misses and lands on his shin: the kicker's kicking leg (his back leg) takes 60% of the kick (`CHECK_KICKER_SHARE`),
   scored for the checker as leg damage, and it can buckle that leg (§36); the checker's front leg takes 20% (`CHECK_SHIN_SHARE`);
   and the kicker is stuck on one leg 0.2 s longer (`ONE_LEG`, `CHECK_STUCK_TICKS`), where a cross finds him.
@@ -2365,20 +2368,22 @@ Harness, no calls, 300 fights a pairing, seed 1, main before this → now:
 
 | Pairing | Wins | Finished inside the distance | Checks a fight (worked) | Slips a fight (worked) |
 |---|---|---|---|---|
-| Kicker vs Boxer | Kicker 45% → 41% | 34% → 29% | the Boxer 7.9 (3.3) | none |
-| Muay Thai vs Kicker | Muay Thai 76% → 77% | 38% → 30% | Muay Thai 8.3 (4.0), the Kicker 0.9 (0.6) | none |
+| Kicker vs Boxer | Kicker 45% → 46% | 34% → 26% | the Boxer 7.8 (2.4) | none |
+| Muay Thai vs Kicker | Muay Thai 76% → 77% | 38% → 32% | Muay Thai 8.2 (3.4), the Kicker 0.8 (0.6) | none |
 | Boxer vs Counter-striker | Boxer 71% → 70% | 70% → 64% | the Boxer 0.8 (0.4) | the Boxer 11.0 (4.0), the Counter-striker 13.9 (5.7) |
 | Wrestler vs Boxer | Wrestler 64% → 68% | 72% → 65% | none | the Boxer 2.0 (1.0) |
 | Muay Thai vs Boxer | Muay Thai 56% → 58% | 98% → 99% | none | Muay Thai 3.8 (1.4), the Boxer 1.7 (0.7) |
 
 Across the 1,500 fights: finished 62% → 57%, draws 0.1% → 0.2%, 10-10 rounds 0%. The #14 exit test still passes: the Boxer wins
-59% against the Kicker (main 55%), because his checks make the Kicker kick less. Kyle was asked whether to keep that (card open).
+54% against the Kicker (main 55%). Before the Kicker could hide his kicks it was 59%: the Boxer checked 3.3 of 7.9 kicks a fight
+and the Kicker, learning, threw fewer. Kyle was asked whether to keep that and picked "Kicker hides kicks better"; `hidden_by` 1.0
+overshot (52% the Kicker), 0.5 gives 46/54.
 
 What it says:
 - **Fewer finishes, as covering up should give.** A rocked man covers up two times in five (an average Fight IQ), and shots on his guard do half
   the damage and don't count for the referee.
-- **The check is the Muay Thai fighter's and the Boxer's answer to the Kicker:** they check about 8 low kicks a fight, and a little
-  under half of those work.
+- **The check is the Muay Thai fighter's and the Boxer's answer to the Kicker:** they check about 8 low kicks a fight; 2 to 3 in
+  10 of the Boxer's work and 4 in 10 of the Muay Thai fighter's (his Kicking is the edge).
 - **The slip makes the Boxer and Counter-striker fights cagier,** with a handful of slips a fight each.
 - **The Muay Thai fighter needed retuning.** The Boxer covering up and slipping put Muay Thai vs Boxer at 70% (from 56%); his
   `clinch_entry` tendency is 3.0 now (was 3.25), which brings it to 58% and leaves Muay Thai vs Kicker at 77%.
@@ -2386,7 +2391,7 @@ What it says:
 The golden fights (§2.2) were re-pinned: three of the four change (the Boxer checks and slips, rocked fighters cover up).
 
 ### 38.4 To change it, and the tests
-- The moves: `data/actions/check_kick.json`, `slip.json`, `cover_up.json` (timing, odds, `against_strikes`, `head_share`, who has
+- The moves: `data/actions/check_kick.json`, `slip.json`, `cover_up.json` (timing, odds, `against_strikes`, `hidden_by`, `head_share`, who has
   it: `basic`, or the fighters' `techniques`). The openings they leave: `SLIPPING` on the uppercut, `COVERED` on the body hook,
   body kick and knee.
 - The check's damage and the slip's counter: `CHECK_KICKER_SHARE`, `CHECK_SHIN_SHARE`, `CHECK_STUCK_TICKS`, `SLIP_COUNTER_TICKS`,
@@ -2398,7 +2403,7 @@ The golden fights (§2.2) were re-pinned: three of the four change (the Boxer ch
 - The feed lines: `ui/fight_log_formatter.gd`.
 
 Tested in `tests/sim/fight/test_striking_defence.gd` (who has which; a check in time stops a low kick and hurts the kicker's leg,
-too early does nothing, it doesn't stop punches or body kicks; a slip in time makes a punch miss and leaves a counter, it's for
+a good kicker hides his kicks from it, too early does nothing, it doesn't stop punches or body kicks; a slip in time makes a punch miss and leaves a counter, it's for
 straight punches and the uppercut punishes it; through the guard half the head damage and the body open; a covered rocked man
 has his hands up and the referee lets it go on; the AI checks what it reads, only a fighter who knows the slip slips and counters
 off it, and covers up when rocked, always on *Survive!*).
