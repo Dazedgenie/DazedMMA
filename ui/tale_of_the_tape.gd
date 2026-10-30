@@ -54,6 +54,12 @@ func show_fighters(red: Dictionary, blue: Dictionary) -> void:
 		var band: Array = grade_band(b_value)
 		rows.append({ "stat": id, "name": TrainingCamp.STAT_NAMES[id], "red_value": r_value, "red_grade": TrainingCamp.grade(r_value),
 			"blue_grade": TrainingCamp.grade(b_value), "blue_low": band[0], "blue_high": band[1] })
+	show_rows(rows)
+
+
+## Shows rows made elsewhere (the result card's fight sheet, D173): fact rows ({ label, red, blue, edge }) and dividers.
+func show_rows(new_rows: Array[Dictionary]) -> void:
+	rows = new_rows
 	var h: float = 0.0
 	for row in rows:
 		h += _row_h(row)

@@ -154,6 +154,17 @@ func test_a_collar_tie_says_the_head_is_pulled_down() -> void:
 	assert_string_contains(_plain(FightLogFormatter.line(tied, _sim)), "Red gets the COLLAR TIE: his head is pulled down for the knees")
 
 
+func test_the_cage_clinch_says_who_has_whose_back_on_the_fence() -> void:
+	var driven := FightEvent.new(10, 1, FightEvent.GRAPPLE_WON, 0, { "action_id": "fence_drive", "result": "driven" })
+	assert_string_contains(_plain(FightLogFormatter.line(driven, _sim)), "Red DRIVES HIM TO THE FENCE")
+	var spun := FightEvent.new(10, 1, FightEvent.GRAPPLE_WON, 1, { "action_id": "spin_off", "result": "turned" })
+	assert_string_contains(_plain(FightLogFormatter.line(spun, _sim)), "Blue SPINS OFF the fence: now Red's back is on it")
+	var turned := FightEvent.new(10, 1, FightEvent.GRAPPLE_WON, 1, { "action_id": "turn_him", "result": "turned" })
+	assert_string_contains(_plain(FightLogFormatter.line(turned, _sim)), "Blue TURNS HIM onto the fence: now Red's back is on it")
+	var pressed := FightEvent.new(10, 1, FightEvent.GRAPPLE_WON, 0, { "action_id": "double_leg", "result": "pressed" })
+	assert_string_contains(_plain(FightLogFormatter.line(pressed, _sim)), "Red's Double-leg takedown doesn't get him down, but he PRESSES HIM ON THE FENCE")
+
+
 func test_a_punished_shot_explains_what_punished_it() -> void:
 	var odds := { "base": 0.45, "attack": 50.0, "defense": 50.0, "stat_gap": 0.0, "bonuses": [], "chance": 0.45 }
 	var sprawled := FightEvent.new(10, 1, FightEvent.GRAPPLE_STOPPED, 0, { "action_id": "double_leg", "reason": "sprawled on", "chance": 0.45, "odds": odds })

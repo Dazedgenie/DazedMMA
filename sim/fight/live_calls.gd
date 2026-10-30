@@ -12,7 +12,8 @@ extends DecisionSource
 ##                       in for up to 2 s to find the range (and catches a kick if one comes).
 ##                       An attempt with `then` (Feint!, D131) goes on: once the first move is
 ##                       over, the fighter goes straight into the first of those that would work
-##              focus    Pressure!, Circle out! …: style leanings and weights tilt for 15 s
+##              focus    Pressure!, Circle out! …: style leanings and weights tilt for 15 s;
+##                       Go for the finish! (D200) sends the top fighter hunting a hold for 10 s
 ##              read     Catch the kick!: primed for 6 s; when the trigger comes the fighter
 ##                       reacts with their own reaction time (D93), at an attention cost (D67).
 ##                       A call with `combo` (Fire back!, D133) answers with the fighter's first
@@ -360,6 +361,13 @@ func struggle_stamina() -> float:
 	return float(focus.call.focus.get("struggle_stamina", 0.0))
 
 
+## *Go for the finish!* (D200): while its focus is on, the top fighter hunts a hold (FighterAI._work_position).
+func hunt(_view: FightView) -> Dictionary:
+	if focus.is_empty() or not focus.call.focus.has("hunt"):
+		return {}
+	return { "since": focus.since, "rate": float(focus.call.focus.hunt.get("rate", 0.0)) }
+
+
 ## Going for an attempt that's out of range: step in to the nearest band one of its moves reaches from.
 func adjust_feet(view: FightView, feet: FeetPlan) -> void:
 	if attempt.is_empty() or not view.is_standing():
@@ -465,7 +473,7 @@ func _process(view: FightView, heard: Dictionary) -> void:
 		FOCUS:
 			if not focus.is_empty():
 				_answer(focus.call, REPLACED, "now %s" % call.name)
-			focus = { "call": call, "until": view.now + int(call.focus.duration_ms) / FightClock.TICK_MS }
+			focus = { "call": call, "since": view.now, "until": view.now + int(call.focus.duration_ms) / FightClock.TICK_MS }
 			retilt = true
 			_answer(call, ACCEPTED, "for %d s" % roundi(float(call.focus.duration_ms) / 1000.0))
 		_:

@@ -53,7 +53,7 @@ const BAND_SPOTS := {
 	Octagon.BAND_POCKET: [Octagon.MIN_GAP, Octagon.POCKET_WITHIN - 0.05],
 }
 ## Flags that come from how a fighter is or where they stand, not from a move: anyone sees them.
-const STATE_FLAGS := { "HANDS_LOW": true, "BACK_TO_CAGE": true }
+const STATE_FLAGS := { "HANDS_LOW": true, "BACK_TO_CAGE": true, "HELD_ON_FENCE": true }
 ## The opponent knocked down (D141, D142): the chance a free tick of following him down, or of a
 ## soccer kick or a stomp where the rules allow them (× 0.5 to 1.5 from the Risk leaning).
 const DOWNED_RATE: float = 0.3
@@ -290,6 +290,14 @@ const ESCAPE_SUB: float = 0.5
 ## Nobody ties up a head that's already tied.
 const COLLAR_RATE: float = 2.0
 const COLLARED_ESCAPE: float = 3.0
+## The cage clinch (D220, docs/01 §39). How much a fighter likes fighting on the fence is his
+## `fence_drive` tendency (1 when it isn't set, fence_liking): standing, he ties up an opponent
+## whose back is on the fence that many times as often, and in the clinch he drives to the fence
+## by it like any move's tendency. Holding the other man on the fence he works FENCE_WORK × as
+## often (knees, short punches, the shot) and breaks only 1 / fence_liking as often: he stays.
+## Held there himself, he picks the spin-off (and away) by how little he likes the clinch, as the
+## break, and turning him onto the fence by how much he likes it (clinch_liking).
+const FENCE_WORK: float = 1.0
 ## In a scramble: back to the feet × (1 − Base / 100), the top × (1 + Base / 100).
 ## Switching direction (D107): away from the fence (further than SWITCH_FENCE), circling
 ## fighters think again every SWITCH_EVERY ticks and change direction on a chance of
@@ -519,7 +527,7 @@ func _leads(view: FightView, layer: DecisionLayer) -> bool:
 
 
 ## Chance per free tick to lead with something: work rate × (1 + Pace / 200) × the moment,
-## at most 8 × the work rate.
+## at most LEAD_RATE_CAP (4) × the work rate.
 func lead_rate(view: FightView, layer: DecisionLayer) -> float:
 	var f: FighterState = view.me
 	var risk: float = _lean(view, layer, StyleLeanings.RISK)
@@ -811,10 +819,14 @@ func _tied(view: FightView, layer: DecisionLayer) -> Decision:
 	var rate: float = SCRAMBLE_RATE
 	var collared: bool = position == PositionLibrary.CLINCH and f.tied_up_ticks > 0
 	var holding: bool = position == PositionLibrary.CLINCH and view.opponent.tied_up_ticks > 0
+	var fenced: bool = position == PositionLibrary.CLINCH and view.held_on_fence()
+	var fencing: bool = position == PositionLibrary.CLINCH and view.opponent_held_on_fence()
 	if position == PositionLibrary.CLINCH:
 		rate = CLINCH_RATE * f.work_rate
 		if collared or holding:
 			rate *= COLLAR_RATE
+		if fencing:
+			rate *= FENCE_WORK
 	elif view.my_role() == PositionLibrary.TOP:
 		return _pound(view, layer)
 	elif position != PositionLibrary.SCRAMBLE:
@@ -851,6 +863,20 @@ func _tied(view: FightView, layer: DecisionLayer) -> Decision:
 				if collared:
 					w *= COLLARED_ESCAPE
 					reason = "fights out of the collar tie"
+				if fenced:
+					reason = "fights off the fence"
+				elif fencing:
+					w /= maxf(1.0, fence_liking(f))  # He's got him where he wants him.
+			FightSim.FENCE_DRIVE:
+				if fencing or fenced or not view.drive().is_empty():
+					w = 0.0  # Already on the fence, or walking there.
+				reason = "drives him to the fence"
+			FightSim.SPIN_OFF:
+				w *= maxf(CLINCH_BREAK_MIN, 1.0 - base - range_leaning / 2.0)  # Wants out, like the break.
+				reason = "spins off the fence"
+			FightSim.TURN_HIM:
+				w *= clinch_liking(base * 100.0, range_leaning * 100.0)  # Wants to stay, with him on the fence.
+				reason = "turns him onto the fence"
 			FightSim.COLLAR_TIE:
 				if holding:
 					w = 0.0
@@ -971,21 +997,37 @@ func _pound(view: FightView, layer: DecisionLayer) -> Decision:
 ## On top (D130): on a chance of ADVANCE_RATE × work rate × position liking, a pass, the mount, the
 ## back or a hold, picked by weight like the moves underneath (a hold only on its opening, unless it
 ## needs none: the rear-naked choke). Tied up, passing is harder (the pass's own POSTURE_BROKEN).
+## Hunting a hold on *Go for the finish!* (D200): the chance is the call's `hunt.rate` instead, and
+## until he has tried one hold since the call, a hold he knows from here is taken over anything
+## else, without its opening and whenever he last tried one; with none from here he works to a
+## position that has one. Once he has tried it, he's back to his own pace.
 func _work_position(view: FightView, layer: DecisionLayer) -> Decision:
 	var f: FighterState = view.me
 	var liking: float = maxf(ADVANCE_MIN_LIKING, 0.5 + _lean(view, layer, StyleLeanings.BASE) / 100.0)
-	if f.is_rocked() or view.roll() >= ADVANCE_RATE * f.work_rate * liking:
+	var hunting: bool = _hunting(view, layer)
+	var rate: float = float(layer.hunt(view).rate) if hunting else ADVANCE_RATE * f.work_rate * liking
+	if f.is_rocked() or view.roll() >= rate:
 		return null
 	var options: Array[String] = []
 	var weights: Array[float] = []
 	var reasons: Array[String] = []
+	var holds: bool = false
 	for id in _all_moves(view):
 		var action: Dictionary = view.actions.get_action(id)
 		if (action.category != GROUND and action.category != SUBMISSION) or not _usable(view, action):
 			continue
 		var b: OddsBreakdown = _odds(view, id)
 		var w: float = 0.0
-		if action.category == SUBMISSION:
+		if action.category == SUBMISSION and hunting:
+			w = _score(view, layer, action, b.chance, _plain_chance(b), false)
+			if w > 0.0 and not holds:
+				holds = true  # A hold from here: the hunt takes one of these, not a better position.
+				options.clear()
+				weights.clear()
+				reasons.clear()
+		elif holds:
+			continue
+		elif action.category == SUBMISSION:
 			if view.now < _sub_at + SUB_RETRY_TICKS or (b.chance <= _plain_chance(b) and not _any_time(view, action)):
 				continue
 			w = _score(view, layer, action, b.chance, _plain_chance(b), false) * SUB_WEIGHT * sub_liking(view, layer)
@@ -994,7 +1036,7 @@ func _work_position(view: FightView, layer: DecisionLayer) -> Decision:
 		if w > 0.0:
 			options.append(id)
 			weights.append(w)
-			reasons.append("goes for the %s" % String(action.name).to_lower() if action.category == SUBMISSION else _advance_reason(id))
+			reasons.append(("goes for the finish: the %s" if hunting else "goes for the %s") % String(action.name).to_lower() if action.category == SUBMISSION else _advance_reason(id))
 	if options.is_empty():
 		return null
 	var k: int = _pick(view, weights)
@@ -1029,7 +1071,8 @@ func _punish_escape(view: FightView, layer: DecisionLayer) -> Decision:
 		var action: Dictionary = view.actions.get_action(id)
 		if (action.category != GROUND and action.category != SUBMISSION) or not _usable(view, action):
 			continue
-		if action.category == SUBMISSION and view.now < _sub_at + SUB_RETRY_TICKS:
+		var hunted: bool = action.category == SUBMISSION and _hunting(view, layer)
+		if action.category == SUBMISSION and view.now < _sub_at + SUB_RETRY_TICKS and not hunted:
 			continue
 		if not action.opportunities.any(func(opp: Dictionary) -> bool: return opp.get("opponent_flag", "") == "ESCAPING"):
 			continue
@@ -1037,13 +1080,21 @@ func _punish_escape(view: FightView, layer: DecisionLayer) -> Decision:
 		if not _has_bonus(b, "ESCAPING"):
 			continue  # Over before it would land.
 		var take: float = ESCAPE_PUNISH * pow(b.chance / 0.5, 2.0)
-		if action.category == SUBMISSION:
+		if hunted:
+			take = 1.0  # Hunting a hold (D200): an escape's opening is what he's waiting for.
+		elif action.category == SUBMISSION:
 			take *= ESCAPE_SUB * sub_liking(view, layer)
 		if view.roll() < take:
 			if action.category == SUBMISSION:
 				_sub_at = view.now
 			return Decision.new(id, DecisionLayer.AI, "catches the escape: %s" % String(action.name).to_lower())
 	return null
+
+
+## True while a *Go for the finish!* hunt is on (D200) and he hasn't tried a hold since it was called.
+func _hunting(view: FightView, layer: DecisionLayer) -> bool:
+	var hunt: Dictionary = layer.hunt(view)
+	return not hunt.is_empty() and _sub_at < int(hunt.since)
 
 
 static func _has_bonus(b: OddsBreakdown, bonus_name: String) -> bool:
@@ -1119,6 +1170,11 @@ static func style_weight(base_leaning: float, action: Dictionary) -> float:
 	return 1.0
 
 
+## How much a fighter likes fighting on the fence (D220): his `fence_drive` tendency, 1 if unset.
+static func fence_liking(f: FighterState) -> float:
+	return float(f.tendencies.get(FightSim.FENCE_DRIVE, 1.0))
+
+
 ## How much a fighter likes tying up (0–1): Base / 100 + Range / 200. Grapplers and
 ## inside fighters clinch; outside strikers don't.
 static func clinch_liking(base_leaning: float, range_leaning: float) -> float:
@@ -1175,8 +1231,8 @@ func _pick(view: FightView, weights: Array[float]) -> int:
 
 ## Odds with only what anyone can see (the opponent's state flags), no reads.
 func _seen_chance(_view: FightView, action: Dictionary, b: OddsBreakdown) -> float:
-	if _needs_opening(action):
-		return 0.0
+	if _needs_opening(action) or b.missing.begins_with("own "):
+		return 0.0  # A read has to spot it, or it needs his own back on the fence and it isn't (D220).
 	var bonus: float = 0.0
 	for x: Dictionary in b.bonuses:
 		if STATE_FLAGS.has(x.name):
@@ -1191,7 +1247,7 @@ static func _plain_chance(b: OddsBreakdown) -> float:
 ## True for moves that only work with an opening a read has to spot (the catch-kick).
 static func _needs_opening(action: Dictionary) -> bool:
 	for opp: Dictionary in action.opportunities:
-		if opp.get("required", false) and not STATE_FLAGS.has(opp.get("opponent_flag", "")):
+		if opp.get("required", false) and opp.has("opponent_flag") and not STATE_FLAGS.has(opp.opponent_flag):
 			return true
 	return false
 

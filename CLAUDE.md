@@ -13,8 +13,9 @@
   CI (`.github/workflows/tests.yml`) runs them on every PR and posts a readable table in the run summary.
 - Run the headless sim: `godot --headless --script res://tools/run_sim.gd`
 - Run the balance harness: `godot --headless --script res://tools/balance.gd -- --fights=100 --pairs=kicker:boxer` (CSV + summary in `build/balance/`). It uses every CPU core (`--jobs=N` to change; same results either way): `docs/01-fight-engine.md` §2.3 (D123).
+- How sure a balance number is (95% ranges, coaching compared seed by seed, `run.json`, the speed line, who chose the moves) and comparing two runs with `tools/balance_compare.gd`: `docs/01-fight-engine.md` §2.4 (D250). The AI improvement plan and Kyle's answers: §20.4 (D251).
 - How fighters move round the cage (holding the centre, cutting off, getting off the fence) and the numbers to tune it: `docs/01-fight-engine.md` §20.2 (D107).
-- Cutting the cage (the Cage cutting stat against Footwork, aiming at the exit not the man, the diagonal step, reversing and countering when cut off, herding feints, the *Cut the cage!* call on key R, the Shark tank session, the numbers to tune it): `docs/01-fight-engine.md` §20.4 (D230–D232).
+- Cutting the cage (the Cage cutting stat against Footwork, aiming at the exit not the man, the diagonal step, reversing and countering when cut off, herding feints, the *Cut the cage!* call on key R, the Shark tank session, the numbers to tune it): `docs/01-fight-engine.md` §20.5 (D230–D232).
 - How long each fighter circled and cut off the cage, reported after every fight (what counts, the numbers to change it): `docs/01-fight-engine.md` §20.3 (D119).
 - Smoke-run the main scene: `godot --headless --quit-after 30`
 - The fight screen (setup, grey-box 3D view, HUD v0, speed controls, hotkeys, F3 debug overlay), what's not in v0 yet and what to edit: `docs/06-fight-hud.md` §6 (D117).
@@ -39,8 +40,11 @@
 - A leg giving out (the two legs tracked apart, low kicks on the front leg, switching stance, the buckle and the limp, the numbers to tune them): `docs/01-fight-engine.md` §36 (D144).
 - Flash knockdowns (one big shot dropping a fresh man, and what the four rocked-and-dropped changes did to fights together): `docs/01-fight-engine.md` §37 (D145).
 - Striking defence (checking a low kick, slipping a straight punch, covering up: who has which, when they have to be up, what a checked kick does to the kicker, the counter off the slip, covering up when rocked and on *Survive!*, the numbers to tune them): `docs/01-fight-engine.md` §38 (D180).
-- The browser build and the name (the *Web* export preset with threads off, the Playtest build's `ChinCheck-web` download, the symbols fallback font, Chin Check by Lampsmoke Games): `docs/04-tech-and-production.md` §2.4 (D240).
+- *Go for the finish!* (key 2 on top: a 10 s hunt for a hold, passing to get to one, one hold a call; what it does to fights, the numbers to tune it): `docs/01-fight-engine.md` §25.7 (D200).
+- The browser build and the name (the *Web* export preset with threads off, the Playtest build's `ChinCheck-web` download, the symbols fallback font, publishing it to GitHub Pages, Chin Check by Lampsmoke Games): `docs/04-tech-and-production.md` §2.4 (D240, D241).
 - Strike sounds (each strike's connected, missed and blocked sound made in code, which version a check, slip or cover-up plays, the Sound slider and M to mute, `tools/strike_sounds.gd` to hear them as WAV files, the numbers to tune them): `docs/06-fight-hud.md` §6.8 (D190).
+- How the ground positions look (the bodies laid out per position in the 3D view, the top-down position diagram on the HUD, the fighters' face, shorts, gloves and feet, the numbers and drawings to change them): `docs/06-fight-hud.md` §6.10 (D210, D211).
+- The cage clinch (driving him to the fence, being held there, spinning off and turning him, a shot on the fence pressing him there, who leans in with the `fence_drive` tendency, the numbers to tune it): `docs/01-fight-engine.md` §39 (D220).
 - Drilled rules (two slots, reliability, cooldown, opponents adapting, the presets, `--rules` in the harness): `docs/01-fight-engine.md` §23 (D116).
 - Speed budget (1000× fight time), the timing checks and how to speed things up without changing fights: `docs/01-fight-engine.md` §2.1 (D105).
 - Golden fights: four pinned fights that fail a test whenever a change alters a fight. If the change is meant to, re-pin with `godot --headless --script res://tools/golden.gd -- --update`, commit `tests/golden/golden_fights.json` and say why in the PR: `docs/01-fight-engine.md` §2.2 (D122).
@@ -50,6 +54,7 @@
 - Ageing and the prime (the body slows from 30 while skills keep growing, the body's learning curve, training between camps, scouted potential, `tools/career_curve.gd`): `docs/02-fighter-and-training.md` §3.8 (D136).
 - The camp week HUD (the planner's look: the weeks counting down to the fight, the condition card, session tiles coloured by kind and the session list, the fatigue line, the stat bars, the display font, what to edit): `docs/02-fighter-and-training.md` §3.10 (D170).
 - The fight setup as a tale of the tape (any two fighters with ◀ ▶, frames and headline stats face to face, the opponent scouted as grades, scouting cards, keys to the fight, the options under it): `docs/06-fight-hud.md` §6.7 (D172).
+- The result screen (the verdict and when, both figures as they finished, the fight sheet, the judges' cards round by round, your corner's letter grade and its numbers): `docs/06-fight-hud.md` §6.9 (D173).
 - The fight night card (the full-screen card after the camp: gas tank, fatigue, injury, the doctor's stamp, what the camp added, Fight! or Pull out; the display font on the fight screen): `docs/02-fighter-and-training.md` §3.11 (D171).
 - Mitt work, the first minigame (the coach's calls in boxing's numbers, keys 1–6 and ← ↓, timing windows, how it scores the session, ticking Play in the planner, the numbers to tune it): `docs/02-fighter-and-training.md` §3.9 (D137).
 - Opponent style sheets (the 15 styles, how opponents are generated from them, scouting cards, `tools/style_sheets.gd`): `docs/03-career-and-world.md` §7.1 (D160).

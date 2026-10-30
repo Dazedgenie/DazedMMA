@@ -27,7 +27,7 @@ const ROLES: Array[String] = ["neutral", "top", "bottom", "attacker", "defender"
 ## Letters the fight screen already uses (game/main.gd): reads on Q and E, fast, pause, towel, sounds.
 const LETTER_KEYS_TAKEN: Array[String] = ["Q", "E", "F", "P", "T", "M"]
 ## What a focus call (docs/09 call@2) may hold.
-const FOCUS_KEYS: Array[String] = ["duration_ms", "leanings", "weights", "read_bonus", "sprawl_bonus", "struggle", "struggle_stamina", "cover_bonus", "cut"]
+const FOCUS_KEYS: Array[String] = ["duration_ms", "leanings", "weights", "read_bonus", "sprawl_bonus", "struggle", "struggle_stamina", "cover_bonus", "hunt", "cut"]
 ## Where a submission (docs/09 action@2 `submission.escape_to`, D126) leaves the fight when the defender gets out.
 const ESCAPES: Array[String] = ["back", "scramble"]
 ## The minigames a session can be played as (D38, docs/02 §3.2).
@@ -199,6 +199,9 @@ func test_values_come_from_the_allowed_lists() -> void:
 				problems.append("action '%s': %s.partial_within is a chance, 0 or more" % [id, category])
 			elif block.has("ties_up_ms") and ((category != "ground" and category != "clinch") or not block.ties_up_ms is float or block.ties_up_ms <= 0.0):
 				problems.append("action '%s': ties_up_ms (how long a tie-up breaks the opponent's posture) is a ground or clinch move's, in ms (D121, D129)" % id)
+			elif (block.has("drives_m") or block.has("turns")) and (category != "clinch" or not block.get("drives_m", 1.0) is float \
+					or block.get("drives_m", 1.0) <= 0.0 or not block.get("turns", false) is bool):
+				problems.append("action '%s': drives_m (metres walked back to the fence, above 0) and turns (true or false) are a clinch move's (D220)" % id)
 			elif (block.has("throw") or block.has("landing_damage")) and (category != "takedown" or not block.get("throw", false) is bool \
 					or not block.get("landing_damage", 0.0) is float or block.get("landing_damage", 0.0) < 0.0):
 				problems.append("action '%s': throw (true or false) and landing_damage (0 or more) are a takedown's (D128)" % id)
@@ -263,8 +266,8 @@ func test_references_point_to_things_that_exist() -> void:
 			if o.has("own_flag") == o.has("opponent_flag"):
 				problems.append("%s: each opportunity names one flag, opponent_flag or own_flag" % where)
 			_expect_key(problems, where, "flag", o.get("own_flag", o.get("opponent_flag")), flags)
-			if o.has("own_flag") and o.get("required", false):
-				problems.append("%s: only an opponent_flag opportunity can be required" % where)
+			if o.has("own_flag") and o.get("required", false) and o.own_flag != "HELD_ON_FENCE":
+				problems.append("%s: an own_flag opportunity can be required only for HELD_ON_FENCE (the spin-off, D220)" % where)
 			if o.has("ai_takes") and (not o.ai_takes is bool or not o.get("required", false)):
 				problems.append("%s: ai_takes (true or false) goes on a required opening (D128)" % where)
 			if o.has("target") and o.target not in ["head", "body", "legs"]:
@@ -386,6 +389,12 @@ func test_calls_are_an_attempt_a_focus_or_a_read() -> void:
 			var struggle_stamina: Variant = focus.get("struggle_stamina", 0.0)
 			if not struggle_stamina is float or struggle_stamina < 0.0:
 				problems.append("%s: focus.struggle_stamina is stamina a beat, 0 or more" % where)
+			if focus.has("hunt"):
+				var hunt: Variant = focus.hunt
+				if not hunt is Dictionary or hunt.keys() != ["rate"] or not hunt.rate is float or hunt.rate <= 0.0 or hunt.rate > 1.0:
+					problems.append("%s: focus.hunt is {rate}, a chance a tick above 0 and up to 1 (D200)" % where)
+				if c.get("roles", []) != ["top"]:
+					problems.append("%s: a hunt is for the fighter on top (D200)" % where)
 	for id: String in _items("gameplans"):
 		var g: Dictionary = _items("gameplans")[id]
 		_expect_numbers(problems, "gameplan '%s'" % id, "leanings", g.get("leanings", {}), LEANINGS, -100, 100)
@@ -432,8 +441,8 @@ func test_position_transitions_lead_somewhere_real() -> void:
 			_expect_ids(problems, where, "positions", [t.get("to")])
 			if t.get("from_role") not in p.get("roles", []):
 				problems.append("%s: transition '%s' starts from role '%s', not one of %s" % [where, t.get("action"), t.get("from_role"), p.get("roles", [])])
-			if t.get("result", "success") not in ["success", "partial", "failed"]:
-				problems.append("%s: transition '%s' has result '%s', not success, partial or failed" % [where, t.get("action"), t.get("result")])
+			if t.get("result", "success") not in ["success", "partial", "failed", "pressed"]:
+				problems.append("%s: transition '%s' has result '%s', not success, partial, failed or pressed" % [where, t.get("action"), t.get("result")])
 			var key: String = "%s/%s/%s" % [t.get("action"), t.get("from_role"), t.get("result", "success")]
 			if seen.has(key):
 				problems.append("%s: '%s' from '%s' (%s) is listed twice" % [where, t.get("action"), t.get("from_role"), t.get("result", "success")])

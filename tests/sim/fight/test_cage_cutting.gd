@@ -1,5 +1,5 @@
 extends GutTest
-## Cutting the cage (D230, docs/01 §20.4): the Cage cutting stat, aiming at the exit instead of
+## Cutting the cage (D230, docs/01 §20.5): the Cage cutting stat, aiming at the exit instead of
 ## following, the cut-off fighter's answers (reversing, planting and countering), herding with a
 ## feint, and the Cut the cage! call.
 

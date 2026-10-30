@@ -127,6 +127,12 @@ var collar_ties_tried: int = 0
 var collar_ties_won: int = 0
 var clinch_knees_landed: int = 0
 var tied_knees_landed: int = 0
+## The cage clinch (D220): drives to the fence this fighter went for and won, and spin-offs and
+## turns (getting the other man's back onto the fence) went for and won.
+var fence_drives_tried: int = 0
+var fence_drives_won: int = 0
+var spin_offs_tried: int = 0
+var spin_offs_won: int = 0
 ## Times this fighter moved to a better position on top (a pass, the mount, the back) and got
 ## out from underneath (back to guard, up, a reversal) (D130).
 var advances: int = 0

@@ -81,6 +81,14 @@ static func _describe(event: FightEvent, sim: FightSim) -> String:
 				return "%s gets the [b]COLLAR TIE[/b]: his head is pulled down for the knees%s" % [who, _odds(event)]
 			if event.data.result == "tied_up":
 				return "%s [b]TIES HIM UP[/b] from the bottom: no ground strikes for a few seconds%s" % [who, _odds(event)]
+			if event.data.result == "driven":
+				return "%s [b]DRIVES HIM TO THE FENCE[/b]%s" % [who, _odds(event)]
+			if event.data.result == "turned" and event.data.action_id == FightSim.TURN_HIM:
+				return "%s [b]TURNS HIM[/b] onto the fence: now %s's back is on it%s" % [who, _fighter(1 - event.actor, sim), _odds(event)]
+			if event.data.result == "turned":
+				return "%s [b]SPINS OFF[/b] the fence: now %s's back is on it%s" % [who, _fighter(1 - event.actor, sim), _odds(event)]
+			if event.data.result == PositionLibrary.PRESSED:
+				return "%s's %s doesn't get him down, but he [b]PRESSES HIM ON THE FENCE[/b]%s" % [who, _action_name(event.data.action_id, sim), _odds(event)]
 			if event.data.result == PositionLibrary.PARTIAL and String(event.data.get("to", PositionLibrary.SCRAMBLE)) != PositionLibrary.SCRAMBLE:
 				return "%s's %s [b]half works[/b]: %s%s" % [who, _action_name(event.data.action_id, sim), _position_name(event.data.to, sim).to_lower(), _odds(event)]
 			if event.data.result == PositionLibrary.PARTIAL:

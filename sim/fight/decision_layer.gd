@@ -172,6 +172,15 @@ func cover_chance(view: FightView, chance: float) -> float:
 	return chance
 
 
+## The hunt for a hold a call asked for (D200), or empty: the first source with one.
+func hunt(view: FightView) -> Dictionary:
+	for source in sources:
+		var h: Dictionary = source.hunt(view)
+		if not h.is_empty():
+			return h
+	return {}
+
+
 ## Every fight event, for the AI and every source (FightSim calls it as events happen).
 func on_event(view: FightView, event: FightEvent) -> void:
 	ai.on_event(view, event, self)

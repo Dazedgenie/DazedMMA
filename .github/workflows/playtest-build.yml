@@ -4,7 +4,8 @@ name: Playtest build
 # main (and every PR, to prove it still exports) builds it; download it from the run's
 # "Artifacts" list. A Linux export of the same project runs the self-check fight first,
 # which proves data/ shipped inside the build (#35). It also exports the browser build (D240,
-# threads off so GitHub Pages or itch.io can serve it as it is).
+# threads off so GitHub Pages or itch.io can serve it as it is), and on main publishes it to
+# GitHub Pages (D241, docs/04 §2.4) once Pages is switched on for the repo.
 
 on:
   push:
@@ -86,3 +87,53 @@ jobs:
           name: ChinCheck-web-${{ github.sha }}
           path: build/export/web/
           retention-days: 30
+
+  # The browser build on GitHub Pages (D241): every push to main replaces the game at the Pages address. Until Pages is
+  # switched on (Settings → Pages → Source: GitHub Actions) this job says so in the run summary and stays green.
+  pages:
+    needs: export
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: true
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Is Pages switched on?
+        id: pages
+        continue-on-error: true
+        uses: actions/configure-pages@v5
+
+      - name: Say Pages is off
+        if: steps.pages.outcome != 'success'
+        run: |
+          echo "### The web build isn't on GitHub Pages yet" >> "$GITHUB_STEP_SUMMARY"
+          echo "Switch Pages on: Settings → Pages → Source: **GitHub Actions** (docs/04 §2.4), then re-run this workflow." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fetch the web build
+        if: steps.pages.outcome == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: ChinCheck-web-${{ github.sha }}
+          path: web
+
+      - name: Hand it to Pages
+        if: steps.pages.outcome == 'success'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+
+      - name: Publish
+        id: deploy
+        if: steps.pages.outcome == 'success'
+        uses: actions/deploy-pages@v4
+
+      - name: Say where it is
+        if: steps.pages.outcome == 'success'
+        run: echo "### Play it at ${{ steps.deploy.outputs.page_url }}" >> "$GITHUB_STEP_SUMMARY"

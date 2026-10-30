@@ -109,6 +109,24 @@ func my_cage_proximity() -> String:
 	return _sim().cage_proximity(index)
 
 
+func opponent_cage_proximity() -> String:
+	return _sim().cage_proximity(1 - index)
+
+
+## Held with his back on the fence in the clinch (D220), this fighter or the opponent.
+func held_on_fence() -> bool:
+	return _sim().held_on_fence(index)
+
+
+func opponent_held_on_fence() -> bool:
+	return _sim().held_on_fence(1 - index)
+
+
+## A drive to the fence under way in the clinch (D220): {by, dir, left}, or empty.
+func drive() -> Dictionary:
+	return _sim().drive()
+
+
 func odds(action_id: String) -> OddsBreakdown:
 	return _sim().odds_breakdown(index, action_id)
 

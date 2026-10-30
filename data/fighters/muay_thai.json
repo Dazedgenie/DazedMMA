@@ -12,6 +12,6 @@
 	"flaws": [],
 	"techniques": ["jab", "cross", "teep", "leg_kick", "body_kick", "knee", "elbow", "collar_tie", "slip"],
 	"combos": ["one_two", "one_two_body_kick", "one_two_knee", "jab_leg_kick"],
-	"tendencies": { "work_rate": 0.015, "actions": { "jab": 0.8, "cross": 0.8, "teep": 0.5, "leg_kick": 0.6, "body_kick": 0.6, "knee": 1.5, "elbow": 0.5, "clinch_entry": 3.0, "collar_tie": 1.5 } },
+	"tendencies": { "work_rate": 0.015, "actions": { "jab": 0.8, "cross": 0.8, "teep": 0.5, "leg_kick": 0.6, "body_kick": 0.6, "knee": 1.5, "elbow": 0.5, "clinch_entry": 3.0, "collar_tie": 1.5, "fence_drive": 1.5 } },
 	"tells": []
 }

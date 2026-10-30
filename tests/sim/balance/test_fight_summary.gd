@@ -131,3 +131,24 @@ func test_a_coaching_bot_in_a_corner_is_in_the_row_with_its_calls() -> void:
 	var plain: Dictionary = FightSummary.run(3, _roster, _actions, "wrestler", "kicker", 1, 60)
 	assert_eq([plain.corner_red, plain.corner_blue, plain.calls_red], ["none", "none", 0])
 
+
+
+func test_every_move_a_fighter_starts_is_counted_once_by_who_chose_it() -> void:
+	var sim: FightSim = FightSummary.setup(7, _roster, _actions, "check_red", "check_blue", 1, 60)
+	var row: Dictionary = FightSummary.play(sim)
+	for i in 2:
+		var started: int = sim.events.filter(func(e: FightEvent) -> bool:
+			return e.type == FightEvent.ACTION_PHASE and e.actor == i and e.data.phase == "telegraph").size()
+		var side: String = FightSummary.SIDES[i]
+		var chosen: int = 0
+		for layer: String in FightSummary.CHOOSERS:
+			chosen += row["chosen_%s_%s" % [layer, side]]
+		assert_eq(chosen, started, side)
+		assert_gt(row["chosen_ai_" + side], 0, "with no corner and no rules, the fighter's own AI chooses")
+		assert_eq(row["chosen_call_" + side], 0)
+
+
+func test_moves_from_calls_and_drilled_rules_are_counted_as_theirs() -> void:
+	var row: Dictionary = FightSummary.run(35006, _roster, _actions, "wrestler", "kicker", null, 300, [Corner.IDEAL, Corner.AI], [["catch_kick_and_shoot@80"], []])
+	assert_gt(row.chosen_call_red, 0, "the ideal corner's calls started moves")
+	assert_gt(row.chosen_rule_red, 0, "the drilled rule fired %d times" % row.fired_red)

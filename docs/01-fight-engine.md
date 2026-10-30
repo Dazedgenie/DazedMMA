@@ -145,6 +145,54 @@ as text some values lose their last digit (21.900000000000002 came back as 21.9)
 out is `HarnessJobs.share`. If a process fails, the harness says which one and writes nothing. CI's balance snapshot uses
 the default, so it runs on all of the test machine's cores.
 
+
+### 2.4 How sure a balance number is (D250)
+
+A balance number is a handful of fights' luck as well as the engine. Near 50%, 100 fights pin a win share to about ±10
+points either way, 300 fights to about ±6 and 1,000 to about ±3. So the harness says how sure each number is, and how to
+compare two versions of the engine without the dice deciding.
+
+**Ranges.** The summary gives each corner's win share with its 95% range, e.g. `Kicker (red) 55.0% (45.3–64.4%)`: the true
+share is very likely inside it. It's the Wilson score range (`BalanceStats.wilson`), which stays inside 0–100% and behaves
+with few fights. The draws check and the Kicker vs Boxer exit test (60/40) show one too; when the exit test's range still
+crosses 60%, it adds "too close to 60% to tell at this many fights". MET and MISSED still go by the number itself.
+
+**Paired comparisons.** The harness plays a pair's coached fights, rules fights and plain fights on the same seeds (D123),
+and a fight's coaching bot gets its own random numbers (`FightSummary.corner_seed`), so a coached fight and its plain twin
+start from the same dice. The coaching and drilled-rule lines compare each fight with its twin: one difference per seed,
+then the mean and its 95% range (`BalanceStats.paired`). Luck that hits both fights alike cancels out. For example,
+`+15.0% (-1.1 to +31.1), 50.0% → 65.0%, 20 fights paired by seed`. If the seeds don't match up (an old CSV, or runs put
+together by hand), the line falls back to comparing the two win shares, says "not paired", and the range is wider.
+
+**Comparing two runs.** To see what a change did, run the harness before and after it with the same `--seed` and `--fights`,
+then:
+
+    godot --headless --script res://tools/balance_compare.gd -- --before=build/before/balance.csv --after=build/balance/balance.csv --columns=shots_red,shots_blue
+
+Per pairing it gives how many fights played out differently (another winner, result, ending or number of events), each
+corner's win share, draws and finishes before and after, and the seed-by-seed change with its range; `--columns` adds any
+numeric CSV column. A range that doesn't cross 0 is a real change. The logic is `sim/balance/balance_compare.gd`.
+
+**What a run was made from.** Each run writes `run.json` next to the CSV: the arguments, the commit (with `+changes` when
+files differ from it), a short hash of every file in `data/`, the Godot version, the seeds, how long it took and how much
+computer time one simulated tick took. The summary starts with the commit, the data hash and the Godot version. Two runs
+with different data hashes used different fighters, moves or numbers.
+
+**Speed.** The harness prints `Speed: N µs of computer time a simulated tick`. D105's budget is 100 µs (900 ms for 9,000
+ticks). The figure includes the harness's own counting each tick (movement shares, stamina lows), and with several processes
+on one machine they slow each other a little, so it reads a bit higher than the full-fight test. It's printed, not written
+to `summary.txt`, which must be the same whatever `--jobs` is (D123); `run.json` keeps it. On 2026-10-30, in a cloud
+session with 4 cores, Kicker vs Boxer and Wrestler vs Kicker came to about 120 µs a tick with one process or four.
+
+**Who chose the moves.** Each row counts the moves each fighter started by the layer that chose them (`chosen_ai_*`,
+`chosen_call_*`, `chosen_rule_*`, `chosen_command_*`, from the `by` on each move's first event, `DecisionLayer`), and the
+summary's *Chosen by* line gives the shares. A call that only tilts the AI (a focus, a read) counts as the AI's, and so do a
+combination's follow-ups; only calls and rules that pick the move themselves count as theirs. With the ideal corner the
+Wrestler's calls chose about 17% of his moves against the Kicker (12 fights).
+
+**To change it:** the 95% (`BalanceStats.Z`), the exit test's warning (`BalanceReport.checks`), how fights are paired
+(`BalanceReport._change`, `BalanceCompare.report`) and what `run.json` holds (`tools/balance.gd`). Tests:
+`tests/sim/balance/test_balance_stats.gd`, `test_balance_report.gd`, `test_balance_compare.gd`, `test_fight_summary.gd`.
 ---
 
 ## 3. Spatial model (D2, D33)
@@ -579,7 +627,7 @@ to be, how much to circle and which way, and how hard to cut the cage off. `Figh
 | Back toward the centre | An outside fighter (Range below 0) who is further from the middle than the opponent circles round the opponent toward it while giving ground or while the opponent is busy throwing, and pivots instead of backing off. Both grow with how much further out they are (all of it from 1 m further out) and with how far outside they lean (all of it at Range −100) | `CENTRE_PULL` 1.0, `CENTRE_PULL_OVER` 1.0 m and `PIVOT` 1.0 in `fighter_ai.gd` |
 | Off the fence | With the fence within 1.5 m behind them, everyone backs up less (not at all at the fence), so a pressure fighter who gets backed up plants and fights. Outside fighters also circle out: all they can for 1.5 s, toward the side nearer the middle (a coin flip when neither side is clearly more open), the moment the opponent commits to a move, or else on a chance of 50% × how far outside they lean, each tick | `FENCE_SENSE` 1.5 m, `ESCAPE_TICKS` 15 and `ESCAPE_RATE` 0.5 in `fighter_ai.gd` |
 | Changing direction | In open space (the fence more than 0.8 m away), circling fighters think again every 3 s and switch direction 40% of the time, so they don't circle the same way all fight. Closer to the fence they circle toward the middle | `SWITCH_EVERY` 30 ticks, `SWITCH_CHANCE` 0.4 and `SWITCH_FENCE` 0.8 m in `fighter_ai.gd` |
-| Cutting off the cage | Pressing or holding (not while giving ground, rocked, or swarming a hurt opponent), a fighter steps sideways toward the spot between the opponent and the middle, as far from the opponent as now. How hard: 0.6 at Range 0, ±0.4 at Range ±100. It fades in as the opponent goes from 3 m to 4 m out from the middle, because it's the fence that traps: in open space there's no way out to shut. The sideways step is × the presser's Footwork contest share. **Since D230 (§20.4)** the reach depends on the Cage cutting stat, the step leads the opponent's drift, comes before closing in, and is × Cage cutting against the opponent's Footwork | `CUT_BASE` 0.6 and `CUT_PER_RANGE` 0.4 in `fighter_ai.gd`; `CUT_FROM` 3.0 m and `CUT_FULL` 4.0 m in `sim/fight/fight_sim.gd` |
+| Cutting off the cage | Pressing or holding (not while giving ground, rocked, or swarming a hurt opponent), a fighter steps sideways toward the spot between the opponent and the middle, as far from the opponent as now. How hard: 0.6 at Range 0, ±0.4 at Range ±100. It fades in as the opponent goes from 3 m to 4 m out from the middle, because it's the fence that traps: in open space there's no way out to shut. The sideways step is × the presser's Footwork contest share. **Since D230 (§20.5)** the reach depends on the Cage cutting stat, the step leads the opponent's drift, comes before closing in, and is × Cage cutting against the opponent's Footwork | `CUT_BASE` 0.6 and `CUT_PER_RANGE` 0.4 in `fighter_ai.gd`; `CUT_FROM` 3.0 m and `CUT_FULL` 4.0 m in `sim/fight/fight_sim.gd` |
 | Chasing | Walking in on someone whose last step was away, a fighter keeps up only by their footwork edge = (2 × Footwork contest share)², at most 1. Even feet get all of the chase; the Boxer's 50 against the Kicker's 70 (a 30% share) gets about a third | `FightSim.footwork_edge()` in `fight_sim.gd` |
 | The fence | The fence stops the part of a step that goes into it, and the rest slides along it. Before D107 a fighter who walked into the fence slid along it at full pace, so backing straight up turned into a sprint along the fence. Walking costs stamina for the distance actually covered | `FightSim._move()` in `fight_sim.gd` |
 
@@ -622,7 +670,7 @@ already do and changes nothing in the fight: the balance CSV of 160 fights was i
 | Counted as | When a tick counts | To change it |
 |---|---|---|
 | Circling | The fighter steps, and at least 40% of the step goes round the opponent: circling off a fighter in their face, back toward the middle, out off the fence, or away while rocked. An outside fighter's everyday drift sideways (0.25 × how far outside they lean, 0.15 of a step for the Kicker) doesn't count | `CIRCLING_FROM` 0.4 in `sim/fight/fight_sim.gd` |
-| Cutting off the cage | The fighter steps while pressing or holding, with the cut working: the opponent further out from the middle than the cutter's reach (3 m at Cage cutting 50, §20.4; it was 3 m for everyone before D230). It counts while they're already in the way and don't need to step across | The `cut > 0.0` branch in `FightSim._move()` |
+| Cutting off the cage | The fighter steps while pressing or holding, with the cut working: the opponent further out from the middle than the cutter's reach (3 m at Cage cutting 50, §20.5; it was 3 m for everyone before D230). It counts while they're already in the way and don't need to step across | The `cut > 0.0` branch in `FightSim._move()` |
 
 Both are counted in `FightSim._move()` into `FightSim.circling_ticks` and `cutting_ticks` (one per fighter, ticks of fight
 time). Ticks a fighter doesn't move (throwing, staggered, tied up, down) count as neither.
@@ -648,7 +696,26 @@ Only outside fighters (Range below 0) circle unless they're rocked, so the Boxer
 The Kicker never cuts off: he cuts only while pressing or holding with the opponent out by the fence, and the Boxer holds
 the centre (§20.2). Tested in `tests/sim/fight/test_fighter_ai.gd`, `tests/sim/balance/` and `tests/ui/`.
 
-### 20.4 Cutting the cage (D230–D232)
+### 20.4 Improving the AI: the plan (D250, D251)
+
+On 2026-10-30 a write-up of how the AI decides went out for an outside review, which said to keep the utility AI at the core
+but fix how it's measured first, then give failed moves costs of their own, intents that last, one memory of the opponent
+and a joined-up cage game. Kyle took the plan in seven phases, starting with the first:
+
+1. **Measure properly** (D250, §2.4): ranges on the numbers, paired comparisons, a record of each run, who chose the moves.
+2. **Outcome costs and one answer per threat:** a stuffed shot or a bitten-on feint costs the fighter something, and each
+   threat has one answer the AI weighs.
+3. **Intents that last:** a plan held for a few seconds instead of a fresh pick each tick.
+4. **Cage work joined up:** with the cage threads (D220s, D230s).
+5. **One memory of the opponent:** what he's seen, shared by the reads, the combinations and the gameplan.
+6. **The fight's arc and coaching:** rounds won and lost change the plan; coaching measured call by call.
+7. **Offline tuning and variety.**
+
+**Kyle's answers (D251):** bring takedown volume closer to real fights (the grapplers try 24–42 shots a fight in the harness,
+about 4 per 15 minutes in the UFC); catch-kicks stay a coached move (D103); test switching off the blanket call costs (D115)
+after phase 2; replace D12's flat +10–20% coaching target with how often a called move wins the exchange it was called for.
+
+### 20.5 Cutting the cage (D230–D232)
 Kyle (2026-10-30): "we also need to work on a cut the cage call and the ai around that. currently the ai just kind of circles
 following. we can make cage cutting its own stat if needed as thats something some fighters can become well known for." He
 sent two guides as the source: [the art of cutting the cage](https://mmaguidr.com/art-of-cutting-the-cage-ring-generalship-101/)
@@ -894,7 +961,7 @@ A new call replaces one of the same kind still being processed (logged as `repla
 | Kind | Calls | What the fighter does |
 |---|---|---|
 | **Attempt** | Takedown!, Clinch!, Get up!, Feint! | Goes for the first of the call's moves that would work right now: in range, the stamina for it, and the opening it needs there when it lands. *Takedown!* lists following a knocked-down man down first (D142, §34), then the catch-kick single, so a Takedown! call that lands while the opponent's leg is up (or will be as the catch lands) becomes the catch-kick (§5.1); otherwise the double-leg. Out of range, the fighter steps straight in to the nearest band one of the moves reaches from, for up to **2 s**, then gives up (`infeasible`, *"couldn't get in range"*). An attempt with a `then` list (*Feint!*, §29.3a) goes on once its first move is over: straight into the first of the `then` moves that would work |
-| **Focus** | Pressure!, Circle out!, Work the range!, Defend the shot!, Survive!, Stay safe! | For **15 s** the fighter's style leanings and move weights tilt, like a short gameplan, then it's back to the gameplan (`expired`). Calling it again starts the 15 s again; a different focus replaces it. The AI looks at its leanings and range plan again straight away when a focus starts or ends |
+| **Focus** | Pressure!, Circle out!, Work the range!, Defend the shot!, Survive!, Stay safe! | For **15 s** the fighter's style leanings and move weights tilt, like a short gameplan, then it's back to the gameplan (`expired`). Calling it again starts the 15 s again; a different focus replaces it. The AI looks at its leanings and range plan again straight away when a focus starts or ends. *Go for the finish!* (D200, §25.7) is a 10 s focus that sends the fighter on top after a hold |
 | **Read** (D49) | Catch the kick! | Primed for 6 s. When the trigger comes (`opp_kick_starts`: the opponent starts a body kick or teep), the fighter reacts with their own reaction time (D93) and catches as the leg comes up (a quick fighter waits for it). It fires once (`fired`), and comes back as `missed` if the kick was over first. While primed it costs attention: Striking and Takedown defense −15% (`attention_cost`). Up to 2 reads at once (D67), costs added; a third replaces the oldest |
 
 What each focus does (`focus` in each call's file): **Pressure** Pace +60, Range +50 (walks the opponent down, cuts the cage).
@@ -1257,6 +1324,7 @@ judges (`Judging.SUB_LOCK_POINTS`).
 |---|---|---|---|
 | *Finish it!* | 1 (Pressure! standing, Ground and pound! on top) | The attacker's corner | +15% to win each beat for 5 s; each beat costs the attacker 2 more stamina |
 | *Defend the sub!* | 6 (Defend the shot! standing) | The defender's corner | −15% to the attacker's chance each beat for 5 s; each beat costs the defender 2 more stamina |
+| *Go for the finish!* (D200, §25.7) | 2 (Circle out! standing) | The top fighter's corner, before there's a hold | For 10 s he hunts a hold: one he knows from where he is, or the position that has one |
 
 Both are focus calls in `data/calls/` (`focus.struggle`, `focus.struggle_stamina`, `09` call@2) and only work in the submission
 position, from their own side. They come through the normal pipeline (voice 15, delay, compliance, §22), so a call made the
@@ -1308,6 +1376,42 @@ meter), `tests/ui/test_fight_log_formatter.gd` (the feed lines and "wins by subm
 count as finishes) and `tests/data/test_data_files.gd` (the `submission` block, `failed` transitions, the new roles and focus
 keys). After changing a number, run the harness with all six cross-style pairings and read the **How** (submission share) and
 **Subs** (tried and locked a fight) lines.
+
+### 25.7 *Go for the finish!* (D200)
+Kyle asked for it (2026-10-30: "wrestler needs a go for the finish call to go for a submission on the ground") and picked the
+10 s hunt, for anyone on top. *Finish it!* only pushes a hold that's already locked; nothing told a fighter to go for one, and
+on his own the Wrestler looks for a better position or a hold about every 20 s, and from the top of full guard (where he spends
+most of his time on the ground) he knows no hold at all.
+
+| | |
+|---|---|
+| Key, voice | **2** on top of full guard, half guard, side control, mount or the back (key 2 is *Circle out!* standing); voice 20; a focus call through the normal pipeline (delay, compliance, §22) |
+| What he does for 10 s | Works for the finish instead of the ground and pound: on a chance of 0.5 a free tick (`focus.hunt.rate`, against about 0.006 on his own), **a hold he knows from where he is**, over anything else, without waiting for its opening and however recently he tried one (on his own, 45 s, §25.4). The Wrestler: the arm-triangle from side control and mount, the rear-naked choke from the back. **With none from here he works to a position that has one**: the guard pass from full guard and half guard, the mount or the back. An escape underneath (`ESCAPING`) that the hold's opening is for is taken every time |
+| When it's over | **One hold a call**: once he has tried a hold (locked or not), he's back to his own pace; or after 10 s. If it locks, *Finish it!* (key 1) still pushes the struggle: it's a second call, so the player picks when to push |
+| Who | Anyone on top. Everyone knows the rear-naked choke, so anyone can take the call: the more holds a fighter knows on top, the sooner he gets to one (the Wrestler, BJJ and Judoka know the arm-triangle; BJJ and the Judoka the armbar from mount; the Sambo fighter the kneebar from half guard) |
+| The AI corner | Doesn't call it, so fights without the player's calls are as before (the golden fights are unchanged) |
+
+**What it does to fights** (a scratch bot in red's corner, 100 fights a pairing, seeds 1–100, pro rules, no other corners; the
+bot calls it once each time the Wrestler gets on top, about 10 calls a fight, or every time the last one is over and it has 50
+voice, about 25–30):
+
+| Wrestler against | No calls: wins · by submission | Once each time on top | Every time it can |
+|---|---|---|---|
+| Boxer | 64% · 15% | 60% · 31% | 46% · 33% |
+| Kicker | 51% · 11% | 80% · 24% | 64% · 32% |
+
+The call doubles the Wrestler's submissions, but whether it wins him fights depends on who's underneath. Against the Kicker it's
+worth about +25%: he gives up holds. Against the Boxer, the ground and pound finishes him anyway, and a missed hold costs the
+position (the arm-triangle's escape is to the back, §28.2), so the call loses a few percent, and spamming it costs a lot. Pick
+the call for the man underneath. A gentler hunt (a rate of 0.2 or 0.08 a tick) changed these by no more than the noise of 100
+fights: what the call is worth comes from the hold it buys, not how fast he goes for it.
+
+**To change it:** `data/calls/go_for_the_finish.json` (the key, voice, `focus.duration_ms`, `focus.hunt.rate`, `09` call@2);
+what a hunt does: `FighterAI._work_position()` and `_punish_escape()` (`_hunting()`); the hook: `DecisionSource.hunt()`,
+`LiveCalls.hunt()`. Tested in `tests/sim/fight/test_go_for_the_finish.gd` (the key and positions, a hold within a couple of
+seconds from side control, mount and the back, passing first from the guard, the call overriding his own wait, one hold a call,
+the 10 s, nothing from underneath, the AI corner never calling it), `tests/sim/fight/test_live_calls.gd` (the catalogue) and
+`tests/data/test_data_files.gd` (the `hunt` block).
 
 ## 26. Throws and the guard game (D128)
 Kyle asked for throws so judo and BJJ fighters become possible (2026-10-28, after the fight-styles overview flagged "no
@@ -1546,6 +1650,7 @@ tie-ups don't move the fight, so this changes nothing for them, and nothing that
 - *Get up!* (key 7) now works from under every position and calls the way out from there: up from full guard or half guard,
   back to guard from side control, the bridge from mount, turning out of the back.
 - *Ground and pound!* and *Survive!* work in every ground position.
+- *Go for the finish!* (D200, key 2, §25.7) sends the top fighter after a hold for 10 s, passing to get to one.
 
 ### 28.6 On screen and in the harness
 - The tag under the fighters names the position and who's on top, "Back control · Wrestler has the back" (a position's
@@ -2466,3 +2571,123 @@ a good kicker hides his kicks from it, too early does nothing, it doesn't stop p
 straight punches and the uppercut punishes it; through the guard half the head damage and the body open; a covered rocked man
 has his hands up and the referee lets it go on; the AI checks what it reads, only a fighter who knows the slip slips and counters
 off it, and covers up when rocked, always on *Survive!*).
+
+## 39. The cage clinch: driving him to the fence, holding him there and getting off it (D220)
+Kyle asked for fighters to be "pushed and held up against the cage more", leaning into the grapplers and dirty boxers
+(2026-10-30). Before this the fence only mattered on the feet: fighters were backed onto it a lot (the Boxer was pinned 86% of
+his standing time against the Pressure wrestler), but nobody walked anyone onto it in the clinch, and two fighters tied up along
+the fence were both "pinned", so it changed nothing between them. Kyle picked who leans in (the Wrestler, Pressure wrestler,
+Ground-and-pound wrestler, Dirty boxer and Muay Thai fighter), how much (about a fifth of their fights on the fence, a real part
+of their game) and the balance rule (matchups inside 60/40 stay inside, and the ones already outside don't move further out). The
+walk-up to the fence on the feet (cutting the cage off) is the *Cut the cage* work (D230–D239, §20.2); this section starts once
+they're tied up. Every number is a first guess for the harness; each is a named constant or a data field, listed in §39.6.
+
+### 39.1 The moves
+All three are *everyone*'s (`basic`), clinch moves, and don't change the position on their own.
+
+| Move | Timing (telegraph · wind-up · active · recovery) | Odds (base + attack − defense stats) | What it does |
+|---|---|---|---|
+| Drive to the fence (`fence_drive.json`) | 0 · 0.2 · 0.3 · 0.2 s | 50% + (Clinch control, Strength) − (Clinch control, Strength). +10% on a head pulled down (the collar tie), −15% with his own pulled down | Walks the other man straight back, **1.5 m a second**, until his back is on the fence (or 4 m are used up). Still the clinch, chest to chest. The log says *"Dirty boxer DRIVES HIM TO THE FENCE"* |
+| Spin off the fence (`spin_off.json`) | 0 · 0.2 · 0.2 · 0.2 s | 55% + (Clinch control, Footwork) − (Clinch control, Strength). −15% with his own head pulled down | **Only for the man held on the fence.** Turns the two of them round and comes away: they're standing, and it's the other man's back on the fence now |
+| Turn him onto the fence (`turn_him.json`) | 0 · 0.2 · 0.3 · 0.2 s | 40% + (Clinch control, Strength) − (Clinch control, Strength). −15% with his own head pulled down | **Only for the man held on the fence.** Turns them round and keeps hold: still the clinch, the other man's back on it |
+
+### 39.2 Held on the fence
+In the clinch, the man whose back is on the fence (within 0.5 m of it, and nearer it than the other man) is **held on the fence**
+(the flag `HELD_ON_FENCE`). Tied up along the fence both can be within half a metre of it (`BACK_TO_CAGE` both, as before); only
+the one with his back to it is held. On the feet nobody is held: that's still `BACK_TO_CAGE` (§18).
+
+| | What changes | Where it lives |
+|---|---|---|
+| **He carries the weight** | 0.1 stamina a second more than the clinch already costs (0.4) | `FightSim.FENCE_HOLD_DRAIN_PER_S` |
+| **Knees and short punches** | The holder's knee, short uppercut and short hook are +5% on him | the `HELD_ON_FENCE` opportunity in `knee.json`, `short_uppercut.json`, `short_hook.json` |
+| **Getting out** | He breaks at −10% (−15% until D220, when it counted for both men along the fence); or spins off, or turns him (§39.1) | the `own_flag` `BACK_TO_CAGE` opportunity in `clinch_break.json` |
+| **The judges** | Time with the other man pinned on the fence scores control, as it already did (§11, `Judging.FENCE_CONTROL_PER_S`) | unchanged |
+| **A level change off it** | His own double leg from the clinch is +15% with his back on the fence (the fence holds him up for the shot). Without it the Wrestler held there by the clinch fighters lost 11–12 points of wins against each of them | the `own_flag` `HELD_ON_FENCE` opportunity in `double_leg.json` |
+
+Takedowns from the clinch on a man on the fence keep their +15% (§21.1).
+
+### 39.3 A shot on the fence
+A double leg at a man whose back was on the fence as it made contact, that **half works**, leaves the shooter on him, tied up
+against the fence (the clinch) one time in four, instead of the scramble: *"Wrestler's Double-leg takedown doesn't get him down,
+but he PRESSES HIM ON THE FENCE"*. No takedown points. It's the `pressed` transition in `data/positions/standing.json`
+(`09`), on a chance of `FightSim.PRESSED_CHANCE` (0.25). At 0.5, and with stuffed shots pressing him too, it put the Pressure
+wrestler at 90% against the Boxer (from 76%).
+
+### 39.4 The fighter AI and who leans in
+How much a fighter likes fighting on the fence is his **`fence_drive` tendency** (1 when it isn't set): it's how often he picks
+the drive, like any move's tendency, and how long he stays once he has the other man there.
+
+| Where | What the fighter does | To change it |
+|---|---|---|
+| In the clinch, in open space | Picks the drive by its tendency and odds. Never drives a man already held on the fence, or while a drive is under way | `fence_drive` in a fighter's `tendencies` |
+| Holding him on the fence | Breaks only 1 / `fence_drive` as often (he stays), and works his knees, short punches and shots from there | `FighterAI.fence_liking()`; `FENCE_WORK` (1.0: no extra work rate, see §39.5) |
+| Held on the fence himself | Spins off by how little he likes the clinch (the break's weight, 1 − Base/100 − Range/200), turns him by how much he likes it (`clinch_liking`) | `_tied()` in `sim/fight/fighter_ai.gd` |
+
+Who leans in (Kyle's pick): the Ground-and-pound wrestler at `fence_drive` 3, the Pressure wrestler at 2, the Wrestler, the
+Dirty boxer and the Muay Thai fighter at 1.5. Everyone else is at 1. Two things tried and taken out: tying up an opponent already pinned on
+the feet × `fence_drive` more often (it doubled the Dirty boxer's clinches against a Boxer he has on the fence 86% of the time,
+and put him at 78%), and holders working 1.25 × as often. The Dirty boxer's Clinch striking is **60 (was 65)**, to keep him
+near his old 65% against the Boxer now that he can hold him there.
+
+### 39.5 Balance
+Harness, no calls, 200 fights a pairing, seed 1, pro rules: main (D180) → now. Wins are the first-named fighter's; *held* is
+the share of the fight he had the other man on the fence in the clinch (the **Cage** line).
+
+| Pairing | Wins: main → now | Held on the fence now | Inside 60/40? |
+|---|---|---|---|
+| Kicker vs Boxer | 45% → 45% | – | yes, unchanged |
+| Wrestler vs Kicker | 51.5% → 51.5% | 0% | yes, unchanged |
+| Wrestler vs Boxer | 65% → 65.5% | 0.3% | outside, unchanged |
+| Pressure wrestler vs Kicker | 95% → 96.5% | 0.1% | outside, about the same |
+| Pressure wrestler vs Boxer | 73.5% → 77% | 2.8% | outside, **3.5 points further** |
+| Ground-and-pound wrestler vs Kicker / Boxer | 81% / 85% → 80.5% / 83.5% | 0.1% / 0.2% | outside, unchanged |
+| Dirty boxer vs Kicker | 12.5% → 12.5% | 1.4% | outside, unchanged |
+| Dirty boxer vs Boxer | 62% → 67.5% | **40%** | outside, **5.5 points further** |
+| Dirty boxer vs Wrestler | 59% → 59% | 11.5% | yes, unchanged |
+| Dirty boxer vs Muay Thai | 19% → 54% | 34% | **now inside** |
+| Muay Thai vs Kicker | 79% → 75.5% | 1.6% | outside, closer |
+| Muay Thai vs Boxer | 53% → 55% | 9.4% | yes |
+| Muay Thai vs Wrestler | 66.5% → 70.5% | 7.1% | outside, **4 points further** |
+| Judoka vs Boxer | 69.5% → 73% | 6.8% (he doesn't lean in: these start on the fence) | outside, **3.5 points further** |
+| Judoka vs Wrestler | 77% → 85.5% | 6% | outside, **8.5 points further** |
+| BJJ vs Boxer | 56.5% → 57.5% | 0.4% | yes |
+| Sambo vs Boxer | 68.5% → 63% | 0% | outside, closer |
+
+What it says:
+- **The clinch fighters live on the fence now.** The Dirty boxer has the Boxer's back on the fence for 40% of the fight and the
+  Muay Thai fighter's for a third; the Muay Thai fighter holds the Boxer there about a tenth of the fight (with about 5 drives).
+- **The wrestlers hardly get there yet (0–3%).** They shoot from where they stand rather than tie up, and against the Kicker
+  and the Boxer the opponent is seldom pinned in reach of a clinch: getting him there is the walk-up (*Cut the cage*, D230–D239).
+  Weighting their clinch entries on a pinned man by their liking for the fence didn't move it (and put the Dirty boxer at 78%
+  against the Boxer when it applied to him), so it was taken out.
+- **Inside 60/40 stays inside**, and Dirty boxer vs Muay Thai comes in from 19/81. **Five matchups that were already outside moved
+  3.5–8.5 points further out** (the Dirty boxer and the Pressure wrestler against the Boxer, Muay Thai and the Judoka against the
+  Wrestler, the Judoka against the Boxer); Kyle's rule said they shouldn't; shown the five, he kept them as they are (2026-10-30, "Fine as it is"). 100-fight runs
+  swing ±5 points, so read these at 200 fights or more.
+- Tuning tried, so nobody walks the same dead ends: the man on the fence tiring 0.4 a second and the holder's knees +10% (the Dirty
+  boxer at 86–92% against the Boxer); spin-offs that only turned him round, so the striker never got out (the same); a stuffed shot
+  on the fence pressing him there half the time (the Pressure wrestler at 90% against the Boxer).
+
+Golden fights (§2.2): one of the four changes (Wrestler vs Boxer with the sprawl rule: the Boxer holds the Wrestler on the fence
+now and then and spins off it), re-pinned.
+
+### 39.6 To change it, and the tests
+- The moves: `data/actions/fence_drive.json` (`clinch.drives_m`, 4), `spin_off.json`, `turn_him.json` (`clinch.turns`; `09`
+  action@2); the spin-off comes away because `data/positions/clinch.json` sends it to standing.
+- Held on the fence: `FightSim.held_on_fence()`, `HELD_ON_FENCE`, `FENCE_HOLD_DRAIN_PER_S` (0.1), `DRIVE_SPEED` (1.5 m/s),
+  `_drive_step()`, `_turn()`; the knee and short-punch bonuses in their files; the break in `clinch_break.json`.
+- A shot on the fence: `FightSim.PRESSED_CHANCE` (0.25), `_pressed_on_fence()`, the `pressed` transition in `standing.json`.
+- The AI: `FighterAI.fence_liking()`, `FENCE_WORK`, the `clinch_break`, `fence_drive`, `spin_off` and `turn_him` cases in `_tied()`;
+  who leans in: `fence_drive` in `data/fighters/*.json`.
+- The harness: a **Cage** line for every pairing (time each fighter held the other on the fence, drives and spin-offs tried and
+  won) and CSV columns `fence_hold_*`, `fence_drives_*`, `fence_drives_won_*`, `spin_offs_*`, `spin_offs_won_*` (spin-offs
+  count turning him too).
+- The feed lines: `ui/fight_log_formatter.gd`.
+
+Tested in `tests/sim/fight/test_cage_clinch.gd` (who is held, along the fence only the one nearer it, not on the feet; he tires
+faster; the knees and short punches; the judges; a drive walks him back at its pace onto the fence and stops when the clinch
+does; spinning off comes away with the other man on the fence, turning him keeps the clinch, only the man on the fence can do
+either; a shot on the fence that half works presses him there about a quarter of the time, never in open space; the AI drives
+by its liking, never a man already there, stays when it likes it, works to get off it; who leans in; the Dirty boxer holds
+the Boxer on the fence in real fights), `tests/sim/balance/test_balance_report.gd` (the Cage line), `tests/ui/test_fight_log_formatter.gd`
+and `tests/data/test_data_files.gd` (`drives_m`, `turns`, a required `HELD_ON_FENCE`, the `pressed` result).
