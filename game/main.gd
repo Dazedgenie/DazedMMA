@@ -59,6 +59,7 @@ func _ready() -> void:
 	setup.start_pressed.connect(start_fight)
 	setup.camp_pressed.connect(open_camp)
 	ui.add_child(setup)
+	ui.move_child($UI/Version, -1)  # Over the full-screen setup.
 	_console = $UI/DebugConsole
 	ui.move_child(_console, -1)
 	$UI/Version.text = "%s · fight prototype · Godot %s" % [

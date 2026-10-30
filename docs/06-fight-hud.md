@@ -86,7 +86,7 @@ screen; **Start fight** plays three rounds with the player as the **red corner**
 |---|---|
 | Playtest | Free fight, or one of the playtest's fights (D118, `docs/playtests/`): it sets the fight, the calls on the bar, the drilled rules and the tell cue, and opens on a tip |
 | Your name | Saved with each fight for the playtest write-up (optional) |
-| Fight | Wrestler vs Kicker (the playtest matchup, D112), Kicker vs Boxer, Wrestler vs Boxer, Boxer vs Kicker, then the throwers (D128): Judoka vs Boxer, Judoka vs Wrestler, BJJ vs Wrestler, BJJ vs Kicker, then the Muay Thai fighter (D129): Muay Thai vs Boxer, vs Wrestler and vs Kicker, then the Sambo fighter (D132): Sambo vs Wrestler, vs BJJ and vs Boxer. You coach the first-named fighter |
+| The fighters | ◀ ▶ on each side of the tale of the tape (§6.7, D172): any two fighters with a style sheet, a mirror too. It opens on Wrestler vs Kicker (the playtest matchup, D112). You coach the red corner, on the left |
 | Rules | Pro (unified rules, the default), PRIDE rules (D141, `01` §33: a 10-minute first round, soccer kicks and stomps on a downed man, knees on the ground, the whole fight judged), Amateur 18+ or Amateur 16–17 (`08`). A playtest fight is always pro |
 | Speed | Normal is 2× fight time (D9), or 1× for the playtest's comparison (D91) |
 | Difficulty | Normal, or Easy: P pauses the fight (D50) |
@@ -138,7 +138,7 @@ Enter presses the dialog's first button · F3 debug overlay · ` debug console.
 ### 6.5 Not in v0 yet
 - **Technique wheel (Tab, D6):** the only technique call is Catch the kick!, already on Q.
 - **Gameplan picker:** live fights have no gameplan yet, so the plan panel says "own game".
-- **Scouting grades (D24):** the opponent's numbers show exactly; **cuts** don't exist in the engine yet.
+- **Scouting grades (D24) everywhere:** the setup's tale of the tape scouts the opponent as grades (§6.7); anywhere else that shows his stats still shows them exactly; **cuts** don't exist in the engine yet.
 - **Judges' estimate on Hard / the coach's Reading skill:** there's no Hard and no coach skills yet; the estimate ignores judge noise and tie-breaks.
 - **Sound** (the flourish's sting) and **colour-blind modes, text size, reduced flashing** (§5).
 - **The corner screen (§4):** between rounds shows the cards and the rule slots only (no cutman, D30 is out of the prototype's scope, `10` §1).
@@ -152,8 +152,34 @@ Enter presses the dialog's first button · F3 debug overlay · ` debug console.
 - Bubble and flash times, the figure's size on the top bar (`FIGURE_SIZE`): the constants at the top of `ui/fight_hud.gd`.
   The body figure's colours (`FRESH`, `HALF`, `DONE`), hit flash (`FLASH_SECONDS`), rocked pulse (`PULSE_SECONDS`,
   `PULSE_LOW`) and shape (`_draw`): `ui/body_damage_figure.gd` (D150). What the feed calls a key moment: `FightFeed.kind_of`.
-- The matchups on the setup screen: `FightSetup.MATCHUPS`; the rules it offers: `FightSetup.RULESETS`.
+- The fighters the setup offers and their order: `FightSetup.FIRST` (then every other fighter with a style sheet); who it opens on: `DEFAULT_RED`, `DEFAULT_BLUE`; the rules it offers: `FightSetup.RULESETS`. The tale of the tape: §6.7.
 - Tests: `tests/game/test_fight_driver.gd` (speeds, pause, the bell, auto slow-mo, perfect calls, sliding, the towel, and
   speed never changing the fight), `tests/game/test_main_scene.gd` (a full three-round fight from setup to result, hotkeys,
   pause on Easy, the menu and the towel), `tests/game/test_arena_view.gd`, `tests/ui/test_fight_hud.gd`,
   `tests/ui/test_body_damage_figure.gd`, `tests/ui/test_fight_feed.gd`, and the towel in `tests/sim/fight/test_fight_sim.gd`.
+
+### 6.7 The tale of the tape (D172)
+The setup screen (§6.1) is laid out like a broadcast's tale of the tape, in the camp screens' corner-board look (D170).
+
+- **The two fighters:** your corner (red) on the left, the opponent (blue) on the right. Each has ◀ ▶ around his name to
+  step through every fighter that has a style sheet (`data/styles`, D160), so any two can meet. Under the name: his style,
+  a body figure (fresh) drawn to his height, and his style sheet's scouting card: the summary, then strengths (+) and
+  weaknesses (−).
+- **The tape, in the middle:** height, reach, stance and build face to face; the taller and longer-armed man's number is in
+  his corner's colour. Then ten headline stats (speed, cardio, chin, boxing, kicking, power, takedowns, takedown
+  defense, top control, submissions) as bars growing out from the middle. **Yours are exact** (the number and its
+  grade). **His are scouted** (D24): only the grade, and his bar is solid to the grade's floor and faint across the
+  rest of the band that grade covers (a B is somewhere from 50 to 64).
+- **Keys to the fight**, under the tape, for the red corner: a reach edge of 5 cm or more (or, if reach is close, a
+  height edge), a southpaw on either side, the stat where you're furthest ahead and the one where he is (two grades or
+  more apart), and the scouting card's how-to-beat. No keys reads "An even match on paper".
+- **The options** sit in a panel underneath: the playtest picker, rules, speed, your name, difficulty, seed, the three
+  toggles, the drilled rules and the keys line, with a big red **Start fight** and **Training camp first** on the right.
+  The subtitle under the title names the playtest fight and the rules.
+
+**To change it:** the stats on the tape and their order: `TaleOfTheTape.TAPE_STATS`; how big a frame or stat gap must be
+to make a key: `FRAME_EDGE_CM`, `STAT_EDGE_STEPS`; the keys' wording: `TaleOfTheTape.keys`; row heights, colours and
+the bar drawing: the constants and `_draw` in `ui/tale_of_the_tape.gd`. The fighter order and the opening matchup:
+`FIRST`, `DEFAULT_RED`, `DEFAULT_BLUE`; the figure's size (`FIGURE_H`, `FIGURE_TALLEST_CM`) and how far a long name
+shrinks (`NAME_SIZE`, `NAME_MIN_SIZE`, `NAME_W`): `ui/fight_setup.gd`. The grades themselves: `TrainingCamp.GRADES`
+(docs/11 §2.4). Tests: `tests/ui/test_fight_setup.gd`.
