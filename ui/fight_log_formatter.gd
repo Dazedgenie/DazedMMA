@@ -74,7 +74,8 @@ static func _describe(event: FightEvent, sim: FightSim) -> String:
 		FightEvent.STRIKE_LANDED:
 			var counter: String = "counter " if event.data.get("counter", false) else ""
 			var into: String = " into the %s" % _action_name(event.data.into, sim).to_lower() if event.data.has("into") else ""
-			return "%s's %s%s [b]LANDS[/b]%s (%s, %d damage)%s" % [who, counter, _action_name(event.data.action_id, sim), into, event.data.target, event.data.damage, _odds(event)]
+			var guard: String = ", through the guard" if event.data.get("covered", false) else ""
+			return "%s's %s%s [b]LANDS[/b]%s (%s, %d damage%s)%s" % [who, counter, _action_name(event.data.action_id, sim), into, event.data.target, event.data.damage, guard, _odds(event)]
 		FightEvent.GRAPPLE_WON:
 			if event.data.result == "tied_up" and event.data.action_id == FightSim.COLLAR_TIE:
 				return "%s gets the [b]COLLAR TIE[/b]: his head is pulled down for the knees%s" % [who, _odds(event)]
@@ -93,6 +94,13 @@ static func _describe(event: FightEvent, sim: FightSim) -> String:
 			if event.data.worked:
 				return "%s [b]SPRAWLS[/b] on it%s" % [who, _odds(event)]
 			return "%s's sprawl doesn't hold%s" % [who, _odds(event)]
+		FightEvent.STRIKE_DEFENDED:
+			var against: String = _action_name(event.data.against, sim).to_lower()
+			if event.data.worked and event.data.has("leg"):
+				return "%s [b]CHECKS[/b] the %s: it lands on his shin (%d damage to the kicker's leg)%s" % [who, against, event.data.damage, _odds(event)]
+			if event.data.worked:
+				return "%s [b]SLIPS[/b] the %s%s" % [who, against, _odds(event)]
+			return "%s's %s doesn't stop the %s%s" % [who, _action_name(event.data.action_id, sim).to_lower(), against, _odds(event)]
 		FightEvent.FEINTED:
 			var them: String = _fighter(1 - event.actor, sim)
 			if event.data.has("reason"):

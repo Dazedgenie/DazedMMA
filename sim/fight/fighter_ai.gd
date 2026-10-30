@@ -85,6 +85,14 @@ const OPENING_SHARPNESS: float = 2.0
 ## Sprawling on a shot it read: 60% + 30% × Takedown defense / 100.
 const SPRAWL_BASE: float = 0.6
 const SPRAWL_PER_TDD: float = 0.3
+## Checking or slipping a strike it read (D180), when the defence will be up as it lands:
+## 60% + 30% × Striking defense / 100. Then the defence's own roll decides it (FightSim).
+const GUARD_BASE: float = 0.6
+const GUARD_PER_SD: float = 0.3
+## Covering up when rocked (D180): decided once each time he's rocked, 20% + 40% × Fight IQ / 100
+## (40% for an average fighter), plus the Survive! call's cover_bonus (it makes him).
+const COVER_BASE: float = 0.2
+const COVER_PER_IQ: float = 0.4
 ## Outside fighters step back from a strike they read: up to 60% at Range −100, plus
 ## 30% × head hurt for anyone. They aim this much further away until it's past.
 const EVADE_MAX: float = 0.6
@@ -379,6 +387,8 @@ var _choice_ready: bool = false
 ## and what he decided.
 var _follow_decided_at: int = 0
 var _follows: bool = false
+## Rolled each time this fighter is rocked (D180): he covers up while it's under the cover chance.
+var _cover_roll: float = -1.0
 ## Submissions (D126): the tick of this fighter's last try, and whether they've already
 ## looked for a guillotine on the opponent's current stuck shot.
 var _sub_at: int = -SUB_RETRY_TICKS
@@ -405,12 +415,17 @@ func choose(view: FightView, layer: DecisionLayer) -> Decision:
 	if not view.is_standing():
 		return _tied(view, layer)
 	if f.is_rocked():
-		# Covering up: only the odd desperate shot.
+		var cover: Decision = _cover(view, layer)
+		if cover != null:
+			return cover
+		# Hurt: only the odd desperate shot.
 		return _lead(view, layer) if _leads(view, layer) else DecisionLayer.IDLE
 	var registered: bool = _registered(view)
 	var d: Decision = null
 	if registered and _opp.category == TAKEDOWN:
 		d = _defend(view, layer)
+	elif registered and _opp.category == STRIKE:
+		d = _guard(view, layer)
 	if d == null:
 		d = _guillotine(view, layer)
 	if d == null and not _follow.is_empty():
@@ -510,13 +525,65 @@ func _defend(view: FightView, layer: DecisionLayer) -> Decision:
 	_opp.sprawl_rolled = true
 	for id in _all_moves(view):
 		var action: Dictionary = view.actions.get_action(id)
-		if action.category == DEFENSE and action.defense.against_categories.has(TAKEDOWN) and _usable(view, action):
+		if action.category == DEFENSE and action.defense.get("against_categories", []).has(TAKEDOWN) and _usable(view, action):
 			var chance: float = SPRAWL_BASE + SPRAWL_PER_TDD * view.me.effective_stat("takedown_defense") / 100.0
 			if view.roll() < layer.sprawl_chance(view, chance):
 				_opp.decided = true
 				return Decision.new(id, DecisionLayer.AI, "sprawls on the shot")
 			return null
 	return null
+
+
+## A strike it read (D180): check a low kick or slip a straight punch, if he has a defence
+## against it that will be up as it lands. One roll a strike; when it fails (or there's no
+## defence that fits), the strike is read like any other move: a counter, or backing off.
+func _guard(view: FightView, layer: DecisionLayer) -> Decision:
+	if _opp.get("guard_rolled", false):
+		return null
+	_opp.guard_rolled = true
+	var lands: int = _ticks_until_active(view)
+	for id in _all_moves(view):
+		var action: Dictionary = view.actions.get_action(id)
+		if action.category != DEFENSE or not action.defense.get("against_strikes", []).has(_opp.id) or not _usable(view, action):
+			continue
+		# Up in time and still up as it lands, whoever steps first this tick.
+		var up: int = view.phase_ticks(id, "telegraph") + view.phase_ticks(id, "windup")
+		if lands < maxi(1, up + 1) or lands > up + view.phase_ticks(id, "active") - 1:
+			continue
+		var chance: float = GUARD_BASE + GUARD_PER_SD * view.me.effective_stat("striking_defense") / 100.0
+		if view.roll() < chance:
+			_opp.decided = true
+			return Decision.new(id, DecisionLayer.AI, "%s the %s" % [String(action.name).to_lower(), String(view.actions.get_action(_opp.id).name).to_lower()])
+		return null
+	return null
+
+
+## Rocked (D180): cover up, if he decided to this time he was rocked (COVER_BASE, or the Survive!
+## call), with a cover-up that works from here.
+func _cover(view: FightView, layer: DecisionLayer) -> Decision:
+	if _cover_roll < 0.0:
+		return null
+	var chance: float = COVER_BASE + COVER_PER_IQ * view.me.effective_stat("fight_iq") / 100.0
+	if _cover_roll >= layer.cover_chance(view, chance):
+		return null
+	for id in _all_moves(view):
+		var action: Dictionary = view.actions.get_action(id)
+		if action.category == DEFENSE and action.defense.has("head_share") and _usable(view, action):
+			return Decision.new(id, DecisionLayer.AI, "covers up")
+	return null
+
+
+## Ticks until the opponent's move reaches its active phase (when a strike lands), 0 once it has.
+func _ticks_until_active(view: FightView) -> int:
+	if view.opponent.phase == "active" or view.opponent.phase == "recovery":
+		return 0
+	for ahead in range(1, 30):
+		var phase: String = view.opponent_phase_ahead(ahead)
+		if phase == "" or phase == "recovery":
+			return 0
+		if phase == "active":
+			return ahead
+	return 0
 
 
 ## A tell or the next strike of a combination.
@@ -534,6 +601,7 @@ func _follow_up(view: FightView, layer: DecisionLayer) -> Decision:
 		return Decision.new(action.id, DecisionLayer.AI, reason)
 	var last: String = _follow.last
 	var combo: String = String(_follow.get("combo", ""))
+	var why: String = String(_follow.get("why", "combination"))
 	_follow = {}
 	if combo != "":
 		var next: String = view.combos.move(combo, int(_follow_step))
@@ -560,7 +628,7 @@ func _follow_up(view: FightView, layer: DecisionLayer) -> Decision:
 		_chain = 0
 		return null
 	_chain += 1
-	var d := Decision.new(options[_pick(view, weights)], DecisionLayer.AI, "combination")
+	var d := Decision.new(options[_pick(view, weights)], DecisionLayer.AI, why)
 	d.combo = _pick_combo(view, last, d.action_id)
 	if d.combo != "":
 		d.combo_step = 1
@@ -1553,10 +1621,17 @@ func on_event(view: FightView, event: FightEvent, layer: DecisionLayer) -> void:
 			if event.actor != me and _last_move != "" and _timed_on_me(view, event):
 				_caught[_last_move] = int(_caught.get(_last_move, 0)) + 1
 				rethink()
+		FightEvent.STRIKE_DEFENDED:
+			if event.actor == me and event.data.worked and not view.me.is_rocked():
+				# Off the slip, or while he's still on one leg from the check (D180).
+				var off: String = "off the check" if event.data.has("leg") else "off the slip"
+				_follow = { "kind": COMBO, "until": event.tick + FightSim.SLIP_COUNTER_TICKS, "last": "", "why": off }
 		FightEvent.ROCKED, FightEvent.KNOCKDOWN:
 			if event.actor == me:
 				_follow = {}
 				_chain = 0
+				if event.type == FightEvent.ROCKED:
+					_cover_roll = view.roll()  # Does he shell up this time (_cover)?
 				_round_taken += Judging.KNOCKDOWN_POINTS if event.type == FightEvent.KNOCKDOWN else Judging.ROCKED_POINTS
 			else:
 				_round_dealt += Judging.KNOCKDOWN_POINTS if event.type == FightEvent.KNOCKDOWN else Judging.ROCKED_POINTS
@@ -1731,8 +1806,8 @@ func crowded(view: FightView, band: String = "") -> bool:
 
 ## A strike landed or was defended: remember what's working, and keep score.
 func _scored(event: FightEvent, me: int) -> void:
-	if event.data.has("reason"):
-		return  # Fell short or nobody to hit: says nothing about the move.
+	if event.data.has("reason") and event.data.reason != "defended":
+		return  # Fell short or nobody to hit: says nothing about the move. Checked or slipped (D180) is a miss.
 	var landed: bool = event.type == FightEvent.STRIKE_LANDED
 	var points: float = float(event.data.get("damage", 0)) * Judging.TARGET_WEIGHTS.get(event.data.target, 1.0)
 	if event.actor == me:

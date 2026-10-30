@@ -168,6 +168,20 @@ func test_a_punished_shot_explains_what_punished_it() -> void:
 	assert_string_contains(_plain(FightLogFormatter.line(sprawl, _sim)), "Blue SPRAWLS on it 55%")
 
 
+func test_checks_slips_and_shots_on_the_guard_say_what_happened() -> void:
+	var odds := { "base": 0.6, "attack": 50.0, "defense": 50.0, "stat_gap": 0.0, "bonuses": [], "chance": 0.6 }
+	var checked := FightEvent.new(10, 1, FightEvent.STRIKE_DEFENDED, 1, { "action_id": "check_kick", "against": "leg_kick", "worked": true, "chance": 0.6, "odds": odds, "damage": 4, "leg": 1 })
+	assert_string_contains(_plain(FightLogFormatter.line(checked, _sim)), "Blue CHECKS the leg kick: it lands on his shin (4 damage to the kicker's leg) 60%")
+	var slipped := FightEvent.new(10, 1, FightEvent.STRIKE_DEFENDED, 1, { "action_id": "slip", "against": "cross", "worked": true, "chance": 0.6, "odds": odds })
+	assert_string_contains(_plain(FightLogFormatter.line(slipped, _sim)), "Blue SLIPS the cross 60%")
+	var late := FightEvent.new(10, 1, FightEvent.STRIKE_DEFENDED, 1, { "action_id": "slip", "against": "cross", "worked": false, "chance": 0.6, "odds": odds })
+	assert_string_contains(_plain(FightLogFormatter.line(late, _sim)), "Blue's slip doesn't stop the cross")
+	var guard := FightEvent.new(10, 1, FightEvent.STRIKE_LANDED, 0, { "action_id": "cross", "target": "head", "damage": 3, "covered": true })
+	assert_string_contains(_plain(FightLogFormatter.line(guard, _sim)), "Red's Cross LANDS (head, 3 damage, through the guard)")
+	assert_eq(FightFeed.kind_of(checked), FightFeed.KEY_MOMENT)
+	assert_eq(FightFeed.kind_of(late), FightFeed.EXPLANATION)
+
+
 func test_the_movement_line_says_how_long_each_fighter_circled_and_cut_off() -> void:
 	_sim.now = 9000
 	_sim.circling_ticks[0] = 4320

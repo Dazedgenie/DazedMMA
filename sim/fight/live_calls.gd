@@ -330,6 +330,13 @@ func adjust_sprawl(_view: FightView, chance: float) -> float:
 	return chance + float(focus.call.focus.get("sprawl_bonus", 0.0))
 
 
+## A focus call's push on covering up when rocked (D180): Survive!'s cover_bonus.
+func adjust_cover(_view: FightView, chance: float) -> float:
+	if focus.is_empty():
+		return chance
+	return chance + float(focus.call.focus.get("cover_bonus", 0.0))
+
+
 ## A struggle call's push on a submission hold (D126): Finish it! for the attacker, Defend the
 ## sub! for the defender, while the focus is on (FightSim.struggle_share).
 func struggle_bonus() -> float:

@@ -61,6 +61,16 @@ const STOPPABLE_PHASES: Array[String] = ["telegraph", "windup", "active"]
 const COUNTER_PHASES: Array[String] = ["windup", "recovery"]
 const COUNTER_BONUS: float = 0.10
 const COUNTER_DAMAGE: float = 1.3
+## Striking defence (D180, docs/01 §38). A check or a slip has to be up (in its active phase) as
+## the strike lands: one roll on its odds, and either way it's spent. A checked kick lands on the
+## shin: the kicker's kicking leg (his rear leg) takes CHECK_KICKER_SHARE of the kick, the checker's
+## lead leg CHECK_SHIN_SHARE, and the kicker is on one leg CHECK_STUCK_TICKS longer (ONE_LEG).
+const CHECK_KICKER_SHARE: float = 0.6
+const CHECK_SHIN_SHARE: float = 0.2
+const CHECK_STUCK_TICKS: int = 2
+## A slipped punch: for SLIP_COUNTER_TICKS the slipper's strikes get SLIP_COUNTER_BONUS ("off the slip").
+const SLIP_COUNTER_TICKS: int = 6
+const SLIP_COUNTER_BONUS: float = 0.15
 ## Below a quarter tank the hands drop (docs/01 §5: HANDS_LOW from fatigue).
 const HANDS_LOW_BELOW: float = 0.25
 ## A clean shot stops the feet for a moment: 1 tick + 1 per 4 damage (a jab 2, a
@@ -163,6 +173,7 @@ const COMBO_WINDOW_TICKS: int = 2
 const GRAPPLES := { "takedown": true, "clinch": true, "ground": true, "submission": true }
 ## The collar tie (D129, docs/01 §27): a clinch move whose `ties_up_ms` breaks the opponent's posture.
 const COLLAR_TIE := "collar_tie"
+const COVERED := "COVERED"
 ## A locked submission is fought for in beats, one every STRUGGLE_BEAT_TICKS (D126). Each beat
 ## the attacker wins with Contest.chance(STRUGGLE_BASE, the hold's offense stats, its defense
 ## stats, ± the corners' struggle calls) and the danger moves STRUGGLE_STEP up, or down.
@@ -1018,6 +1029,8 @@ func active_flags(i: int) -> Array[String]:
 	for entry: Dictionary in actions.get_action(f.action_id).flags_self:
 		if ActionLibrary.PHASES.find(entry.from) <= at and at <= ActionLibrary.PHASES.find(entry.to):
 			out.append(entry.flag)
+	if out.has(COVERED):
+		out.erase("HANDS_LOW")  # Hurt or tired, but his hands are up (D180).
 	return out
 
 
@@ -1111,6 +1124,11 @@ func odds_breakdown(i: int, id: String, ahead: int = 0) -> OddsBreakdown:
 			b.add_bonus(opp.opponent_flag, float(opp.success_bonus))
 		elif opp.get("required", false) and b.missing == "":
 			b.missing = opp.opponent_flag
+	if action.category == "defense" and action.defense.has("hidden_by") and b.defense > FighterState.DEFAULT_STAT:
+		# A good kicker hides his kicks (D180): his skill above average counts again against the check.
+		b.add_bonus("hidden", -float(action.defense.hidden_by) * (b.defense - FighterState.DEFAULT_STAT) / 100.0)
+	if action.category == "strike" and fighters[i].slip_counter_until >= now + maxi(ahead, 0):
+		b.add_bonus("off the slip", SLIP_COUNTER_BONUS)
 	if action.category == FEINT:
 		var again: int = _recent_feints(i)
 		if again > 0:
@@ -1192,6 +1210,48 @@ func _feint(i: int, action: Dictionary) -> void:
 	_emit(FightEvent.FEINTED, i, data)
 
 
+## Fighter i's strike meets the opponent's check or slip (D180), if it's up as the strike lands
+## and it's a defence against this strike (`defense.against_strikes`). One roll on its odds, and
+## either way the defence is spent. True when it worked: the strike misses, and a checked kick
+## hurts the kicker's leg, or a slipped punch leaves the slipper a counter.
+func _strike_defended(i: int, action: Dictionary) -> bool:
+	var d: FighterState = fighters[1 - i]
+	if d.phase != "active":
+		return false
+	var defense: Dictionary = actions.get_action(d.action_id)
+	if defense.category != "defense" or not defense.defense.get("against_strikes", []).has(action.id):
+		return false
+	var b: OddsBreakdown = odds_breakdown(1 - i, defense.id)
+	var worked: bool = _rng.randf() < b.chance
+	var met := { "action_id": defense.id, "against": action.id, "worked": worked, "chance": b.chance, "odds": b.to_dict() }
+	var kicker_leg: int = -1
+	var kicker_hurt: int = 0
+	if worked and action.strike.target == "legs":
+		var kick: float = strike_damage(fighters[i], action.id) * _damage_scale[i]
+		kicker_leg = 1 - fighters[i].lead_leg()  # He kicks with the back leg, into the shin.
+		kicker_hurt = maxi(1, roundi(kick * CHECK_KICKER_SHARE))
+		var shin: int = roundi(kick * CHECK_SHIN_SHARE)
+		fighters[i].damage.legs += kicker_hurt
+		fighters[i].leg_damage[kicker_leg] += kicker_hurt
+		d.damage.legs += shin
+		d.leg_damage[d.lead_leg()] += shin
+		_round_points[1 - i] += kicker_hurt * Judging.TARGET_WEIGHTS.legs
+		met.damage = kicker_hurt
+		met.leg = kicker_leg
+	elif worked:
+		d.slip_counter_until = now + SLIP_COUNTER_TICKS
+	_emit(FightEvent.STRIKE_DEFENDED, 1 - i, met)
+	_to_recovery(1 - i)
+	if not worked:
+		return false
+	_emit(FightEvent.STRIKE_MISSED, i, { "action_id": action.id, "target": action.strike.target, "chance": 0.0, "reason": "defended", "by_action": defense.id })
+	if kicker_leg >= 0:
+		fighters[i].phase_ticks_left += CHECK_STUCK_TICKS  # Still on one leg (ONE_LEG).
+		if situation.is_standing():
+			_leg_impact(1 - i, kicker_leg, kicker_hurt)
+	return true
+
+
 func _land_strike(i: int, action: Dictionary) -> void:
 	var attacker: FighterState = fighters[i]
 	var defender: FighterState = fighters[1 - i]
@@ -1211,6 +1271,8 @@ func _land_strike(i: int, action: Dictionary) -> void:
 		return
 	if not ruleset.allows_target(action, target):
 		target = "body"  # Amateur rules: ground strikes to the body only (docs/08, D121).
+	if _strike_defended(i, action):
+		return
 	var counter: bool = is_counter(i)
 	var breakdown: OddsBreakdown = odds_breakdown(i, action.id)
 	var chance: float = breakdown.chance
@@ -1232,6 +1294,9 @@ func _land_strike(i: int, action: Dictionary) -> void:
 			scale *= float(opp.get("damage_multiplier", 1.0))
 			stops = stops or bool(opp.get("stops", false))
 	var into: String = defender.action_id if stops and defender.phase in STOPPABLE_PHASES else ""
+	var covered: bool = target == "head" and active_flags(1 - i).has(COVERED)
+	if covered:
+		scale *= float(actions.get_action(defender.action_id).defense.head_share)  # Through the guard (D180).
 	var dealt: int = maxi(1, roundi(strike_damage(attacker, action.id) * scale))
 	var was_rocked: bool = defender.is_rocked()
 	defender.damage[target] += dealt
@@ -1260,13 +1325,15 @@ func _land_strike(i: int, action: Dictionary) -> void:
 		landed.into = into
 	if leg >= 0:
 		landed.leg = leg
+	if covered:
+		landed.covered = true
 	_emit(FightEvent.STRIKE_LANDED, i, landed)
 	if into != "":
 		_emit(FightEvent.GRAPPLE_STOPPED, 1 - i, { "action_id": into, "reason": "stopped", "by_action": action.id })
 		_to_recovery(1 - i)
 	if target == "head":
 		_head_impact(i, dealt, into != "")
-		_referee(i, was_rocked)
+		_referee(i, was_rocked, covered)
 	elif target == "body" and situation.phase != PositionLibrary.PHASE_GROUND:
 		_body_impact(i, dealt)
 	elif leg >= 0 and situation.is_standing():
@@ -1324,7 +1391,7 @@ func _meet_shot(k: int) -> void:
 		return
 	var sprawl: Dictionary = actions.get_action(d.action_id)
 	var shot: Dictionary = actions.get_action(s.action_id)
-	if sprawl.category != "defense" or not sprawl.defense.against_categories.has(shot.category) or ActionLibrary.is_throw(shot):
+	if sprawl.category != "defense" or not sprawl.defense.get("against_categories", []).has(shot.category) or ActionLibrary.is_throw(shot):
 		return  # Nothing to sprawl on in a throw or a trip (D128).
 	var b: OddsBreakdown = odds_breakdown(k, sprawl.id)
 	var worked: bool = _rng.randf() < b.chance
@@ -1567,7 +1634,7 @@ func _head_impact(i: int, dealt: int, flash: bool = false) -> void:
 ## they are (GROUND_STOP_PER_HEALTH). Answering is landing anything,
 ## tying the top fighter up or getting out from under (any change of position).
 ## Amateur referees are quicker.
-func _referee(i: int, was_rocked: bool) -> void:
+func _referee(i: int, was_rocked: bool, covered: bool = false) -> void:
 	if _fight_over:
 		return
 	var d: FighterState = fighters[1 - i]
@@ -1575,6 +1642,8 @@ func _referee(i: int, was_rocked: bool) -> void:
 		_finish(i, RESULT_TKO, "", STOP_HEALTH)
 		return
 	var limit: int = stop_unanswered()
+	if covered:
+		return  # On the gloves: he's defending himself, so it doesn't count toward stopping it (D180).
 	if was_rocked and d.is_rocked():
 		d.unanswered += 1
 	elif situation.role(1 - i) == PositionLibrary.BOTTOM:
