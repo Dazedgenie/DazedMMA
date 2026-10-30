@@ -28,6 +28,24 @@ const TAG_COLOURS := {
 	"pocket": Color("#ffa94d"), "clinch": Color("#da77f2"),
 }
 const TAG_NAMES := { "out": "Out of range", "long": "Long range", "mid": "Mid range", "pocket": "Pocket", "clinch": "Clinch" }
+## Where the top fighter is against the man underneath in each ground position (D210), in the bottom man's
+## own frame: `at` is (metres from his hips toward his feet, metres to his side; negative along is toward
+## his head; positive across is his side away from the camera) and `face` the way the top man faces
+## (Vector2(1, 0) faces the same way as him, toward his feet). He lies across the screen, or with
+## `facing_camera` sits facing it.
+## The sim only knows the two are tangled up; the view lays them out. A position not here (and leg locks)
+## keeps them face to face, as the sim has them.
+const GROUND_LAYOUTS := {
+	"full_guard": { "at": Vector2(0.55, 0.0), "face": Vector2(-1.0, 0.0) },
+	"half_guard": { "at": Vector2(0.2, 0.25), "face": Vector2(-1.0, -0.45) },
+	"side_control": { "at": Vector2(-0.35, 0.55), "face": Vector2(0.0, -1.0) },
+	"mount": { "at": Vector2(-0.2, 0.0), "face": Vector2(-1.0, 0.0) },
+	"back_control": { "at": Vector2(-0.5, 0.0), "face": Vector2(1.0, 0.0), "facing_camera": true },
+}
+## The man underneath lies across the screen, feet turned this far (radians) away from the camera (D210).
+const LIE_TURN: float = 0.45
+## How fast a fighter slides and turns to his spot in a new position (per second).
+const LAYOUT_SPEED: float = 6.0
 ## The tag grows this much when the range or position changes, then settles (docs/06 §2).
 const TAG_BUMP: float = 1.7
 
@@ -52,6 +70,10 @@ var _want_rings: Array[MeshInstance3D] = []
 ## Per fighter: the tell's limb and how many fight ticks it stays lit.
 var _tell_limb: Array[String] = ["", ""]
 var _tell_until: Array[int] = [-1, -1]
+## Per fighter, smoothed: how far the view moves him off his sim spot, and the way he faces (radians).
+var _offset: Array[Vector2] = [Vector2.ZERO, Vector2.ZERO]
+var _facing: Array[float] = [0.0, 0.0]
+var _facing_set: bool = false
 
 
 func _ready() -> void:
@@ -73,6 +95,8 @@ func watch(p_driver: FightDriver) -> void:
 	figures.clear()
 	_tell_limb = ["", ""]
 	_tell_until = [-1, -1]
+	_offset = [Vector2.ZERO, Vector2.ZERO]
+	_facing_set = false
 	driver = p_driver
 	_tag.visible = driver != null
 	if driver == null:
@@ -94,10 +118,17 @@ func _process(delta: float) -> void:
 		return
 	var sim: FightSim = driver.sim
 	var spots: Array[Vector2] = [driver.shown_pos(0), driver.shown_pos(1)]
+	var placed: Array[Dictionary] = ground_spots(sim, spots)
+	var k: float = 1.0 - exp(-LAYOUT_SPEED * delta)
 	for i in figures.size():
+		var want: float = placed[i].facing
+		_offset[i] = _offset[i].lerp(placed[i].at - spots[i], k if _facing_set else 1.0)
+		_facing[i] = lerp_angle(_facing[i], want, k) if _facing_set else want
+		var at: Vector2 = spots[i] + _offset[i]
 		figures[i].label_scale = zoom_share()
-		figures[i].show_state(sim, i, spots[i], spots[1 - i], delta)
+		figures[i].show_state(sim, i, at, at + Vector2.from_angle(_facing[i]), delta)
 		figures[i].show_tell(_tell_limb[i] if tell_cues and sim.now <= _tell_until[i] else "")
+	_facing_set = true
 	var middle: Vector2 = (spots[0] + spots[1]) / 2.0
 	_show_tag(sim, middle, delta)
 	_place_camera(delta, middle, sim)
@@ -127,6 +158,44 @@ static func tag_text(sim: FightSim) -> String:
 	if top >= 0:
 		text += " · %s %s" % [sim.fighters[top].name, sim.positions.top_label(sim.situation.position)]
 	return text
+
+
+## Where each fighter is drawn and the way he faces (radians on the canvas), from their sim spots:
+## face to face standing, laid out by GROUND_LAYOUTS on the ground (D210). Plain numbers, so it can be tested.
+static func ground_spots(sim: FightSim, spots: Array[Vector2]) -> Array[Dictionary]:
+	var placed: Array[Dictionary] = []
+	for i in spots.size():
+		placed.append({ "at": spots[i], "facing": (spots[1 - i] - spots[i]).angle() })
+	var where: String = sim.situation.position
+	var roles: Array = sim.situation.roles
+	var hold: Dictionary = sim.hold()
+	if not hold.is_empty():
+		if ActionLibrary.is_leg_lock(sim.actions.get_action(hold.action_id)):
+			return placed
+		where = String(hold.from)  # Held where it was locked from (D126).
+		roles = hold.from_roles
+	var top: int = roles.find(PositionLibrary.TOP)
+	if not GROUND_LAYOUTS.has(where) or top < 0:
+		return placed
+	var bottom: int = 1 - top
+	var layout: Dictionary = GROUND_LAYOUTS[where]
+	# He lies across the screen, so neither man hides the other from the camera: feet toward whichever
+	# side of the screen the sim has the top man on. The top man's side (positive `at.y`) is the far one.
+	var across: Vector2 = Vector2(CAMERA_FROM.z, -CAMERA_FROM.x).normalized()
+	var away: Vector2 = -Vector2(CAMERA_FROM.x, CAMERA_FROM.z).normalized()
+	var feet: Vector2 = across if (spots[top] - spots[bottom]).dot(across) >= 0.0 else -across
+	if layout.get("facing_camera", false):  # Sat up facing you, so the man behind him is behind him on screen too.
+		feet = (feet * tan(LIE_TURN) - away).normalized()
+	else:
+		feet = (feet + away * tan(LIE_TURN)).normalized()  # Turned a little, so a man across him isn't end-on.
+	var side: Vector2 = feet.orthogonal()
+	if side.dot(away) < 0.0:
+		side = -side
+	var at: Vector2 = layout.at
+	var face: Vector2 = layout.face
+	placed[bottom] = { "at": spots[bottom], "facing": feet.angle() }
+	placed[top] = { "at": spots[bottom] + feet * at.x + side * at.y, "facing": (feet * face.x + side * face.y).angle() }
+	return placed
 
 
 func _show_tag(sim: FightSim, middle: Vector2, delta: float) -> void:

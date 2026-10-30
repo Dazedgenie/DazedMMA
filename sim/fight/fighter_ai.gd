@@ -933,21 +933,37 @@ func _pound(view: FightView, layer: DecisionLayer) -> Decision:
 ## On top (D130): on a chance of ADVANCE_RATE × work rate × position liking, a pass, the mount, the
 ## back or a hold, picked by weight like the moves underneath (a hold only on its opening, unless it
 ## needs none: the rear-naked choke). Tied up, passing is harder (the pass's own POSTURE_BROKEN).
+## Hunting a hold on *Go for the finish!* (D200): the chance is the call's `hunt.rate` instead, and
+## until he has tried one hold since the call, a hold he knows from here is taken over anything
+## else, without its opening and whenever he last tried one; with none from here he works to a
+## position that has one. Once he has tried it, he's back to his own pace.
 func _work_position(view: FightView, layer: DecisionLayer) -> Decision:
 	var f: FighterState = view.me
 	var liking: float = maxf(ADVANCE_MIN_LIKING, 0.5 + _lean(view, layer, StyleLeanings.BASE) / 100.0)
-	if f.is_rocked() or view.roll() >= ADVANCE_RATE * f.work_rate * liking:
+	var hunting: bool = _hunting(view, layer)
+	var rate: float = float(layer.hunt(view).rate) if hunting else ADVANCE_RATE * f.work_rate * liking
+	if f.is_rocked() or view.roll() >= rate:
 		return null
 	var options: Array[String] = []
 	var weights: Array[float] = []
 	var reasons: Array[String] = []
+	var holds: bool = false
 	for id in _all_moves(view):
 		var action: Dictionary = view.actions.get_action(id)
 		if (action.category != GROUND and action.category != SUBMISSION) or not _usable(view, action):
 			continue
 		var b: OddsBreakdown = _odds(view, id)
 		var w: float = 0.0
-		if action.category == SUBMISSION:
+		if action.category == SUBMISSION and hunting:
+			w = _score(view, layer, action, b.chance, _plain_chance(b), false)
+			if w > 0.0 and not holds:
+				holds = true  # A hold from here: the hunt takes one of these, not a better position.
+				options.clear()
+				weights.clear()
+				reasons.clear()
+		elif holds:
+			continue
+		elif action.category == SUBMISSION:
 			if view.now < _sub_at + SUB_RETRY_TICKS or (b.chance <= _plain_chance(b) and not _any_time(view, action)):
 				continue
 			w = _score(view, layer, action, b.chance, _plain_chance(b), false) * SUB_WEIGHT * sub_liking(view, layer)
@@ -956,7 +972,7 @@ func _work_position(view: FightView, layer: DecisionLayer) -> Decision:
 		if w > 0.0:
 			options.append(id)
 			weights.append(w)
-			reasons.append("goes for the %s" % String(action.name).to_lower() if action.category == SUBMISSION else _advance_reason(id))
+			reasons.append(("goes for the finish: the %s" if hunting else "goes for the %s") % String(action.name).to_lower() if action.category == SUBMISSION else _advance_reason(id))
 	if options.is_empty():
 		return null
 	var k: int = _pick(view, weights)
@@ -991,7 +1007,8 @@ func _punish_escape(view: FightView, layer: DecisionLayer) -> Decision:
 		var action: Dictionary = view.actions.get_action(id)
 		if (action.category != GROUND and action.category != SUBMISSION) or not _usable(view, action):
 			continue
-		if action.category == SUBMISSION and view.now < _sub_at + SUB_RETRY_TICKS:
+		var hunted: bool = action.category == SUBMISSION and _hunting(view, layer)
+		if action.category == SUBMISSION and view.now < _sub_at + SUB_RETRY_TICKS and not hunted:
 			continue
 		if not action.opportunities.any(func(opp: Dictionary) -> bool: return opp.get("opponent_flag", "") == "ESCAPING"):
 			continue
@@ -999,13 +1016,21 @@ func _punish_escape(view: FightView, layer: DecisionLayer) -> Decision:
 		if not _has_bonus(b, "ESCAPING"):
 			continue  # Over before it would land.
 		var take: float = ESCAPE_PUNISH * pow(b.chance / 0.5, 2.0)
-		if action.category == SUBMISSION:
+		if hunted:
+			take = 1.0  # Hunting a hold (D200): an escape's opening is what he's waiting for.
+		elif action.category == SUBMISSION:
 			take *= ESCAPE_SUB * sub_liking(view, layer)
 		if view.roll() < take:
 			if action.category == SUBMISSION:
 				_sub_at = view.now
 			return Decision.new(id, DecisionLayer.AI, "catches the escape: %s" % String(action.name).to_lower())
 	return null
+
+
+## True while a *Go for the finish!* hunt is on (D200) and he hasn't tried a hold since it was called.
+func _hunting(view: FightView, layer: DecisionLayer) -> bool:
+	var hunt: Dictionary = layer.hunt(view)
+	return not hunt.is_empty() and _sub_at < int(hunt.since)
 
 
 static func _has_bonus(b: OddsBreakdown, bonus_name: String) -> bool:

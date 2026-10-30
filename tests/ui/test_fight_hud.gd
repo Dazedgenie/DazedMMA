@@ -112,3 +112,42 @@ func test_the_danger_meter_names_the_hold_while_one_is_locked_in() -> void:
 	sim.apply_transition(0, "double_leg")
 	assert_true(sim._lock_in(1, _actions.get_action("triangle")))
 	assert_eq(FightHud.danger_text(sim), "Kicker's TRIANGLE CHOKE on Wrestler · danger 38", "40 + 0.5 × (57.5 − 62.5)")
+
+
+func test_the_position_diagram_shows_the_ground_position_and_who_is_on_top() -> void:
+	var sim: FightSim = _sim()
+	assert_eq(PositionDiagram.position_for(sim), "", "nothing to draw standing")
+	assert_eq(FightHud.position_text(sim), "")
+	sim.apply_transition(0, "double_leg")
+	assert_eq(PositionDiagram.position_for(sim), "full_guard")
+	assert_eq(PositionDiagram.top_fighter(sim), 0)
+	sim.apply_transition(0, "guard_pass")
+	sim.apply_transition(0, "take_mount")
+	assert_eq(FightHud.position_text(sim), "MOUNT · WRESTLER ON TOP")
+	sim.apply_transition(0, "take_back")
+	assert_eq(FightHud.position_text(sim), "BACK CONTROL · WRESTLER HAS THE BACK")
+	for where: String in ["full_guard", "half_guard", "side_control", "mount", "back_control", "scramble"]:
+		assert_true(PositionDiagram.POSES.has(where), "a drawing for %s (D210)" % where)
+
+
+func test_in_a_submission_the_diagram_shows_where_it_was_locked_from() -> void:
+	var sim: FightSim = _sim()
+	sim.apply_transition(0, "double_leg")
+	assert_true(sim._lock_in(1, _actions.get_action("triangle")))
+	assert_eq(PositionDiagram.position_for(sim), "full_guard")
+	assert_eq(PositionDiagram.top_fighter(sim), 0, "the Wrestler is still drawn on top")
+	assert_eq(FightHud.position_text(sim), "TRIANGLE CHOKE FROM FULL GUARD")
+
+
+func test_the_diagram_panel_is_up_only_while_the_fight_is_on_the_ground() -> void:
+	var hud := FightHud.new()
+	add_child_autofree(hud)
+	var sim: FightSim = _sim()
+	hud.watch(FightDriver.new(sim))
+	hud._process(0.1)
+	assert_false(hud._position_panel.visible, "standing")
+	sim.apply_transition(0, "double_leg")
+	hud._process(0.1)
+	assert_true(hud._position_panel.visible, "on the ground")
+	assert_eq(hud._diagram.where, "full_guard")
+	assert_eq(hud._diagram.top_colour, FightHud.FIGHTER_COLOURS[0])
