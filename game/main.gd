@@ -46,6 +46,7 @@ func _ready() -> void:
 		_self_check.call_deferred()
 		return
 	get_window().min_size = MIN_WINDOW_SIZE
+	DisplayFont.add_symbols_fallback()
 	_actions = ActionLibrary.load_dir()
 	_roster = FighterLibrary.load_dir()
 	arena = ArenaView.new()
@@ -105,6 +106,7 @@ func start_fight(p_settings: Dictionary) -> void:
 	hud.allowed_calls = Array(settings.get("calls", []))
 	hud.watch(driver)
 	hud.visible = true
+	$UI/Version.visible = false  # The call bar's second row sits where it is.
 	overlay.driver = driver
 	_console.watch(sim, "%s, seed %d" % [settings.get("label", ""), fight_seed])
 	setup.visible = false
@@ -359,4 +361,5 @@ func _back_to_setup() -> void:
 		driver.held = true
 	setup.show_settings(settings)
 	setup.visible = true
+	$UI/Version.visible = true
 	setup.focus_start()

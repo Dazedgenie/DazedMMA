@@ -3,7 +3,8 @@ name: Playtest build
 # The Windows build for the playtest (#20, D118, docs/playtests/README.md). Every push to
 # main (and every PR, to prove it still exports) builds it; download it from the run's
 # "Artifacts" list. A Linux export of the same project runs the self-check fight first,
-# which proves data/ shipped inside the build (#35).
+# which proves data/ shipped inside the build (#35). It also exports the browser build (D240,
+# threads off so GitHub Pages or itch.io can serve it as it is).
 
 on:
   push:
@@ -41,7 +42,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.local/share/godot/export_templates/${{ env.GODOT_VERSION }}.stable
-          key: godot-templates-${{ env.GODOT_VERSION }}
+          key: godot-templates-web-${{ env.GODOT_VERSION }}
 
       - name: Download export templates
         if: steps.cache-templates.outputs.cache-hit != 'true'
@@ -49,7 +50,7 @@ jobs:
           dir=~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
           mkdir -p "$dir"
           curl -sSL -o templates.tpz "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
-          unzip -j -o templates.tpz templates/windows_release_x86_64.exe templates/linux_release.x86_64 templates/version.txt -d "$dir"
+          unzip -j -o templates.tpz templates/windows_release_x86_64.exe templates/linux_release.x86_64 templates/web_nothreads_release.zip templates/version.txt -d "$dir"
           rm templates.tpz
 
       - name: Import project
@@ -57,10 +58,12 @@ jobs:
 
       - name: Export
         run: |
-          mkdir -p build/export/windows build/export/linux
+          mkdir -p build/export/windows build/export/linux build/export/web
           ~/godot/godot --headless --export-release "Linux" build/export/linux/ChinCheck.x86_64
           ~/godot/godot --headless --export-release "Windows Desktop" build/export/windows/ChinCheck.exe
           test -s build/export/windows/ChinCheck.exe
+          ~/godot/godot --headless --export-release "Web" build/export/web/index.html
+          test -s build/export/web/index.wasm && test -s build/export/web/index.pck
 
       - name: Self-check the exported build
         run: build/export/linux/ChinCheck.x86_64 --headless -- --self-check
@@ -74,4 +77,12 @@ jobs:
         with:
           name: ChinCheck-windows-${{ github.sha }}
           path: build/export/windows/
+          retention-days: 30
+
+      # The browser build: index.html and its files. Unzip it and serve the folder (or upload the zip to itch.io as HTML).
+      - name: Upload the web build
+        uses: actions/upload-artifact@v4
+        with:
+          name: ChinCheck-web-${{ github.sha }}
+          path: build/export/web/
           retention-days: 30
