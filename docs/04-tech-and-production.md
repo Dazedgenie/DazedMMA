@@ -61,6 +61,9 @@ Key rules:
   chasing the other; and how long each fighter circled and cut off the cage (D119, `01` §20.3). Grappling too (#15): per pair, takedowns landed and tried, time in the clinch, on the ground and on
   top, and the Wrestler's win share against the Kicker and the Boxer (D109, no pass mark until after the playtest).
   Coaching bots (ideal / spam / none) join with live calls (#16).
+  Since D250 (`01` §2.4) the numbers carry 95% ranges, coaching and drilled rules are compared seed by seed against the
+  same fights without them, each run writes `run.json` (commit, data hash, Godot version, speed a simulated tick), each row
+  counts who chose the moves, and `tools/balance_compare.gd` compares two runs fight by fight.
 - **CI**: GitHub Actions running headless Godot tests on every PR.
 - **Debug overlay** in the fight view: raw stats, flags, action phases, AI scores.
 

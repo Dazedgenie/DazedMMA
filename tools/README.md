@@ -32,6 +32,16 @@ centre than the opponent, and `chase` one fighter stepping back while the other 
 and `calls_red`/`calls_blue` count the calls it made; `rules_red`/`rules_blue` name each fighter's drilled rules and
 `fired_red`/`fired_blue` count how often they fired.
 
+Each run also writes `run.json`: the arguments, the commit, a hash of `data/`, the Godot version, the time taken and the
+computer time a simulated tick took (D250, `docs/01` §2.4). The summary gives win shares and the coaching and rule changes
+with 95% ranges, and the `chosen_*` columns count who chose each fighter's moves (own AI, call, rule, command).
+
+`balance_compare.gd` compares two harness runs fight by fight, matched by pairing and seed (D250): how many fights played
+out differently, win shares, draws and finishes before and after, and the change with its 95% range. Run both on the same
+seeds:
+
+    godot --headless --script res://tools/balance_compare.gd -- --before=build/before/balance.csv --after=build/balance/balance.csv --columns=shots_red
+
 `playtest_report.gd` adds up the playtest's saved fights (#20, D118, `docs/playtests/README.md` §3): one CSV line per fight
 (`game/playtest_report.gd`, `PlaytestReport.COLUMNS`) and a summary per playtest fight and per speed, with every fight
 re-run from its file to check it replays:
