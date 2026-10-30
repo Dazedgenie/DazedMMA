@@ -66,16 +66,34 @@ func test_cutting_off_he_leads_the_way_the_opponent_is_drifting() -> void:
 
 
 func test_cutting_he_shuts_the_exit_before_closing_the_distance() -> void:
+	# The statue's way out is down the fence (−y), away from the presser: he steps across toward it.
 	var sim := _sim(_presser(80), _statue(), Vector2(2.0, 1.5), Vector2(3.8, 0.0))
 	var from: Vector2 = sim.fighters[0].pos
 	var gap: float = from.distance_to(sim.fighters[1].pos)
+	var toward: Vector2 = (sim.fighters[1].pos - from).normalized()
 	sim._move(0, 1.2, 0.0, 1.0)
 	var moved: Vector2 = sim.fighters[0].pos - from
 	assert_almost_eq(moved.length(), sim.step_length(0), 0.001, "a full step, as always")
-	var toward: Vector2 = (sim.fighters[1].pos - from).normalized()
-	assert_gt(absf(moved.dot(Vector2(-toward.y, toward.x))), absf(moved.dot(toward)) * 0.5,
-		"a diagonal step: a good part of it goes across, not straight at him")
+	assert_lt(moved.y, toward.y * sim.step_length(0), "the step leans toward the open exit, more than walking straight at him")
 	assert_lt(sim.fighters[0].pos.distance_to(sim.fighters[1].pos), gap, "and it still closes in")
+
+
+func test_the_cutter_steps_where_the_best_way_out_is_worth_least() -> void:
+	var routes := EscapeRoutes.new()
+	routes.walk(Vector2(3.8, 0.0), 0.15, Vector2.ZERO)
+	var shut: float = routes.best_worth(Vector2(2.8, -0.6), 0.15)
+	var open: float = routes.best_worth(Vector2(2.8, 1.2), 0.15)
+	assert_lt(shut, open, "standing on the side he'd run to leaves him less than standing off to the other side")
+	assert_true(routes.any_open(Vector2(1.0, 2.5), 0.15), "far off, he has a way out")
+	assert_false(routes.any_open(Vector2(3.0, 0.0), 0.15), "right in front of him on the fence, every way out is in reach")
+
+
+func test_routes_back_into_the_fence_dont_count_as_ways_out() -> void:
+	var routes := EscapeRoutes.new()
+	routes.walk(Vector2(3.8, 0.0), 0.15, Vector2.ZERO)
+	for h in EscapeRoutes.HEADINGS:
+		if routes.headings[h].x > 0.5:
+			assert_false(routes.usable[h], "heading %s goes back into the fence" % routes.headings[h])
 
 
 func test_the_cut_the_cage_call_cuts_off_the_exits_in_open_space() -> void:
@@ -100,27 +118,32 @@ func test_the_cut_the_cage_call_is_a_fifteen_second_focus_on_r() -> void:
 	assert_eq(call.positions, ["standing"])
 
 
-func test_a_cut_off_fighter_turns_back_the_other_way() -> void:
-	# The Kicker circling by the fence with the Boxer cutting him off from the inside.
+func test_a_cut_off_fighter_turns_back_the_way_that_is_still_open() -> void:
+	# The Kicker by the fence, circling up it (+y) into the Boxer, who has that side shut.
 	var roster := FighterLibrary.load_dir()
 	var turned: int = 0
 	for s in 20:
 		var pair: Array[FighterState] = roster.make_pair("boxer", "kicker")
 		var sim := FightSim.new(SEED + s, pair, _actions)
-		sim.fighters[0].pos = Vector2(1.9, 0.0)
+		sim.fighters[0].pos = Vector2(1.9, 0.6)
 		sim.fighters[1].pos = Vector2(3.9, 0.0)
-		sim._cut_at[0] = 0
+		sim._circle_sign[1] = -1.0  # Round the Boxer toward +y.
 		var ai: FighterAI = sim.decisions[1].ai
 		for n in 30:
 			sim._cut_at[0] = sim.now
+			sim._routes_at[0] = -1000
+			var toward: Vector2 = (sim.fighters[1].pos - sim.fighters[0].pos).normalized()
+			sim._cut_step(0, toward, sim.fighters[0].pos.distance_to(sim.fighters[1].pos), sim.step_length(0))
 			sim.views[1].now = sim.now
-			var way: int = sim.circle_sign(1)
+			assert_eq(sim.way_out(1), 1, "his way out is back down the fence")
 			var feet: FeetPlan = sim.decisions[1].plan_feet(sim.views[1])
 			if ai._reverse_until > sim.now:
-				assert_eq(feet.way, -way, "he goes back the way he came")
+				assert_eq(feet.way, 1, "he goes back the way that's open")
 				turned += 1
 				break
 			sim.now += 1
+		if sim.way_out(1) != 1:
+			break
 	assert_gt(turned, 0, "now and then, before the door shuts")
 
 
@@ -172,3 +195,135 @@ func test_the_time_he_cut_the_opponent_off_onto_the_fence_is_counted() -> void:
 	sim.run_to_end()
 	assert_gt(sim.cut_offs[0], 0, "the Pressure wrestler walks him onto the fence now and then")
 	assert_gte(sim.cut_offs[0], sim.cut_offs[1], "more than the Counter-striker does to him")
+
+
+# --- Escape routes and being shut in (D233, D234, docs/01 §20.6) -------------------
+
+## A Boxer right in front of the opponent on the fence, his routes read: every way out shut.
+func _shut_in(red_id: String, blue_id: String, s: int = 0) -> FightSim:
+	var roster := FighterLibrary.load_dir()
+	var sim := FightSim.new(SEED + s, roster.make_pair(red_id, blue_id), _actions)
+	sim.fighters[0].pos = Vector2(2.9, 0.0)
+	sim.fighters[1].pos = Vector2(3.9, 0.0)
+	_read_routes(sim)
+	return sim
+
+
+func _read_routes(sim: FightSim) -> void:
+	sim._cut_at[0] = sim.now
+	sim._routes_at[0] = -1000
+	var gap: Vector2 = sim.fighters[1].pos - sim.fighters[0].pos
+	sim._cut_step(0, gap.normalized(), gap.length(), sim.step_length(0))
+	sim.views[1].now = sim.now
+	sim.views[0].now = sim.now
+
+
+func test_shut_in_each_style_has_its_own_answer() -> void:
+	var answers := { "kicker": FighterAI.ANSWER_BURST, "counter_striker": FighterAI.ANSWER_BURST,
+		"boxer": FighterAI.ANSWER_PLANT, "brawler": FighterAI.ANSWER_PLANT,
+		"wrestler": FighterAI.ANSWER_TIE_UP, "pressure_wrestler": FighterAI.ANSWER_TIE_UP, "muay_thai": FighterAI.ANSWER_TIE_UP }
+	for id: String in answers:
+		var sim := _shut_in("boxer", id)
+		assert_true(sim.is_shut_in(1), "%s: every way out shut" % id)
+		var layer: DecisionLayer = sim.decisions[1]
+		assert_eq(layer.ai.shut_in_answer(sim.views[1], layer), answers[id], id)
+
+
+func test_a_shut_in_outside_fighter_bursts_out_round_him() -> void:
+	var burst: int = 0
+	for s in 10:
+		var sim := _shut_in("boxer", "kicker", s)
+		for n in 60:
+			_read_routes(sim)
+			var feet: FeetPlan = sim.decisions[1].plan_feet(sim.views[1])
+			if feet.burst:
+				assert_eq(feet.circle, 1.0, "round him, all he can")
+				assert_eq(feet.way, sim.burst_way(1), "the least shut way")
+				burst += 1
+				break
+			sim.now += 1
+	assert_gt(burst, 5, "most of the time inside six seconds (Fight IQ makes it likelier)")
+
+
+func test_bursting_out_is_quicker_but_poor_feet_barely_are() -> void:
+	var even := _sim(_statue(), _statue({ "footwork": 50 }), Vector2(-1.0, 0.0), Vector2(1.0, 0.0))
+	var poor := _sim(_statue(), _statue({ "footwork": 10 }), Vector2(-1.0, 0.0), Vector2(1.0, 0.0))
+	for sim: FightSim in [even, poor]:
+		var from: Vector2 = sim.fighters[1].pos
+		sim._move(1, 3.0, 1.0, 0.0, 1, false, true)
+		var ratio: float = (sim.fighters[1].pos - from).length() / sim.step_length(1)
+		if sim == even:
+			assert_almost_eq(ratio, 1.0 + FightSim.BURST_EXTRA, 0.01, "even feet: %d%% quicker" % roundi(FightSim.BURST_EXTRA * 100.0))
+		else:
+			assert_lt(ratio, 1.0 + FightSim.BURST_EXTRA * 0.2, "Footwork 10 against 50: barely quicker")
+		assert_true(sim.is_bursting(1))
+
+
+func test_a_cutter_catches_some_bursts_with_a_strike() -> void:
+	var caught: int = 0
+	for s in 40:
+		var sim := _shut_in("pressure_wrestler", "kicker", s)
+		sim.fighters[0].pos = Vector2(2.4, 0.0)
+		sim._burst_at[1] = sim.now
+		var d: Decision = sim.decisions[0].ai._catch_burst(sim.views[0], sim.decisions[0])
+		if d != null:
+			assert_eq(sim.actions.get_action(d.action_id).category, FighterAI.STRIKE)
+			caught += 1
+		assert_null(sim.decisions[0].ai._catch_burst(sim.views[0], sim.decisions[0]), "one read a burst")
+	assert_between(caught, 4, 30, "about Cage cutting 75 × %.1f of them" % FighterAI.CATCH_RATE)
+
+
+func test_a_shut_in_grappler_ties_him_up() -> void:
+	var tied: int = 0
+	for s in 20:
+		var sim := _shut_in("boxer", "wrestler", s)
+		sim.fighters[0].pos = Vector2(2.7, 0.0)
+		for n in 60:
+			_read_routes(sim)
+			var d: Decision = sim.decisions[1].ai._shut_in_tie_up(sim.views[1], sim.decisions[1])
+			if d != null:
+				assert_eq(d.action_id, FighterAI.CLINCH_ENTRY)
+				tied += 1
+				break
+			sim.now += 1
+	assert_gt(tied, 10, "inside six seconds, nearly every time")
+	var striker := _shut_in("boxer", "kicker")
+	for n in 100:
+		assert_null(striker.decisions[1].ai._shut_in_tie_up(striker.views[1], striker.decisions[1]), "a Kicker doesn't")
+
+
+func test_a_shut_in_striker_plants_his_feet() -> void:
+	var sim := _shut_in("pressure_wrestler", "boxer")
+	var feet: FeetPlan = sim.decisions[1].plan_feet(sim.views[1])
+	assert_eq(feet.circle, 0.0, "the Boxer stops circling and fights")
+	assert_false(feet.burst)
+
+
+func test_once_every_way_is_shut_the_cutter_holds_the_inside_line() -> void:
+	var sim := _shut_in("boxer", "kicker")
+	sim.fighters[1].pos = Vector2(3.9, -0.6)  # The Kicker slides down the fence.
+	var toward: Vector2 = (sim.fighters[1].pos - sim.fighters[0].pos).normalized()
+	var across: Vector2 = sim._cut_step(0, toward, 1.0, sim.step_length(0))
+	assert_lt(across.y, 0.0, "the Boxer slides with him, staying between him and the middle")
+
+
+func test_being_shut_in_and_what_cutting_cost_are_counted() -> void:
+	var roster := FighterLibrary.load_dir()
+	var shut: int = 0
+	var hurt: int = 0
+	var escaped: int = 0
+	var kicker_shut: int = 0
+	for s in 3:
+		var sim := FightSim.new(SEED + s, roster.make_pair("boxer", "kicker"), _actions)
+		sim.run_to_end()
+		shut += sim.shut_in_ticks[1]
+		hurt += sim.cut_damage_taken[0]
+		escaped += sim.cage_escapes[1]
+		assert_lte(sim.cage_escapes[1], sim.cut_offs[0], "he can't get out more times than he was trapped")
+		kicker_shut += sim.shut_in_ticks[0]
+	# Hardly ever the other way round: a Kicker pressing forward can walk the Boxer onto the fence for a
+	# moment (2 ticks in these fights since the corners take turns stepping first, D253).
+	assert_lt(kicker_shut * 20, shut, "the Kicker hardly ever shuts the Boxer in (%d ticks against %d)" % [kicker_shut, shut])
+	assert_gt(shut, 0, "the Boxer shuts the Kicker in now and then")
+	assert_gt(hurt, 0, "and the Kicker makes him pay for walking him down")
+	assert_gt(escaped, 0, "and the Kicker gets back to the middle")

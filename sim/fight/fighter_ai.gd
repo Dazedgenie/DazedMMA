@@ -235,12 +235,33 @@ const CUT_PER_RANGE: float = 0.4
 ## a move, or on a chance of ESCAPE_RATE × outside a tick.
 const ESCAPE_RATE: float = 0.5
 const ESCAPE_TICKS: int = 15
-## Being cut off (D230): an outside fighter circling by the fence (within SWITCH_FENCE) with
-## the opponent cutting him off from the inside reverses, all he can for REVERSE_TICKS, on a
-## chance of REVERSE_RATE × outside × Fight IQ / 100 a tick: a change of direction the cutter
-## has to read again (FightSim.CUT_READ_BASE).
+## Being cut off (D230, D233): an outside fighter by the fence (within SWITCH_FENCE) with the
+## opponent cutting him off from the inside, his way round shut and the other way open (his
+## escape routes, FightView.way_out), reverses, all he can for REVERSE_TICKS, on a chance of
+## REVERSE_RATE × outside × Fight IQ / 100 a tick (seeing the open door): a change of direction
+## the cutter has to read again (FightSim.CUT_READ_BASE).
 const REVERSE_RATE: float = 0.06
 const REVERSE_TICKS: int = 8
+## Shut in (D234, Kyle: "Pick by style"): with every way out shut by a cage cutter, a fighter
+## answers by style. Outside fighters (Range below 0) burst out round him, all they can for
+## BURST_TICKS (FightSim.BURST_EXTRA), on a chance of BURST_RATE × Fight IQ / 100 a tick and at
+## most once every BURST_EVERY ticks; grapplers (clinch
+## liking at least TIE_UP_FROM, with a clinch entry) tie him up, on a chance of TIE_UP_RATE a
+## free tick once he's in reach; everyone else plants his feet (stops circling) and is
+## INTERCEPT_SHUT_IN readier to meet him coming in.
+const BURST_TICKS: int = 6
+const BURST_RATE: float = 0.1
+const BURST_EVERY: int = 30
+const TIE_UP_FROM: float = 0.4
+const TIE_UP_RATE: float = 0.1
+const INTERCEPT_SHUT_IN: float = 0.2
+const CLINCH_ENTRY := "clinch_entry"
+const ANSWER_BURST := "burst"
+const ANSWER_TIE_UP := "tie_up"
+const ANSWER_PLANT := "plant"
+## Reading the burst (D234): once a burst, a chance of CATCH_RATE × Cage cutting / 100 to throw
+## his best strike at the man going past.
+const CATCH_RATE: float = 0.3
 ## Tied up (#15): chance per free tick to work from the clinch (× the work rate), from
 ## underneath in full guard (× the work rate), and in a scramble (flat: it's over fast).
 const CLINCH_RATE: float = 4.0
@@ -372,6 +393,10 @@ var _escape_way: int = 0
 ## Reversing on a cutter until this tick, and which way (D230, REVERSE_RATE).
 var _reverse_until: int = -1
 var _reverse_way: int = 0
+## Bursting out until this tick, and which way (D234); the opponent's last burst read (CATCH_RATE).
+var _burst_until: int = -1000
+var _burst_way: int = 0
+var _burst_read_at: int = -1000
 ## Which way they circle in open space (±1), thought again at _way_at + SWITCH_EVERY.
 var _way: int = 1
 var _way_at: int = -SWITCH_EVERY
@@ -464,12 +489,49 @@ func choose(view: FightView, layer: DecisionLayer) -> Decision:
 		elif not _met_advance:
 			d = _meet_advance(view, layer)
 	if d == null:
+		d = _shut_in_tie_up(view, layer)
+	if d == null:
+		d = _catch_burst(view, layer)
+	if d == null:
 		d = _herd(view)
 	if d != null:
 		return d
 	if _leads(view, layer):
 		return _lead(view, layer)
 	return DecisionLayer.IDLE
+
+
+## How this fighter answers being shut in (D234): ANSWER_BURST, ANSWER_TIE_UP or ANSWER_PLANT.
+func shut_in_answer(view: FightView, layer: DecisionLayer) -> String:
+	if clinch_liking(_lean(view, layer, StyleLeanings.BASE), _lean(view, layer, StyleLeanings.RANGE)) >= TIE_UP_FROM \
+			and _all_moves(view).has(CLINCH_ENTRY) and _clinch_weapon:
+		return ANSWER_TIE_UP
+	if _lean(view, layer, StyleLeanings.RANGE) < 0.0:
+		return ANSWER_BURST
+	return ANSWER_PLANT
+
+
+## Shut in, a grappler ties him up (D234, TIE_UP_RATE).
+func _shut_in_tie_up(view: FightView, layer: DecisionLayer) -> Decision:
+	if not view.shut_in() or not view.opponent.is_free() or view.roll() >= TIE_UP_RATE:
+		return null
+	if shut_in_answer(view, layer) != ANSWER_TIE_UP or not _usable(view, view.actions.get_action(CLINCH_ENTRY)):
+		return null
+	return Decision.new(CLINCH_ENTRY, DecisionLayer.AI, "ties him up off the fence")
+
+
+## The man he's cutting off bursts out past him: once a burst, throw his best strike at him (CATCH_RATE).
+func _catch_burst(view: FightView, layer: DecisionLayer) -> Decision:
+	if not view.opponent_bursting() or _burst_read_at >= view.now - BURST_TICKS:
+		return null
+	_burst_read_at = view.now
+	if view.roll() >= CATCH_RATE * view.me.effective_stat("cage_cutting") / 100.0:
+		return null
+	var options: Array[String] = []
+	var weights: Array[float] = []
+	if not _strikes(view, layer, options, weights):
+		return null
+	return Decision.new(options[_pick(view, weights)], DecisionLayer.AI, "catches him bursting out")
 
 
 ## Herding (D230): cutting him off as he circles by the fence, feint to plant his feet (HERD_RATE).
@@ -589,9 +651,10 @@ func _guard(view: FightView, layer: DecisionLayer) -> Decision:
 		var action: Dictionary = view.actions.get_action(id)
 		if action.category != DEFENSE or not action.defense.get("against_strikes", []).has(_opp.id) or not _usable(view, action):
 			continue
-		# Up in time and still up as it lands, whoever steps first this tick.
+		# Up in time and still up as it lands. It lands just before my turn `lands` ticks from now, so
+		# my last turn before it is lands − 1 from now, whoever steps first on each tick (D253).
 		var up: int = view.phase_ticks(id, "telegraph") + view.phase_ticks(id, "windup")
-		if lands < maxi(1, up + 1) or lands > up + view.phase_ticks(id, "active") - 1:
+		if lands < maxi(1, up + 1) or lands > up + view.phase_ticks(id, "active"):
 			continue
 		var chance: float = GUARD_BASE + GUARD_PER_SD * view.me.effective_stat("striking_defense") / 100.0
 		if view.roll() < chance:
@@ -616,16 +679,20 @@ func _cover(view: FightView, layer: DecisionLayer) -> Decision:
 	return null
 
 
-## Ticks until the opponent's move reaches its active phase (when a strike lands), 0 once it has.
+## Ticks until the opponent's move reaches its active phase (when a strike lands), 0 once it has:
+## counted to this fighter's first turn after it lands. With the two taking turns to step first,
+## he sometimes takes two turns between two of this fighter's, so a one-tick active phase can
+## start and end between them: first seen past it still means it landed just before (D253).
 func _ticks_until_active(view: FightView) -> int:
 	if view.opponent.phase == "active" or view.opponent.phase == "recovery":
 		return 0
+	var lands: bool = view.opponent_phase_ticks(view.opponent.action_id, "active") > 0
 	for ahead in range(1, 30):
 		var phase: String = view.opponent_phase_ahead(ahead)
+		if phase == "active" or (lands and (phase == "" or phase == "recovery")):
+			return ahead
 		if phase == "" or phase == "recovery":
 			return 0
-		if phase == "active":
-			return ahead
 	return 0
 
 
@@ -737,6 +804,22 @@ func _meet_advance(view: FightView, layer: DecisionLayer) -> Decision:
 		return null  # Still too far for anything to land.
 	var options: Array[String] = []
 	var weights: Array[float] = []
+	if not _strikes(view, layer, options, weights):
+		return null  # Not in reach yet.
+	_met_advance = true
+	var outside: float = clampf(-_lean(view, layer, StyleLeanings.RANGE) / 100.0, 0.0, 1.0)
+	var chance: float = (INTERCEPT_BASE + INTERCEPT_OUTSIDE * outside) * (0.5 + view.me.effective_stat("fight_iq") / 100.0)
+	if view.opponent_cutting() and view.opponent.pos.length_squared() < view.me.pos.length_squared():
+		chance += INTERCEPT_CUT_OFF  # Cut off: plant and counter.
+		if view.shut_in() and shut_in_answer(view, layer) == ANSWER_PLANT:
+			chance += INTERCEPT_SHUT_IN  # Shut in, he's set his feet for it (D234).
+	if view.roll() >= chance:
+		return null
+	return Decision.new(options[_pick(view, weights)], DecisionLayer.AI, "meets him coming in")
+
+
+## The strikes that reach from here and their scores, into `options` and `weights`: false if none.
+func _strikes(view: FightView, layer: DecisionLayer, options: Array[String], weights: Array[float]) -> bool:
 	for id in view.me.repertoire:
 		var action: Dictionary = view.actions.get_action(id)
 		if action.category != STRIKE or not _usable(view, action):
@@ -746,16 +829,7 @@ func _meet_advance(view: FightView, layer: DecisionLayer) -> Decision:
 		if w > 0.0:
 			options.append(id)
 			weights.append(w)
-	if options.is_empty():
-		return null  # Not in reach yet.
-	_met_advance = true
-	var outside: float = clampf(-_lean(view, layer, StyleLeanings.RANGE) / 100.0, 0.0, 1.0)
-	var chance: float = (INTERCEPT_BASE + INTERCEPT_OUTSIDE * outside) * (0.5 + view.me.effective_stat("fight_iq") / 100.0)
-	if view.opponent_cutting() and view.opponent.pos.length_squared() < view.me.pos.length_squared():
-		chance += INTERCEPT_CUT_OFF  # Cut off: plant and counter.
-	if view.roll() >= chance:
-		return null
-	return Decision.new(options[_pick(view, weights)], DecisionLayer.AI, "meets him coming in")
+	return not options.is_empty()
 
 
 ## Its best move from here, set up with a tell's move when it has one.
@@ -1490,6 +1564,7 @@ func _plan_steps(view: FightView, layer: DecisionLayer, out: FeetPlan) -> void:
 	out.way = 0
 	out.cut = 0.0
 	out.anywhere = false
+	out.burst = false
 	if me.is_rocked():
 		out.circle = 1.0
 		return
@@ -1503,6 +1578,24 @@ func _plan_steps(view: FightView, layer: DecisionLayer, out: FeetPlan) -> void:
 		_feet_outside = clampf(-range_leaning / 100.0, 0.0, 1.0)
 		_feet_cut = clampf(CUT_BASE + CUT_PER_RANGE * range_leaning / 100.0, 0.0, 1.0)
 		_off_fence = 0.0
+	if view.now < _burst_until:
+		out.circle = 1.0
+		out.way = _burst_way
+		out.burst = true
+		return
+	var planted: bool = false
+	if o.is_free() and view.shut_in():
+		var answer: String = shut_in_answer(view, layer)
+		if answer == ANSWER_BURST and view.now >= _burst_until + BURST_EVERY \
+				and view.roll() < BURST_RATE * me.effective_stat("fight_iq") / 100.0:
+			# Shut in: sprint out round him along the least shut way (D234).
+			_burst_until = view.now + BURST_TICKS
+			_burst_way = view.burst_way()
+			out.circle = 1.0
+			out.way = _burst_way
+			out.burst = true
+			return
+		planted = answer == ANSWER_PLANT
 	if view.now < _escape_until and _off_fence > 0.0:
 		out.circle = 1.0
 		out.way = _escape_way
@@ -1514,10 +1607,11 @@ func _plan_steps(view: FightView, layer: DecisionLayer, out: FeetPlan) -> void:
 	if _feet_outside > 0.0 and view.opponent_cutting() and o.is_free() \
 			and me.pos.length_squared() >= CLEAR_OF_SWITCH * CLEAR_OF_SWITCH \
 			and o.pos.length_squared() < me.pos.length_squared() \
+			and view.way_out() == -view.circle_way() \
 			and view.roll() < REVERSE_RATE * _feet_outside * me.effective_stat("fight_iq") / 100.0:
-		# Cut off: turn back the other way before the door shuts.
+		# Cut off: the way he's going is shut and the other way's open: turn back before it shuts too.
 		_reverse_until = view.now + REVERSE_TICKS
-		_reverse_way = -view.circle_way()
+		_reverse_way = view.way_out()
 		out.circle = 1.0
 		out.way = _reverse_way
 		return
@@ -1535,6 +1629,8 @@ func _plan_steps(view: FightView, layer: DecisionLayer, out: FeetPlan) -> void:
 		if me.pos.length_squared() < CLEAR_OF_SWITCH * CLEAR_OF_SWITCH \
 				or Octagon.distance_to_fence(me.pos) - Octagon.BODY_MARGIN >= SWITCH_FENCE:
 			out.way = _way  # Near the fence it stays 0: the feet take the side toward the middle.
+	if planted:
+		out.circle = 0.0  # Shut in: set his feet and fight (D234).
 	if not _giving_ground and not pressed:
 		out.cut = _feet_cut
 		var called: float = layer.calls.cut_focus()
