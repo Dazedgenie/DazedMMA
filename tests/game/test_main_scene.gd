@@ -169,3 +169,15 @@ func test_after_a_fight_taken_hurt_the_result_says_how_the_injury_held_up() -> v
 	_main._process(1.0)
 	_main.driver.throw_towel()
 	assert_string_contains(_main.hud._dialog_body.get_parsed_text(), "body injury")
+
+
+func test_the_setup_sound_volume_reaches_the_fight_and_m_mutes_the_strikes() -> void:
+	var s: Dictionary = _main.setup.settings()
+	assert_eq(s.sound_volume, 1.0, "full volume by default (D190)")
+	s.sound_volume = 0.4
+	_main.start_fight(s)
+	assert_eq(_main.sounds.volume, 0.4)
+	_press(KEY_M)
+	assert_true(_main.sounds.muted)
+	_press(KEY_M)
+	assert_false(_main.sounds.muted)
