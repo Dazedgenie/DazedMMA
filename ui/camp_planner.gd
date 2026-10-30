@@ -107,6 +107,11 @@ var _run_rest: Button
 var _fight: Button
 var _pull_out: Button
 var _filling: bool = false  # Setting the slots from a preset, not by hand.
+## The fight night card (D171) shown over the planner once the camp is over, and whether the player has gone back
+## from it to look at the camp.
+var night_card: FightNightCard
+var _night_open: bool = true
+var _night_button: Button
 
 
 func _init(profile: Dictionary, camp_seed: int = 1, library: TrainingLibrary = null) -> void:
@@ -147,12 +152,18 @@ func _init(profile: Dictionary, camp_seed: int = 1, library: TrainingLibrary = n
 	_button(buttons, "Start the camp again", reset)
 	_run = _button(buttons, "Run week 1", run_week)
 	_run_rest = _button(buttons, "Run every week left like this one", run_rest)
+	_night_button = _button(buttons, "Fight night", func() -> void: show_night_card(true))
 	_pull_out = _button(buttons, "Pull out of the fight", pull_out)
 	_fight = _button(buttons, "Fight!", func() -> void: fight_pressed.emit(trained_profile()))
-	DisplayFont.apply(_fight, 30)
 	_fight.custom_minimum_size.x = 160.0
-	_style_fight_button()
+	style_fight_button(_fight, 30)
 	_build_session_menu()
+	night_card = FightNightCard.new()
+	night_card.visible = false
+	night_card.fight_pressed.connect(func() -> void: fight_pressed.emit(trained_profile()))
+	night_card.pull_out_pressed.connect(pull_out)
+	night_card.back_pressed.connect(func() -> void: show_night_card(false))
+	add_child(night_card)
 	_new_camp()
 	pick_preset(START_PLAN if _plan_ids.has(START_PLAN) else _plan_ids[0])
 
@@ -160,6 +171,12 @@ func _init(profile: Dictionary, camp_seed: int = 1, library: TrainingLibrary = n
 ## Starts the camp over: week 1, the fighter as they came in (the week on screen stays).
 func reset() -> void:
 	_new_camp()
+	_refresh()
+
+
+## Opens the fight night card over the planner (once the camp is over), or goes back from it to the camp.
+func show_night_card(open: bool) -> void:
+	_night_open = open
 	_refresh()
 
 
@@ -621,7 +638,9 @@ func _set_gauge(label_text: String, text: String, share: float, amount: float, b
 	(gauge.bar as ProgressBar).value = clampf(share, 0.0, 1.0) if text != "–" else 0.0
 
 
-func _style_fight_button() -> void:
+## The red Fight! button, in the display font (the planner's and the fight night card's).
+static func style_fight_button(button: Button, font_size: int) -> void:
+	DisplayFont.apply(button, font_size)
 	for state in ["normal", "hover", "pressed", "focus"]:
 		var style := StyleBoxFlat.new()
 		style.bg_color = Color("#e03131") if state != "hover" else Color("#f03e3e")
@@ -631,9 +650,9 @@ func _style_fight_button() -> void:
 			style.draw_center = false
 			style.set_border_width_all(2)
 			style.border_color = Color.WHITE
-		_fight.add_theme_stylebox_override(state, style)
-	_fight.add_theme_color_override("font_color", Color.WHITE)
-	_fight.add_theme_color_override("font_hover_color", Color.WHITE)
+		button.add_theme_stylebox_override(state, style)
+	button.add_theme_color_override("font_color", Color.WHITE)
+	button.add_theme_color_override("font_hover_color", Color.WHITE)
 
 
 func _text_box(min_size: Vector2) -> RichTextLabel:
@@ -695,6 +714,7 @@ func _new_camp() -> void:
 	camp = TrainingCamp.new(_start, _camp_seed, _library)
 	reports.clear()
 	pulled_out = false
+	_night_open = true
 
 
 func _on_preset_selected(index: int) -> void:
@@ -753,17 +773,33 @@ func _refresh() -> void:
 	_forecast.text = _forecast_bbcode(forecast)
 	_log.text = _log_bbcode()
 	_refresh_stats(forecast.get("gains", {}))
-	if can_fight():
+	_night_button.visible = done()
+	night_card.visible = done() and _night_open
+	if night_card.visible:
+		night_card.show_night(_night_info())
+	elif can_fight():
 		FightHud.focus_later(_fight)
+
+
+## What the fight night card shows (FightNightCard.show_night).
+func _night_info() -> Dictionary:
+	var start_chin: float = float(_start.get("stats", {}).get("chin", FighterState.DEFAULT_STAT))
+	return { "name": String(_start.get("name", "Fighter")), "age": camp.age, "weeks": weeks, "opponent": opponent_name,
+		"night": camp.fight_night(), "pulled_out": pulled_out, "history": _history(), "gains": camp.camp_gains(),
+		"chin": camp.stat("chin"), "chin_change": camp.stat("chin") - start_chin }
+
+
+## The weeks run so far, for the countdowns (CampCountdown.show_camp).
+func _history() -> Array[Dictionary]:
+	var history: Array[Dictionary] = []
+	for i in reports.size():
+		history.append({ "plan": _plan_name(reports[i].plan), "hurt": not (reports[i].injuries as Array).is_empty(), "tip": _week_line(i, false) })
+	return history
 
 
 func _refresh_top() -> void:
 	var off: bool = done() and not can_fight()
-	var history: Array[Dictionary] = []
-	for i in reports.size():
-		var r: Dictionary = reports[i]
-		history.append({ "plan": _plan_name(r.plan), "hurt": not (r.injuries as Array).is_empty(), "tip": _week_line(i, false) })
-	_countdown.show_camp(weeks, history, off)
+	_countdown.show_camp(weeks, _history(), off)
 	var days: int = days_to_fight()
 	if off:
 		_days.text = "Fight off"
