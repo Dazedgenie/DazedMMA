@@ -181,9 +181,15 @@ and landed the most strikes and did 20 times the field's leg damage, but took th
   from his sheet move less (`tools/style_sheets.gd -- --fights=700`: 45 → 47%, inside the dice), likely because his
   leanings ±12 put some of them below Range 0, where they fight as outside fighters. The calf kick weight is in
   `data/fighters/leg_kicker.json` (`tendencies.actions.calf_kick`).
-- *Still to do: the clinch.* The grips work (D260, D261) is changing who gets off the fence in the clinch; his clinch
-  escape is built on top of it once it lands. A first look (clinch break and spin-off weights ×3) changed nothing, so it
-  needs more than a weight.
+- *The clinch stays his weakness (D256, Kyle: "Keep it as his weakness").* With the grips in (D261, D262) he wins 55%
+  against the field (100 fights a pairing, seed 1001) but only 20% against Muay Thai and 23% against the Dirty boxer:
+  his clinch breaks fail about 9 times in 10 and his spin-offs about 6 in 10. None of the fixes tried helped much (100
+  fights each against the two): Clinch control 65 gave 26% and 27%; knees ×1.5 made it worse (5%, 9%), both together too
+  (13%, 7%); fighting from range, Range −30 or −60, much worse (4–7%). Most of the head damage they do lands standing, as
+  they counter him walking in, not in the clinch. So his scouting card now says it ("Falls apart against a clinch
+  fighter, worst of all on the fence", and tie him up in how to beat him), and the player can use it. The fighters who
+  beat Muay Thai and the Dirty boxer keep their distance with better footwork: Karate 88% and 100%, the Counter-striker
+  78% and 72% (40 fights a pairing, before the grips).
 
 Not yet: names and nationalities for generated fighters, picking a style mix per division and region, and showing the
 scouting card on screen (it comes with scouting, D51).

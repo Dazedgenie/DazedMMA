@@ -18,9 +18,10 @@
 		],
 		"weaknesses": [
 			"Stands on one leg every time he kicks",
-			"No wrestling to speak of"
+			"No wrestling to speak of",
+			"Falls apart against a clinch fighter, worst of all on the fence"
 		],
 		"tell": "When his jab is blocked he follows with a calf kick.",
-		"how_to_beat": "Check or catch the kicks, counter when he's on one leg, and take him down."
+		"how_to_beat": "Check or catch the kicks, counter when he's on one leg, and take him down or tie him up on the fence."
 	}
 }
