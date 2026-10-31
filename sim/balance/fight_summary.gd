@@ -42,6 +42,10 @@ const COLUMNS: Array[String] = [
 	"fence_hold_blue", "fence_drives_blue", "fence_drives_won_blue", "spin_offs_blue", "spin_offs_won_blue",
 	"underhook_red", "body_lock_red", "pummels_red", "pummels_won_red", "strips_red", "strips_won_red", "turns_red", "turns_won_red",
 	"underhook_blue", "body_lock_blue", "pummels_blue", "pummels_won_blue", "strips_blue", "strips_won_blue", "turns_blue", "turns_won_blue",
+	"held_top_red", "tied_top_red", "half_uh_red", "ground_ties_red", "ground_ties_won_red", "wrists_red", "wrists_won_red",
+	"postures_red", "postures_won_red", "half_uhs_red", "half_uhs_won_red",
+	"held_top_blue", "tied_top_blue", "half_uh_blue", "ground_ties_blue", "ground_ties_won_blue", "wrists_blue", "wrists_won_blue",
+	"postures_blue", "postures_won_blue", "half_uhs_blue", "half_uhs_won_blue",
 	"full_guard", "half_guard", "side_control", "mount", "back_control", "advances_red", "escapes_red", "advances_blue", "escapes_blue",
 	"feints_red", "feints_bit_red", "blind_red", "blind_landed_red", "feints_blue", "feints_bit_blue", "blind_blue", "blind_landed_blue",
 	"off_feint_red", "off_feint_landed_red", "off_feint_blue", "off_feint_landed_blue",
@@ -105,7 +109,7 @@ static func play(sim: FightSim) -> Dictionary:
 	var lows: Array[float] = [1.0, 1.0]
 	var moves := { "standing": 0, "chase": 0, "fence": [0, 0], "pinned": [0, 0], "centre": [0, 0],
 		"ticks": 0, "clinch": 0, "ground": 0, "top": [0, 0], "fence_hold": [0, 0],
-		"underhook": [0, 0], "body_lock": [0, 0] }
+		"underhook": [0, 0], "body_lock": [0, 0], "held_top": [0, 0], "tied_top": [0, 0], "half_uh": [0, 0] }
 	while not sim.is_over():
 		var before: Array[Vector2] = [sim.fighters[0].pos, sim.fighters[1].pos]
 		var round_before: int = sim.clock.current_round
@@ -145,9 +149,19 @@ static func count_movement(sim: FightSim, before: Array[Vector2], moves: Diction
 					moves.body_lock[i] += 1
 		if GROUND_POSITIONS.has(sim.situation.position):
 			moves[sim.situation.position] = moves.get(sim.situation.position, 0) + 1
+		var grips: Dictionary = sim.ground_grips()
+		for grip: String in ["held_top", "tied_top", "half_uh"]:
+			if not moves.has(grip):
+				moves[grip] = [0, 0]
 		for i in 2:
 			if sim.role(i) == PositionLibrary.TOP:
 				moves.top[i] += 1
+				if grips.collar or int(grips.wrists) > 0:
+					moves.held_top[i] += 1  # Held from underneath (D263).
+				if sim.hands_tied(i):
+					moves.tied_top[i] += 1
+			if int(grips.half_inside) == i:
+				moves.half_uh[i] += 1
 		return
 	if sim.fighters[0].is_down() or sim.fighters[1].is_down():
 		return
@@ -238,6 +252,18 @@ static func of(sim: FightSim, lows: Array[float] = [], moves: Dictionary = {}) -
 		row["strips_won_" + side] = f.strips_won
 		row["turns_" + side] = f.turns_tried
 		row["turns_won_" + side] = f.turns_won
+		var top_ticks: int = moves.get("top", [0, 0])[i]
+		row["held_top_" + side] = _share_of(moves.get("held_top", [0, 0])[i], top_ticks)
+		row["tied_top_" + side] = _share_of(moves.get("tied_top", [0, 0])[i], top_ticks)
+		row["half_uh_" + side] = _share_of(moves.get("half_uh", [0, 0])[i], moves.get("half_guard", 0))
+		row["ground_ties_" + side] = f.ground_ties_tried
+		row["ground_ties_won_" + side] = f.ground_ties_won
+		row["wrists_" + side] = f.wrists_tried
+		row["wrists_won_" + side] = f.wrists_won
+		row["postures_" + side] = f.postures_tried
+		row["postures_won_" + side] = f.postures_won
+		row["half_uhs_" + side] = f.half_underhooks_tried
+		row["half_uhs_won_" + side] = f.half_underhooks_won
 		row["advances_" + side] = f.advances
 		row["escapes_" + side] = f.escapes
 		row["feints_" + side] = f.feints_tried

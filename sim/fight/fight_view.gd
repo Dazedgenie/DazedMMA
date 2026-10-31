@@ -178,6 +178,16 @@ func opponent_underhooks() -> int:
 	return _sim().underhooks(1 - index)
 
 
+## On top with his head tied or both wrists held from underneath (D263): no ground strikes.
+func hands_tied() -> bool:
+	return _sim().hands_tied(index)
+
+
+## The ground grips as they stand (D263): { wrists, collar, half_inside }.
+func ground_grips() -> Dictionary:
+	return _sim().ground_grips()
+
+
 ## A drive to the fence under way in the clinch (D220): {by, dir, left}, or empty.
 func drive() -> Dictionary:
 	return _sim().drive()

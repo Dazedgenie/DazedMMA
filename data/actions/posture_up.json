@@ -1,0 +1,22 @@
+{
+	"schema": "action@2",
+	"id": "posture_up",
+	"name": "Posture up",
+	"category": "ground",
+	"basic": true,
+	"positions": ["full_guard", "half_guard", "mount"],
+	"roles": ["top"],
+	"ranges": ["clinch"],
+	"phases_ms": { "telegraph": 0, "windup": 200, "active": 200, "recovery": 200 },
+	"stamina_cost": 3,
+	"flags_self": [
+		{ "flag": "POSTURED_UP", "from": "windup", "to": "recovery" }
+	],
+	"ground": { "base_success": 0.6, "grip": "posture" },
+	"stats": { "offense": ["top_control", "strength"], "defense": ["guard"] },
+	"opportunities": [
+		{ "opponent_flag": "HANDS_LOW", "success_bonus": 0.10 },
+		{ "opponent_flag": "COVERED", "success_bonus": 0.10 }
+	],
+	"requires_technique": null
+}
