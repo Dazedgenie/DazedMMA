@@ -83,7 +83,7 @@ func test_a_full_three_round_fight_plays_through_the_bell_to_the_result() -> voi
 	assert_true(_main.result.visible, "the result screen (D173)")
 	assert_string_contains(_main.result.text(), "CUT OFF THE CAGE", "how long each fighter circled and cut off (D119)")
 	assert_true(FileAccess.file_exists(_main.last_record_path), "the fight is saved for the playtest notes")
-	if sim.events[-1].data.result in [FightSim.RESULT_KO, FightSim.RESULT_TKO]:
+	if sim.events[-1].data.result in [FightSim.RESULT_KO, FightSim.RESULT_TKO, FightSim.RESULT_SUB]:
 		pass_test("finished inside the distance after %d breaks" % breaks)
 	else:
 		assert_eq(breaks, 2, "two corners between three rounds")
