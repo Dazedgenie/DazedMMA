@@ -352,9 +352,16 @@ func pose_for(sim: FightSim, i: int, fractional_tick: float = 0.0) -> Dictionary
 			p.leg_rear = 1.3
 			p.arm_lead = 1.2
 			p.arm_rear = 1.2
-		else:
-			p.leg_lead = 1.4
-			p.lean = 0.3
+		else:  # Sat back on the mat with the caught leg out straight, reaching for it (D282; was kneeling up).
+			p.lie = 0.3
+			p.hip_y = 0.28
+			p.kneel = 0.0
+			p.lean = 0.2
+			p.leg_lead = 1.45
+			p.leg_rear = 1.0
+			p.spread = 0.2
+			p.arm_lead = 1.2
+			p.arm_rear = 1.2
 	elif not hold.is_empty():  # Held in a choke or an arm lock (D282).
 		_sub_pose(p, String(hold.action_id), int(hold.attacker) == i, 1.0)
 	if f.action_id == "" or not sim.actions.has(f.action_id):
