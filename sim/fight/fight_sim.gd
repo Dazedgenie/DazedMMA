@@ -133,6 +133,16 @@ const GROUND_STOP_PER_HEALTH: float = 14.0
 ## Amateur referees step in sooner: the health line rises by early_stoppage_bias × this
 ## (adult amateur 0.3 → at 15% health), and they wait for one shot fewer.
 const STOP_BIAS_HEALTH: float = 0.5
+## More ground and pound (D270, docs/01 §41). Covering up underneath (`ground_cover`) halves the
+## head damage like the standing cover-up, but on the ground it isn't answering: the referee still
+## counts the shots. A strike's `through_cover` is the share that gets through the gloves instead
+## (the hammerfist's 0.8). A landed ground strike to the body with `hands_down_ms` brings his
+## hands down (HANDS_LOW) that long. In mount, a clean head shot on a man covering up or rocked
+## makes him turn away and give up his back on a chance of TURN_AWAY_BASE × (1.5 − Fight IQ / 100)
+## × (1 + head hurt); the referee's count carries on.
+const GROUND_COVER := "ground_cover"
+const TURN_AWAY := "turn_away"
+const TURN_AWAY_BASE: float = 0.12
 
 ## Tied up (clinch or ground), the fighters' centres are this close, on the spot
 ## where the one being taken down or tied up stood.
@@ -1064,6 +1074,28 @@ func apply_transition(i: int, action_id: String, result: String = PositionLibrar
 	return true
 
 
+## In mount, a man covering up or rocked under a clean head shot may turn away from it and give up
+## his back (D270): on a chance of TURN_AWAY_BASE × (1.5 − Fight IQ / 100) × (1 + head hurt). It isn't
+## an escape and doesn't answer the shots: the referee's count carries on. (The back scores no more
+## control than the mount, so the judges see nothing new, as when he takes it.)
+func _maybe_turn_away(k: int, covered: bool) -> void:
+	if situation.position != "mount" or situation.role(k) != PositionLibrary.BOTTOM:
+		return
+	var d: FighterState = fighters[k]
+	if not covered and not d.is_rocked():
+		return
+	var chance: float = TURN_AWAY_BASE * maxf(0.0, 1.5 - d.effective_stat("fight_iq") / 100.0) * (1.0 + d.hurt("head"))
+	if _rng.randf() >= chance:
+		return
+	var unanswered: int = d.unanswered
+	var escapes: int = d.escapes
+	if not apply_transition(k, TURN_AWAY):
+		return
+	d.unanswered = unanswered
+	d.escapes = escapes
+	d.turned_away += 1
+
+
 ## Back to standing without anyone's move (a knockdown in the clinch): the fighters
 ## come apart where they are, a standing gap apart.
 func _break_apart(i: int) -> void:
@@ -1131,6 +1163,8 @@ func _start_action(i: int, id: String, decision: Decision = null) -> void:
 		f.fence_drives_tried += 1
 	elif id == SPIN_OFF or id == TURN_HIM:
 		f.spin_offs_tried += 1
+	elif id == GROUND_COVER:
+		f.ground_covers += 1
 	_start_combo(i, id, decision)
 	if action.category == "strike" or action.category == "takedown" or action.category == "submission" or (action.category == "clinch" and situation.is_standing()):
 		_round_aggression[i] += 1.0
@@ -1539,7 +1573,8 @@ func _land_strike(i: int, action: Dictionary) -> void:
 	var into: String = defender.action_id if stops and defender.phase in STOPPABLE_PHASES else ""
 	var covered: bool = target == "head" and active_flags(1 - i).has(COVERED)
 	if covered:
-		scale *= float(actions.get_action(defender.action_id).defense.head_share)  # Through the guard (D180).
+		var through: float = float(actions.get_action(defender.action_id).defense.head_share)  # Through the guard (D180).
+		scale *= maxf(through, float(action.strike.get("through_cover", 0.0)))  # A hammerfist gets round it (D270).
 	var dealt: int = maxi(1, roundi(strike_damage(attacker, action.id) * scale))
 	var was_rocked: bool = defender.is_rocked()
 	if is_cutting(1 - i):
@@ -1578,9 +1613,14 @@ func _land_strike(i: int, action: Dictionary) -> void:
 		_to_recovery(1 - i)
 	if target == "head":
 		_head_impact(i, dealt, into != "")
-		_referee(i, was_rocked, covered)
+		var on_ground: bool = situation.phase == PositionLibrary.PHASE_GROUND
+		_referee(i, was_rocked, covered and not on_ground)  # Covering up underneath isn't answering (D270).
+		if on_ground and not _fight_over:
+			_maybe_turn_away(1 - i, covered)
 	elif target == "body" and situation.phase != PositionLibrary.PHASE_GROUND:
 		_body_impact(i, dealt)
+	elif target == "body" and action.strike.has("hands_down_ms"):
+		defender.winded_ticks = maxi(defender.winded_ticks, int(action.strike.hands_down_ms) / FightClock.TICK_MS)  # His hands come down (D270).
 	elif leg >= 0 and situation.is_standing():
 		_leg_impact(i, leg, dealt)
 

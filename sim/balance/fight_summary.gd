@@ -10,7 +10,9 @@ extends RefCounted
 ## holding the other man on the fence in the clinch, drives to the fence and spin-offs, D220;
 ## submissions tried and locked in, D126, and the leg locks among them and fights they ended, D132; time in each ground position, passes and escapes, D130;
 ## feints thrown and bitten on, and shots taken blind and how many still worked, D131;
-## combinations thrown, the strikes after the first in them and how many landed, D133),
+## combinations thrown, the strikes after the first in them and how many landed, D133;
+## ground strikes landed, the hammerfists, body punches and posture-up bombs among them and how many
+## hit the gloves of a man covering up, his cover-ups and turns away from mount, D270),
 ## each corner's coaching bot and how many calls it made (Corner, D12, D68), and each
 ## fighter's drilled rules and how often they fired (DrilledRules, #17), and which
 ## layer chose each fighter's moves: their own AI, a call, a drilled rule or a
@@ -41,6 +43,8 @@ const COLUMNS: Array[String] = [
 	"combos_red", "combo_strikes_red", "combo_landed_red", "combos_blue", "combo_strikes_blue", "combo_landed_blue",
 	"checks_red", "checked_red", "slips_red", "slipped_red", "covered_hits_red",
 	"checks_blue", "checked_blue", "slips_blue", "slipped_blue", "covered_hits_blue",
+	"gnp_landed_red", "gnp_hammer_red", "gnp_body_red", "gnp_bomb_red", "gnp_covered_red", "ground_covers_red", "turned_away_red",
+	"gnp_landed_blue", "gnp_hammer_blue", "gnp_body_blue", "gnp_bomb_blue", "gnp_covered_blue", "ground_covers_blue", "turned_away_blue",
 	"calls_red", "calls_blue", "fired_red", "fired_blue",
 	"chosen_ai_red", "chosen_call_red", "chosen_rule_red", "chosen_command_red",
 	"chosen_ai_blue", "chosen_call_blue", "chosen_rule_blue", "chosen_command_blue",
@@ -48,6 +52,9 @@ const COLUMNS: Array[String] = [
 const SIDES: Array[String] = ["red", "blue"]
 ## The ground positions whose share of the fight each row reports (D130).
 const GROUND_POSITIONS: Array[String] = ["full_guard", "half_guard", "side_control", "mount", "back_control"]
+## Ground strikes counted by kind (D270): the action, and its column.
+const GNP_KINDS := { "hammerfist": "gnp_hammer", "ground_body_punch": "gnp_body", "posture_bomb": "gnp_bomb" }
+const GNP_COUNTS: Array[String] = ["gnp_landed", "gnp_hammer", "gnp_body", "gnp_bomb", "gnp_covered"]
 ## The decision layers a move can be chosen by, as the chosen_* columns name them (DecisionLayer, D250).
 const CHOOSERS: Array[String] = [DecisionLayer.AI, DecisionLayer.CALL, DecisionLayer.RULE, DecisionLayer.COMMAND]
 
@@ -215,6 +222,10 @@ static func of(sim: FightSim, lows: Array[float] = [], moves: Dictionary = {}) -
 		row["combos_" + side] = f.combos_thrown
 		row["combo_strikes_" + side] = f.combo_strikes
 		row["combo_landed_" + side] = f.combo_landed
+		row["ground_covers_" + side] = f.ground_covers
+		row["turned_away_" + side] = f.turned_away
+		for key: String in GNP_COUNTS:
+			row["%s_%s" % [key, side]] = 0
 		for layer: String in CHOOSERS:
 			row["chosen_%s_%s" % [layer, side]] = 0
 		row["top_" + side] = _share_of(moves.get("top", [0, 0])[i], ticks)
@@ -259,13 +270,28 @@ static func of(sim: FightSim, lows: Array[float] = [], moves: Dictionary = {}) -
 				if e.data.odds.get("clamped", false):
 					row.clamped += 1
 			FightEvent.STRIKE_LANDED, FightEvent.STRIKE_MISSED:
-				if e.type == FightEvent.STRIKE_LANDED and e.data.get("covered", false):
+				var ground: bool = sim.actions.has(e.data.action_id) and Ruleset.is_ground_strike(sim.actions.get_action(e.data.action_id))
+				if e.type == FightEvent.STRIKE_LANDED and ground:
+					_count_gnp(row, e)
+				elif e.type == FightEvent.STRIKE_LANDED and e.data.get("covered", false):
 					row["covered_hits_" + SIDES[1 - e.actor]] += 1
 				if e.data.has("odds"):
 					row.exchanges += 1
 					if e.data.odds.get("clamped", false):
 						row.clamped += 1
 	return row
+
+
+## A landed ground strike (D270): counted, by kind for the new ones, and on the gloves (the
+## man underneath covering up, counted to him).
+static func _count_gnp(row: Dictionary, e: FightEvent) -> void:
+	var side: String = SIDES[e.actor]
+	row["gnp_landed_" + side] += 1
+	var kind: String = GNP_KINDS.get(e.data.action_id, "")
+	if kind != "":
+		row["%s_%s" % [kind, side]] += 1
+	if e.data.get("covered", false):
+		row["gnp_covered_" + SIDES[1 - e.actor]] += 1
 
 
 ## "ko", "tko", "submission", "decision" or "draw" from a fight_ended result.

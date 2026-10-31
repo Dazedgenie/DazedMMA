@@ -1345,7 +1345,8 @@ bias × 0.5 (adult amateur 15%, teen 25%) and they stop after one shot fewer.
 
 ### 24.3 Ground and pound (D121)
 In full guard the fighter on top strikes and the fighter underneath answers (since D130 the same strikes work from the top of
-half guard, side control, mount and the back, harder or softer by the position, §28):
+half guard, side control, mount and the back, harder or softer by the position, §28; since D270 there are hammerfists, body
+punches and the posture-up bomb as well, and the man underneath can cover up, §41):
 
 | Move | Who | Timing (telegraph · wind-up · active · recovery) | Odds and damage | Notes |
 |---|---|---|---|---|
@@ -2826,3 +2827,72 @@ either; a shot on the fence that half works presses him there about a quarter of
 by its liking, never a man already there, stays when it likes it, works to get off it; who leans in; the Dirty boxer holds
 the Boxer on the fence in real fights), `tests/sim/balance/test_balance_report.gd` (the Cage line), `tests/ui/test_fight_log_formatter.gd`
 and `tests/data/test_data_files.gd` (`drives_m`, `turns`, a required `HELD_ON_FENCE`, the `pressed` result).
+
+## 41. More ground and pound: hammerfists, body punches, the posture-up bomb, covering up and turning away (D270)
+Kyle asked to "increase ground and pound variety" (2026-10-31). Before this the man on top had one strike everyone knew (the
+ground punch, to the head), the ground elbow for the fighters who know it, the knee from side control (to the body; the head
+under PRIDE) and PRIDE's soccer kicks and stomps; the man underneath could only tie up, get up or go for a hold, and a ground
+strike only ever did damage. Now there are three more strikes on top, the man underneath can cover up, and what he does under
+the punches opens the pass, the back and the choke. Every number is a first guess for the harness, each a named constant or a
+data field listed in §41.5. Strikes from the bottom (elbows and heel kicks from guard) and wrist control are left for later:
+the grips plan (D260, §40.5) gives the man underneath his hands to fight with.
+
+### 41.1 The new strikes (everyone's)
+| Move | Where (top) | Timing (telegraph · wind-up · active · recovery) | Odds and damage | What it's for |
+|---|---|---|---|---|
+| **Hammerfist** | Every top position, the back too | 0.1 · 0.1 · 0.1 · 0.2 s, 2 stamina | Top control, Power against Guard; 3 to the head; +10% on `COVERED` and on `HANDS_LOW` | Quick and small, and it comes round the gloves: 80% of it gets through a cover-up (`through_cover` 0.8, against 50% for anything else). Best from mount (× 1.3) |
+| **Body punch** | Full guard, half guard, side control, mount | 0.1 · 0.2 · 0.1 · 0.3 s, 3 stamina | Top control, Boxing against Guard; 5 to the body; +15% on `COVERED` | Drains the tank (body damage, §8), and **his hands come down** to the ribs: `HANDS_LOW` for 1.5 s (`hands_down_ms`), so the next head shot is +10% and so is the pass. No liver shot on the ground (§35) |
+| **Posture-up bomb** | Full guard, half guard | 0.3 · 0.4 · 0.1 · 0.5 s, 7 stamina | Top control, Power against Guard; 10 to the head; +15% on `HANDS_LOW` (tired, rocked or just hit in the body) | The big one: he sits up from the start (`POSTURED_UP` from the telegraph to the end), so the tie-up (+15%), the get-up (+20%) and the armbar's opening are there for 1.3 s. The AI's commitment (Risk against a long move) decides who throws it |
+
+The knee from side control now brings the hands down too when it goes to the body. Under amateur rules every ground strike goes
+to the body (`08`, D121), so there they all drain and drop the hands.
+
+### 41.2 Covering up underneath
+**Cover up underneath** (`ground_cover`, *everyone*'s, from the bottom of every ground position): the gloves over the face for 2 s
+(`COVERED`). Head shots do half (a hammerfist 80%). But on the ground it **isn't answering**: the referee still counts the shots
+(D120, §24.2), unlike the cover-up on the feet (D180, §38). And it gives things away:
+
+| While he covers up | For the man on top |
+|---|---|
+| The body is open | Body punch +15%, hammerfist +10% |
+| His hands aren't on the legs and hips | Guard pass +15% |
+| His hands aren't on the arms | Taking the back (from side control and mount) +15% |
+| On the back, his hands are on his face, not the choking arm | Rear-naked choke +15% |
+
+The AI underneath covers up when he's under fire or rocked, weighted 1.0 × (1.5 − Guard / 100), twice that when rocked, next to
+the tie-up and the get-up (§24.3): a striker with a low Guard covers, a guard player ties up. On top, while the man underneath
+covers up, the AI works for a better position three times as often (`COVERED_WORK`).
+
+### 41.3 Turning away from mount
+In mount, a clean head shot on a man who's covering up or rocked can make him **turn away and give up his back**, on a chance of
+12% × (1.5 − Fight IQ / 100) × (1 + head hurt): 12% a shot for a Fight IQ 50 fighter who hasn't been hurt, 27% at half
+health with Fight IQ 0. The fight goes to back control with the same man on top. It isn't getting out: it doesn't answer the
+shots (the referee's count carries on) and it doesn't count as an escape. The back scores no more control than mount, so the
+judges see nothing new, as when he takes it himself. The feed says *"Boxer TURNS AWAY from the punches and GIVES UP HIS BACK →
+Back control (Wrestler has the back)"*. It isn't a move anyone chooses (`turn_away` is no one's technique): the sim does it.
+
+### 41.4 Feed, sound, screen and the harness
+- **Feed**: a body punch that lands adds *": his hands come down"*; shots on the gloves say *"through the guard"* as standing;
+  the cover-up starts as *"Boxer starts a Cover up underneath (covers up under the punches)"*.
+- **Sound**: each new strike has its own line in `StrikeSounds.RECIPES` (`06` §6.8): the hammerfist a short dull thud, the body
+  punch a low one, the bomb a heavy crack with a long swish. A shot on the gloves plays the blocked version.
+- **Screen**: the 3D figures throw the new strikes with the generic punch pose for now; their own poses wait for the work on
+  separate arms and legs (`game/fighter_figure.gd` isn't touched).
+- **Harness**: a **GnP** line per pairing: ground strikes landed a fight, the share that were hammerfists, body punches and bombs,
+  how often the other man covered up and how many shots hit his gloves, and how often he turned away from mount (CSV columns
+  `gnp_landed_*`, `gnp_hammer_*`, `gnp_body_*`, `gnp_bomb_*`, `gnp_covered_*`, `ground_covers_*`, `turned_away_*`). The
+  *Defence* line's hits on the guard (D180) are standing strikes only now.
+
+### 41.5 To change it, and the tests
+- The strikes: `data/actions/hammerfist.json`, `ground_body_punch.json`, `posture_bomb.json` (`through_cover`, `hands_down_ms`,
+  `09`); the cover-up: `ground_cover.json` (its `head_share`); the openings: the `COVERED` lines in `guard_pass.json`,
+  `take_back.json` and `rear_naked_choke.json`.
+- Turning away: `FightSim.TURN_AWAY_BASE` (0.12) and the `turn_away` transition in `data/positions/mount.json`.
+- The AI: `FighterAI.COVER_GROUND` (1.0), `COVER_GROUND_ROCKED` (2.0), `COVERED_WORK` (3.0); who throws which ground strike is
+  each fighter's `tendencies` (the `gnp_wrestler` leans on them) and his Risk leaning for the bomb.
+
+Tested in `tests/sim/fight/test_ground_strike_variety.gd` (who can throw which from where, the hammerfist's and the bomb's damage,
+the bomb's posture, the body punch dropping the hands, amateur rules, covering up and what gets through it, the referee still
+counting, what covering up opens, turning away and when it can't happen, the AI's mix on top and covering up underneath, the feed
+lines), `tests/game/test_strike_sounds.gd` (every strike has a sound) and `tests/data/test_data_files.gd` (`through_cover`,
+`hands_down_ms`).

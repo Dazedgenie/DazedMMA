@@ -282,6 +282,12 @@ const GROUND_UNDER_FIRE: float = 3.0
 const TIE_UP_CALM: float = 0.3
 const TIE_UP_PRESSED: float = 1.5
 const ROCKED_GET_UP: float = 0.3
+## Covering up underneath (D270): under fire or rocked, weighted COVER_GROUND × (1.5 − Guard / 100)
+## (strikers cover, guard players tie up), × COVER_GROUND_ROCKED when rocked. On top, a man covering
+## up gives the pass and the back: the chance to work position is × COVERED_WORK while he does.
+const COVER_GROUND: float = 1.0
+const COVER_GROUND_ROCKED: float = 2.0
+const COVERED_WORK: float = 3.0
 ## Submissions (D126): only on an opening their hold looks for (the top fighter postured up for
 ## the armbar, his posture broken for the triangle, a head stuck low under a sprawl for the
 ## guillotine), and not again for SUB_RETRY_TICKS after the last try. Underneath, a hold is
@@ -916,6 +922,12 @@ func _tied(view: FightView, layer: DecisionLayer) -> Decision:
 	var reasons: Array[String] = []
 	for id in _all_moves(view):
 		var action: Dictionary = view.actions.get_action(id)
+		if id == FightSim.GROUND_COVER:
+			if pressed and view.my_role() == PositionLibrary.BOTTOM and _usable(view, action):
+				options.append(id)
+				weights.append(COVER_GROUND * maxf(0.1, 1.5 - f.effective_stat("guard") / 100.0) * (COVER_GROUND_ROCKED if f.is_rocked() else 1.0))
+				reasons.append("covers up under the punches")
+			continue
 		if action.category == DEFENSE or action.category == "movement" or not _usable(view, action):
 			continue
 		if f.is_rocked() and action.category == STRIKE:
@@ -1079,6 +1091,8 @@ func _work_position(view: FightView, layer: DecisionLayer) -> Decision:
 	var liking: float = maxf(ADVANCE_MIN_LIKING, 0.5 + _lean(view, layer, StyleLeanings.BASE) / 100.0)
 	var hunting: bool = _hunting(view, layer)
 	var rate: float = float(layer.hunt(view).rate) if hunting else ADVANCE_RATE * f.work_rate * liking
+	if not hunting and view.opponent_flags().has(FightSim.COVERED):
+		rate *= COVERED_WORK  # He's covering his face: the pass and the back are open (D270).
 	if f.is_rocked() or view.roll() >= rate:
 		return null
 	var options: Array[String] = []

@@ -1,0 +1,20 @@
+{
+	"schema": "action@2",
+	"id": "hammerfist",
+	"name": "Hammerfist",
+	"category": "strike",
+	"basic": true,
+	"positions": ["full_guard", "half_guard", "side_control", "mount", "back_control"],
+	"roles": ["top"],
+	"ranges": ["clinch"],
+	"phases_ms": { "telegraph": 100, "windup": 100, "active": 100, "recovery": 200 },
+	"stamina_cost": 2,
+	"flags_self": [],
+	"strike": { "target": "head", "base_damage": 3, "through_cover": 0.8 },
+	"stats": { "offense": ["top_control", "power"], "defense": ["guard"] },
+	"opportunities": [
+		{ "opponent_flag": "COVERED", "success_bonus": 0.10 },
+		{ "opponent_flag": "HANDS_LOW", "success_bonus": 0.10 }
+	],
+	"requires_technique": null
+}
