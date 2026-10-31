@@ -248,6 +248,14 @@ const CUT_OFF_FROM_TICKS: int = 30
 ## Bitten on a feint (D131), a fighter's feet move this share of a step: weight back and hands up,
 ## he plants for a beat, which is what a cutter herding him with a feint wants (D230).
 const BIT_FEET: float = 0.4
+## Selling a door shut (D235, docs/01 §20.7): a feint that bites while fighter k is cutting the
+## opponent off and the man still has a way out sells that way shut. For SOLD_TICKS (the bite's
+## 1 s and another second) he reads it as shut and the other way round as his way out
+## (way_out, burst_way), so a reverse or a burst takes him back into the cut.
+const SOLD_TICKS: int = 20
+## A feinter stands still while he feints, so "cutting him off" means his cut was working within
+## this many ticks of the feint biting (the feint's telegraph and wind-up, and a tick to spare).
+const SOLD_CUT_TICKS: int = 5
 ## What counts as circling for the time reported after a fight (D119): a step where at
 ## least this much of it goes round the opponent (an outside fighter's everyday drift
 ## sideways, 0.25 × how far outside they lean, doesn't count).
@@ -370,6 +378,18 @@ var shut_in_ticks: Array[int] = [0, 0]
 var cut_damage_taken: Array[int] = [0, 0]
 ## Cut off onto the fence and not back in the middle yet (cage_escapes).
 var _trapped: Array[bool] = [false, false]
+## Selling a door shut (D235): for the man being cut off, the way he's been sold shut (±1, 0 =
+## none), until when, and the tick it was sold; the tick he last turned back off a sold door
+## and which sale that was (one turn counted a sale).
+var _sold_way: Array[int] = [0, 0]
+var _sold_until: Array[int] = [-1000, -1000]
+var _sold_at: Array[int] = [-1000, -1000]
+var _turned_at: Array[int] = [-1000, -1000]
+var _turned_sale: Array[int] = [-1000, -1000]
+## Reported after the fight (D235), read-only, by the cutter: doors each fighter sold shut with a
+## feint, and how many times the man then turned back into the cut off one.
+var doors_sold: Array[int] = [0, 0]
+var turned_back: Array[int] = [0, 0]
 ## How far each fighter moved on their last tick (zero when they stood still).
 var _strides: Array[Vector2] = [Vector2.ZERO, Vector2.ZERO]
 ## Walking pace (m per tick), footwork-contest share and footwork edge per fighter, as of _feet_at.
@@ -821,6 +841,11 @@ func _move(i: int, want: float, circle: float, cut: float = 0.0, way: int = 0, a
 		# Shut the exit first, close the distance with what's left of the step.
 		stride = stride.limit_length(sqrt(maxf(0.0, step * step - across.length_squared()))) + across
 	if circle > 0.0:
+		if circle >= CIRCLING_FROM and way != 0 and way == -_sold_way[i] and now < _sold_until[i] \
+				and circle_sign(i) == _sold_way[i] and _turned_sale[i] != _sold_at[i]:
+			_turned_sale[i] = _sold_at[i]  # Turned back off the door he was sold shut (D235).
+			_turned_at[i] = now
+			turned_back[1 - i] += 1
 		stride += _circle_side(i, toward, way) * step * circle
 		if circle >= CIRCLING_FROM:
 			circling_ticks[i] += 1
@@ -882,8 +907,9 @@ func _cut_step(k: int, toward_opponent: Vector2, apart: float, step: float) -> V
 ## Which way out fighter i's best open escape route goes round the opponent (±1, as
 ## circle_sign), 0 when none is, and whether he's shut in (every way out shut), as of the
 ## opponent's last read while cutting him off (D233). Only meaningful while is_cutting(1 − i).
+## While a door's sold shut (D235), the other way round is the way out as he sees it.
 func way_out(i: int) -> int:
-	return _way_out[i]
+	return -_sold_way[i] if is_sold(i) else _way_out[i]
 
 
 func is_shut_in(i: int) -> bool:
@@ -892,7 +918,24 @@ func is_shut_in(i: int) -> bool:
 
 ## Shut in, which way round the cutter the least shut route goes (±1): where to burst out (D234).
 func burst_way(i: int) -> int:
+	if is_sold(i):
+		return -_sold_way[i]
 	return _least_bad[i] if _least_bad[i] != 0 else circle_sign(i)
+
+
+## Whether fighter i has a way out open that a feint could sell shut (D235): the cutter's true read.
+func door_open(i: int) -> bool:
+	return _way_out[i] != 0 and not is_sold(i) and is_cutting(1 - i)
+
+
+## Whether fighter i still thinks a way out is shut that a feint sold him (D235).
+func is_sold(i: int) -> bool:
+	return now < _sold_until[i]
+
+
+## The last tick fighter i turned back off a door sold shut (D235).
+func turned_back_at(i: int) -> int:
+	return _turned_at[i]
 
 
 ## Whether fighter i burst out on their last step (D234).
@@ -978,6 +1021,11 @@ func _to_corners() -> void:
 	_least_bad = [0, 0]
 	_burst_at = [-1000, -1000]
 	_trapped = [false, false]
+	_sold_way = [0, 0]
+	_sold_until = [-1000, -1000]
+	_sold_at = [-1000, -1000]
+	_turned_at = [-1000, -1000]
+	_turned_sale = [-1000, -1000]
 	for i in fighters.size():
 		fighters[i].pos = START_POSITIONS[i]
 	_shown = [band(), cage_proximity(0), cage_proximity(1)]
@@ -1434,7 +1482,8 @@ func _resolve_active(i: int) -> void:
 
 ## A feint reaches its active phase (D131): one roll on its odds (the fighter's own recent
 ## feints count against it). If it bites, the opponent has their hands up and weight back for
-## the feint's `bites_ms` (BIT_ON_FEINT): shots and clinch entries find them reacting.
+## the feint's `bites_ms` (BIT_ON_FEINT): shots and clinch entries find them reacting. Cutting
+## him off, it also sells the way he was getting out shut (SOLD_TICKS, D235).
 func _feint(i: int, action: Dictionary) -> void:
 	var data := { "action_id": action.id }
 	if fighters[1 - i].is_down():
@@ -1453,6 +1502,13 @@ func _feint(i: int, action: Dictionary) -> void:
 	if data.bit:
 		fighters[1 - i].bit_ticks = int(action.feint.bites_ms) / FightClock.TICK_MS
 		fighters[i].feints_bit += 1
+		if _cut_at[i] >= now - SOLD_CUT_TICKS and _way_out[1 - i] != 0 and not is_sold(1 - i):
+			# Cutting him off: the feint at his way out sells it shut (D235).
+			_sold_way[1 - i] = _way_out[1 - i]
+			_sold_until[1 - i] = now + SOLD_TICKS
+			_sold_at[1 - i] = now
+			doors_sold[i] += 1
+			data.sold = true
 	_emit(FightEvent.FEINTED, i, data)
 
 

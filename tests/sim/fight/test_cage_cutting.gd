@@ -327,3 +327,120 @@ func test_being_shut_in_and_what_cutting_cost_are_counted() -> void:
 	assert_gt(shut, 0, "the Boxer shuts the Kicker in now and then")
 	assert_gt(hurt, 0, "and the Kicker makes him pay for walking him down")
 	assert_gt(escaped, 0, "and the Kicker gets back to the middle")
+
+
+# --- Selling a door shut (D235, docs/01 §20.7) -------------------------------------
+
+## The Kicker by the fence circling up it (+y) into the Boxer, his way out back down it (way_out 1),
+## the Boxer cutting him off.
+func _door(s: int = 0) -> FightSim:
+	var roster := FighterLibrary.load_dir()
+	var sim := FightSim.new(SEED + s, roster.make_pair("boxer", "kicker"), _actions)
+	sim.fighters[0].pos = Vector2(1.9, 0.6)
+	sim.fighters[1].pos = Vector2(3.9, 0.0)
+	sim._circle_sign[1] = -1.0
+	_read_routes(sim)
+	return sim
+
+
+## Feints from the Boxer until one bites (new seeds each time); null if none did.
+func _bitten_door() -> FightSim:
+	for s in 30:
+		var sim := _door(s)
+		sim._feint(0, _actions.get_action(FightSim.FEINT))
+		if sim.fighters[1].bit_ticks > 0:
+			return sim
+	return null
+
+
+func test_a_feint_that_bites_while_cutting_him_off_sells_his_way_out_shut() -> void:
+	var sim := _bitten_door()
+	assert_not_null(sim, "one of the feints bites")
+	assert_true(sim.is_sold(1), "he thinks the way down the fence is shut")
+	assert_eq(sim.way_out(1), -1, "and the way up it, into the cut, is his way out")
+	assert_eq(sim.burst_way(1), -1, "a burst goes that way too")
+	assert_eq(sim.doors_sold[0], 1, "counted for the Boxer")
+	sim.now += FightSim.SOLD_TICKS
+	assert_false(sim.is_sold(1), "after %d ticks he sees it again" % FightSim.SOLD_TICKS)
+	assert_eq(sim.way_out(1), 1)
+
+
+func test_a_feint_away_from_a_cut_sells_no_door() -> void:
+	for s in 30:
+		var sim := _door(s)
+		sim._cut_at[0] = -1000  # Not cutting him off.
+		sim._feint(0, _actions.get_action(FightSim.FEINT))
+		assert_false(sim.is_sold(1), "a feint in open space just plants his feet")
+	assert_eq(_door()._sold_way[1], 0)
+
+
+func test_sold_a_door_shut_he_turns_back_into_the_cut_more_readily() -> void:
+	var turned := { false: 0, true: 0 }
+	for sold: bool in [false, true]:
+		for s in 30:
+			var sim := _door(s)
+			var ai: FighterAI = sim.decisions[1].ai
+			if sold:
+				sim._sold_way[1] = 1
+				sim._sold_at[1] = sim.now
+				sim._sold_until[1] = sim.now + FightSim.SOLD_TICKS
+				sim._circle_sign[1] = 1.0  # Going the way he was sold shut.
+			else:
+				sim._circle_sign[1] = -1.0
+			for n in 10:
+				sim._cut_at[0] = sim.now
+				sim.views[1].now = sim.now
+				var feet: FeetPlan = sim.decisions[1].plan_feet(sim.views[1])
+				if ai._reverse_until > sim.now:
+					assert_eq(feet.way, -1 if sold else 1)
+					turned[sold] += 1
+					break
+				sim.now += 1
+	assert_gt(turned[true], turned[false], "sure his way's shut, he turns back %.0f× as readily (%d against %d)" % [FighterAI.SOLD_REVERSE, turned[true], turned[false]])
+
+
+func test_turning_back_off_a_sold_door_is_counted_once_a_sale() -> void:
+	var sim := _door()
+	sim._sold_way[1] = 1
+	sim._sold_at[1] = sim.now
+	sim._sold_until[1] = sim.now + FightSim.SOLD_TICKS
+	sim._circle_sign[1] = 1.0
+	sim._move(1, 3.0, 1.0, 0.0, -1)
+	assert_eq(sim.turned_back[0], 1, "he turned back into the Boxer's cut")
+	assert_eq(sim.turned_back_at(1), sim.now)
+	sim._circle_sign[1] = 1.0
+	sim._move(1, 3.0, 1.0, 0.0, -1)
+	assert_eq(sim.turned_back[0], 1, "once a sale")
+
+
+func test_a_cutter_catches_some_turning_back_off_a_sold_door() -> void:
+	var caught: int = 0
+	for s in 40:
+		var sim := _door(s)
+		sim.fighters[0].pos = Vector2(3.0, 0.4)
+		sim._turned_at[1] = sim.now
+		var d: Decision = sim.decisions[0].ai._catch_burst(sim.views[0], sim.decisions[0])
+		if d != null:
+			assert_eq(d.reason, "catches him turning back into it")
+			caught += 1
+		assert_null(sim.decisions[0].ai._catch_burst(sim.views[0], sim.decisions[0]), "one read a turn")
+	assert_between(caught, 2, 25, "about Cage cutting 65 × %.1f of them" % FighterAI.CATCH_RATE)
+
+
+func test_a_cutter_feints_at_an_open_way_out_more_often() -> void:
+	var herded := { false: 0, true: 0 }
+	for door: bool in [false, true]:
+		for s in 20:
+			var sim := _door(s)
+			sim.fighters[0].pos = Vector2(2.4, 0.6)
+			for n in 100:
+				sim._cut_at[0] = sim.now
+				sim._circling[1] = 1.0
+				sim._way_out[1] = 1 if door else 0
+				sim.views[0].now = sim.now
+				var d: Decision = sim.decisions[0].ai._herd(sim.views[0])
+				if d != null:
+					assert_eq(d.reason, "feints at his way out" if door else "herds him with a feint")
+					herded[door] += 1
+				sim.now += 1
+	assert_gt(herded[true], herded[false] * 2, "about %.0f× as often (%d against %d)" % [FighterAI.DOOR_HERD, herded[true], herded[false]])

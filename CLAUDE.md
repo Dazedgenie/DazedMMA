@@ -17,6 +17,7 @@
 - How fighters move round the cage (holding the centre, cutting off, getting off the fence) and the numbers to tune it: `docs/01-fight-engine.md` §20.2 (D107).
 - Cutting the cage (the Cage cutting stat against Footwork, aiming at the exit not the man, the diagonal step, reversing and countering when cut off, herding feints, the *Cut the cage!* call on key R, the Shark tank session, the numbers to tune it): `docs/01-fight-engine.md` §20.5 (D230–D232).
 - Escape routes and being shut in (the cutter reading the man's ways out and shutting the best one, holding the door shut, reversing toward an open way, bursting out, tying up or planting by style, catching the burst, escapes and shut-in time after each fight, the numbers to tune them): `docs/01-fight-engine.md` §20.6 (D233, D234).
+- Selling a door shut (a feint that bites while cutting the man off makes him think his way out is shut, so he turns back into the cut; catching the turn; doors sold after each fight, the numbers to tune it): `docs/01-fight-engine.md` §20.7 (D235).
 - How long each fighter circled and cut off the cage, reported after every fight (what counts, the numbers to change it): `docs/01-fight-engine.md` §20.3 (D119).
 - Smoke-run the main scene: `godot --headless --quit-after 30`
 - The fight screen (setup, grey-box 3D view, HUD v0, speed controls, hotkeys, F3 debug overlay), what's not in v0 yet and what to edit: `docs/06-fight-hud.md` §6 (D117).

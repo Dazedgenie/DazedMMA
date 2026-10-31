@@ -208,6 +208,8 @@ const INTERCEPT_CUT_OFF: float = 0.2
 ## HERD_FENCE of the fence, a cutter feints on a chance of HERD_RATE × Cage cutting / 100 a free
 ## tick. If it bites, he plants for a beat (FightSim.BIT_FEET) and the cut closes the door.
 const HERD_RATE: float = 0.015
+## With a way out still open to sell shut (D235), he feints at it DOOR_HERD times as often.
+const DOOR_HERD: float = 3.0
 const HERD_FENCE: float = 1.5
 ## Closer to the centre than this, no fence is within HERD_FENCE.
 const CLEAR_OF_HERD: float = Octagon.APOTHEM - Octagon.BODY_MARGIN - HERD_FENCE - 0.01
@@ -256,6 +258,11 @@ const ESCAPE_TICKS: int = 15
 ## the cutter has to read again (FightSim.CUT_READ_BASE).
 const REVERSE_RATE: float = 0.06
 const REVERSE_TICKS: int = 8
+## A door sold shut by a feint (D235, FightSim.SOLD_TICKS): sure his way's shut, he reverses
+## SOLD_REVERSE times as readily, back into the cut; the cutter catches him turning back as he
+## catches a burst (CATCH_RATE), for TURN_CATCH_TICKS after the turn.
+const SOLD_REVERSE: float = 3.0
+const TURN_CATCH_TICKS: int = 3
 ## Shut in (D234, Kyle: "Pick by style"): with every way out shut by a cage cutter, a fighter
 ## answers by style. Outside fighters (Range below 0) burst out round him, all they can for
 ## BURST_TICKS (FightSim.BURST_EXTRA), on a chance of BURST_RATE × Fight IQ / 100 a tick and at
@@ -542,9 +549,11 @@ func _shut_in_tie_up(view: FightView, layer: DecisionLayer) -> Decision:
 	return Decision.new(CLINCH_ENTRY, DecisionLayer.AI, "ties him up off the fence")
 
 
-## The man he's cutting off bursts out past him: once a burst, throw his best strike at him (CATCH_RATE).
+## The man he's cutting off bursts out past him, or turns back off a door sold shut (D235): once
+## each, throw his best strike at him (CATCH_RATE).
 func _catch_burst(view: FightView, layer: DecisionLayer) -> Decision:
-	if not view.opponent_bursting() or _burst_read_at >= view.now - BURST_TICKS:
+	var turned: bool = view.opponent_turned_back(TURN_CATCH_TICKS)
+	if not (turned or view.opponent_bursting()) or _burst_read_at >= view.now - BURST_TICKS:
 		return null
 	_burst_read_at = view.now
 	if view.roll() >= CATCH_RATE * view.me.effective_stat("cage_cutting") / 100.0:
@@ -553,7 +562,7 @@ func _catch_burst(view: FightView, layer: DecisionLayer) -> Decision:
 	var weights: Array[float] = []
 	if not _strikes(view, layer, options, weights):
 		return null
-	return Decision.new(options[_pick(view, weights)], DecisionLayer.AI, "catches him bursting out")
+	return Decision.new(options[_pick(view, weights)], DecisionLayer.AI, "catches him turning back into it" if turned else "catches him bursting out")
 
 
 ## Herding (D230): cutting him off as he circles by the fence, feint to plant his feet (HERD_RATE).
@@ -564,11 +573,12 @@ func _herd(view: FightView) -> Decision:
 		return null
 	if Octagon.distance_to_fence(view.opponent.pos) - Octagon.BODY_MARGIN >= HERD_FENCE:
 		return null
-	if view.roll() >= HERD_RATE * view.me.effective_stat("cage_cutting") / 100.0:
+	var door: bool = view.opponent_door_open()
+	if view.roll() >= HERD_RATE * (DOOR_HERD if door else 1.0) * view.me.effective_stat("cage_cutting") / 100.0:
 		return null
 	if not view.actions.has(FightSim.FEINT) or not _usable(view, view.actions.get_action(FightSim.FEINT)):
 		return null
-	return Decision.new(FightSim.FEINT, DecisionLayer.AI, "herds him with a feint")
+	return Decision.new(FightSim.FEINT, DecisionLayer.AI, "feints at his way out" if door else "herds him with a feint")
 
 
 ## The opponent is down from a knockdown (D141, D142): follow him down to the ground and
@@ -1630,7 +1640,7 @@ func _plan_steps(view: FightView, layer: DecisionLayer, out: FeetPlan) -> void:
 			and me.pos.length_squared() >= CLEAR_OF_SWITCH * CLEAR_OF_SWITCH \
 			and o.pos.length_squared() < me.pos.length_squared() \
 			and view.way_out() == -view.circle_way() \
-			and view.roll() < REVERSE_RATE * _feet_outside * me.effective_stat("fight_iq") / 100.0:
+			and view.roll() < REVERSE_RATE * (SOLD_REVERSE if view.sold() else 1.0) * _feet_outside * me.effective_stat("fight_iq") / 100.0:
 		# Cut off: the way he's going is shut and the other way's open: turn back before it shuts too.
 		_reverse_until = view.now + REVERSE_TICKS
 		_reverse_way = view.way_out()
