@@ -10,7 +10,7 @@
 	"phases_ms": { "telegraph": 100, "windup": 200, "active": 100, "recovery": 300 },
 	"stamina_cost": 3,
 	"flags_self": [],
-	"strike": { "target": "body", "base_damage": 5, "hands_down_ms": 1500 },
+	"strike": { "target": "body", "base_damage": 5, "hands_down_ms": 1000 },
 	"stats": { "offense": ["top_control", "boxing"], "defense": ["guard"] },
 	"opportunities": [
 		{ "opponent_flag": "COVERED", "success_bonus": 0.15 }

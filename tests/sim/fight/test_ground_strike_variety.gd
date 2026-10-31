@@ -98,7 +98,7 @@ func test_the_bomb_postures_up_from_the_start_and_hits_hardest() -> void:
 	_ticks(sim, 12)
 	var landed: Array[FightEvent] = _events(sim, FightEvent.STRIKE_LANDED, 0)
 	assert_eq(landed.size(), 1)
-	assert_eq(int(landed[0].data.damage), roundi(10 * 0.8), "base 10 × full guard top 0.8")
+	assert_eq(int(landed[0].data.damage), roundi(8 * 0.8), "base 8 × full guard top 0.8")
 
 
 func test_a_body_punch_on_the_ground_brings_his_hands_down() -> void:

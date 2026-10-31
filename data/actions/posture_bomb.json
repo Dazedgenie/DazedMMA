@@ -12,10 +12,10 @@
 	"flags_self": [
 		{ "flag": "POSTURED_UP", "from": "telegraph", "to": "recovery" }
 	],
-	"strike": { "target": "head", "base_damage": 10 },
+	"strike": { "target": "head", "base_damage": 8 },
 	"stats": { "offense": ["top_control", "power"], "defense": ["guard"] },
 	"opportunities": [
-		{ "opponent_flag": "HANDS_LOW", "success_bonus": 0.15 }
+		{ "opponent_flag": "HANDS_LOW", "success_bonus": 0.10 }
 	],
 	"requires_technique": null
 }

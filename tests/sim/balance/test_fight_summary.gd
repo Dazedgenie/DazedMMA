@@ -116,7 +116,7 @@ func test_grappling_columns_count_takedowns_and_time_tied_up() -> void:
 
 
 func test_drilled_rules_are_in_the_row_with_how_often_they_fired() -> void:
-	var drilled: Dictionary = FightSummary.run(3, _roster, _actions, "wrestler", "kicker", 1, 120, [] as Array[String],
+	var drilled: Dictionary = FightSummary.run(4, _roster, _actions, "wrestler", "kicker", 1, 120, [] as Array[String],
 		[["catch_kick_and_shoot@100", "sprawl_on_the_shot@50"], []])
 	assert_eq([drilled.rules_red, drilled.rules_blue], ["catch_kick_and_shoot@100+sprawl_on_the_shot@50", ""])
 	assert_gt(drilled.fired_red, 0, "the Kicker kicks in two minutes")

@@ -7,7 +7,7 @@
 	"positions": ["full_guard", "half_guard", "side_control", "mount", "back_control"],
 	"roles": ["top"],
 	"ranges": ["clinch"],
-	"phases_ms": { "telegraph": 100, "windup": 100, "active": 100, "recovery": 200 },
+	"phases_ms": { "telegraph": 100, "windup": 200, "active": 100, "recovery": 300 },
 	"stamina_cost": 2,
 	"flags_self": [],
 	"strike": { "target": "head", "base_damage": 3, "through_cover": 0.8 },
