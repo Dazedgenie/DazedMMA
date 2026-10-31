@@ -145,3 +145,38 @@ func test_picking_a_week_plan_on_the_hub_changes_his_weeks() -> void:
 	assert_eq(c.week_plan, "time_off")
 	assert_string_contains(hub.text(), "time off")
 
+
+
+func test_offers_show_on_the_hub_as_cards_to_take_or_turn_down() -> void:
+	var c: Career = _career()
+	c.run_week("time_off")
+	var hub: CareerHub = add_child_autofree(CareerHub.new())
+	hub.show_career(c)
+	assert_eq(hub.offer_ids().size(), c.offers.size())
+	var o: Dictionary = c.offers[0]
+	assert_string_contains(hub.text(), String(o.profile.name))
+	assert_string_contains(hub.text(), "fight offer")
+	assert_string_contains(hub.text(), "Scouted: Striking")
+	assert_string_contains(hub.text(), "Teen amateur")
+	assert_string_contains(hub.text(), "Amateur: no purse")
+	assert_string_contains(CareerHub.purse_text({ "show": 1000, "win": 1000 }), "$1000 to show")
+	watch_signals(hub)
+	hub.press_accept(String(o.id))
+	assert_signal_emitted_with_parameters(hub, "accept_pressed", [String(o.id)])
+	hub.press_decline(String(o.id))
+	assert_signal_emitted_with_parameters(hub, "decline_pressed", [String(o.id)])
+
+
+func test_once_booked_the_hub_sends_him_to_camp() -> void:
+	var c: Career = _career()
+	c.run_week("time_off")
+	c.accept(String(c.offers[0].id))
+	var hub: CareerHub = add_child_autofree(CareerHub.new())
+	hub.show_career(c)
+	assert_true(hub.offer_ids().is_empty())
+	assert_string_contains(hub.text(), "Booked:")
+	assert_string_contains(hub.text(), "Go to camp: %d weeks to fight night" % c.camp_weeks_left())
+	watch_signals(hub)
+	hub.press_camp()
+	assert_signal_emitted(hub, "camp_pressed")
+	assert_false(hub.can_turn_pro())

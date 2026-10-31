@@ -203,6 +203,8 @@ func test_advance_runs_until_something_happens() -> void:
 	assert_eq(reports.size(), 2, "10 days out heals in the second week")
 	assert_eq(reports[-1].events[0].kind, Career.HEALED)
 	assert_eq(c.week, 2)
+	c.offers.clear()
+	c.next_offers_week = 1000  # No offers coming (D304).
 	reports = c.advance()
 	assert_eq(reports.size(), Career.ADVANCE_MAX_WEEKS, "with nothing coming up it stops after %d weeks" % Career.ADVANCE_MAX_WEEKS)
 	c.booked = { "opponent": "opp_1", "week": c.week + 4 }

@@ -47,6 +47,12 @@ const POSES := {
 			"knees": [Vector2(62, 22), Vector2(62, 58)], "feet": [Vector2(72, 35), Vector2(72, 45)] },
 		"top_under": true,
 	},
+	"crucifix": {  # Across him from the head side, chest on his chest; his near arm trapped between the knees, the far one under an arm (D264).
+		"bottom": { "head": Vector2(14, 40), "hips": Vector2(48, 40), "hands": [Vector2(30, 70), Vector2(26, 10)],
+			"knees": [Vector2(64, 32), Vector2(64, 50)], "feet": [Vector2(82, 36), Vector2(82, 48)] },
+		"top": { "head": Vector2(24, 24), "hips": Vector2(34, 56), "hands": [Vector2(26, 12), Vector2(10, 36)],
+			"knees": [Vector2(22, 66), Vector2(42, 68)], "feet": [Vector2(12, 76), Vector2(54, 76)] },
+	},
 	"scramble": {  # Both up on their knees, hand fighting.
 		"bottom": { "head": Vector2(60, 42), "hips": Vector2(76, 40), "hands": [Vector2(50, 34), Vector2(50, 52)],
 			"knees": [Vector2(70, 28), Vector2(70, 52)], "feet": [Vector2(88, 30), Vector2(88, 50)] },

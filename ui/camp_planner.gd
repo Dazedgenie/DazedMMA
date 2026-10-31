@@ -13,6 +13,10 @@ extends PanelContainer
 
 signal fight_pressed(profile: Dictionary)
 signal back_pressed
+## A camp week has run (its run_plan report): a career's planner moves the calendar on and saves (D304).
+signal week_ran(report: Dictionary)
+## Sim the fight on a career's fight night card (D305), with the fighter as the camp left him.
+signal sim_pressed(profile: Dictionary)
 
 ## Camp length in weeks: usually 4–8, 1–2 on short notice (docs/02 §4).
 const WEEKS_MIN: int = 1
@@ -111,6 +115,10 @@ var _filling: bool = false  # Setting the slots from a preset, not by hand.
 ## from it to look at the camp.
 var night_card: FightNightCard
 var _night_open: bool = true
+## In a career (D304, use_career()): the camp is the career's own, its length the weeks to the booked fight.
+var career: Career
+var _back: Button
+var _reset: Button
 var _night_button: Button
 
 
@@ -148,8 +156,8 @@ func _init(profile: Dictionary, camp_seed: int = 1, library: TrainingLibrary = n
 	buttons.add_theme_constant_override("separation", 12)
 	buttons.alignment = BoxContainer.ALIGNMENT_END
 	column.add_child(buttons)
-	_button(buttons, "Back to the fight setup", func() -> void: back_pressed.emit())
-	_button(buttons, "Start the camp again", reset)
+	_back = _button(buttons, "Back to the fight setup", func() -> void: back_pressed.emit())
+	_reset = _button(buttons, "Start the camp again", reset)
 	_run = _button(buttons, "Run week 1", run_week)
 	_run_rest = _button(buttons, "Run every week left like this one", run_rest)
 	_night_button = _button(buttons, "Fight night", func() -> void: show_night_card(true))
@@ -168,9 +176,36 @@ func _init(profile: Dictionary, camp_seed: int = 1, library: TrainingLibrary = n
 	pick_preset(START_PLAN if _plan_ids.has(START_PLAN) else _plan_ids[0])
 
 
-## Starts the camp over: week 1, the fighter as they came in (the week on screen stays).
+## Starts the camp over: week 1, the fighter as they came in (the week on screen stays). Not in a career.
 func reset() -> void:
+	if career != null:
+		return
 	_new_camp()
+	_refresh()
+
+
+## Plans a career's camp (D304): the weeks left to its booked fight, run on the career's own fighter (his
+## TrainingCamp), so every week counts for good. Nothing about him can be set here, the camp can't be started again,
+## and Back goes to the hub with the camp kept where it is.
+func use_career(c: Career) -> void:
+	career = c
+	_start = c.profile()
+	camp = c.trainee
+	weeks = maxi(1, c.camp_weeks_left())
+	reports.clear()
+	if c.booked.get("fight_week_report") is Dictionary:
+		reports.append(c.booked.fight_week_report)  # Fight week ran before a reload: straight to fight night.
+	pulled_out = false
+	_night_open = true
+	opponent_name = String(c.booked_opponent().get("name", ""))
+	_weeks_picker.get_parent().visible = false
+	var heading: Node = _weeks_picker.get_parent().get_parent().get_child(_weeks_picker.get_parent().get_index() - 1)
+	if heading is Label:
+		(heading as Label).visible = false
+	_reset.visible = false
+	_back.text = "Back to the hub"
+	night_card.sim_allowed = true
+	night_card.sim_pressed.connect(func() -> void: sim_pressed.emit(trained_profile()))
 	_refresh()
 
 
@@ -244,6 +279,7 @@ func _play_next() -> void:
 		var report: Dictionary = camp.run_plan(week_plan(), _played, fight_week())
 		report.played = _played.duplicate()
 		reports.append(report)
+		week_ran.emit(report)
 		_refresh()
 		return
 	var index: int = _to_play.pop_front()
@@ -277,7 +313,9 @@ func run_rest() -> void:
 	if minigame != null:
 		return
 	while not done():
-		reports.append(camp.run_plan(week_plan(), {}, fight_week()))
+		var report: Dictionary = camp.run_plan(week_plan(), {}, fight_week())
+		reports.append(report)
+		week_ran.emit(report)
 	_refresh()
 
 
@@ -739,7 +777,8 @@ func _on_changed_by_hand() -> void:
 ## What the scouts say the fighter's hidden potential is (D136): a range, e.g. "78–92". The True potential box in the
 ## setup is the real number, for testing.
 func scouted_potential() -> String:
-	var scouted: Array[int] = Ageing.scouted_range(camp.potential, hash(String(_start.get("id", _start.get("name", "")))))
+	var seed_for: int = career.career_seed if career != null else hash(String(_start.get("id", _start.get("name", ""))))
+	var scouted: Array[int] = Ageing.scouted_range(camp.potential, seed_for)  # The hub's range, in a career.
 	return "%d–%d" % scouted
 
 

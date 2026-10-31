@@ -1,6 +1,6 @@
 # 03 — Career, World & Life
 
-> Related decisions: D7, D16–D19, D21, D22, D25, D41–D45, D160, D300–D305. Status: **design draft**; §7.1 and §10.1–§10.3 are built.
+> Related decisions: D7, D16–D19, D21, D22, D25, D41–D45, D160, D300–D305. Status: **design draft**; §7.1 and §10.1–§10.5 are built.
 
 ---
 
@@ -232,8 +232,8 @@ Phase 1 joins what's built into a career that goes on from fight to fight and sa
 | The career and its save file | D301 | Built (§10.1) |
 | The title screen and a new career | D302 | Built (§10.2) |
 | The career hub and the calendar | D303 | Built (§10.3) |
-| Fight offers and matchmaking | D304 | Next |
-| The aftermath, and skipping a fight | D305 | |
+| Fight offers and matchmaking | D304 | Built (§10.4) |
+| The aftermath, and skipping a fight | D305 | Built (§10.5) |
 
 ### 10.1 The career and its save file (D301)
 
@@ -363,11 +363,91 @@ this week or Advance).
 Each week's report from `Career.run_week()` now says what happened in it (`events`: hurt, healed, cleared, birthday,
 fight night) and which week it was.
 
-**Not yet:** offers on the hub and a booked fight's camp (D304), opening any week in the planner to plan it slot by slot,
-and the stats' tags (D24).
+**Not yet:** opening any week in the planner to plan it slot by slot, and the stats' tags (D24). Offers on the hub and a
+booked fight's camp are §10.4.
 
 **What to change:** how many weeks Advance runs at most (`ADVANCE_MAX_WEEKS`) and the calendar shows (`CALENDAR_WEEKS`)
 in `sim/world/career.gd`; how many fights the list shows (`FIGHTS_SHOWN`) and the colours in `ui/career_hub.gd`. Tests:
 `tests/sim/world/test_career.gd`, `tests/ui/test_career_screens.gd`, `tests/game/test_main_scene.gd`. Fights don't change
 (no golden re-pin). Then update this section and D303.
+
+### 10.4 Fight offers, the camp and the fight (D304)
+
+A career now goes from fight to fight. Kyle said start (2026-10-31); the numbers are the picks put to him, built while he
+answered, and Kyle confirmed them: "Fight numbers seemed fine to me" (2026-10-31).
+
+**When offers come.** While he's free (not booked, not hurt, not suspended), a set of 2–3 offers comes in every few weeks
+(`Matchmaker.OFFERS_MIN`, `OFFERS_MAX`): the first after his first week, then 1–3 weeks after a set closes
+(`GAP_MIN`, `GAP_MAX`) and 1–3 weeks after a fight. Each set stays open this week and next (`OPEN_WEEKS`), then goes. A new
+set is an event (*N fight offers*), so *Advance* stops for it; offers already on the table don't stop it.
+
+**Who's offered.** Each offer is a new man made from one of the 15 style sheets (`StyleLibrary.generate`, §7.1), a
+different style each, with a name, nickname and hometown from `data/names` (`NameLibrary`). His quality level is set from
+the career fighter's: his average stat less the style's signature fighter's (`Matchmaker.level_against`), then −5 for *a
+bit easier*, 0 for *about even* or +5 for *a bit harder* (`DIFFICULTY_LEVELS`), give or take 2 (`LEVEL_SPREAD`). Two offers
+are one about even and one easier or harder; three are one of each. A teenager meets 16- and 17-year-olds; a man meets men
+3 younger to 4 older.
+
+**The rules and the money.** Under 18, teen amateur rules (`amateur_teen`); from 18, adult amateur (`amateur_adult`); once
+he turns pro, pro rules. Amateurs aren't paid. A pro fight pays $1,000 to show and $1,000 more to win, both $250 more for
+every pro win he has (`PURSE_SHOW`, `PURSE_WIN`, `PURSE_STEP`). **Turn pro** shows on the hub from 18 with 4 amateur fights
+(`PRO_AGE`, `PRO_AFTER_FIGHTS`); the amateur offers on the table go and pro offers come the week after.
+
+**The date.** Taken the week it comes in, an offer leaves a camp of 5–8 weeks (`CAMP_WEEKS_MIN` + 1 to `CAMP_WEEKS_MAX`);
+taken in its second week, a week less, so never under 4. Fight night is the last week's Saturday (D135).
+
+**On the hub.** Each offer is a card under *This week*: his name and nickname, the style and how he compares (a bit easier,
+about even, a bit harder), hometown, age, height and stance, the style's scouting line, grades for Striking, Wrestling,
+Grappling and Physical, the date, the camp's length, the rules and the purse, and *Last week to answer* when it is. **Take
+the fight** books it (the other offers go, the camp starts: `TrainingCamp.start_camp`); **Turn it down** takes only that
+one off, with no penalty for now. Booked, *Run this week* and *Advance* give way to **Go to camp: N weeks to fight night**,
+and the calendar shows fight night.
+
+**The camp.** *Go to camp* opens the camp planner (`docs/02` §3.6) on the career's own fighter (`CampPlanner.use_career`):
+its length is the weeks left to the fight, the camp can't be started again, and age and potential can't be set. Each week
+run moves the calendar on and saves; *Back to the hub* leaves the camp where it is. Fight week waits for the fight, even over
+a reload (the week's report is kept with the booking). On fight night the fight night card (`02` §3.11) says how he goes in;
+pulling out, or the doctor not clearing him, calls the fight off when he goes back to the hub (`Career.cancel_fight`: the
+camp's wasted, the week's over).
+
+**The fight.** *Fight!* saves the career, then starts the fight against the booked man under the booked rules, with a seed
+from the career's dice. A career fight can't be restarted from the pause menu. When it ends it goes on his record
+(`Career.finish_fight`: result, how, the round, the rules, the purse), he's paid, an injury fighting hurt made worse (D135)
+carries on, the fight week ends and the career saves. The result screen says what it did to his record and his money, and
+*Back to the hub* goes home.
+
+**Not yet:** short-notice offers, a rematch, an opponent's own record and camp, and reputation for turning fights down.
+
+**What to change:** every number above is a constant at the top of `sim/world/matchmaker.gd`; when offers come and how a
+fight is recorded are in `sim/world/career.gd` (`_check_offers`, `accept`, `finish_fight`); the offer cards in
+`ui/career_hub.gd` (`offer_text`); the camp in `ui/camp_planner.gd` (`use_career`); the fight in `game/main.gd`
+(`open_career_camp`, `_career_fight`, `_finish_career_fight`). Tests: `tests/sim/world/test_matchmaker.gd`,
+`tests/ui/test_career_screens.gd`, `tests/game/test_main_scene.gd`. Fights themselves don't change (no golden re-pin).
+Then update this section and D304.
+
+### 10.5 The aftermath, and simming a fight (D305)
+
+The last piece of the career spine. The picks put to Kyle; Kyle (2026-10-31): "Sounds good for now".
+
+**The medical suspension.** After every fight the commission sits him out (`sim/world/aftermath.gd`): a KO loss 60 days and
+1 point of Chin gone for good; a TKO loss (the referee, the doctor or the towel) 30 days and half a point of Chin; a hard
+fight, won or lost, 21 days; any other fight 7 days. A hard fight is one where he was knocked down, or finished at least half
+hurt to the head or 60% hurt to the body (`Aftermath.is_hard`, from `FighterState.hurt`). The suspension counts from fight
+night, so by the Monday after two of its days are gone (`Career.FIGHT_TO_MONDAY`). While suspended no offers come (§10.4), the
+hub says how long is left and the calendar shows the week he's cleared. Each fight's line on his record keeps its suspension,
+why and the Chin lost. Chin already wears a little with hard sparring (`docs/02` §3.5); this is the knockout's own toll on
+top, and it doesn't heal.
+
+**Simming a fight.** The fight night card in a career has **Sim the fight** beside *Fight!*: the same fight (the booked man,
+the rules, a seed from the career's dice, the camp's condition), played out at once with the sound off and no calls (the
+fighters' own AI fights it), straight to the result screen, which says it was simmed. It counts exactly as a watched fight.
+
+**Not yet:** damage that carries over as named injuries, a doctor's check that can lengthen a
+suspension, and the AI corner coaching a simmed fight for him (D113).
+
+**What to change:** the days and the Chin in `sim/world/aftermath.gd` (`KO_DAYS`, `KO_CHIN`, `TKO_DAYS`, `TKO_CHIN`,
+`HARD_DAYS`, `HARD_HEAD`, `HARD_BODY`, `OTHER_DAYS`); where it's applied in `Career.finish_fight`; Sim the fight in
+`ui/fight_night_card.gd` and `game/main.gd` (`sim_career_fight`); the result line in `game/main.gd` (`aftermath_text`). Tests:
+`tests/sim/world/test_aftermath.gd`, `tests/game/test_main_scene.gd`. Fights don't change (no golden re-pin). Then update
+this section and D305.
 

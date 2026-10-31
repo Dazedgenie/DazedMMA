@@ -462,9 +462,14 @@ func _pair_lines(of_rows: Array[Dictionary], names: Dictionary) -> PackedStringA
 		blue, average(of_rows, "ground_ties_won_blue"), average(of_rows, "ground_ties_blue"), average(of_rows, "wrists_won_blue"), average(of_rows, "wrists_blue"),
 		_pct(average(of_rows, "held_top_blue")), _pct(average(of_rows, "tied_top_blue")), average(of_rows, "postures_won_blue"), average(of_rows, "postures_blue"),
 		_pct(average(of_rows, "half_uh_blue")), average(of_rows, "half_uhs_won_blue"), average(of_rows, "half_uhs_blue")])
-	lines.append("  Positions  full guard %s · half guard %s · side control %s · mount %s · back %s of the fight · better positions on top %s %.1f, %s %.1f · out from under %s %.1f, %s %.1f a fight (D130)" % [
+	lines.append("  Frames     %s frames %.1f of %.1f, crucifixes %.1f of %.1f, two on one %.1f of %.1f · %s %.1f of %.1f, %.1f of %.1f, %.1f of %.1f a fight (D264)" % [
+		red, average(of_rows, "frames_won_red"), average(of_rows, "frames_red"), average(of_rows, "crucifixes_won_red"), average(of_rows, "crucifixes_red"),
+		average(of_rows, "two_on_ones_won_red"), average(of_rows, "two_on_ones_red"),
+		blue, average(of_rows, "frames_won_blue"), average(of_rows, "frames_blue"), average(of_rows, "crucifixes_won_blue"), average(of_rows, "crucifixes_blue"),
+		average(of_rows, "two_on_ones_won_blue"), average(of_rows, "two_on_ones_blue")])
+	lines.append("  Positions  full guard %s · half guard %s · side control %s · mount %s · back %s · crucifix %s of the fight · better positions on top %s %.1f, %s %.1f · out from under %s %.1f, %s %.1f a fight (D130)" % [
 		_pct(average(of_rows, "full_guard")), _pct(average(of_rows, "half_guard")), _pct(average(of_rows, "side_control")),
-		_pct(average(of_rows, "mount")), _pct(average(of_rows, "back_control")),
+		_pct(average(of_rows, "mount")), _pct(average(of_rows, "back_control")), _pct(average(of_rows, "crucifix")),
 		red, average(of_rows, "advances_red"), blue, average(of_rows, "advances_blue"),
 		red, average(of_rows, "escapes_red"), blue, average(of_rows, "escapes_blue")])
 	lines.append("  Feints     %s %.1f a fight, %.1f bit on · %s %.1f, %.1f · blind shots %s %.1f (%.1f worked), %s %.1f (%.1f) · strikes off a bite %s %.1f (%.1f landed), %s %.1f (%.1f) (D131, D236)" % [
