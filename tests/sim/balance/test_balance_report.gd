@@ -122,14 +122,15 @@ func test_the_summary_says_how_long_each_fighter_circled_and_cut_off_the_cage() 
 	var rows: Array[Dictionary] = [
 		_row({ "fight_seconds": 900.0, "circling_red": 372.0, "cutting_blue": 90.0 }),
 		_row({ "fight_seconds": 300.0, "circling_red": 108.0, "cutting_blue": 30.0, "circling_blue": 12.0, "cut_offs_blue": 3,
-			"cage_escapes_red": 2, "shut_in_red": 20.0, "cut_hurt_blue": 30 }),
+			"cage_escapes_red": 2, "shut_in_red": 20.0, "cut_hurt_blue": 30,
+			"doors_sold_blue": 2, "turned_back_blue": 1 }),
 	]
 	assert_almost_eq(BalanceReport.time_share(rows, "circling_red"), 0.4, 0.0001, "480 of 1200 fight seconds")
 	var text: String = _report(rows).summary({ "kicker": "Kicker", "boxer": "Boxer" })
 	assert_string_contains(text, "Circling   Kicker (red) 4:00 a fight (40%), Boxer (blue) 0:06 a fight (1%)")
 	assert_string_contains(text, "cutting off the cage: Kicker (red) 0:00 a fight (0%), Boxer (blue) 1:00 a fight (10%)")
 	assert_string_contains(text, "cut off onto the fence Kicker (red) 0.0, Boxer (blue) 1.5 a fight (D230)")
-	assert_string_contains(text, "Cut off    Kicker (red) got back to the middle 1.0 of 1.5 times a fight (66.7%), shut in 0:10, 15 damage to the man cutting him off · Boxer (blue) never cut off (D233)")
+	assert_string_contains(text, "Cut off    Kicker (red) got back to the middle 1.0 of 1.5 times a fight (66.7%), shut in 0:10, 15 damage to the man cutting him off, sold 1.0 doors shut (turned back into 0.5) · Boxer (blue) never cut off (D233)")
 
 
 func test_harness_rows_from_real_fights_feed_the_report() -> void:

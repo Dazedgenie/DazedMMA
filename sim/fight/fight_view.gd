@@ -102,6 +102,22 @@ func opponent_bursting() -> bool:
 	return _sim_ref.get_ref().is_bursting(1 - index)
 
 
+## A feint sold this fighter a door shut (D235), and whether the opponent turned back off one in
+## the last `within` ticks.
+func sold() -> bool:
+	return _sim_ref.get_ref().is_sold(index)
+
+
+## Cutting him off, whether the opponent has a way out open to sell shut (D235): this fighter's
+## own read, true whatever the opponent's been sold.
+func opponent_door_open() -> bool:
+	return _sim_ref.get_ref().door_open(1 - index)
+
+
+func opponent_turned_back(within: int) -> bool:
+	return _sim_ref.get_ref().turned_back_at(1 - index) >= now - within
+
+
 func distance() -> float:
 	return me.pos.distance_to(opponent.pos)  # As FightSim.distance(), without the trip through the sim.
 

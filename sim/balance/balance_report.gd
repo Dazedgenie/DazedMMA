@@ -486,15 +486,17 @@ static func _share_text(of_rows: Array[Dictionary], fraction: float) -> String:
 
 ## A fight-seconds column as "m:ss a fight (share of fight time)", e.g. "6:12 a fight (41%)" (D119).
 ## Being cut off (D233), for one side: how often he got back to the middle of the times he was
-## cut off onto the fence, how long he was shut in, and what cutting him off cost the other man.
+## cut off onto the fence, how long he was shut in, and what cutting him off cost the other man;
+## then the doors the other man sold him shut with a feint and how often he turned back into it (D235).
 static func _cut_off_line(of_rows: Array[Dictionary], who: String, side: String, other: String) -> String:
 	var trapped: float = average(of_rows, "cut_offs_" + other)
 	if trapped < 0.05:
 		return "%s never cut off" % who
 	var escaped: float = average(of_rows, "cage_escapes_" + side)
 	var seconds: int = roundi(average(of_rows, "shut_in_" + side))
-	return "%s got back to the middle %.1f of %.1f times a fight (%s), shut in %d:%02d, %.0f damage to the man cutting him off" % [
-		who, escaped, trapped, _pct(escaped / trapped if trapped > 0.0 else 0.0), seconds / 60, seconds % 60, average(of_rows, "cut_hurt_" + other)]
+	return "%s got back to the middle %.1f of %.1f times a fight (%s), shut in %d:%02d, %.0f damage to the man cutting him off, sold %.1f doors shut (turned back into %.1f)" % [
+		who, escaped, trapped, _pct(escaped / trapped if trapped > 0.0 else 0.0), seconds / 60, seconds % 60, average(of_rows, "cut_hurt_" + other),
+		average(of_rows, "doors_sold_" + other), average(of_rows, "turned_back_" + other)]
 
 
 static func _time_line(of_rows: Array[Dictionary], key: String) -> String:

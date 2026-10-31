@@ -297,7 +297,8 @@ func test_strikers_feint_only_to_herd_a_man_they_are_cutting_off() -> void:
 	_ticks(sim, 3000)
 	for e in sim.events:
 		if e.type == FightEvent.ACTION_PHASE and e.data.phase == "telegraph" and e.data.action_id == FightSim.FEINT:
-			assert_eq(String(e.data.get("why", "")), "herds him with a feint", "no shots to set up: a striker's feints herd him by the fence (D232)")
+			assert_has(["herds him with a feint", "feints at his way out"], String(e.data.get("why", "")),
+				"no shots to set up: a striker's feints herd him by the fence (D232) or sell his way out shut (D235)")
 
 
 func test_a_blind_shot_is_easier_to_read_and_one_off_a_bite_is_harder() -> void:
