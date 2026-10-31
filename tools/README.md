@@ -13,6 +13,11 @@ when changing the duration so old trailing frames do not enter the encoded video
     godot --script res://tools/motion_preview.gd -- --out=res://build/motion --seconds=12
     ffmpeg -framerate 24 -i build/motion/frame-%04d.png -c:v libx264 -pix_fmt yuv420p build/motion.mp4
 
+`strike_preview.gd` arranges every covered strike landing, blocked, slipped or checked, missing and thrown out of
+range, side on to the camera, at 24 frames a fight second (D281, `docs/13`):
+
+    godot --script res://tools/strike_preview.gd -- --out=res://build/strikes
+
 Headless runners and utilities. `run_sim.gd` runs one placeholder fight (a kicker against a boxer) with no scene tree
 and prints a summary; `--fights=N` runs N seeds and counts how they ended:
 
