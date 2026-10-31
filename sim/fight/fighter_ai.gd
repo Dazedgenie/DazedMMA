@@ -408,10 +408,9 @@ var _feet_gap: float = 0.0
 var _feet_outside: float = 0.0
 var _feet_cut: float = 0.0
 ## How fast the opponent walks toward this fighter (m per tick, negative = away),
-## from where they were seen last; and whether this advance has been met already.
+## from their latest step (D253); and whether this advance has been met already.
 var _closing: float = 0.0
 var _seen_at: int = -1
-var _seen_pos: Vector2 = Vector2.ZERO
 var _met_advance: bool = false
 ## action id → landing record (0–1).
 var _working: Dictionary = {}
@@ -652,9 +651,10 @@ func _guard(view: FightView, layer: DecisionLayer) -> Decision:
 		var action: Dictionary = view.actions.get_action(id)
 		if action.category != DEFENSE or not action.defense.get("against_strikes", []).has(_opp.id) or not _usable(view, action):
 			continue
-		# Up in time and still up as it lands, whoever steps first this tick.
+		# Up in time and still up as it lands. It lands just before my turn `lands` ticks from now, so
+		# my last turn before it is lands − 1 from now, whoever steps first on each tick (D253).
 		var up: int = view.phase_ticks(id, "telegraph") + view.phase_ticks(id, "windup")
-		if lands < maxi(1, up + 1) or lands > up + view.phase_ticks(id, "active") - 1:
+		if lands < maxi(1, up + 1) or lands > up + view.phase_ticks(id, "active"):
 			continue
 		var chance: float = GUARD_BASE + GUARD_PER_SD * view.me.effective_stat("striking_defense") / 100.0
 		if view.roll() < chance:
@@ -679,16 +679,20 @@ func _cover(view: FightView, layer: DecisionLayer) -> Decision:
 	return null
 
 
-## Ticks until the opponent's move reaches its active phase (when a strike lands), 0 once it has.
+## Ticks until the opponent's move reaches its active phase (when a strike lands), 0 once it has:
+## counted to this fighter's first turn after it lands. With the two taking turns to step first,
+## he sometimes takes two turns between two of this fighter's, so a one-tick active phase can
+## start and end between them: first seen past it still means it landed just before (D253).
 func _ticks_until_active(view: FightView) -> int:
 	if view.opponent.phase == "active" or view.opponent.phase == "recovery":
 		return 0
+	var lands: bool = view.opponent_phase_ticks(view.opponent.action_id, "active") > 0
 	for ahead in range(1, 30):
 		var phase: String = view.opponent_phase_ahead(ahead)
+		if phase == "active" or (lands and (phase == "" or phase == "recovery")):
+			return ahead
 		if phase == "" or phase == "recovery":
 			return 0
-		if phase == "active":
-			return ahead
 	return 0
 
 
@@ -1383,12 +1387,13 @@ func _odds(view: FightView, id: String) -> OddsBreakdown:
 func _track(view: FightView) -> void:
 	var o: FighterState = view.opponent
 	if _seen_at >= 0 and view.now > _seen_at:
-		var step: Vector2 = (o.pos - _seen_pos) / float(view.now - _seen_at)
+		# His latest step, not how far he got since this fighter last looked: with the two taking
+		# turns to step first, he may have stepped twice since then or not at all (D253).
+		var step: Vector2 = view.opponent_stride()
 		var to_me: Vector2 = view.me.pos - o.pos
 		var toward: float = step.dot(to_me.normalized()) if to_me.length() > 0.0 else 0.0
 		_closing = lerpf(_closing, toward, CLOSING_MEMORY)
 	_seen_at = view.now
-	_seen_pos = o.pos
 
 
 ## True once the opponent's current move has registered with this fighter (read, a

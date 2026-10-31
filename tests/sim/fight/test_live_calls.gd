@@ -426,8 +426,10 @@ func test_fire_back_answers_a_defended_strike_with_the_first_combination_that_wo
 			missed_at = e.tick
 	var starts: Array = _starts(sim)
 	assert_eq(starts.map(func(s: Array) -> String: return s[1]), ["jab", "cross"], "the whole 1-2, on one call")
-	# Blue steps after Red, so Red first sees the miss a tick later, plus 2 ticks of reaction (Speed 50).
-	assert_eq(starts[0][0], missed_at + 3, "into Blue's recovery")
+	# 2 ticks of reaction (Speed 50), plus a tick when Red stepped before Blue on the tick of the
+	# miss and so only sees it on the next (the corners take turns stepping first, D253).
+	var seen_late: int = 1 if sim.first_at(missed_at) == 0 else 0
+	assert_eq(starts[0][0], missed_at + seen_late + 2, "into Blue's recovery")
 	var fired: Dictionary = _answers(sim).filter(func(a: Dictionary) -> bool: return a.outcome == LiveCalls.FIRED)[0]
 	assert_eq(fired.action_id, "jab")
 	assert_string_contains(fired.reason, "fires back after the cross")

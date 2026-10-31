@@ -84,21 +84,26 @@ func test_backing_onto_the_fence_gets_you_pinned_with_your_back_to_the_cage() ->
 
 
 func test_better_footwork_gets_off_the_fence_sooner() -> void:
-	# The mover starts pinned, the presser in front of them cutting off the way out (D107).
+	# The mover starts pinned, the presser in front of them cutting off the way out (D107), over
+	# four fights each: 30 s, 4 × 300 ticks.
 	var pinned: Array[int] = []
 	for footwork in [20, 50, 90]:
-		var sim: FightSim = _sim(
-			FighterState.new("Presser", { "footwork": 50 }, ["hook"], 0.0, StyleLeanings.new({ "range": 100, "pace": 100 })),
-			FighterState.new("Mover", { "footwork": footwork }, ["head_kick"], 0.0, StyleLeanings.new({ "range": -100 })))
-		_place(sim, Vector2(2.7, 0.0), Vector2(3.9, 0.0))
 		var ticks: int = 0
-		for i in 300:
-			sim.tick()
-			if sim.cage_proximity(1) == Octagon.CAGE_PINNED:
-				ticks += 1
+		for n in 4:
+			var sim := FightSim.new(SEED + n, [
+				FighterState.new("Presser", { "footwork": 50 }, ["hook"], 0.0, StyleLeanings.new({ "range": 100, "pace": 100 })),
+				FighterState.new("Mover", { "footwork": footwork }, ["head_kick"], 0.0, StyleLeanings.new({ "range": -100 }))], _actions)
+			_place(sim, Vector2(2.7, 0.0), Vector2(3.9, 0.0))
+			for i in 300:
+				sim.tick()
+				if sim.cage_proximity(1) == Octagon.CAGE_PINNED:
+					ticks += 1
 		pinned.append(ticks)
-	assert_gt(pinned[0], 200, "Footwork 20 against 50 stays trapped: %s" % [pinned])
-	assert_lt(pinned[1], 50, "even feet get out: %s" % [pinned])
+	# Poor feet stay trapped a good while. Less than when red always stepped first (most of the
+	# 30 s): taking turns (D253) sometimes gives him two steps in a row to slip out on.
+	assert_gt(pinned[0], 150, "Footwork 20 against 50 stays trapped a good while: %s" % [pinned])
+	assert_gt(pinned[0], 5 * pinned[1], "far longer than even feet: %s" % [pinned])
+	assert_lt(pinned[1], 200, "even feet get out: %s" % [pinned])
 	assert_lte(pinned[2], pinned[1], "and better feet get out at least as fast: %s" % [pinned])
 
 

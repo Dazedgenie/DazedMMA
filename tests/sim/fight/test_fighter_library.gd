@@ -66,7 +66,9 @@ func test_tendencies_tilt_what_the_fighter_throws() -> void:
 
 
 func test_a_fight_replays_from_seed_fighter_ids_and_commands() -> void:
-	var sim := FightSim.new(SEED, _roster.make_pair("kicker", "boxer"), _actions)
+	# Seed 1 goes the distance; on the file's seed the fight ends inside a minute since the corners
+	# take turns stepping first (D253), too short to show much of a replay.
+	var sim := FightSim.new(1, _roster.make_pair("kicker", "boxer"), _actions)
 	sim.submit(FightCommand.queue_action(50, 0, "body_kick"))
 	sim.submit(FightCommand.live_call(300, 1, "hook"))
 	sim.run_to_end()

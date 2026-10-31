@@ -56,7 +56,9 @@ func test_fighters_never_catch_a_kick_on_their_own() -> void:
 	# Kyle, #14: the catch-kick only happens when the coach calls it or a drilled rule fires.
 	var catcher := FighterState.new("Catcher", { "fight_iq": 100 }, ["jab", "catch_kick_single"], 0.05)
 	var kicker := FighterState.new("Kicker", {}, ["body_kick"], 0.08, StyleLeanings.new({ "range": -100 }))
-	var sim: FightSim = _sim(catcher, kicker)
+	# Seed 1: on the file's seed the toy Kicker stands off at 1.2 m and barely kicks once the
+	# corners take turns stepping first (D253), which leaves nothing to catch.
+	var sim: FightSim = _sim(catcher, kicker, 1.85, 1)
 	_ticks(sim, 3000)
 	var kicks: int = 0
 	for s in _starts(sim, 1):
@@ -70,7 +72,7 @@ func test_a_fighter_whose_kick_gets_caught_throws_it_less() -> void:
 	# #18: the Kicker doesn't keep feeding a kick the opponent keeps catching.
 	var counts := func(caught: int) -> Dictionary:
 		var kicker := FighterState.new("Kicker", {}, ["body_kick", "teep"], 0.3, StyleLeanings.new({ "range": -100 }))
-		var sim: FightSim = _sim(_statue(), kicker, 2.4)
+		var sim: FightSim = _sim(_statue(), kicker, 2.4, 1)  # seed 1, as in the test above (D253)
 		for n in caught:
 			sim._emit(FightEvent.ACTION_PHASE, 1, { "action_id": "body_kick", "phase": "telegraph" })
 			sim._emit(FightEvent.GRAPPLE_WON, 0, { "action_id": "catch_kick_single", "result": "success" })

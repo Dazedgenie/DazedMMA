@@ -3,7 +3,8 @@ extends GutTest
 
 
 func test_the_self_check_passes_on_a_healthy_build() -> void:
-	for fight_seed in [1, 2, 3, 99, 123456]:
+	# Seeds whose fight reaches the bell. Seed 2 ended by guillotine once the corners took turns stepping first (D253).
+	for fight_seed in [1, 3, 4, 99, 123456]:
 		var check: SimCheck = SimCheck.run(fight_seed)
 		for r in check.results:
 			assert_true(r.passed, "seed %d: %s (%s)" % [fight_seed, r.name, r.detail])

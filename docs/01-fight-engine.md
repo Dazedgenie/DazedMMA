@@ -89,9 +89,9 @@ pinned on purpose, and the PR then shows the old and new numbers side by side.
 
 | Fight | Covers |
 |---|---|
-| Kicker vs Boxer, no corners (seed 35002) | The striking engine and judges on their own: a KO for the Boxer in round 3 (since D233; a decision before) |
+| Kicker vs Boxer, no corners (seed 35003; 35002 until D253, when it became a decision) | The striking engine and judges on their own: a KO for the Kicker in round 3 (since D253) |
 | Wrestler vs Kicker, ideal corner vs AI corner, Wrestler drilled on catch-kick-and-shoot at 80% (seed 35006) | Calls, a drilled rule firing, takedowns, ground and pound, feints (D131): a decision for the Wrestler (since D233; a TKO for the Wrestler in round 2 after D131) |
-| Wrestler vs Boxer, AI corner for the Boxer, Boxer drilled on sprawl-on-the-shot at 80% (seed 35011; 35007 until D130, when it became a decision) | Sprawls, the opponent's corner and rules, passes, side control and the back (D130), blind shots (D131): a decision for the Wrestler (since D131; a TKO in round 3 after D130) |
+| Wrestler vs Boxer, AI corner for the Boxer, Boxer drilled on sprawl-on-the-shot at 80% (seed 35011; 35007 until D130, when it became a decision) | Sprawls, the opponent's corner and rules, passes, side control and the back (D130), blind shots (D131): a submission for the Wrestler in round 2 (since D253; a decision after D131, a TKO in round 3 after D130) |
 | The check fighters, amateur adult rules (seed 35001) | A ruleset other than pro: 3 × 3:00, a split decision |
 
 **What's pinned:** each fight's winner, result, the round and second it ended, the number of events, knockdowns, strikes
@@ -194,15 +194,15 @@ Wrestler's calls chose about 17% of his moves against the Kicker (12 fights).
 (`BalanceReport._change`, `BalanceCompare.report`) and what `run.json` holds (`tools/balance.gd`). Tests:
 `tests/sim/balance/test_balance_stats.gd`, `test_balance_report.gd`, `test_balance_compare.gd`, `test_fight_summary.gd`.
 
-### 2.5 Neither corner has an edge (D252)
+### 2.5 Neither corner has an edge (D252, D253)
 
-The two fighters take turns inside each tick: red steps first (decides, moves, starts and lands his move), then blue
-(`FightSim.step_order`, `[0, 1]` in every real fight). That's the only difference between the corners. Everything that
-used to go by a fighter's number now goes by the step order instead: when a move started this tick is first seen (the
+The two fighters step one after the other inside each tick: one decides, moves, starts and lands his move, then the other
+(`FightSim.step_order`). Until D253 red always stepped first; now they take turns, a tick each (below). That order is the
+only difference between the corners. Everything that used to go by a fighter's number now goes by the step order instead: when a move started this tick is first seen (the
 other fighter sees it next tick if it started after his own step: `FightView.steps_after_me`, used by the AI's reads, the
 drilled rules and the live calls' reads), which fighter rolls first when an event comes in (`FightSim._emit`), and the
-judges' noise (round cards and PRIDE's whole-fight judging). None of that changed a fight, because the step order is the
-same as before.
+judges' noise (round cards and PRIDE's whole-fight judging). None of that changed a fight on its own
+(D252 kept red stepping first).
 
 **What the step order is worth** (2026-10-30, 400 fights each of Kicker, Boxer and Wrestler against themselves, played once
 with red stepping first and once with blue): whoever stepped second won about 51% and whoever stepped first about 48%
@@ -224,9 +224,61 @@ stepping first (its summary says so at the top), so `tools/balance_compare.gd` c
 the other, in a fixed order (`Octagon.keep_inside`), so the mirror of that spot can come out a few millimetres different and
 the two fights part from there. It favours no corner (both fighters use every part of the cage); the test's seeds avoid it.
 
-**Not changed yet:** the step-order edge itself. Taking turns to step first, or both fighters moving at once from where they
-stood at the start of the tick, would remove it but changes every fight (the golden fights get re-pinned), so it waits for
-Kyle's call.
+**Taking turns (D253, Kyle picked it 2026-10-30).** Red steps first on even ticks and blue on odd ticks
+(`FightSim.first_at`; `first_step` says who has the fight's first tick, 0 = red, and only the corner check sets it to 1). At
+10 ticks a second the two swap ten times a second, so neither keeps the edge of stepping second. Three parts of the AI had
+quietly assumed the old order and had to change with it:
+
+- **How fast the opponent is walking in.** The AI's tracking (`FighterAI._track`) used to measure it from where the
+  opponent stood when it last looked. With a fixed order that gap was always exactly one of his steps; with turns it is
+  sometimes two steps and sometimes none, so the Kicker read the Boxer as charging one tick and standing still the next and
+  stopped keeping his range (Kicker vs Boxer fell to 5%, Wrestler vs Kicker rose to 97%). It now reads the opponent's
+  latest step itself (`FightView.opponent_stride`), which is the same whatever the order.
+- **When his move lands.** The AI's look ahead ("his move hits in 3 ticks", "he's winded for 4 more") counts ticks from
+  where it stands. Whether the other fighter's counters have already ticked down this tick depends on who stepped first,
+  and that now changes tick to tick, so the look ahead counts the other fighter's turns instead
+  (`FightSim.turns_before`, used by `phase_ahead` and `flags_ahead`).
+- **A quick kick landing between two of his turns.** Taking turns, a fighter sometimes takes two turns in a row (second on
+  one tick, first on the next), so a move whose active part lasts one tick, like the calf kick, can land and be over between
+  two of the other fighter's turns. The look ahead never saw it "active" and the AI never tried to check it (the Boxer's checks
+  fell from 8 to under 3 a fight). It now counts a move it first sees already past its active part as landing just before
+  that turn (`FighterAI._ticks_until_active`), and the check's timing window is the exact one (`_guard`).
+
+**What it did** (2026-10-30, 100 fights a pairing, seed 1, main at D234 → taking turns): Kicker vs Boxer 40 → 40% (Kicker;
+at 400 fights 45.0 → 44.5%), Wrestler vs Kicker 62 → 74%, Wrestler vs Boxer 83 → 80%, Judoka vs Kicker 25 → 31%, Judoka vs
+Boxer 73 → 76%, Judoka vs Wrestler 96 → 97%, BJJ vs Kicker 10 → 17%, BJJ vs Boxer 90 → 82%, BJJ vs Wrestler 44 → 60%, Muay
+Thai vs Kicker 88 → 85%, vs Boxer 64 → 68%, vs Wrestler 63 → 68%, the check fighters 74 → 70%, Pressure wrestler vs Kicker
+95 → 93%, Brawler vs Kicker 77 → 79%, Boxer vs Counter-striker 76 → 78% (the first fighter named wins). At 100 fights a
+pairing the 95% range is about ±10 points, so most of these are the dice; Wrestler vs Kicker and BJJ vs Wrestler moved more.
+
+**The mirrors after it** (400 fights each, seed 1): Kicker mirror red 50.5% blue 49.0%, Boxer mirror 47.0% against 53.0%,
+Wrestler mirror 51.2% against 47.5%: about 49.6% each corner over the three, even within the dice. One thing still leans: in
+the Boxer and Wrestler mirrors the fighter who steps second on the first tick is "nearer the centre" more often (Boxer mirror
+61% of standing time against 38%, the same the other way round with `--blue-first`; Wrestler mirror 54% against 46%; Kicker
+mirror 52/48). It is the same on the ticks where red steps first and the ticks where blue does, and the two stand on average
+within 6 cm of the same distance from the centre (40 Boxer mirrors: 1.56 m and 1.62 m), so it's which of the two is a hair
+further inside, set early and kept, rather than an edge in the fight. Worth watching if a later change makes holding the
+centre count for more.
+
+**Cutting the cage at close quarters.** The two turns in a row help a fighter slipping out past a cutter on the fence: in the
+toy test (`test_standing_game.gd`, a Footwork 20 mover against a Footwork 50 presser, 300 ticks from pinned) he used to stay
+pinned about 280 ticks in most fights whoever stepped first, and now about 80 (16 seeds; swapping only every 10 or 20 ticks
+instead of every tick still lets him out more). Better feet still get out much faster (25 and 17 ticks over four fights
+against 259). In whole fights it barely shows: the Kicker against the Boxer is shut in 1:38 a fight against 1:41, gets back
+to the middle 98% of the time either way, and the cutters' pairings above are within the dice.
+
+Every fight is different from before, so the golden fights were re-pinned (the Kicker vs Boxer fight moved to seed 35003 to
+keep a KO among them, §2.2), and eight tests that had counted on red stepping first were changed: two toy fights in
+`test_fighter_ai.gd` and the replay test in `test_fighter_library.gd` use seed 1 (on the old seeds the toy Kicker barely
+kicks and the replayed fight ends inside a minute), *Fire back!*'s timing allows for which fighter stepped first on the tick
+of the miss, the self-check test uses seed 4 for seed 2 (which now ends in a guillotine before the bell), the fight screen's
+between-rounds test uses a fight that reaches round 2 (and can no longer wait forever on one that doesn't), the cage-cutting
+count lets the Kicker shut the Boxer in for a moment (2 ticks in three fights) as long as it's a twentieth of the other way,
+and the footwork test above runs four fights each and asks for the poor mover to stay pinned a good while (over 150 of
+1,200 ticks) and five times as long as even feet, not two-thirds of the time.
+
+**To change it:** `FightSim.first_at` is the whole rule. Making both fighters move at once from where they stood at the start
+of the tick would be the other way to remove the edge; it is a bigger change (every move would need resolving in pairs).
 ---
 
 ## 3. Spatial model (D2, D33)

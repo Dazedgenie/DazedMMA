@@ -19,13 +19,13 @@ extends MainLoop
 ## Also <out>/run.json, what the run was made from and how fast it went (D250, docs/01 §2.4): the
 ## arguments, the commit, a hash of data/, the Godot version and the time a simulated tick took.
 ## To compare two runs fight by fight, use tools/balance_compare.gd.
-## --blue-first has blue step before red every tick instead of after, to see what going
-## second is worth (the corner-lean check, D252, docs/01 §2.5). Real fights never do it.
+## --blue-first has blue step first on the first tick instead of red (they take turns after, D253),
+## the mirror of the usual run (the corner-lean check, D252, docs/01 §2.5). Real fights never do it.
 ## A 3-round fight takes just under a second on one core, so 100 fights per pair is ~1.5 minutes,
 ## divided by the number of cores.
 
 
-## --blue-first: blue steps before red every tick (D252).
+## --blue-first: blue steps first on the first tick (D252, D253).
 var _blue_first: bool = false
 
 
@@ -113,7 +113,7 @@ func _initialize() -> void:
 		report.add(row)
 	var run := { "commit": _commit(), "data": data_hash(), "godot": Engine.get_version_info().string }
 	if _blue_first:
-		run.order = "blue steps first each tick"
+		run.order = "blue steps first on the first tick"
 	var summary: String = report.summary(names, run)
 	var ticks: float = 0.0
 	for row in played.rows:

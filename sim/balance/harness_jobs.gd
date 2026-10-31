@@ -33,13 +33,13 @@ static func plan(pairs: PackedStringArray, fights: int, first_seed: int, corners
 
 
 ## Plays one job and returns its FightSummary row. `blue_first` has blue step before red
-## every tick (FightSim.step_order), for the corner-lean check (D252).
+## on the first tick and every other one after (FightSim.first_step), for the corner check (D252, D253).
 static func run(job: Dictionary, roster: FighterLibrary, actions: ActionLibrary, rules: Ruleset, blue_first: bool = false) -> Dictionary:
 	var corners: Array[String] = []
 	corners.assign(job.corners)
 	var sim: FightSim = FightSummary.setup(job.seed, roster, actions, job.red, job.blue, rules, 300, corners, job.rules)
 	if blue_first:
-		sim.step_order = [1, 0]
+		sim.first_step = 1
 	return FightSummary.play(sim)
 
 

@@ -292,8 +292,11 @@ var command_log: Array[FightCommand] = []
 var judge_totals: Array = []
 
 var _rng := RandomNumberGenerator.new()
-## Which fighter steps first each tick: red, then blue. Only the corner-lean check swaps it
-## (D252, docs/01 §2.5), to see what stepping second is worth; fights never do.
+## Who steps first on the fight's first tick (0 = red). After that the two take turns, a tick
+## each, so neither corner keeps the edge of stepping second (D253, docs/01 §2.5). Only the
+## corner check sets it to 1, to play a fight's mirror.
+var first_step: int = 0
+## This tick's order: who steps first, then the other (set at the start of each tick).
 var step_order: Array[int] = [0, 1]
 var _pending: Array[FightCommand] = []
 var _fight_over: bool = false
@@ -455,6 +458,9 @@ func is_over() -> bool:
 func tick() -> void:
 	if _fight_over:
 		return
+	var first: int = first_at(now)
+	step_order[0] = first
+	step_order[1] = 1 - first
 	for v in views:
 		v.now = now
 	for i in corners.size():
@@ -486,10 +492,30 @@ func tick() -> void:
 	now += 1
 
 
-## True when fighter `a` steps after fighter `b` each tick (step_order): what `a` starts in a
-## tick, `b` first sees on the next one.
+## Who steps first on this tick: first_step on even ticks, the other on odd ones (D253).
+func first_at(tick: int) -> int:
+	return first_step if tick % 2 == 0 else 1 - first_step
+
+
+## How many more turns fighter i takes before the other fighter's turn `ahead` ticks from now:
+## `ahead`, one more if i still has this tick's turn to come, one fewer if on that tick i steps
+## after the other (D253). Fighter i's phase and timers count down on i's own turns, so this is
+## what the other fighter can count on seeing then.
+func turns_before(i: int, ahead: int) -> int:
+	var other: int = 1 - i
+	return ahead + (1 if first_at(now) == other else 0) - (1 if first_at(now + ahead) == other else 0)
+
+
+## True when fighter `a` steps after fighter `b` this tick (step_order): what `a` starts in it,
+## `b` first sees on the next one.
 func steps_later(a: int, b: int) -> bool:
 	return step_order.find(a) > step_order.find(b)
+
+
+## Fighter i's latest step on their feet (zero if their latest turn moved them nowhere): one
+## step whichever of the two stepped first this tick (D253).
+func last_stride(i: int) -> Vector2:
+	return _strides[i]
 
 
 func distance() -> float:
@@ -1254,17 +1280,18 @@ func flags_ahead(i: int, ahead: int) -> Array[String]:
 		return active_flags(i)
 	var f: FighterState = fighters[i]
 	var out: Array[String] = []
+	var turns: int = turns_before(i, ahead)
 	if cage_proximity(i) == Octagon.CAGE_PINNED:
 		out.append("BACK_TO_CAGE")
 		if held_on_fence(i):
 			out.append(HELD_ON_FENCE)
-	if f.stamina_fraction() < HANDS_LOW_BELOW or f.is_rocked() or f.winded_ticks > ahead or f.liver_ticks > 0:
+	if f.stamina_fraction() < HANDS_LOW_BELOW or f.is_rocked() or f.winded_ticks > turns or f.liver_ticks > 0:
 		out.append("HANDS_LOW")
-	if f.tied_up_ticks > ahead:
+	if f.tied_up_ticks > turns:
 		out.append("POSTURE_BROKEN")
-	if f.bit_ticks > ahead:
+	if f.bit_ticks > turns:
 		out.append("BIT_ON_FEINT")
-	if f.down_ticks > ahead:
+	if f.down_ticks > turns:
 		out.append("DOWN")
 	var phase: String = phase_ahead(i, ahead)
 	if phase == "":
@@ -1288,7 +1315,7 @@ func phase_ahead(i: int, ahead: int) -> String:
 	if f.is_free():
 		return ""
 	var at: int = ActionLibrary.PHASES.find(f.phase)
-	var left: int = f.phase_ticks_left - ahead
+	var left: int = f.phase_ticks_left - turns_before(i, ahead)
 	while left <= 0:
 		at += 1
 		if at >= ActionLibrary.PHASES.size():

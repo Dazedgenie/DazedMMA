@@ -312,6 +312,7 @@ func test_being_shut_in_and_what_cutting_cost_are_counted() -> void:
 	var shut: int = 0
 	var hurt: int = 0
 	var escaped: int = 0
+	var kicker_shut: int = 0
 	for s in 3:
 		var sim := FightSim.new(SEED + s, roster.make_pair("boxer", "kicker"), _actions)
 		sim.run_to_end()
@@ -319,7 +320,10 @@ func test_being_shut_in_and_what_cutting_cost_are_counted() -> void:
 		hurt += sim.cut_damage_taken[0]
 		escaped += sim.cage_escapes[1]
 		assert_lte(sim.cage_escapes[1], sim.cut_offs[0], "he can't get out more times than he was trapped")
-		assert_eq(sim.shut_in_ticks[0], 0, "the Kicker never cuts the Boxer off")
+		kicker_shut += sim.shut_in_ticks[0]
+	# Hardly ever the other way round: a Kicker pressing forward can walk the Boxer onto the fence for a
+	# moment (2 ticks in these fights since the corners take turns stepping first, D253).
+	assert_lt(kicker_shut * 20, shut, "the Kicker hardly ever shuts the Boxer in (%d ticks against %d)" % [kicker_shut, shut])
 	assert_gt(shut, 0, "the Boxer shuts the Kicker in now and then")
 	assert_gt(hurt, 0, "and the Kicker makes him pay for walking him down")
 	assert_gt(escaped, 0, "and the Kicker gets back to the middle")
