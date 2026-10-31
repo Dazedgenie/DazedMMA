@@ -1,6 +1,6 @@
 # 03 — Career, World & Life
 
-> Related decisions: D7, D16–D19, D21, D22, D25, D41–D45. Status: **design draft**.
+> Related decisions: D7, D16–D19, D21, D22, D25, D41–D45, D160, D300–D305. Status: **design draft**; §7.1 and §10.1 are built.
 
 ---
 
@@ -213,3 +213,72 @@ scouting card on screen (it comes with scouting, D51).
 - **Conditional consequences (A7):** a loss's effect scales with expectation (ranking gap, performance, finish type).
 - **Retirement (A8):** forced retirement is rare, foreshadowed (doctor warnings, declining camp results) and explained, with a
   career epilogue + legacy/GOAT screen.
+
+## 10. The career (D300–D305)
+
+Kyle (2026-10-31): "lets get a thread up for working on the portions of the game outside of fighting". Everything built
+outside the cage so far (the camp, fight night, ageing, mitt work, the style sheets, the tale of the tape and the result
+screen) hung off one fight picked on the setup screen, and nothing carried on after it. The plan puts the rest of the game
+outside the fights in six phases: **1** the career spine, **2** the front door (the head coach, the childhood scenes, the gym
+walk-in, the teen amateur stage and the story as the tutorial, which finishes the vertical slice, D48), **3** a world to climb
+(divisions, named fighters, promotions, rankings, titles), **4** a deeper camp (scouting, rule drilling, the weight cut, gyms
+and coaches, more minigames), **5** the business and the story (money, contracts, hype, press conferences, rivals, life
+events, trips) and **6** how a career ends (retirement, legacy, ironman). Kyle picked the career spine first (D300).
+
+Phase 1 joins what's built into a career that goes on from fight to fight and saves:
+
+| Piece | Decision | Status |
+|---|---|---|
+| The career and its save file | D301 | Built (§10.1) |
+| The title screen and a new career | D302 | Next |
+| The career hub and the calendar | D303 | |
+| Fight offers and matchmaking | D304 | |
+| The aftermath, and skipping a fight | D305 | |
+
+### 10.1 The career and its save file (D301)
+
+One career is one `Career` (`sim/world/career.gd`), pure logic and seeded like the fight (D100), and one save file.
+
+**What a career holds.** The head coach's name (the player, D15); the fighter as he started (his fighter@1 profile: name,
+frame, stance, personality, gifts, flaws and moves) and his nickname, hometown, country and background; the date; his record
+and a line for every fight; how many days of a medical suspension are left; his money; whether he's turned pro; everyone he's
+fought or is booked to fight (their whole profiles, so a rematch is the same man); the booked fight and the offers on the
+table (filled in by D304); and the week plan he runs between fights (*Between fights* to start with, `docs/02` §3.8).
+
+**Training for life.** His stats (with their fractions), style, fatigue, injuries and age live in one `TrainingCamp` that he
+trains in for the whole career (`trainee`): a week between fights is `run_week()`, and a camp's weeks will go through the
+planner on the same trainee, so nothing is lost between camps. `TrainingCamp.snapshot()` and `restore()` carry all of it,
+the dice included, into the save.
+
+**The calendar.** A career starts on Monday 4 January 2027 (week 0) and moves a week at a time; `date_text()` gives
+"Mon 4 Jan 2027". Each week between fights he trains on his plan, heals, gets a week older (52 weeks is a birthday) and a
+suspension runs down 7 days. The date is worked out with plain arithmetic, not the computer's clock (sim/ never reads it).
+
+**The record.** `add_fight()` takes a finished fight (a result of win, loss, draw or no contest, the opponent, and how
+and when it ended) and dates it this week. Amateur and pro fights are counted apart: `record_text()` gives "5-1-0", with
+"1 NC" after it for no contests.
+
+**Its own dice.** The career rolls its own dice, apart from each fight's (A11): a fight takes a seed from `next_seed()`
+and replays from that alone. The same career seed and the same choices always play out the same, and a career saved and
+loaded carries on exactly as if it had never stopped, because the dice are saved with it. Seeds and dice are saved as text,
+since a 64-bit number doesn't survive being a JSON number.
+
+**Saves** (`game/career_saves.gd`, `docs/04` §11, A11, R8). Three slots (`CareerSaves.SLOTS`), each a JSON file in the
+player's `user://saves/` folder (on Windows `%APPDATA%\Godot\app_userdata\Chin Check\saves`). A save is written to a
+temporary file, read back to check it, and only then takes the slot's place; the save it replaces is kept as the slot's
+backup. If the main file is missing or damaged, loading uses the backup (a week back, not lost) and says so. *Continue*
+will load the slot saved last (`latest()`). In the browser build the saves live in the browser's storage for the page, so
+clearing the site's data clears them.
+
+**A save that survives updates.** The file says it's a career save and which version of the format it is
+(`Career.VERSION`, now 1; `docs/09` career@1). A change to what a career saves raises the version and adds a step to
+`Career.migrate()` that brings older saves up to date, with a test. A save from a newer version of the game than the one
+reading it is refused with that reason, never half-read.
+
+**Not yet:** anything on screen (the title screen and slots come with D302), autosaving every week and before each fight
+(with the hub, D303), and ironman mode (one save, no going back, D45; phase 6).
+
+**What to change:** the start date (`START_DATE`), the week plan between fights (`BETWEEN_PLAN`) and the save format
+(`VERSION`, `migrate()`) in `sim/world/career.gd`; the number of slots (`SLOTS`) and where they go (`DIR`) in
+`game/career_saves.gd`. Tests: `tests/sim/world/test_career.gd`, `tests/game/test_career_saves.gd` and the snapshot in
+`tests/sim/world/test_training_camp.gd`. Fights don't change (no golden re-pin). Then update this section and D301.

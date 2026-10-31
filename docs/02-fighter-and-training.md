@@ -213,7 +213,8 @@ traits. Pushes are × (1 + Coachable / 200), and × 0.4 from age 30 (a style set
 session (`03` §5); nothing trains it back up.
 
 **Not yet:** the minigames other than mitt work (§3.9; `played` scores are already taken), rule drilling in the middle of a camp (A6), camp
-phases, scouting and the weight cut, and saving a career (`04` §11).
+phases, scouting and the weight cut. A career's training is saved with it (D301, `03` §10.1): the fighter trains in one
+`TrainingCamp` for his whole career, and `snapshot()` / `restore()` carry it, dice and all, through a save.
 
 **What to change:** every number above is a named constant at the top of `sim/world/training_camp.gd` (`XP_PER_POINT`,
 `XP_CURVE`, `CEILING_SOFT`, `CEILING_SCALE`, `AGE_LEARNING`, `CAMP_SOFT_CAP`, `NIGHT_KEEPS`, `SUNDAY_KEEPS`, `FATIGUE_FREE`,

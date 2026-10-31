@@ -200,3 +200,7 @@ You direct and AI writes the code. Your control comes from these tools instead o
 - Autosave every week + before every fight. Atomic writes plus 1 backup save.
 - Versioned save format with migrations (saves must survive updates).
 - Combat replays (seed + command log) are separate from the career's RNG stream.
+- **Built (D301, `03` §10.1):** three slots in `user://saves/` (`game/career_saves.gd`), each save written to a temporary
+  file, checked, then swapped in, with the save before kept as a backup that loading falls back to; the format is
+  versioned (`09` career@1) with `Career.migrate()` for older saves; the career's dice are apart from each fight's.
+  Autosaving every week and before each fight comes with the career hub (D303).

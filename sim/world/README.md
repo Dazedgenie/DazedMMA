@@ -8,5 +8,8 @@ or on screen with the camp planner (`ui/camp_planner.gd`, `docs/02` §3.6, D134)
 Ageing and the prime (`ageing.gd`, `docs/02` §3.8, D136): each week a camp runs ages the fighter; check it over a career
 with `tools/career_curve.gd`. The mitt work minigame's round and judging (`mitt_work.gd`, `docs/02` §3.9, D137).
 
+The career (`career.gd`; `docs/03` §10, D300, D301): one fighter's career, its calendar, record and money, and a save that
+brings it back exactly (the files themselves are written by `game/career_saves.gd`).
+
 Opponent style sheets (`style_library.gd`; `docs/03` §7.1, D160): `StyleLibrary.generate()` makes a varied opponent of a
 style from its sheet in `data/styles/`. Try it with `tools/style_sheets.gd`.

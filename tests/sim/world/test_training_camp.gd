@@ -391,3 +391,42 @@ func test_in_fight_week_the_fight_is_on_saturday_evening_with_no_sunday_to_recov
 	var tapered := TrainingCamp.new(_fighter(), 1, _no_injuries())
 	tapered.run_camp(["all_out", "taper"] as Array[String], true)
 	assert_eq(TrainingCamp.tank_at(tapered.fatigue), 1.0, "a Taper week brings the fighter in with a full tank")
+
+
+func test_a_snapshot_put_back_trains_on_exactly_the_same() -> void:
+	var straight := TrainingCamp.new(_fighter(), 11)
+	var resumed := TrainingCamp.new(_fighter(), 11)
+	for plan: String in ["all_out", "all_out"]:
+		straight.run_week(plan)
+		resumed.run_week(plan)
+	var saved: Dictionary = JSON.parse_string(JSON.stringify(resumed.snapshot(), "", true, true))
+	resumed = TrainingCamp.new(_fighter(), 0)
+	resumed.restore(saved)
+	for plan: String in ["all_out", "all_out", "taper"]:
+		straight.run_week(plan)
+		resumed.run_week(plan)
+	# Stats, style, fatigue, injuries, age and dice as if it never stopped (D301).
+	assert_eq(resumed.snapshot().dice, straight.snapshot().dice, "the dice carry on")
+	assert_eq(resumed.injured_days, straight.injured_days)
+	_assert_same(_json(resumed.snapshot()), _json(straight.snapshot()), "snapshot")
+
+
+func _json(data: Dictionary) -> Dictionary:
+	return JSON.parse_string(JSON.stringify(data, "", true, true))
+
+
+## The two are the same, numbers to within a billionth: a number read back from a JSON file can come back a last
+## binary digit off (about 1e-16 of it), which no dice roll can tell apart.
+func _assert_same(got: Variant, want: Variant, path: String = "") -> void:
+	if want is Dictionary:
+		assert_true(got is Dictionary and got.size() == want.size(), "%s has the same keys" % path)
+		for key: Variant in want:
+			_assert_same(got.get(key) if got is Dictionary else null, want[key], "%s.%s" % [path, key])
+	elif want is Array:
+		assert_true(got is Array and got.size() == want.size(), "%s has the same length" % path)
+		for i in mini(want.size(), got.size() if got is Array else 0):
+			_assert_same(got[i], want[i], "%s[%d]" % [path, i])
+	elif want is float or want is int:
+		assert_true((got is float or got is int) and absf(float(got) - float(want)) <= 1e-9 * maxf(1.0, absf(float(want))), "%s: %s vs %s" % [path, got, want])
+	else:
+		assert_eq(got, want, path)
