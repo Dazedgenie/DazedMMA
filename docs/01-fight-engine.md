@@ -893,7 +893,12 @@ Measured (200 fights a pairing, pro rules, same seeds as main):
 | Kicker cut off by the Boxer (a fight) | | 27 times, back to the middle 98% of them, shut in 1:42, 143 damage to the Boxer |
 | Counter-striker cut off by the Pressure wrestler (a fight) | | 19 times, back to the middle 90%, shut in 1:15, 76 damage to the cutter |
 
-On the 15-style table (`tools/style_sheets.gd --fights=60`, D160): being measured against main, numbers to follow in this section.
+On the 15-style table (`tools/style_sheets.gd --fights=60`, D160) every style wins between 32% and 78% (main before D233: 37–65%),
+but at 60 fights a style that's mostly noise: the two that moved most, measured again at 180 fights a style, barely moved.
+Karate point fighter 66% → 64%, Range kicker 44% → 39%. At 60 fights: Submission grappler 47% → 58%, Pressure boxer 40% → 35%,
+Brawler 47% → 52%, Counter-striker 37% → 43%, Dirty boxer 57% → 57%, Ground-and-pound wrestler 58% → 53%, Judo thrower 58% → 67%,
+Leg-kick specialist 40% → 47% (Kyle asked for at least 36%), Muay Thai 47% → 45%, Pressure wrestler 45% → 55%, Sambo 42% → 55%,
+Sprawl-and-brawl 65% → 60%, Wrestle-boxer 37% → 45%.
 
 What the numbers say: being walked onto the fence is common (the Kicker 27 times a fight) but short, because nearly every
 time he gets back to the middle; the cutter wins by what he lands while he's there, not by keeping him there. Speed: the route
