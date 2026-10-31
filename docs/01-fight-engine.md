@@ -2832,7 +2832,7 @@ Kyle asked for it (2026-10-31): "clinch fighting improvements: fighters should b
 overhooks, they should be spinning each other around when up against the cage", with research on real clinch and cage
 fighting, and then: "this isn't clinch specific, this will be used for grappling in general, so hand fighting on the ground
 and fighting in the clinch". Nothing in `sim/` changes until Kyle answers the questions in §40.8; this section is the plan the
-engine work will follow, and every number in it is a first guess for the harness.
+engine work will follow, and every number in it is a first guess for the harness. Kyle's answers are at the top of §40.8.
 
 ### 40.1 What real fighters do
 From MMA and grappling coaching write-ups (sources at the end of §40):
@@ -2959,7 +2959,11 @@ The work splits into pull requests, each with its harness numbers and its own de
    hands against the choke.
 4. **Calls and the screen**: the grip call(s), the AI corner using them, the HUD readout; the hands in 3D after the limbs work.
 
-Questions (Kyle's answers go in the D26x rows):
+**Kyle's answers (2026-10-31, D260):** 1 the two sides (a); 2 the clinch and the fence first; 3 no new stat; 4 one
+*Hand fight!* call. Questions 5–7 went with the recommendation unless he says otherwise: turns on the fence come out of the
+odds and are reported, D220's balance rule stands, and the collar tie stays its own grip with its timer.
+
+The questions as they were asked:
 
 1. **How deep?** (a) the two sides as above (recommended); (b) one "who's winning the clinch" meter, simpler but nothing to
    see change hands; (c) each hand separately with its own grip, the most detail and closest to the separate-limbs work, but
