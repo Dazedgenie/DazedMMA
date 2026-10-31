@@ -1,6 +1,6 @@
 # 03 — Career, World & Life
 
-> Related decisions: D7, D16–D19, D21, D22, D25, D41–D45, D160, D300–D305. Status: **design draft**; §7.1, §10.1 and §10.2 are built.
+> Related decisions: D7, D16–D19, D21, D22, D25, D41–D45, D160, D300–D305. Status: **design draft**; §7.1 and §10.1–§10.3 are built.
 
 ---
 
@@ -231,8 +231,8 @@ Phase 1 joins what's built into a career that goes on from fight to fight and sa
 |---|---|---|
 | The career and its save file | D301 | Built (§10.1) |
 | The title screen and a new career | D302 | Built (§10.2) |
-| The career hub and the calendar | D303 | Next (a first hub came with D302) |
-| Fight offers and matchmaking | D304 | |
+| The career hub and the calendar | D303 | Built (§10.3) |
+| Fight offers and matchmaking | D304 | Next |
 | The aftermath, and skipping a fight | D305 | |
 
 ### 10.1 The career and its save file (D301)
@@ -316,7 +316,7 @@ off his card until they show (D90). His moves, combinations and habits are his b
 Wrestler for a wrestling family, the Boxer for the boxing gym kid), only worse. The same background, seed and choices always
 make the same fighter. Kyle (2026-10-31) was happy with that starting level.
 
-**The career hub, first version** (`ui/career_hub.gd`; D303 fills it in): the top bar (his name and nickname, age, records,
+**The career hub, first version** (`ui/career_hub.gd`; D303 filled it in, §10.3): the top bar (his name and nickname, age, records,
 coach, the date and the week), his card (background, hometown, stance, height and reach, the gifts and flaws he knows of,
 his scouted potential, the background's hook), every stat as a bar and a grade, and *This week*: any injury or suspension,
 the week plan, his savings, *Run this week* (a week between fights, then an autosave) and *Save and go to the title*.
@@ -331,3 +331,38 @@ specialty and the childhood scenes (phase 2).
 southpaw chance of a roll (`SOUTHPAW_CHANCE`) in `ui/new_career_screen.gd`. Tests: `tests/sim/world/test_background_library.gd`,
 `tests/sim/world/test_name_library.gd`, `tests/ui/test_career_screens.gd` and the career tests in `tests/game/test_main_scene.gd`.
 Fights don't change (no golden re-pin). Then update this section and D302.
+
+### 10.3 The career hub and the calendar (D303)
+
+The hub (`ui/career_hub.gd`) is the screen a career comes back to between fights (Q6 in the plan: one default plan, Run
+this week or Advance).
+
+- **Top bar:** his name and nickname, age, amateur record (and pro once he's turned pro), his coach, the date and the week.
+- **The fighter:** the body figure showing any injury (as fight night would see it), how he feels (fresh, a little tired,
+  worn down; hurt and for how long), his background, hometown, stance, height, reach and build, the style he's leaning
+  toward (the D88 hints past ±30, and any named style traits), the gifts and flaws he knows of, his scouted potential and
+  his background's hook. Then every stat as a bar and a grade, in its group.
+- **This week:** what's next (offers waiting and a booked fight come with D304; hurt for N days; suspended for N days;
+  otherwise free to fight), his week plan between fights (a picker of every week plan; *Between fights* to start,
+  `docs/02` §3.8), his savings, and:
+  - **Run this week**: one week on his plan, then an autosave.
+  - **Advance until something happens**: weeks on his plan until he's hurt in training, healed, cleared to fight, has a
+    birthday or an offer comes in, at most 8 weeks (`Career.ADVANCE_MAX_WEEKS`), then an autosave. While he's booked for
+    a fight neither button runs: the camp runs those weeks (D304).
+  - Under them, what the last run did: the biggest gains over the weeks and anything that happened, with its week.
+- **His fights:** newest first, the result (W, L, D, NC), who, how and in which round, the date (the Saturday of the
+  week it was fought) and amateur or pro.
+- **The calendar:** the coming 8 weeks (`Career.CALENDAR_WEEKS`), this one first, each with what will happen in it if
+  nothing changes: an injury healed, a suspension over, his birthday, fight night (`Career.calendar()`).
+
+Each week's report from `Career.run_week()` now says what happened in it (`events`: hurt, healed, cleared, birthday,
+fight night) and which week it was.
+
+**Not yet:** offers on the hub and a booked fight's camp (D304), opening any week in the planner to plan it slot by slot,
+and the stats' tags (D24).
+
+**What to change:** how many weeks Advance runs at most (`ADVANCE_MAX_WEEKS`) and the calendar shows (`CALENDAR_WEEKS`)
+in `sim/world/career.gd`; how many fights the list shows (`FIGHTS_SHOWN`) and the colours in `ui/career_hub.gd`. Tests:
+`tests/sim/world/test_career.gd`, `tests/ui/test_career_screens.gd`, `tests/game/test_main_scene.gd`. Fights don't change
+(no golden re-pin). Then update this section and D303.
+

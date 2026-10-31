@@ -113,6 +113,35 @@ func test_the_hub_shows_who_he_is_and_every_stat() -> void:
 	var rows: Array[Dictionary] = CareerHub.stat_rows(c.trainee, JSON.parse_string(FileAccess.get_file_as_string("res://data/enums/stats.json")).values)
 	assert_eq(rows.size(), TrainingCamp.STAT_NAMES.size() + CampPlanner.GROUPS.size(), "every stat under its group")
 	var report: Dictionary = c.run_week()
-	hub.show_career(c, report)
+	hub.show_career(c, [report])
 	assert_string_contains(hub.text(), "Mon 11 Jan 2027")
 	assert_string_contains(hub.text(), "Last week:")
+
+
+func test_the_hub_shows_what_is_next_his_fights_and_the_calendar() -> void:
+	var c: Career = _career()
+	var hub: CareerHub = add_child_autofree(CareerHub.new())
+	hub.show_career(c)
+	assert_string_contains(hub.text(), "Free to fight")
+	assert_string_contains(hub.text(), "No fights yet")
+	assert_string_contains(hub.text(), "This week")
+	assert_string_contains(hub.text(), "Feels: fresh")
+	c.add_opponent({ "id": "opp_1", "name": "First Man" })
+	c.add_fight({ "result": "win", "opponent": "opp_1", "method": "KO", "round": 1 })
+	c.trainee.injured_days = 10
+	c.trainee.injury_area = "legs"
+	hub.show_career(c)
+	assert_string_contains(hub.text(), "W vs First Man · KO, R1")
+	assert_string_contains(hub.text(), "Sat 9 Jan 2027 · amateur")
+	assert_string_contains(hub.text(), "Hurt (legs): 10 days to heal")
+	assert_string_contains(hub.text(), "Healed", "the calendar says when")
+
+
+func test_picking_a_week_plan_on_the_hub_changes_his_weeks() -> void:
+	var c: Career = _career()
+	var hub: CareerHub = add_child_autofree(CareerHub.new())
+	hub.show_career(c)
+	hub.pick_plan("time_off")
+	assert_eq(c.week_plan, "time_off")
+	assert_string_contains(hub.text(), "time off")
+

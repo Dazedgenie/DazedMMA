@@ -30,6 +30,18 @@ const MONTHS: Array[String] = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", 
 const RESULTS: Array[String] = ["win", "loss", "draw", "no_contest"]
 ## What `about` holds besides the fighter file: shown on screens, not used by fights.
 const ABOUT_KEYS: Array[String] = ["nickname", "hometown", "country", "background"]
+## Advance (docs/03 §10.3, D303) runs weeks until something happens, or this many at most.
+const ADVANCE_MAX_WEEKS: int = 8
+## How many weeks the hub's calendar shows, this one first.
+const CALENDAR_WEEKS: int = 8
+## What can happen in a week (events[].kind in run_week()'s report and calendar()'s weeks).
+const HURT := "hurt"
+const HEALED := "healed"
+const CLEARED := "cleared"
+const BIRTHDAY := "birthday"
+const FIGHT_NIGHT := "fight_night"
+## How many weeks a year has for a birthday: TrainingCamp ages him 1/52 of a year a week (docs/02 §3.8).
+const WEEKS_PER_YEAR: float = 52.0
 
 ## Why the last from_dict() or migrate() failed ("" when it didn't).
 static var load_error: String = ""
@@ -120,9 +132,85 @@ func run_week(plan: Variant = null, played: Dictionary = {}) -> Dictionary:
 		plan_data = plan
 	else:
 		plan_data = _library.plan(week_plan if plan == null else String(plan))
+	var before := { "injured_days": trainee.injured_days, "suspended_days": suspended_days, "age": age() }
 	var report: Dictionary = trainee.run_plan(plan_data, played)
 	end_week()
+	report.week = week - 1
+	report.events = _events_since(before)
 	return report
+
+
+## Weeks on the career's week plan until something happens (docs/03 §10.3, D303): he's hurt, he's healed, his
+## suspension ends, a birthday, an offer comes in (D304), or ADVANCE_MAX_WEEKS go by. Nothing runs while he's booked
+## for a fight: the camp runs that (D304). Returns each week's report, oldest first.
+func advance(max_weeks: int = ADVANCE_MAX_WEEKS) -> Array[Dictionary]:
+	var reports: Array[Dictionary] = []
+	if not booked.is_empty():
+		return reports
+	for i in max_weeks:
+		var report: Dictionary = run_week()
+		reports.append(report)
+		if not (report.events as Array).is_empty() or not offers.is_empty():
+			break
+	return reports
+
+
+## The calendar from this week on (docs/03 §10.3, D303): `weeks` weeks, each { week, date ("Mon 11 Jan"), events },
+## with what will happen during it if nothing changes: the injury healed, the suspension over, a birthday, fight night.
+func calendar(weeks: int = CALENDAR_WEEKS) -> Array[Dictionary]:
+	var ahead: Dictionary = {}  # weeks from now → events
+	if trainee.injured_days > 0:
+		_add_ahead(ahead, ceili(trainee.injured_days / float(DAYS_PER_WEEK)) - 1, { "kind": HEALED, "area": trainee.injury_area })
+	if suspended_days > 0:
+		_add_ahead(ahead, ceili(suspended_days / float(DAYS_PER_WEEK)) - 1, { "kind": CLEARED })
+	var to_birthday: int = ceili((age() + 1 - trainee.age_years) * WEEKS_PER_YEAR - 0.001) - 1
+	_add_ahead(ahead, to_birthday, { "kind": BIRTHDAY, "age": age() + 1 })
+	if not booked.is_empty() and booked.has("week"):
+		_add_ahead(ahead, int(booked.week) - week, { "kind": FIGHT_NIGHT, "opponent": String(booked.get("opponent", "")) })
+	var out: Array[Dictionary] = []
+	for i in weeks:
+		out.append({ "week": week + i, "date": short_date(week + i), "events": ahead.get(i, []) })
+	return out
+
+
+static func _add_ahead(ahead: Dictionary, weeks_from_now: int, event: Dictionary) -> void:
+	if weeks_from_now < 0:
+		return
+	if not ahead.has(weeks_from_now):
+		ahead[weeks_from_now] = []
+	ahead[weeks_from_now].append(event)
+
+
+## What changed this week, against how things were before it.
+func _events_since(before: Dictionary) -> Array:
+	var out: Array = []
+	if int(before.injured_days) == 0 and trainee.injured_days > 0:
+		out.append({ "kind": HURT, "area": trainee.injury_area, "days": trainee.injured_days })
+	elif int(before.injured_days) > 0 and trainee.injured_days == 0:
+		out.append({ "kind": HEALED })
+	if int(before.suspended_days) > 0 and suspended_days == 0:
+		out.append({ "kind": CLEARED })
+	if age() > int(before.age):
+		out.append({ "kind": BIRTHDAY, "age": age() })
+	if not booked.is_empty() and int(booked.get("week", -1)) == week:
+		out.append({ "kind": FIGHT_NIGHT, "opponent": String(booked.get("opponent", "")) })
+	return out
+
+
+## What an event says, for the hub: "Healed", "Turned 17" …
+static func event_text(event: Dictionary) -> String:
+	match String(event.kind):
+		HURT:
+			return "Hurt in training (%s, %d days)" % [event.get("area", ""), int(event.get("days", 0))]
+		HEALED:
+			return "Healed"
+		CLEARED:
+			return "Cleared to fight"
+		BIRTHDAY:
+			return "Turns %d" % int(event.get("age", 0))
+		FIGHT_NIGHT:
+			return "Fight night"
+	return String(event.kind)
 
 
 ## Moves the calendar on to next Monday. run_week() calls it; a camp week run on `trainee` by the planner calls it too.
@@ -136,16 +224,23 @@ func next_seed() -> int:
 	return _dice.randi()
 
 
-## The date of a day this week (0 = Monday … 6 = Sunday): { year, month, day, weekday }.
-func date(day_of_week: int = 0) -> Dictionary:
-	var ymd: Array[int] = civil_from_days(first_monday + week * DAYS_PER_WEEK + day_of_week)
+## The date of a day this week (0 = Monday … 6 = Sunday), or of week `of_week`: { year, month, day, weekday }.
+func date(day_of_week: int = 0, of_week: int = -1) -> Dictionary:
+	var w: int = week if of_week < 0 else of_week
+	var ymd: Array[int] = civil_from_days(first_monday + w * DAYS_PER_WEEK + day_of_week)
 	return { "year": ymd[0], "month": ymd[1], "day": ymd[2], "weekday": WEEKDAYS[day_of_week] }
 
 
-## "Mon 4 Jan 2027".
-func date_text(day_of_week: int = 0) -> String:
-	var d: Dictionary = date(day_of_week)
+## "Mon 4 Jan 2027" (this week, or week `of_week`).
+func date_text(day_of_week: int = 0, of_week: int = -1) -> String:
+	var d: Dictionary = date(day_of_week, of_week)
 	return "%s %d %s %d" % [d.weekday, d.day, MONTHS[d.month - 1], d.year]
+
+
+## "Mon 11 Jan": a week's Monday without the year, for the calendar.
+func short_date(of_week: int, day_of_week: int = 0) -> String:
+	var d: Dictionary = date(day_of_week, of_week)
+	return "%s %d %s" % [d.weekday, d.day, MONTHS[d.month - 1]]
 
 
 ## Someone he's fought or is booked to fight (a fighter@1 profile with its own id).

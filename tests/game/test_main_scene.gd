@@ -267,3 +267,14 @@ func test_load_career_lists_the_slots_and_loads_one() -> void:
 	_main.load_screen.load_pressed.emit(0)
 	assert_eq(_main.career.fighter_name(), "First Man")
 	assert_true(_main.hub.visible)
+
+
+func test_advance_runs_weeks_until_something_happens_and_saves() -> void:
+	_main.open_new_career()
+	_main.new_career.press_start()
+	_main.career.week_plan = "time_off"
+	_main.hub.press_advance()
+	assert_eq(_main.career.week, Career.ADVANCE_MAX_WEEKS, "nothing happens to a fresh 16-year-old resting for 8 weeks")
+	assert_eq(int(CareerSaves.info(0, SAVE_DIR).week), Career.ADVANCE_MAX_WEEKS)
+	assert_string_contains(_main.hub.text(), "The last %d weeks" % Career.ADVANCE_MAX_WEEKS)
+
