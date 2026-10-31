@@ -87,6 +87,13 @@ Key rules:
   switched on once: **Settings → Pages → Source: GitHub Actions**. Pages for a private repo needs a paid GitHub plan
   (Pro or above); the game page is public even though the code stays private. Until Pages is on, the job writes
   "The web build isn't on GitHub Pages yet" in the run's summary and stays green, so `main` doesn't go red over it.
+- **Where it lives: itch.io (D242).** GitHub asked for an upgrade (Pages on a private repo needs Pro), so the game is on
+  **https://dazedgenie.itch.io/chin-check** instead: free, and the code stays private. It's uploaded by hand, so a new
+  version doesn't go up on its own. To update it: download `ChinCheck-web-<commit>` from the newest green Playtest build run
+  on `main` (or export it yourself as above and zip the folder's contents), then on itch.io **Edit game → Uploads**, replace
+  the zip, keep **This file will be played in the browser** ticked, and save. Embed: 1280 × 720, fullscreen button on,
+  SharedArrayBuffer off (the build has no threads). The `pages` job above stays in the workflow, dormant, in case Pages is
+  switched on later.
 - **To change it:** the presets' options in `export_presets.cfg` (or Godot's **Project → Export**); the fallback font in
   `DisplayFont.SYMBOLS_PATH`; the workflow in `.github/workflows/playtest-build.yml`. Tests: `tests/game/test_export_presets.gd`,
   `tests/ui/test_display_font.gd`.
