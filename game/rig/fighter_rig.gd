@@ -65,6 +65,22 @@ const HUMANOID := {
 }
 
 var colour: Color
+## Which man of the pair this is ("a" red or "b" blue), for the "a."/"b." points in paired poses.
+var corner: String = "a"
+## This rig's sizes: the constants above unless fit() has measured them from a body (D284), so the rig a skinned
+## body follows has that body's trunk and limbs.
+var waist_up: float = WAIST_UP
+var neck_up: float = NECK_UP
+var head_up: Vector3 = HEAD_UP
+var shoulder: Vector3 = SHOULDER
+var hip_x: float = HIP_X
+var upper_arm: float = UPPER_ARM
+var forearm: float = FOREARM
+var thigh: float = THIGH
+var shin: float = SHIN
+var ankle_up: float = ANKLE_UP
+## The torso's points (POINTS) stretched to a fitted body: across and front to back by its shoulders, up by its trunk.
+var point_scale := Vector3.ONE
 var _skin := FighterFigure.FACE_COLOUR
 ## Joint nodes: pelvis, waist (carries the chest), neck, head; and the limb segments, posed directly.
 var bones := {}
@@ -76,6 +92,18 @@ var joints := {}
 func _init(p_colour: Color = Color.WHITE) -> void:
 	colour = p_colour
 	_build()
+
+
+## Takes a body's sizes (D284; SkinnedBody.measure()): any of waist_up, neck_up, head_up, shoulder, hip_x,
+## upper_arm, forearm, thigh, shin and ankle_up, in metres. The faceted pieces aren't rebuilt: a fitted rig is
+## hidden and drives the body.
+func fit(sizes: Dictionary) -> void:
+	for key: String in sizes:
+		set(key, sizes[key])
+	bones.waist.position = Vector3(0, waist_up, 0)
+	bones.neck.position = Vector3(0, neck_up, 0)
+	bones.head.position = head_up
+	point_scale = Vector3(shoulder.x / SHOULDER.x, (waist_up + neck_up) / (WAIST_UP + NECK_UP), shoulder.x / SHOULDER.x)
 
 
 ## Poses the body (pelvis, waist, neck, head) from `spec` in the pair frame `frame` (D283).
@@ -113,22 +141,22 @@ func set_limbs(spec: Dictionary, frame: Transform3D, other: FighterRig, blend_to
 
 
 ## Where a hand or foot target `want` points, in the world. {"to": "b.back", "off": [x, y, z]} is a named
-## point on a body (a = this one, b = the other) offset in that bone's frame; {"at": [x, y, z]} is a point in
+## point on a body (a = red, the pair's first man; b = blue) offset in that bone's frame; {"at": [x, y, z]} is a point in
 ## the pair frame; empty is the limb's resting place (hands up in a guard, feet under the hips).
 func target_for(want: Dictionary, key: String, frame: Transform3D, other: FighterRig) -> Vector3:
-	if want.has("at"):
-		return frame * _vec(want.at)
+	if want.has("at"):  # Feet are placed for the standard ankle height; a fitted body's ankle may sit higher.
+		return frame * (_vec(want.at) + (Vector3(0, ankle_up - ANKLE_UP, 0) if key.begins_with("foot") else Vector3.ZERO))
 	if want.has("to"):
 		var point_name: String = String(want.to)
-		var body: FighterRig = self if point_name.begins_with("a.") else other
+		var body: FighterRig = self if point_name.begins_with(corner + ".") else other
 		return body.point(point_name.substr(2), _vec(want.get("off", [0, 0, 0])))
 	var pelvis: Node3D = bones.pelvis
 	var side: float = -1.0 if key.ends_with("_l") else 1.0
 	if key.begins_with("hand"):  # Hands up in front of the face.
 		var chest: Node3D = bones.waist
-		return chest.global_transform * Vector3(side * 0.1, 0.42, -0.3)
-	var hip: Vector3 = pelvis.global_transform * Vector3(side * HIP_X, 0, 0)
-	return Vector3(hip.x, ANKLE_UP, hip.z)  # Feet under the hips on the canvas.
+		return chest.global_transform * (Vector3(side * 0.1, 0.42, -0.3) * point_scale)
+	var hip: Vector3 = pelvis.global_transform * Vector3(side * hip_x, 0, 0)
+	return Vector3(hip.x, ankle_up, hip.z)  # Feet under the hips on the canvas.
 
 
 ## A named point on this body (POINTS, or a limb point: elbow_l, wrist_l, knee_l, ankle_l, thigh_l, shin_l
@@ -136,10 +164,10 @@ func target_for(want: Dictionary, key: String, frame: Transform3D, other: Fighte
 func point(point_name: String, off: Vector3 = Vector3.ZERO) -> Vector3:
 	if POINTS.has(point_name):
 		var bone: Node3D = bones.waist if String(POINTS[point_name][0]) == "chest" else bones[POINTS[point_name][0]]
-		return bone.global_transform * (Vector3(POINTS[point_name][1]) + off)
+		return bone.global_transform * (Vector3(POINTS[point_name][1]) * (point_scale if bone == bones.waist or bone == bones.pelvis else Vector3.ONE) + off)
 	if point_name.begins_with("thigh_") or point_name.begins_with("shin_") or point_name.begins_with("upper_") or point_name.begins_with("fore_"):
 		var segment: Node3D = bones[point_name]
-		var length: float = {"thigh": THIGH, "shin": SHIN, "upper": UPPER_ARM, "fore": FOREARM}[point_name.get_slice("_", 0)]
+		var length: float = {"thigh": thigh, "shin": shin, "upper": upper_arm, "fore": forearm}[point_name.get_slice("_", 0)]
 		return segment.global_transform * (Vector3(0, -length * 0.5, 0) + off)  # Half way down the bone.
 	if joints.has(point_name):
 		return Vector3(joints[point_name]) + off
@@ -163,6 +191,8 @@ static func pose_pair(a: FighterRig, b: FighterRig, pair: Dictionary, frame: Tra
 	var bodies: Array[Dictionary] = [pair.a, pair.b]
 	if not to.is_empty():
 		bodies = [blend_body(pair.a, to.a, t), blend_body(pair.b, to.b, t)]
+	a.corner = "a"
+	b.corner = "b"
 	a.set_body(bodies[0], frame)
 	b.set_body(bodies[1], frame)
 	for repeat in 2:  # Twice, so a hand on his wrist finds the wrist where it ended up.
@@ -196,32 +226,32 @@ func _planted(spec: Dictionary, key: String, target: Vector3) -> float:
 	var want: Dictionary = spec.get(key, {})
 	if want.has("flat"):
 		return float(want.flat)
-	return 1.0 if target.y < ANKLE_UP + 0.03 and not want.has("to") else 0.0
+	return 1.0 if target.y < ankle_up + 0.03 and not want.has("to") else 0.0
 
 
 func _solve_arm(side: String, target: Vector3, pole: Vector3) -> void:
 	var chest: Node3D = bones.waist
-	var shoulder: Vector3 = chest.global_transform * Vector3(SHOULDER.x * (-1.0 if side == "l" else 1.0), SHOULDER.y, SHOULDER.z)
-	var chain: Array[Vector3] = FighterMotion.solve_bones(Vector3.ZERO, target - shoulder, pole, UPPER_ARM, FOREARM)
-	var elbow: Vector3 = shoulder + chain[0]
-	var wrist: Vector3 = shoulder + chain[1]
-	_lay(bones["upper_" + side], shoulder, elbow, pole, UPPER_ARM)
-	_lay(bones["fore_" + side], elbow, wrist, pole, FOREARM)
+	var joint: Vector3 = chest.global_transform * Vector3(shoulder.x * (-1.0 if side == "l" else 1.0), shoulder.y, shoulder.z)
+	var chain: Array[Vector3] = FighterMotion.solve_bones(Vector3.ZERO, target - joint, pole, upper_arm, forearm)
+	var elbow: Vector3 = joint + chain[0]
+	var wrist: Vector3 = joint + chain[1]
+	_lay(bones["upper_" + side], joint, elbow, pole, upper_arm)
+	_lay(bones["fore_" + side], elbow, wrist, pole, forearm)
 	var glove: Node3D = bones["glove_" + side]
 	glove.global_transform = Transform3D(_aim(wrist - elbow, pole), wrist)
-	joints["shoulder_" + side] = shoulder
+	joints["shoulder_" + side] = joint
 	joints["elbow_" + side] = elbow
 	joints["wrist_" + side] = wrist
 
 
 func _solve_leg(side: String, target: Vector3, pole: Vector3, planted: float) -> void:
 	var pelvis: Node3D = bones.pelvis
-	var hip: Vector3 = pelvis.global_transform * Vector3(HIP_X * (-1.0 if side == "l" else 1.0), 0, 0)
-	var chain: Array[Vector3] = FighterMotion.solve_bones(Vector3.ZERO, target - hip, pole, THIGH, SHIN)
+	var hip: Vector3 = pelvis.global_transform * Vector3(hip_x * (-1.0 if side == "l" else 1.0), 0, 0)
+	var chain: Array[Vector3] = FighterMotion.solve_bones(Vector3.ZERO, target - hip, pole, thigh, shin)
 	var knee: Vector3 = hip + chain[0]
 	var ankle: Vector3 = hip + chain[1]
-	_lay(bones["thigh_" + side], hip, knee, pole, THIGH)
-	_lay(bones["shin_" + side], knee, ankle, pole, SHIN)
+	_lay(bones["thigh_" + side], hip, knee, pole, thigh)
+	_lay(bones["shin_" + side], knee, ankle, pole, shin)
 	# The foot follows the shin, or lies flat on the canvas when it's planted there.
 	var up: Vector3 = (knee - ankle).normalized().lerp(Vector3.UP, planted).normalized()
 	var toes: Vector3 = pole - pole.project(up)

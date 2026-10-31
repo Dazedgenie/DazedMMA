@@ -4,8 +4,9 @@ extends SceneTree
 ## first as today's figures draw them, then as the rig does. Needs a display.
 ##   godot --path . --script res://tools/rig_preview.gd -- --out=res://build/rig [--stills] [--angle=40]
 ##   ffmpeg -framerate 24 -i build/rig/frame-%04d.png -c:v libx264 -pix_fmt yuv420p build/rig.mp4
-## --stills saves one frame per pose (rig-<name>.png) instead of the clips; --angle turns the pair (degrees)
-## to see it from further round. Nothing in the fight or the fight screen changes.
+## --stills saves one frame per pose (rig-<name>.png) instead of the clips; --angle turns the camera round the
+## pair (degrees). --body puts the skinned Tripo body on the rigs (D284; --body=<file.glb> another Mixamo-rigged
+## body). Nothing in the fight or the fight screen changes.
 
 const FPS: int = 24
 const BLEND_FRAMES: int = 24
@@ -26,6 +27,9 @@ var _main: Node3D
 var _frame: int = 0
 var _title: Label
 var _rigs: Array[FighterRig] = []
+## Skinned bodies the rigs drive (--body=, D284); the rigs stay hidden when there are any.
+var _bodies: Array[SkinnedBody] = []
+var _body_path: String = ""
 var _pair_frame := Transform3D.IDENTITY
 
 
@@ -35,6 +39,10 @@ func _initialize() -> void:
 			_out = arg.trim_prefix("--out=")
 		elif arg == "--stills":
 			_stills = true
+		elif arg == "--body":
+			_body_path = SkinnedBody.TRIPO_BODY
+		elif arg.begins_with("--body="):
+			_body_path = arg.trim_prefix("--body=")
 		elif arg.begins_with("--angle="):
 			_angle = float(arg.trim_prefix("--angle="))
 	_capture.call_deferred()
@@ -63,11 +71,21 @@ func _capture() -> void:
 		_main.arena.add_child(rig)
 		rig.visible = false
 		_rigs.append(rig)
+		if _body_path != "":
+			var body := SkinnedBody.new()
+			_main.arena.add_child(body)
+			if not body.load_body(_body_path):
+				quit(1)
+				return
+			body.visible = false
+			rig.fit(body.measure())
+			body.set_colour(colour)
+			_bodies.append(body)
 	if _stills:
 		var poses: Dictionary = RigPairs.all()
 		for pose_name: String in poses:
-			_title.text = "Rig: " + pose_name
-			FighterRig.pose_pair(_rigs[0], _rigs[1], poses[pose_name], _pair_frame)
+			_title.text = _prefix() + pose_name
+			_pose(poses[pose_name])
 			_show_rigs(true)
 			await _frames(1, "rig-%s.png" % pose_name)
 	else:
@@ -114,20 +132,32 @@ func _today(case: Array) -> void:
 
 func _clip(clip: Array) -> void:
 	_show_rigs(true)
-	_title.text = "Rig: " + String(clip[0])
+	_title.text = _prefix() + String(clip[0])
 	var from: Dictionary = clip[1]
 	var to: Dictionary = clip[2]
 	if not from.is_empty():
 		for n in BLEND_FRAMES:
-			FighterRig.pose_pair(_rigs[0], _rigs[1], from, _pair_frame, to, smoothstep(0.0, 1.0, float(n) / (BLEND_FRAMES - 1)))
+			_pose(from, to, smoothstep(0.0, 1.0, float(n) / (BLEND_FRAMES - 1)))
 			await _frames(1)
-	FighterRig.pose_pair(_rigs[0], _rigs[1], to, _pair_frame)
+	_pose(to)
 	await _frames(HOLD_FRAMES)
+
+
+func _prefix() -> String:
+	return "Rig: " if _bodies.is_empty() else "Tripo body: "
+
+
+func _pose(pair: Dictionary, to: Dictionary = {}, t: float = 0.0) -> void:
+	FighterRig.pose_pair(_rigs[0], _rigs[1], pair, _pair_frame, to, t)
+	for i in _bodies.size():
+		_bodies[i].follow(_rigs[i])
 
 
 func _show_rigs(on: bool) -> void:
 	for rig in _rigs:
-		rig.visible = on
+		rig.visible = on and _bodies.is_empty()
+	for body in _bodies:
+		body.visible = on
 	for figure: FighterFigure in _main.arena.figures:
 		figure.visible = not on
 
@@ -140,7 +170,7 @@ func _frames(count: int, still: String = "") -> void:
 		arena._tag.visible = false
 		arena.camera.position = Vector3(0, 0.7, 0) + (ArenaView.CAMERA_FROM.normalized() * CAMERA_DISTANCE).rotated(Vector3.UP, deg_to_rad(_angle))
 		arena.camera.look_at(Vector3(0, 0.7, 0), Vector3.UP)
-		if _rigs[0].visible:
+		if _rigs[0].visible or (not _bodies.is_empty() and _bodies[0].visible):
 			for figure: FighterFigure in _main.arena.figures:
 				figure.visible = false
 		await process_frame
