@@ -35,6 +35,7 @@ Rules:
 | `data/styles/` | `style@1` | Opponent style sheets: the recipe the world makes opponents of one style from, and the style's scouting card (D160, `docs/03` §7.1) |
 | `data/backgrounds/` | `background@1` | Where a career's fighter comes from: the 12 backgrounds of `docs/02` §1.2 and the 16-year-old each makes (D302, `docs/03` §10.2) |
 | `data/names/` | `names@1` | One country each: its cities (hometowns) and common first and last names, for new careers and generated fighters (D302, D57) |
+| `data/vignettes/` | `vignette@1` | His childhood scenes: one scene at age 8, 12 or 15, with three choices that make him who he is at 16 (D312, `docs/03` §11.2) |
 | `data/combos/` | `combo@1` | Combinations: a named run of strikes a fighter has drilled, the 1-2, a jab into a low kick (D133, `docs/01` §31) |
 
 ## 3. Schemas
@@ -184,6 +185,22 @@ fighter@1 profile from it: the same background, seed and choices always make the
 | `hook` | string | The story hook (`docs/02` §1.2), on the screen and his card |
 | `money` | number | What he starts the career with |
 
+### vignette@1 (examples: `age8_flyer.json`, `age15_trip.json`)
+One childhood scene (D312, `docs/03` §11.2). Loaded by `Childhood` (`sim/world/childhood.gd`), which draws one scene per age
+for a career and turns the choices into his background and changes to his fighter.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `title`, `text` | strings | The scene's name and what's happening, as the card shows them |
+| `age` | 8, 12 or 15 | Which age's pool it's in (`Childhood.AGES`) |
+| `choices` | 3 objects | What he can do: each `{id, text, outcome, backgrounds, stats?, personality?, height?, person?, money?}` |
+
+A choice: `text` is the button, `outcome` the line after it. `backgrounds` is `{background id: weight}` (1–5; the scenes use 3):
+the most weight over his three choices is his background. `stats` nudges stats (−10 to 10 points), `personality` nudges axes
+(−30 to 30), `height` is −1, 0 or 1 (`HEIGHT_PER_LEAN` cm, reach with it), `money` adds dollars. `person` is `{role, about,
+family?, named?}`: someone who goes on his card; `family` gives them his surname, `named: false` leaves them called by the role
+alone. Every background must be reachable from every age's scenes (the validator checks).
+
 ### names@1 (examples: `england.json`, `brazil.json`)
 A country (D302, D57): `country` (its name), `cities` (the hometowns offered, in order), `first` and `last` (common names).
 Loaded by `NameLibrary` (`sim/world/name_library.gd`); a rolled person's name comes from his hometown's country.
@@ -254,9 +271,10 @@ each with a `.backup.json` of the save before it). Written by `CareerSaves` (`ga
 |---|---|
 | `schema`, `version` | `"career"` and the format's version (1). A newer version than the game knows is refused; older ones go through `Career.migrate()` |
 | `seed`, `dice` | The career's seed and where its dice are, as text (64-bit numbers don't survive a JSON number) |
-| `coach` | `{name, background?, specialty?}`: the head coach, the player. `background` is a `data/enums/coach_backgrounds` id and `specialty` one of `striking`, `wrestling`, `bjj`, `motivator`, `tactician` (D311, `docs/03` §10.6); a career saved before D311 has neither and loads with none |
+| `coach` | `{name, background?, specialty?}`: the head coach, the player. `background` is a `data/enums/coach_backgrounds` id and `specialty` one of `striking`, `wrestling`, `bjj`, `motivator`, `tactician` (D311, `docs/03` §11.1); a career saved before D311 has neither and loads with none |
 | `fighter` | The fighter@1 profile he started with (id `career_fighter`); what changes with training is in `trainee`. A career made on the new-career screen adds `background`, `age` and `potential` (D302) |
 | `about` | `nickname`, `hometown`, `country`, `background`: shown on screens, not used by fights |
+| `childhood` | His childhood scenes (D312, `docs/03` §11.2): `{picks: [{scene, choice}], second (the runner-up background), people: [{role, name, about, age}]}`. Optional: `{}` (or missing) when his background was picked from the list or the career predates D312 |
 | `trainee` | `TrainingCamp.snapshot()`: `stats` (with fractions), `style`, `fatigue`, `injured_days`, `injury_area`, `age_years`, `potential`, `camp_gains` (this camp's, for the soft cap) and `dice` |
 | `calendar` | `first_monday` (days since 1 Jan 1970 of week 0's Monday) and `week` (weeks since) |
 | `suspended_days`, `money`, `pro`, `week_plan`, `worn_last_week` | Days of medical suspension left; money; turned pro; the data/week_plans id run between fights; whether training wore him down last week, so *Advance* stops only on the first such week (D303; optional, false when missing) |
@@ -271,7 +289,8 @@ each with a `.backup.json` of the save before it). Written by `CareerSaves` (`ga
 Valid JSON with a known schema · id matches file name and folder · required fields present with the right types ·
 action timings are whole ticks · values come from the allowed lists · every reference (positions, actions, calls, triggers,
 flags, stats, sessions, gameplans) points to something that exists · a session's shares add up to 1 · a week plan has 6 days
-of 2 sessions · a background builds on a real fighter with real stats, gifts and flaws · a country has cities and names.
+of 2 sessions · a background builds on a real fighter with real stats, gifts and flaws · a country has cities and names · a childhood
+scene has three choices leaning toward real backgrounds, and every background can come out of every age.
 
 ## 5. Not yet defined (comes with the issue that needs it)
-Technique proficiency and the `techniques` link to `requires_technique` (D6), state/threshold trigger fields (#16), vignettes (the childhood scenes, phase 2), techniques and promotions (Alpha).
+Technique proficiency and the `techniques` link to `requires_technique` (D6), state/threshold trigger fields (#16), techniques and promotions (Alpha).

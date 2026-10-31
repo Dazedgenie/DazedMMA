@@ -1,0 +1,60 @@
+{
+	"schema": "vignette@1",
+	"id": "age15_trip",
+	"age": 15,
+	"title": "The trip",
+	"text": "There's money for one trip this year. A month at a real Muay Thai camp, his grandfather's old sambo club overseas, or the language school his parents keep mentioning.",
+	"choices": [
+		{
+			"id": "thai",
+			"text": "A month at the Muay Thai camp.",
+			"outcome": "Two sessions a day, a fight on the last night, and a win.",
+			"backgrounds": {
+				"muay_thai_abroad": 3
+			},
+			"stats": {
+				"clinch_striking": 3,
+				"kicking": 3
+			},
+			"personality": {
+				"discipline": 10
+			}
+		},
+		{
+			"id": "sambo",
+			"text": "His grandfather's old sambo club.",
+			"outcome": "The old men there break him down every day and he loves it. He learns leg locks nobody back home has seen.",
+			"backgrounds": {
+				"judo_sambo_household": 3
+			},
+			"stats": {
+				"submissions": 3,
+				"clinch_control": 3
+			},
+			"personality": {
+				"loyal": 10
+			},
+			"person": {
+				"role": "Grandfather",
+				"family": true,
+				"about": "Coached sambo for forty years and still shows up to the club every day."
+			}
+		},
+		{
+			"id": "language",
+			"text": "The language school.",
+			"outcome": "He learns some French and a lot about being bored. He comes home hungry to start something real.",
+			"backgrounds": {
+				"late_starter": 3
+			},
+			"stats": {
+				"fight_iq": 3,
+				"composure": 3
+			},
+			"personality": {
+				"coachable": 10
+			},
+			"money": 300
+		}
+	]
+}

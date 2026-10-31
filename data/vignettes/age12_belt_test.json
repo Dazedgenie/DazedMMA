@@ -1,0 +1,55 @@
+{
+	"schema": "vignette@1",
+	"id": "age12_belt_test",
+	"age": 12,
+	"title": "The test",
+	"text": "It's the weekend of his test. His karate grading is on Saturday, the judo club's regional competition is on Sunday, or he could skip them both and stay in his room, where nobody can see him.",
+	"choices": [
+		{
+			"id": "karate",
+			"text": "The karate grading.",
+			"outcome": "He gets his brown belt with a spinning kick the examiners still talk about.",
+			"backgrounds": {
+				"traditional_martial_arts": 3
+			},
+			"stats": {
+				"kicking": 4,
+				"footwork": 2
+			},
+			"personality": {
+				"discipline": 10
+			}
+		},
+		{
+			"id": "judo",
+			"text": "The judo competition.",
+			"outcome": "Bronze. Grandma says he should have won, and he agrees.",
+			"backgrounds": {
+				"judo_sambo_household": 3
+			},
+			"stats": {
+				"clinch_control": 3,
+				"takedowns": 3
+			},
+			"personality": {
+				"ego": 5
+			}
+		},
+		{
+			"id": "stay_in",
+			"text": "He stays in his room and watches old fights.",
+			"outcome": "He watches the same fights a hundred times, learning every move by heart, telling nobody.",
+			"backgrounds": {
+				"bullied_underdog": 3
+			},
+			"stats": {
+				"fight_iq": 4,
+				"composure": 2
+			},
+			"personality": {
+				"coachable": 10,
+				"ego": -10
+			}
+		}
+	]
+}

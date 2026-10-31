@@ -1,6 +1,6 @@
 class_name Coach
 extends RefCounted
-## The head coach: you (D15, D63, D71; docs/03 §10.6, D311). A name, a background (data/enums/coach_backgrounds: who
+## The head coach: you (D15, D63, D71; docs/03 §11.1, D311). A name, a background (data/enums/coach_backgrounds: who
 ## you were before him, for flavour) and a starting specialty that does something small but real:
 ##
 ##   Striking, Wrestling, BJJ  his Striking, Wrestling or Grappling stats learn × GROUP_XP from any session

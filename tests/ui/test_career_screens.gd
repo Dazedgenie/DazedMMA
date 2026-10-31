@@ -78,6 +78,7 @@ func test_a_new_career_needs_both_names_and_a_free_slot() -> void:
 
 func test_picking_a_background_shows_what_it_gives_him() -> void:
 	var screen: NewCareerScreen = add_child_autofree(NewCareerScreen.new())
+	screen.set_play_childhood(false)
 	screen.pick_background("boxing_gym_kid")
 	assert_eq(screen.background_id(), "boxing_gym_kid")
 	assert_string_contains(screen.text(), "Boxing gym kid")
@@ -196,3 +197,36 @@ func test_once_booked_the_hub_sends_him_to_camp() -> void:
 	hub.press_camp()
 	assert_signal_emitted(hub, "camp_pressed")
 	assert_false(hub.can_turn_pro())
+
+
+func test_his_childhood_is_three_scenes_and_then_who_he_became() -> void:
+	var screen: ChildhoodScreen = add_child_autofree(ChildhoodScreen.new())
+	screen.begin(9, { "name": "Danny Hill", "country_id": "england" })
+	assert_eq(screen.scene_ids().size(), 3)
+	assert_string_contains(screen.text(), "AGE 8 · 1 OF 3")
+	screen.press_next()
+	assert_string_contains(screen.text(), "AGE 8", "Next waits for a choice")
+	for i in 3:
+		screen.press_choice(i)
+		assert_eq(screen.picks.size(), i + 1)
+		screen.press_choice(0)
+		assert_eq(screen.picks.size(), i + 1, "one choice a scene")
+		screen.press_next()
+	assert_true(screen.on_summary())
+	assert_string_contains(screen.text(), "WHO HE BECAME")
+	assert_string_contains(screen.text(), "He starts with $")
+	watch_signals(screen)
+	screen.press_start()
+	assert_signal_emitted_with_parameters(screen, "finished", [screen.picks])
+
+
+func test_play_his_childhood_is_on_by_default_and_greys_out_the_list() -> void:
+	var screen: NewCareerScreen = add_child_autofree(NewCareerScreen.new())
+	screen.roll(4)
+	assert_true(screen.play_childhood())
+	assert_true(screen.choices().play_childhood)
+	assert_ne(screen.choices().country_id, "")
+	assert_string_contains(screen.text(), "His childhood decides")
+	screen.set_play_childhood(false)
+	assert_false(screen.choices().play_childhood)
+	assert_string_contains(screen.text(), "Strong:")
