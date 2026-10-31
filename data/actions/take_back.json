@@ -3,7 +3,7 @@
 	"id": "take_back",
 	"name": "Take the back",
 	"category": "ground",
-	"positions": ["side_control", "mount", "scramble"],
+	"positions": ["side_control", "mount", "scramble", "crucifix"],
 	"roles": ["top", "neutral"],
 	"ranges": ["clinch"],
 	"phases_ms": { "telegraph": 0, "windup": 200, "active": 300, "recovery": 300 },

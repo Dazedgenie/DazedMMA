@@ -232,6 +232,25 @@ const DIG_UNDERHOOK := "dig_underhook"
 const WRIST_HELD := "WRIST_HELD"
 const WRISTS_HELD := "WRISTS_HELD"
 const POSTURE_BROKEN := "POSTURE_BROKEN"
+## The rest of the ground (D264, docs/01 §40.12). In side control and mount the man underneath sets a
+## frame (FRAME: FRAMED, helping his escapes) and the man on top flattens it (FLATTEN). From side
+## control the man on top can trap the near arm and take the crucifix (TAKE_CRUCIFIX, a position of its
+## own): there the man underneath carries ARM_PINNED (no frame, only half a cover-up, his face open)
+## until he frees the arm (ESCAPE_CRUCIFIX, back to side control). On the back the man underneath holds
+## the choking arm with both hands (TWO_ON_ONE: the rear-naked choke harder) and the man behind strips
+## them (STRIP_HANDS). The grips are held until stripped or the position changes.
+const FRAME := "frame"
+const FLATTEN := "flatten"
+const TAKE_CRUCIFIX := "take_crucifix"
+const ESCAPE_CRUCIFIX := "escape_crucifix"
+const CRUCIFIX := "crucifix"
+const TWO_ON_ONE := "two_on_one"
+const STRIP_HANDS := "strip_hands"
+const FRAMED := "FRAMED"
+const ARM_PINNED := "ARM_PINNED"
+const TWO_ON_ONE_HELD := "TWO_ON_ONE"
+## In the crucifix his trapped arm can't help the cover-up: the share of head damage that gets through it is at least this (D264).
+const PINNED_COVER_SHARE: float = 0.75
 ## A locked submission is fought for in beats, one every STRUGGLE_BEAT_TICKS (D126). Each beat
 ## the attacker wins with Contest.chance(STRUGGLE_BASE, the hold's offense stats, its defense
 ## stats, ± the corners' struggle calls) and the danger moves STRUGGLE_STEP up, or down.
@@ -371,6 +390,9 @@ var _grips: Array[int] = [NO_GRIP, NO_GRIP]
 var _wrists: int = 0
 var _collar: bool = false
 var _half_inside: int = NO_GRIP
+## The rest of the ground (D264): the frame underneath, two hands on the choking arm.
+var _frame: bool = false
+var _two_on_one: bool = false
 ## What the current position does to each fighter every tick (its data, worked out
 ## when the position changes): stamina drained, judges' control points, strike damage ×.
 var _drain: Array[float] = [0.0, 0.0]
@@ -639,7 +661,7 @@ func set_grips(who: Array[int]) -> void:
 
 ## The grip flags fighter i carries in the clinch (D261): UNDERHOOK, BODY_LOCK, OVERHOOK.
 func _grip_flags(i: int, out: Array[String]) -> void:
-	if _wrists > 0 or _collar or _half_inside != NO_GRIP:
+	if _wrists > 0 or _collar or _half_inside != NO_GRIP or _frame or _two_on_one or situation.position == CRUCIFIX:
 		_ground_grip_flags(i, out)
 		return
 	if _grips[0] == NO_GRIP and _grips[1] == NO_GRIP or situation.position != PositionLibrary.CLINCH:
@@ -665,6 +687,13 @@ func _ground_grip_flags(i: int, out: Array[String]) -> void:
 			out.append(WRISTS_HELD)
 	if _half_inside == i:
 		out.append(UNDERHOOK)
+	if situation.role(i) == PositionLibrary.BOTTOM:
+		if _frame:
+			out.append(FRAMED)
+		if situation.position == CRUCIFIX:
+			out.append(ARM_PINNED)
+		if _two_on_one:
+			out.append(TWO_ON_ONE_HELD)
 
 
 ## True when fighter i is on top with his head tied or both wrists held (D263): no ground strikes.
@@ -672,16 +701,18 @@ func hands_tied(i: int) -> bool:
 	return (_collar or _wrists >= 2) and situation.role(i) == PositionLibrary.TOP
 
 
-## The ground grips as they stand (D263): { wrists, collar, half_inside }. Read-only.
+## The ground grips as they stand (D263, D264): { wrists, collar, half_inside, frame, two_on_one }. Read-only.
 func ground_grips() -> Dictionary:
-	return { "wrists": _wrists, "collar": _collar, "half_inside": _half_inside }
+	return { "wrists": _wrists, "collar": _collar, "half_inside": _half_inside, "frame": _frame, "two_on_one": _two_on_one }
 
 
-## Sets the ground grips (D263), for tests and set pieces.
-func set_ground_grips(wrists: int, collar: bool, half_inside: int = NO_GRIP) -> void:
+## Sets the ground grips (D263, D264), for tests and set pieces.
+func set_ground_grips(wrists: int, collar: bool, half_inside: int = NO_GRIP, frame: bool = false, two_on_one: bool = false) -> void:
 	_wrists = wrists
 	_collar = collar
 	_half_inside = half_inside
+	_frame = frame
+	_two_on_one = two_on_one
 
 
 ## Hands off: no grips (a new clinch, or out of it; any change of position on the ground).
@@ -690,6 +721,8 @@ func _clear_grips() -> void:
 	_wrists = 0
 	_collar = false
 	_half_inside = NO_GRIP
+	_frame = false
+	_two_on_one = false
 
 
 func run_to_end() -> void:
@@ -1238,6 +1271,8 @@ func apply_transition(i: int, action_id: String, result: String = PositionLibrar
 	if result == PositionLibrary.FAILED:
 		changed.failed = true
 	_emit(FightEvent.POSITION_CHANGED, i, changed)
+	if action_id == TAKE_CRUCIFIX and situation.position == CRUCIFIX:
+		fighters[i].crucifixes_won += 1
 	var gained: float = float(positions.get_position(t.to).control_score.get(PositionLibrary.TOP, 0.0)) - control_before
 	if roles[i] == PositionLibrary.TOP and was_top[i]:
 		if gained > 0.0:
@@ -1375,6 +1410,12 @@ func _start_action(i: int, id: String, decision: Decision = null) -> void:
 		f.postures_tried += 1
 	elif id == CROSSFACE or id == DIG_UNDERHOOK:
 		f.half_underhooks_tried += 1
+	elif id == FRAME:
+		f.frames_tried += 1
+	elif id == TAKE_CRUCIFIX:
+		f.crucifixes_tried += 1
+	elif id == TWO_ON_ONE:
+		f.two_on_ones_tried += 1
 	_start_combo(i, id, decision)
 	if action.category == "strike" or action.category == "takedown" or action.category == "submission" or (action.category == "clinch" and situation.is_standing()):
 		_round_aggression[i] += 1.0
@@ -1806,6 +1847,8 @@ func _land_strike(i: int, action: Dictionary) -> void:
 	var covered: bool = target == "head" and active_flags(1 - i).has(COVERED)
 	if covered:
 		var through: float = float(actions.get_action(defender.action_id).defense.head_share)  # Through the guard (D180).
+		if situation.position == CRUCIFIX and situation.role(1 - i) == PositionLibrary.BOTTOM:
+			through = maxf(through, PINNED_COVER_SHARE)  # Both arms trapped in the crucifix: barely a cover-up (D264).
 		scale *= maxf(through, float(action.strike.get("through_cover", 0.0)))  # A hammerfist gets round it (D270).
 	var dealt: int = maxi(1, roundi(strike_damage(attacker, action.id) * scale))
 	var was_rocked: bool = defender.is_rocked()
@@ -2113,11 +2156,20 @@ func _ground_grip_missing(i: int, kind: String) -> String:
 			return "nothing to strip" if not _collar and _wrists == 0 else ""
 		"half_inside":
 			return "has the underhook" if _half_inside == i else ""
+		"frame":
+			return "already framed" if _frame else ""
+		"flatten":
+			return "no frame" if not _frame else ""
+		"two_on_one":
+			return "has the arm already" if _two_on_one else ""
+		"strip_hands":
+			return "no hands on the arm" if not _two_on_one else ""
 	return ""
 
 
 ## The reasons a ground grip move is refused (GRAPPLE_STOPPED), as _ground_grip_missing gives them.
-const GRIP_STOPS: Array[String] = ["already tied up", "both wrists held", "nothing to strip", "has the underhook"]
+const GRIP_STOPS: Array[String] = ["already tied up", "both wrists held", "nothing to strip", "has the underhook",
+	"already framed", "no frame", "has the arm already", "no hands on the arm"]
 
 
 ## A ground grip move works (D263): the collar tie or a wrist taken from underneath, the head and
@@ -2146,10 +2198,20 @@ func _take_ground_grip(i: int, action: Dictionary, b: OddsBreakdown) -> void:
 		"half_inside":
 			_half_inside = i
 			f.half_underhooks_won += 1
+		"frame":
+			_frame = true
+			f.frames_won += 1
+		"flatten":
+			_frame = false
+		"two_on_one":
+			_two_on_one = true
+			f.two_on_ones_won += 1
+		"strip_hands":
+			_two_on_one = false
 	if hands_tied(1 - i) and not o.is_free() and actions.get_action(o.action_id).category == "strike":
 		o.clear_action()
-	if hands_tied(1 - i):
-		f.unanswered = 0  # Tied up so he can't punch is answering him (D121); one wrist or an underhook isn't.
+	if hands_tied(1 - i) or kind == "frame" or kind == "two_on_one":
+		f.unanswered = 0  # Tied up so he can't punch is answering him (D121), and so is a frame or two hands on the choking arm (D264); one wrist or an underhook isn't.
 	_emit(FightEvent.GRAPPLE_WON, i, { "action_id": action.id, "result": result, "wrists": _wrists, "collar": _collar,
 		"chance": b.chance, "odds": b.to_dict() })
 

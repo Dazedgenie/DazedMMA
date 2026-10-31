@@ -101,7 +101,7 @@ const SMOOTH_MOVES: Array[String] = ["pummel", "strip_grip", "collar_tie", "fenc
 	"ground_cover", "turn_away", "guillotine", "triangle", "armbar", "rear_naked_choke", "arm_triangle", "ankle_lock",
 	"kneebar", "heel_hook", "bridge", "escape_back", "recover_guard", "sweep", "guard_pass", "take_mount", "take_back",
 	"scramble", "follow_down", "foot_sweep", "hip_throw", "outside_trip", "guard_pull", "wrist_control", "dig_underhook",
-	"posture_up", "crossface"]
+	"posture_up", "crossface", "frame", "flatten", "take_crucifix", "escape_crucifix", "two_on_one", "strip_hands"]
 ## How tall he kneels when he postures up out of the guard for the bomb (D282): hip height, metres.
 const POSTURE_HIP: float = 0.68
 ## How quickly a gripping hand follows a grip changing (per second).
@@ -306,6 +306,12 @@ func pose_for(sim: FightSim, i: int, fractional_tick: float = 0.0) -> Dictionary
 					p.leg_rear = 0.15
 					p.arm_lead = 1.3
 					p.arm_rear = 1.3
+				"crucifix":  # Flat on his back, both arms stretched out and trapped, legs kicking (D264).
+					p.leg_lead = 0.5
+					p.leg_rear = 0.3
+					p.arm_lead = 2.9
+					p.arm_rear = 2.9
+					p.spread = 0.3
 				"back_control":  # Sat up with him behind (D130), legs out in front.
 					p.lie = 0.25
 					p.hip_y = 0.3
@@ -349,6 +355,14 @@ func pose_for(sim: FightSim, i: int, fractional_tick: float = 0.0) -> Dictionary
 				p.leg_lead = 0.6
 				p.leg_rear = 0.6
 				p.spread = 0.25
+			"crucifix":  # Chest across his chest from the head side, his near arm between the knees, one hand free (D264).
+				p.hip_y = 0.42
+				p.lean = -1.25
+				p.leg_lead = 1.2
+				p.leg_rear = 0.5
+				p.spread = 0.2
+				p.arm_lead = 1.5
+				p.arm_rear = 0.9
 			"back_control":  # Sat behind him, legs round his waist, arms round his neck.
 				p.hip_y = 0.32
 				p.lean = 0.15
@@ -649,6 +663,33 @@ func pose_for(sim: FightSim, i: int, fractional_tick: float = 0.0) -> Dictionary
 			_ease(p, "hip_y", POSTURE_HIP, reach)
 			_ease(p, "arm_lead", 0.6, reach)
 			_ease(p, "arm_rear", 0.6, reach)
+		"frame":  # A forearm into his neck, the other hand on his hip, making space (D264).
+			_ease(p, "arm_lead", 2.0, reach)
+			_ease(p, "reach_lead", 0.7, reach)
+			_ease(p, "arm_rear", 1.4, reach)
+			p.roll = 0.3 * lead * reach
+		"flatten":  # Chest heavy on him, driving the framing arm down (D264).
+			_ease(p, "lean", -1.0, reach)
+			_ease(p, "hip_y", p.hip_y - 0.08, reach)
+			_ease(p, "arm_rear", 1.2, reach)
+		"take_crucifix":  # Reaching down to trap the near arm between his knees, swinging round to his head (D264).
+			_ease(p, "lean", -0.8, reach)
+			_ease(p, "arm_lead", 0.9, reach)
+			_ease(p, "leg_lead", 1.3, reach)
+			p.twist = lerpf(0.0, 0.4, reach)
+		"escape_crucifix":  # Turning in towards him, dragging the trapped arm out from under his legs (D264).
+			p.roll = 0.5 * lead * reach
+			_ease(p, "arm_rear", 2.4, reach)
+			_ease(p, "leg_lead", 0.9, reach)
+		"two_on_one":  # Both hands up on the arm across his throat (D264).
+			_ease(p, "arm_lead", 2.8, reach)
+			_ease(p, "arm_rear", 2.8, reach)
+			_ease(p, "reach_lead", 0.6, reach)
+			_ease(p, "reach_rear", 0.6, reach)
+		"strip_hands":  # The free hand peels his grip off the choking arm (D264).
+			_ease(p, "arm_rear", 2.2, reach)
+			_ease(p, "reach_rear", 1.2, reach)
+			p.twist = lerpf(0.0, 0.3, reach)
 		"crossface":  # The forearm drives across his face, the shoulder down on him (D263).
 			_ease(p, "lean", -0.85, reach)
 			_ease(p, "arm_lead", 1.4, reach)

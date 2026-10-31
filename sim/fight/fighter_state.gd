@@ -160,6 +160,13 @@ var postures_tried: int = 0
 var postures_won: int = 0
 var half_underhooks_tried: int = 0
 var half_underhooks_won: int = 0
+## The rest of the ground (D264): frames set, crucifixes taken (tried and won), two hands on the choking arm.
+var frames_tried: int = 0
+var frames_won: int = 0
+var crucifixes_tried: int = 0
+var crucifixes_won: int = 0
+var two_on_ones_tried: int = 0
+var two_on_ones_won: int = 0
 ## Feints thrown and how many the opponent bit on; takedowns shot blind (nothing set them
 ## up) and how many of those still worked (D131).
 var feints_tried: int = 0
