@@ -1,0 +1,21 @@
+{
+	"schema": "action@2",
+	"id": "posture_bomb",
+	"name": "Posture-up bomb",
+	"category": "strike",
+	"basic": true,
+	"positions": ["full_guard", "half_guard"],
+	"roles": ["top"],
+	"ranges": ["clinch"],
+	"phases_ms": { "telegraph": 300, "windup": 400, "active": 100, "recovery": 500 },
+	"stamina_cost": 7,
+	"flags_self": [
+		{ "flag": "POSTURED_UP", "from": "telegraph", "to": "recovery" }
+	],
+	"strike": { "target": "head", "base_damage": 8 },
+	"stats": { "offense": ["top_control", "power"], "defense": ["guard"] },
+	"opportunities": [
+		{ "opponent_flag": "HANDS_LOW", "success_bonus": 0.10 }
+	],
+	"requires_technique": null
+}

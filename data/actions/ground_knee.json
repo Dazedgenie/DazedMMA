@@ -11,7 +11,7 @@
 	"flags_self": [
 		{ "flag": "POSTURED_UP", "from": "windup", "to": "recovery" }
 	],
-	"strike": { "target": "head", "base_damage": 9 },
+	"strike": { "target": "head", "base_damage": 9, "hands_down_ms": 1000 },
 	"stats": { "offense": ["top_control", "power"], "defense": ["guard"] },
 	"opportunities": [],
 	"requires_technique": null

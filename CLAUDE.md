@@ -28,6 +28,7 @@
 - How live coaching calls work (voice, delay, compliance, attempts/focus/reads) and where their numbers live: `docs/01-fight-engine.md` §22 (D111, D112).
 - Coaching bots and the AI corner (who calls what, the harness's `--corners`/`--coach`, the D12 coaching checks), what a call costs, and strikers' answers to grappling: `docs/01-fight-engine.md` §22.5–22.9 and §21.8 (D113–D115).
 - Health, the referee's stoppages and ground and pound (the health bar, what stops a fight, ground punches, elbows and tie-ups, the "Ground and pound!" call, the numbers to tune finishes): `docs/01-fight-engine.md` §24 (D120, D121).
+- More ground and pound (the hammerfist, body punch and posture-up bomb, covering up underneath and what it opens, turning away from mount to give up the back, the GnP harness line, the numbers to tune them): `docs/01-fight-engine.md` §41 (D270).
 - Submissions (the guillotine, triangle and armbar, how a hold locks in, the struggle's danger meter, Finish it! / Defend the sub!, the AI's openings, the numbers to tune them): `docs/01-fight-engine.md` §25 (D126).
 - Throws and the guard game (the outside trip, hip throw and foot sweep, why a sprawl can't stop them, the guard pull and the sweep, the Judoka and BJJ test fighters, the numbers to tune them): `docs/01-fight-engine.md` §26 (D128).
 - Clinch knees and the collar tie (the plum: how long it holds, knees to the head from it, getting out, the *Collar tie!* call on key 5, the Muay Thai test fighter, the numbers to tune them): `docs/01-fight-engine.md` §27 (D129).
