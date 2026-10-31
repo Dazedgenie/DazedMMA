@@ -40,6 +40,10 @@ const HEALED := "healed"
 const CLEARED := "cleared"
 const BIRTHDAY := "birthday"
 const FIGHT_NIGHT := "fight_night"
+## Training wore him down this week: his fatigue went past TrainingCamp.FATIGUE_FREE, where he starts learning less
+## (docs/02 §3.5). Sunday's rest brings him back by Monday, so it's the week's peak that counts. Counted the first
+## week it happens, not every week after on the same hard plan, so Advance stops once (Kyle, 2026-10-31).
+const WORN_DOWN := "worn_down"
 ## How many weeks a year has for a birthday: TrainingCamp ages him 1/52 of a year a week (docs/02 §3.8).
 const WEEKS_PER_YEAR: float = 52.0
 
@@ -58,6 +62,8 @@ var trainee: TrainingCamp
 ## The day (days since 1 Jan 1970) of the Monday that starts week 0, and the week it is now.
 var first_monday: int = 0
 var week: int = 0
+## Whether training wore him down last week (WORN_DOWN): a week like it after this one isn't news.
+var worn_last_week: bool = false
 ## Days until a medical suspension lets him fight again (0 = none).
 var suspended_days: int = 0
 var money: int = 0
@@ -137,12 +143,16 @@ func run_week(plan: Variant = null, played: Dictionary = {}) -> Dictionary:
 	end_week()
 	report.week = week - 1
 	report.events = _events_since(before)
+	var worn: bool = float(report.get("fatigue_peak", 0.0)) >= TrainingCamp.FATIGUE_FREE
+	if worn and not worn_last_week:
+		report.events.append({ "kind": WORN_DOWN })
+	worn_last_week = worn
 	return report
 
 
 ## Weeks on the career's week plan until something happens (docs/03 §10.3, D303): he's hurt, he's healed, his
-## suspension ends, a birthday, an offer comes in (D304), or ADVANCE_MAX_WEEKS go by. Nothing runs while he's booked
-## for a fight: the camp runs that (D304). Returns each week's report, oldest first.
+## suspension ends, training wears him down, a birthday, an offer comes in (D304), or ADVANCE_MAX_WEEKS go by.
+## Nothing runs while he's booked for a fight: the camp runs that (D304). Returns each week's report, oldest first.
 func advance(max_weeks: int = ADVANCE_MAX_WEEKS) -> Array[Dictionary]:
 	var reports: Array[Dictionary] = []
 	if not booked.is_empty():
@@ -206,6 +216,8 @@ static func event_text(event: Dictionary) -> String:
 			return "Healed"
 		CLEARED:
 			return "Cleared to fight"
+		WORN_DOWN:
+			return "Worn down from training"
 		BIRTHDAY:
 			return "Turns %d" % int(event.get("age", 0))
 		FIGHT_NIGHT:
@@ -299,6 +311,7 @@ func to_dict() -> Dictionary:
 		"trainee": trainee.snapshot(),
 		"calendar": { "first_monday": first_monday, "week": week },
 		"suspended_days": suspended_days, "money": money, "pro": pro, "week_plan": week_plan,
+		"worn_last_week": worn_last_week,
 		"fights": fights.duplicate(true), "opponents": opponents.duplicate(true),
 		"booked": booked.duplicate(true), "offers": offers.duplicate(true),
 		"summary": summary(),
@@ -330,6 +343,7 @@ static func from_dict(data: Dictionary, library: TrainingLibrary = null) -> Care
 	c.money = int(d.get("money", 0))
 	c.pro = bool(d.get("pro", false))
 	c.week_plan = String(d.get("week_plan", BETWEEN_PLAN))
+	c.worn_last_week = bool(d.get("worn_last_week", false))
 	c.fights = d.get("fights", []).duplicate(true)
 	c.opponents = d.get("opponents", {}).duplicate(true)
 	c.booked = d.get("booked", {}).duplicate(true)

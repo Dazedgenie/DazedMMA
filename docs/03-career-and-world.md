@@ -346,8 +346,13 @@ this week or Advance).
   otherwise free to fight), his week plan between fights (a picker of every week plan; *Between fights* to start,
   `docs/02` §3.8), his savings, and:
   - **Run this week**: one week on his plan, then an autosave.
-  - **Advance until something happens**: weeks on his plan until he's hurt in training, healed, cleared to fight, has a
-    birthday or an offer comes in, at most 8 weeks (`Career.ADVANCE_MAX_WEEKS`), then an autosave. While he's booked for
+  - **Advance until something happens**: weeks on his plan until he's hurt in training, healed, cleared to fight, worn
+    down from training, has a birthday or an offer comes in, at most 8 weeks (`Career.ADVANCE_MAX_WEEKS`), then an
+    autosave. *Worn down* (Kyle, 2026-10-31) means his fatigue went past 40 during the week (`TrainingCamp.FATIGUE_FREE`,
+    where he starts learning less, `02` §3.5); Sunday's rest has him fresh again by Monday, so it's the week's peak that
+    counts. It stops the first week a plan wears him down, not every week after on the same plan, so a player who means
+    to train hard can press Advance again and it keeps going. To stop every worn week instead, drop the
+    `worn_last_week` check in `Career.run_week()`. While he's booked for
     a fight neither button runs: the camp runs those weeks (D304).
   - Under them, what the last run did: the biggest gains over the weeks and anything that happened, with its week.
 - **His fights:** newest first, the result (W, L, D, NC), who, how and in which round, the date (the Saturday of the

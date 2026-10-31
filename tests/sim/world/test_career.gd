@@ -209,6 +209,21 @@ func test_advance_runs_until_something_happens() -> void:
 	assert_true(c.advance().is_empty(), "booked for a fight, the camp runs the weeks")
 
 
+func test_advance_stops_the_first_week_training_wears_him_down() -> void:
+	var c: Career = _career()
+	var kinds := func(report: Dictionary) -> Array: return report.events.map(func(e: Dictionary) -> String: return e.kind)
+	var hard: Dictionary = c.run_week("all_out")
+	assert_gt(float(hard.fatigue_peak), TrainingCamp.FATIGUE_FREE, "a week all out takes him past the line")
+	assert_true(Career.WORN_DOWN in kinds.call(hard), "the first hard week is news")
+	assert_eq(Career.event_text({ "kind": Career.WORN_DOWN }), "Worn down from training")
+	assert_false(Career.WORN_DOWN in kinds.call(c.run_week("all_out")), "the same again the next week isn't")
+	var loaded: Career = Career.from_dict(JSON.parse_string(JSON.stringify(c.to_dict())))
+	assert_true(loaded.worn_last_week, "a save remembers it")
+	assert_false(Career.WORN_DOWN in kinds.call(c.run_week("time_off")))
+	assert_false(c.worn_last_week)
+	assert_true(Career.WORN_DOWN in kinds.call(c.run_week("all_out")), "after an easy week it's news again")
+
+
 func test_the_calendar_shows_what_is_coming() -> void:
 	var c: Career = _career()
 	c.trainee.injured_days = 10
