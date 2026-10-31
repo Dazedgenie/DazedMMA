@@ -24,6 +24,12 @@ side on to the camera, at 24 frames a fight second (D282, `docs/13`). `--only=` 
 
     godot --script res://tools/grapple_preview.gd -- --out=res://build/grapples --only=pummel,armbar
 
+`rig_preview.gd` shows the rig prototype (D283, `docs/13`): two code skeletons posed against each other in the clinch,
+the double leg, the full guard, the sprawl and getting up, blended from one to the next, with today's figures first for
+the clinch and the guard. `--stills` writes one picture per pose; `--angle=` turns the camera:
+
+    godot --script res://tools/rig_preview.gd -- --out=res://build/rig --stills
+
 Headless runners and utilities. `run_sim.gd` runs one placeholder fight (a kicker against a boxer) with no scene tree
 and prints a summary; `--fights=N` runs N seeds and counts how they ended:
 
