@@ -1,0 +1,51 @@
+{
+	"schema": "names@1",
+	"id": "russia",
+	"country": "Russia",
+	"cities": [
+		"Makhachkala",
+		"Khasavyurt",
+		"Grozny",
+		"Moscow",
+		"Kazan",
+		"Omsk",
+		"Krasnodar",
+		"Yekaterinburg"
+	],
+	"first": [
+		"Islam",
+		"Magomed",
+		"Khabib",
+		"Ruslan",
+		"Shamil",
+		"Zaur",
+		"Dmitry",
+		"Alexei",
+		"Ivan",
+		"Sergei",
+		"Artem",
+		"Timur",
+		"Rustam",
+		"Nikita",
+		"Maxim",
+		"Arsen"
+	],
+	"last": [
+		"Magomedov",
+		"Abdulaev",
+		"Gadzhiev",
+		"Aliev",
+		"Ibragimov",
+		"Kuznetsov",
+		"Volkov",
+		"Petrov",
+		"Sokolov",
+		"Orlov",
+		"Nurmagomedov",
+		"Khamzatov",
+		"Saidov",
+		"Morozov",
+		"Lebedev",
+		"Zakharov"
+	]
+}

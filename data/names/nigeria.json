@@ -1,0 +1,51 @@
+{
+	"schema": "names@1",
+	"id": "nigeria",
+	"country": "Nigeria",
+	"cities": [
+		"Lagos",
+		"Abuja",
+		"Ibadan",
+		"Port Harcourt",
+		"Benin City",
+		"Enugu",
+		"Kano",
+		"Calabar"
+	],
+	"first": [
+		"Chinedu",
+		"Emeka",
+		"Tunde",
+		"Segun",
+		"Obinna",
+		"Kelechi",
+		"Femi",
+		"Ifeanyi",
+		"Chukwuma",
+		"Ayodele",
+		"Uche",
+		"Babatunde",
+		"Olumide",
+		"Nnamdi",
+		"Kayode",
+		"Ikenna"
+	],
+	"last": [
+		"Okafor",
+		"Adeyemi",
+		"Okonkwo",
+		"Balogun",
+		"Eze",
+		"Adebayo",
+		"Nwosu",
+		"Okeke",
+		"Olawale",
+		"Chukwu",
+		"Afolabi",
+		"Obi",
+		"Ogunleye",
+		"Nwachukwu",
+		"Bello",
+		"Usman"
+	]
+}

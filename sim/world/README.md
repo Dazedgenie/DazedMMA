@@ -9,7 +9,9 @@ Ageing and the prime (`ageing.gd`, `docs/02` §3.8, D136): each week a camp runs
 with `tools/career_curve.gd`. The mitt work minigame's round and judging (`mitt_work.gd`, `docs/02` §3.9, D137).
 
 The career (`career.gd`; `docs/03` §10, D300, D301): one fighter's career, its calendar, record and money, and a save that
-brings it back exactly (the files themselves are written by `game/career_saves.gd`).
+brings it back exactly (the files themselves are written by `game/career_saves.gd`). A new career's 16-year-old is made
+from one of the 12 backgrounds in `data/backgrounds/` (`background_library.gd`), named from a hometown's country in
+`data/names/` (`name_library.gd`; `docs/03` §10.2, D302).
 
 Opponent style sheets (`style_library.gd`; `docs/03` §7.1, D160): `StyleLibrary.generate()` makes a varied opponent of a
 style from its sheet in `data/styles/`. Try it with `tools/style_sheets.gd`.

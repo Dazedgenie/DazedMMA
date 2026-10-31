@@ -1,0 +1,51 @@
+{
+	"schema": "names@1",
+	"id": "australia",
+	"country": "Australia",
+	"cities": [
+		"Sydney",
+		"Melbourne",
+		"Brisbane",
+		"Perth",
+		"Adelaide",
+		"Gold Coast",
+		"Newcastle",
+		"Hobart"
+	],
+	"first": [
+		"Jack",
+		"Mitchell",
+		"Brodie",
+		"Lachlan",
+		"Hayden",
+		"Riley",
+		"Cooper",
+		"Nathan",
+		"Zac",
+		"Jayden",
+		"Blake",
+		"Kane",
+		"Tyson",
+		"Corey",
+		"Dean",
+		"Bailey"
+	],
+	"last": [
+		"Murray",
+		"Thompson",
+		"Robinson",
+		"Kelly",
+		"Campbell",
+		"Stewart",
+		"Anderson",
+		"Mitchell",
+		"Ryan",
+		"Clarke",
+		"Fraser",
+		"Watson",
+		"Henderson",
+		"Douglas",
+		"Morgan",
+		"Hunter"
+	]
+}

@@ -1,0 +1,51 @@
+{
+	"schema": "names@1",
+	"id": "mexico",
+	"country": "Mexico",
+	"cities": [
+		"Guadalajara",
+		"Tijuana",
+		"Monterrey",
+		"Mexico City",
+		"Puebla",
+		"Hermosillo",
+		"Mérida",
+		"León"
+	],
+	"first": [
+		"José",
+		"Alejandro",
+		"Miguel",
+		"Carlos",
+		"Juan",
+		"Ricardo",
+		"Fernando",
+		"Eduardo",
+		"Javier",
+		"Raúl",
+		"Sergio",
+		"Iván",
+		"Óscar",
+		"Manuel",
+		"Héctor",
+		"Daniel"
+	],
+	"last": [
+		"Hernández",
+		"García",
+		"Martínez",
+		"López",
+		"González",
+		"Rodríguez",
+		"Pérez",
+		"Sánchez",
+		"Ramírez",
+		"Flores",
+		"Torres",
+		"Rivera",
+		"Morales",
+		"Vargas",
+		"Castillo",
+		"Ortiz"
+	]
+}

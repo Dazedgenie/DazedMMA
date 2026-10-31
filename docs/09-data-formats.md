@@ -20,7 +20,7 @@ Rules:
 
 | Folder | Schema | What it is |
 |---|---|---|
-| `data/enums/` | `enum@1` | Fixed vocabularies: `flags` (state flags, `docs/01` §5), `stats` (attributes, `docs/02` §2), `gifts` and `flaws` (`docs/11` §4.3) |
+| `data/enums/` | `enum@1` | Fixed vocabularies: `flags` (state flags, `docs/01` §5), `stats` (attributes, `docs/02` §2), `gifts` and `flaws` (`docs/11` §4.3), `nicknames` (what *Roll* picks from on the new-career screen, D302) |
 | `data/actions/` | `action@2` | Everything a fighter can do: strikes, takedowns, defenses, ground moves |
 | `data/positions/` | `position@2` | Standing, clinch and ground positions (`docs/01` §4) |
 | `data/calls/` | `call@2` | Coach calls: now/read, intent/technique (`docs/01` §6, §22) |
@@ -33,6 +33,8 @@ Rules:
 | `data/sessions/` | `session@1` | Training sessions: drills, sparring, conditioning, rest (`docs/02` §3.5, D125) |
 | `data/week_plans/` | `week_plan@1` | Week plans: a session in each of the 12 slots of a training week (`docs/02` §3.5) |
 | `data/styles/` | `style@1` | Opponent style sheets: the recipe the world makes opponents of one style from, and the style's scouting card (D160, `docs/03` §7.1) |
+| `data/backgrounds/` | `background@1` | Where a career's fighter comes from: the 12 backgrounds of `docs/02` §1.2 and the 16-year-old each makes (D302, `docs/03` §10.2) |
+| `data/names/` | `names@1` | One country each: its cities (hometowns) and common first and last names, for new careers and generated fighters (D302, D57) |
 | `data/combos/` | `combo@1` | Combinations: a named run of strikes a fighter has drilled, the 1-2, a jab into a low kick (D133, `docs/01` §31) |
 
 ## 3. Schemas
@@ -165,6 +167,27 @@ What `generate` keeps from the signature fighter: moves, combinations, tells, gi
 (−30 to +30) is added to every one of the 23 stats, so it changes how good they are, not how they fight. A generated profile
 carries two extra fields, `style_id` and `level`. Add it to the fight's `FighterLibrary` (`add()`) before the fight, so a replay finds it.
 
+### background@1 (examples: `wrestling_family.json`, `street_kid.json`)
+Where a new career's fighter comes from (D302, `docs/03` §10.2, `docs/02` §1.2). Loaded by `BackgroundLibrary`
+(`sim/world/background_library.gd`), whose `make_fighter(background, seed, roster, choices)` makes a 16-year-old's complete
+fighter@1 profile from it: the same background, seed and choices always make the same fighter.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `name`, `about` | strings | The background's name and a line on his childhood, as the new-career screen shows them |
+| `fighter` | fighter id | Whose moves, combinations, habits and tells he grows up with (no `template`). His stats aren't used |
+| `strengths`, `weaknesses` | stat ids | Start `STRENGTH_BONUS` higher or `WEAKNESS_PENALTY` lower than the rest (a stat is in one list at most) |
+| `style` | `{pace, range, base, risk}` | Where his style leanings start (−100 to 100), ± 10 at random |
+| `frame` | `{height_cm: [low, high], build}` | His height range (reach follows, −2 to +6 cm) and build (`lean`, `average`, `stocky`) |
+| `personality` | `{ego?, discipline?, coachable?, loyal?}` | The background's lean on each axis (missing = 0), ± 30 at random |
+| `gift_weights`, `flaw_weights` | `{gift or flaw id: weight}` | How much likelier each is than the others (weight 1 when not named) |
+| `hook` | string | The story hook (`docs/02` §1.2), on the screen and his card |
+| `money` | number | What he starts the career with |
+
+### names@1 (examples: `england.json`, `brazil.json`)
+A country (D302, D57): `country` (its name), `cities` (the hometowns offered, in order), `first` and `last` (common names).
+Loaded by `NameLibrary` (`sim/world/name_library.gd`); a rolled person's name comes from his hometown's country.
+
 ### playtest@1 (examples: `fight_1_first_calls.json`, `fight_2_catch_the_kick.json`)
 One fight of the playtest (D118), picked from the setup screen's **Playtest** list. Loaded by `Playtest` (`game/playtest.gd`).
 
@@ -232,7 +255,7 @@ each with a `.backup.json` of the save before it). Written by `CareerSaves` (`ga
 | `schema`, `version` | `"career"` and the format's version (1). A newer version than the game knows is refused; older ones go through `Career.migrate()` |
 | `seed`, `dice` | The career's seed and where its dice are, as text (64-bit numbers don't survive a JSON number) |
 | `coach` | `{name}`: the head coach, the player |
-| `fighter` | The fighter@1 profile he started with (id `career_fighter`); what changes with training is in `trainee` |
+| `fighter` | The fighter@1 profile he started with (id `career_fighter`); what changes with training is in `trainee`. A career made on the new-career screen adds `background`, `age` and `potential` (D302) |
 | `about` | `nickname`, `hometown`, `country`, `background`: shown on screens, not used by fights |
 | `trainee` | `TrainingCamp.snapshot()`: `stats` (with fractions), `style`, `fatigue`, `injured_days`, `injury_area`, `age_years`, `potential`, `camp_gains` (this camp's, for the soft cap) and `dice` |
 | `calendar` | `first_monday` (days since 1 Jan 1970 of week 0's Monday) and `week` (weeks since) |
@@ -240,14 +263,14 @@ each with a `.backup.json` of the save before it). Written by `CareerSaves` (`ga
 | `fights` | One entry per fight, oldest first: `result` (`win`, `loss`, `draw`, `no_contest`), `opponent` (an id in `opponents`), `week`, `pro`, and what the fight screen adds (`method`, `round`, `time`, `ruleset`, `purse`) |
 | `opponents` | `{id: fighter@1 profile}` for everyone he's fought or is booked to fight |
 | `booked`, `offers` | The next fight and the offers on the table (D304) |
-| `summary` | What the load screen shows without loading the career: `name`, `nickname`, `coach`, `age`, `date`, `week`, `pro`, `amateur_record`, `pro_record` |
+| `summary` | What the load screen shows without loading the career: `name`, `nickname`, `coach`, `hometown`, `country`, `background`, `age`, `date`, `week`, `pro`, `amateur_record`, `pro_record` |
 | `saved_at`, `saved_unix`, `game` | Added by `CareerSaves`: when (UTC, and Unix seconds for *Continue*), and the game name and Godot version |
 
 ## 4. What the validator checks
 Valid JSON with a known schema · id matches file name and folder · required fields present with the right types ·
 action timings are whole ticks · values come from the allowed lists · every reference (positions, actions, calls, triggers,
 flags, stats, sessions, gameplans) points to something that exists · a session's shares add up to 1 · a week plan has 6 days
-of 2 sessions.
+of 2 sessions · a background builds on a real fighter with real stats, gifts and flaws · a country has cities and names.
 
 ## 5. Not yet defined (comes with the issue that needs it)
-Technique proficiency and the `techniques` link to `requires_technique` (D6), state/threshold trigger fields (#16), backgrounds/vignettes, techniques, promotions and names (Alpha).
+Technique proficiency and the `techniques` link to `requires_technique` (D6), state/threshold trigger fields (#16), vignettes (the childhood scenes, phase 2), techniques and promotions (Alpha).

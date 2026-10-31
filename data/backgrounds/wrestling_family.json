@@ -1,0 +1,42 @@
+{
+	"schema": "background@1",
+	"id": "wrestling_family",
+	"name": "Wrestling family",
+	"fighter": "wrestler",
+	"about": "Raised on the mats; his dad still coaches the high school team.",
+	"strengths": [
+		"takedowns",
+		"cardio",
+		"top_control",
+		"takedown_defense"
+	],
+	"weaknesses": [
+		"boxing",
+		"kicking",
+		"striking_defense"
+	],
+	"style": {
+		"pace": 20,
+		"range": 30,
+		"base": 50,
+		"risk": 0
+	},
+	"frame": {
+		"height_cm": [
+			168,
+			184
+		],
+		"build": "stocky"
+	},
+	"personality": {
+		"discipline": 25
+	},
+	"gift_weights": {
+		"freak_athlete": 2
+	},
+	"flaw_weights": {
+		"hard_cut": 2
+	},
+	"hook": "A parent's expectations follow him into every fight.",
+	"money": 300
+}
