@@ -13,7 +13,8 @@ extends RefCounted
 ## combinations thrown, the strikes after the first in them and how many landed, D133;
 ## ground strikes landed, the hammerfists, body punches and posture-up bombs among them and how many
 ## hit the gloves of a man covering up, his cover-ups and turns away from mount, D270),
-## each corner's coaching bot and how many calls it made (Corner, D12, D68), and each
+## each corner's coaching bot and how many calls it made (Corner, D12, D68) and what each call
+## did (CallOutcomes, D257), and each
 ## fighter's drilled rules and how often they fired (DrilledRules, #17), and which
 ## layer chose each fighter's moves: their own AI, a call, a drilled rule or a
 ## command (D250, docs/01 §2.4).
@@ -50,7 +51,7 @@ const COLUMNS: Array[String] = [
 	"checks_blue", "checked_blue", "slips_blue", "slipped_blue", "covered_hits_blue",
 	"gnp_landed_red", "gnp_hammer_red", "gnp_body_red", "gnp_bomb_red", "gnp_covered_red", "ground_covers_red", "turned_away_red",
 	"gnp_landed_blue", "gnp_hammer_blue", "gnp_body_blue", "gnp_bomb_blue", "gnp_covered_blue", "ground_covers_blue", "turned_away_blue",
-	"calls_red", "calls_blue", "fired_red", "fired_blue",
+	"calls_red", "calls_blue", "fired_red", "fired_blue", "call_outcomes_red", "call_outcomes_blue",
 	"chosen_ai_red", "chosen_call_red", "chosen_rule_red", "chosen_command_red",
 	"chosen_ai_blue", "chosen_call_blue", "chosen_rule_blue", "chosen_command_blue",
 	"ai_defence_red", "ai_counter_red", "ai_combination_red", "ai_set_up_red", "ai_lead_red", "ai_cage_red", "ai_tied_red", "ai_downed_red",
@@ -257,6 +258,8 @@ static func of(sim: FightSim, lows: Array[float] = [], moves: Dictionary = {}) -
 			row["chosen_%s_%s" % [layer, side]] = 0
 		for part: String in FighterAI.PARTS:
 			row["ai_%s_%s" % [part, side]] = f.ai_parts.get(part, 0)  # Which part of his own AI chose them (D254).
+		# What each call did, heard/taken/judged/won (D257): only when a corner called.
+		row["call_outcomes_" + side] = CallOutcomes.as_text(CallOutcomes.of(sim.events, i, sim.actions)) if sim.corners[i] != null else ""
 		row["top_" + side] = _share_of(moves.get("top", [0, 0])[i], ticks)
 		row["circling_" + side] = _seconds(sim.circling_ticks[i])
 		row["cutting_" + side] = _seconds(sim.cutting_ticks[i])
@@ -343,7 +346,7 @@ static func method_of(result: String) -> String:
 
 
 static func _style(corner: Corner) -> String:
-	return corner.style if corner != null else Corner.NONE
+	return corner.label if corner != null else Corner.NONE
 
 
 ## Ticks as fight seconds, to a tenth.
