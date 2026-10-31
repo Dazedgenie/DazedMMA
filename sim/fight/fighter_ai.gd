@@ -282,6 +282,38 @@ const CLINCH_ENTRY := "clinch_entry"
 const ANSWER_BURST := "burst"
 const ANSWER_TIE_UP := "tie_up"
 const ANSWER_PLANT := "plant"
+## Resetting to the centre (D290, Kyle: "Fighters should reset to the center of the cage occasionally
+## when not having much success"). How it's going is kept as running totals that halve every
+## STRUGGLE_HALF_LIFE ticks (so about the last 20 s count): points dealt and taken (the judges'
+## weights, as _round_dealt), strikes thrown (including ones that fell short) and landed.
+## Struggling (D291) = losing the exchanges (taken at least STRUGGLE_TAKEN and STRUGGLE_OUTDONE
+## times what he dealt) or nothing landing (STRUGGLE_THROWN or more thrown, under STRUGGLE_LANDED
+## of them landing). Checked every HOME_CHECK_EVERY ticks while he's further than HOME_FROM from the
+## middle: he resets on a chance of HOME_RATE × patience × Fight IQ / 100, patience = 0.5 −
+## (Pace + Risk) / 200 (0–1, D293: the patient thinkers most, brawlers and pressure fighters
+## hardly ever). Resetting he walks back to the middle (straight there, or round the opponent
+## toward it when the opponent's in the way, HOME_IN_THE_WAY), never closing in, leading at
+## HOME_LEAD_RATE of his rate, until he's within HOME_DONE of the middle or HOME_TICKS have
+## passed. A cage cutter who shuts him in stops it (D294). Then not again for HOME_EVERY ticks
+## (D292: once or twice a round), and the running totals start again.
+const STRUGGLE_HALF_LIFE: float = 100.0
+const STRUGGLE_TAKEN: float = 15.0
+const STRUGGLE_OUTDONE: float = 2.0
+const STRUGGLE_THROWN: float = 3.0
+const STRUGGLE_LANDED: float = 0.25
+const HOME_CHECK_EVERY: int = 10
+const HOME_RATE: float = 0.25
+const HOME_FROM: float = 2.0
+const HOME_DONE: float = 1.0
+const HOME_TICKS: int = 50
+const HOME_EVERY: int = 450
+const HOME_LEAD_RATE: float = 0.2
+const HOME_IN_THE_WAY: float = 0.7
+const WHY_LOSING := "losing"
+const WHY_MISSING := "missing"
+const ENDED_MADE := "made"
+const ENDED_CUT := "cut"
+const ENDED_TIME := "time"
 ## Reading the burst (D234): once a burst, a chance of CATCH_RATE × Cage cutting / 100 to throw
 ## his best strike at the man going past.
 const CATCH_RATE: float = 0.3
@@ -496,6 +528,19 @@ var _follows: bool = false
 var _cover_roll: float = -1.0
 ## Submissions (D126): the tick of this fighter's last try, and whether they've already
 ## looked for a guillotine on the opponent's current stuck shot.
+## How it's going lately (D290): running totals, halving every STRUGGLE_HALF_LIFE ticks, as of _struggle_at.
+var _struggle_at: int = 0
+var _recent_dealt: float = 0.0
+var _recent_taken: float = 0.0
+var _recent_thrown: float = 0.0
+var _recent_landed: float = 0.0
+## Resetting to the centre (D290): until when, why, when he may next, when it was last checked, how the last one ended.
+var _home_until: int = -1
+var _home_why: String = ""
+var _home_next: int = 0
+var _home_check_at: int = -HOME_CHECK_EVERY
+var _home_ended: String = ""
+var _home_ended_at: int = -1
 var _sub_at: int = -SUB_RETRY_TICKS
 var _guillotine_looked: bool = false
 var _escape_looked: bool = false
@@ -666,7 +711,9 @@ func lead_rate(view: FightView, layer: DecisionLayer) -> float:
 		rate *= ROCKED_RATE
 	elif view.opponent.is_rocked():
 		rate *= 1.5 + risk / 200.0
-	if view.now < _reset_until or view.now < _evade_until:
+	if view.now < _home_until:
+		rate *= HOME_LEAD_RATE  # Walking back to the middle (D290): the odd shot only.
+	elif view.now < _reset_until or view.now < _evade_until:
 		rate *= RESET_RATE
 	elif crowded(view) and not view.opponent.is_rocked():
 		# A grappler caught in the pocket doesn't back out, he shoots or ties up (#15).
@@ -1593,6 +1640,12 @@ func preferred_distance(view: FightView, layer: DecisionLayer) -> float:
 	_feet_outside = clampf(-range_leaning / 100.0, 0.0, 1.0)
 	_feet_cut = clampf(CUT_BASE + CUT_PER_RANGE * range_leaning / 100.0, 0.0, 1.0)
 	var here: String = Octagon.band(gap)
+	if _homing(view, layer):
+		# Resetting to the centre (D290): out of range and never closer, less the fence behind him.
+		_off_fence = 0.0
+		_giving_ground = false
+		_last_want = clampf(lerpf(maxf(gap, Octagon.BAND_CENTRES[Octagon.BAND_LONG]), gap, _fence_behind(view)), Octagon.MIN_GAP, Octagon.LONG_WITHIN + 1.0)
+		return _last_want
 	if want < gap and o.is_free() and _danger.get(here, 0.0) > 0.0:
 		# Walking into their weapons: stalk, the more carefully the more they out-gun me
 		# here, and close fast when they commit.
@@ -1684,6 +1737,10 @@ func _plan_steps(view: FightView, layer: DecisionLayer, out: FeetPlan) -> void:
 	out.cut = 0.0
 	out.anywhere = false
 	out.burst = false
+	out.home = false
+	out.resetting = false
+	out.reset_why = ""
+	out.reset_ended = _home_ended if _home_ended_at == view.now else ""
 	if me.is_rocked():
 		out.circle = 1.0
 		return
@@ -1722,6 +1779,19 @@ func _plan_steps(view: FightView, layer: DecisionLayer, out: FeetPlan) -> void:
 	if view.now < _reverse_until:
 		out.circle = 1.0
 		out.way = _reverse_way
+		return
+	if view.now < _home_until:
+		# Back to the middle (D290): straight there, or round him toward it when he's in the way.
+		out.resetting = true
+		out.reset_why = _home_why
+		var to_him: Vector2 = o.pos - me.pos
+		var out_there: float = me.pos.length()
+		if o.pos.length() < out_there and out_there > 0.0 and to_him.length() > 0.0 \
+				and to_him.normalized().dot(-me.pos / out_there) > HOME_IN_THE_WAY:
+			out.circle = 1.0
+		else:
+			out.circle = 0.0
+			out.home = true
 		return
 	if _feet_outside > 0.0 and view.opponent_cutting() and o.is_free() \
 			and me.pos.length_squared() >= CLEAR_OF_SWITCH * CLEAR_OF_SWITCH \
@@ -1971,6 +2041,7 @@ func on_event(view: FightView, event: FightEvent, layer: DecisionLayer) -> void:
 				_round_taken += Judging.KNOCKDOWN_POINTS if event.type == FightEvent.KNOCKDOWN else Judging.ROCKED_POINTS
 			else:
 				_round_dealt += Judging.KNOCKDOWN_POINTS if event.type == FightEvent.KNOCKDOWN else Judging.ROCKED_POINTS
+			_recent(event.tick, Judging.KNOCKDOWN_POINTS if event.type == FightEvent.KNOCKDOWN else Judging.ROCKED_POINTS, event.actor != me)
 		FightEvent.ROUND_ENDED:
 			_new_round()
 		FightEvent.POSITION_CHANGED:
@@ -1980,6 +2051,7 @@ func on_event(view: FightView, event: FightEvent, layer: DecisionLayer) -> void:
 					_round_dealt += Judging.TAKEDOWN_POINTS
 				else:
 					_round_taken += Judging.TAKEDOWN_POINTS
+				_recent(event.tick, Judging.TAKEDOWN_POINTS, event.actor == me)
 	if not _tells.has(event.type):
 		return
 	for tell: Dictionary in _tells[event.type]:
@@ -2142,9 +2214,14 @@ func crowded(view: FightView, band: String = "") -> bool:
 
 ## A strike landed or was defended: remember what's working, and keep score.
 func _scored(event: FightEvent, me: int) -> void:
+	var landed: bool = event.type == FightEvent.STRIKE_LANDED
+	if event.actor == me and event.data.get("reason", "") != "opponent down":
+		_decay_struggle(event.tick)
+		_recent_thrown += 1.0  # Falling short counts here: hitting air is what "nothing landing" means (D291).
+		if landed:
+			_recent_landed += 1.0
 	if event.data.has("reason") and event.data.reason != "defended":
 		return  # Fell short or nobody to hit: says nothing about the move. Checked or slipped (D180) is a miss.
-	var landed: bool = event.type == FightEvent.STRIKE_LANDED
 	var points: float = float(event.data.get("damage", 0)) * Judging.TARGET_WEIGHTS.get(event.data.target, 1.0)
 	if event.actor == me:
 		var record: float = _working.get(event.data.action_id, WORKING_START)
@@ -2152,6 +2229,95 @@ func _scored(event: FightEvent, me: int) -> void:
 		_round_dealt += points
 	else:
 		_round_taken += points
+	_recent(event.tick, points, event.actor == me)
+
+
+## Adds points dealt (`mine`) or taken to how it's going lately (D290).
+func _recent(tick: int, points: float, mine: bool) -> void:
+	_decay_struggle(tick)
+	if mine:
+		_recent_dealt += points
+	else:
+		_recent_taken += points
+
+
+## Halves the running totals of how it's going for every STRUGGLE_HALF_LIFE ticks since they were last brought up to date.
+func _decay_struggle(now: int) -> void:
+	if now <= _struggle_at:
+		return
+	var keep: float = pow(0.5, float(now - _struggle_at) / STRUGGLE_HALF_LIFE)
+	_recent_dealt *= keep
+	_recent_taken *= keep
+	_recent_thrown *= keep
+	_recent_landed *= keep
+	_struggle_at = now
+
+
+## Whether it's going badly lately, and how (D291): WHY_LOSING, WHY_MISSING, or "" when it isn't.
+func struggling(now: int) -> String:
+	_decay_struggle(now)
+	if _recent_taken >= STRUGGLE_TAKEN and _recent_taken >= STRUGGLE_OUTDONE * _recent_dealt:
+		return WHY_LOSING
+	if _recent_thrown >= STRUGGLE_THROWN and _recent_landed < STRUGGLE_LANDED * _recent_thrown:
+		return WHY_MISSING
+	return ""
+
+
+## Forgets how it's been going: a fresh start after a reset or a round (D290).
+func _clear_struggle(now: int) -> void:
+	_struggle_at = now
+	_recent_dealt = 0.0
+	_recent_taken = 0.0
+	_recent_thrown = 0.0
+	_recent_landed = 0.0
+
+
+## Whether this fighter is resetting to the centre right now (D290).
+func resetting(now: int) -> bool:
+	return now < _home_until
+
+
+## Starts or ends the reset to the centre (D290–D294), from preferred_distance each free standing
+## tick. True while it's on.
+func _homing(view: FightView, layer: DecisionLayer) -> bool:
+	var now: int = view.now
+	var from_middle: float = view.me.pos.length()
+	if now < _home_until:
+		if from_middle <= HOME_DONE:
+			_end_home(now, ENDED_MADE)
+		elif view.opponent.is_free() and view.shut_in():
+			_end_home(now, ENDED_CUT)  # A cage cutter shut every way back (D294).
+		return now < _home_until
+	if _home_until >= 0:
+		_end_home(now, ENDED_TIME)
+		return false
+	if now < _home_next or (now < _home_check_at + HOME_CHECK_EVERY and now >= _home_check_at):
+		return false
+	_home_check_at = now
+	if from_middle < HOME_FROM or layer.calls.cut_focus() >= 0.0:
+		return false
+	var why: String = struggling(now)
+	if why == "":
+		return false
+	var pace: float = _lean(view, layer, StyleLeanings.PACE)
+	var patience: float = clampf(0.5 - (pace + _lean(view, layer, StyleLeanings.RISK)) / 200.0, 0.0, 1.0)
+	if patience <= 0.0 or view.roll() >= HOME_RATE * patience * view.me.effective_stat("fight_iq") / 100.0:
+		return false
+	_home_until = now + HOME_TICKS
+	_home_why = why
+	_giving_ground = false
+	_escape_until = -1
+	_reverse_until = -1
+	return true
+
+
+func _end_home(now: int, how: String) -> void:
+	_home_until = -1
+	_home_next = now + HOME_EVERY
+	_home_ended = how
+	_home_ended_at = now
+	_clear_struggle(now)
+	rethink()
 
 
 ## The fight moved (a takedown, a clinch, getting up): whatever was being read or
@@ -2161,6 +2327,7 @@ func _moved_position() -> void:
 	_follow = {}
 	_chain = 0
 	_reset_until = -1
+	_home_until = -1  # Whatever happened, the walk back to the middle is over (no outcome counted, D290).
 	_evade_until = -1
 	_giving_ground = false
 	_escape_until = -1
@@ -2177,6 +2344,9 @@ func _new_round() -> void:
 		_rounds_up -= 1
 	_round_dealt = 0.0
 	_round_taken = 0.0
+	_home_until = -1
+	_home_next = 0
+	_clear_struggle(_struggle_at)
 	_opp = {}
 	_follow = {}
 	_chain = 0

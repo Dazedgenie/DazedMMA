@@ -73,6 +73,8 @@ static func kind_of(event: FightEvent) -> String:
 			return NONE if event.data.has("reason") else PLAY
 		FightEvent.FEINTED:
 			return NONE if event.data.has("reason") else PLAY
+		FightEvent.RESET:
+			return PLAY
 		FightEvent.ROCKED, FightEvent.KNOCKDOWN, FightEvent.LIVER_SHOT, FightEvent.STANCE_SWITCHED, FightEvent.GOT_UP, FightEvent.GRAPPLE_WON, FightEvent.POSITION_CHANGED, \
 				FightEvent.SUBMISSION_LOCKED, FightEvent.SUBMISSION_ESCAPED, FightEvent.ROUND_ENDED, FightEvent.FIGHT_ENDED:
 			return KEY_MOMENT
