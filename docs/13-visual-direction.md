@@ -110,7 +110,7 @@ miss each look different. All of it reads the sim's state and events; nothing he
   his head wherever it is, standing or down, and the two move labels lean apart on screen when both are up.
 
 Not covered yet: clinch knees, elbows and dirty boxing keep their poses (they don't step in), ground strikes aim the
-fist at the head but nothing else, and grappling is untouched (paired poses wait for the rig, D280).
+fist at the head (D282 adds the hammerfist, body punch and bomb), and grappling was untouched here (D282 below poses it).
 
 Arranged clips of every covered strike and outcome, side on to the camera, at fight time (24 frames a fight second):
 
@@ -120,6 +120,53 @@ ffmpeg -framerate 24 -i build/strikes/frame-%04d.png -c:v libx264 -pix_fmt yuv42
 ```
 
 Tests: `tests/game/test_strike_contact.gd`.
+
+## A pose for every grappling move (D282)
+
+Every move in `data/actions/` now moves the figure when it's thrown; before this, 32 grappling moves showed only the
+position's resting pose. These are quick poses on the current rigid figure (Kyle, 2026-10-31: "Yes, quick poses for all
+now"), so every move reads in a playtest; the rig prototype (D280's order of work) can replace them later. Presentation
+only: nothing here changes a fight.
+
+- **Clinch grips you can see** (`FighterFigure._read_grips`, `grip_point`, `GRIP_HANDS`). The sim's two clinch sides
+  (D261) are drawn on the hands: red's lead arm is on side 0 and meets the blue arm across from it (`grip_arm`). On a
+  side where he has the inside, his hand is an **underhook**, under the other man's arm on his shoulder blade; where
+  the other man has it, his arm is the **overhook**, over the top clamping the triceps, elbow high; with both he has
+  the **body lock**, hands locked at the small of the back; with neither it's **hand fighting**, hands on the arms in
+  front. Holding the collar tie puts both hands behind the head. A gripping hand eases to a new grip (`GRIP_EASE`)
+  rather than jumping. A strike thrown from the clinch takes only its own arm off the grip, so a knee keeps the body
+  lock and a short uppercut lets the rear hand go.
+- **Chest to chest.** `ArenaView.CLINCH_BODY_GAP` came in from 0.82 m to 0.68 m so an underhook reaches round his back.
+- **Grip moves.** The pummel swims the hand down under his arm and up inside to the underhook (`PUMMEL_DIP`, 14 cm);
+  the strip goes to his elbow and shoves it out (`STRIP_PUSH`, 10 cm); the collar tie takes both hands up behind his
+  head. Each dips the shoulder in with it. Driving to the fence puts the head in his chest and the hips low off the back
+  foot; turning him and spinning off turn the hips the corner one way or the other.
+- **Ground and pound.** The hammerfist cocks the rear fist up by the ear and drops it; the body punch leans down low
+  into the ribs; the posture-up bomb kneels up tall out of the guard (`POSTURE_HIP`) with the hand cocked high, then
+  drops it all. All three aim at the man underneath like the other strikes (`AIMS`). Underneath, covering up puts the
+  forearms over the face (the cover-up now works lying down), and turning away rolls him onto his front about his
+  spine (a new `roll` pose number, also used by the bridge, sweep and getting back to guard).
+- **Submissions.** Each choke and arm lock has a pose for both men, used while going for it and while it's held: the
+  guillotine's arm under the chin; the triangle's legs high round the head and arm; the armbar lying back with both
+  legs across, his arm pulled straight; the rear-naked choke's arms round the neck with him fighting the hands; the
+  arm-triangle's chest driving down with his arm pinned up. The leg locks sit back onto the leg as they go for it.
+- **Everything else.** The bridge throws the hips up; escaping the back turns in; getting back to guard comes up on a
+  hip with a knee in; the sweep kicks a leg up under him and rolls; the pass lifts the hips and cuts across; taking
+  mount slides a knee over; taking the back swings round; the scramble turns the hips; following him down drops onto
+  the knees; the foot sweep, hip throw, outside trip and guard pull each have their own shape.
+
+Not covered: the two men still don't hold each other in the ground positions and submissions (each figure is posed on
+its own), so legs and arms point the right way without wrapping; that's the rig's job.
+
+Arranged clips of every grip, grappling move and submission, side on to the camera, at fight time:
+
+```sh
+godot --path . --script res://tools/grapple_preview.gd -- --out=res://build/grapples [--only=pummel,armbar]
+ffmpeg -framerate 24 -i build/grapples/frame-%04d.png -c:v libx264 -pix_fmt yuv420p build/grapples.mp4
+```
+
+Tests: `tests/game/test_grapple_poses.gd` (the grips sit where they should, and every move in the library moves the
+figure).
 
 ## Review and verification
 
