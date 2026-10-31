@@ -189,8 +189,8 @@ or a joint (`elbow_l`, `knee_r`, `wrist_l`, `ankle_r`). Each is a bone and an of
 **Paired poses** (`game/rig/rig_pairs.gd`, `RigPairs`) are data in one frame for both men: the origin on the
 canvas between them, red on the +Z side facing -Z, blue facing him (turn 180). A body is `root` (the pelvis),
 `turn`, `lean` (forward +, -90 on his back), `roll`, `bend` [forward, twist, side] at the waist and `head` [nod,
-turn], in degrees and metres. Each hand and foot is `{"to": "b.back", "off": [x, y, z]}` (a point on the other
-man; `a.` is himself), `{"at": [x, y, z]}` (a place in the frame) or nothing (hands up, feet under the hips),
+turn], in degrees and metres. Each hand and foot is `{"to": "b.back", "off": [x, y, z]}` (a point on blue;
+`a.` is red), `{"at": [x, y, z]}` (a place in the frame) or nothing (hands up, feet under the hips),
 with an optional `pole` (where the elbow or knee points, in his pelvis frame) and `flat` (1 lays the foot on
 the canvas). The prototype's set:
 
@@ -230,6 +230,53 @@ Tests: `tests/game/test_fighter_rig.gd` (bones keep their length in every pose a
 within 3 cm of its point, the bodies touch without passing through each other's core, the guard's ankles cross
 behind his back, nothing goes through the canvas and standing feet stay on it, and every joint has a humanoid
 bone name).
+
+## A skinned body on the rig (D284)
+
+The rig's faceted pieces can be swapped for a skinned, auto-rigged body: one mesh that bends at the joints. Kyle
+made the first one in Tripo (image to model, Humanoid auto-rig with the Mixamo skeleton preset, just under 12,000
+faces, exported as GLB); it lives at `tools/bodies/tripo_fighter.glb` (a `.gdignore` keeps Godot from importing
+it, and `tools/` is left out of the exported game). Tripo's colour texture came at 8192 × 8192 (7.4 MB, 256 MB
+of video memory a body once loaded); it was scaled to 2048 × 2048 (1.6 MB file), which looks the same at fight
+distance.
+
+**How it follows the rig** (`game/rig/skinned_body.gd`, `SkinnedBody`):
+
+- `load_body(path)` reads the glTF at run time and finds the Mixamo bones (`mixamorig_Hips`, `Spine`, `Spine1`,
+  `Spine2`, `Neck`, `Head`, the shoulders, arms, forearms, hands, up legs, legs and feet). A Mixamo body faces
+  +Z, so it is turned round, and it is scaled so its hip joints stand at the rig's pelvis height (0.92 m).
+- `measure()` gives the body's sizes in metres (waist and neck heights, the head, the shoulder joints, the hip
+  width, the four limb lengths, the ankle height) and `FighterRig.fit(sizes)` gives the rig those sizes, so the
+  pose's contacts are worked out for this body. The torso's points stretch with it: across and front to back
+  by the shoulders, up by the trunk. Feet placed on the canvas are lifted by the difference in ankle height.
+- `follow(rig)` poses the body: the hips, the spine (Spine 35% and Spine1 70% of the way from the pelvis's turn
+  to the chest's), Spine2, the neck and the head copy the rig's turns; the shoulders ride with Spine2. Each arm
+  and leg is solved again in the body's own bone lengths (`FighterMotion.solve_bones`) toward the rig's wrist
+  or ankle, bending the way the rig's elbow or knee bends. The hands carry on along the forearms; the feet copy
+  the rig's feet.
+- `set_colour(colour)` tints the light-grey shorts the corner's colour with a small shader: light, colourless
+  texels take the tint, while skin, gloves, hair and the dark panels keep the texture's colours.
+
+**Points on red and blue.** In a paired pose `a.` is always red and `b.` always blue, whichever man the spec is
+for (until D284 a hand spec read `a.` as himself, which sent blue's hands round his own back).
+
+**Limits:** the body's arms (0.27 + 0.25 m) are shorter than the faceted rig's (0.31 + 0.32 m, with the glove),
+so in the clinch and the double leg a hand can stop up to 5 cm short, on his skin; the hands are open (the
+Mixamo fingers aren't curled into fists yet); the body is smooth-shaded, not faceted like the venue; one body
+and one face for both corners. The fight screen still uses today's figures.
+
+Preview with the body on the rigs (`--body`, or `--body=<file.glb>` for another Mixamo-rigged body):
+
+```sh
+godot --path . --script res://tools/rig_preview.gd -- --out=res://build/body --body [--stills] [--angle=80]
+```
+
+Tests: `tests/game/test_skinned_body.gd` (the body stands at the rig's height and measures like a man, its hands
+and feet are where the rig's are in every pose, the fitted rig still reaches every contact within 5 cm, the
+body's bones keep their length, the shorts take the corner's colour).
+
+The preview tools start a throwaway fight from the title screen (D302); a fight now hides every menu screen when
+it starts, so the arranged clips show the fight, not the title.
 
 ## Review and verification
 

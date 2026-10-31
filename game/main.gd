@@ -378,8 +378,8 @@ func start_fight(p_settings: Dictionary) -> void:
 	$UI/Version.visible = false  # The call bar's second row sits where it is.
 	overlay.driver = driver
 	_console.watch(sim, "%s, seed %d" % [settings.get("label", ""), fight_seed])
-	setup.visible = false
-	result.visible = false
+	for screen: Control in [title, new_career, load_screen, hub, setup, result]:
+		screen.visible = false  # Whatever started the fight (the tools start one from the title screen).
 	_close_camp()
 	state = FIGHT
 	last_record_path = ""
