@@ -2834,7 +2834,7 @@ ground punch, to the head), the ground elbow for the fighters who know it, the k
 under PRIDE) and PRIDE's soccer kicks and stomps; the man underneath could only tie up, get up or go for a hold, and a ground
 strike only ever did damage. Now there are three more strikes on top, the man underneath can cover up, and what he does under
 the punches opens the pass, the back and the choke. Every number is a first guess for the harness, each a named constant or a
-data field listed in §41.5. Strikes from the bottom (elbows and heel kicks from guard) and wrist control are left for later:
+data field listed in §41.6. Strikes from the bottom (elbows and heel kicks from guard) and wrist control are left for later:
 the grips plan (D260, §40.5) gives the man underneath his hands to fight with.
 
 ### 41.1 The new strikes (everyone's)
@@ -2883,7 +2883,37 @@ Back control (Wrestler has the back)"*. It isn't a move anyone chooses (`turn_aw
   `gnp_landed_*`, `gnp_hammer_*`, `gnp_body_*`, `gnp_bomb_*`, `gnp_covered_*`, `ground_covers_*`, `turned_away_*`). The
   *Defence* line's hits on the guard (D180) are standing strikes only now.
 
-### 41.5 To change it, and the tests
+### 41.5 Balance (2026-10-31)
+Kyle's goal for this was variety without more finishes. The first numbers (hammerfist 0.5 s, bomb 10 damage with +15% on
+`HANDS_LOW`, hands down for 1.5 s) finished about 4 points more fights, nearly all with fighters who had no elbows before (Judoka,
+Sambo, Pressure wrestler: the bomb was a bigger elbow everyone had). The numbers above are the second try. 200 fights a pairing,
+seed 1, pro rules, main (630b0e5) against this:
+
+| Pairing (red vs blue) | Red wins | Finished early | Red's ground strikes landed a fight (hammerfists · body · bombs) | Blue covers up (on the gloves) |
+|---|---|---|---|---|
+| Kicker vs Boxer | 44.5 → 45.5% | 35.0 → 35.5% | – | – |
+| Wrestler vs Kicker | 73.0 → 66.5% | 39.5 → 34.5% | 30.0 (31% · 14% · 10%) | 8.1 (3.4) |
+| Wrestler vs Boxer | 77.5 → 75.0% | 52.5 → 51.0% | 46.9 (33% · 14% · 9%) | 13.9 (5.9) |
+| Ground-and-pound wrestler vs Boxer | 86.5 → 86.0% | 83.0 → 78.0% | 52.6 (15% · 9% · 5%) | 13.0 (6.4) |
+| BJJ vs Boxer | 81.0 → 80.5% | 72.0 → 74.0% | 26.1 (35% · 20% · 12%) | 6.8 (2.6) |
+| Judoka vs Boxer | 69.5 → 63.5% | 47.5 → 53.5% | 31.3 (34% · 19% · 12%) | 8.3 (3.0) |
+| Sambo vs Kicker | 41.5 → 37.0% | 22.0 → 29.5% | 16.3 (32% · 19% · 15%) | 3.9 (1.5) |
+| Pressure wrestler vs Kicker | 93.5 → 93.0% | 67.5 → 68.5% | 70.5 (34% · 14% · 8%) | 20.3 (11.0) |
+| BJJ vs Wrestler | 54.0 → 52.0% | 42.0 → 34.0% | 18.7 (34% · 22% · 12%) | 4.8 (1.7) |
+| Muay Thai vs Wrestler | 70.0 → 59.5% | 58.0 → 53.5% | (Wrestler on top) | – |
+
+- **Finishes**: 51.9% → 51.2% across the ten pairings. Judoka and Sambo finish a few more (more TKOs), Wrestler vs Kicker and
+  BJJ vs Wrestler a few fewer.
+- **Wins**: Kicker vs Boxer is unchanged (inside 60/40). Muay Thai vs Wrestler comes inside 60/40 (70 → 59.5%: the Wrestler's
+  ground and pound is better), and Wrestler vs Kicker and Judoka vs Boxer come closer to even. Nothing moves further out by more
+  than the dice.
+- **Mix**: about a third of what lands on top is hammerfists, a sixth body punches and a tenth bombs; the rest are ground punches,
+  elbows and knees. The Ground-and-pound wrestler still throws mostly punches and elbows (his tendencies).
+- **Turning away** is rare: 0.2 a fight for the Ground-and-pound wrestler (the one who gets to mount), about 1 in 100 fights for
+  the others, because mount is only 1–9% of a fight.
+- Speed: within the timing checks (§2.1).
+
+### 41.6 To change it, and the tests
 - The strikes: `data/actions/hammerfist.json`, `ground_body_punch.json`, `posture_bomb.json` (`through_cover`, `hands_down_ms`,
   `09`); the cover-up: `ground_cover.json` (its `head_share`); the openings: the `COVERED` lines in `guard_pass.json`,
   `take_back.json` and `rear_naked_choke.json`.
