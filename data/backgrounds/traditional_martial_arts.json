@@ -1,0 +1,44 @@
+{
+	"schema": "background@1",
+	"id": "traditional_martial_arts",
+	"name": "Traditional martial arts",
+	"fighter": "karate",
+	"about": "Karate and taekwondo at the community centre since he was six.",
+	"strengths": [
+		"kicking",
+		"footwork",
+		"speed",
+		"striking_defense"
+	],
+	"weaknesses": [
+		"takedown_defense",
+		"clinch_control",
+		"guard"
+	],
+	"style": {
+		"pace": -20,
+		"range": -50,
+		"base": -50,
+		"risk": 0
+	},
+	"frame": {
+		"height_cm": [
+			172,
+			188
+		],
+		"build": "lean"
+	},
+	"personality": {
+		"discipline": 30,
+		"coachable": 15
+	},
+	"gift_weights": {
+		"long_limbs": 2,
+		"ice_in_the_veins": 1
+	},
+	"flaw_weights": {
+		"fragile": 1
+	},
+	"hook": "His old sensei takes every win and loss personally.",
+	"money": 200
+}

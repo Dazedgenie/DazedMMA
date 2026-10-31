@@ -87,6 +87,14 @@ const SCHEMAS := {
 		"name": TYPE_STRING, "fighter": TYPE_STRING, "roots": TYPE_ARRAY, "southpaw_chance": TYPE_FLOAT,
 		"variation": TYPE_DICTIONARY, "scouting": TYPE_DICTIONARY,
 	} },
+	"background@1": { "folder": "backgrounds", "fields": {
+		"name": TYPE_STRING, "fighter": TYPE_STRING, "about": TYPE_STRING, "strengths": TYPE_ARRAY, "weaknesses": TYPE_ARRAY,
+		"style": TYPE_DICTIONARY, "frame": TYPE_DICTIONARY, "personality": TYPE_DICTIONARY, "gift_weights": TYPE_DICTIONARY,
+		"flaw_weights": TYPE_DICTIONARY, "hook": TYPE_STRING, "money": TYPE_FLOAT,
+	} },
+	"names@1": { "folder": "names", "fields": {
+		"country": TYPE_STRING, "cities": TYPE_ARRAY, "first": TYPE_ARRAY, "last": TYPE_ARRAY,
+	} },
 }
 ## How far a style sheet's opponents may differ (docs/09 style@1): each key and its largest sensible value.
 const STYLE_VARIATION := { "stats": 20, "style": 40, "tendencies": 0.5, "personality": 100, "height_cm": 15 }
@@ -205,13 +213,14 @@ func test_values_come_from_the_allowed_lists() -> void:
 				problems.append("action '%s': a %s move needs a '%s' block with base_success" % [id, category, category])
 			elif not block.get("partial_within", 0.0) is float or block.get("partial_within", 0.0) < 0.0:
 				problems.append("action '%s': %s.partial_within is a chance, 0 or more" % [id, category])
-			elif block.has("ties_up_ms") and ((category != "ground" and category != "clinch") or not block.ties_up_ms is float or block.ties_up_ms <= 0.0):
-				problems.append("action '%s': ties_up_ms (how long a tie-up breaks the opponent's posture) is a ground or clinch move's, in ms (D121, D129)" % id)
+			elif block.has("ties_up_ms") and (category != "clinch" or not block.ties_up_ms is float or block.ties_up_ms <= 0.0):
+				problems.append("action '%s': ties_up_ms (how long the collar tie breaks the opponent's posture) is a clinch move's, in ms (D129; on the ground the tie-up is a grip, D263)" % id)
 			elif (block.has("drives_m") or block.has("turns")) and (category != "clinch" or not block.get("drives_m", 1.0) is float \
 					or block.get("drives_m", 1.0) <= 0.0 or not block.get("turns", false) is bool):
 				problems.append("action '%s': drives_m (metres walked back to the fence, above 0) and turns (true or false) are a clinch move's (D220)" % id)
-			elif block.has("grip") and (category != "clinch" or block.grip not in ["inside", "strip"]):
-				problems.append("action '%s': grip (\"inside\" to pummel for an underhook, \"strip\" to take one of his off) is a clinch move's (D261)" % id)
+			elif block.has("grip") and not ((category == "clinch" and block.grip in ["inside", "strip"]) \
+					or (category == "ground" and block.grip in ["collar", "wrist", "posture", "half_inside", "frame", "flatten", "two_on_one", "strip_hands"])):
+				problems.append("action '%s': grip is a clinch move's (\"inside\" to pummel for an underhook, \"strip\" to take one of his off, D261) or a ground move's (\"collar\", \"wrist\", \"posture\", \"half_inside\", D263; \"frame\", \"flatten\", \"two_on_one\", \"strip_hands\", D264)" % id)
 			elif (block.has("throw") or block.has("landing_damage")) and (category != "takedown" or not block.get("throw", false) is bool \
 					or not block.get("landing_damage", 0.0) is float or block.get("landing_damage", 0.0) < 0.0):
 				problems.append("action '%s': throw (true or false) and landing_damage (0 or more) are a takedown's (D128)" % id)
@@ -657,7 +666,69 @@ func test_style_sheets_build_on_a_real_fighter_and_carry_a_scouting_card() -> vo
 	_report(problems)
 
 
+func test_backgrounds_build_on_a_real_fighter_with_real_stats_gifts_and_flaws() -> void:
+	var problems: Array[String] = []
+	var fighters: Dictionary = _items("fighters")
+	var stats: Dictionary = _items("enums").get("stats", {}).get("values", {})
+	var gifts: Dictionary = _items("enums").get("gifts", {}).get("values", {})
+	var flaws: Dictionary = _items("enums").get("flaws", {}).get("values", {})
+	assert_eq(_items("backgrounds").size(), 12, "the 12 backgrounds of docs/02 §1.2")
+	for id: String in _items("backgrounds"):
+		var b: Dictionary = _items("backgrounds")[id]
+		var where := "background '%s'" % id
+		var base: Variant = b.get("fighter")
+		if not fighters.has(base):
+			problems.append("%s refers to missing fighters '%s'" % [where, base])
+		elif fighters[base].get("template") != null:
+			problems.append("%s: fighter '%s' must not use a template" % [where, base])
+		for field: String in ["strengths", "weaknesses"]:
+			for stat: Variant in b.get(field, []):
+				if not stats.has(stat):
+					problems.append("%s: %s has unknown stat '%s'" % [where, field, stat])
+		for stat: Variant in b.get("strengths", []):
+			if stat in b.get("weaknesses", []):
+				problems.append("%s: %s is both a strength and a weakness" % [where, stat])
+		_expect_numbers(problems, where, "style", b.get("style", {}), LEANINGS, -100, 100)
+		_expect_numbers(problems, where, "personality", b.get("personality", {}), PERSONALITY_AXES, -100, 100)
+		_expect_numbers(problems, where, "gift_weights", b.get("gift_weights", {}), gifts.keys(), 0, 10)
+		_expect_numbers(problems, where, "flaw_weights", b.get("flaw_weights", {}), flaws.keys(), 0, 10)
+		var frame: Dictionary = b.get("frame", {}) if b.get("frame") is Dictionary else {}
+		var heights: Variant = frame.get("height_cm")
+		if not (heights is Array and heights.size() == 2 and float(heights[0]) >= 150.0 and float(heights[0]) <= float(heights[1]) and float(heights[1]) <= 210.0):
+			problems.append("%s: frame.height_cm must be [low, high] from 150 to 210 cm" % where)
+		if not frame.get("build") in BUILDS:
+			problems.append("%s: frame.build must be one of %s" % [where, BUILDS])
+		if float(b.get("money", 0.0)) < 0.0:
+			problems.append("%s: money can't be below 0" % where)
+		for field: String in ["about", "hook"]:
+			if String(b.get(field, "")).is_empty():
+				problems.append("%s: %s must be a sentence" % [where, field])
+	_report(problems)
+
+
+func test_every_country_has_hometowns_and_names() -> void:
+	var problems: Array[String] = []
+	assert_gt(_items("names").size(), 0, "expected countries in data/names")
+	for id: String in _items("names"):
+		var c: Dictionary = _items("names")[id]
+		for field: String in ["cities", "first", "last"]:
+			var list: Variant = c.get(field)
+			if not (list is Array) or (list as Array).is_empty() or not (list as Array).all(func(x: Variant) -> bool: return x is String and x != ""):
+				problems.append("names '%s': %s must be a list of names" % [id, field])
+			elif (list as Array).size() != _unique(list).size():
+				problems.append("names '%s': %s has a name twice" % [id, field])
+	_report(problems)
+
+
 # --- helpers -----------------------------------------------------------------
+
+static func _unique(list: Array) -> Array:
+	var out: Array = []
+	for x: Variant in list:
+		if not x in out:
+			out.append(x)
+	return out
+
 
 func _known_files() -> Array:
 	return _files.keys().filter(func(p: String) -> bool:

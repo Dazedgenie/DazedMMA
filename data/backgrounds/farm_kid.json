@@ -1,0 +1,44 @@
+{
+	"schema": "background@1",
+	"id": "farm_kid",
+	"name": "Farm kid",
+	"fighter": "brawler",
+	"about": "Hauled feed and fence posts every morning before school.",
+	"strengths": [
+		"strength",
+		"durability",
+		"chin",
+		"recovery"
+	],
+	"weaknesses": [
+		"speed",
+		"footwork",
+		"fight_iq"
+	],
+	"style": {
+		"pace": 10,
+		"range": 20,
+		"base": 0,
+		"risk": 10
+	},
+	"frame": {
+		"height_cm": [
+			174,
+			188
+		],
+		"build": "stocky"
+	},
+	"personality": {
+		"discipline": 20,
+		"loyal": 20
+	},
+	"gift_weights": {
+		"granite_chin": 2,
+		"freak_athlete": 1
+	},
+	"flaw_weights": {
+		"slow_healer": 1
+	},
+	"hook": "The family needs the money he can make.",
+	"money": 0
+}

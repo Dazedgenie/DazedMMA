@@ -83,6 +83,26 @@ static func _describe(event: FightEvent, sim: FightSim) -> String:
 				return "%s gets the [b]COLLAR TIE[/b]: his head is pulled down for the knees%s" % [who, _odds(event)]
 			if event.data.result == "tied_up":
 				return "%s [b]TIES HIM UP[/b] from the bottom: no ground strikes for a few seconds%s" % [who, _odds(event)]
+			if event.data.result == "collar":
+				return "%s [b]TIES HIM UP[/b] from the bottom: his head's pulled down, no punches until he postures up%s" % [who, _odds(event)]
+			if event.data.result == "wrist":
+				return "%s [b]CONTROLS A WRIST[/b]%s%s" % [who, ": both held, no punches" if int(event.data.get("wrists", 0)) >= 2 else ": one hand held", _odds(event)]
+			if event.data.result == "freed head":
+				return "%s [b]POSTURES UP[/b] out of the tie-up%s%s" % [who, ", a wrist still held" if int(event.data.get("wrists", 0)) > 0 else "", _odds(event)]
+			if event.data.result == "freed wrist":
+				return "%s [b]POSTURES UP[/b] and frees a wrist%s%s" % [who, ", the other still held" if int(event.data.get("wrists", 0)) > 0 else "", _odds(event)]
+			if event.data.result == "half_inside" and event.data.action_id == FightSim.CROSSFACE:
+				return "%s [b]CROSSFACES HIM[/b]: the underhook is his, the man underneath flattened%s" % [who, _odds(event)]
+			if event.data.result == "half_inside":
+				return "%s [b]DIGS THE UNDERHOOK[/b] from half guard%s" % [who, _odds(event)]
+			if event.data.result == "frame":
+				return "%s [b]SETS A FRAME[/b]: a forearm in his neck, room to get out%s" % [who, _odds(event)]
+			if event.data.result == "flatten":
+				return "%s [b]FLATTENS HIM[/b]: the frame's gone%s" % [who, _odds(event)]
+			if event.data.result == "two_on_one":
+				return "%s gets [b]TWO HANDS ON THE CHOKING ARM[/b]%s" % [who, _odds(event)]
+			if event.data.result == "strip_hands":
+				return "%s [b]STRIPS THE HANDS[/b] off his arm: the choke's there again%s" % [who, _odds(event)]
 			if event.data.result == "underhook":
 				return "%s [b]WINS THE UNDERHOOK[/b]%s%s" % [who, _grip_state(event), _odds(event)]
 			if event.data.result == "stripped":
@@ -266,6 +286,22 @@ static func _stopped(event: FightEvent, sim: FightSim) -> String:
 			return "finds nothing to catch%s" % _odds(event)
 		"no underhook":
 			return "can't: he needs an underhook first"
+		"already tied up":
+			return "can't: he has the tie-up already"
+		"both wrists held":
+			return "can't: he has both wrists already"
+		"nothing to strip":
+			return "can't: there's no grip on him to strip"
+		"has the underhook":
+			return "can't: he has the underhook already"
+		"already framed":
+			return "can't: he has a frame already"
+		"no frame":
+			return "can't: there's no frame to flatten"
+		"has the arm already":
+			return "can't: he has both hands on the arm already"
+		"no hands on the arm":
+			return "can't: there are no hands on his arm to strip"
 	return "comes up short (%s)" % event.data.reason
 
 

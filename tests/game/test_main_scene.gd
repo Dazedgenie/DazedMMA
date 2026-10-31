@@ -4,6 +4,7 @@ extends GutTest
 
 const FRAME: float = 0.05
 const TEST_DIR := "user://test_main_scene_fights/"
+const SAVE_DIR := "user://test_main_scene_saves/"
 
 var _main: Node
 
@@ -12,11 +13,15 @@ func before_each() -> void:
 	_main = load("res://game/main.tscn").instantiate()
 	add_child_autofree(_main)
 	_main.record_dir = TEST_DIR
+	_main.save_dir = SAVE_DIR
 
 
 func after_each() -> void:
-	for file in DirAccess.get_files_at(TEST_DIR):
-		DirAccess.remove_absolute(TEST_DIR.path_join(file))
+	for dir: String in [TEST_DIR, SAVE_DIR]:
+		if not DirAccess.dir_exists_absolute(dir):
+			continue
+		for file in DirAccess.get_files_at(dir):
+			DirAccess.remove_absolute(dir.path_join(file))
 
 
 func _press(key: Key) -> void:
@@ -33,7 +38,12 @@ func _start(seed_value: int = 11) -> void:
 	_main.start_fight(s)
 
 
-func test_the_screen_opens_on_the_fight_setup() -> void:
+func test_the_game_opens_on_the_title_and_quick_fight_opens_the_fight_setup() -> void:
+	assert_true(_main.title.visible)
+	assert_false(_main.setup.visible)
+	assert_eq(_main.state, _main.TITLE)
+	_main.title.press("Quick fight")
+	assert_false(_main.title.visible)
 	assert_true(_main.setup.visible)
 	assert_false(_main.hud.visible)
 	assert_eq(_main.setup.settings().red, "wrestler", "the playtest matchup comes first")
@@ -191,3 +201,120 @@ func test_the_version_line_hides_during_the_fight_so_the_call_bar_has_the_corner
 	assert_false(version.visible, "in the fight")
 	_main._back_to_setup()
 	assert_true(version.visible, "back on the setup")
+
+
+func test_esc_and_main_menu_go_back_to_the_title_from_the_setup() -> void:
+	_main.quick_fight()
+	_press(KEY_ESCAPE)
+	assert_true(_main.title.visible)
+	_main.quick_fight()
+	_main.setup.menu_pressed.emit()
+	assert_true(_main.title.visible)
+	assert_false(_main.setup.visible)
+
+
+func test_a_new_career_is_saved_and_opens_on_the_hub() -> void:
+	_main.show_title()
+	_main.title.press("New career")
+	assert_true(_main.new_career.visible)
+	_main.new_career.set_field("name", "Danny Hill")
+	_main.new_career.press_start()
+	assert_true(_main.hub.visible)
+	assert_false(_main.new_career.visible)
+	assert_eq(_main.career.fighter_name(), "Danny Hill")
+	assert_eq(_main.career.age(), 16)
+	assert_eq(_main.career_slot, 0)
+	assert_eq(CareerSaves.info(0, SAVE_DIR).name, "Danny Hill", "saved as soon as it starts")
+
+
+func test_run_this_week_moves_the_career_on_and_saves_it() -> void:
+	_main.open_new_career()
+	_main.new_career.press_start()
+	_main.hub.press_week()
+	assert_eq(_main.career.week, 1)
+	assert_eq(int(CareerSaves.info(0, SAVE_DIR).week), 1, "every week is saved")
+	assert_string_contains(_main.hub.text(), "Mon 11 Jan 2027")
+
+
+func test_continue_picks_the_career_back_up_where_it_was() -> void:
+	_main.open_new_career()
+	_main.new_career.set_field("name", "Danny Hill")
+	_main.new_career.press_start()
+	_main.hub.press_week()
+	_main.hub.title_pressed.emit()
+	assert_true(_main.title.visible)
+	assert_true(_main.title.can_continue())
+	_main.career = null
+	_main.title.press("Continue")
+	assert_true(_main.hub.visible)
+	assert_eq(_main.career.fighter_name(), "Danny Hill")
+	assert_eq(_main.career.week, 1)
+
+
+func test_load_career_lists_the_slots_and_loads_one() -> void:
+	_main.open_new_career()
+	_main.new_career.set_field("name", "First Man")
+	_main.new_career.press_start()
+	_main.open_new_career()
+	_main.new_career.set_field("name", "Second Man")
+	_main.new_career.press_start()
+	assert_eq(_main.career_slot, 1, "a second career takes the next slot")
+	_main.show_title()
+	_main.title.press("Load career")
+	assert_true(_main.load_screen.visible)
+	assert_string_contains(_main.load_screen.text(), "First Man")
+	assert_string_contains(_main.load_screen.text(), "Second Man")
+	_main.load_screen.load_pressed.emit(0)
+	assert_eq(_main.career.fighter_name(), "First Man")
+	assert_true(_main.hub.visible)
+
+
+func test_advance_runs_weeks_until_something_happens_and_saves() -> void:
+	_main.open_new_career()
+	_main.new_career.press_start()
+	_main.career.week_plan = "time_off"
+	_main.career.next_offers_week = 1000  # No offers coming (D304).
+	_main.hub.press_advance()
+	assert_eq(_main.career.week, Career.ADVANCE_MAX_WEEKS, "nothing happens to a fresh 16-year-old resting for 8 weeks")
+	assert_eq(int(CareerSaves.info(0, SAVE_DIR).week), Career.ADVANCE_MAX_WEEKS)
+	assert_string_contains(_main.hub.text(), "The last %d weeks" % Career.ADVANCE_MAX_WEEKS)
+
+
+
+func test_a_career_fight_goes_from_the_offer_through_the_camp_to_his_record() -> void:
+	_main.open_new_career()
+	_main.new_career.press_start()
+	_main.career.week_plan = "time_off"
+	_main.hub.press_week()
+	var offer_id: String = _main.hub.offer_ids()[0]
+	var fight_week: int = int(_main.career.offer(offer_id).week)
+	_main.hub.press_accept(offer_id)
+	assert_false(_main.career.booked.is_empty(), "booked")
+	assert_true(CareerSaves.load_slot(0, SAVE_DIR).booked.has("opponent"), "and saved")
+	_main.hub.press_camp()
+	var planner: CampPlanner = _main.planner
+	assert_not_null(planner, "the camp planner, on his own fighter")
+	assert_eq(planner.weeks, fight_week - _main.career.week + 1)
+	planner.run_rest()
+	assert_eq(_main.career.week, fight_week, "fight week waits for the fight")
+	assert_true(planner.done())
+	assert_eq(int(CareerSaves.info(0, SAVE_DIR).week), fight_week, "each camp week saved")
+	planner.fight_pressed.emit(planner.trained_profile())
+	assert_eq(_main.state, _main.FIGHT)
+	assert_true(bool(_main.settings.career))
+	assert_eq(String(_main.settings.ruleset), Matchmaker.TEEN_RULES)
+	_main.driver.throw_towel()
+	var frames: int = 0
+	while _main.state != _main.OVER and frames < 100:
+		frames += 1
+		_main._process(FRAME)
+	assert_eq(_main.state, _main.OVER)
+	assert_eq(_main.career.fights.size(), 1, "on his record")
+	assert_eq(String(_main.career.fights[0].result), "loss", "the towel")
+	assert_eq(String(_main.career.fights[0].method), "TKO")
+	assert_eq(_main.career.week, fight_week + 1)
+	assert_eq(CareerSaves.load_slot(0, SAVE_DIR).fights.size(), 1, "saved")
+	assert_string_contains(_main.result.text(), "LOSS on his amateur record")
+	_main._career_after_fight()
+	assert_true(_main.hub.visible)
+	assert_string_contains(_main.hub.text(), "L vs ")

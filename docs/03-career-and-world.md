@@ -1,6 +1,6 @@
 # 03 — Career, World & Life
 
-> Related decisions: D7, D16–D19, D21, D22, D25, D41–D45, D160, D300–D305. Status: **design draft**; §7.1 and §10.1 are built.
+> Related decisions: D7, D16–D19, D21, D22, D25, D41–D45, D160, D300–D305. Status: **design draft**; §7.1 and §10.1–§10.4 are built.
 
 ---
 
@@ -230,10 +230,10 @@ Phase 1 joins what's built into a career that goes on from fight to fight and sa
 | Piece | Decision | Status |
 |---|---|---|
 | The career and its save file | D301 | Built (§10.1) |
-| The title screen and a new career | D302 | Next |
-| The career hub and the calendar | D303 | |
-| Fight offers and matchmaking | D304 | |
-| The aftermath, and skipping a fight | D305 | |
+| The title screen and a new career | D302 | Built (§10.2) |
+| The career hub and the calendar | D303 | Built (§10.3) |
+| Fight offers and matchmaking | D304 | Built (§10.4) |
+| The aftermath, and skipping a fight | D305 | Next |
 
 ### 10.1 The career and its save file (D301)
 
@@ -275,10 +275,154 @@ clearing the site's data clears them.
 `Career.migrate()` that brings older saves up to date, with a test. A save from a newer version of the game than the one
 reading it is refused with that reason, never half-read.
 
-**Not yet:** anything on screen (the title screen and slots come with D302), autosaving every week and before each fight
-(with the hub, D303), and ironman mode (one save, no going back, D45; phase 6).
+**Not yet:** autosaving before each fight (with offers, D304) and ironman mode (one save, no going back, D45; phase 6).
+The title screen and the slots on screen came with D302 (§10.2); the hub saves every week.
 
 **What to change:** the start date (`START_DATE`), the week plan between fights (`BETWEEN_PLAN`) and the save format
 (`VERSION`, `migrate()`) in `sim/world/career.gd`; the number of slots (`SLOTS`) and where they go (`DIR`) in
 `game/career_saves.gd`. Tests: `tests/sim/world/test_career.gd`, `tests/game/test_career_saves.gd` and the snapshot in
 `tests/sim/world/test_training_camp.gd`. Fights don't change (no golden re-pin). Then update this section and D301.
+
+### 10.2 The title screen and a new career (D302)
+
+**The title screen** (`ui/title_screen.gd`) is the first thing the game shows, in the corner-board look of the screens off
+the cage (D170): CHIN CHECK in the display font, Lampsmoke Games under it (D242), then:
+
+- **Continue**: the career saved last, with his name, age and the date under the button. Greyed out until there's a career.
+- **New career**: the new-career screen.
+- **Load career** (`ui/load_screen.gd`): the three slots side by side, each with the fighter's name and nickname, age, the
+  career's date, his record, his coach and when it was saved (and a warning when only the backup could be read). Load, and
+  Delete, which asks once more before it deletes.
+- **Quick fight**: the fight setup and the Playtest fights, exactly as before (it has a *Main menu* button now, and Esc goes
+  back to the title too).
+- **Quit** (not in the browser build, which can't close its own tab).
+
+**A new career** (`ui/new_career_screen.gd`) asks your name (you're his coach, D15), then his name, nickname, hometown, stance
+and where he comes from: one of the 12 backgrounds of `docs/02` §1.2 (Q4 in the plan: picked from a list until phase 2's
+childhood scenes pick it instead). The screen opens already rolled, so *Start career* works straight away; *Roll everything*
+rolls again. Hometowns are real cities in 12 countries (`data/names/`), and a rolled name comes from his hometown's country.
+Each background shows what it's strong and weak at, the style he'll grow into, the money he starts with (in dollars, Kyle's
+call) and its story hook.
+*Start career* takes the first free slot and saves at once; with all three in use it asks you to delete one first.
+
+**The fighter a background makes** (`BackgroundLibrary.make_fighter`, `sim/world/background_library.gd`, from
+`data/backgrounds/`, `docs/09` background@1). He's 16 (Q3). Every stat rolls 20 to 35, his background's strengths 12 higher and
+its weaknesses 8 lower (never under 5), so a wrestling family's son starts with takedowns around 40 and boxing around 20. His
+style leans his background's way (± 10), his personality is his own (± 30 around the background's lean), his height is in
+its range and his build its build. Potential is 60 plus two dice of 1 to 16 (62 to 92, most often near 77), hidden behind the
+scouted range (D136). He rolls 0 to 2 gifts (45%, 40%, 15%) and a flaw 35% of the time (D90), more likely the ones his
+background favours (a street kid's Granite chin, a football player's Freak athlete and Slow healer). Bleeder and Hard cut stay
+off his card until they show (D90). His moves, combinations and habits are his background fighter's (data/fighters: the
+Wrestler for a wrestling family, the Boxer for the boxing gym kid), only worse. The same background, seed and choices always
+make the same fighter. Kyle (2026-10-31) was happy with that starting level.
+
+**The career hub, first version** (`ui/career_hub.gd`; D303 filled it in, §10.3): the top bar (his name and nickname, age, records,
+coach, the date and the week), his card (background, hometown, stance, height and reach, the gifts and flaws he knows of,
+his scouted potential, the background's hook), every stat as a bar and a grade, and *This week*: any injury or suspension,
+the week plan, his savings, *Run this week* (a week between fights, then an autosave) and *Save and go to the title*.
+
+**Not yet:** offers and fights from the hub (D304), the calendar and the rest of the hub (D303), the head coach's look and
+specialty and the childhood scenes (phase 2).
+
+**What to change:** a background's strengths, weaknesses, leanings, frame, gift and flaw odds, money and hook in its file in
+`data/backgrounds/`; how high or low a new fighter starts, potential and the gift and flaw odds (`STAT_LOW`, `STAT_HIGH`,
+`STRENGTH_BONUS`, `WEAKNESS_PENALTY`, `POTENTIAL_BASE`, `POTENTIAL_DIE`, `GIFT_COUNT_ODDS`, `FLAW_CHANCE`) in
+`sim/world/background_library.gd`; the cities and names in `data/names/`, nicknames in `data/enums/nicknames.json`; the
+southpaw chance of a roll (`SOUTHPAW_CHANCE`) in `ui/new_career_screen.gd`. Tests: `tests/sim/world/test_background_library.gd`,
+`tests/sim/world/test_name_library.gd`, `tests/ui/test_career_screens.gd` and the career tests in `tests/game/test_main_scene.gd`.
+Fights don't change (no golden re-pin). Then update this section and D302.
+
+### 10.3 The career hub and the calendar (D303)
+
+The hub (`ui/career_hub.gd`) is the screen a career comes back to between fights (Q6 in the plan: one default plan, Run
+this week or Advance).
+
+- **Top bar:** his name and nickname, age, amateur record (and pro once he's turned pro), his coach, the date and the week.
+- **The fighter:** the body figure showing any injury (as fight night would see it), how he feels (fresh, a little tired,
+  worn down; hurt and for how long), his background, hometown, stance, height, reach and build, the style he's leaning
+  toward (the D88 hints past ±30, and any named style traits), the gifts and flaws he knows of, his scouted potential and
+  his background's hook. Then every stat as a bar and a grade, in its group.
+- **This week:** what's next (offers waiting and a booked fight come with D304; hurt for N days; suspended for N days;
+  otherwise free to fight), his week plan between fights (a picker of every week plan; *Between fights* to start,
+  `docs/02` §3.8), his savings, and:
+  - **Run this week**: one week on his plan, then an autosave.
+  - **Advance until something happens**: weeks on his plan until he's hurt in training, healed, cleared to fight, worn
+    down from training, has a birthday or an offer comes in, at most 8 weeks (`Career.ADVANCE_MAX_WEEKS`), then an
+    autosave. *Worn down* (Kyle, 2026-10-31) means his fatigue went past 40 during the week (`TrainingCamp.FATIGUE_FREE`,
+    where he starts learning less, `02` §3.5); Sunday's rest has him fresh again by Monday, so it's the week's peak that
+    counts. It stops the first week a plan wears him down, not every week after on the same plan, so a player who means
+    to train hard can press Advance again and it keeps going. To stop every worn week instead, drop the
+    `worn_last_week` check in `Career.run_week()`. While he's booked for
+    a fight neither button runs: the camp runs those weeks (D304).
+  - Under them, what the last run did: the biggest gains over the weeks and anything that happened, with its week.
+- **His fights:** newest first, the result (W, L, D, NC), who, how and in which round, the date (the Saturday of the
+  week it was fought) and amateur or pro.
+- **The calendar:** the coming 8 weeks (`Career.CALENDAR_WEEKS`), this one first, each with what will happen in it if
+  nothing changes: an injury healed, a suspension over, his birthday, fight night (`Career.calendar()`).
+
+Each week's report from `Career.run_week()` now says what happened in it (`events`: hurt, healed, cleared, birthday,
+fight night) and which week it was.
+
+**Not yet:** opening any week in the planner to plan it slot by slot, and the stats' tags (D24). Offers on the hub and a
+booked fight's camp are §10.4.
+
+**What to change:** how many weeks Advance runs at most (`ADVANCE_MAX_WEEKS`) and the calendar shows (`CALENDAR_WEEKS`)
+in `sim/world/career.gd`; how many fights the list shows (`FIGHTS_SHOWN`) and the colours in `ui/career_hub.gd`. Tests:
+`tests/sim/world/test_career.gd`, `tests/ui/test_career_screens.gd`, `tests/game/test_main_scene.gd`. Fights don't change
+(no golden re-pin). Then update this section and D303.
+
+### 10.4 Fight offers, the camp and the fight (D304)
+
+A career now goes from fight to fight. Kyle said start (2026-10-31); the numbers are the picks put to him, built while he
+answered, and Kyle confirmed them: "Fight numbers seemed fine to me" (2026-10-31).
+
+**When offers come.** While he's free (not booked, not hurt, not suspended), a set of 2–3 offers comes in every few weeks
+(`Matchmaker.OFFERS_MIN`, `OFFERS_MAX`): the first after his first week, then 1–3 weeks after a set closes
+(`GAP_MIN`, `GAP_MAX`) and 1–3 weeks after a fight. Each set stays open this week and next (`OPEN_WEEKS`), then goes. A new
+set is an event (*N fight offers*), so *Advance* stops for it; offers already on the table don't stop it.
+
+**Who's offered.** Each offer is a new man made from one of the 15 style sheets (`StyleLibrary.generate`, §7.1), a
+different style each, with a name, nickname and hometown from `data/names` (`NameLibrary`). His quality level is set from
+the career fighter's: his average stat less the style's signature fighter's (`Matchmaker.level_against`), then −5 for *a
+bit easier*, 0 for *about even* or +5 for *a bit harder* (`DIFFICULTY_LEVELS`), give or take 2 (`LEVEL_SPREAD`). Two offers
+are one about even and one easier or harder; three are one of each. A teenager meets 16- and 17-year-olds; a man meets men
+3 younger to 4 older.
+
+**The rules and the money.** Under 18, teen amateur rules (`amateur_teen`); from 18, adult amateur (`amateur_adult`); once
+he turns pro, pro rules. Amateurs aren't paid. A pro fight pays $1,000 to show and $1,000 more to win, both $250 more for
+every pro win he has (`PURSE_SHOW`, `PURSE_WIN`, `PURSE_STEP`). **Turn pro** shows on the hub from 18 with 4 amateur fights
+(`PRO_AGE`, `PRO_AFTER_FIGHTS`); the amateur offers on the table go and pro offers come the week after.
+
+**The date.** Taken the week it comes in, an offer leaves a camp of 5–8 weeks (`CAMP_WEEKS_MIN` + 1 to `CAMP_WEEKS_MAX`);
+taken in its second week, a week less, so never under 4. Fight night is the last week's Saturday (D135).
+
+**On the hub.** Each offer is a card under *This week*: his name and nickname, the style and how he compares (a bit easier,
+about even, a bit harder), hometown, age, height and stance, the style's scouting line, grades for Striking, Wrestling,
+Grappling and Physical, the date, the camp's length, the rules and the purse, and *Last week to answer* when it is. **Take
+the fight** books it (the other offers go, the camp starts: `TrainingCamp.start_camp`); **Turn it down** takes only that
+one off, with no penalty for now. Booked, *Run this week* and *Advance* give way to **Go to camp: N weeks to fight night**,
+and the calendar shows fight night.
+
+**The camp.** *Go to camp* opens the camp planner (`docs/02` §3.6) on the career's own fighter (`CampPlanner.use_career`):
+its length is the weeks left to the fight, the camp can't be started again, and age and potential can't be set. Each week
+run moves the calendar on and saves; *Back to the hub* leaves the camp where it is. Fight week waits for the fight, even over
+a reload (the week's report is kept with the booking). On fight night the fight night card (`02` §3.11) says how he goes in;
+pulling out, or the doctor not clearing him, calls the fight off when he goes back to the hub (`Career.cancel_fight`: the
+camp's wasted, the week's over).
+
+**The fight.** *Fight!* saves the career, then starts the fight against the booked man under the booked rules, with a seed
+from the career's dice. A career fight can't be restarted from the pause menu. When it ends it goes on his record
+(`Career.finish_fight`: result, how, the round, the rules, the purse), he's paid, an injury fighting hurt made worse (D135)
+carries on, the fight week ends and the career saves. The result screen says what it did to his record and his money, and
+*Back to the hub* goes home.
+
+**Not yet:** what a fight does to him afterwards (damage, suspensions, time off: D305), simming a fight instead of watching
+it (D305), short-notice offers, a rematch, an opponent's own record and camp, and reputation for turning fights down.
+
+**What to change:** every number above is a constant at the top of `sim/world/matchmaker.gd`; when offers come and how a
+fight is recorded are in `sim/world/career.gd` (`_check_offers`, `accept`, `finish_fight`); the offer cards in
+`ui/career_hub.gd` (`offer_text`); the camp in `ui/camp_planner.gd` (`use_career`); the fight in `game/main.gd`
+(`open_career_camp`, `_career_fight`, `_finish_career_fight`). Tests: `tests/sim/world/test_matchmaker.gd`,
+`tests/ui/test_career_screens.gd`, `tests/game/test_main_scene.gd`. Fights themselves don't change (no golden re-pin).
+Then update this section and D304.
+

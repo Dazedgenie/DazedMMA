@@ -18,7 +18,7 @@ childhood vignettes come with the vertical slice (Phase 2).
   `ChinCheck-windows-<commit>` (Windows) or `ChinCheck-web-<commit>` (the browser build: unzip it and serve the folder,
   or upload the zip to itch.io as an HTML game). More in [`docs/playtests/README.md`](docs/playtests/README.md) §1.
 - **From the source:** install [Godot 4.7](https://godotengine.org/download) (standard build), open Godot → **Import** →
-  this folder's `project.godot` → **Run** (F5). It opens on the fight setup's tale of the tape.
+  this folder's `project.godot` → **Run** (F5). It opens on the title screen: **New career** starts a career, **Quick fight** opens the fight setup and the Playtest fights.
 - **Controls:** keyboard and mouse. Keys 1–9 and Q / E make the corner's calls (the call bar is clickable too), Space
   slow-mo, F fast, P pause (Easy), T throw in the towel, M sound on/off, Esc menu, F3 debug overlay. No controller yet (D54).
 

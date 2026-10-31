@@ -150,6 +150,23 @@ var escapes: int = 0
 ## from the punches in mount and gave up his back.
 var ground_covers: int = 0
 var turned_away: int = 0
+## Ground grips (D263): tie-ups (the collar tie from underneath), wrists taken, posturing up out
+## of them, and the half-guard underhook (dug from underneath, the crossface on top), tried and won.
+var ground_ties_tried: int = 0
+var ground_ties_won: int = 0
+var wrists_tried: int = 0
+var wrists_won: int = 0
+var postures_tried: int = 0
+var postures_won: int = 0
+var half_underhooks_tried: int = 0
+var half_underhooks_won: int = 0
+## The rest of the ground (D264): frames set, crucifixes taken (tried and won), two hands on the choking arm.
+var frames_tried: int = 0
+var frames_won: int = 0
+var crucifixes_tried: int = 0
+var crucifixes_won: int = 0
+var two_on_ones_tried: int = 0
+var two_on_ones_won: int = 0
 ## Feints thrown and how many the opponent bit on; takedowns shot blind (nothing set them
 ## up) and how many of those still worked (D131).
 var feints_tried: int = 0

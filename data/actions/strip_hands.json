@@ -1,0 +1,20 @@
+{
+	"schema": "action@2",
+	"id": "strip_hands",
+	"name": "Strip the hands",
+	"category": "ground",
+	"basic": true,
+	"positions": ["back_control"],
+	"roles": ["top"],
+	"ranges": ["clinch"],
+	"phases_ms": { "telegraph": 0, "windup": 200, "active": 200, "recovery": 200 },
+	"stamina_cost": 3,
+	"flags_self": [],
+	"ground": { "base_success": 0.45, "grip": "strip_hands" },
+	"stats": { "offense": ["submissions", "strength"], "defense": ["submission_defense", "strength"] },
+	"opportunities": [
+		{ "opponent_flag": "COVERED", "success_bonus": 0.10 },
+		{ "opponent_flag": "ESCAPING", "success_bonus": 0.10 }
+	],
+	"requires_technique": null
+}

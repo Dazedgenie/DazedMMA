@@ -15,7 +15,9 @@
 	"ground": { "base_success": 0.3, "partial_within": 0.15 },
 	"stats": { "offense": ["guard", "scrambles"], "defense": ["top_control"] },
 	"opportunities": [
-		{ "opponent_flag": "POSTURED_UP", "success_bonus": 0.15 }
+		{ "opponent_flag": "POSTURED_UP", "success_bonus": 0.15 },
+		{ "own_flag": "UNDERHOOK", "success_bonus": 0.10 },
+		{ "own_flag": "FRAMED", "success_bonus": 0.15 }
 	],
 	"requires_technique": null
 }

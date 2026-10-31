@@ -100,7 +100,8 @@ const GRIP_HANDS := {
 const SMOOTH_MOVES: Array[String] = ["pummel", "strip_grip", "collar_tie", "fence_drive", "turn_him", "spin_off",
 	"ground_cover", "turn_away", "guillotine", "triangle", "armbar", "rear_naked_choke", "arm_triangle", "ankle_lock",
 	"kneebar", "heel_hook", "bridge", "escape_back", "recover_guard", "sweep", "guard_pass", "take_mount", "take_back",
-	"scramble", "follow_down", "foot_sweep", "hip_throw", "outside_trip", "guard_pull"]
+	"scramble", "follow_down", "foot_sweep", "hip_throw", "outside_trip", "guard_pull", "wrist_control", "dig_underhook",
+	"posture_up", "crossface", "frame", "flatten", "take_crucifix", "escape_crucifix", "two_on_one", "strip_hands"]
 ## How tall he kneels when he postures up out of the guard for the bomb (D282): hip height, metres.
 const POSTURE_HIP: float = 0.68
 ## How quickly a gripping hand follows a grip changing (per second).
@@ -159,6 +160,10 @@ var _ignored_left: float = 0.0
 var _time: float = 0.0
 ## The other man, whose head, body and legs strikes aim at (D281); set by the view. Null: no aiming.
 var opponent: FighterFigure
+## A skinned body (D285) drawn instead of the faceted pieces, posed from them every frame; null draws the pieces.
+var body: SkinnedBody
+## How high the pieces' ankle sits over the sole (the foot is drawn 0.065 below and the ball 0.032 up).
+const BODY_ANKLE_UP: float = 0.097
 ## Which way the overhead labels lean so the two don't overlap (-1 left, 0 centred, +1 right on screen).
 var label_side: float = 0.0
 ## How far a hit knocks him back right now (metres); the view draws him that far away from the hitter.
@@ -215,8 +220,49 @@ func show_state(sim: FightSim, i: int, at: Vector2, toward: Vector2, delta: floa
 	for key: String in target:
 		_pose[key] = lerpf(float(_pose.get(key, target[key])), float(target[key]), k)
 	_apply_pose(f)
+	if body != null:
+		body.follow_joints(body_pose())
 	_show_overhead(sim, i, delta)
 	_place_overhead()
+
+
+## Draws the skinned body at `path` (D285; SkinnedBody) instead of the faceted pieces. The pieces still pose
+## every frame (strikes aim, grips and tells read them) but aren't drawn; the body follows their joints. False
+## (and the pieces stay) if the body can't be loaded.
+func use_body(path: String) -> bool:
+	var skinned := SkinnedBody.new()
+	add_child(skinned)
+	var shoulders: float = _arm_meshes[0].global_position.y - global_position.y
+	if not skinned.load_body(path, shoulders):
+		skinned.queue_free()
+		return false
+	body = skinned
+	body.set_colour(colour)
+	for found: Node in _hips.find_children("*", "GeometryInstance3D", true, false):
+		if found != _tell and not _tell.is_ancestor_of(found):
+			var piece: GeometryInstance3D = found
+			piece.layers = 0  # Not drawn by any camera or light, whatever the posing does to `visible`.
+	return true
+
+
+## The pieces' joints in the world, for the skinned body (SkinnedBody.follow_joints).
+func body_pose() -> Dictionary:
+	var pose := {
+		"pelvis_at": _hips.global_position, "pelvis": _hips.global_basis.orthonormalized(),
+		"chest": _torso.global_basis.orthonormalized(), "neck": _torso.global_basis.orthonormalized(),
+		"head": _head.global_basis.orthonormalized(), "ankle_up": BODY_ANKLE_UP,
+		"shoulders_at": (_arm_meshes[0].global_position + _arm_meshes[1].global_position) / 2.0,
+	}
+	for i in 2:
+		var side: String = "l" if (lead if i == 0 else -lead) < 0.0 else "r"
+		pose["shoulder_" + side] = _arm_meshes[i].global_position
+		pose["elbow_" + side] = _upper_arms[i].global_transform * Vector3(0, -1, 0)
+		pose["wrist_" + side] = _gloves[i].global_position
+		pose["hip_" + side] = _leg_meshes[i].global_position
+		pose["knee_" + side] = _thighs[i].global_transform * Vector3(0, -FighterMotion.THIGH, 0)
+		pose["ankle_" + side] = _shins[i].global_transform * Vector3(0, -FighterMotion.SHIN, 0)
+		pose["foot_" + side] = _feet[i].global_basis.orthonormalized()
+	return pose
 
 
 ## The pose (joint angles and heights) for fighter i right now: plain numbers, so it can be tested.
@@ -260,6 +306,12 @@ func pose_for(sim: FightSim, i: int, fractional_tick: float = 0.0) -> Dictionary
 					p.leg_rear = 0.15
 					p.arm_lead = 1.3
 					p.arm_rear = 1.3
+				"crucifix":  # Flat on his back, both arms stretched out and trapped, legs kicking (D264).
+					p.leg_lead = 0.5
+					p.leg_rear = 0.3
+					p.arm_lead = 2.9
+					p.arm_rear = 2.9
+					p.spread = 0.3
 				"back_control":  # Sat up with him behind (D130), legs out in front.
 					p.lie = 0.25
 					p.hip_y = 0.3
@@ -303,6 +355,14 @@ func pose_for(sim: FightSim, i: int, fractional_tick: float = 0.0) -> Dictionary
 				p.leg_lead = 0.6
 				p.leg_rear = 0.6
 				p.spread = 0.25
+			"crucifix":  # Chest across his chest from the head side, his near arm between the knees, one hand free (D264).
+				p.hip_y = 0.42
+				p.lean = -1.25
+				p.leg_lead = 1.2
+				p.leg_rear = 0.5
+				p.spread = 0.2
+				p.arm_lead = 1.5
+				p.arm_rear = 0.9
 			"back_control":  # Sat behind him, legs round his waist, arms round his neck.
 				p.hip_y = 0.32
 				p.lean = 0.15
@@ -589,6 +649,52 @@ func pose_for(sim: FightSim, i: int, fractional_tick: float = 0.0) -> Dictionary
 			p.arm_rear = lerpf(p.arm_rear, 3.0, reach)
 			p.reach_lead = lerpf(1.0, 1.3, reach)
 			p.reach_rear = lerpf(1.0, 1.3, reach)
+		"wrist_control":  # Both hands up to his wrist and pinned to the chest (D263).
+			_ease(p, "arm_lead", 2.2, reach)
+			_ease(p, "arm_rear", 2.2, reach)
+			_ease(p, "reach_lead", 0.8, reach)
+			_ease(p, "reach_rear", 0.8, reach)
+		"dig_underhook":  # Onto his side, the near arm swimming in under his armpit (D263).
+			_ease(p, "arm_lead", 2.6, reach)
+			_ease(p, "reach_lead", 1.3, reach)
+			p.roll = 0.4 * lead * reach
+		"posture_up":  # Hips back and chest up out of his grips, hands on his body (D263).
+			_ease(p, "lean", 0.05, reach)
+			_ease(p, "hip_y", POSTURE_HIP, reach)
+			_ease(p, "arm_lead", 0.6, reach)
+			_ease(p, "arm_rear", 0.6, reach)
+		"frame":  # A forearm into his neck, the other hand on his hip, making space (D264).
+			_ease(p, "arm_lead", 2.0, reach)
+			_ease(p, "reach_lead", 0.7, reach)
+			_ease(p, "arm_rear", 1.4, reach)
+			p.roll = 0.3 * lead * reach
+		"flatten":  # Chest heavy on him, driving the framing arm down (D264).
+			_ease(p, "lean", -1.0, reach)
+			_ease(p, "hip_y", p.hip_y - 0.08, reach)
+			_ease(p, "arm_rear", 1.2, reach)
+		"take_crucifix":  # Reaching down to trap the near arm between his knees, swinging round to his head (D264).
+			_ease(p, "lean", -0.8, reach)
+			_ease(p, "arm_lead", 0.9, reach)
+			_ease(p, "leg_lead", 1.3, reach)
+			p.twist = lerpf(0.0, 0.4, reach)
+		"escape_crucifix":  # Turning in towards him, dragging the trapped arm out from under his legs (D264).
+			p.roll = 0.5 * lead * reach
+			_ease(p, "arm_rear", 2.4, reach)
+			_ease(p, "leg_lead", 0.9, reach)
+		"two_on_one":  # Both hands up on the arm across his throat (D264).
+			_ease(p, "arm_lead", 2.8, reach)
+			_ease(p, "arm_rear", 2.8, reach)
+			_ease(p, "reach_lead", 0.6, reach)
+			_ease(p, "reach_rear", 0.6, reach)
+		"strip_hands":  # The free hand peels his grip off the choking arm (D264).
+			_ease(p, "arm_rear", 2.2, reach)
+			_ease(p, "reach_rear", 1.2, reach)
+			p.twist = lerpf(0.0, 0.3, reach)
+		"crossface":  # The forearm drives across his face, the shoulder down on him (D263).
+			_ease(p, "lean", -0.85, reach)
+			_ease(p, "arm_lead", 1.4, reach)
+			_ease(p, "reach_lead", 1.2, reach)
+			p.twist = lerpf(0.0, -0.4, reach)
 		"check_kick":  # The lead knee comes up and turns out to meet the shin (D180, D281).
 			p.leg_lead = lerpf(p.leg_lead, 1.25, reach)
 			p.check = reach

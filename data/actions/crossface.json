@@ -1,0 +1,20 @@
+{
+	"schema": "action@2",
+	"id": "crossface",
+	"name": "Crossface",
+	"category": "ground",
+	"basic": true,
+	"positions": ["half_guard"],
+	"roles": ["top"],
+	"ranges": ["clinch"],
+	"phases_ms": { "telegraph": 0, "windup": 200, "active": 200, "recovery": 200 },
+	"stamina_cost": 3,
+	"flags_self": [],
+	"ground": { "base_success": 0.45, "grip": "half_inside" },
+	"stats": { "offense": ["top_control", "strength"], "defense": ["guard", "strength"] },
+	"opportunities": [
+		{ "opponent_flag": "COVERED", "success_bonus": 0.10 },
+		{ "own_flag": "WRIST_HELD", "success_bonus": -0.10 }
+	],
+	"requires_technique": null
+}

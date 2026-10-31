@@ -168,6 +168,158 @@ ffmpeg -framerate 24 -i build/grapples/frame-%04d.png -c:v libx264 -pix_fmt yuv4
 Tests: `tests/game/test_grapple_poses.gd` (the grips sit where they should, and every move in the library moves the
 figure).
 
+## The rig prototype (D283)
+
+Today's figures pose each man on his own, so on the ground and in the clinch their limbs pass through each other.
+The rig prototype is the step before paired grappling: a skeleton that can be posed against a second one.
+
+**The skeleton** (`game/rig/fighter_rig.gd`, `FighterRig`) is built in code in today's faceted look. The pelvis
+carries a waist joint 0.29 m up where the torso is cut (`FighterSculpt.torso(stocky, from, to)` keeps the rings
+between two heights), so the chest bends forward, twists and side-bends over the hips. The neck and head nod and
+turn. Arms (0.31 + 0.32 m) and legs (0.46 + 0.45 m) are two-bone chains solved like the fighters' legs
+(`FighterMotion.solve_bones`): fixed lengths, the elbow or knee bent toward a pole, a target out of reach stopping
+at full stretch.
+
+**Points on a body.** Hands and feet go to named points on either man: `chest`, `sternum`, `back`, `blade_l/r`
+(shoulder blades), `belly`, `lower_back`, `waist_l/r`, `hip_l/r`, `seat`, `neck`, `nape`, `head`,
+`back_of_head`, `chin`, `shoulder_l/r`, `armpit_l/r`, a limb's middle (`thigh_l`, `shin_r`, `upper_l`, `fore_r`)
+or a joint (`elbow_l`, `knee_r`, `wrist_l`, `ankle_r`). Each is a bone and an offset in that bone's frame
+(`FighterRig.POINTS`), so the hand stays on his back when his back moves.
+
+**Paired poses** (`game/rig/rig_pairs.gd`, `RigPairs`) are data in one frame for both men: the origin on the
+canvas between them, red on the +Z side facing -Z, blue facing him (turn 180). A body is `root` (the pelvis),
+`turn`, `lean` (forward +, -90 on his back), `roll`, `bend` [forward, twist, side] at the waist and `head` [nod,
+turn], in degrees and metres. Each hand and foot is `{"to": "b.back", "off": [x, y, z]}` (a point on blue;
+`a.` is red), `{"at": [x, y, z]}` (a place in the frame) or nothing (hands up, feet under the hips),
+with an optional `pole` (where the elbow or knee points, in his pelvis frame) and `flat` (1 lays the foot on
+the canvas). The prototype's set:
+
+| Pose | Red | Blue |
+| --- | --- | --- |
+| Clinch (body lock) | arms under blue's, hands round his shoulder blades, head on his shoulder, hips back | overhooks on red's shoulder blades, head on the other side |
+| Double leg | level changed, rear knee down, head on blue's ribs to the outside, hands behind his knees | tall, hands on red's back |
+| Full guard | kneeling between his legs, hands on his belly | on his back, legs round red's waist with the ankles crossed behind his lower back, a hand on the back of red's neck and one on his arm |
+| Sprawl | down on his knees, arms short at blue's hips | hips dropped on red's head, legs kicked back, chest over his back, one arm over his back and one under his arm |
+| Getting up | sitting back on a hand posted behind, the other framing, one foot planted and the other leg out at blue | waiting a step away |
+
+`FighterRig.pose_pair(a, b, pose, frame, to, t)` places both bodies, then solves the limbs twice (so a hand on his
+arm finds the arm where it ended up). With `to` and `t` it blends: the body numbers are mixed, and each hand and
+foot target is mixed in the world, so a hand on him stays on him through the move. The clips: standing to the
+clinch, shooting the double leg and finishing it into the guard, shooting into a sprawl, and getting up.
+
+**A skinned body later.** A single mesh that bends at the joints (for example an auto-rigged Tripo or Mixamo
+body) will look better than separate faceted pieces. The rig is the part that body still needs: what moves the
+bones so two men fit together. `FighterRig.HUMANOID` maps each joint to the bone names of Godot's standard
+humanoid skeleton (`Hips`, `Chest`, `Neck`, `Head`, `LeftUpperArm`, `LeftLowerArm`, `LeftHand`, `LeftUpperLeg`,
+`LeftLowerLeg`, `LeftFoot` and the right side's), and `bone_transforms()` gives each one's place and turn, so the
+same poses can drive an imported body's skeleton.
+
+**Not yet:** the rig isn't in the fight screen; poses are hand-placed with no physics; no grip, ground or
+submission position past these five; the hands are mitts with no fingers. Next: drive a skinned humanoid body
+with the same poses, then replace the fight view's grappling positions one at a time.
+
+Preview, side on in the real venue (the clinch and the full guard are first shown as today's figures draw them);
+`--stills` writes one picture per pose, `--angle=80` turns the camera round the pair:
+
+```sh
+godot --path . --script res://tools/rig_preview.gd -- --out=res://build/rig [--stills] [--angle=80]
+ffmpeg -framerate 24 -i build/rig/frame-%04d.png -c:v libx264 -pix_fmt yuv420p build/rig.mp4
+```
+
+Tests: `tests/game/test_fighter_rig.gd` (bones keep their length in every pose and blend, every hand and foot gets
+within 3 cm of its point, the bodies touch without passing through each other's core, the guard's ankles cross
+behind his back, nothing goes through the canvas and standing feet stay on it, and every joint has a humanoid
+bone name).
+
+## A skinned body on the rig (D284)
+
+The rig's faceted pieces can be swapped for a skinned, auto-rigged body: one mesh that bends at the joints. Kyle
+made the first one in Tripo (image to model, Humanoid auto-rig with the Mixamo skeleton preset, just under 12,000
+faces, exported as GLB); it lives at `game/bodies/tripo_fighter.glb` (until D285 it was kept in `tools/bodies/`,
+out of the exported game). Tripo's colour texture came at 8192 × 8192 (7.4 MB, 256 MB
+of video memory a body once loaded); it was scaled to 2048 × 2048 (1.6 MB file), which looks the same at fight
+distance.
+
+**How it follows the rig** (`game/rig/skinned_body.gd`, `SkinnedBody`):
+
+- `load_body(path)` reads the glTF at run time and finds the Mixamo bones (`mixamorig_Hips`, `Spine`, `Spine1`,
+  `Spine2`, `Neck`, `Head`, the shoulders, arms, forearms, hands, up legs, legs and feet). A Mixamo body faces
+  +Z, so it is turned round, and it is scaled so its hip joints stand at the rig's pelvis height (0.92 m).
+- `measure()` gives the body's sizes in metres (waist and neck heights, the head, the shoulder joints, the hip
+  width, the four limb lengths, the ankle height) and `FighterRig.fit(sizes)` gives the rig those sizes, so the
+  pose's contacts are worked out for this body. The torso's points stretch with it: across and front to back
+  by the shoulders, up by the trunk. Feet placed on the canvas are lifted by the difference in ankle height.
+- `follow(rig)` poses the body: the hips, the spine (Spine 35% and Spine1 70% of the way from the pelvis's turn
+  to the chest's), Spine2, the neck and the head copy the rig's turns; the shoulders ride with Spine2. Each arm
+  and leg is solved again in the body's own bone lengths (`FighterMotion.solve_bones`) toward the rig's wrist
+  or ankle, bending the way the rig's elbow or knee bends. The hands carry on along the forearms; the feet copy
+  the rig's feet.
+- `set_colour(colour)` tints the light-grey shorts the corner's colour with a small shader: light, colourless
+  texels take the tint, while skin, gloves, hair and the dark panels keep the texture's colours.
+
+**Points on red and blue.** In a paired pose `a.` is always red and `b.` always blue, whichever man the spec is
+for (until D284 a hand spec read `a.` as himself, which sent blue's hands round his own back).
+
+**Limits:** the body's arms (0.27 + 0.25 m) are shorter than the faceted rig's (0.31 + 0.32 m, with the glove),
+so in the clinch and the double leg a hand can stop up to 5 cm short, on his skin; the hands are open (the
+Mixamo fingers aren't curled into fists yet); the body is smooth-shaded, not faceted like the venue; one body
+and one face for both corners. The fight screen still uses today's figures.
+
+Preview with the body on the rigs (`--body`, or `--body=<file.glb>` for another Mixamo-rigged body):
+
+```sh
+godot --path . --script res://tools/rig_preview.gd -- --out=res://build/body --body [--stills] [--angle=80]
+```
+
+Tests: `tests/game/test_skinned_body.gd` (the body stands at the rig's height and measures like a man, its hands
+and feet are where the rig's are in every pose, the fitted rig still reaches every contact within 5 cm, the
+body's bones keep their length, the shorts take the corner's colour).
+
+The preview tools start a throwaway fight from the title screen (D302); a fight now hides every menu screen when
+it starts, so the arranged clips show the fight, not the title.
+
+## The fight screen draws the skinned body (D285)
+
+Both fighters in the fight are now drawn with the Tripo body (`game/bodies/tripo_fighter.glb`, imported with the
+game and exported with it). The first step copies today's figures: the faceted pieces still pose every frame
+exactly as before (strikes aim and land, hit reactions, grips, ground positions, the scouted tell), but they
+aren't drawn; the body follows their joints. Every strike, move and position already in the game shows on the
+body at once. The rig's paired poses (D283) take over the clinch and ground positions one at a time later.
+
+**How** (`FighterFigure.use_body`, `FighterFigure.body_pose`, `SkinnedBody.follow_joints`):
+
+- `ArenaView.BODY` names the body the fight draws (`""` draws the faceted pieces as before). Each figure loads
+  it, tints its shorts the corner's colour and hides its pieces from every camera and light (render layers 0),
+  except the scouted tell's glow.
+- The pieces are taller in the trunk than the body (shoulders 1.52 m against 1.39 m when both stand with hips
+  at 0.92 m), so the body is scaled by **shoulder height** to match. Each frame its hips then move along with
+  the pieces' hips so its shoulders sit where the pieces' shoulders are; its longer legs take up the gap.
+- The arms and legs are solved in the body's own lengths toward the pieces' gloves and ankles, bending where
+  the pieces' elbows and knees bend. The feet are lifted by the difference in ankle height (`BODY_ANKLE_UP`
+  0.097 m for the pieces, against the body's own), so the soles stay on the canvas.
+- **A long punch throws the shoulder.** The body's arms are a little shorter than the pieces'. A bent arm keeps
+  the pieces' bend (the hand goes the same share of the arm's length toward the glove); from 85% straight
+  (`STRAIGHT_FROM`) the hand starts reaching for the glove itself and from 96% (`STRAIGHT_AT`) goes all the way.
+  When the glove is then out of reach the shoulder blade turns toward it (up to `SHOULDER_REACH`, 0.5 rad) to
+  make up the gap, as a man does when he extends a punch; a landed jab touches the face.
+- **Fists.** The fingers curl into a gloved fist when the body loads (`FIST_CURL` 1.35 rad a joint, the thumb
+  about half as far). Mixamo's left-hand finger bones are mirrored, so they bend the other way round; each
+  thumb folds about its own axis (`THUMB_AXIS`, found by search).
+
+**To change:** `ArenaView.BODY` (another Mixamo-rigged GLB under `game/`, or `""` for the pieces);
+`SkinnedBody.FIST_CURL`, `THUMB_AXIS`, `SHOULDER_REACH`, `STRAIGHT_FROM`, `STRAIGHT_AT`;
+`FighterFigure.BODY_ANKLE_UP`.
+
+**Limits:** the ground positions, clinch and grips are still today's piece layouts, so where the pieces
+touched (a hand on a head, legs round a waist) the body can sit a few centimetres off or into the other man
+until the paired poses replace them. Today's clinch holds the gloves out wide beside the other man's back, which
+the slimmer body shows more plainly; the rig's body lock (D283) is the first position to replace. One body and
+one face for both corners; smooth-shaded, not faceted.
+
+Tests: `tests/game/test_fight_body.gd` (the fight draws the body and hides the pieces but not the tell, the
+shoulders sit where the pieces' do, the hands go where the gloves do in guard, the jab, the hook and the clinch
+within 4 cm, standing feet are under the pieces' feet with the toes on the mat).
+
 ## Review and verification
 
 Open `project.godot` in Godot 4.7.2 and run the game normally. Start a fight and check striking,

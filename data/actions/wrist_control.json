@@ -1,0 +1,20 @@
+{
+	"schema": "action@2",
+	"id": "wrist_control",
+	"name": "Wrist control",
+	"category": "ground",
+	"basic": true,
+	"positions": ["full_guard", "half_guard", "mount"],
+	"roles": ["bottom"],
+	"ranges": ["clinch"],
+	"phases_ms": { "telegraph": 0, "windup": 100, "active": 200, "recovery": 200 },
+	"stamina_cost": 2,
+	"flags_self": [],
+	"ground": { "base_success": 0.5, "grip": "wrist" },
+	"stats": { "offense": ["guard", "strength"], "defense": ["top_control"] },
+	"opportunities": [
+		{ "opponent_flag": "POSTURED_UP", "success_bonus": 0.10 },
+		{ "opponent_flag": "WRIST_HELD", "success_bonus": -0.10 }
+	],
+	"requires_technique": null
+}

@@ -1,0 +1,43 @@
+{
+	"schema": "background@1",
+	"id": "judo_sambo_household",
+	"name": "Judo and sambo household",
+	"fighter": "judoka",
+	"about": "Both parents competed; throws were family dinner talk.",
+	"strengths": [
+		"clinch_control",
+		"takedowns",
+		"submission_defense",
+		"strength"
+	],
+	"weaknesses": [
+		"boxing",
+		"kicking",
+		"footwork"
+	],
+	"style": {
+		"pace": 0,
+		"range": 40,
+		"base": 40,
+		"risk": 10
+	},
+	"frame": {
+		"height_cm": [
+			170,
+			186
+		],
+		"build": "average"
+	},
+	"personality": {
+		"discipline": 25
+	},
+	"gift_weights": {
+		"ice_in_the_veins": 1,
+		"freak_athlete": 1
+	},
+	"flaw_weights": {
+		"hard_cut": 1
+	},
+	"hook": "The Olympic dream his family had for him didn't happen.",
+	"money": 300
+}

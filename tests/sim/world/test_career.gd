@@ -175,6 +175,75 @@ func test_the_load_screen_summary_says_who_when_and_how_he_is_doing() -> void:
 	assert_false(s.pro)
 
 
+func test_a_week_says_what_happened_in_it() -> void:
+	var c: Career = _career()
+	c.week_plan = "time_off"
+	c.trainee.injured_days = 5
+	c.trainee.injury_area = "body"
+	c.suspended_days = 3
+	var report: Dictionary = c.run_week()
+	var kinds: Array = report.events.map(func(e: Dictionary) -> String: return e.kind)
+	assert_true(Career.HEALED in kinds, "healed")
+	assert_true(Career.CLEARED in kinds, "suspension over")
+	assert_eq(report.week, 0, "the week it happened in")
+	for i in 50:
+		c.run_week()
+	report = c.run_week()
+	assert_eq(c.age(), 17)
+	assert_eq(report.events[0].kind, Career.BIRTHDAY)
+	assert_eq(Career.event_text(report.events[0]), "Turns 17")
+
+
+func test_advance_runs_until_something_happens() -> void:
+	var c: Career = _career()
+	c.week_plan = "time_off"
+	c.trainee.injured_days = 10
+	c.trainee.injury_area = "legs"
+	var reports: Array[Dictionary] = c.advance()
+	assert_eq(reports.size(), 2, "10 days out heals in the second week")
+	assert_eq(reports[-1].events[0].kind, Career.HEALED)
+	assert_eq(c.week, 2)
+	c.offers.clear()
+	c.next_offers_week = 1000  # No offers coming (D304).
+	reports = c.advance()
+	assert_eq(reports.size(), Career.ADVANCE_MAX_WEEKS, "with nothing coming up it stops after %d weeks" % Career.ADVANCE_MAX_WEEKS)
+	c.booked = { "opponent": "opp_1", "week": c.week + 4 }
+	assert_true(c.advance().is_empty(), "booked for a fight, the camp runs the weeks")
+
+
+func test_advance_stops_the_first_week_training_wears_him_down() -> void:
+	var c: Career = _career()
+	var kinds := func(report: Dictionary) -> Array: return report.events.map(func(e: Dictionary) -> String: return e.kind)
+	var hard: Dictionary = c.run_week("all_out")
+	assert_gt(float(hard.fatigue_peak), TrainingCamp.FATIGUE_FREE, "a week all out takes him past the line")
+	assert_true(Career.WORN_DOWN in kinds.call(hard), "the first hard week is news")
+	assert_eq(Career.event_text({ "kind": Career.WORN_DOWN }), "Worn down from training")
+	assert_false(Career.WORN_DOWN in kinds.call(c.run_week("all_out")), "the same again the next week isn't")
+	var loaded: Career = Career.from_dict(JSON.parse_string(JSON.stringify(c.to_dict())))
+	assert_true(loaded.worn_last_week, "a save remembers it")
+	assert_false(Career.WORN_DOWN in kinds.call(c.run_week("time_off")))
+	assert_false(c.worn_last_week)
+	assert_true(Career.WORN_DOWN in kinds.call(c.run_week("all_out")), "after an easy week it's news again")
+
+
+func test_the_calendar_shows_what_is_coming() -> void:
+	var c: Career = _career()
+	c.trainee.injured_days = 10
+	c.trainee.injury_area = "legs"
+	c.suspended_days = 14
+	c.booked = { "opponent": "opp_1", "week": 3 }
+	var weeks: Array[Dictionary] = c.calendar(52)
+	assert_eq(weeks.size(), 52)
+	assert_eq(weeks[0].date, "Mon 4 Jan")
+	assert_eq(weeks[1].date, "Mon 11 Jan")
+	var kinds := func(i: int) -> Array: return weeks[i].events.map(func(e: Dictionary) -> String: return e.kind)
+	assert_true(Career.HEALED in kinds.call(1), "10 days out: healed during the second week")
+	assert_true(Career.CLEARED in kinds.call(1), "14 days' suspension: over during the second week")
+	assert_true(Career.FIGHT_NIGHT in kinds.call(3))
+	assert_true(Career.BIRTHDAY in kinds.call(51), "his birthday in the 52nd week")
+	assert_eq(c.date_text(5, 1), "Sat 16 Jan 2027")
+
+
 ## The two are the same, numbers to within a billionth: a number read back from a JSON file can come back a last
 ## binary digit off (about 1e-16 of it), which no dice roll can tell apart.
 func _assert_same(got: Variant, want: Variant, path: String = "") -> void:

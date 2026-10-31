@@ -1,0 +1,51 @@
+{
+	"schema": "names@1",
+	"id": "united_states",
+	"country": "United States",
+	"cities": [
+		"Albuquerque",
+		"Philadelphia",
+		"Las Vegas",
+		"Iowa City",
+		"Sacramento",
+		"Denver",
+		"Columbus",
+		"Tampa"
+	],
+	"first": [
+		"Jake",
+		"Tyler",
+		"Marcus",
+		"Dylan",
+		"Cody",
+		"Andre",
+		"Derek",
+		"Travis",
+		"Chris",
+		"Kevin",
+		"Jordan",
+		"Mason",
+		"Brandon",
+		"Luis",
+		"Ryan",
+		"Darnell"
+	],
+	"last": [
+		"Miller",
+		"Johnson",
+		"Carter",
+		"Brooks",
+		"Walker",
+		"Hayes",
+		"Turner",
+		"Coleman",
+		"Reed",
+		"Bennett",
+		"Price",
+		"Foster",
+		"Harris",
+		"Lopez",
+		"Young",
+		"Mitchell"
+	]
+}
