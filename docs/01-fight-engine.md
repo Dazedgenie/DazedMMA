@@ -1011,26 +1011,27 @@ Each fighter's chance a second to reset while struggling away from the middle:
 | Pressure wrestler | +80, 0 | 50 | 0.10 | 1% |
 | Brawler | +70, +70 | 40 | 0 | never |
 
-Measured (100 fights a pairing, pro rules, the same seeds as main, compared fight by fight with `tools/balance_compare.gd`,
-§2.4):
+Measured against main at #96 (striker feints, D236) and #97: 100 fights a pairing, pro rules, the same seeds as main,
+compared fight by fight with `tools/balance_compare.gd` (§2.4):
 
 | Pairing | Red wins: main → with D290 (change, 95% range) | Resets a fight, red (made it, cut off) · blue |
 |---|---|---|
-| Kicker vs Boxer | 36% → 39% (+3, −10 to +16) | 2.6 (1.1, 0.8) · 0.6 (0.5, 0.0) |
-| Leg-kick specialist vs Dirty boxer | 19% → 18% (−1, −12 to +10) | 1.5 (0.1, 1.4) · 1.3 (1.2, 0.1) |
-| Boxer vs Pressure wrestler | 9% → 16% (+7, −1 to +15) | 0.1 (0.0, 0.1) · 0.2 (0.1, 0.1) |
-| Counter-striker vs Brawler | 19% → 16% (−3, −13 to +7) | 4.0 (1.2, 1.6) · 0.0 |
-| Wrestler vs Kicker | 70% → 59% (−11, −24 to +2) | 0.5 (0.4, 0.0) · 0.8 (0.4, 0.2) |
-| Karate vs Boxer | 91% → 90% (−1, −9 to +7) | 1.5 (0.5, 0.5) · 0.7 (0.6, 0.1) |
-| Muay Thai vs Boxer | 71% → 68% (−3, −14 to +8) | 0.8 (0.1, 0.6) · 0.7 (0.2, 0.5) |
-| BJJ vs Boxer | 78% → 81% (+3, −6 to +12) | 0.6 (0.0, 0.6) · 0.0 |
-| Kicker vs Pressure wrestler | 10% → 9% (−1, −7 to +5) | 0.4 (0.2, 0.2) · 0.0 |
-| Leg-kick specialist vs Boxer | 43% → 38% (−5, −18 to +8) | 0.5 (0.0, 0.5) · 0.9 (0.8, 0.0) |
+| Kicker vs Boxer | 44% → 38% (−6, −20 to +8) | 2.7 (1.2, 0.8) · 0.7 (0.6, 0.0) |
+| Leg-kick specialist vs Dirty boxer | 18% → 19% (+1, −9 to +11) | 1.6 (0.1, 1.4) · 1.2 (1.1, 0.1) |
+| Boxer vs Pressure wrestler | 8% → 11% (+3, −5 to +11) | 0.1 (0.0, 0.1) · 0.1 (0.0, 0.1) |
+| Counter-striker vs Brawler | 12% → 14% (+2, −8 to +12) | 3.8 (1.3, 1.3) · 0.0 |
+| Wrestler vs Kicker | 70% → 69% (−1, −14 to +12) | 0.5 (0.5, 0.0) · 0.7 (0.4, 0.2) |
+| Karate vs Boxer | 96% → 88% (−8, −16 to −0.3) | 1.7 (0.8, 0.5) · 1.0 (0.8, 0.0) |
+| Muay Thai vs Boxer | 66% → 66% (0, −13 to +13) | 0.9 (0.2, 0.7) · 0.7 (0.3, 0.3) |
+| BJJ vs Boxer | 79% → 84% (+5, −6 to +16) | 0.6 (0.0, 0.6) · 0.1 (0.0, 0.0) |
+| Kicker vs Pressure wrestler | 5% → 4% (−1, −6 to +4) | 0.6 (0.3, 0.3) · 0.1 (0.1, 0.0) |
+| Leg-kick specialist vs Boxer | 40% → 40% (0, −14 to +14) | 0.6 (0.0, 0.6) · 0.9 (0.9, 0.0) |
 
-Every range crosses 0, so none of the changes is clearly more than luck. Wrestler vs Kicker moved most, so it was played
-again on 300 other seeds (from 101): 71.7% → 68.7% (−3, −10 to +4), draws 1.7% → 0.7%; Kicker vs Boxer on the same 300
-seeds 42.3% → 39.7% (−3, −11 to +5). Whole-run draws stay under 2% (0.5%). The Leg-kick specialist, who plants on the
-fence (§20.6, D255), mostly gets cut off when he tries. The sim is about 3% slower (91 → 94 µs a tick on 4 processes).
+Only Karate vs Boxer's range misses 0, just, so it was played again on 300 other seeds (from 101): 92.0% → 92.3% (+0.3,
+−3.8 to +4.4), so that was luck. Kicker vs Boxer on the same 300 seeds: 35.3% → 41.0% (+5.7, −2.1 to +13.5), the other way
+from the 100. Before #96, Wrestler vs Kicker moved most (70% → 59% on 100 fights) and came back to 71.7% → 68.7% on 300
+others. Whole-run draws stay under 2% (0.1% both). The Leg-kick specialist, who plants on the fence (§20.6, D255), mostly
+gets cut off when he tries. The sim is about 2–3% slower (93 → 95 µs a tick on 2 processes).
 
 Tested in `tests/sim/fight/test_reset_to_centre.gd` (what counts as struggling and how it fades, walking straight back and
 never closer, circling round the opponent in the way, the Brawler never resetting, nothing to reset to in the middle, the
