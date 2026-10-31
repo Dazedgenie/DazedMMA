@@ -259,7 +259,7 @@ each with a `.backup.json` of the save before it). Written by `CareerSaves` (`ga
 | `about` | `nickname`, `hometown`, `country`, `background`: shown on screens, not used by fights |
 | `trainee` | `TrainingCamp.snapshot()`: `stats` (with fractions), `style`, `fatigue`, `injured_days`, `injury_area`, `age_years`, `potential`, `camp_gains` (this camp's, for the soft cap) and `dice` |
 | `calendar` | `first_monday` (days since 1 Jan 1970 of week 0's Monday) and `week` (weeks since) |
-| `suspended_days`, `money`, `pro`, `week_plan` | Days of medical suspension left; money; turned pro; the data/week_plans id run between fights |
+| `suspended_days`, `money`, `pro`, `week_plan`, `worn_last_week` | Days of medical suspension left; money; turned pro; the data/week_plans id run between fights; whether training wore him down last week, so *Advance* stops only on the first such week (D303; optional, false when missing) |
 | `fights` | One entry per fight, oldest first: `result` (`win`, `loss`, `draw`, `no_contest`), `opponent` (an id in `opponents`), `week`, `pro`, and what the fight screen adds (`method`, `round`, `time`, `ruleset`, `purse`) |
 | `opponents` | `{id: fighter@1 profile}` for everyone he's fought or is booked to fight |
 | `booked`, `offers` | The next fight and the offers on the table (D304) |
