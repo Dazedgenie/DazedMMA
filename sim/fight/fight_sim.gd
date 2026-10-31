@@ -191,6 +191,17 @@ const FENCE_HOLD_DRAIN_PER_S: float = 0.1
 ## fence, this often (the "pressed" transition); otherwise it's the scramble, as anywhere else.
 const PRESSED_CHANCE: float = 0.25
 const COVERED := "COVERED"
+## Grips in the clinch (D261, docs/01 §40.3). Chest to chest the clinch has two sides (red's left
+## meets blue's right, red's right meets blue's left) and on each side one man has the inside, an
+## underhook (the other's arm on that side is an overhook, the whizzer), or neither has a grip yet
+## (hand fighting). Grips last until stripped or the clinch ends. Flags: UNDERHOOK with at least one
+## underhook, BODY_LOCK with both, OVERHOOK while the other man has one on you (your whizzer).
+const PUMMEL := "pummel"
+const STRIP_GRIP := "strip_grip"
+const UNDERHOOK := "UNDERHOOK"
+const BODY_LOCK := "BODY_LOCK"
+const OVERHOOK := "OVERHOOK"
+const NO_GRIP: int = -1
 ## A locked submission is fought for in beats, one every STRUGGLE_BEAT_TICKS (D126). Each beat
 ## the attacker wins with Contest.chance(STRUGGLE_BASE, the hold's offense stats, its defense
 ## stats, ± the corners' struggle calls) and the danger moves STRUGGLE_STEP up, or down.
@@ -315,6 +326,8 @@ var _hold: Dictionary = {}
 ## A drive to the fence under way (D220), or empty: {by (the driver), dir (unit vector, the
 ## way he walks the other man), left (metres still to go)}.
 var _drive: Dictionary = {}
+## Who has the inside on each side of the clinch (D261): a fighter's index, or NO_GRIP.
+var _grips: Array[int] = [NO_GRIP, NO_GRIP]
 ## What the current position does to each fighter every tick (its data, worked out
 ## when the position changes): stamina drained, judges' control points, strike damage ×.
 var _drain: Array[float] = [0.0, 0.0]
@@ -542,6 +555,42 @@ func held_on_fence(i: int) -> bool:
 		return false
 	var gap: float = Octagon.distance_to_fence(fighters[i].pos)
 	return gap - Octagon.BODY_MARGIN < Octagon.PINNED_WITHIN and gap < Octagon.distance_to_fence(fighters[1 - i].pos)
+
+
+## Fighter i's underhooks in the clinch (D261): 0, 1, or 2 (the body lock).
+func underhooks(i: int) -> int:
+	if situation.position != PositionLibrary.CLINCH:
+		return 0
+	return _grips.count(i)
+
+
+## Who has the inside on each side of the clinch (D261): a fighter's index or NO_GRIP. Read-only.
+func grips() -> Array[int]:
+	return _grips.duplicate()
+
+
+## Sets who has the inside on each side (D261), for tests and set pieces: [side 0, side 1], each a
+## fighter's index or NO_GRIP. Only means anything in the clinch.
+func set_grips(who: Array[int]) -> void:
+	_grips = [who[0], who[1]]
+
+
+## The grip flags fighter i carries in the clinch (D261): UNDERHOOK, BODY_LOCK, OVERHOOK.
+func _grip_flags(i: int, out: Array[String]) -> void:
+	if _grips[0] == NO_GRIP and _grips[1] == NO_GRIP or situation.position != PositionLibrary.CLINCH:
+		return  # Hand fighting, or not in the clinch: nothing to carry (and it's every odds check, so it's quick).
+	var mine: int = int(_grips[0] == i) + int(_grips[1] == i)
+	if mine >= 1:
+		out.append(UNDERHOOK)
+	if mine == 2:
+		out.append(BODY_LOCK)
+	if mine < 2 and (_grips[0] == 1 - i or _grips[1] == 1 - i):
+		out.append(OVERHOOK)
+
+
+## Hands off: no grips (a new clinch, or out of it).
+func _clear_grips() -> void:
+	_grips = [NO_GRIP, NO_GRIP]
 
 
 func run_to_end() -> void:
@@ -966,6 +1015,7 @@ func _to_corners() -> void:
 	situation.reset()
 	_hold = {}  # Saved by the bell.
 	_drive = {}
+	_clear_grips()
 	_position_effects()
 	_wants = [0.0, 0.0]
 	_circling = [0.0, 0.0]
@@ -1018,6 +1068,8 @@ func apply_transition(i: int, action_id: String, result: String = PositionLibrar
 	var was_top: Array[bool] = [situation.role(0) == PositionLibrary.TOP, situation.role(1) == PositionLibrary.TOP]
 	var was_bottom: bool = situation.role(i) == PositionLibrary.BOTTOM
 	var control_before: float = float(positions.get_position(situation.position).control_score.get(PositionLibrary.TOP, 0.0))
+	if situation.position != PositionLibrary.CLINCH or t.to != PositionLibrary.CLINCH:
+		_clear_grips()  # A new clinch starts hand fighting; turning him on the fence keeps the grips (D261).
 	var roles: Array[String] = ["", ""]
 	roles[i] = t.roles.actor
 	roles[1 - i] = t.roles.opponent
@@ -1069,6 +1121,7 @@ func apply_transition(i: int, action_id: String, result: String = PositionLibrar
 func _break_apart(i: int) -> void:
 	situation.reset()
 	_drive = {}
+	_clear_grips()
 	for f in fighters:
 		f.tied_up_ticks = 0
 		f.unanswered = 0
@@ -1131,6 +1184,10 @@ func _start_action(i: int, id: String, decision: Decision = null) -> void:
 		f.fence_drives_tried += 1
 	elif id == SPIN_OFF or id == TURN_HIM:
 		f.spin_offs_tried += 1
+	elif id == PUMMEL:
+		f.pummels_tried += 1
+	elif id == STRIP_GRIP:
+		f.strips_tried += 1
 	_start_combo(i, id, decision)
 	if action.category == "strike" or action.category == "takedown" or action.category == "submission" or (action.category == "clinch" and situation.is_standing()):
 		_round_aggression[i] += 1.0
@@ -1253,6 +1310,7 @@ func active_flags(i: int) -> Array[String]:
 		out.append("HANDS_LOW")
 	if f.tied_up_ticks > 0:
 		out.append("POSTURE_BROKEN")
+	_grip_flags(i, out)
 	if f.bit_ticks > 0:
 		out.append("BIT_ON_FEINT")
 	if f.is_down():
@@ -1289,6 +1347,7 @@ func flags_ahead(i: int, ahead: int) -> Array[String]:
 		out.append("HANDS_LOW")
 	if f.tied_up_ticks > turns:
 		out.append("POSTURE_BROKEN")
+	_grip_flags(i, out)
 	if f.bit_ticks > turns:
 		out.append("BIT_ON_FEINT")
 	if f.down_ticks > turns:
@@ -1617,7 +1676,8 @@ func _make_contact(i: int, action: Dictionary) -> void:
 			fighters[i].grip = b
 			_meet_shot(1 - i)  # Already sprawling as it arrives?
 			return
-		stopped.reason = "not on the fence" if b.missing == "own " + HELD_ON_FENCE else "nothing to catch"
+		stopped.reason = { "own " + HELD_ON_FENCE: "not on the fence", "own " + UNDERHOOK: "no underhook",
+			"own " + OVERHOOK: "no underhook to strip" }.get(b.missing, "nothing to catch")
 		stopped.chance = 0.0
 		stopped.odds = b.to_dict()
 	_emit(FightEvent.GRAPPLE_STOPPED, i, stopped)
@@ -1674,6 +1734,9 @@ func _finish_grip(i: int) -> bool:
 	if result == PositionLibrary.SUCCESS and action[action.category].has("ties_up_ms"):
 		_tie_up(i, action, b)
 		return false  # The fight stays where it is; the move goes on to its recovery.
+	if result == PositionLibrary.SUCCESS and action[action.category].has("grip"):
+		_take_grip(i, action, b)
+		return false  # Still the clinch, with the grips changed (D261).
 	if result == PositionLibrary.SUCCESS and action[action.category].has("drives_m"):
 		_start_drive(i, action, b)
 		return false  # Still the clinch, walking back to the fence (D220).
@@ -1746,7 +1809,10 @@ func _pressed_on_fence(i: int, action: Dictionary, b: OddsBreakdown, result: Str
 	if _rng.randf() >= PRESSED_CHANCE:
 		return false
 	_emit(FightEvent.GRAPPLE_WON, i, { "action_id": action.id, "result": PositionLibrary.PRESSED, "chance": b.chance, "odds": b.to_dict() })
-	return apply_transition(i, action.id, PositionLibrary.PRESSED)
+	var moved: bool = apply_transition(i, action.id, PositionLibrary.PRESSED)
+	if moved:
+		_grips[0] = i  # He comes up off the legs with an underhook (D261).
+	return moved
 
 
 ## A drive to the fence works: fighter i walks the opponent straight back, DRIVE_SPEED a second,
@@ -1789,6 +1855,30 @@ func _turn(i: int, action: Dictionary, b: OddsBreakdown) -> void:
 	_drive = {}
 	fighters[i].spin_offs_won += 1
 	_emit(FightEvent.GRAPPLE_WON, i, { "action_id": action.id, "result": "turned", "chance": b.chance, "odds": b.to_dict() })
+
+
+## A pummel or a strip works (D261). Pummeling, fighter i swims an arm inside: on the side where the
+## other man has the inside if there is one (his underhook becomes your overhook... and now yours is
+## the underhook), otherwise on a side where neither has it. Stripping, he takes one of the other
+## man's underhooks off: that side is back to hand fighting. Nothing to take, nothing changes.
+func _take_grip(i: int, action: Dictionary, b: OddsBreakdown) -> void:
+	var kind: String = String(action[action.category].grip)
+	var side: int = _grips.find(1 - i)
+	var result: String = "stripped"
+	if kind == "inside":
+		if side < 0:
+			side = _grips.find(NO_GRIP)
+		result = "underhook"
+	if side < 0:
+		_emit(FightEvent.GRAPPLE_STOPPED, i, { "action_id": action.id, "reason": "nothing to take", "chance": b.chance, "odds": b.to_dict() })
+		return
+	_grips[side] = i if kind == "inside" else NO_GRIP
+	if kind == "inside":
+		fighters[i].pummels_won += 1
+	else:
+		fighters[i].strips_won += 1
+	_emit(FightEvent.GRAPPLE_WON, i, { "action_id": action.id, "result": result, "side": side, "underhooks": underhooks(i),
+		"his_underhooks": underhooks(1 - i), "chance": b.chance, "odds": b.to_dict() })
 
 
 # --- Submissions (D126, docs/01 §25) ------------------------------------------
@@ -1871,6 +1961,7 @@ func _escape() -> void:
 		var back: Array[String] = _hold.from_roles
 		situation.set_to(positions.get_position(_hold.from), back)
 	_hold = {}
+	_clear_grips()
 	_position_effects()
 	for f in fighters:
 		f.clear_action()

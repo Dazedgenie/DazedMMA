@@ -195,6 +195,13 @@ func test_the_summary_counts_time_on_the_fence_drives_and_spin_offs() -> void:
 	assert_string_contains(text, "Cage       Dirty boxer (red) holds him on the fence 20.0% of the fight, drives 2.0 of 3.0 won, spin-offs 0.0 of 0.0 · Boxer (blue) 5.0%, 0.0 of 0.0, 1.0 of 4.0 (D220)")
 
 
+func test_the_summary_counts_underhooks_pummels_and_strips() -> void:
+	var report: BalanceReport = _report([_row({ "red": "wrestler", "underhook_red": 0.4, "body_lock_red": 0.1, "pummels_red": 6, "pummels_won_red": 4,
+		"strips_blue": 3, "strips_won_blue": 2, "underhook_blue": 0.05 })])
+	var text: String = report.summary({ "wrestler": "Wrestler", "boxer": "Boxer" })
+	assert_string_contains(text, "Grips      Wrestler (red) an underhook 40.0% of the clinch (both 10.0%), pummels 4.0 of 6.0 won, strips 0.0 of 0.0 · Boxer (blue) 5.0% (0.0%), 0.0 of 0.0, 2.0 of 3.0 (D261)")
+
+
 func test_the_sambo_fighter_is_reported_against_the_strikers_the_wrestler_and_the_bjj_fighter() -> void:
 	var rows: Array[Dictionary] = [
 		_row({ "red": "sambo", "blue": "bjj", "winner_id": "bjj" }),

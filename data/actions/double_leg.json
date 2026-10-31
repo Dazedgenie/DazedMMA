@@ -18,7 +18,10 @@
 		{ "opponent_flag": "LEANING", "success_bonus": 0.10 },
 		{ "opponent_flag": "BIT_ON_FEINT", "success_bonus": 0.10 },
 		{ "own_flag": "HELD_ON_FENCE", "success_bonus": 0.15 },
-		{ "own_flag": "BLIND_SHOT", "success_bonus": -0.20 }
+		{ "own_flag": "BLIND_SHOT", "success_bonus": -0.20 },
+		{ "own_flag": "UNDERHOOK", "success_bonus": 0.05 },
+		{ "own_flag": "BODY_LOCK", "success_bonus": 0.10 },
+		{ "opponent_flag": "BODY_LOCK", "success_bonus": -0.15 }
 	],
 	"requires_technique": null
 }

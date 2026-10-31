@@ -13,7 +13,9 @@
 	"stats": { "offense": ["clinch_control", "strength", "footwork"], "defense": ["clinch_control"] },
 	"opportunities": [
 		{ "own_flag": "BACK_TO_CAGE", "success_bonus": -0.10 },
-		{ "own_flag": "POSTURE_BROKEN", "success_bonus": -0.10 }
+		{ "own_flag": "POSTURE_BROKEN", "success_bonus": -0.10 },
+		{ "opponent_flag": "BODY_LOCK", "success_bonus": -0.15 },
+		{ "own_flag": "UNDERHOOK", "success_bonus": 0.05 }
 	],
 	"requires_technique": null
 }

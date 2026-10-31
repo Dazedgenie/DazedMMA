@@ -12,7 +12,9 @@
 	"stats": { "offense": ["clinch_control", "strength"], "defense": ["clinch_control", "strength"] },
 	"opportunities": [
 		{ "opponent_flag": "HANDS_LOW", "success_bonus": 0.10 },
-		{ "own_flag": "POSTURE_BROKEN", "success_bonus": -0.15 }
+		{ "own_flag": "POSTURE_BROKEN", "success_bonus": -0.15 },
+		{ "opponent_flag": "BODY_LOCK", "success_bonus": -0.10 },
+		{ "own_flag": "BODY_LOCK", "success_bonus": -0.10 }
 	],
 	"requires_technique": null
 }

@@ -202,6 +202,8 @@ func test_values_come_from_the_allowed_lists() -> void:
 			elif (block.has("drives_m") or block.has("turns")) and (category != "clinch" or not block.get("drives_m", 1.0) is float \
 					or block.get("drives_m", 1.0) <= 0.0 or not block.get("turns", false) is bool):
 				problems.append("action '%s': drives_m (metres walked back to the fence, above 0) and turns (true or false) are a clinch move's (D220)" % id)
+			elif block.has("grip") and (category != "clinch" or block.grip not in ["inside", "strip"]):
+				problems.append("action '%s': grip (\"inside\" to pummel for an underhook, \"strip\" to take one of his off) is a clinch move's (D261)" % id)
 			elif (block.has("throw") or block.has("landing_damage")) and (category != "takedown" or not block.get("throw", false) is bool \
 					or not block.get("landing_damage", 0.0) is float or block.get("landing_damage", 0.0) < 0.0):
 				problems.append("action '%s': throw (true or false) and landing_damage (0 or more) are a takedown's (D128)" % id)
@@ -266,8 +268,8 @@ func test_references_point_to_things_that_exist() -> void:
 			if o.has("own_flag") == o.has("opponent_flag"):
 				problems.append("%s: each opportunity names one flag, opponent_flag or own_flag" % where)
 			_expect_key(problems, where, "flag", o.get("own_flag", o.get("opponent_flag")), flags)
-			if o.has("own_flag") and o.get("required", false) and o.own_flag != "HELD_ON_FENCE":
-				problems.append("%s: an own_flag opportunity can be required only for HELD_ON_FENCE (the spin-off, D220)" % where)
+			if o.has("own_flag") and o.get("required", false) and o.own_flag not in ["HELD_ON_FENCE", "UNDERHOOK", "OVERHOOK"]:
+				problems.append("%s: an own_flag opportunity can be required only for HELD_ON_FENCE (the spin-off, D220), UNDERHOOK or OVERHOOK (turning him, stripping a grip, D261)" % where)
 			if o.has("ai_takes") and (not o.ai_takes is bool or not o.get("required", false)):
 				problems.append("%s: ai_takes (true or false) goes on a required opening (D128)" % where)
 			if o.has("target") and o.target not in ["head", "body", "legs"]:

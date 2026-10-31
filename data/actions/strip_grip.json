@@ -1,0 +1,20 @@
+{
+	"schema": "action@2",
+	"id": "strip_grip",
+	"name": "Strip the underhook",
+	"category": "clinch",
+	"basic": true,
+	"positions": ["clinch"],
+	"ranges": ["clinch"],
+	"phases_ms": { "telegraph": 0, "windup": 100, "active": 200, "recovery": 200 },
+	"stamina_cost": 3,
+	"flags_self": [],
+	"clinch": { "base_success": 0.5, "grip": "strip" },
+	"stats": { "offense": ["clinch_control", "footwork"], "defense": ["clinch_control", "strength"] },
+	"opportunities": [
+		{ "own_flag": "OVERHOOK", "required": true, "success_bonus": 0.0 },
+		{ "opponent_flag": "BODY_LOCK", "success_bonus": -0.10 },
+		{ "own_flag": "POSTURE_BROKEN", "success_bonus": -0.15 }
+	],
+	"requires_technique": null
+}
