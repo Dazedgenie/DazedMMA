@@ -3,7 +3,8 @@ extends RefCounted
 ## Paired poses for the rig prototype (D283), written as data in one frame for both men: the origin is on
 ## the canvas between them, red (a) stands on the +Z side facing -Z, blue (b) on the -Z side facing +Z
 ## (turn 180). Each pose is {a: body spec, b: body spec}; see FighterRig.set_body and set_limbs for the keys.
-## Hands and feet go to points on the other man ("to": "b.back") so the contact holds as the bodies move.
+## Hands and feet go to points on a man ("to": "b.back" is blue's back, "a." red's) so the contact holds as the
+## bodies move.
 ## Angles are degrees, lengths metres.
 
 const ANKLE: float = FighterRig.ANKLE_UP
@@ -22,37 +23,37 @@ static func standing() -> Dictionary:
 static func clinch() -> Dictionary:
 	return {
 		"a": {
-			"root": [0.04, 0.86, 0.3], "lean": 16, "bend": [8, -6, 12], "head": [10, -25],
-			"hand_l": {"to": "b.blade_r", "off": [0.02, -0.02, 0.06], "pole": [-1, -0.6, 0.2]},
-			"hand_r": {"to": "b.blade_l", "off": [-0.02, -0.06, 0.06], "pole": [1, -0.6, 0.2]},
+			"root": [0.04, 0.86, 0.29], "lean": 16, "bend": [8, -6, 16], "head": [10, -25],
+			"hand_l": {"to": "b.blade_r", "off": [0.0, -0.02, 0.02], "pole": [-1, -0.6, 0.2]},
+			"hand_r": {"to": "b.blade_l", "off": [0.0, -0.06, 0.02], "pole": [1, -0.6, 0.2]},
 			"foot_l": {"at": [-0.2, ANKLE, 0.12]},
-			"foot_r": {"at": [0.2, ANKLE, 0.62]},
+			"foot_r": {"at": [0.2, ANKLE, 0.56]},
 		},
 		"b": {
-			"root": [0.04, 0.88, -0.3], "turn": 180, "lean": 12, "bend": [6, 6, 12], "head": [8, 25],
-			"hand_l": {"to": "a.blade_r", "off": [0.06, 0.06, 0.04], "pole": [-0.8, 0.2, 0.4]},
-			"hand_r": {"to": "a.blade_l", "off": [-0.06, 0.06, 0.04], "pole": [0.8, 0.2, 0.4]},
+			"root": [0.04, 0.88, -0.3], "turn": 180, "lean": 12, "bend": [6, 6, 16], "head": [8, 25],
+			"hand_l": {"to": "a.blade_r", "off": [0.03, 0.02, 0.0], "pole": [-0.8, 0.2, 0.4]},
+			"hand_r": {"to": "a.blade_l", "off": [-0.03, 0.02, 0.0], "pole": [0.8, 0.2, 0.4]},
 			"foot_l": {"at": [0.2, ANKLE, -0.12]},
-			"foot_r": {"at": [-0.2, ANKLE, -0.62]},
+			"foot_r": {"at": [-0.2, ANKLE, -0.56]},
 		},
 	}
 
 
 ## A double leg: red has changed levels and stepped in, his head on blue's ribs to the outside, both arms
-## round the backs of blue's knees, his rear knee down; blue stands tall with his hands on red's back.
+## round the backs of blue's knees, his rear knee down; blue bends over him with his hands on red's back.
 static func double_leg() -> Dictionary:
 	return {
 		"a": {
-			"root": [0.2, 0.52, 0.42], "turn": -14, "lean": 50, "bend": [12, 0, -14], "head": [-24, -16],
-			"hand_l": {"to": "b.thigh_r", "off": [0.0, -0.17, 0.09], "pole": [-0.9, -0.5, 0.3]},
-			"hand_r": {"to": "b.thigh_l", "off": [0.0, -0.17, 0.09], "pole": [0.9, -0.5, 0.3]},
-			"foot_l": {"at": [-0.16, ANKLE, 0.02]},
-			"foot_r": {"at": [0.2, ANKLE, 0.98], "pole": [0, -0.4, -1]},
+			"root": [0.2, 0.52, 0.37], "turn": -14, "lean": 50, "bend": [12, 0, -14], "head": [-24, -16],
+			"hand_l": {"to": "b.thigh_r", "off": [0.0, -0.12, 0.09], "pole": [-0.9, -0.5, 0.3]},
+			"hand_r": {"to": "b.thigh_l", "off": [0.0, -0.04, 0.09], "pole": [0.9, -0.5, 0.3]},
+			"foot_l": {"at": [-0.16, ANKLE, -0.02]},
+			"foot_r": {"at": [0.2, ANKLE, 0.92], "pole": [0, -0.4, -1]},
 		},
 		"b": {
-			"root": [0, 0.9, -0.28], "turn": 180, "lean": -6, "bend": [16, 0, 0], "head": [20, 0],
-			"hand_l": {"to": "a.back", "off": [-0.12, 0.04, 0.0], "pole": [-0.6, 0.2, 0.6]},
-			"hand_r": {"to": "a.blade_l", "off": [0.0, 0.0, 0.02], "pole": [0.6, 0.2, 0.6]},
+			"root": [0, 0.82, -0.26], "turn": 180, "lean": 20, "bend": [30, 0, 0], "head": [10, 0],
+			"hand_l": {"to": "a.blade_r", "off": [0.0, 0.0, 0.03], "pole": [-0.6, 0.2, 0.6]},
+			"hand_r": {"to": "a.blade_l", "off": [-0.04, -0.06, 0.0], "pole": [0.6, 0.2, 0.6]},
 			"foot_l": {"at": [0.15, ANKLE, -0.22]},
 			"foot_r": {"at": [-0.15, ANKLE, -0.28]},
 		},
@@ -60,7 +61,7 @@ static func double_leg() -> Dictionary:
 
 
 ## The double leg finished: blue on his back, red kneeling in his full guard, blue's legs wrapped round
-## red's waist with the ankles crossed behind his back and his hands on red's head and arm.
+## red's waist with the ankles crossed behind his back and his hands on red's arms.
 static func full_guard() -> Dictionary:
 	return {
 		"a": {
@@ -72,30 +73,30 @@ static func full_guard() -> Dictionary:
 		},
 		"b": {
 			"root": [0, 0.25, 0.1], "turn": 180, "lean": -66, "bend": [-14, 0, 0], "head": [30, 0],
-			"hand_l": {"to": "a.nape", "off": [0.06, 0.0, 0.0], "pole": [-1, 0.4, 0.2]},
-			"hand_r": {"to": "a.upper_l", "off": [0.0, 0.0, -0.06], "pole": [1, 0.4, 0.2]},
-			"foot_l": {"to": "b.lower_back", "off": [0.07, 0.0, 0.05], "pole": [-1, 0.3, -0.3]},
-			"foot_r": {"to": "b.lower_back", "off": [-0.07, 0.03, 0.08], "pole": [1, 0.3, -0.3]},
+			"hand_l": {"to": "a.fore_r", "off": [0.0, -0.06, 0.0], "pole": [-1, 0.4, 0.2]},
+			"hand_r": {"to": "a.fore_l", "off": [0.0, -0.06, 0.0], "pole": [1, 0.4, 0.2]},
+			"foot_l": {"to": "a.lower_back", "off": [0.07, 0.0, 0.05], "pole": [-1, 0.3, -0.3]},
+			"foot_r": {"to": "a.lower_back", "off": [-0.07, 0.03, 0.08], "pole": [1, 0.3, -0.3]},
 		},
 	}
 
 
 ## The sprawl on a failed shot: red shot in but blue threw his legs back and dropped his hips on red's
-## shoulders; red is down on his knees with his arms short of blue's legs, blue's chest on his back.
+## shoulders; red is down on his knees with his hands on blue's waist, short of his legs, blue's chest on his back.
 static func sprawl() -> Dictionary:
 	return {
 		"a": {
 			"root": [0, 0.4, 0.55], "lean": 82, "bend": [10, 0, 0], "head": [-45, 0],
-			"hand_l": {"to": "b.hip_r", "off": [0.0, -0.04, -0.02], "pole": [-1, -0.6, 0]},
-			"hand_r": {"to": "b.hip_l", "off": [0.0, -0.04, -0.02], "pole": [1, -0.6, 0]},
+			"hand_l": {"to": "b.waist_r", "off": [0.0, 0.0, -0.02], "pole": [-1, -0.6, 0]},
+			"hand_r": {"to": "b.waist_l", "off": [0.0, 0.0, -0.02], "pole": [1, -0.6, 0]},
 			"foot_l": {"at": [-0.2, ANKLE, 1.0], "pole": [0, -1, -0.15], "flat": 0.0},
 			"foot_r": {"at": [0.2, ANKLE, 1.0], "pole": [0, -1, -0.15], "flat": 0.0},
 		},
 		"b": {
 			"root": [0, 0.64, -0.56], "turn": 180, "lean": 72, "bend": [4, 0, 0], "head": [-20, 0],
-			"hand_l": {"to": "a.back", "off": [-0.12, -0.12, 0.06], "pole": [-1, 0.3, 0]},
+			"hand_l": {"to": "a.back", "off": [-0.12, -0.04, 0.06], "pole": [-1, 0.3, 0]},
 			"hand_r": {"to": "a.armpit_l", "off": [0.04, -0.02, 0.06], "pole": [1, -0.6, 0]},
-			"foot_l": {"at": [0.3, ANKLE, -1.18], "pole": [0, -1, -0.2]},
+			"foot_l": {"at": [0.3, ANKLE, -1.12], "pole": [0, -1, -0.2]},
 			"foot_r": {"at": [-0.3, ANKLE, -1.14], "pole": [0, -1, -0.2]},
 		},
 	}
