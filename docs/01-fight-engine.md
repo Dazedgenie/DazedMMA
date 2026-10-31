@@ -978,6 +978,66 @@ none at all: the cutter stands still while he feints, so his cut had always stop
 Tested in `tests/sim/fight/test_cage_cutting.gd` (a feint that bites while cutting sells the door and wears off, one in open
 space sells nothing, turning back more readily, counting a turn once a sale, catching the turn).
 
+### 20.8 Resetting to the centre (D290–D294)
+Kyle (2026-10-31): "Fighters should reset to the center of the cage occasionally when not having much success". Before this
+only outside fighters (Range below 0) ever headed back to the middle, and only while further out than the opponent (§20.2).
+Everyone else never did: a Boxer backed onto the fence by a wrestler stayed there, and a chaser landing nothing kept chasing.
+Now a fighter who's been getting the worse of it lately walks back to the middle of the cage now and then, the patient
+thinkers most. Built on the recommended answer to each of the four questions while Kyle's cards were open (the rows D291–D294
+say which).
+
+| Behaviour | What the fighter does | To change it |
+|---|---|---|
+| How it's going lately | Running totals that halve every 10 s, so about the last 20 s count: points dealt and taken (strikes by the judges' weights, plus knockdowns, being rocked and takedowns, as the fighter's own round scoring), and strikes thrown (ones that fell short too: hitting air is the point) and landed | `STRUGGLE_HALF_LIFE` 100 ticks in `sim/fight/fighter_ai.gd`; `FighterAI.struggling()` |
+| Not having much success (D291) | Losing the exchanges: taken at least 15 points and at least twice what he dealt. Or nothing landing: 3 or more thrown and under a quarter of them landed, even if he isn't getting hit | `STRUGGLE_TAKEN` 15, `STRUGGLE_OUTDONE` 2.0, `STRUGGLE_THROWN` 3, `STRUGGLE_LANDED` 0.25 |
+| Deciding to reset (D293) | Checked once a second while he's free, standing and more than 2 m from the middle (and not on a *Cut the cage!* call): a chance of 25% × patience × Fight IQ / 100, patience = 0.5 − (Pace + Risk) / 200, from 0 to 1. The table below has each fighter's chance | `HOME_CHECK_EVERY` 10, `HOME_FROM` 2.0 m, `HOME_RATE` 0.25; the Pace and Risk leanings in `data/fighters/` |
+| Walking back | Straight to the middle when the way is clear, never stepping toward the opponent; when the opponent stands between him and the middle (closer to it, within about 45° of the way there) he circles round him toward the middle side instead. He wants to be out at long range, less the fence behind him, and leads at a fifth of his usual rate (the odd shot; counters and defence as usual). It ends when he's within 1 m of the middle or after 5 s | `HOME_IN_THE_WAY` 0.7, `HOME_LEAD_RATE` 0.2, `HOME_DONE` 1.0 m, `HOME_TICKS` 50; `FightSim._move()` (`home`) |
+| A cutter can stop it (D294) | The walk back is like any escape: the opponent's cut (§20.5, §20.6) still works on him, and once every way out is shut the reset is over (counted as cut off) and he answers being shut in by style as before | `FighterAI._homing()` |
+| How often (D292) | After a reset, not again for 45 s, and how it's been going starts again from nothing. A takedown, a clinch or a new round ends a reset without counting it | `HOME_EVERY` 450 ticks |
+| The feed | "Kicker walks back to the middle to reset: nothing's landing" (or "he's getting the worse of it") | `FightLogFormatter` (`FightEvent.RESET`) |
+| Reported after the fight | The movement line adds *reset to the middle N times (made it M, cut off K)*; the harness has a **Resets** line, CSV columns `resets_*`, `resets_made_*`, `resets_cut_*` | `FightSim.resets`, `resets_made`, `resets_cut` |
+
+Each fighter's chance a second to reset while struggling away from the middle:
+
+| Fighter | Pace, Risk | Fight IQ | Patience | Chance a second |
+|---|---|---|---|---|
+| Counter-striker | −70, −30 | 65 | 1.00 | 16% |
+| Karate point fighter | −20, −10 | 60 | 0.65 | 10% |
+| Kicker | −30, 0 | 50 | 0.65 | 8% |
+| Muay Thai, Judoka, BJJ | about +10, +10 | 50 | 0.40 | 5% |
+| Wrestler, Sprawl-and-brawl | +30, 0 / +20, +10 | 50 | 0.35 | 4% |
+| Boxer, Dirty boxer, Sambo | +40, 0 / +10, +30 | 50 | 0.30 | 4% |
+| Leg-kick specialist, Ground-and-pound wrestler | +40, +10 / +30, +20 | 50 | 0.25 | 3% |
+| Pressure wrestler | +80, 0 | 50 | 0.10 | 1% |
+| Brawler | +70, +70 | 40 | 0 | never |
+
+Measured (100 fights a pairing, pro rules, the same seeds as main, compared fight by fight with `tools/balance_compare.gd`,
+§2.4):
+
+| Pairing | Red wins: main → with D290 (change, 95% range) | Resets a fight, red (made it, cut off) · blue |
+|---|---|---|
+| Kicker vs Boxer | 36% → 39% (+3, −10 to +16) | 2.6 (1.1, 0.8) · 0.6 (0.5, 0.0) |
+| Leg-kick specialist vs Dirty boxer | 19% → 18% (−1, −12 to +10) | 1.5 (0.1, 1.4) · 1.3 (1.2, 0.1) |
+| Boxer vs Pressure wrestler | 9% → 16% (+7, −1 to +15) | 0.1 (0.0, 0.1) · 0.2 (0.1, 0.1) |
+| Counter-striker vs Brawler | 19% → 16% (−3, −13 to +7) | 4.0 (1.2, 1.6) · 0.0 |
+| Wrestler vs Kicker | 70% → 59% (−11, −24 to +2) | 0.5 (0.4, 0.0) · 0.8 (0.4, 0.2) |
+| Karate vs Boxer | 91% → 90% (−1, −9 to +7) | 1.5 (0.5, 0.5) · 0.7 (0.6, 0.1) |
+| Muay Thai vs Boxer | 71% → 68% (−3, −14 to +8) | 0.8 (0.1, 0.6) · 0.7 (0.2, 0.5) |
+| BJJ vs Boxer | 78% → 81% (+3, −6 to +12) | 0.6 (0.0, 0.6) · 0.0 |
+| Kicker vs Pressure wrestler | 10% → 9% (−1, −7 to +5) | 0.4 (0.2, 0.2) · 0.0 |
+| Leg-kick specialist vs Boxer | 43% → 38% (−5, −18 to +8) | 0.5 (0.0, 0.5) · 0.9 (0.8, 0.0) |
+
+Every range crosses 0, so none of the changes is clearly more than luck. Wrestler vs Kicker moved most, so it was played
+again on 300 other seeds (from 101): 71.7% → 68.7% (−3, −10 to +4), draws 1.7% → 0.7%; Kicker vs Boxer on the same 300
+seeds 42.3% → 39.7% (−3, −11 to +5). Whole-run draws stay under 2% (0.5%). The Leg-kick specialist, who plants on the
+fence (§20.6, D255), mostly gets cut off when he tries. The sim is about 3% slower (91 → 94 µs a tick on 4 processes).
+
+Tested in `tests/sim/fight/test_reset_to_centre.gd` (what counts as struggling and how it fades, walking straight back and
+never closer, circling round the opponent in the way, the Brawler never resetting, nothing to reset to in the middle, the
+wait before the next one, resets counted and some cut off over whole fights, the feed and the movement line). The mirror
+check (§2.5) now compares one tick's events in any order: two cage notices on the same tick come out red first in both
+fights, which isn't a corner's edge.
+
 ## 21. Clinch, takedowns and the ground in the engine (#15, D98, D108, D109)
 What `sim/` does for §4, §5.1 and D29 in the Phase 1 playtest. The scope is the trimmed one (D98): one clinch position, the
 double leg, the catch-kick single, the sprawl, full guard top and bottom, getting up and the scramble. Ground-and-pound came

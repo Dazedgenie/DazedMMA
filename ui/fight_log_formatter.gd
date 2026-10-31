@@ -158,6 +158,9 @@ static func _describe(event: FightEvent, sim: FightSim) -> String:
 			if event.data.get("flash", false):
 				return "[b]%s is DROPPED by one shot![/b]" % who
 			return "[b]%s goes DOWN![/b]" % who
+		FightEvent.RESET:
+			var why: String = "he's getting the worse of it" if event.data.get("why", "") == FighterAI.WHY_LOSING else "nothing's landing"
+			return "%s walks back to the middle to reset: %s" % [who, why]
 		FightEvent.STANCE_SWITCHED:
 			return "%s switches stance to hide the %s leg" % [who, LEG_NAMES[int(event.data.hiding)]]
 		FightEvent.LIVER_SHOT:
@@ -221,8 +224,9 @@ static func condition_line(f: FighterState) -> String:
 
 ## How long fighter i spent circling and cutting off the cage (D119), and how many times
 ## they cut the opponent off onto the fence (D230) and got back to the middle when cut off
-## themselves (D233), e.g. "Kicker circled 7:12 (48% of the fight) · cut off the cage 0:00 (0%)
-## · got back to the middle 5 of 6 times he was trapped".
+## themselves (D233), and walked back to the middle to reset (D290), e.g. "Kicker circled 7:12 (48% of
+## the fight) · cut off the cage 0:00 (0%) · got back to the middle 5 of 6 times he was trapped
+## · reset to the middle 2 times (made it 1, cut off 1)".
 static func movement_line(sim: FightSim, i: int) -> String:
 	var line: String = "%s circled %s · cut off the cage %s" % [_fighter(i, sim), _fight_time(sim.circling_ticks[i], sim.now), _fight_time(sim.cutting_ticks[i], sim.now)]
 	if sim.cut_offs[i] > 0:
@@ -232,6 +236,8 @@ static func movement_line(sim: FightSim, i: int) -> String:
 	var trapped: int = sim.cut_offs[1 - i]
 	if trapped > 0:
 		line += " · got back to the middle %d of %d time%s he was trapped" % [sim.cage_escapes[i], trapped, "" if trapped == 1 else "s"]
+	if sim.resets[i] > 0:
+		line += " · reset to the middle %d time%s (made it %d, cut off %d)" % [sim.resets[i], "" if sim.resets[i] == 1 else "s", sim.resets_made[i], sim.resets_cut[i]]
 	return line
 
 

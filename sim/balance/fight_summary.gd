@@ -31,6 +31,7 @@ const COLUMNS: Array[String] = [
 	"circling_red", "cutting_red", "circling_blue", "cutting_blue", "cut_offs_red", "cut_offs_blue",
 	"cage_escapes_red", "cage_escapes_blue", "shut_in_red", "shut_in_blue", "cut_hurt_red", "cut_hurt_blue",
 	"doors_sold_red", "doors_sold_blue", "turned_back_red", "turned_back_blue",
+	"resets_red", "resets_made_red", "resets_cut_red", "resets_blue", "resets_made_blue", "resets_cut_blue",
 	"shots_red", "takedowns_red", "shots_blue", "takedowns_blue", "clinch", "ground", "top_red", "top_blue",
 	"subs_red", "locked_red", "subs_blue", "locked_blue",
 	"leg_locks_red", "leg_locked_red", "leg_locks_blue", "leg_locked_blue", "leg_lock_finish",
@@ -242,6 +243,9 @@ static func of(sim: FightSim, lows: Array[float] = [], moves: Dictionary = {}) -
 		row["cut_hurt_" + side] = sim.cut_damage_taken[i]
 		row["doors_sold_" + side] = sim.doors_sold[i]
 		row["turned_back_" + side] = sim.turned_back[i]
+		row["resets_" + side] = sim.resets[i]
+		row["resets_made_" + side] = sim.resets_made[i]
+		row["resets_cut_" + side] = sim.resets_cut[i]
 		for key: String in ["fence", "pinned", "centre"]:
 			row[key + "_" + side] = _share_of(moves.get(key, [0, 0])[i], standing)
 	for e in sim.events:
