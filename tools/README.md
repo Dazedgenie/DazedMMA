@@ -27,7 +27,7 @@ side on to the camera, at 24 frames a fight second (D282, `docs/13`). `--only=` 
 `rig_preview.gd` shows the rig prototype (D283, `docs/13`): two code skeletons posed against each other in the clinch,
 the double leg, the full guard, the sprawl and getting up, blended from one to the next, with today's figures first for
 the clinch and the guard. `--stills` writes one picture per pose; `--angle=` turns the camera; `--body` puts Kyle's
-skinned Tripo body (`bodies/tripo_fighter.glb`, D284) on the rigs:
+skinned Tripo body (`game/bodies/tripo_fighter.glb`, D284; the fight screen draws it too, D285) on the rigs:
 
     godot --script res://tools/rig_preview.gd -- --out=res://build/rig --stills
 
