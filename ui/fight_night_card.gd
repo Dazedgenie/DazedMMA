@@ -8,6 +8,8 @@ extends PanelContainer
 signal fight_pressed
 signal pull_out_pressed
 signal back_pressed
+## Sim the fight (a career's fight night, D305): the fight plays out at once and goes straight to the result.
+signal sim_pressed
 
 const BACKGROUND := Color(0.06, 0.07, 0.09)
 const CARD := Color("#1b1f26")
@@ -48,6 +50,9 @@ var _countdown: CampCountdown
 var _gains: RichTextLabel
 var _fight: Button
 var _pull_out: Button
+var _sim: Button
+## Shows Sim the fight (a career's fight night, D305).
+var sim_allowed: bool = false
 
 
 func _init() -> void:
@@ -87,6 +92,10 @@ func _init() -> void:
 	back.custom_minimum_size.x = 220.0
 	_pull_out = CampPlanner._button(buttons, "Pull out of the fight", func() -> void: pull_out_pressed.emit())
 	_pull_out.custom_minimum_size.x = 260.0
+	_sim = CampPlanner._button(buttons, "Sim the fight", func() -> void: sim_pressed.emit())
+	_sim.custom_minimum_size.x = 220.0
+	_sim.tooltip_text = "Plays the fight out at once, without watching or calling it, and goes to the result"
+	_sim.visible = false
 	_fight = CampPlanner._button(buttons, "Fight!", func() -> void: fight_pressed.emit())
 	_fight.custom_minimum_size = Vector2(280.0, 64.0)
 	CampPlanner.style_fight_button(_fight, 38)
@@ -144,6 +153,8 @@ func show_night(info: Dictionary) -> void:
 			_verdict.text = "Fit to fight."
 	_fight.disabled = verdict != TrainingCamp.FIT and verdict != TrainingCamp.CLEARED_HURT
 	_pull_out.disabled = _fight.disabled
+	_sim.visible = sim_allowed
+	_sim.disabled = _fight.disabled
 	if not _fight.disabled:
 		FightHud.focus_later(_fight)
 
@@ -166,6 +177,11 @@ func can_fight() -> bool:
 func press_fight() -> void:
 	if not _fight.disabled:
 		_fight.pressed.emit()
+
+
+func press_sim() -> void:
+	if _sim.visible and not _sim.disabled:
+		_sim.pressed.emit()
 
 
 # --- building it -----------------------------------------------------------------

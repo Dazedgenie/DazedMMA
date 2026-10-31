@@ -295,6 +295,7 @@ func test_a_career_fight_goes_from_the_offer_through_the_camp_to_his_record() ->
 	var planner: CampPlanner = _main.planner
 	assert_not_null(planner, "the camp planner, on his own fighter")
 	assert_eq(planner.weeks, fight_week - _main.career.week + 1)
+	planner.pick_preset("time_off")  # No camp injuries: the doctor clears him.
 	planner.run_rest()
 	assert_eq(_main.career.week, fight_week, "fight week waits for the fight")
 	assert_true(planner.done())
@@ -315,6 +316,30 @@ func test_a_career_fight_goes_from_the_offer_through_the_camp_to_his_record() ->
 	assert_eq(_main.career.week, fight_week + 1)
 	assert_eq(CareerSaves.load_slot(0, SAVE_DIR).fights.size(), 1, "saved")
 	assert_string_contains(_main.result.text(), "LOSS on his amateur record")
+	assert_string_contains(_main.result.text(), "Medical suspension: 30 days (a TKO loss)", "the aftermath (D305)")
+	assert_eq(_main.career.suspended_days, Aftermath.TKO_DAYS - Career.FIGHT_TO_MONDAY)
 	_main._career_after_fight()
 	assert_true(_main.hub.visible)
 	assert_string_contains(_main.hub.text(), "L vs ")
+
+
+func test_simming_a_career_fight_goes_straight_to_the_result() -> void:
+	_main.open_new_career()
+	_main.new_career.press_start()
+	_main.career.week_plan = "time_off"
+	_main.hub.press_week()
+	_main.hub.press_accept(_main.hub.offer_ids()[0])
+	_main.hub.press_camp()
+	var planner: CampPlanner = _main.planner
+	planner.pick_preset("time_off")
+	planner.run_rest()
+	assert_true(planner.night_card.visible, "fight night")
+	assert_string_contains(planner.night_card.text(), "Fit to fight")
+	planner.night_card.press_sim()
+	assert_eq(_main.state, _main.OVER, "played out at once")
+	assert_true(_main.driver.sim.is_over())
+	assert_eq(_main.career.fights.size(), 1)
+	assert_true(bool(_main.career.fights[0].simmed))
+	assert_string_contains(_main.result.text(), "Simmed")
+	assert_string_contains(_main.result.text(), "Medical suspension")
+	assert_eq(str(_main.result.button_labels()), str(["Back to the hub"]))
