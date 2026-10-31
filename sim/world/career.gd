@@ -83,6 +83,18 @@ static func create(profile_in: Dictionary, new_seed: int, extra: Dictionary = {}
 	return c
 
 
+## A new career from the new-career screen (docs/03 §10.2, D302): a 16-year-old made from his background
+## (BackgroundLibrary.make_fighter) and the player's `choices`: coach, name, nickname, hometown, country, background (an
+## id in data/backgrounds) and stance. He starts with his background's money.
+static func start(choices: Dictionary, new_seed: int, roster: FighterLibrary, backgrounds: BackgroundLibrary = null, library: TrainingLibrary = null) -> Career:
+	var bgs: BackgroundLibrary = backgrounds if backgrounds != null else BackgroundLibrary.shared()
+	var background: String = String(choices.background)
+	var profile_in: Dictionary = bgs.make_fighter(background, new_seed, roster, choices)
+	var c: Career = create(profile_in, new_seed, choices, library)
+	c.money = int(bgs.get_background(background).get("money", 0))
+	return c
+
+
 ## The fighter@1 profile as he is now, for a fight or the planner (fights read his stats to the nearest point).
 func profile() -> Dictionary:
 	var out: Dictionary = trainee.profile()
@@ -174,6 +186,8 @@ func record_text(pro_fights: bool) -> String:
 func summary() -> Dictionary:
 	return {
 		"name": fighter_name(), "nickname": String(about.get("nickname", "")), "coach": coach_name,
+		"hometown": String(about.get("hometown", "")), "country": String(about.get("country", "")),
+		"background": String(about.get("background", "")),
 		"age": age(), "date": date_text(), "week": week, "pro": pro,
 		"amateur_record": record_text(false), "pro_record": record_text(true),
 	}

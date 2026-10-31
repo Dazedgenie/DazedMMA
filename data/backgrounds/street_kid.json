@@ -1,0 +1,45 @@
+{
+	"schema": "background@1",
+	"id": "street_kid",
+	"name": "Street kid",
+	"fighter": "brawler",
+	"about": "Grew up scrapping on the estate; first gym was a car park.",
+	"strengths": [
+		"chin",
+		"heart",
+		"power",
+		"clinch_striking"
+	],
+	"weaknesses": [
+		"striking_defense",
+		"fight_iq",
+		"takedown_defense"
+	],
+	"style": {
+		"pace": 30,
+		"range": 20,
+		"base": -30,
+		"risk": 30
+	},
+	"frame": {
+		"height_cm": [
+			170,
+			184
+		],
+		"build": "average"
+	},
+	"personality": {
+		"discipline": -30,
+		"ego": 15
+	},
+	"gift_weights": {
+		"granite_chin": 3,
+		"heavy_hands": 2
+	},
+	"flaw_weights": {
+		"bleeder": 2,
+		"brittle_hands": 2
+	},
+	"hook": "His old crew keeps trying to pull him back.",
+	"money": 0
+}

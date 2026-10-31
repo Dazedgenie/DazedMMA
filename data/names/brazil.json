@@ -1,0 +1,51 @@
+{
+	"schema": "names@1",
+	"id": "brazil",
+	"country": "Brazil",
+	"cities": [
+		"Rio de Janeiro",
+		"São Paulo",
+		"Curitiba",
+		"Belo Horizonte",
+		"Manaus",
+		"Salvador",
+		"Natal",
+		"Recife"
+	],
+	"first": [
+		"Thiago",
+		"Rafael",
+		"Lucas",
+		"Gabriel",
+		"Bruno",
+		"Felipe",
+		"Diego",
+		"Rodrigo",
+		"Matheus",
+		"Vitor",
+		"Gustavo",
+		"Caio",
+		"Leandro",
+		"André",
+		"Paulo",
+		"Wesley"
+	],
+	"last": [
+		"Silva",
+		"Souza",
+		"Oliveira",
+		"Santos",
+		"Pereira",
+		"Costa",
+		"Almeida",
+		"Ribeiro",
+		"Carvalho",
+		"Gomes",
+		"Barbosa",
+		"Rocha",
+		"Lima",
+		"Araújo",
+		"Nunes",
+		"Moraes"
+	]
+}

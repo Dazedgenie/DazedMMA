@@ -1,0 +1,51 @@
+{
+	"schema": "names@1",
+	"id": "japan",
+	"country": "Japan",
+	"cities": [
+		"Tokyo",
+		"Osaka",
+		"Yokohama",
+		"Sapporo",
+		"Fukuoka",
+		"Nagoya",
+		"Kobe",
+		"Sendai"
+	],
+	"first": [
+		"Takumi",
+		"Kenji",
+		"Yuto",
+		"Haruto",
+		"Ryo",
+		"Daiki",
+		"Kaito",
+		"Shota",
+		"Yuki",
+		"Sota",
+		"Ren",
+		"Kazuki",
+		"Hiroto",
+		"Taiga",
+		"Riku",
+		"Naoki"
+	],
+	"last": [
+		"Sato",
+		"Suzuki",
+		"Takahashi",
+		"Tanaka",
+		"Watanabe",
+		"Ito",
+		"Yamamoto",
+		"Nakamura",
+		"Kobayashi",
+		"Kato",
+		"Yoshida",
+		"Yamada",
+		"Sasaki",
+		"Inoue",
+		"Kimura",
+		"Hayashi"
+	]
+}

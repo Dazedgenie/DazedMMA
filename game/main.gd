@@ -13,9 +13,17 @@ extends Node3D
 ## starts the same fight with the fighter as the camp left them (settings.red_profile).
 ##
 ## Strike sounds (StrikeSounds, D190) play during the fight at the setup's Sound volume; M mutes them.
+##
+## The game opens on the title screen (TitleScreen, D302): Continue, New career, Load career, Quick fight (the setup
+## above, with the Playtest fights) and Quit. A career (Career, saved by CareerSaves, D301) is made on the new-career
+## screen and lives on the career hub (CareerHub), which saves every week.
 
 ## Smallest window the UI still fits in (the game opens windowed and resizable).
 const MIN_WINDOW_SIZE := Vector2i(960, 540)
+const TITLE := "title"
+const NEW_CAREER := "new_career"
+const LOAD := "load"
+const CAREER := "career"
 const SETUP := "setup"
 const FIGHT := "fight"
 const ROUND_BREAK := "round_break"
@@ -30,7 +38,17 @@ var result: FightResultCard
 var overlay: DebugOverlay
 var sounds: StrikeSounds
 var driver: FightDriver
-var state: String = SETUP
+var state: String = TITLE
+## The title screen and the career's screens (D302).
+var title: TitleScreen
+var new_career: NewCareerScreen
+var load_screen: LoadScreen
+var hub: CareerHub
+## The career being played (null on Quick fight) and its save slot.
+var career: Career
+var career_slot: int = -1
+## Where careers are saved (tests use their own folder).
+var save_dir: String = CareerSaves.DIR
 var settings: Dictionary = {}
 ## Where finished fights are saved ("" = don't save).
 var record_dir: String = FightRecord.DIR
@@ -67,7 +85,31 @@ func _ready() -> void:
 	setup = FightSetup.new(_roster, _actions)
 	setup.start_pressed.connect(start_fight)
 	setup.camp_pressed.connect(open_camp)
+	setup.menu_pressed.connect(show_title)
+	setup.visible = false
 	ui.add_child(setup)
+	title = TitleScreen.new()
+	title.continue_pressed.connect(load_career)
+	title.new_career_pressed.connect(open_new_career)
+	title.load_pressed.connect(open_load)
+	title.quick_fight_pressed.connect(quick_fight)
+	title.quit_pressed.connect(func() -> void: get_tree().quit())
+	ui.add_child(title)
+	new_career = NewCareerScreen.new()
+	new_career.visible = false
+	new_career.start_pressed.connect(start_career)
+	new_career.back_pressed.connect(show_title)
+	ui.add_child(new_career)
+	load_screen = LoadScreen.new()
+	load_screen.visible = false
+	load_screen.load_pressed.connect(load_career)
+	load_screen.back_pressed.connect(show_title)
+	ui.add_child(load_screen)
+	hub = CareerHub.new()
+	hub.visible = false
+	hub.week_pressed.connect(run_career_week)
+	hub.title_pressed.connect(_hub_to_title)
+	ui.add_child(hub)
 	result = FightResultCard.new()
 	result.visible = false
 	ui.add_child(result)
@@ -78,7 +120,105 @@ func _ready() -> void:
 		ProjectSettings.get_setting("application/config/name"),
 		Engine.get_version_info().string,
 	]
+	show_title()
+
+
+## The title screen (D302), with Continue pointing at the career saved last.
+func show_title() -> void:
+	_hide_screens()
+	title.save_dir = save_dir
+	title.refresh()
+	title.visible = true
+	state = TITLE
+	title.focus_first()
+
+
+## Quick fight: the fight setup and the Playtest fights, as before careers (D302).
+func quick_fight() -> void:
+	_hide_screens()
+	career = null
+	setup.visible = true
+	state = SETUP
 	setup.focus_start()
+
+
+func open_new_career() -> void:
+	_hide_screens()
+	new_career.slot_free = CareerSaves.free_slot(save_dir) >= 0
+	new_career.roll(randi())
+	new_career.visible = true
+	state = NEW_CAREER
+	new_career.focus_start()
+
+
+## Starts a career from the new-career screen's choices in the first free slot, saves it and opens the hub.
+func start_career(choices: Dictionary) -> void:
+	var slot: int = CareerSaves.free_slot(save_dir)
+	if slot < 0:
+		return
+	career = Career.start(choices, randi(), _roster)
+	career_slot = slot
+	save_career()
+	show_hub()
+
+
+func open_load() -> void:
+	_hide_screens()
+	load_screen.save_dir = save_dir
+	load_screen.refresh()
+	load_screen.visible = true
+	state = LOAD
+	load_screen.focus_first()
+
+
+## Loads the career in a slot (Continue, or Load on the load screen) and opens the hub. A slot that won't load leaves
+## the load screen up.
+func load_career(slot: int) -> void:
+	var loaded: Career = CareerSaves.load_slot(slot, save_dir)
+	if loaded == null:
+		open_load()
+		return
+	career = loaded
+	career_slot = slot
+	show_hub()
+
+
+func show_hub(last_week: Dictionary = {}) -> void:
+	_hide_screens()
+	hub.show_career(career, last_week)
+	hub.visible = true
+	state = CAREER
+	hub.focus_first()
+
+
+## Run this week on the hub: a week between fights, then an autosave (docs/03 §10.1).
+func run_career_week() -> void:
+	if career == null:
+		return
+	var report: Dictionary = career.run_week()
+	save_career()
+	show_hub(report)
+
+
+## Saves the career in its slot. Returns false when it couldn't (the hub keeps going; the last save stays).
+func save_career() -> bool:
+	return career != null and career_slot >= 0 and CareerSaves.save(career, career_slot, save_dir)
+
+
+func _hub_to_title() -> void:
+	save_career()
+	show_title()
+
+
+func _hide_screens() -> void:
+	_close_camp()
+	for screen: Control in [title, new_career, load_screen, hub, setup, result, hud]:
+		screen.visible = false
+	if hud.dialog_open():
+		hud.hide_dialog()
+	if driver != null:
+		driver.held = true
+	$UI/Version.visible = true
 
 
 ## Starts a fight with these settings (FightSetup.settings()). With `red_profile` (a fighter@1
@@ -155,6 +295,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if key == KEY_F3:
 		overlay.visible = not overlay.visible
 		arena.debug_marks = overlay.visible
+		get_viewport().set_input_as_handled()
+		return
+	if key == KEY_ESCAPE and state in [SETUP, NEW_CAREER, LOAD]:
+		show_title()
 		get_viewport().set_input_as_handled()
 		return
 	if state != FIGHT or hud.dialog_open():

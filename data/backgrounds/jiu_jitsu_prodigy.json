@@ -1,0 +1,43 @@
+{
+	"schema": "background@1",
+	"id": "jiu_jitsu_prodigy",
+	"name": "Jiu-jitsu prodigy",
+	"fighter": "bjj",
+	"about": "Blue belt at fourteen, already winning the kids' opens.",
+	"strengths": [
+		"submissions",
+		"guard",
+		"scrambles",
+		"submission_defense"
+	],
+	"weaknesses": [
+		"boxing",
+		"takedowns",
+		"power"
+	],
+	"style": {
+		"pace": -10,
+		"range": 40,
+		"base": 50,
+		"risk": 20
+	},
+	"frame": {
+		"height_cm": [
+			170,
+			186
+		],
+		"build": "lean"
+	},
+	"personality": {
+		"coachable": 20
+	},
+	"gift_weights": {
+		"long_limbs": 2,
+		"fast_learner": 2
+	},
+	"flaw_weights": {
+		"glass_jaw": 1
+	},
+	"hook": "Rivals from the competition mats turn up again.",
+	"money": 200
+}

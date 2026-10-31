@@ -1,0 +1,43 @@
+{
+	"schema": "background@1",
+	"id": "track_star",
+	"name": "Track star",
+	"fighter": "kicker",
+	"about": "County cross-country champion with a running scholarship on the table.",
+	"strengths": [
+		"cardio",
+		"speed",
+		"footwork",
+		"recovery"
+	],
+	"weaknesses": [
+		"strength",
+		"power",
+		"clinch_control"
+	],
+	"style": {
+		"pace": 20,
+		"range": -40,
+		"base": -30,
+		"risk": -10
+	},
+	"frame": {
+		"height_cm": [
+			174,
+			190
+		],
+		"build": "lean"
+	},
+	"personality": {
+		"discipline": 30
+	},
+	"gift_weights": {
+		"freak_athlete": 2,
+		"long_limbs": 2
+	},
+	"flaw_weights": {
+		"glass_jaw": 1
+	},
+	"hook": "His old coach and the scholarship he turned down.",
+	"money": 200
+}

@@ -15,7 +15,7 @@ playtest says "adjust".
       `ChinCheck-windows-<commit>` under **Artifacts** ([`README.md`](README.md) §1). Note the commit.
 - [ ] Unzip it and double-click `ChinCheck.exe` (if Windows warns: **More info → Run anyway**).
 - [ ] Open a notes file next to the game. Jot one line every time you think "huh?", "too fast", "why did that happen?" or "nice".
-- [ ] On the setup screen: type your name, pick **Playtest 1**, leave Difficulty on Normal, set **Speed** to 2×, press Start.
+- [ ] On the title screen press **Quick fight**. On the setup screen: type your name, pick **Playtest 1**, leave Difficulty on Normal, set **Speed** to 2×, press Start.
 
 ## 2. The fights, in order
 

@@ -4,6 +4,7 @@ extends GutTest
 
 const FRAME: float = 0.05
 const TEST_DIR := "user://test_main_scene_fights/"
+const SAVE_DIR := "user://test_main_scene_saves/"
 
 var _main: Node
 
@@ -12,11 +13,15 @@ func before_each() -> void:
 	_main = load("res://game/main.tscn").instantiate()
 	add_child_autofree(_main)
 	_main.record_dir = TEST_DIR
+	_main.save_dir = SAVE_DIR
 
 
 func after_each() -> void:
-	for file in DirAccess.get_files_at(TEST_DIR):
-		DirAccess.remove_absolute(TEST_DIR.path_join(file))
+	for dir: String in [TEST_DIR, SAVE_DIR]:
+		if not DirAccess.dir_exists_absolute(dir):
+			continue
+		for file in DirAccess.get_files_at(dir):
+			DirAccess.remove_absolute(dir.path_join(file))
 
 
 func _press(key: Key) -> void:
@@ -33,7 +38,12 @@ func _start(seed_value: int = 11) -> void:
 	_main.start_fight(s)
 
 
-func test_the_screen_opens_on_the_fight_setup() -> void:
+func test_the_game_opens_on_the_title_and_quick_fight_opens_the_fight_setup() -> void:
+	assert_true(_main.title.visible)
+	assert_false(_main.setup.visible)
+	assert_eq(_main.state, _main.TITLE)
+	_main.title.press("Quick fight")
+	assert_false(_main.title.visible)
 	assert_true(_main.setup.visible)
 	assert_false(_main.hud.visible)
 	assert_eq(_main.setup.settings().red, "wrestler", "the playtest matchup comes first")
@@ -191,3 +201,69 @@ func test_the_version_line_hides_during_the_fight_so_the_call_bar_has_the_corner
 	assert_false(version.visible, "in the fight")
 	_main._back_to_setup()
 	assert_true(version.visible, "back on the setup")
+
+
+func test_esc_and_main_menu_go_back_to_the_title_from_the_setup() -> void:
+	_main.quick_fight()
+	_press(KEY_ESCAPE)
+	assert_true(_main.title.visible)
+	_main.quick_fight()
+	_main.setup.menu_pressed.emit()
+	assert_true(_main.title.visible)
+	assert_false(_main.setup.visible)
+
+
+func test_a_new_career_is_saved_and_opens_on_the_hub() -> void:
+	_main.show_title()
+	_main.title.press("New career")
+	assert_true(_main.new_career.visible)
+	_main.new_career.set_field("name", "Danny Hill")
+	_main.new_career.press_start()
+	assert_true(_main.hub.visible)
+	assert_false(_main.new_career.visible)
+	assert_eq(_main.career.fighter_name(), "Danny Hill")
+	assert_eq(_main.career.age(), 16)
+	assert_eq(_main.career_slot, 0)
+	assert_eq(CareerSaves.info(0, SAVE_DIR).name, "Danny Hill", "saved as soon as it starts")
+
+
+func test_run_this_week_moves_the_career_on_and_saves_it() -> void:
+	_main.open_new_career()
+	_main.new_career.press_start()
+	_main.hub.press_week()
+	assert_eq(_main.career.week, 1)
+	assert_eq(int(CareerSaves.info(0, SAVE_DIR).week), 1, "every week is saved")
+	assert_string_contains(_main.hub.text(), "Mon 11 Jan 2027")
+
+
+func test_continue_picks_the_career_back_up_where_it_was() -> void:
+	_main.open_new_career()
+	_main.new_career.set_field("name", "Danny Hill")
+	_main.new_career.press_start()
+	_main.hub.press_week()
+	_main.hub.title_pressed.emit()
+	assert_true(_main.title.visible)
+	assert_true(_main.title.can_continue())
+	_main.career = null
+	_main.title.press("Continue")
+	assert_true(_main.hub.visible)
+	assert_eq(_main.career.fighter_name(), "Danny Hill")
+	assert_eq(_main.career.week, 1)
+
+
+func test_load_career_lists_the_slots_and_loads_one() -> void:
+	_main.open_new_career()
+	_main.new_career.set_field("name", "First Man")
+	_main.new_career.press_start()
+	_main.open_new_career()
+	_main.new_career.set_field("name", "Second Man")
+	_main.new_career.press_start()
+	assert_eq(_main.career_slot, 1, "a second career takes the next slot")
+	_main.show_title()
+	_main.title.press("Load career")
+	assert_true(_main.load_screen.visible)
+	assert_string_contains(_main.load_screen.text(), "First Man")
+	assert_string_contains(_main.load_screen.text(), "Second Man")
+	_main.load_screen.load_pressed.emit(0)
+	assert_eq(_main.career.fighter_name(), "First Man")
+	assert_true(_main.hub.visible)

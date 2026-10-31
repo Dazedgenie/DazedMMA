@@ -1,0 +1,51 @@
+{
+	"schema": "names@1",
+	"id": "poland",
+	"country": "Poland",
+	"cities": [
+		"Warsaw",
+		"Kraków",
+		"Gdańsk",
+		"Wrocław",
+		"Poznań",
+		"Łódź",
+		"Lublin",
+		"Szczecin"
+	],
+	"first": [
+		"Jakub",
+		"Kacper",
+		"Mateusz",
+		"Piotr",
+		"Tomasz",
+		"Michał",
+		"Paweł",
+		"Bartosz",
+		"Łukasz",
+		"Krzysztof",
+		"Adam",
+		"Damian",
+		"Marcin",
+		"Kamil",
+		"Szymon",
+		"Wojciech"
+	],
+	"last": [
+		"Nowak",
+		"Kowalski",
+		"Wiśniewski",
+		"Wójcik",
+		"Kamiński",
+		"Lewandowski",
+		"Zieliński",
+		"Szymański",
+		"Woźniak",
+		"Dąbrowski",
+		"Kozłowski",
+		"Jankowski",
+		"Mazur",
+		"Krawczyk",
+		"Piotrowski",
+		"Grabowski"
+	]
+}

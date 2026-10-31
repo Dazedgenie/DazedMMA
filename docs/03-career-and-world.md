@@ -1,6 +1,6 @@
 # 03 — Career, World & Life
 
-> Related decisions: D7, D16–D19, D21, D22, D25, D41–D45, D160, D300–D305. Status: **design draft**; §7.1 and §10.1 are built.
+> Related decisions: D7, D16–D19, D21, D22, D25, D41–D45, D160, D300–D305. Status: **design draft**; §7.1, §10.1 and §10.2 are built.
 
 ---
 
@@ -230,8 +230,8 @@ Phase 1 joins what's built into a career that goes on from fight to fight and sa
 | Piece | Decision | Status |
 |---|---|---|
 | The career and its save file | D301 | Built (§10.1) |
-| The title screen and a new career | D302 | Next |
-| The career hub and the calendar | D303 | |
+| The title screen and a new career | D302 | Built (§10.2) |
+| The career hub and the calendar | D303 | Next (a first hub came with D302) |
 | Fight offers and matchmaking | D304 | |
 | The aftermath, and skipping a fight | D305 | |
 
@@ -275,10 +275,59 @@ clearing the site's data clears them.
 `Career.migrate()` that brings older saves up to date, with a test. A save from a newer version of the game than the one
 reading it is refused with that reason, never half-read.
 
-**Not yet:** anything on screen (the title screen and slots come with D302), autosaving every week and before each fight
-(with the hub, D303), and ironman mode (one save, no going back, D45; phase 6).
+**Not yet:** autosaving before each fight (with offers, D304) and ironman mode (one save, no going back, D45; phase 6).
+The title screen and the slots on screen came with D302 (§10.2); the hub saves every week.
 
 **What to change:** the start date (`START_DATE`), the week plan between fights (`BETWEEN_PLAN`) and the save format
 (`VERSION`, `migrate()`) in `sim/world/career.gd`; the number of slots (`SLOTS`) and where they go (`DIR`) in
 `game/career_saves.gd`. Tests: `tests/sim/world/test_career.gd`, `tests/game/test_career_saves.gd` and the snapshot in
 `tests/sim/world/test_training_camp.gd`. Fights don't change (no golden re-pin). Then update this section and D301.
+
+### 10.2 The title screen and a new career (D302)
+
+**The title screen** (`ui/title_screen.gd`) is the first thing the game shows, in the corner-board look of the screens off
+the cage (D170): CHIN CHECK in the display font, Lampsmoke Games under it (D242), then:
+
+- **Continue**: the career saved last, with his name, age and the date under the button. Greyed out until there's a career.
+- **New career**: the new-career screen.
+- **Load career** (`ui/load_screen.gd`): the three slots side by side, each with the fighter's name and nickname, age, the
+  career's date, his record, his coach and when it was saved (and a warning when only the backup could be read). Load, and
+  Delete, which asks once more before it deletes.
+- **Quick fight**: the fight setup and the Playtest fights, exactly as before (it has a *Main menu* button now, and Esc goes
+  back to the title too).
+- **Quit** (not in the browser build, which can't close its own tab).
+
+**A new career** (`ui/new_career_screen.gd`) asks your name (you're his coach, D15), then his name, nickname, hometown, stance
+and where he comes from: one of the 12 backgrounds of `docs/02` §1.2 (Q4 in the plan: picked from a list until phase 2's
+childhood scenes pick it instead). The screen opens already rolled, so *Start career* works straight away; *Roll everything*
+rolls again. Hometowns are real cities in 12 countries (`data/names/`), and a rolled name comes from his hometown's country.
+Each background shows what it's strong and weak at, the style he'll grow into, the money he starts with (in dollars, Kyle's
+call) and its story hook.
+*Start career* takes the first free slot and saves at once; with all three in use it asks you to delete one first.
+
+**The fighter a background makes** (`BackgroundLibrary.make_fighter`, `sim/world/background_library.gd`, from
+`data/backgrounds/`, `docs/09` background@1). He's 16 (Q3). Every stat rolls 20 to 35, his background's strengths 12 higher and
+its weaknesses 8 lower (never under 5), so a wrestling family's son starts with takedowns around 40 and boxing around 20. His
+style leans his background's way (± 10), his personality is his own (± 30 around the background's lean), his height is in
+its range and his build its build. Potential is 60 plus two dice of 1 to 16 (62 to 92, most often near 77), hidden behind the
+scouted range (D136). He rolls 0 to 2 gifts (45%, 40%, 15%) and a flaw 35% of the time (D90), more likely the ones his
+background favours (a street kid's Granite chin, a football player's Freak athlete and Slow healer). Bleeder and Hard cut stay
+off his card until they show (D90). His moves, combinations and habits are his background fighter's (data/fighters: the
+Wrestler for a wrestling family, the Boxer for the boxing gym kid), only worse. The same background, seed and choices always
+make the same fighter. Kyle (2026-10-31) was happy with that starting level.
+
+**The career hub, first version** (`ui/career_hub.gd`; D303 fills it in): the top bar (his name and nickname, age, records,
+coach, the date and the week), his card (background, hometown, stance, height and reach, the gifts and flaws he knows of,
+his scouted potential, the background's hook), every stat as a bar and a grade, and *This week*: any injury or suspension,
+the week plan, his savings, *Run this week* (a week between fights, then an autosave) and *Save and go to the title*.
+
+**Not yet:** offers and fights from the hub (D304), the calendar and the rest of the hub (D303), the head coach's look and
+specialty and the childhood scenes (phase 2).
+
+**What to change:** a background's strengths, weaknesses, leanings, frame, gift and flaw odds, money and hook in its file in
+`data/backgrounds/`; how high or low a new fighter starts, potential and the gift and flaw odds (`STAT_LOW`, `STAT_HIGH`,
+`STRENGTH_BONUS`, `WEAKNESS_PENALTY`, `POTENTIAL_BASE`, `POTENTIAL_DIE`, `GIFT_COUNT_ODDS`, `FLAW_CHANCE`) in
+`sim/world/background_library.gd`; the cities and names in `data/names/`, nicknames in `data/enums/nicknames.json`; the
+southpaw chance of a roll (`SOUTHPAW_CHANCE`) in `ui/new_career_screen.gd`. Tests: `tests/sim/world/test_background_library.gd`,
+`tests/sim/world/test_name_library.gd`, `tests/ui/test_career_screens.gd` and the career tests in `tests/game/test_main_scene.gd`.
+Fights don't change (no golden re-pin). Then update this section and D302.

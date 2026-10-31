@@ -12,6 +12,8 @@ extends PanelContainer
 
 signal start_pressed(settings: Dictionary)
 signal camp_pressed(settings: Dictionary)
+## Back to the title screen (D302).
+signal menu_pressed
 
 ## The fighters the arrows step through come in this order (the playtest matchup's two first, D112), then
 ## every other fighter with a style sheet (data/styles, D160) by id.
@@ -200,6 +202,8 @@ func _init(p_roster: FighterLibrary = null, p_actions: ActionLibrary = null) -> 
 	CampPlanner.style_fight_button(_start, 40)
 	_camp = CampPlanner._button(buttons, "Training camp first", func() -> void: camp_pressed.emit(settings()))
 	_camp.custom_minimum_size.y = 52.0
+	var menu: Button = CampPlanner._button(buttons, "Main menu", func() -> void: menu_pressed.emit())
+	menu.custom_minimum_size.y = 40.0
 	pick_fighters(DEFAULT_RED, DEFAULT_BLUE)
 
 
