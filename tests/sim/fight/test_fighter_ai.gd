@@ -58,8 +58,9 @@ func test_fighters_never_catch_a_kick_on_their_own() -> void:
 	var kicker := FighterState.new("Kicker", {}, ["body_kick"], 0.08, StyleLeanings.new({ "range": -100 }))
 	# Seed 1: on the file's seed the toy Kicker stands off at 1.2 m and barely kicks once the
 	# corners take turns stepping first (D253), which leaves nothing to catch.
+	# Twice as long since he baits with feints too (D236): fewer kicks a minute.
 	var sim: FightSim = _sim(catcher, kicker, 1.85, 1)
-	_ticks(sim, 3000)
+	_ticks(sim, 6000)
 	var kicks: int = 0
 	for s in _starts(sim, 1):
 		kicks += 1 if s.action_id == "body_kick" else 0

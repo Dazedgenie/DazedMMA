@@ -89,9 +89,9 @@ pinned on purpose, and the PR then shows the old and new numbers side by side.
 
 | Fight | Covers |
 |---|---|
-| Kicker vs Boxer, no corners (seed 35005; 35003 until D235 and 35002 until D253, each time it became a decision) | The striking engine and judges on their own: a KO for the Boxer in round 2 (since D235) |
-| Wrestler vs Kicker, ideal corner vs AI corner, Wrestler drilled on catch-kick-and-shoot at 80% (seed 35006) | Calls, a drilled rule firing, takedowns, ground and pound, feints (D131): a decision for the Wrestler (since D233; a TKO for the Wrestler in round 2 after D131) |
-| Wrestler vs Boxer, AI corner for the Boxer, Boxer drilled on sprawl-on-the-shot at 80% (seed 35011; 35007 until D130, when it became a decision) | Sprawls, the opponent's corner and rules, passes, side control and the back (D130), blind shots (D131): a submission for the Wrestler in round 2 (since D253; a decision after D131, a TKO in round 3 after D130) |
+| Kicker vs Boxer, no corners (seed 35005; 35003 until D235 and 35002 until D253, each time it became a decision) | The striking engine and judges on their own: a KO for the Kicker in round 1 (since D236; a KO for the Boxer in round 2 after D235) |
+| Wrestler vs Kicker, ideal corner vs AI corner, Wrestler drilled on catch-kick-and-shoot at 80% (seed 35006) | Calls, a drilled rule firing, takedowns, ground and pound, feints (D131): a TKO for the Wrestler in round 1 (since D236; a decision after D233; a TKO for the Wrestler in round 2 after D131) |
+| Wrestler vs Boxer, AI corner for the Boxer, Boxer drilled on sprawl-on-the-shot at 80% (seed 35011; 35007 until D130, when it became a decision) | Sprawls, the opponent's corner and rules, passes, side control and the back (D130), blind shots (D131): a TKO for the Wrestler in round 3 (since D236; a submission in round 2 after D253; a decision after D131, a TKO in round 3 after D130) |
 | The check fighters, amateur adult rules (seed 35001) | A ruleset other than pro: 3 × 3:00, a split decision |
 
 **What's pinned:** each fight's winner, result, the round and second it ended, the number of events, knockdowns, strikes
@@ -1968,7 +1968,7 @@ most of the rest are timed into the Kicker's kicks, which is a set-up.
 |---|---|---|
 | About to lead with a takedown that would be blind | Feints first on a chance of 10% + 60% × Fight IQ / 100 (40% at Fight IQ 50), then shoots off the feint as soon as it's over, if it still reaches (up to 0.3 s after). The feed reads "feints to set up the double-leg takedown", then "shoots off the feint". The rest of the time he shoots blind anyway | `FighterAI.SETUP_BASE` (0.1), `SETUP_PER_IQ` (0.6), `FEINT_FOLLOW_TICKS` (3) |
 | Reading the opponent's moves | A blind shot is read +30%; while bitten on a feint, every move is read × 0.5. A feint itself isn't read: whether it bites is its own roll | `BLIND_READ` (0.3), `BIT_READ` (0.5) |
-| Strikers | Never feint on their own: the AI only feints before a shot, and strikers don't shoot. Striker fights play out event for event as before | |
+| Strikers | Until D236 they never feinted on their own: the AI only feinted before a shot, and strikers don't shoot. **Since D236** strikers feint by style: to set up their strikes or to bait the counter (§29.7) | |
 | Habits | A tell that leads straight into a shot (the Wrestler's stance shift, then the double leg) isn't a set-up: that shot is blind | the fighter's `tells` |
 
 The player's *Takedown!* call shoots straight away, as before: a called shot with nothing before it is blind too. Call it off
@@ -2046,12 +2046,46 @@ Tested in `tests/sim/fight/test_feints.gd` (everyone can feint, the bite and how
 a blind double leg and its odds, a jab just before and long before, a shot off a bite, a feint that didn't bite still sets the
 shot up, a shot timed into a kick and one at a fighter on the fence, catches, throws and the clinch never blind, clinch entries
 never blind but finding a bitten opponent, a blind shot sprawled on and defended costing more, the Wrestler feinting and
-shooting off it, Fight IQ, strikers never feinting, reading a blind shot and reading while bitten),
+shooting off it, Fight IQ, strikers feinting by style (D236, §29.7), reading a blind shot and reading while bitten),
 `tests/sim/fight/test_live_calls.gd` (*Feint!*: the feint then the shot inside the set-up, never blind; the clinch entry for a
 fighter with no takedown; the shot held back afterwards), `tests/game/test_main_scene.gd` (key 7),
 `tests/ui/test_fight_log_formatter.gd` (the feed lines), `tests/game/test_arena_view.gd` (the poses) and
 `tests/data/test_data_files.gd` (the `feint` block). After changing a number, run the harness with the Wrestler's pairings
 (`--pairs=wrestler:kicker,wrestler:boxer,muay_thai:wrestler`) and read the **Feints** and **Grappling** lines next to the wins.
+
+### 29.7 Striker feints by style (D236)
+Kyle (2026-10-31): "lets work on feints". Asked what a striker's feint should be for (set up his own strikes, bait the
+counter, or both by style), he picked **both, by style**; asked how often, **keep it light** (a few a fight, as built). Before this a striker never feinted except to herd a man he was
+cutting off (D232, §20.5).
+
+| Behaviour | What the fighter does | To change it |
+|---|---|---|
+| Setting up his strikes (fighters who don't lean outside: Range 0 or more, so the Boxer, Brawler, Dirty boxer, Muay Thai and the grapplers) | About to lead with any strike but a jab (the jab is the set-up), he feints first on a chance of 5% + 20% × Fight IQ / 100 (15% at Fight IQ 50), then throws the strike he'd picked as soon as the feint is over, if it still reaches (up to 0.3 s after). The feed reads "feints to set up the cross", then "throws off the feint" | `FighterAI.STRIKE_SETUP_BASE` (0.05), `STRIKE_SETUP_PER_IQ` (0.2), `FEINT_FOLLOW_TICKS` (3) |
+| Baiting the counter (outside fighters, Range below 0: the Kicker, Karate, the Counter-striker, the Range kicker) | In range of a free opponent, he feints on a chance of 0.3% × Fight IQ / 100 a free tick ("feints to draw him"). If the man bites, he fires into it: strikes for the next 0.6 s, as off a slip (D180), "off the bait". If not, nothing | `FighterAI.BAIT_RATE` (0.003), `BAIT_COUNTER_TICKS` (6); `FighterAI._bait()` |
+| What a bite gives a striker | A strike that lands on a man still bitten (hands up, weight back) gets +10% ("off the feint"), on top of D131's: he reads it half as often, and his check and slip are 10% worse | `FightSim.FEINT_STRIKE_BONUS` (0.1) |
+| Who bites | A patient man sitting back to counter bites more on every feint: +10% × how far his Pace leans below 0 (the Counter-striker, Pace −70: +7%; "waiting to counter" in the odds). It's why the bait is mostly a weapon against counter-strikers | `FightSim.FEINT_PATIENT` (0.1) |
+| Reported after the fight | The harness's **Feints** line adds the strikes that arrived while the man was bitten and how many landed (CSV `off_feint_*`, `off_feint_landed_*`) | `FighterState.off_feint_thrown`, `off_feint_landed` |
+
+Measured (200 fights a pairing, pro rules, the same seeds as the D235 build before it, compared fight by fight, §2.4):
+
+| Pairing (red vs blue) | Red wins before → after (change, 95% range) | Feints a fight (bitten) · strikes off a bite (landed), red / blue |
+|---|---|---|
+| Kicker vs Boxer | 38.5% → 37.5% (−1.0, −10.1 to +8.1) | 2.2 (0.8) · 0.8 (0.6) / 10.9 (4.4) · 1.4 (1.1) |
+| Counter-striker vs Boxer | 24.5% → 18.0% (−6.5, −14.2 to +1.2) | 7.3 (3.6) · 3.6 (2.5) / 18.0 (4.7) · 1.7 (1.1) |
+| Brawler vs Kicker | 71.5% → 71.0% (−0.5, −9.6 to +8.6) | 6.9 (2.5) · 1.2 (0.9) / 0.9 (0.5) · 0.4 (0.3) |
+| Pressure wrestler vs Counter-striker | 71.0% → 74.5% (+3.5, −5.2 to +12.2) | 20.2 (4.4) · 0.3 (0.1) / 5.0 (2.5) · 2.6 (2.0) |
+| Karate vs Boxer | 92.0% → 94.0% (+2.0, −3.2 to +7.2) | 1.7 (0.9) · 0.9 (0.6) / 7.0 (2.0) · 0.7 (0.4) |
+| Wrestler vs Kicker | 71.5% → 74.5% (+3.0, −6.0 to +12.0) | 10.9 (4.2) · 0.4 (0.3) / 2.2 (0.8) · 0.9 (0.6) |
+| Boxer vs Brawler | 39.0% → 40.5% (+1.5, −7.6 to +10.6) | 1.9 (0.9) · 0.9 (0.8) / 3.2 (0.9) · 0.8 (0.6) |
+
+Every range crosses 0. The Counter-striker's −6.5 against the Boxer is the one to watch: he bites more on the Boxer's
+feints than he gains from his own bait. On the 15-style table (`tools/style_sheets.gd --fights=60`, D160) every style
+wins between 33% and 65% (the D235 build: 32–73%). Most moves at 60 fights are noise; the two that moved most, measured
+again at 180 fights a style: Leg-kick specialist 49% → 47% (60 fights said 60% → 38%) and Karate point fighter 69% → 61%,
+which may be real: he's patient, so he bites more on the field's new feints.
+
+Tested in `tests/sim/fight/test_feints.gd` (the Kicker baits and the Boxer sets up, a strike on a bitten man, a patient
+counter-striker biting more, a bitten bait opening a counter and a plain feint not).
 
 ## 30. Leg locks and the Sambo fighter (D132)
 Kyle started the third ground scope from D130's card (2026-10-29: "alright lets start on that"): leg locks and a Sambo test

@@ -141,6 +141,9 @@ var escapes: int = 0
 ## up) and how many of those still worked (D131).
 var feints_tried: int = 0
 var feints_bit: int = 0
+## Strikes thrown at, and landed on, an opponent bitten on a feint, as they arrive (D236).
+var off_feint_thrown: int = 0
+var off_feint_landed: int = 0
 var blind_shots: int = 0
 var blind_landed: int = 0
 ## Combinations thrown (counted as their second move starts), the strikes after the first in
