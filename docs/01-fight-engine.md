@@ -2715,7 +2715,7 @@ the fence were both "pinned", so it changed nothing between them. Kyle picked wh
 Ground-and-pound wrestler, Dirty boxer and Muay Thai fighter), how much (about a fifth of their fights on the fence, a real part
 of their game) and the balance rule (matchups inside 60/40 stay inside, and the ones already outside don't move further out). The
 walk-up to the fence on the feet (cutting the cage off) is the *Cut the cage* work (D230–D239, §20.2); this section starts once
-they're tied up. Every number is a first guess for the harness; each is a named constant or a data field, listed in §39.6.
+they're tied up. Every number is a first guess for the harness; each is a named constant or a data field, listed in §39.6. Planned next (not built): grips that decide these turns, so the man with the underhook turns the other round and it can go back and forth (D260, §40.4).
 
 ### 39.1 The moves
 All three are *everyone*'s (`basic`), clinch moves, and don't change the position on their own.
@@ -2826,3 +2826,160 @@ either; a shot on the fence that half works presses him there about a quarter of
 by its liking, never a man already there, stays when it likes it, works to get off it; who leans in; the Dirty boxer holds
 the Boxer on the fence in real fights), `tests/sim/balance/test_balance_report.gd` (the Cage line), `tests/ui/test_fight_log_formatter.gd`
 and `tests/data/test_data_files.gd` (`drives_m`, `turns`, a required `HELD_ON_FENCE`, the `pressed` result).
+
+## 40. Grips and hand fighting (D260: on the roadmap, a proposal, not built yet)
+Kyle asked for it (2026-10-31): "clinch fighting improvements: fighters should be hand fighting, trying to get underhooks,
+overhooks, they should be spinning each other around when up against the cage", with research on real clinch and cage
+fighting, and then: "this isn't clinch specific, this will be used for grappling in general, so hand fighting on the ground
+and fighting in the clinch". Nothing in `sim/` changes until Kyle answers the questions in §40.8; this section is the plan the
+engine work will follow, and every number in it is a first guess for the harness.
+
+### 40.1 What real fighters do
+From MMA and grappling coaching write-ups (sources at the end of §40):
+
+- **The clinch is a fight for the inside.** An *underhook* is an arm under his arm with the hand on his back or shoulder. It
+  controls his upper body and his level: it sets up the double and single leg, trips and throws, knees and short punches, and
+  it walks him to the fence. The double underhook (or a body lock, the hands joined behind him) is the best grip there is.
+- **The overhook is the answer to the underhook.** The man whose arm is underhooked clamps over the top of it (the *whizzer*):
+  it stops the level change on that side, sets up throws (Khabib threw Dos Anjos off the fence from a whizzer and the far
+  wrist), and is the side he turns away on to get free. It's the weaker grip, but it keeps the other man honest.
+- **Pummeling** is how the inside changes hands: the man with the overhook swims that arm inside to an underhook, which gives
+  the other man the outside on that side, and he swims back. It goes on until one of them has the inside and does something
+  with it. What wins a pummel: head position (forehead in his jaw or chest so his posture stays tall), the hips close,
+  changing level, and pressure forward.
+- **On the fence it goes both ways.** The man held there wants an underhook (both if he can) and his head position, and with
+  them he turns the other man round onto the fence; without them he circles toward the overhook side to get off. The man
+  holding him keeps his head under the chin, blocks the leg or reaches across to stop the turn, re-pummels, or changes level
+  for a shot (the fence stops him getting his hips behind the defender, but it also stops the defender sprawling). That is the
+  "spinning each other round" Kyle asked for: a reversal is a won underhook, and the man just turned can win one back.
+- **Hand fighting is grips against grips.** Before and between attacks, each fighter strips the other's grips and takes his
+  own: wrist control and the two-on-one (both hands on one wrist), posting on the biceps, forearm frames, the collar tie and
+  breaking it. The first good grip leads the attack. Strikers in the clinch use frames, bicep pushes and the collar tie to
+  turn the other man side-on and open a way out.
+- **The ground is the same fight.** Underneath, a fighter controls the wrists and biceps to stop ground and pound, breaks the
+  top man's posture (a collar tie, pulling the head down) to set up holds, frames to make space to get up or put the guard
+  back, and fights for the underhook in half guard (it lets him come up, take the back or sweep). On top, a fighter postures
+  up and strips the wrists to strike, pins a wrist (a crucifix) to hit an arm that can't defend, and takes his own underhook
+  and a crossface to flatten him and pass.
+- **What gets counted in real fights.** UFC Stats counts clinch strikes, control time and reversals (bottom to top on the
+  ground), but not grips, pummels or turns on the fence, so how often these happen in the game is our call, not a number to
+  copy.
+
+### 40.2 What the game does now
+- **The clinch is one position** (D98's trim, §21). Inside it, one grip is held from one move to the next: the collar tie
+  (D129, §27), the head pulled down for 4 s. The rest are single rolls: knees, short punches, the break, the double leg, the
+  throws (§26), the drive to the fence, and, for the man held on the fence only, spinning off or turning him (D220, §39).
+  Nothing says who has the underhooks, so a turn on the fence doesn't need one and doesn't change one.
+- **The ground has one hand fight**: the tie-up from the bottom (D121, §24.3), which breaks the top man's posture for 3 s and
+  stops his ground strikes. Passes, escapes, sweeps and getting up are rolls on stats; no grip helps or hurts them.
+- So "who is winning the clinch" is only "whose back is on the fence", and two grapplers tied up look the same whoever is
+  better at it.
+
+### 40.3 The idea: two sides, and who has the inside on each
+The proposal keeps the clinch as one position and adds **grips** to it, the way the collar tie added a grip to it. Two fighters
+chest to chest have two *sides* (his left arm meets your right, his right meets your left), and on each side one of them has
+the inside:
+
+| On a side | It's called | What it gives the man with it |
+|---|---|---|
+| Your arm under his | an **underhook** (and his is an overhook) | Drives and turns on the fence, the double leg and body-lock trips, knees to the body; he can't change level on that side |
+| Your arm over his | an **overhook**, the whizzer | Stops his shot from that side (the sprawl and the shot's odds), overhook throws, the side you turn away on to get off the fence |
+| Neither (hands fighting, no grip yet) | **hand fighting** | The free hand punches (dirty boxing) and frames; it's where the clinch starts |
+| Your hand on his wrist (or both, a two-on-one) | **wrist control** | That arm of his can't punch or pummel; it opens the break, and on the ground it stops his strikes |
+| Your hand behind his head | the **collar tie** (D129) | As now: his head pulled down, knees to the head |
+
+Both underhooks is the **body lock**: the best place for a trip, a throw, a double leg or a drive, and he can barely punch.
+One each is **over-under**, the even standoff of wrestling. The grips last until stripped or until the position changes, so
+the clinch has a state worth fighting over, which is what makes hand fighting a thing to watch and to coach.
+
+**Pummeling** is one quick clinch move (*everyone*'s): swim one arm inside. Its odds are Clinch control and Strength against
+the same, with head position (whoever has more underhooks already) and being tired or hurt swaying it. It works: you have the
+inside on that side and he has the overhook. It fails: you're a touch late on everything for a moment (an opening for a knee
+or a short punch). A *strip* (*everyone*'s) takes one of his grips off, wrist control or the collar tie included, and is how a
+striker gets back to hand fighting so he can break or punch.
+
+### 40.4 On the fence: spinning each other round (builds on D220, §39)
+- **Turning him needs an underhook.** *Turn him onto the fence* (§39.1) only works with an underhook (better with two); the
+  overhook side is where *spin off* goes, as in the real fight. Today they need nothing.
+- **The holder fights the turn.** His own underhook on that side, his head position (more underhooks), and blocking the turn
+  (a new answer: reading it coming, like a sprawl reads a shot) make the turn harder; failing gives the other man a moment.
+- **It goes back and forth.** The man just turned is now the man held, with the same chances: if he wins the underhook back,
+  he turns it again. The harness counts turns per minute on the fence, so we can see whether the clinch fighters spin each
+  other round or just lean.
+- **The level change.** The double leg on the fence gets the body lock's and the underhook's bonus; the overhook (whizzer) is
+  the held man's answer to it.
+
+### 40.5 On the ground: the same grips, different jobs
+| Where | Underneath | On top |
+|---|---|---|
+| Full guard | **Wrist control** stops the top man's punches from that hand; the **collar tie** breaks his posture (it replaces the blanket tie-up, D121, with two real grips) and helps the triangle and armbar | **Posture up** strips a grip; with both hands free he grounds and pounds as now |
+| Half guard | **His underhook** helps him come up, take the back and sweep; **frames** help him put the guard back | **His underhook and crossface** flatten the bottom man and help the pass; without them the pass is harder |
+| Side control and mount | **Frames** help every escape (recover guard, bridge and roll) | **Pinning a wrist** (the crucifix) means that arm can't defend his ground strikes or frame |
+| The back | **Two hands on the choking arm** (a two-on-one) defend the rear-naked choke | **Hand fighting the defending hands** away sets up the choke |
+
+The ground grips use the same idea (held until stripped or the position changes) and the same few moves, so the AI, the feed
+and the harness read the same way standing and down.
+
+### 40.6 Who fights for which grip
+| Fighter (or style) | What he wants | Why |
+|---|---|---|
+| Wrestler, Pressure wrestler, Ground-and-pound wrestler | Underhooks, the body lock | Drives, turns and shots on the fence; the pass on the ground |
+| Dirty boxer | One underhook or overhook and a free hand | Short punches from over-under, without having to win the body lock |
+| Muay Thai | The collar tie (the plum) | Knees to the head; against a wrestler he strips underhooks to get back to it |
+| Judoka | An overhook and a wrist, or the body lock | Throws and trips |
+| BJJ | From underneath: wrists and the collar tie | Breaks posture for holds; standing he pulls guard |
+| Boxer, Kicker, Karate, Counter-striker | Wrist control, frames, strips | Get back to hand fighting and out of the clinch; on the ground, wrists to stop the punches and frames to get up |
+| Sambo | Underhook, then the level change | Trips, then the legs |
+
+Each fighter's liking for each grip would be a tendency in his file (like `fence_drive`), and the style sheets (D160, `03`
+§7.1) would carry it to generated opponents.
+
+### 40.7 The rest: calls, stats, screen, harness, camp
+- **Calls.** The catalogue already lists *Underhooks against the cage* under *Clinch* and *Whizzer* under *Defend the shot*
+  (§6.4). Key 5 in the clinch is *Collar tie!* today; a grip call needs a key (§40.8, question 4).
+- **Stats.** Clinch control already means "winning clinch position, pinning to the cage, breaking free" (`11` §2.2), and Top
+  control and Guard have the ground. A separate *Hand fighting* stat, like Cage cutting (D230), is the other way (question 3).
+- **On screen.** First the feed: *"Wrestler WINS THE UNDERHOOK on the left: he has both now"*, *"Boxer STRIPS THE WRIST and
+  frames off"*. Then a small grip readout on the HUD's position diagram (`06` §6.10). Grips on the fighters' hands in the 3D
+  view wait for the work on separate arms and legs, which this plan doesn't touch.
+- **Harness.** A **Grips** line per pairing: the share of clinch time each fighter had each grip, pummels tried and won,
+  strips, turns on the fence per minute there, and on the ground the share of top time with a hand free to strike.
+- **Camp.** A *Pummeling* session (drill: clinch control and strength) and later a minigame; for the camp thread to pick up.
+- **Balance.** As D220 unless Kyle says otherwise: matchups inside 60/40 stay inside, the ones outside don't move further out,
+  golden fights re-pinned with a reason, read at 200 fights or more.
+
+### 40.8 The plan and the questions for Kyle
+The work splits into pull requests, each with its harness numbers and its own decision row (D261 on; this thread has D260–D269):
+
+1. **Clinch grips**: the two sides, underhooks, overhooks, hand fighting, wrist control; pummel and strip; the grips feed the
+   clinch moves already there (drive, knees, short punches, double leg, throws, break); the collar tie folds in.
+2. **The fence**: turning him by the underhook both ways, spinning off on the overhook side, the holder's answers, the whizzer
+   against the shot on the fence.
+3. **Ground grips**: wrist control and posture in the guard, the half-guard underhook and crossface, frames, the wrist pin, the
+   hands against the choke.
+4. **Calls and the screen**: the grip call(s), the AI corner using them, the HUD readout; the hands in 3D after the limbs work.
+
+Questions (Kyle's answers go in the D26x rows):
+
+1. **How deep?** (a) the two sides as above (recommended); (b) one "who's winning the clinch" meter, simpler but nothing to
+   see change hands; (c) each hand separately with its own grip, the most detail and closest to the separate-limbs work, but
+   about twice the moves and much harder to read and balance.
+2. **What first?** The clinch and the fence (recommended, it's the ask and builds on D220), the ground first, or all of it in
+   one big pull request.
+3. **A new stat?** Use Clinch control on the feet and Top control and Guard on the ground (recommended: no new stat to train
+   or scout), or a new *Hand fighting* stat some fighters are known for.
+4. **What does the player call?** One *Hand fight!* call that goes for whatever grip the fighter's style wants (recommended:
+   one key, his own game), or separate *Underhooks!*, *Whizzer!* and *Wrists!* calls (more control, more keys).
+5. **How often should they spin round on the fence?** Let it come out of the odds and report it, or aim for a number (for
+   example the held man turning it about once every 30 s on the fence).
+6. **The balance rule**: keep D220's (inside 60/40 stay inside, outliers don't get worse)?
+7. **Does the collar tie stay as it is** (a grip with its own timer) or become one of the grips (held until stripped)?
+
+Sources: [Evolve MMA, underhooks and overhooks](https://evolve-mma.com/blog/understanding-underhooks-and-overhooks-in-mma/),
+[Evolve MMA, pummeling](https://evolve-mma.com/blog/what-is-pummeling-and-how-to-do-it-correctly-for-mma-training/),
+[Evolve MMA, using the cage wall to escape](https://evolve-mma.com/blog/how-to-use-the-cage-wall-to-escape-takedowns-in-mma/),
+[Fanatic Wrestling, getting off the wall with Zack Esposito](https://fanaticwrestling.com/blogs/news/get-off-the-wall-with-zack-esposito),
+[Bloody Elbow, Gavin Tucker's clinch work](https://bloodyelbow.com/2020/12/17/mma-news-wrestling-breakdown-gavin-tucker-clinchwork-ufc-256),
+[Evolve MMA, grip fighting in no-gi](https://evolve-mma.com/blog/heres-what-you-need-to-know-about-grip-fighting-in-no-gi-bjj/),
+[Evolve MMA, ground and pound](https://evolve-mma.com/blog/the-complete-guide-to-ground-and-pound/),
+[AgentMMA, what a reversal is in UFC stats](https://agentmma.com/mma-lab/ufc-reversal-stat-explained).
