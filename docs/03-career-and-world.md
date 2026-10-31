@@ -125,7 +125,7 @@ to beat them.
 | **Brawler** (new) | `brawler` | Street kid, farm kid | Hooks and overhands, hunting the knockout (Pace +70, Risk +70, Power 70, Heavy hands); tell: overhand after a blocked jab |
 | **Pressure wrestler** (new) | `pressure_wrestler` | Wrestling family, Dagestan | Relentless pace (Pace +80, Cardio 75), chained double legs and feints to set them up; tell: shoots behind a blocked jab |
 | **Karate point fighter** (new) | `karate` | Karate/TKD | Far outside (Range −80, Footwork 75), feints, straight punches and head kicks; often southpaw (35%); tell: head kick after a blocked jab |
-| **Leg-kick specialist** (new) | `leg_kicker` | Dutch kickboxing, Amsterdam, Muay Thai | Walks forward chopping the legs (leg kick ×2, calf kick ×1.6, the new 1-2-leg kick combination); tell: calf kick after a blocked jab |
+| **Leg-kick specialist** (new) | `leg_kicker` | Dutch kickboxing, Amsterdam, Muay Thai | Walks forward chopping the legs (leg kick ×2, calf kick ×1.0 since D255, the new 1-2-leg kick combination); tell: calf kick after a blocked jab |
 | **Dirty boxer** (new) | `dirty_boxer` | Boxing gym kid, street kid | Grabs the clinch (clinch entry ×3, Range +80) and works short uppercuts and hooks; tell: grabs the clinch after a blocked jab |
 | **Ground-and-pound wrestler** (new) | `gnp_wrestler` | Wrestling family, farm kid | Takedowns to hit, not to submit: Top control 70, ground punches and elbows ×2, no submissions of his own; tell: shoots behind a blocked jab |
 
@@ -158,6 +158,32 @@ wrestlers on top (51–57% of the fight on the ground), the Dirty boxer and Muay
 Leg-kick specialist first won 33%; Kyle asked for at least 36% (2026-10-29), so his Striking defense and Footwork went from 50
 to 55: 40% over 30 fights and 40% over 90. To watch: the Counter-striker throws about as much as the other strikers
 (counters and tells, not leads).
+
+**Reworking the Leg-kick specialist (D255, 2026-10-31).** Kyle asked how he does against the field before deciding whether
+to change how he fights. In a round robin of all 15 signature fighters (40 fights a pairing, pro rules, no calls) he won 48%
+against an average of 50% (8th of 15). He beat outside fighters and grapplers (Kicker 90%, Karate 72%, Sambo and Wrestler 70%)
+and lost to the men who walk forward (Muay Thai 10%, Dirty boxer 18%, Sprawl-and-brawl 28%, Counter-striker 32%). He threw
+and landed the most strikes and did 20 times the field's leg damage, but took the most head damage, was stopped by KO/TKO in
+31% of his fights (field 18%) and spent 241 s a fight shut in on the fence (field 37 s).
+
+- *Tried and dropped: getting him off the fence.* Kyle first picked "Both": circle and burst off the fence like an outside
+  fighter, and plant and punish the walk-in (teep, knee, low kicks) when he can't get out. Built as two fighter tendencies,
+  it cut his time shut in from 241 s to 52 s but dropped him from 48% to 22%; bursting and reversing alone 42%; punishing
+  alone 46%. Planted on the fence he gets +0.4 to meet a man coming in (D234), which is his best way of fighting. None of
+  it shipped.
+- *What actually beat him* (head damage he took, 12 fights a pairing): against the Dirty boxer, 44% while held on the
+  fence in the clinch; against Muay Thai, 45% from knees with his posture broken; against the Counter-striker, 68% from
+  counters, a third of it while throwing the calf kick; against the Brawler and Sprawl-and-brawl, 34% and 43% from counters.
+- *Kyle's pick: fix the clinch and the counters.* The counters: his calf kick weight goes from 1.6 to 1.0, so he leads
+  with it less on its own and throws it more off the jab (his tell and his combinations). Over 100 fights a pairing
+  (seed 1001) the signature fighter goes from 51% to 58% (±4); Counter-striker 43 → 55%, Boxer 38 → 55%, Judoka 51 → 66%,
+  GnP wrestler 41 → 56%; his leg damage falls from 214 to 160 a fight (still 15 times the field's). Opponents generated
+  from his sheet move less (`tools/style_sheets.gd -- --fights=700`: 45 → 47%, inside the dice), likely because his
+  leanings ±12 put some of them below Range 0, where they fight as outside fighters. The calf kick weight is in
+  `data/fighters/leg_kicker.json` (`tendencies.actions.calf_kick`).
+- *Still to do: the clinch.* The grips work (D260, D261) is changing who gets off the fence in the clinch; his clinch
+  escape is built on top of it once it lands. A first look (clinch break and spin-off weights ×3) changed nothing, so it
+  needs more than a weight.
 
 Not yet: names and nationalities for generated fighters, picking a style mix per division and region, and showing the
 scouting card on screen (it comes with scouting, D51).

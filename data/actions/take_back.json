@@ -12,7 +12,8 @@
 	"ground": { "base_success": 0.1 },
 	"stats": { "offense": ["scrambles", "top_control"], "defense": ["scrambles"] },
 	"opportunities": [
-		{ "opponent_flag": "ESCAPING", "success_bonus": 0.15 }
+		{ "opponent_flag": "ESCAPING", "success_bonus": 0.15 },
+		{ "opponent_flag": "COVERED", "success_bonus": 0.15 }
 	],
 	"requires_technique": null
 }

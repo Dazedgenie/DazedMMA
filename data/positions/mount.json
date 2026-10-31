@@ -12,6 +12,7 @@
 		{ "action": "armbar", "from_role": "top", "to": "submission", "roles": { "actor": "attacker", "opponent": "defender" } },
 		{ "action": "armbar", "from_role": "top", "result": "partial", "to": "scramble", "roles": { "actor": "neutral", "opponent": "neutral" } },
 		{ "action": "arm_triangle", "from_role": "top", "to": "submission", "roles": { "actor": "attacker", "opponent": "defender" } },
+		{ "action": "turn_away", "from_role": "bottom", "to": "back_control", "roles": { "actor": "bottom", "opponent": "top" } },
 		{ "action": "bridge", "from_role": "bottom", "to": "full_guard", "roles": { "actor": "top", "opponent": "bottom" } },
 		{ "action": "bridge", "from_role": "bottom", "result": "partial", "to": "half_guard", "roles": { "actor": "bottom", "opponent": "top" } }
 	]

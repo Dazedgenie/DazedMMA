@@ -28,6 +28,7 @@
 - How live coaching calls work (voice, delay, compliance, attempts/focus/reads) and where their numbers live: `docs/01-fight-engine.md` §22 (D111, D112).
 - Coaching bots and the AI corner (who calls what, the harness's `--corners`/`--coach`, the D12 coaching checks), what a call costs, and strikers' answers to grappling: `docs/01-fight-engine.md` §22.5–22.9 and §21.8 (D113–D115).
 - Health, the referee's stoppages and ground and pound (the health bar, what stops a fight, ground punches, elbows and tie-ups, the "Ground and pound!" call, the numbers to tune finishes): `docs/01-fight-engine.md` §24 (D120, D121).
+- More ground and pound (the hammerfist, body punch and posture-up bomb, covering up underneath and what it opens, turning away from mount to give up the back, the GnP harness line, the numbers to tune them): `docs/01-fight-engine.md` §41 (D270).
 - Submissions (the guillotine, triangle and armbar, how a hold locks in, the struggle's danger meter, Finish it! / Defend the sub!, the AI's openings, the numbers to tune them): `docs/01-fight-engine.md` §25 (D126).
 - Throws and the guard game (the outside trip, hip throw and foot sweep, why a sprawl can't stop them, the guard pull and the sweep, the Judoka and BJJ test fighters, the numbers to tune them): `docs/01-fight-engine.md` §26 (D128).
 - Clinch knees and the collar tie (the plum: how long it holds, knees to the head from it, getting out, the *Collar tie!* call on key 5, the Muay Thai test fighter, the numbers to tune them): `docs/01-fight-engine.md` §27 (D129).
@@ -60,5 +61,5 @@
 - The result screen (the verdict and when, both figures as they finished, the fight sheet, the judges' cards round by round, your corner's letter grade and its numbers): `docs/06-fight-hud.md` §6.9 (D173).
 - The fight night card (the full-screen card after the camp: gas tank, fatigue, injury, the doctor's stamp, what the camp added, Fight! or Pull out; the display font on the fight screen): `docs/02-fighter-and-training.md` §3.11 (D171).
 - Mitt work, the first minigame (the coach's calls in boxing's numbers, keys 1–6 and ← ↓, timing windows, how it scores the session, ticking Play in the planner, the numbers to tune it): `docs/02-fighter-and-training.md` §3.9 (D137).
-- Opponent style sheets (the 15 styles, how opponents are generated from them, scouting cards, `tools/style_sheets.gd`): `docs/03-career-and-world.md` §7.1 (D160).
+- Opponent style sheets (the 15 styles, how opponents are generated from them, scouting cards, `tools/style_sheets.gd`): `docs/03-career-and-world.md` §7.1 (D160); the Leg-kick specialist's rework (what beat him, what was tried, D255): same section.
 - Import/refresh the project cache: `godot --headless --import`
