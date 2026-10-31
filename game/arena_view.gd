@@ -44,6 +44,8 @@ const GROUND_LAYOUTS := {
 const LIE_TURN: float = 0.45
 ## How fast a fighter slides and turns to his spot in a new position (per second).
 const LAYOUT_SPEED: float = 6.0
+## Space for the two leaning torsos in the clinch; affects only their drawn positions.
+const CLINCH_BODY_GAP: float = 0.82
 ## The tag grows this much when the range or position changes, then settles (docs/06 §2).
 const TAG_BUMP: float = 1.7
 
@@ -174,6 +176,20 @@ static func ground_spots(sim: FightSim, spots: Array[Vector2]) -> Array[Dictiona
 			return placed
 		where = String(hold.from)  # Held where it was locked from (D126).
 		roles = hold.from_roles
+	if where == PositionLibrary.CLINCH:
+		var direction: Vector2 = (spots[1] - spots[0]).normalized()
+		if direction.is_zero_approx():
+			direction = Vector2.RIGHT
+		var middle: Vector2 = (spots[0] + spots[1]) / 2.0
+		var a: Vector2 = middle - direction * CLINCH_BODY_GAP / 2.0
+		var b: Vector2 = middle + direction * CLINCH_BODY_GAP / 2.0
+		# Shift the pair together at the fence, preserving the physical room between bodies.
+		for normal: Vector2 in Octagon.NORMALS:
+			var over: float = maxf(a.dot(normal), b.dot(normal)) - (Octagon.APOTHEM - Octagon.BODY_MARGIN)
+			if over > 0.0:
+				a -= normal * over
+				b -= normal * over
+		return [{"at": a, "facing": direction.angle()}, {"at": b, "facing": (-direction).angle()}]
 	var top: int = roles.find(PositionLibrary.TOP)
 	if not GROUND_LAYOUTS.has(where) or top < 0:
 		return placed

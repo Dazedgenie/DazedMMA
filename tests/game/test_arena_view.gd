@@ -282,3 +282,40 @@ func test_clearing_the_arena_detaches_the_old_fight_events() -> void:
 	assert_false(sim.event_emitted.is_connected(view._on_event))
 	sim.event_emitted.emit(FightEvent.new(1, 1, FightEvent.STRIKE_LANDED, 0, {"target": "head", "damage": 10}))
 	assert_true(view.figures.is_empty())
+
+
+func test_idle_feet_touch_the_mat_and_a_kick_can_lift_then_replant_them() -> void:
+	var sim: FightSim = _sim()
+	var figure := FighterFigure.new(Color.BLUE, false, 1)
+	add_child_autofree(figure)
+	figure.show_state(sim, 1, Vector2.ZERO, Vector2(1, 0), 1.0)
+	for foot: MeshInstance3D in figure._feet:
+		assert_almost_eq(_lowest_vertex(foot), 0.0, 0.005, "the neutral stance meets the canvas")
+	sim.fighters[1].action_id = "body_kick"
+	sim.fighters[1].phase = "active"
+	figure.show_state(sim, 1, Vector2.ZERO, Vector2(1, 0), 1.0)
+	assert_gt(_lowest_vertex(figure._feet[1]), 0.4, "planting must not pin a kicking foot to the floor")
+	sim.fighters[1].clear_action()
+	figure.show_state(sim, 1, Vector2.ZERO, Vector2(1, 0), 1.0)
+	for foot: MeshInstance3D in figure._feet:
+		assert_almost_eq(_lowest_vertex(foot), 0.0, 0.005, "returning to guard restores the stance")
+
+
+func _lowest_vertex(mesh: MeshInstance3D) -> float:
+	var lowest: float = INF
+	var vertices: PackedVector3Array = mesh.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+	for point: Vector3 in vertices:
+		lowest = minf(lowest, mesh.to_global(point).y)
+	return lowest
+
+
+func test_clinch_bodies_have_room_at_the_fence_without_moving_the_sim() -> void:
+	var sim: FightSim = _sim()
+	sim.apply_transition(0, "clinch_entry")
+	var before: Array[Vector2] = [sim.fighters[0].pos, sim.fighters[1].pos]
+	var spots: Array[Vector2] = [Vector2(3.9, 0), Vector2(4.2, 0)]
+	var placed: Array[Dictionary] = ArenaView.ground_spots(sim, spots)
+	assert_gt(placed[0].at.distance_to(placed[1].at), 0.75, "the sculpted torsos must not pass through each other")
+	for pose: Dictionary in placed:
+		assert_gte(Octagon.distance_to_fence(pose.at), Octagon.BODY_MARGIN - 0.001)
+	assert_eq([sim.fighters[0].pos, sim.fighters[1].pos], before, "spacing is presentation-only")

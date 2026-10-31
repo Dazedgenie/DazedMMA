@@ -34,6 +34,26 @@ The sample uses Godot's Compatibility renderer, shadowed key lighting and a few 
 does not depend on desktop-only post-processing or new paid assets. Materials and meshes are
 authored in the project; no subscription-generated models or external asset licences are required.
 
+## Character refinement
+
+The follow-up character pass keeps the low-poly direction and the existing fight poses. It replaces
+the straight torso and head profiles with authored contours in `game/fighter_sculpt.gd`: chest and
+sternum, tapered abdomen, shoulders, cheeks, jaw, ears, nose and a shaped hairline. The heavier
+temporary appearance has a wider chest, thicker limbs, squarer jaw and fuller beard; the lighter
+appearance has a narrower frame and swept hair. Both are still corner-based preview looks.
+
+Gloves now have wrist tape, shaped padding, separate exposed finger ends and a thumb, and follow
+the forearm's direction. Shorts have a fitted waistband, narrow side seams and hem trim. Hidden
+upper-thigh skin is omitted to prevent it poking through the shorts when the legs move. Feet have
+ankles, forefeet and individual toe forms. The neutral guard brings the hands closer to the face;
+idle support feet lie flat on the canvas and release when lifted for a kick. This is a limited stance
+correction, not a walking-foot IK system or a replacement for the planned production rig.
+
+The clinch's drawn body centres now have 0.82 m of separation to fit the leaning torsos, and the
+neutral grip bends the elbows toward the opponent's shoulders. At the fence, both drawn positions
+shift inward together if necessary. The simulation's positions, reach and collision rules remain
+unchanged. Strikes, collar ties and submissions retain their own poses.
+
 ## Review and verification
 
 Open `project.godot` in Godot 4.7.2 and run the game normally. Start a fight and check striking,
@@ -46,10 +66,20 @@ Reproducible arranged camera samples, using the real game scene and HUD:
 godot --path . --script res://tools/visual_preview.gd -- --out=res://build/visual
 ```
 
-Add `--720p` to check a 1280×720 window. This requires a graphics display. It writes standing, arena-only, striking, ground and near-fence PNGs. The
-preview arranges its own temporary fighters and never saves a fight. Run the existing GUT suite
+Add `--720p` to check a 1280×720 window. This requires a graphics display. It writes standing,
+arena-only, striking, kicking, clinch, full-guard, side-control, mount and near-fence PNGs. The
+preview arranges its own temporary fighters and never saves a fight. Close model review from the
+front, three-quarter and back uses the same real character meshes in a neutral presentation scene:
+
+```sh
+godot --path . --script res://tools/character_preview.gd -- --out=res://build/characters
+```
+
+Run the existing GUT suite
 and the main-scene smoke check as described in the root README. The presentation-only regression
-test compares a watched fight with the same seed run without a view.
+test compares a watched fight with the same seed run without a view. The stance check verifies
+both feet meet the mat, a body kick can lift the kicking foot, and returning to guard plants it again.
+Another check keeps the clinch's drawn bodies inside the fence without moving the simulation.
 
 ## Remaining art work
 

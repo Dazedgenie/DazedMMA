@@ -1,5 +1,13 @@
 # tools/ — developer scripts
 
+The rendered visual reviews require a graphics display (Godot 4.7.2). `visual_preview.gd` captures
+the real fight screen in standing, striking, kicking, clinch, ground and fence poses; `--720p`
+checks the smaller desktop window. `character_preview.gd` captures the actual fighter models
+from the front, three-quarter and back under neutral lighting. Neither writes a saved fight.
+
+    godot --script res://tools/visual_preview.gd -- --out=res://build/visual --720p
+    godot --script res://tools/character_preview.gd -- --out=res://build/characters
+
 Headless runners and utilities. `run_sim.gd` runs one placeholder fight (a kicker against a boxer) with no scene tree
 and prints a summary; `--fights=N` runs N seeds and counts how they ended:
 

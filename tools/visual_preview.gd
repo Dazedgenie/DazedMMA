@@ -37,10 +37,19 @@ func _capture() -> void:
 	sim.fighters[0].phase = "active"
 	sim.fighters[1].damage.head = 250
 	await _save("striking")
+	sim.fighters[0].action_id = "body_kick"
+	await _save("kicking")
 	sim.fighters[0].clear_action()
+	sim.apply_transition(0, "clinch_entry")
+	_sync_spots()
+	await _save("clinch")
 	sim.apply_transition(0, "double_leg")
 	_sync_spots()
 	await _save("ground")
+	sim.apply_transition(0, "guard_pass")
+	await _save("side-control")
+	sim.apply_transition(0, "take_mount")
+	await _save("mount")
 	_main.start_fight({"red": "boxer", "blue": "wrestler", "seed": 35003, "sound_volume": 0.0, "easy": true})
 	_main.driver.held = true
 	_main.hud._banner_left = 0.0

@@ -15,7 +15,7 @@ const TORSO_LENGTH: float = 0.62
 const ARM_LENGTH: float = 0.55
 const LEG_LENGTH: float = 0.9
 const HIP_WIDTH: float = 0.13
-const SHOULDER_WIDTH: float = 0.28
+const SHOULDER_WIDTH: float = 0.245
 const OVERHEAD: float = 2.05
 ## Default skin fallback; corner colours are reserved for equipment.
 const FACE_COLOUR := Color("#e8c4a0")
@@ -62,6 +62,7 @@ var _forearms: Array[MeshInstance3D] = []
 var _cut: MeshInstance3D
 var _bruise: MeshInstance3D
 var _impact: float = 0.0
+var _clinch_grip: bool = false
 var _body_material: StandardMaterial3D
 var _pose := {}
 var _ignored_left: float = 0.0
@@ -84,6 +85,9 @@ func show_state(sim: FightSim, i: int, at: Vector2, toward: Vector2, delta: floa
 	_time += delta
 	_impact = maxf(0.0, _impact - delta * 4.0)
 	var f: FighterState = sim.fighters[i]
+	_clinch_grip = sim.situation.position == PositionLibrary.CLINCH and sim.hold().is_empty() \
+		and f.tied_up_ticks == 0 and sim.fighters[1 - i].tied_up_ticks == 0 \
+		and (f.action_id == "" or (sim.actions.has(f.action_id) and sim.actions.get_action(f.action_id).category != "strike"))
 	position = Vector3(at.x, 0.0, at.y)
 	var facing: Vector2 = toward - at
 	if facing.length() > 0.01:
@@ -458,8 +462,16 @@ func _apply_pose(f: FighterState) -> void:
 	# Gloves and feet ride the ends of the stretched limbs but keep their own shape (D211).
 	for side in 2:
 		_gloves[side].scale.y = 1.0 / maxf(0.1, _arm_meshes[side].scale.y)
+		_feet[side].transform = Transform3D(Basis.IDENTITY, Vector3(0, -LEG_LENGTH + 0.035, -0.04))
 		_feet[side].scale.y = 1.0 / maxf(0.1, _leg_meshes[side].scale.y)
 		_feet[side].visible = _pose.kneel < 0.5 and _leg_meshes[side].scale.y > 0.8  # Kneeling: only the thigh shows.
+	if lie < 0.05 and float(_pose.kneel) < 0.05 and float(_pose.hip_y) > HIP_HEIGHT - 0.04:
+		for side in 2:
+			if absf(_legs[side].rotation.x) < 0.4:
+				_feet[side].global_basis = global_basis
+				var planted: Vector3 = _feet[side].global_position
+				planted.y = global_position.y + 0.032
+				_feet[side].global_position = planted
 	_head.rotation.x = -_impact * 0.16
 	_cut.visible = f.hurt("head") > 0.18
 	_bruise.visible = f.hurt("head") > 0.08
@@ -475,11 +487,17 @@ func show_impact(target: String, damage: float) -> void:
 func _pose_arm(side: int, reach: float, angle: float) -> void:
 	var guard: float = clampf((angle - 1.65) * 3.0, 0.0, 1.0)
 	var length: float = lerpf(ARM_LENGTH, 0.4, guard) * reach
-	var hand := Vector3(0, -length, 0)
+	var hand := Vector3((-lead if side == 0 else lead) * guard * 0.105, -length + guard * 0.05, -guard * 0.13)
 	var elbow := Vector3(0, -length * 0.5, lerpf(0.035, 0.25, guard) / maxf(reach, 1.0))
+	if _clinch_grip:
+		var lateral: float = lead if side == 0 else -lead
+		var undo_shoulder := Basis(Vector3.RIGHT, -angle)
+		hand = undo_shoulder * Vector3(-lateral * 0.08, 0.05, -0.35)
+		elbow = undo_shoulder * Vector3(lateral * 0.035, -0.25, -0.12)
 	_segment(_upper_arms[side], Vector3.ZERO, elbow)
 	_segment(_forearms[side], elbow, hand)
 	_gloves[side].position = hand
+	_gloves[side].basis = Basis(Quaternion(Vector3.DOWN, (hand - elbow).normalized()))
 
 
 static func _segment(mesh: MeshInstance3D, start: Vector3, end: Vector3) -> void:
@@ -498,82 +516,9 @@ func _build() -> void:
 	_hips = Node3D.new()
 	_hips.position.y = HIP_HEIGHT
 	add_child(_hips)
-	# Broad shoulders, tapered waist and a deliberately faceted silhouette (docs/13).
-	_torso = FightMesh.instance(_hips, FightMesh.loft([
-		Vector3(-0.3, 0.16, 0.115), Vector3(-0.16, 0.18, 0.12),
-		Vector3(0.08, 0.265, 0.15), Vector3(0.24, 0.29, 0.145), Vector3(0.31, 0.18, 0.11)
-	]), _body_material, Vector3(0, TORSO_LENGTH / 2.0 + 0.05, 0))
-	FightMesh.instance(_torso, FightMesh.loft([Vector3(0, 0.085, 0.08), Vector3(0.16, 0.085, 0.08)]), _body_material, Vector3(0, 0.28, 0))
-	_head = FightMesh.instance(_torso, FightMesh.loft([
-		Vector3(-0.15, 0.075, 0.08), Vector3(-0.07, 0.12, 0.12),
-		Vector3(0.07, 0.135, 0.13), Vector3(0.15, 0.095, 0.09)
-	]), _body_material, Vector3(0, 0.49, -0.015))
-	# Face first, also used by the facing-direction regression check.
-	FightMesh.instance(_head, FightMesh.loft([
-		Vector3(-0.09, 0.065, 0.025), Vector3(0.02, 0.10, 0.035), Vector3(0.07, 0.085, 0.025)
-	]), _body_material, Vector3(0, -0.015, -0.105))
-	var hair_material: StandardMaterial3D = _material(Color("#292522") if _appearance == 0 else Color("#211f20"))
-	FightMesh.instance(_head, FightMesh.loft([
-		Vector3(0.055, 0.132, 0.127), Vector3(0.14, 0.13, 0.12), Vector3(0.19 if _appearance == 0 else 0.17, 0.07, 0.075)
-	]), hair_material)
-	FightMesh.box(_head, Vector3(0.035, 0.065, 0.045), _body_material, Vector3(0, -0.005, -0.148))
-	for side: float in [-1, 1]:
-		FightMesh.box(_head, Vector3(0.057, 0.018, 0.015), hair_material, Vector3(side * 0.055, 0.035, -0.136))
-		FightMesh.box(_head, Vector3(0.025, 0.012, 0.012), _material(Color("#d2c8b5")), Vector3(side * 0.056, 0.013, -0.142))
-		FightMesh.box(_head, Vector3(0.032, 0.065, 0.045), _body_material, Vector3(side * 0.128, -0.012, 0))
-	FightMesh.instance(_head, FightMesh.loft([Vector3(-0.145, 0.067, 0.08), Vector3(-0.09, 0.102, 0.115), Vector3(-0.06, 0.10, 0.11)]), hair_material, Vector3(0, 0, -0.012))
-	_cut = FightMesh.box(_head, Vector3(0.049, 0.012, 0.009), _material(Color("#76292c")), Vector3(-0.055, 0.055, -0.147))
-	_cut.rotation.z = -0.25
-	_cut.visible = false
-	_bruise = FightMesh.box(_head, Vector3(0.052, 0.035, 0.008), _material(_skin.lerp(Color("#66445a"), 0.45)), Vector3(0.064, -0.016, -0.137))
-	_bruise.visible = false
-	var gear: StandardMaterial3D = _material(Color("#232830"))
-	var shorts_material: StandardMaterial3D = _material(colour.darkened(0.22))
-	FightMesh.instance(_hips, FightMesh.loft([Vector3(-0.12, 0.215, 0.15), Vector3(0.08, 0.19, 0.14)]), shorts_material)
-	FightMesh.instance(_hips, FightMesh.loft([Vector3(0.04, 0.197, 0.144), Vector3(0.1, 0.19, 0.14)]), gear)
-	FightMesh.box(_hips, Vector3(0.08, 0.04, 0.012), _material(Color("#e0d8c7")), Vector3(0, 0.065, -0.143))
-	for side: float in [lead, -lead]:
-		var shoulder := Node3D.new()
-		shoulder.position = Vector3(side * SHOULDER_WIDTH, TORSO_LENGTH / 2.0 - 0.06, 0)
-		_torso.add_child(shoulder)
-		var arm_pivot := Node3D.new()
-		shoulder.add_child(arm_pivot)
-		_arms.append(shoulder)
-		_arm_meshes.append(arm_pivot)
-		# Two real segments, with a bent elbow in guard and extension on strikes.
-		var upper: MeshInstance3D = FightMesh.instance(arm_pivot, FightMesh.loft([
-			Vector3(0, 0.10, 0.105), Vector3(-0.2, 0.092, 0.09), Vector3(-1, 0.06, 0.065)
-		]), _body_material)
-		var lower: MeshInstance3D = FightMesh.instance(arm_pivot, FightMesh.loft([
-			Vector3(0, 0.061, 0.065), Vector3(-0.35, 0.078, 0.075), Vector3(-1, 0.048, 0.045)
-		]), _body_material)
-		_upper_arms.append(upper)
-		_forearms.append(lower)
-		var glove: MeshInstance3D = FightMesh.instance(arm_pivot, FightMesh.loft([
-			Vector3(-0.07, 0.064, 0.055), Vector3(0.035, 0.077, 0.065), Vector3(0.07, 0.055, 0.05)
-		]), gear, Vector3(0, -ARM_LENGTH, 0))
-		FightMesh.box(glove, Vector3(0.09, 0.035, 0.11), _material(colour), Vector3(0, 0.07, 0))
-		FightMesh.box(glove, Vector3(0.08, 0.035, 0.045), _body_material, Vector3(0, -0.065, -0.01))
-		_gloves.append(glove)
-		var hip := Node3D.new()
-		hip.position = Vector3(side * HIP_WIDTH, 0, 0)
-		_hips.add_child(hip)
-		var leg_pivot := Node3D.new()
-		hip.add_child(leg_pivot)
-		_legs.append(hip)
-		_leg_meshes.append(leg_pivot)
-		FightMesh.instance(leg_pivot, FightMesh.loft([
-			Vector3(0, 0.125, 0.135), Vector3(-0.22, 0.13, 0.125), Vector3(-0.43, 0.077, 0.085),
-			Vector3(-0.58, 0.095, 0.09), Vector3(-0.81, 0.055, 0.058), Vector3(-LEG_LENGTH, 0.045, 0.05)
-		]), _body_material)
-		FightMesh.instance(leg_pivot, FightMesh.loft([
-			Vector3(0.01, 0.135, 0.15), Vector3(-0.25, 0.15, 0.145)
-		]), shorts_material)
-		FightMesh.box(leg_pivot, Vector3(0.025, 0.21, 0.15), _material(Color("#c6c6b9")), Vector3(side * 0.135, -0.12, 0))
-		var foot: MeshInstance3D = FightMesh.instance(leg_pivot, FightMesh.loft([
-			Vector3(-0.025, 0.065, 0.115), Vector3(0.025, 0.07, 0.125), Vector3(0.075, 0.048, 0.06)
-		]), _body_material, Vector3(0, -LEG_LENGTH + 0.025, -0.065))
-		_feet.append(foot)
+	_build_anatomy()
+	_build_head()
+	_build_gear_and_limbs()
 	_move_label = _label(44)
 	_move_label.position.y = OVERHEAD + 0.32
 	add_child(_move_label)
@@ -631,6 +576,135 @@ func _build() -> void:
 	_tell_label.visible = false
 	add_child(_tell_label)
 
+
+## The two temporary looks share animation pivots, but have different builds and facial contours.
+func _build_anatomy() -> void:
+	_torso = FightMesh.instance(_hips, FighterSculpt.torso(_appearance == 1), _body_material,
+		Vector3(0, TORSO_LENGTH / 2.0 + 0.05, 0))
+	var neck_width: float = 0.092 if _appearance == 1 else 0.079
+	FightMesh.instance(_torso, FighterSculpt.contour([
+		Vector4(0.28, neck_width * 1.3, 0.085, 0.09),
+		Vector4(0.37, neck_width, 0.077, 0.08), Vector4(0.43, neck_width, 0.075, 0.08)
+	]), _body_material)
+
+
+func _build_head() -> void:
+	_head = FightMesh.instance(_torso, FighterSculpt.head(_appearance == 1), _body_material, Vector3(0, 0.49, -0.015))
+	_head.scale = Vector3(0.94, 0.89, 0.94)
+	# The nose is the first face feature: it also makes facing direction observable in tests.
+	FightMesh.instance(_head, FighterSculpt.nose(), _body_material, Vector3(0, 0.005, -0.131))
+	var hair_material: StandardMaterial3D = _material(Color("#322820") if _appearance == 0 else Color("#211f20"))
+	FightMesh.instance(_head, FighterSculpt.hair(_appearance == 1), hair_material)
+	var beard_color: Color = _skin.lerp(hair_material.albedo_color, 0.65 if _appearance == 0 else 0.95)
+	var beard_material: StandardMaterial3D = _material(beard_color)
+	FightMesh.instance(_head, FighterSculpt.beard(_appearance == 1), beard_material)
+	var eye_white: StandardMaterial3D = _material(Color("#aaa799"))
+	var eye_dark: StandardMaterial3D = _material(Color("#252825"))
+	var lip_material: StandardMaterial3D = _material(_skin.lerp(Color("#6a3d34"), 0.4))
+	for side: float in [-1, 1]:
+		var brow: MeshInstance3D = FightMesh.instance(_head, FighterSculpt.ellipsoid(Vector3(0.034, 0.009, 0.009)),
+			hair_material, Vector3(side * 0.057, 0.057, -0.116))
+		brow.rotation.z = side * 0.14
+		FightMesh.instance(_head, FighterSculpt.ellipsoid(Vector3(0.021, 0.006, 0.01)), eye_white, Vector3(side * 0.057, 0.034, -0.112))
+		FightMesh.instance(_head, FighterSculpt.ellipsoid(Vector3(0.009, 0.006, 0.006)), eye_dark, Vector3(side * 0.055, 0.034, -0.121))
+		var ear: MeshInstance3D = FightMesh.instance(_head, FighterSculpt.ellipsoid(Vector3(0.023, 0.045, 0.026)),
+			_body_material, Vector3(side * 0.131, -0.006, 0.008))
+		ear.rotation.z = side * -0.12
+		FightMesh.instance(ear, FighterSculpt.ellipsoid(Vector3(0.009, 0.027, 0.015)), lip_material, Vector3(side * 0.014, 0, -0.006))
+		var moustache: MeshInstance3D = FightMesh.instance(_head, FighterSculpt.ellipsoid(Vector3(0.035, 0.012, 0.008)),
+			beard_material, Vector3(side * 0.029, -0.054, -0.128))
+		moustache.rotation.z = side * -0.16
+	FightMesh.instance(_head, FighterSculpt.ellipsoid(Vector3(0.043, 0.005, 0.008)), lip_material, Vector3(0, -0.075, -0.128))
+	_cut = FightMesh.instance(_head, FighterSculpt.ellipsoid(Vector3(0.026, 0.004, 0.003)),
+		_material(Color("#76292c")), Vector3(-0.055, 0.068, -0.122))
+	_cut.rotation.z = -0.25
+	_cut.visible = false
+	_bruise = FightMesh.instance(_head, FighterSculpt.ellipsoid(Vector3(0.025, 0.018, 0.003)),
+		_material(_skin.lerp(Color("#66445a"), 0.45)), Vector3(0.065, -0.003, -0.117))
+	_bruise.visible = false
+
+
+func _build_gear_and_limbs() -> void:
+	var gear: StandardMaterial3D = _material(Color("#232830"))
+	var cloth: StandardMaterial3D = _material(colour.lerp(Color("#555158"), 0.22).darkened(0.13))
+	var trim: StandardMaterial3D = _material(Color("#b4afa0"))
+	FightMesh.instance(_hips, FighterSculpt.contour([
+		Vector4(-0.16, 0.225, 0.142, 0.16), Vector4(-0.065, 0.277, 0.159, 0.17),
+		Vector4(0.065, 0.20, 0.146, 0.15)
+	]), cloth)
+	FightMesh.instance(_hips, FighterSculpt.contour([
+		Vector4(0.035, 0.219, 0.155, 0.159), Vector4(0.095, 0.198, 0.145, 0.15)
+	]), gear)
+	var label := Label3D.new()
+	label.text = "CHIN CHECK"
+	label.font = DisplayFont.font()
+	label.font_size = 24
+	label.pixel_size = 0.00075
+	label.outline_size = 0
+	label.modulate = Color("#c6c1b2")
+	label.shaded = true
+	label.alpha_cut = Label3D.ALPHA_CUT_DISCARD
+	label.position = Vector3(0, 0.066, -0.151)
+	label.rotation.y = PI
+	_hips.add_child(label)
+	var muscle: float = 1.09 if _appearance == 1 else 1.0
+	for side: float in [lead, -lead]:
+		var shoulder := Node3D.new()
+		shoulder.position = Vector3(side * (SHOULDER_WIDTH + (0.017 if _appearance == 1 else 0.0)), TORSO_LENGTH / 2.0 - 0.07, 0)
+		_torso.add_child(shoulder)
+		FightMesh.instance(shoulder, FighterSculpt.ellipsoid(Vector3(0.106 * muscle, 0.12, 0.112)), _body_material, Vector3(0, -0.018, 0))
+		var arm_pivot := Node3D.new()
+		shoulder.add_child(arm_pivot)
+		_arms.append(shoulder)
+		_arm_meshes.append(arm_pivot)
+		var upper: MeshInstance3D = FightMesh.instance(arm_pivot, FighterSculpt.contour([
+			Vector4(0, 0.102 * muscle, 0.10, 0.10), Vector4(-0.28, 0.113 * muscle, 0.115, 0.11),
+			Vector4(-0.6, 0.096 * muscle, 0.105, 0.09), Vector4(-1, 0.057, 0.063, 0.06)
+		]), _body_material)
+		var lower: MeshInstance3D = FightMesh.instance(arm_pivot, FighterSculpt.contour([
+			Vector4(0, 0.058, 0.061, 0.061), Vector4(-0.25, 0.077 * muscle, 0.078, 0.07),
+			Vector4(-0.55, 0.065, 0.063, 0.058), Vector4(-1, 0.043, 0.042, 0.042)
+		]), _body_material)
+		_upper_arms.append(upper)
+		_forearms.append(lower)
+		var glove: MeshInstance3D = FightMesh.instance(arm_pivot, FighterSculpt.ellipsoid(Vector3(0.067, 0.079, 0.055)), gear)
+		FightMesh.instance(glove, FighterSculpt.contour([
+			Vector4(0.045, 0.048, 0.045, 0.045), Vector4(0.087, 0.044, 0.041, 0.041)
+		]), _material(colour.darkened(0.12)))
+		FightMesh.instance(glove, FighterSculpt.ellipsoid(Vector3(0.061, 0.058, 0.022)), gear, Vector3(0, -0.012, 0.034))
+		for finger in 4:
+			FightMesh.instance(glove, FighterSculpt.ellipsoid(Vector3(0.013, 0.018, 0.019), 8),
+				_body_material, Vector3(-0.044 + finger * 0.029, -0.058, -0.024))
+		var thumb: MeshInstance3D = FightMesh.instance(glove, FighterSculpt.ellipsoid(Vector3(0.024, 0.036, 0.024)),
+			_body_material, Vector3(-side * 0.061, -0.01, -0.02))
+		thumb.rotation.z = side * 0.35
+		_gloves.append(glove)
+		var hip := Node3D.new()
+		hip.position = Vector3(side * HIP_WIDTH, 0, 0)
+		_hips.add_child(hip)
+		var leg_pivot := Node3D.new()
+		hip.add_child(leg_pivot)
+		_legs.append(hip)
+		_leg_meshes.append(leg_pivot)
+		FightMesh.instance(leg_pivot, FighterSculpt.leg(_appearance == 1), _body_material)
+		FightMesh.instance(leg_pivot, FighterSculpt.contour([
+			Vector4(-0.065, 0.143 * muscle, 0.15, 0.155), Vector4(-0.14, 0.151 * muscle, 0.154, 0.155),
+			Vector4(-0.255, 0.142 * muscle, 0.145, 0.147)
+		]), cloth)
+		FightMesh.instance(leg_pivot, FighterSculpt.contour([
+			Vector4(-0.252, 0.143 * muscle, 0.147, 0.149), Vector4(-0.267, 0.141 * muscle, 0.145, 0.147)
+		]), gear)
+		# A narrow sewn side stripe instead of the old large white rectangular patch.
+		var stripe: MeshInstance3D = FightMesh.box(leg_pivot, Vector3(0.009, 0.16, 0.035), trim, Vector3(side * 0.153 * muscle, -0.15, 0))
+		stripe.rotation.z = side * -0.06
+		FightMesh.box(leg_pivot, Vector3(0.052, 0.028, 0.004), trim, Vector3(0.025 * side, -0.2, -0.151))
+		var foot: MeshInstance3D = FightMesh.instance(leg_pivot, FighterSculpt.foot(), _body_material,
+			Vector3(0, -LEG_LENGTH + 0.035, -0.04))
+		for toe in 5:
+			var width: float = 0.016 - toe * 0.0015
+			FightMesh.instance(foot, FighterSculpt.ellipsoid(Vector3(width, 0.018, 0.027 - toe * 0.002), 8), _body_material,
+				Vector3(side * (-0.043 + toe * 0.023), -0.008, -0.122 + toe * 0.006))
+		_feet.append(foot)
 
 static func _material(c: Color) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
