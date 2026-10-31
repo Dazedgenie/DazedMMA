@@ -68,7 +68,7 @@ const BAND_SPOTS := {
 }
 ## Flags that come from how a fighter is or where they stand, not from a move: anyone sees them.
 ## The grips in the clinch (D261) are there to see too, his and your own.
-const STATE_FLAGS := { "HANDS_LOW": true, "BACK_TO_CAGE": true, "HELD_ON_FENCE": true, "BODY_LOCK": true,
+const STATE_FLAGS := { "HANDS_LOW": true, "BACK_TO_CAGE": true, "HELD_ON_FENCE": true, "BODY_LOCK": true, "WRIST_HELD": true,
 	"own UNDERHOOK": true, "own BODY_LOCK": true, "own OVERHOOK": true }
 ## The opponent knocked down (D141, D142): the chance a free tick of following him down, or of a
 ## soccer kick or a stomp where the rules allow them (× 0.5 to 1.5 from the Risk leaning).
@@ -328,7 +328,7 @@ const SCRAMBLE_RATE: float = 0.3
 const CLINCH_BREAK_MIN: float = 0.05
 ## Ground and pound (D121): on top, a chance of GNP_RATE × work rate × (1 + Pace / 100)
 ## per free tick to throw a ground strike, more against a rocked fighter (as standing),
-## less when tired. Tied up (posture broken) they hold until it wears off.
+## less when tired. Tied up (head tied or both wrists held, D263) they only work position: a pass, or posturing up.
 const GNP_RATE: float = 1.2
 ## Underneath: while the top fighter is throwing, works GROUND_UNDER_FIRE × as often.
 ## Tying up is weighted TIE_UP_CALM normally, TIE_UP_PRESSED under fire or rocked;
@@ -341,6 +341,12 @@ const ROCKED_GET_UP: float = 0.3
 ## (strikers cover, guard players tie up), × COVER_GROUND_ROCKED when rocked. On top, a man covering
 ## up gives the pass and the back: the chance to work position is × COVERED_WORK while he does.
 const COVER_GROUND: float = 1.0
+## Ground grips (D263): underneath, a wrist is grabbed like a tie-up (TIE_UP_CALM, TIE_UP_PRESSED) ×
+## WRIST_WEIGHT, the half-guard underhook weighted HALF_UNDERHOOK × (1 + Base / 100). On top, posturing
+## up is one of the ways he works position (_work_position, at its pace): with his head tied or both
+## wrists held he throws nothing until he's out, one wrist held he keeps punching with the other hand.
+const HALF_UNDERHOOK: float = 1.0
+const WRIST_WEIGHT: float = 0.5
 const COVER_GROUND_ROCKED: float = 2.0
 const COVERED_WORK: float = 3.0
 ## Submissions (D126): only on an opening their hold looks for (the top fighter postured up for
@@ -1133,6 +1139,12 @@ func _tied(view: FightView, layer: DecisionLayer) -> Decision:
 			"tie_up":
 				w *= TIE_UP_PRESSED if pressed else TIE_UP_CALM
 				reason = "ties him up to stop the punches" if pressed else "ties him up"
+			FightSim.WRIST_CONTROL:
+				w *= (TIE_UP_PRESSED if pressed else TIE_UP_CALM) * WRIST_WEIGHT
+				reason = "grabs a wrist to stop the punches" if pressed else "controls a wrist"
+			FightSim.DIG_UNDERHOOK:
+				w *= HALF_UNDERHOOK * (1.0 + maxf(0.0, base))
+				reason = "digs for the underhook"
 			"guard_pull":
 				w *= GUARD_PULL_WEIGHT * sub_liking(view, layer)
 				reason = "pulls guard"
@@ -1201,10 +1213,10 @@ func _pound(view: FightView, layer: DecisionLayer) -> Decision:
 	var f: FighterState = view.me
 	var d: Decision = _punish_escape(view, layer)
 	if d == null:
-		d = _work_position(view, layer)
+		d = _work_position(view, layer)  # Posturing up out of his grips is one of these (D263).
 	if d != null:
 		return d
-	if f.tied_up_ticks > 0:
+	if f.tied_up_ticks > 0 or view.hands_tied():
 		return DecisionLayer.IDLE
 	var rate: float = GNP_RATE * f.work_rate * maxf(0.0, 1.0 + _lean(view, layer, StyleLeanings.PACE) / 100.0)
 	if view.opponent.is_rocked():
@@ -1286,6 +1298,10 @@ func _work_position(view: FightView, layer: DecisionLayer) -> Decision:
 
 static func _advance_reason(id: String) -> String:
 	match id:
+		FightSim.CROSSFACE:
+			return "crossfaces him for the underhook"
+		FightSim.POSTURE_UP:
+			return "postures up out of his grips"
 		"guard_pass":
 			return "passes the guard"
 		"take_mount":

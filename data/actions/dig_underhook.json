@@ -1,0 +1,20 @@
+{
+	"schema": "action@2",
+	"id": "dig_underhook",
+	"name": "Dig the underhook",
+	"category": "ground",
+	"basic": true,
+	"positions": ["half_guard"],
+	"roles": ["bottom"],
+	"ranges": ["clinch"],
+	"phases_ms": { "telegraph": 0, "windup": 100, "active": 200, "recovery": 200 },
+	"stamina_cost": 3,
+	"flags_self": [],
+	"ground": { "base_success": 0.45, "grip": "half_inside" },
+	"stats": { "offense": ["guard", "strength"], "defense": ["top_control", "strength"] },
+	"opportunities": [
+		{ "opponent_flag": "POSTURED_UP", "success_bonus": 0.10 },
+		{ "opponent_flag": "HANDS_LOW", "success_bonus": 0.05 }
+	],
+	"requires_technique": null
+}

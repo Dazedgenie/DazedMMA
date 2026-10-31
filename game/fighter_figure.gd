@@ -100,7 +100,8 @@ const GRIP_HANDS := {
 const SMOOTH_MOVES: Array[String] = ["pummel", "strip_grip", "collar_tie", "fence_drive", "turn_him", "spin_off",
 	"ground_cover", "turn_away", "guillotine", "triangle", "armbar", "rear_naked_choke", "arm_triangle", "ankle_lock",
 	"kneebar", "heel_hook", "bridge", "escape_back", "recover_guard", "sweep", "guard_pass", "take_mount", "take_back",
-	"scramble", "follow_down", "foot_sweep", "hip_throw", "outside_trip", "guard_pull"]
+	"scramble", "follow_down", "foot_sweep", "hip_throw", "outside_trip", "guard_pull", "wrist_control", "dig_underhook",
+	"posture_up", "crossface"]
 ## How tall he kneels when he postures up out of the guard for the bomb (D282): hip height, metres.
 const POSTURE_HIP: float = 0.68
 ## How quickly a gripping hand follows a grip changing (per second).
@@ -589,6 +590,25 @@ func pose_for(sim: FightSim, i: int, fractional_tick: float = 0.0) -> Dictionary
 			p.arm_rear = lerpf(p.arm_rear, 3.0, reach)
 			p.reach_lead = lerpf(1.0, 1.3, reach)
 			p.reach_rear = lerpf(1.0, 1.3, reach)
+		"wrist_control":  # Both hands up to his wrist and pinned to the chest (D263).
+			_ease(p, "arm_lead", 2.2, reach)
+			_ease(p, "arm_rear", 2.2, reach)
+			_ease(p, "reach_lead", 0.8, reach)
+			_ease(p, "reach_rear", 0.8, reach)
+		"dig_underhook":  # Onto his side, the near arm swimming in under his armpit (D263).
+			_ease(p, "arm_lead", 2.6, reach)
+			_ease(p, "reach_lead", 1.3, reach)
+			p.roll = 0.4 * lead * reach
+		"posture_up":  # Hips back and chest up out of his grips, hands on his body (D263).
+			_ease(p, "lean", 0.05, reach)
+			_ease(p, "hip_y", POSTURE_HIP, reach)
+			_ease(p, "arm_lead", 0.6, reach)
+			_ease(p, "arm_rear", 0.6, reach)
+		"crossface":  # The forearm drives across his face, the shoulder down on him (D263).
+			_ease(p, "lean", -0.85, reach)
+			_ease(p, "arm_lead", 1.4, reach)
+			_ease(p, "reach_lead", 1.2, reach)
+			p.twist = lerpf(0.0, -0.4, reach)
 		"check_kick":  # The lead knee comes up and turns out to meet the shin (D180, D281).
 			p.leg_lead = lerpf(p.leg_lead, 1.25, reach)
 			p.check = reach

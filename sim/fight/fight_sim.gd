@@ -218,6 +218,20 @@ const UNDERHOOK := "UNDERHOOK"
 const BODY_LOCK := "BODY_LOCK"
 const OVERHOOK := "OVERHOOK"
 const NO_GRIP: int = -1
+## Grips on the ground (D263, docs/01 §40.11), where the tie-up was (full guard, half guard, mount):
+## the man underneath ties the head (TIE_UP, the collar tie: POSTURE_BROKEN on top) and holds wrists
+## (WRIST_CONTROL: WRIST_HELD with one, WRISTS_HELD with both). With the head tied or both wrists held
+## the man on top can't strike; one wrist held makes his strikes harder. They stay until he postures
+## up (POSTURE_UP strips the collar tie first, then a wrist) or the position changes. In half guard
+## one fighter has the near-side underhook (DIG_UNDERHOOK underneath, CROSSFACE on top): UNDERHOOK.
+const TIE_UP := "tie_up"
+const WRIST_CONTROL := "wrist_control"
+const POSTURE_UP := "posture_up"
+const CROSSFACE := "crossface"
+const DIG_UNDERHOOK := "dig_underhook"
+const WRIST_HELD := "WRIST_HELD"
+const WRISTS_HELD := "WRISTS_HELD"
+const POSTURE_BROKEN := "POSTURE_BROKEN"
 ## A locked submission is fought for in beats, one every STRUGGLE_BEAT_TICKS (D126). Each beat
 ## the attacker wins with Contest.chance(STRUGGLE_BASE, the hold's offense stats, its defense
 ## stats, ± the corners' struggle calls) and the danger moves STRUGGLE_STEP up, or down.
@@ -352,6 +366,11 @@ var _hold: Dictionary = {}
 var _drive: Dictionary = {}
 ## Who has the inside on each side of the clinch (D261): a fighter's index, or NO_GRIP.
 var _grips: Array[int] = [NO_GRIP, NO_GRIP]
+## The ground grips (D263): how many of the top man's wrists the man underneath holds (0–2), whether
+## he has the collar tie, and who has the half-guard underhook (a fighter's index or NO_GRIP).
+var _wrists: int = 0
+var _collar: bool = false
+var _half_inside: int = NO_GRIP
 ## What the current position does to each fighter every tick (its data, worked out
 ## when the position changes): stamina drained, judges' control points, strike damage ×.
 var _drain: Array[float] = [0.0, 0.0]
@@ -620,6 +639,9 @@ func set_grips(who: Array[int]) -> void:
 
 ## The grip flags fighter i carries in the clinch (D261): UNDERHOOK, BODY_LOCK, OVERHOOK.
 func _grip_flags(i: int, out: Array[String]) -> void:
+	if _wrists > 0 or _collar or _half_inside != NO_GRIP:
+		_ground_grip_flags(i, out)
+		return
 	if _grips[0] == NO_GRIP and _grips[1] == NO_GRIP or situation.position != PositionLibrary.CLINCH:
 		return  # Hand fighting, or not in the clinch: nothing to carry (and it's every odds check, so it's quick).
 	var mine: int = int(_grips[0] == i) + int(_grips[1] == i)
@@ -631,9 +653,43 @@ func _grip_flags(i: int, out: Array[String]) -> void:
 		out.append(OVERHOOK)
 
 
-## Hands off: no grips (a new clinch, or out of it).
+## The ground grips' flags for fighter i (D263): on top, POSTURE_BROKEN with his head tied,
+## WRIST_HELD with a wrist held and WRISTS_HELD with both; UNDERHOOK for whoever has it in half guard.
+func _ground_grip_flags(i: int, out: Array[String]) -> void:
+	if situation.role(i) == PositionLibrary.TOP:
+		if _collar and not out.has(POSTURE_BROKEN):
+			out.append(POSTURE_BROKEN)
+		if _wrists >= 1:
+			out.append(WRIST_HELD)
+		if _wrists >= 2:
+			out.append(WRISTS_HELD)
+	if _half_inside == i:
+		out.append(UNDERHOOK)
+
+
+## True when fighter i is on top with his head tied or both wrists held (D263): no ground strikes.
+func hands_tied(i: int) -> bool:
+	return (_collar or _wrists >= 2) and situation.role(i) == PositionLibrary.TOP
+
+
+## The ground grips as they stand (D263): { wrists, collar, half_inside }. Read-only.
+func ground_grips() -> Dictionary:
+	return { "wrists": _wrists, "collar": _collar, "half_inside": _half_inside }
+
+
+## Sets the ground grips (D263), for tests and set pieces.
+func set_ground_grips(wrists: int, collar: bool, half_inside: int = NO_GRIP) -> void:
+	_wrists = wrists
+	_collar = collar
+	_half_inside = half_inside
+
+
+## Hands off: no grips (a new clinch, or out of it; any change of position on the ground).
 func _clear_grips() -> void:
 	_grips = [NO_GRIP, NO_GRIP]
+	_wrists = 0
+	_collar = false
+	_half_inside = NO_GRIP
 
 
 func run_to_end() -> void:
@@ -1311,6 +1367,14 @@ func _start_action(i: int, id: String, decision: Decision = null) -> void:
 		f.strips_tried += 1
 	elif id == GROUND_COVER:
 		f.ground_covers += 1
+	elif id == TIE_UP:
+		f.ground_ties_tried += 1
+	elif id == WRIST_CONTROL:
+		f.wrists_tried += 1
+	elif id == POSTURE_UP:
+		f.postures_tried += 1
+	elif id == CROSSFACE or id == DIG_UNDERHOOK:
+		f.half_underhooks_tried += 1
 	_start_combo(i, id, decision)
 	if action.category == "strike" or action.category == "takedown" or action.category == "submission" or (action.category == "clinch" and situation.is_standing()):
 		_round_aggression[i] += 1.0
@@ -1552,6 +1616,8 @@ func odds_breakdown(i: int, id: String, ahead: int = 0) -> OddsBreakdown:
 			b.add_bonus(opp.opponent_flag, float(opp.success_bonus))
 		elif opp.get("required", false) and b.missing == "":
 			b.missing = opp.opponent_flag
+	if action.category == "ground" and b.missing == "" and action.ground.has("grip"):
+		b.missing = _ground_grip_missing(i, String(action.ground.grip))
 	if action.category == "defense" and action.defense.has("hidden_by") and b.defense > FighterState.DEFAULT_STAT:
 		# A good kicker hides his kicks (D180): his skill above average counts again against the check.
 		b.add_bonus("hidden", -float(action.defense.hidden_by) * (b.defense - FighterState.DEFAULT_STAT) / 100.0)
@@ -1706,7 +1772,7 @@ func _land_strike(i: int, action: Dictionary) -> void:
 		miss.reason = "out of range"
 		_emit(FightEvent.STRIKE_MISSED, i, miss)
 		return
-	if attacker.tied_up_ticks > 0 and Ruleset.is_ground_strike(action):
+	if (attacker.tied_up_ticks > 0 or hands_tied(i)) and Ruleset.is_ground_strike(action):
 		miss.reason = "tied up"
 		_emit(FightEvent.STRIKE_MISSED, i, miss)
 		return
@@ -1826,7 +1892,7 @@ func _make_contact(i: int, action: Dictionary) -> void:
 			_meet_shot(1 - i)  # Already sprawling as it arrives?
 			return
 		stopped.reason = { "own " + HELD_ON_FENCE: "not on the fence", "own " + UNDERHOOK: "no underhook",
-			"own " + OVERHOOK: "no underhook to strip" }.get(b.missing, "nothing to catch")
+			"own " + OVERHOOK: "no underhook to strip" }.get(b.missing, b.missing if GRIP_STOPS.has(b.missing) else "nothing to catch")
 		stopped.chance = 0.0
 		stopped.odds = b.to_dict()
 	_emit(FightEvent.GRAPPLE_STOPPED, i, stopped)
@@ -1884,8 +1950,11 @@ func _finish_grip(i: int) -> bool:
 		_tie_up(i, action, b)
 		return false  # The fight stays where it is; the move goes on to its recovery.
 	if result == PositionLibrary.SUCCESS and action[action.category].has("grip"):
-		_take_grip(i, action, b)
-		return false  # Still the clinch, with the grips changed (D261).
+		if action.category == "ground":
+			_take_ground_grip(i, action, b)
+		else:
+			_take_grip(i, action, b)
+		return false  # Still the clinch, with the grips changed (D261), or the same spot on the ground (D263).
 	if result == PositionLibrary.SUCCESS and action[action.category].has("drives_m"):
 		_start_drive(i, action, b)
 		return false  # Still the clinch, walking back to the fence (D220).
@@ -2030,6 +2099,59 @@ func _take_grip(i: int, action: Dictionary, b: OddsBreakdown) -> void:
 		fighters[i].strips_won += 1
 	_emit(FightEvent.GRAPPLE_WON, i, { "action_id": action.id, "result": result, "side": side, "underhooks": underhooks(i),
 		"his_underhooks": underhooks(1 - i), "chance": b.chance, "odds": b.to_dict() })
+
+
+## Why fighter i can't try a ground grip move now (D263), or "" when he can: the collar tie or a
+## wrist he already has, nothing to strip, the half-guard underhook already his.
+func _ground_grip_missing(i: int, kind: String) -> String:
+	match kind:
+		"collar":
+			return "already tied up" if _collar else ""
+		"wrist":
+			return "both wrists held" if _wrists >= 2 else ""
+		"posture":
+			return "nothing to strip" if not _collar and _wrists == 0 else ""
+		"half_inside":
+			return "has the underhook" if _half_inside == i else ""
+	return ""
+
+
+## The reasons a ground grip move is refused (GRAPPLE_STOPPED), as _ground_grip_missing gives them.
+const GRIP_STOPS: Array[String] = ["already tied up", "both wrists held", "nothing to strip", "has the underhook"]
+
+
+## A ground grip move works (D263): the collar tie or a wrist taken from underneath, the head and
+## then a wrist freed by posturing up, the half-guard underhook won from either side. Taking the
+## collar or the second wrist smothers the ground strike he was winding up, as the tie-up did (D121).
+func _take_ground_grip(i: int, action: Dictionary, b: OddsBreakdown) -> void:
+	var kind: String = String(action.ground.grip)
+	var f: FighterState = fighters[i]
+	var o: FighterState = fighters[1 - i]
+	var result: String = kind
+	match kind:
+		"collar":
+			_collar = true
+			f.ground_ties_won += 1
+		"wrist":
+			_wrists = mini(2, _wrists + 1)
+			f.wrists_won += 1
+		"posture":
+			if _collar:
+				_collar = false
+				result = "freed head"
+			else:
+				_wrists = maxi(0, _wrists - 1)
+				result = "freed wrist"
+			f.postures_won += 1
+		"half_inside":
+			_half_inside = i
+			f.half_underhooks_won += 1
+	if hands_tied(1 - i) and not o.is_free() and actions.get_action(o.action_id).category == "strike":
+		o.clear_action()
+	if hands_tied(1 - i):
+		f.unanswered = 0  # Tied up so he can't punch is answering him (D121); one wrist or an underhook isn't.
+	_emit(FightEvent.GRAPPLE_WON, i, { "action_id": action.id, "result": result, "wrists": _wrists, "collar": _collar,
+		"chance": b.chance, "odds": b.to_dict() })
 
 
 # --- Submissions (D126, docs/01 §25) ------------------------------------------
