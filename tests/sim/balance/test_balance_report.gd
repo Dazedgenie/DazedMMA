@@ -328,6 +328,12 @@ func test_the_summary_says_who_chose_each_fighters_moves() -> void:
 	assert_string_contains(text, "Chosen by  Kicker (red) own AI 90.0% · calls 8.0% · rules 2.0% · commands 0.0% of 100 moves a fight · Boxer (blue) own AI 100.0%")
 
 
+func test_the_summary_says_which_part_of_each_fighters_ai_chose_his_moves_and_leaves_out_the_unused_ones() -> void:
+	var report: BalanceReport = _report([_row({ "ai_lead_red": 60, "ai_counter_red": 30, "ai_defence_red": 10, "ai_tied_blue": 4 })])
+	var text: String = report.summary({ "kicker": "Kicker", "boxer": "Boxer" })
+	assert_string_contains(text, "AI parts   Kicker (red) defence 10.0% · counter 30.0% · lead 60.0% of 100 a fight · Boxer (blue) tied up 100.0% of 4 a fight (D254)")
+
+
 # --- Drilled rules (#17) --------------------------------------------------------------------
 
 func test_a_fighters_drilled_rules_are_reported_against_the_same_fights_without_them() -> void:

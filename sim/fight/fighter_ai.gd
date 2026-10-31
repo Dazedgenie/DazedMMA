@@ -44,6 +44,20 @@ const GROUND := "ground"
 const SUBMISSION := "submission"
 const TELL := "tell"
 const COMBO := "combo"
+## The parts of choose() a move can come from, for the harness's AI parts line (D254): answering a
+## move it read with a defence (sprawl, check, slip) or covering up rocked; countering (an opening it
+## read, meeting an advance, a guillotine on a shot, catching a burst); the next strike of a combination;
+## a set-up (a tell it spotted, the shot off its own feint); a lead of its own; cage work (herding,
+## tying him up off the fence); tied up in the clinch or on the ground; a downed opponent.
+const PART_DEFENCE := "defence"
+const PART_COUNTER := "counter"
+const PART_COMBINATION := "combination"
+const PART_SET_UP := "set_up"
+const PART_LEAD := "lead"
+const PART_CAGE := "cage"
+const PART_TIED := "tied"
+const PART_DOWNED := "downed"
+const PARTS: Array[String] = [PART_DEFENCE, PART_COUNTER, PART_COMBINATION, PART_SET_UP, PART_LEAD, PART_CAGE, PART_TIED, PART_DOWNED]
 ## Far to close: the bands a standing fighter can plan to fight from.
 const BANDS: Array[String] = [Octagon.BAND_LONG, Octagon.BAND_MID, Octagon.BAND_POCKET]
 ## Inside each band, where a fighter may stand (between the band's edges, a little in).
@@ -461,44 +475,52 @@ func choose(view: FightView, layer: DecisionLayer) -> Decision:
 	if f.repertoire.is_empty() or f.work_rate <= 0.0:
 		return DecisionLayer.IDLE
 	if view.opponent.is_down():
-		return _downed(view, layer)
+		return _part(_downed(view, layer), PART_DOWNED)
 	_choice_ready = false
 	if not view.is_standing():
-		return _tied(view, layer)
+		return _part(_tied(view, layer), PART_TIED)
 	if f.is_rocked():
 		var cover: Decision = _cover(view, layer)
 		if cover != null:
-			return cover
+			return _part(cover, PART_DEFENCE)
 		# Hurt: only the odd desperate shot.
-		return _lead(view, layer) if _leads(view, layer) else DecisionLayer.IDLE
+		return _part(_lead(view, layer), PART_LEAD) if _leads(view, layer) else DecisionLayer.IDLE
 	var registered: bool = _registered(view)
 	var d: Decision = null
 	if registered and _opp.category == TAKEDOWN:
-		d = _defend(view, layer)
+		d = _part(_defend(view, layer), PART_DEFENCE)
 	elif registered and _opp.category == STRIKE:
-		d = _guard(view, layer)
+		d = _part(_guard(view, layer), PART_DEFENCE)
 	if d == null:
-		d = _guillotine(view, layer)
+		d = _part(_guillotine(view, layer), PART_COUNTER)
 	if d == null and not _follow.is_empty():
-		d = _follow_up(view, layer)
+		var kind: String = _follow.kind
+		d = _part(_follow_up(view, layer), PART_SET_UP if kind == TELL else PART_COMBINATION)
 	if d == null and registered and not _opp.decided:
-		d = _opening(view, layer)
+		d = _part(_opening(view, layer), PART_COUNTER)
 	if d == null:
 		if _closing < INTERCEPT_CLOSING or not view.opponent.is_free():
 			_met_advance = false
 		elif not _met_advance:
-			d = _meet_advance(view, layer)
+			d = _part(_meet_advance(view, layer), PART_COUNTER)
 	if d == null:
-		d = _shut_in_tie_up(view, layer)
+		d = _part(_shut_in_tie_up(view, layer), PART_CAGE)
 	if d == null:
-		d = _catch_burst(view, layer)
+		d = _part(_catch_burst(view, layer), PART_COUNTER)
 	if d == null:
-		d = _herd(view)
+		d = _part(_herd(view), PART_CAGE)
 	if d != null:
 		return d
 	if _leads(view, layer):
-		return _lead(view, layer)
+		return _part(_lead(view, layer), PART_LEAD)
 	return DecisionLayer.IDLE
+
+
+## Marks which part of choose() a move came from (PARTS, D254): only a real move, never the shared idle.
+static func _part(d: Decision, part: String) -> Decision:
+	if d != null and not d.is_idle() and d.part == "":
+		d.part = part
+	return d
 
 
 ## How this fighter answers being shut in (D234): ANSWER_BURST, ANSWER_TIE_UP or ANSWER_PLANT.

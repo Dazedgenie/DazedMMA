@@ -14,6 +14,8 @@ var combo_step: int = 0
 ## The rest of the combination follows without the fighter's own say: it was called or commanded
 ## as a whole (D133). The fighter's own combinations go on a move at a time, like any strikes.
 var combo_runs: bool = false
+## Which part of the fighter's own AI chose it (FighterAI.PARTS, D254; "" for the other layers).
+var part: String = ""
 ## The source that claimed it (null for commands and the AI).
 var source: DecisionSource
 

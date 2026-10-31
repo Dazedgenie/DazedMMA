@@ -47,7 +47,8 @@ and `calls_red`/`calls_blue` count the calls it made; `rules_red`/`rules_blue` n
 
 Each run also writes `run.json`: the arguments, the commit, a hash of `data/`, the Godot version, the time taken and the
 computer time a simulated tick took (D250, `docs/01` §2.4). The summary gives win shares and the coaching and rule changes
-with 95% ranges, and the `chosen_*` columns count who chose each fighter's moves (own AI, call, rule, command).
+with 95% ranges, and the `chosen_*` columns count who chose each fighter's moves (own AI, call, rule, command), and the `ai_*`
+columns which part of his own AI did (defence, counter, combination, set-up, lead, cage, tied up, downed; D254).
 
 `balance_compare.gd` compares two harness runs fight by fight, matched by pairing and seed (D250): how many fights played
 out differently, win shares, draws and finishes before and after, and the change with its 95% range. Run both on the same

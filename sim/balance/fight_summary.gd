@@ -44,6 +44,8 @@ const COLUMNS: Array[String] = [
 	"calls_red", "calls_blue", "fired_red", "fired_blue",
 	"chosen_ai_red", "chosen_call_red", "chosen_rule_red", "chosen_command_red",
 	"chosen_ai_blue", "chosen_call_blue", "chosen_rule_blue", "chosen_command_blue",
+	"ai_defence_red", "ai_counter_red", "ai_combination_red", "ai_set_up_red", "ai_lead_red", "ai_cage_red", "ai_tied_red", "ai_downed_red",
+	"ai_defence_blue", "ai_counter_blue", "ai_combination_blue", "ai_set_up_blue", "ai_lead_blue", "ai_cage_blue", "ai_tied_blue", "ai_downed_blue",
 ]
 const SIDES: Array[String] = ["red", "blue"]
 ## The ground positions whose share of the fight each row reports (D130).
@@ -217,6 +219,8 @@ static func of(sim: FightSim, lows: Array[float] = [], moves: Dictionary = {}) -
 		row["combo_landed_" + side] = f.combo_landed
 		for layer: String in CHOOSERS:
 			row["chosen_%s_%s" % [layer, side]] = 0
+		for part: String in FighterAI.PARTS:
+			row["ai_%s_%s" % [part, side]] = f.ai_parts.get(part, 0)  # Which part of his own AI chose them (D254).
 		row["top_" + side] = _share_of(moves.get("top", [0, 0])[i], ticks)
 		row["circling_" + side] = _seconds(sim.circling_ticks[i])
 		row["cutting_" + side] = _seconds(sim.cutting_ticks[i])
