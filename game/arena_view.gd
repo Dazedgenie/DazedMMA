@@ -44,8 +44,9 @@ const GROUND_LAYOUTS := {
 const LIE_TURN: float = 0.45
 ## How fast a fighter slides and turns to his spot in a new position (per second).
 const LAYOUT_SPEED: float = 6.0
-## Space for the two leaning torsos in the clinch; affects only their drawn positions.
-const CLINCH_BODY_GAP: float = 0.82
+## Space for the two leaning torsos in the clinch; affects only their drawn positions. Chest to chest, close
+## enough for an underhook to reach round his back (D282, was 0.82).
+const CLINCH_BODY_GAP: float = 0.68
 ## The tag grows this much when the range or position changes, then settles (docs/06 §2).
 const TAG_BUMP: float = 1.7
 ## Standing, the sim's ranges are wider than a person's reach (pocket up to 1.5 m, long range 3 m apart), so

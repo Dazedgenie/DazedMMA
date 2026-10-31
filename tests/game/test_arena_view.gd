@@ -303,6 +303,30 @@ func test_idle_feet_touch_the_mat_and_a_kick_can_lift_then_replant_them() -> voi
 		assert_almost_eq(_lowest_vertex(foot), 0.0, 0.005, "returning to guard restores the stance")
 
 
+## How far the two leaning torsos, posed in the clinch at `placed`, cross each other along the line between
+## them (metres; below zero there's daylight between the chests).
+func _torso_overlap(sim: FightSim, placed: Array[Dictionary]) -> float:
+	var figures: Array[FighterFigure] = []
+	for i in 2:
+		var figure := FighterFigure.new(Color.RED)
+		add_child_autofree(figure)
+		figures.append(figure)
+	figures[0].opponent = figures[1]
+	figures[1].opponent = figures[0]
+	for frame in 40:
+		for i in 2:
+			figures[i].show_state(sim, i, placed[i].at, placed[1 - i].at, 1.0 / 60.0)
+	var along: Vector2 = (placed[1].at - placed[0].at).normalized()
+	var line := Vector3(along.x, 0, along.y)
+	var reach: Array[float] = [-INF, INF]  # red's furthest point toward blue, blue's furthest toward red
+	for i in 2:
+		var torso: MeshInstance3D = figures[i]._torso
+		for point: Vector3 in torso.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]:
+			var d: float = torso.to_global(point).dot(line)
+			reach[i] = maxf(reach[i], d) if i == 0 else minf(reach[i], d)
+	return reach[0] - reach[1]
+
+
 func _lowest_vertex(mesh: MeshInstance3D) -> float:
 	var lowest: float = INF
 	var vertices: PackedVector3Array = mesh.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
@@ -317,7 +341,8 @@ func test_clinch_bodies_have_room_at_the_fence_without_moving_the_sim() -> void:
 	var before: Array[Vector2] = [sim.fighters[0].pos, sim.fighters[1].pos]
 	var spots: Array[Vector2] = [Vector2(3.9, 0), Vector2(4.2, 0)]
 	var placed: Array[Dictionary] = ArenaView.ground_spots(sim, spots)
-	assert_gt(placed[0].at.distance_to(placed[1].at), 0.75, "the sculpted torsos must not pass through each other")
+	assert_lt(_torso_overlap(sim, placed), 0.0, "the sculpted torsos must not pass through each other")
+	assert_lt(placed[0].at.distance_to(placed[1].at), 0.75, "chest to chest, close enough for an underhook (D282)")
 	for pose: Dictionary in placed:
 		assert_gte(Octagon.distance_to_fence(pose.at), Octagon.BODY_MARGIN - 0.001)
 	assert_eq([sim.fighters[0].pos, sim.fighters[1].pos], before, "spacing is presentation-only")
