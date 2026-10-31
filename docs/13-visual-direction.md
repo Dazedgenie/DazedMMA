@@ -236,7 +236,9 @@ bone name).
 The rig's faceted pieces can be swapped for a skinned, auto-rigged body: one mesh that bends at the joints. Kyle
 made the first one in Tripo (image to model, Humanoid auto-rig with the Mixamo skeleton preset, just under 12,000
 faces, exported as GLB); it lives at `tools/bodies/tripo_fighter.glb` (a `.gdignore` keeps Godot from importing
-it, and `tools/` is left out of the exported game).
+it, and `tools/` is left out of the exported game). Tripo's colour texture came at 8192 × 8192 (7.4 MB, 256 MB
+of video memory a body once loaded); it was scaled to 2048 × 2048 (1.6 MB file), which looks the same at fight
+distance.
 
 **How it follows the rig** (`game/rig/skinned_body.gd`, `SkinnedBody`):
 
