@@ -260,9 +260,10 @@ each with a `.backup.json` of the save before it). Written by `CareerSaves` (`ga
 | `trainee` | `TrainingCamp.snapshot()`: `stats` (with fractions), `style`, `fatigue`, `injured_days`, `injury_area`, `age_years`, `potential`, `camp_gains` (this camp's, for the soft cap) and `dice` |
 | `calendar` | `first_monday` (days since 1 Jan 1970 of week 0's Monday) and `week` (weeks since) |
 | `suspended_days`, `money`, `pro`, `week_plan`, `worn_last_week` | Days of medical suspension left; money; turned pro; the data/week_plans id run between fights; whether training wore him down last week, so *Advance* stops only on the first such week (D303; optional, false when missing) |
+| `next_offers_week` | The first week the next set of fight offers can come in (D304; optional, next week when missing) |
 | `fights` | One entry per fight, oldest first: `result` (`win`, `loss`, `draw`, `no_contest`), `opponent` (an id in `opponents`), `week`, `pro`, and what the fight screen adds (`method`, `round`, `time`, `ruleset`, `purse`) |
 | `opponents` | `{id: fighter@1 profile}` for everyone he's fought or is booked to fight |
-| `booked`, `offers` | The next fight and the offers on the table (D304) |
+| `booked`, `offers` | The offers on the table (D304, `docs/03` §10.4): each `{id, profile (the opponent, fighter@1, with `age`), about {nickname, hometown, country}, style (a style sheet id), difficulty (`easier`, `even`, `harder`), week (fight week), expires (its last open week), ruleset, pro, purse ({show, win} in dollars, or {} for an amateur)}`. `booked` is the offer taken, without `profile` (that goes into `opponents`), plus `opponent` (his id), `camp_weeks`, and `fight_week_report` once fight week has run ({} when not booked) |
 | `summary` | What the load screen shows without loading the career: `name`, `nickname`, `coach`, `hometown`, `country`, `background`, `age`, `date`, `week`, `pro`, `amateur_record`, `pro_record` |
 | `saved_at`, `saved_unix`, `game` | Added by `CareerSaves`: when (UTC, and Unix seconds for *Continue*), and the game name and Godot version |
 

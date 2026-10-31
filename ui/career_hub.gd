@@ -8,10 +8,16 @@ extends PanelContainer
 ## a booked fight, hurt, suspended), the week plan between fights (any data/week_plans plan; Between fights to start),
 ## Run this week, Advance (weeks until something happens, at most Career.ADVANCE_MAX_WEEKS) and Save and go to the
 ## title. Right, his fights, newest first. Along the bottom, the calendar: the coming weeks and what will happen in them.
+## Fight offers (D304) show under This week, each as a scouting card with Take the fight and Turn it down; once he's
+## booked, Go to camp replaces the week's buttons, and Turn pro shows when he can.
 
 signal week_pressed
 signal advance_pressed
 signal title_pressed
+signal camp_pressed
+signal accept_pressed(offer_id: String)
+signal decline_pressed(offer_id: String)
+signal turn_pro_pressed
 
 const BACKGROUND := Color(0.06, 0.07, 0.09)
 const CARD := Color("#1b1f26")
@@ -29,6 +35,10 @@ const DISCOVERED_FLAWS: Array[String] = ["bleeder", "hard_cut"]
 const RESULT_MARKS := { "win": ["W", GOOD], "loss": ["L", BAD], "draw": ["D", WARN], "no_contest": ["NC", DIM] }
 ## How many of his fights the list shows (newest first).
 const FIGHTS_SHOWN: int = 12
+## How an offer's kind reads (Matchmaker.DIFFICULTIES).
+const DIFFICULTY_TEXT := { "easier": "a bit easier", "even": "about even", "harder": "a bit harder" }
+## The attribute groups an offer's scouting grades show.
+const SCOUTED_GROUPS: Array[String] = ["Striking", "Wrestling", "Grappling", "Physical"]
 
 var career: Career
 
@@ -43,6 +53,10 @@ var _plan: OptionButton
 var _plan_ids: Array[String] = []
 var _week: Button
 var _advance: Button
+var _camp: Button
+var _pro: Button
+var _offers: VBoxContainer
+var _offer_ids: Array[String] = []
 var _fights_text: RichTextLabel
 var _calendar: HBoxContainer
 var _groups: Dictionary = {}
@@ -120,6 +134,16 @@ func _init() -> void:
 	week_box.add_child(_heading("This week"))
 	_week_text = _rich()
 	week_box.add_child(_week_text)
+	_offers = VBoxContainer.new()
+	_offers.add_theme_constant_override("separation", 8)
+	_offers.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var offers_scroll := ScrollContainer.new()
+	offers_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	offers_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	offers_scroll.add_child(_offers)
+	week_box.add_child(offers_scroll)
+	_camp = CampPlanner._button(week_box, "Go to camp", func() -> void: camp_pressed.emit())
+	CampPlanner.style_fight_button(_camp, 30)
 	var plan_label := FightNightCard._label(16, DIM)
 	plan_label.text = "His week plan between fights"
 	week_box.add_child(plan_label)
@@ -132,7 +156,9 @@ func _init() -> void:
 	_week = CampPlanner._button(week_box, "Run this week", func() -> void: week_pressed.emit())
 	CampPlanner.style_fight_button(_week, 30)
 	_advance = CampPlanner._button(week_box, "Advance until something happens", func() -> void: advance_pressed.emit())
-	_advance.tooltip_text = "Runs weeks on his plan until he's hurt or healed, cleared to fight, has a birthday or an offer comes in (up to %d weeks)" % Career.ADVANCE_MAX_WEEKS
+	_advance.tooltip_text = "Runs weeks on his plan until he's hurt or healed, cleared to fight, worn down, has a birthday or offers come in (up to %d weeks)" % Career.ADVANCE_MAX_WEEKS
+	_pro = CampPlanner._button(week_box, "Turn pro", func() -> void: turn_pro_pressed.emit())
+	_pro.tooltip_text = "From now his fights count on his pro record, under pro rules, for a purse"
 	var title: Button = CampPlanner._button(week_box, "Save and go to the title", func() -> void: title_pressed.emit())
 	title.custom_minimum_size.y = 44.0
 
@@ -169,8 +195,16 @@ func show_career(p_career: Career, reports: Array = []) -> void:
 	_bars.show_rows(stat_rows(career.trainee, _groups))
 	_week_text.text = week_text(career, reports)
 	_plan.select(maxi(_plan_ids.find(career.week_plan), 0))
-	_week.disabled = not career.booked.is_empty()
-	_advance.disabled = not career.booked.is_empty()
+	var booked: bool = not career.booked.is_empty()
+	_week.visible = not booked
+	_advance.visible = not booked
+	_plan.disabled = booked
+	_camp.visible = booked
+	if booked:
+		var left: int = career.camp_weeks_left()
+		_camp.text = "Go to camp: %d week%s to fight night" % [left, "" if left == 1 else "s"]
+	_pro.visible = Matchmaker.can_turn_pro(career)
+	_show_offers()
 	_fights_text.text = fights_text(career)
 	_show_calendar(career.calendar())
 
@@ -249,22 +283,144 @@ static func style_text(style: StyleLeanings) -> String:
 	return ", ".join(bits) if not bits.is_empty() else "no clear style yet"
 
 
+## An offer as its card reads: who, what style and how he compares, where from, the scouts' read, the grades, the date,
+## camp and rules, and the money.
+static func offer_text(c: Career, o: Dictionary, groups: Dictionary = {}) -> String:
+	var p: Dictionary = o.get("profile", {})
+	var about: Dictionary = o.get("about", {})
+	var style_id: String = String(o.get("style", ""))
+	var style: Dictionary = StyleLibrary.shared().get_style(style_id) if StyleLibrary.shared().has(style_id) else {}
+	var lines: Array[String] = []
+	var nick: String = String(about.get("nickname", ""))
+	lines.append("[b]%s[/b]%s" % [String(p.get("name", "")), (" '%s'" % nick) if nick != "" else ""])
+	lines.append("[color=%s]%s · %s[/color]" % [WARN.to_html(false), String(style.get("name", style_id)), DIFFICULTY_TEXT.get(String(o.get("difficulty", "")), "")])
+	var frame: Dictionary = p.get("frame", {})
+	lines.append("From %s, %s · age %d · %d cm · %s" % [String(about.get("hometown", "")), String(about.get("country", "")), int(p.get("age", 0)),
+		int(frame.get("height_cm", 0)), String(p.get("stance", "orthodox"))])
+	var scouting: Dictionary = style.get("scouting", {})
+	if scouting.has("summary"):
+		lines.append("[i]%s[/i]" % String(scouting.summary))
+	lines.append("[color=%s]Scouted:[/color] %s" % [DIM.to_html(false), scouted_grades(p.get("stats", {}), groups)])
+	var fight_week: int = int(o.get("week", c.week))
+	lines.append("Fight night %s · a %d-week camp · %s" % [c.date_text(5, fight_week), fight_week - c.week + 1, rules_name(String(o.get("ruleset", "")))])
+	lines.append(purse_text(o.get("purse", {})))
+	if int(o.get("expires", c.week)) == c.week:
+		lines.append("[color=%s]Last week to answer.[/color]" % BAD.to_html(false))
+	return "\n".join(lines)
+
+
+## Grades by attribute group for a profile's stats, e.g. "Striking B · Wrestling C · Grappling D · Physical C".
+static func scouted_grades(stats: Dictionary, groups: Dictionary) -> String:
+	var bits: Array[String] = []
+	for group in SCOUTED_GROUPS:
+		var total: float = 0.0
+		var n: int = 0
+		for id: String in groups:
+			if String(groups[id]) == group:
+				total += float(stats.get(id, FighterState.DEFAULT_STAT))
+				n += 1
+		if n > 0:
+			bits.append("%s %s" % [group, TrainingCamp.grade(total / n)])
+	return " · ".join(bits)
+
+
+## A ruleset's name, e.g. "Teen amateur MMA (16–17)".
+static func rules_name(ruleset_id: String) -> String:
+	if ruleset_id == "":
+		return ""
+	var r: Ruleset = Ruleset.load_id(ruleset_id)
+	return r.name if r != null else ruleset_id
+
+
+static func purse_text(purse: Dictionary) -> String:
+	if purse.is_empty():
+		return "Amateur: no purse"
+	return "$%d to show, $%d more to win" % [int(purse.get("show", 0)), int(purse.get("win", 0))]
+
+
+func _show_offers() -> void:
+	for child in _offers.get_children():
+		_offers.remove_child(child)
+		child.queue_free()
+	_offer_ids.clear()
+	for o: Dictionary in career.offers:
+		var id: String = String(o.id)
+		_offer_ids.append(id)
+		var tile := PanelContainer.new()
+		var style: StyleBoxFlat = FightHud._panel_style(TILE)
+		style.set_content_margin_all(12)
+		tile.add_theme_stylebox_override("panel", style)
+		var box := VBoxContainer.new()
+		box.add_theme_constant_override("separation", 6)
+		tile.add_child(box)
+		var label := RichTextLabel.new()
+		label.bbcode_enabled = true
+		label.fit_content = true
+		label.scroll_active = false
+		label.add_theme_font_size_override("normal_font_size", 16)
+		label.add_theme_color_override("default_color", TEXT)
+		label.text = offer_text(career, o, _groups)
+		box.add_child(label)
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		box.add_child(row)
+		var take: Button = CampPlanner._button(row, "Take the fight", func() -> void: accept_pressed.emit(id))
+		take.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var turn_down: Button = CampPlanner._button(row, "Turn it down", func() -> void: decline_pressed.emit(id))
+		turn_down.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_offers.add_child(tile)
+
+
+## The ids of the offers on screen, top to bottom.
+func offer_ids() -> Array[String]:
+	return _offer_ids.duplicate()
+
+
+## For tests: presses an offer's Take the fight, Turn it down, Go to camp or Turn pro, as a click would.
+func press_accept(offer_id: String) -> void:
+	if offer_id in _offer_ids:
+		accept_pressed.emit(offer_id)
+
+
+func press_decline(offer_id: String) -> void:
+	if offer_id in _offer_ids:
+		decline_pressed.emit(offer_id)
+
+
+func press_camp() -> void:
+	if _camp.visible:
+		_camp.pressed.emit()
+
+
+func press_turn_pro() -> void:
+	if _pro.visible:
+		_pro.pressed.emit()
+
+
+func can_turn_pro() -> bool:
+	return _pro.visible
+
+
 ## What the week holds (an offer, a booked fight, hurt, suspended, free), his plan and savings, and what the last
 ## Run this week or Advance did.
 static func week_text(c: Career, reports: Array = []) -> String:
 	var lines: Array[String] = []
 	if not c.offers.is_empty():
-		lines.append("[color=%s]%d fight offer%s waiting.[/color]" % [WARN.to_html(false), c.offers.size(), "" if c.offers.size() == 1 else "s"])
+		lines.append("[color=%s]%d fight offer%s waiting: take one, or let them go.[/color]" % [WARN.to_html(false), c.offers.size(), "" if c.offers.size() == 1 else "s"])
 	if not c.booked.is_empty():
-		var weeks_to: int = int(c.booked.get("week", c.week)) - c.week
-		lines.append("Booked to fight in %d week%s: the camp runs from the planner." % [weeks_to, "" if weeks_to == 1 else "s"])
+		var who: Dictionary = c.booked_opponent()
+		lines.append("[color=%s]Booked:[/color] vs %s, %s (%s). His camp runs from Go to camp." % [RED_CORNER.to_html(false),
+			String(who.get("name", "")), c.date_text(5, int(c.booked.get("week", c.week))), rules_name(String(c.booked.get("ruleset", "")))])
 	if c.trainee.injured_days > 0:
 		lines.append("[color=%s]Hurt (%s): %d days to heal.[/color]" % [BAD.to_html(false), c.trainee.injury_area, c.trainee.injured_days])
 	if c.suspended_days > 0:
 		lines.append("Suspended: %d days until he can fight." % c.suspended_days)
 	if c.offers.is_empty() and c.booked.is_empty() and c.trainee.injured_days == 0 and c.suspended_days == 0:
-		lines.append("Free to fight. Fight offers come with the next piece of the career.")
-	lines.append("This week: the %s plan." % String(TrainingLibrary.shared().plan(c.week_plan).get("name", c.week_plan)).to_lower())
+		lines.append("Free to fight: offers come in every few weeks.")
+	if c.booked.is_empty():
+		lines.append("This week: the %s plan." % String(TrainingLibrary.shared().plan(c.week_plan).get("name", c.week_plan)).to_lower())
+	if Matchmaker.can_turn_pro(c):
+		lines.append("[color=%s]He can turn pro: he's %d with %d amateur fights.[/color]" % [GOOD.to_html(false), c.age(), Matchmaker.amateur_fights(c)])
 	lines.append("Savings: $%d" % c.money)
 	if not reports.is_empty():
 		lines.append("")
@@ -356,12 +512,15 @@ func text() -> String:
 	var tiles: Array[String] = []
 	for tile in _calendar.get_children():
 		tiles.append((tile.get_child(0) as RichTextLabel).get_parsed_text())
-	return "%s\n%s\n%s\n%s\n%s\n%s\n%s" % [_who.text, _line.text, _date.text, _card_text.get_parsed_text(), _week_text.get_parsed_text(),
-		_fights_text.get_parsed_text(), " | ".join(tiles)]
+	var offer_cards: Array[String] = []
+	for tile in _offers.get_children():
+		offer_cards.append((tile.get_child(0).get_child(0) as RichTextLabel).get_parsed_text())
+	return "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s" % [_who.text, _line.text, _date.text, _card_text.get_parsed_text(), _week_text.get_parsed_text(),
+		"\n".join(offer_cards), _camp.text if _camp.visible else "", _fights_text.get_parsed_text(), " | ".join(tiles)]
 
 
 func focus_first() -> void:
-	FightHud.focus_later(_week)
+	FightHud.focus_later(_camp if _camp.visible else _week)
 
 
 func press_week() -> void:

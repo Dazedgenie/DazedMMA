@@ -44,6 +44,8 @@ const FIGHT_NIGHT := "fight_night"
 ## (docs/02 §3.5). Sunday's rest brings him back by Monday, so it's the week's peak that counts. Counted the first
 ## week it happens, not every week after on the same hard plan, so Advance stops once (Kyle, 2026-10-31).
 const WORN_DOWN := "worn_down"
+## Fight offers came in (D304): { kind, count }.
+const OFFERS := "offers"
 ## How many weeks a year has for a birthday: TrainingCamp ages him 1/52 of a year a week (docs/02 §3.8).
 const WEEKS_PER_YEAR: float = 52.0
 
@@ -73,14 +75,18 @@ var pro: bool = false
 var fights: Array = []
 ## Everyone he's fought or is booked to fight: id → fighter@1 profile, so a rematch is the same man.
 var opponents: Dictionary = {}
-## The next fight ({} when none) and the offers on the table. Their contents come with fight offers (D304).
+## The offers on the table (Matchmaker.make_offer's, D304) and the fight he took ({} when none): an offer without its
+## `profile` (that's in `opponents`), with `opponent` (the opponent's id) and `camp_weeks` (the camp it left him).
 var booked: Dictionary = {}
 var offers: Array = []
+## The first week the next set of offers can come in (they wait while he's booked, hurt or suspended).
+var next_offers_week: int = 1
 ## The week plan run between fights: a data/week_plans id.
 var week_plan: String = BETWEEN_PLAN
 
 var _dice := RandomNumberGenerator.new()
 var _library: TrainingLibrary
+var _matchmaker: Matchmaker
 
 
 ## A new career for this fighter (a fighter@1 profile) on week 0. `extra` may give `coach` (the player's name) and
@@ -147,6 +153,7 @@ func run_week(plan: Variant = null, played: Dictionary = {}) -> Dictionary:
 	if worn and not worn_last_week:
 		report.events.append({ "kind": WORN_DOWN })
 	worn_last_week = worn
+	_check_offers(report.events)
 	return report
 
 
@@ -160,7 +167,7 @@ func advance(max_weeks: int = ADVANCE_MAX_WEEKS) -> Array[Dictionary]:
 	for i in max_weeks:
 		var report: Dictionary = run_week()
 		reports.append(report)
-		if not (report.events as Array).is_empty() or not offers.is_empty():
+		if not (report.events as Array).is_empty():
 			break
 	return reports
 
@@ -218,11 +225,117 @@ static func event_text(event: Dictionary) -> String:
 			return "Cleared to fight"
 		WORN_DOWN:
 			return "Worn down from training"
+		OFFERS:
+			return "%d fight offers" % int(event.get("count", 0))
 		BIRTHDAY:
 			return "Turns %d" % int(event.get("age", 0))
 		FIGHT_NIGHT:
 			return "Fight night"
 	return String(event.kind)
+
+
+## A new week's offers (D304): the ones past their last week go, and a new set comes in if he's free and it's time.
+## Called by run_week(); camp weeks don't get offers (he's booked).
+func _check_offers(events: Array) -> void:
+	offers = offers.filter(func(o: Dictionary) -> bool: return int(o.get("expires", -1)) >= week)
+	if not offers.is_empty() or not booked.is_empty() or trainee.injured_days > 0 or suspended_days > 0 or week < next_offers_week:
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.seed = ("offers:%d:%d" % [career_seed, week]).hash()
+	offers = matchmaker().make_offers(self, rng)
+	next_offers_week = week + Matchmaker.OPEN_WEEKS + rng.randi_range(Matchmaker.GAP_MIN, Matchmaker.GAP_MAX)
+	events.append({ "kind": OFFERS, "count": offers.size() })
+
+
+## Who makes his offers: the shipped data's unless set (tests set their own).
+func matchmaker() -> Matchmaker:
+	if _matchmaker == null:
+		_matchmaker = Matchmaker.shared()
+	return _matchmaker
+
+
+func set_matchmaker(m: Matchmaker) -> void:
+	_matchmaker = m
+
+
+func offer(id: String) -> Dictionary:
+	for o: Dictionary in offers:
+		if String(o.id) == id:
+			return o
+	return {}
+
+
+## Takes an offer (D304): he's booked for it, the other offers go, the opponent joins `opponents` and the camp starts
+## (TrainingCamp.start_camp: its gains count afresh). Returns false when there's no such offer or he's booked already.
+func accept(id: String) -> bool:
+	var o: Dictionary = offer(id)
+	if o.is_empty() or not booked.is_empty():
+		return false
+	booked = o.duplicate(true)
+	booked.erase("profile")
+	booked.opponent = String(o.profile.id)
+	booked.camp_weeks = int(o.week) - week + 1
+	add_opponent(o.profile)
+	offers.clear()
+	trainee.start_camp()
+	return true
+
+
+## Turns an offer down: it goes, and nothing else happens (no penalty in phase 1, D304).
+func decline(id: String) -> void:
+	offers = offers.filter(func(o: Dictionary) -> bool: return String(o.id) != id)
+
+
+## Turns pro (D304, the hub's button when Matchmaker.can_turn_pro): his fights count on the pro record from now, the
+## amateur offers on the table go and pro offers come next week.
+func turn_pro() -> bool:
+	if not Matchmaker.can_turn_pro(self):
+		return false
+	pro = true
+	offers.clear()
+	next_offers_week = week + 1
+	return true
+
+
+## The weeks of camp left before the booked fight, this one included (0 when not booked).
+func camp_weeks_left() -> int:
+	return int(booked.week) - week + 1 if not booked.is_empty() else 0
+
+
+## The booked opponent's profile and name ("" when not booked).
+func booked_opponent() -> Dictionary:
+	return opponents.get(String(booked.get("opponent", "")), {})
+
+
+## The booked fight is over (D304): onto his record, his purse paid, the fight week done. `entry` is as add_fight()
+## takes it, without `opponent` (the booked one). Returns what he was paid.
+func finish_fight(entry: Dictionary) -> int:
+	var e: Dictionary = entry.duplicate(true)
+	e.opponent = String(booked.get("opponent", ""))
+	e.ruleset = String(booked.get("ruleset", ""))
+	var purse: Dictionary = booked.get("purse", {})
+	var paid: int = int(purse.get("show", 0)) + (int(purse.get("win", 0)) if String(e.result) == "win" else 0)
+	if paid > 0:
+		e.purse = paid
+	add_fight(e)
+	money += paid
+	_after_booking()
+	return paid
+
+
+## The booked fight is off (pulled out, or the doctor wouldn't clear him, D135): the camp's wasted, the fight week's
+## done and the man he'd have fought goes from `opponents`.
+func cancel_fight() -> void:
+	opponents.erase(String(booked.get("opponent", "")))
+	_after_booking()
+
+
+func _after_booking() -> void:
+	booked = {}
+	var rng := RandomNumberGenerator.new()
+	rng.seed = ("after:%d:%d" % [career_seed, week]).hash()
+	next_offers_week = week + 1 + rng.randi_range(Matchmaker.GAP_MIN, Matchmaker.GAP_MAX)
+	end_week()
 
 
 ## Moves the calendar on to next Monday. run_week() calls it; a camp week run on `trainee` by the planner calls it too.
@@ -311,7 +424,7 @@ func to_dict() -> Dictionary:
 		"trainee": trainee.snapshot(),
 		"calendar": { "first_monday": first_monday, "week": week },
 		"suspended_days": suspended_days, "money": money, "pro": pro, "week_plan": week_plan,
-		"worn_last_week": worn_last_week,
+		"worn_last_week": worn_last_week, "next_offers_week": next_offers_week,
 		"fights": fights.duplicate(true), "opponents": opponents.duplicate(true),
 		"booked": booked.duplicate(true), "offers": offers.duplicate(true),
 		"summary": summary(),
@@ -344,6 +457,7 @@ static func from_dict(data: Dictionary, library: TrainingLibrary = null) -> Care
 	c.pro = bool(d.get("pro", false))
 	c.week_plan = String(d.get("week_plan", BETWEEN_PLAN))
 	c.worn_last_week = bool(d.get("worn_last_week", false))
+	c.next_offers_week = int(d.get("next_offers_week", c.week + 1))
 	c.fights = d.get("fights", []).duplicate(true)
 	c.opponents = d.get("opponents", {}).duplicate(true)
 	c.booked = d.get("booked", {}).duplicate(true)

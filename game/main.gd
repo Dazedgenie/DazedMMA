@@ -110,6 +110,10 @@ func _ready() -> void:
 	hub.week_pressed.connect(run_career_week)
 	hub.advance_pressed.connect(advance_career)
 	hub.title_pressed.connect(_hub_to_title)
+	hub.accept_pressed.connect(accept_offer)
+	hub.decline_pressed.connect(decline_offer)
+	hub.turn_pro_pressed.connect(turn_pro)
+	hub.camp_pressed.connect(open_career_camp)
 	ui.add_child(hub)
 	result = FightResultCard.new()
 	result.visible = false
@@ -209,6 +213,115 @@ func advance_career() -> void:
 	var reports: Array[Dictionary] = career.advance()
 	save_career()
 	show_hub(reports)
+
+
+## Take the fight on an offer (D304): he's booked, the camp starts, saved.
+func accept_offer(offer_id: String) -> void:
+	if career != null and career.accept(offer_id):
+		save_career()
+		show_hub()
+
+
+func decline_offer(offer_id: String) -> void:
+	if career != null:
+		career.decline(offer_id)
+		save_career()
+		show_hub()
+
+
+func turn_pro() -> void:
+	if career != null and career.turn_pro():
+		save_career()
+		show_hub()
+
+
+## The booked fight's camp (D304): the planner on the career's own fighter, for the weeks left. Each week run moves the
+## calendar on and saves, all but fight week, which ends with the fight.
+func open_career_camp() -> void:
+	if career == null or career.booked.is_empty():
+		return
+	_hide_screens()
+	planner = CampPlanner.new(career.profile(), career.career_seed + career.week)
+	planner.use_career(career)
+	planner.week_ran.connect(_career_camp_week)
+	planner.fight_pressed.connect(_career_fight)
+	planner.back_pressed.connect(_career_camp_back)
+	$UI.add_child(planner)
+	$UI.move_child(_console, -1)
+	state = CAREER
+	planner.focus_run()
+
+
+func _career_camp_week(report: Dictionary) -> void:
+	if bool(report.get("fight_week", false)):
+		career.booked.fight_week_report = report.duplicate(true)  # Fight night waits for the fight, even over a reload.
+	else:
+		career.end_week()
+	save_career()
+
+
+## Back to the hub from the camp. On fight night with the fight off (pulled out, or the doctor said no), the fight's
+## cancelled and the week's over.
+func _career_camp_back() -> void:
+	if planner != null and planner.done() and not planner.can_fight():
+		career.cancel_fight()
+		save_career()
+	show_hub()
+
+
+## Fight! from a career's camp: the booked man, under the booked rules, with a seed from the career's dice, saved first.
+func _career_fight(profile: Dictionary) -> void:
+	var opponent: Dictionary = career.booked_opponent()
+	_roster.add(opponent)
+	var s := {
+		"career": true,
+		"label": "%s vs %s" % [career.fighter_name(), String(opponent.get("name", ""))],
+		"red": String(profile.id), "red_profile": profile, "blue": String(opponent.id),
+		"ruleset": String(career.booked.get("ruleset", Ruleset.DEFAULT_ID)),
+		"seed": career.next_seed(), "normal_rate": 2.0, "auto_slow": true, "flourishes": true, "tell_cues": true,
+		"sound_volume": float(settings.get("sound_volume", 1.0)), "easy": false, "rules": [],
+		"camp": planner.summary(),
+	}
+	save_career()
+	start_fight(s)
+
+
+## A career fight is over (D304): onto his record (Career.finish_fight), any injury fighting hurt made worse, saved.
+## Returns the lines for the result screen.
+func _finish_career_fight(sim: FightSim, record: Dictionary, injury: Dictionary) -> Array[String]:
+	var ended: Dictionary = record.get("result", {})
+	var winner: int = int(ended.get("winner", -1))
+	var result: String = "draw"
+	if winner == driver.player:
+		result = "win"
+	elif winner >= 0:
+		result = "loss"
+	if not injury.is_empty():
+		career.trainee.injured_days = int(injury.days_out)
+		career.trainee.injury_area = String(injury.area)
+	var paid: int = career.finish_fight({ "result": result, "method": method_text(String(ended.get("result", ""))),
+		"round": sim.clock.current_round, "seed": sim.fight_seed })
+	save_career()
+	var lines: Array[String] = ["%s: %s on his %s record, now %s." % [career.fighter_name(), result.to_upper(), "pro" if career.pro else "amateur",
+		career.record_text(career.pro)]]
+	if paid > 0:
+		lines.append("Paid $%d. Savings: $%d." % [paid, career.money])
+	return lines
+
+
+## How a fight ended, as his fights list says it: "KO", "TKO", "Submission", "Unanimous decision"…
+static func method_text(result: String) -> String:
+	if result == FightSim.RESULT_KO or result == FightSim.RESULT_TKO:
+		return result.to_upper()
+	if result == FightSim.RESULT_SUB:
+		return "Submission"
+	return result.substr(0, 1).to_upper() + result.substr(1)
+
+
+func _career_after_fight() -> void:
+	hud.visible = false
+	result.visible = false
+	show_hub()
 
 
 ## Saves the career in its slot. Returns false when it couldn't (the hub keeps going; the last save stays).
@@ -382,6 +495,9 @@ func _on_control(which: String) -> void:
 
 func _open_menu() -> void:
 	driver.held = true
+	if bool(settings.get("career", false)):
+		hud.show_dialog("Paused", "The fight waits for you. (Esc goes back.) A career fight can't be restarted.", [["Resume", _close_menu]])
+		return
 	hud.show_dialog("Paused", "The fight waits for you. (Esc goes back.)",
 		[["Resume", _close_menu], ["Restart fight", func() -> void: start_fight(settings)], ["Change setup", _back_to_setup]])
 
@@ -459,6 +575,11 @@ func _on_fight_over(_event: FightEvent) -> void:
 	if not injury.is_empty():
 		notes.append(("[color=#ff8787]Fighting hurt made the %s injury worse: out %d days.[/color]" if injury.worse
 			else "The %s injury held up: %d more days to heal.") % [injury.area, injury.days_out])
+	if bool(settings.get("career", false)) and career != null:
+		notes.append_array(_finish_career_fight(sim, record, injury))
+		hud.hide_dialog()
+		result.show_result(sim, driver.player, record.stats, notes, [["Back to the hub", _career_after_fight]])
+		return
 	notes.append("Seed %d (type it in the setup to replay this fight's start)" % sim.fight_seed)
 	if last_record_path != "":
 		notes.append("Saved for the playtest notes: %s" % ProjectSettings.globalize_path(last_record_path))
