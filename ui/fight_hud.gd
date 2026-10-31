@@ -13,14 +13,14 @@ signal call_pressed(call_id: String)
 ## "slow", "fast", "pause" or "towel".
 signal control_pressed(which: String)
 
-const PANEL := Color(0.06, 0.07, 0.09, 0.82)
+const PANEL := Color(0.055, 0.075, 0.1, 0.9)
 const FIGHTER_COLOURS: Array[Color] = [Color("#ff6b6b"), Color("#5fa8ff")]
 const PIP_COLOURS: Array[Color] = [Color("#51cf66"), Color("#fcc419"), Color("#ff6b6b")]
 ## The figure's readout, top to bottom (D150): what's left of each area, 1 − hurt.
 ## Head is health (D120): at 0 the referee stops it.
 const AREAS: Array[String] = ["head", "body", "legs"]
 ## The top bar's figure, at 1080p.
-const FIGURE_SIZE := Vector2(60.0, 96.0)
+const FIGURE_SIZE := Vector2(40.0, 66.0)
 ## Real seconds the opponent corner's call stays up, a fired rule flashes, the banner shows.
 ## The ground position diagram's height on the left (D210); its panel sits just above the call bar.
 const DIAGRAM_HEIGHT: float = 220.0
@@ -77,6 +77,7 @@ var pause_allowed: bool = false:
 
 
 func _init() -> void:
+	theme = FightTheme.create()
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_build()
@@ -404,7 +405,7 @@ func _add_call_button(id: String, label: String) -> void:
 	b.text = label
 	b.focus_mode = Control.FOCUS_NONE
 	b.custom_minimum_size = Vector2(0.0, 40.0)
-	b.add_theme_font_size_override("font_size", 19)
+	DisplayFont.apply(b, 21)
 	b.pressed.connect(func() -> void: call_pressed.emit(id))
 	_call_bar.add_child(b)
 	_call_buttons[id] = b
@@ -414,10 +415,10 @@ func _build() -> void:
 	# Top bar.
 	var top: PanelContainer = _panel()
 	top.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	top.offset_left = 16.0
-	top.offset_right = -16.0
+	top.offset_left = 28.0
+	top.offset_right = -28.0
 	top.offset_top = 12.0
-	top.offset_bottom = 180.0
+	top.offset_bottom = 154.0
 	add_child(top)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 24)
@@ -469,14 +470,14 @@ func _build() -> void:
 	# Plan panel (left).
 	var plan_panel: PanelContainer = _panel()
 	plan_panel.offset_left = 16.0
-	plan_panel.offset_top = 196.0
-	plan_panel.offset_right = 376.0
+	plan_panel.offset_top = 176.0
+	plan_panel.offset_right = 316.0
 	add_child(plan_panel)
 	_plan = RichTextLabel.new()
 	_plan.bbcode_enabled = true
 	_plan.fit_content = true
 	_plan.scroll_active = false
-	_plan.custom_minimum_size = Vector2(340.0, 0.0)
+	_plan.custom_minimum_size = Vector2(280.0, 0.0)
 	_plan.add_theme_font_size_override("normal_font_size", 18)
 	_plan.add_theme_font_size_override("bold_font_size", 18)
 	plan_panel.add_child(_plan)
@@ -487,8 +488,8 @@ func _build() -> void:
 	_position_panel.anchor_bottom = 1.0
 	_position_panel.offset_left = 16.0
 	_position_panel.offset_right = 376.0
-	_position_panel.offset_top = -164.0 - DIAGRAM_HEIGHT - 60.0
-	_position_panel.offset_bottom = -164.0
+	_position_panel.offset_top = -196.0 - DIAGRAM_HEIGHT - 60.0
+	_position_panel.offset_bottom = -196.0
 	_position_panel.visible = false
 	add_child(_position_panel)
 	var position_column := VBoxContainer.new()
@@ -507,9 +508,9 @@ func _build() -> void:
 	_bubble = _panel(Color(0.98, 0.97, 0.9, 0.95))
 	_bubble.anchor_left = 1.0
 	_bubble.anchor_right = 1.0
-	_bubble.offset_left = -496.0
+	_bubble.offset_left = -366.0
 	_bubble.offset_right = -16.0
-	_bubble.offset_top = 196.0
+	_bubble.offset_top = 176.0
 	add_child(_bubble)
 	_bubble_label = Label.new()
 	_bubble_label.add_theme_color_override("font_color", Color("#212529"))
@@ -520,14 +521,16 @@ func _build() -> void:
 
 	# Feed (right).
 	feed = FightFeed.new()
+	feed.custom_minimum_size = Vector2(340.0, 0.0)
+	feed.anchor_top = 1.0
 	feed.add_theme_stylebox_override("panel", _panel_style(PANEL))
 	feed.anchor_left = 1.0
 	feed.anchor_right = 1.0
 	feed.anchor_bottom = 1.0
-	feed.offset_left = -496.0
+	feed.offset_left = -366.0
 	feed.offset_right = -16.0
-	feed.offset_top = 268.0
-	feed.offset_bottom = -164.0
+	feed.offset_top = -472.0
+	feed.offset_bottom = -196.0
 	add_child(feed)
 
 	# Bottom: voice meter, speed controls, call bar.
@@ -535,7 +538,7 @@ func _build() -> void:
 	bottom.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	bottom.offset_left = 16.0
 	bottom.offset_right = -16.0
-	bottom.offset_top = -148.0
+	bottom.offset_top = -180.0
 	bottom.offset_bottom = -12.0
 	add_child(bottom)
 	var column := VBoxContainer.new()
@@ -548,7 +551,7 @@ func _build() -> void:
 	_voice_label.add_theme_font_size_override("font_size", 18)
 	voice_row.add_child(_voice_label)
 	_voice = VoiceMeter.new()
-	_voice.custom_minimum_size = Vector2(420.0, 26.0)
+	_voice.custom_minimum_size = Vector2(280.0, 18.0)
 	_voice.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_voice.tooltip_text = "Every call costs voice; under 30 your calls come out garbled"
 	voice_row.add_child(_voice)
@@ -634,6 +637,12 @@ func _build() -> void:
 func _centre_block() -> VBoxContainer:
 	var block := VBoxContainer.new()
 	block.custom_minimum_size = Vector2(340.0, 0.0)
+	var event_name := Label.new()
+	event_name.text = "CHIN CHECK  /  LOCAL FIGHT NIGHT"
+	DisplayFont.apply(event_name, 19)
+	event_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	event_name.modulate = Color("#c0ad88")
+	block.add_child(event_name)
 	_clock = Label.new()
 	_clock.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	DisplayFont.apply(_clock, 42)
@@ -653,7 +662,9 @@ func _centre_block() -> VBoxContainer:
 static func _panel_style(colour: Color) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = colour
-	style.set_corner_radius_all(8)
+	style.set_corner_radius_all(2)
+	style.border_color = Color(0.4, 0.48, 0.57, 0.25)
+	style.border_width_top = 1
 	style.set_content_margin_all(12)
 	return style
 
