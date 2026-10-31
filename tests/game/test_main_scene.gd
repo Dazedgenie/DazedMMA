@@ -273,8 +273,48 @@ func test_advance_runs_weeks_until_something_happens_and_saves() -> void:
 	_main.open_new_career()
 	_main.new_career.press_start()
 	_main.career.week_plan = "time_off"
+	_main.career.next_offers_week = 1000  # No offers coming (D304).
 	_main.hub.press_advance()
 	assert_eq(_main.career.week, Career.ADVANCE_MAX_WEEKS, "nothing happens to a fresh 16-year-old resting for 8 weeks")
 	assert_eq(int(CareerSaves.info(0, SAVE_DIR).week), Career.ADVANCE_MAX_WEEKS)
 	assert_string_contains(_main.hub.text(), "The last %d weeks" % Career.ADVANCE_MAX_WEEKS)
 
+
+
+func test_a_career_fight_goes_from_the_offer_through_the_camp_to_his_record() -> void:
+	_main.open_new_career()
+	_main.new_career.press_start()
+	_main.career.week_plan = "time_off"
+	_main.hub.press_week()
+	var offer_id: String = _main.hub.offer_ids()[0]
+	var fight_week: int = int(_main.career.offer(offer_id).week)
+	_main.hub.press_accept(offer_id)
+	assert_false(_main.career.booked.is_empty(), "booked")
+	assert_true(CareerSaves.load_slot(0, SAVE_DIR).booked.has("opponent"), "and saved")
+	_main.hub.press_camp()
+	var planner: CampPlanner = _main.planner
+	assert_not_null(planner, "the camp planner, on his own fighter")
+	assert_eq(planner.weeks, fight_week - _main.career.week + 1)
+	planner.run_rest()
+	assert_eq(_main.career.week, fight_week, "fight week waits for the fight")
+	assert_true(planner.done())
+	assert_eq(int(CareerSaves.info(0, SAVE_DIR).week), fight_week, "each camp week saved")
+	planner.fight_pressed.emit(planner.trained_profile())
+	assert_eq(_main.state, _main.FIGHT)
+	assert_true(bool(_main.settings.career))
+	assert_eq(String(_main.settings.ruleset), Matchmaker.TEEN_RULES)
+	_main.driver.throw_towel()
+	var frames: int = 0
+	while _main.state != _main.OVER and frames < 100:
+		frames += 1
+		_main._process(FRAME)
+	assert_eq(_main.state, _main.OVER)
+	assert_eq(_main.career.fights.size(), 1, "on his record")
+	assert_eq(String(_main.career.fights[0].result), "loss", "the towel")
+	assert_eq(String(_main.career.fights[0].method), "TKO")
+	assert_eq(_main.career.week, fight_week + 1)
+	assert_eq(CareerSaves.load_slot(0, SAVE_DIR).fights.size(), 1, "saved")
+	assert_string_contains(_main.result.text(), "LOSS on his amateur record")
+	_main._career_after_fight()
+	assert_true(_main.hub.visible)
+	assert_string_contains(_main.hub.text(), "L vs ")
