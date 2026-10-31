@@ -419,6 +419,13 @@ var _turned_sale: Array[int] = [-1000, -1000]
 ## feint, and how many times the man then turned back into the cut off one.
 var doors_sold: Array[int] = [0, 0]
 var turned_back: Array[int] = [0, 0]
+## Resetting to the centre (D290), reported after the fight, read-only: walks back to the middle each
+## fighter started, how many got there, and how many a cage cutter stopped by shutting him in.
+var resets: Array[int] = [0, 0]
+var resets_made: Array[int] = [0, 0]
+var resets_cut: Array[int] = [0, 0]
+## Whether each fighter was resetting on their last step (D290).
+var _resetting: Array[bool] = [false, false]
 ## How far each fighter moved on their last tick (zero when they stood still).
 var _strides: Array[Vector2] = [Vector2.ZERO, Vector2.ZERO]
 ## Walking pace (m per tick), footwork-contest share and footwork edge per fighter, as of _feet_at.
@@ -773,8 +780,9 @@ func _advance_fighter(i: int) -> void:
 		var seen: FightView = views[i]
 		if situation.is_standing():
 			var feet: FeetPlan = decisions[i].plan_feet(seen)
+			_count_reset(i, feet)
 			if f.stagger_ticks <= 0:
-				_move(i, feet.want, feet.circle, feet.cut, feet.way, feet.anywhere, feet.burst)
+				_move(i, feet.want, feet.circle, feet.cut, feet.way, feet.anywhere, feet.burst, feet.home)
 		var decision: Decision = decisions[i].decide(seen)
 		if not decision.is_idle():
 			_start_action(i, decision.action_id, decision)
@@ -785,6 +793,23 @@ func _advance_fighter(i: int) -> void:
 
 
 # --- Space: moving, range and the cage (docs/01 §3) --------------------------
+
+## Counts fighter i's resets to the centre (D290) and announces each one as it starts.
+func _count_reset(i: int, feet: FeetPlan) -> void:
+	if feet.reset_ended == FighterAI.ENDED_MADE:
+		resets_made[i] += 1
+	elif feet.reset_ended == FighterAI.ENDED_CUT:
+		resets_cut[i] += 1
+	if feet.resetting and not _resetting[i]:
+		resets[i] += 1
+		_emit(FightEvent.RESET, i, { "why": feet.reset_why })
+	_resetting[i] = feet.resetting
+
+
+## Whether fighter i was walking back to the middle to reset on their last step (D290).
+func is_resetting(i: int) -> bool:
+	return _resetting[i]
+
 
 ## How far apart fighter i wants to be (their decision step decides; the feet follow).
 func preferred_distance(i: int) -> float:
@@ -868,7 +893,7 @@ func _refresh_feet() -> void:
 ## opponent's Footwork lets them, and close the distance with what's left of the step
 ## (the diagonal step). Good cutters start further from the fence; `anywhere` (the
 ## Cut the cage! call) starts at CUT_CALLED_FROM.
-func _move(i: int, want: float, circle: float, cut: float = 0.0, way: int = 0, anywhere: bool = false, burst: bool = false) -> void:
+func _move(i: int, want: float, circle: float, cut: float = 0.0, way: int = 0, anywhere: bool = false, burst: bool = false, home: bool = false) -> void:
 	var f: FighterState = fighters[i]
 	var o: FighterState = fighters[1 - i]
 	var from: Vector2 = f.pos
@@ -905,6 +930,12 @@ func _move(i: int, want: float, circle: float, cut: float = 0.0, way: int = 0, a
 	if across != Vector2.ZERO:
 		# Shut the exit first, close the distance with what's left of the step.
 		stride = stride.limit_length(sqrt(maxf(0.0, step * step - across.length_squared()))) + across
+	if home:
+		# Back to the middle to reset (D290): straight there, leaving out any of the step that goes at him.
+		stride = (-f.pos).limit_length(step)
+		var at_him: float = stride.dot(toward)
+		if at_him > 0.0:
+			stride -= toward * at_him
 	if circle > 0.0:
 		if circle >= CIRCLING_FROM and way != 0 and way == -_sold_way[i] and now < _sold_until[i] \
 				and circle_sign(i) == _sold_way[i] and _turned_sale[i] != _sold_at[i]:

@@ -19,3 +19,11 @@ var cut: float = 0.0
 var anywhere: bool = false
 ## Shut in by a cage cutter (D234): sprint out past his shoulder, quicker and costlier than a step.
 var burst: bool = false
+## Resetting to the centre (D290): walking back toward the middle of the cage (`home`: straight
+## there, never closer to the opponent; otherwise round him with `circle`). `reset_why` says why
+## (FighterAI.WHY_LOSING or WHY_MISSING) and `reset_ended`, on the tick one ends, how
+## (FighterAI.ENDED_MADE, ENDED_CUT or ENDED_TIME).
+var home: bool = false
+var resetting: bool = false
+var reset_why: String = ""
+var reset_ended: String = ""

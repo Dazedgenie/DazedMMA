@@ -429,6 +429,9 @@ func _pair_lines(of_rows: Array[Dictionary], names: Dictionary) -> PackedStringA
 		red, _time_line(of_rows, "cutting_red"), blue, _time_line(of_rows, "cutting_blue"),
 		red, average(of_rows, "cut_offs_red"), blue, average(of_rows, "cut_offs_blue")])
 	lines.append("  Cut off    %s · %s (D233)" % [_cut_off_line(of_rows, red, "red", "blue"), _cut_off_line(of_rows, blue, "blue", "red")])
+	lines.append("  Resets     back to the middle %s %.1f a fight (made it %.1f, cut off %.1f) · %s %.1f (%.1f, %.1f) (D290)" % [
+		red, average(of_rows, "resets_red"), average(of_rows, "resets_made_red"), average(of_rows, "resets_cut_red"),
+		blue, average(of_rows, "resets_blue"), average(of_rows, "resets_made_blue"), average(of_rows, "resets_cut_blue")])
 	lines.append("  Grappling  takedowns %s %.1f of %.1f a fight, %s %.1f of %.1f · clinch %s of the fight · ground %s (%s on top %s, %s on top %s)" % [
 		red, average(of_rows, "takedowns_red"), average(of_rows, "shots_red"), blue, average(of_rows, "takedowns_blue"), average(of_rows, "shots_blue"),
 		_pct(average(of_rows, "clinch")), _pct(average(of_rows, "ground")), red, _pct(average(of_rows, "top_red")), blue, _pct(average(of_rows, "top_blue"))])

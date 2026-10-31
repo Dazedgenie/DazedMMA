@@ -18,7 +18,10 @@ static func first_difference(usual: FightSim, swapped: FightSim) -> int:
 
 
 ## True when the two fights stand as mirrors right now: each fighter at the other fight's
-## spot turned through the centre, and the same events with the actors swapped.
+## spot turned through the centre, and the same events on the latest tick with the actors swapped.
+## Events on one tick are compared in any order: notices the sim makes for both fighters at once
+## (the cage proximity, FightSim._update_space) come out red first in both fights, which is no
+## corner's edge (D290 found it: both changed proximity on one tick).
 static func mirrored(usual: FightSim, swapped: FightSim) -> bool:
 	if usual.events.size() != swapped.events.size():
 		return false
@@ -27,6 +30,18 @@ static func mirrored(usual: FightSim, swapped: FightSim) -> bool:
 			return false
 	if usual.events.is_empty():
 		return true
-	var a: FightEvent = usual.events[-1]
-	var b: FightEvent = swapped.events[-1]
-	return a.type == b.type and a.tick == b.tick and (a.actor < 0 and b.actor < 0 or a.actor == 1 - b.actor)
+	return _last_tick(usual, false) == _last_tick(swapped, true)
+
+
+## The latest tick's events as sorted "type tick actor" lines, with the actors swapped when `swap`.
+static func _last_tick(sim: FightSim, swap: bool) -> Array[String]:
+	var lines: Array[String] = []
+	var tick: int = sim.events[-1].tick
+	var k: int = sim.events.size() - 1
+	while k >= 0 and sim.events[k].tick == tick:
+		var e: FightEvent = sim.events[k]
+		var actor: int = e.actor if e.actor < 0 or not swap else 1 - e.actor
+		lines.append("%s %d %d" % [e.type, e.tick, actor])
+		k -= 1
+	lines.sort()
+	return lines
