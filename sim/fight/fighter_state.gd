@@ -146,6 +146,10 @@ var turns_won: int = 0
 ## out from underneath (back to guard, up, a reversal) (D130).
 var advances: int = 0
 var escapes: int = 0
+## More ground and pound (D270): times this fighter covered up underneath, and turned away
+## from the punches in mount and gave up his back.
+var ground_covers: int = 0
+var turned_away: int = 0
 ## Feints thrown and how many the opponent bit on; takedowns shot blind (nothing set them
 ## up) and how many of those still worked (D131).
 var feints_tried: int = 0

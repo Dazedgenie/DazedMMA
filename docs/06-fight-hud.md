@@ -213,7 +213,7 @@ game opens (`game/strike_sounds.gd`, about half a second on another thread; no a
 
 **To change it:** a strike's sound is its line in `StrikeSounds.RECIPES` (`thump` pitch in Hz, `decay` how long it rings,
 `snap` and `bright` the slap's loudness and sharpness, `swish` the whoosh's length, `tone` how high it sits, `gain`
-loudness; each is explained above the table). A new strike needs a line (the test below fails until it has one). The
+loudness; each is explained above the table). A new strike needs a line (the test below fails until it has one): the hammerfist, body punch and posture-up bomb on the ground got theirs with D270 (`01` §41). The
 versions' loudness against each other: `OUTCOME_DB`; damage to loudness: `LIGHT_DAMAGE`, `HEAVY_DAMAGE`, `LIGHT_DB`,
 `LIGHT_PITCH`, `HEAVY_PITCH`; random pitch: `PITCH_JITTER`; the overall level: `BASE_DB`; how many play at once: `VOICES`.
 How each layer is shaped is `StrikeSounds.render`. To use recorded sounds later, `stream()` is the one place that hands

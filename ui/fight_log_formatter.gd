@@ -75,6 +75,8 @@ static func _describe(event: FightEvent, sim: FightSim) -> String:
 			var counter: String = "counter " if event.data.get("counter", false) else ""
 			var into: String = " into the %s" % _action_name(event.data.into, sim).to_lower() if event.data.has("into") else ""
 			var guard: String = ", through the guard" if event.data.get("covered", false) else ""
+			if event.data.target == "body" and sim.actions.has(event.data.action_id) and sim.actions.get_action(event.data.action_id).strike.has("hands_down_ms"):
+				guard += ": his hands come down"  # A body shot on the ground (D270).
 			return "%s's %s%s [b]LANDS[/b]%s (%s, %d damage%s)%s" % [who, counter, _action_name(event.data.action_id, sim), into, event.data.target, event.data.damage, guard, _odds(event)]
 		FightEvent.GRAPPLE_WON:
 			if event.data.result == "tied_up" and event.data.action_id == FightSim.COLLAR_TIE:
@@ -133,6 +135,8 @@ static func _describe(event: FightEvent, sim: FightSim) -> String:
 				return "[b]%s is out of the %s → %s[/b]%s" % [who, _action_name(event.data.action_id, sim).to_lower(), _position_name(event.data.position, sim), _roles(event, sim)]
 			if event.data.action_id == "":
 				return "[b]They come apart → %s[/b]" % _position_name(event.data.position, sim)
+			if event.data.action_id == FightSim.TURN_AWAY:
+				return "[b]%s TURNS AWAY from the punches and GIVES UP HIS BACK → %s[/b]%s" % [who, _position_name(event.data.position, sim), _roles(event, sim)]
 			if event.data.get("failed", false):
 				return "[b]%s's %s misses and costs the position → %s[/b]%s" % [who, _action_name(event.data.action_id, sim).to_lower(), _position_name(event.data.position, sim), _roles(event, sim)]
 			return "[b]%s's %s → %s[/b]%s" % [who, _action_name(event.data.action_id, sim), _position_name(event.data.position, sim), _roles(event, sim)]

@@ -186,6 +186,14 @@ func test_values_come_from_the_allowed_lists() -> void:
 		var push: Variant = action.get("strike", {}).get("push_m", 0.0) if action.get("strike") is Dictionary else 0.0
 		if not (push is float) or push < 0.0:
 			problems.append("action '%s': strike.push_m is metres pushed back, 0 or more" % id)
+		if action.get("strike") is Dictionary and action.strike.has("through_cover"):
+			var through: Variant = action.strike.through_cover
+			if not through is float or through <= 0.0 or through > 1.0:
+				problems.append("action '%s': strike.through_cover is the share of head damage that gets through a cover-up, above 0 and up to 1 (D270)" % id)
+		if action.get("strike") is Dictionary and action.strike.has("hands_down_ms"):
+			var down: Variant = action.strike.hands_down_ms
+			if not down is float or down <= 0.0 or int(down) % FightClock.TICK_MS != 0 or not Ruleset.is_ground_strike(action):
+				problems.append("action '%s': strike.hands_down_ms is a ground strike's (D270), ms his hands stay down, a multiple of 100" % id)
 		var category: String = action.get("category", "")
 		if category == "defense" and action.get("defense") is Dictionary and action.defense.has("head_share"):
 			var share: Variant = action.defense.head_share

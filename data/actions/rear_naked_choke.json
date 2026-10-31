@@ -13,7 +13,8 @@
 	"submission": { "base_success": 0.15, "start_danger": 25, "escape_to": "back", "ai_without_opening": true },
 	"stats": { "offense": ["submissions", "strength"], "defense": ["submission_defense", "scrambles"] },
 	"opportunities": [
-		{ "opponent_flag": "HANDS_LOW", "success_bonus": 0.15 }
+		{ "opponent_flag": "HANDS_LOW", "success_bonus": 0.15 },
+		{ "opponent_flag": "COVERED", "success_bonus": 0.15 }
 	],
 	"requires_technique": null
 }
