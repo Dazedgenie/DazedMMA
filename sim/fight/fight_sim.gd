@@ -1184,6 +1184,8 @@ func _start_action(i: int, id: String, decision: Decision = null) -> void:
 		f.fence_drives_tried += 1
 	elif id == SPIN_OFF or id == TURN_HIM:
 		f.spin_offs_tried += 1
+		if id == TURN_HIM:
+			f.turns_tried += 1
 	elif id == PUMMEL:
 		f.pummels_tried += 1
 	elif id == STRIP_GRIP:
@@ -1854,6 +1856,8 @@ func _turn(i: int, action: Dictionary, b: OddsBreakdown) -> void:
 	fighters[1 - i].pos = spot
 	_drive = {}
 	fighters[i].spin_offs_won += 1
+	if action.id == TURN_HIM:
+		fighters[i].turns_won += 1
 	_emit(FightEvent.GRAPPLE_WON, i, { "action_id": action.id, "result": "turned", "chance": b.chance, "odds": b.to_dict() })
 
 

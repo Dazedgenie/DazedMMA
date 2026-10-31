@@ -2827,13 +2827,13 @@ by its liking, never a man already there, stays when it likes it, works to get o
 the Boxer on the fence in real fights), `tests/sim/balance/test_balance_report.gd` (the Cage line), `tests/ui/test_fight_log_formatter.gd`
 and `tests/data/test_data_files.gd` (`drives_m`, `turns`, a required `HELD_ON_FENCE`, the `pressed` result).
 
-## 40. Grips and hand fighting (D260 the plan, D261 the clinch grips built)
+## 40. Grips and hand fighting (D260 the plan; built: D261 the clinch grips, D262 turning each other on the fence)
 Kyle asked for it (2026-10-31): "clinch fighting improvements: fighters should be hand fighting, trying to get underhooks,
 overhooks, they should be spinning each other around when up against the cage", with research on real clinch and cage
 fighting, and then: "this isn't clinch specific, this will be used for grappling in general, so hand fighting on the ground
 and fighting in the clinch". §40.1–§40.8 are the plan (Kyle's answers at the top of §40.8); §40.9 is the first part as built,
-the grips in the clinch (D261). The fence part of §40.4 is partly in it too (turning him needs an underhook); the ground (§40.5)
-and the call (§40.7) come next. Every number is a first guess for the harness.
+the grips in the clinch (D261); §40.10 the second, turning each other round on the fence (D262). The ground (§40.5) and the
+call (§40.7) come next. Every number is a first guess for the harness.
 
 ### 40.1 What real fighters do
 From MMA and grappling coaching write-ups (sources at the end of §40):
@@ -3017,7 +3017,8 @@ it strips by how much it wants out (the break's weight), more for each underhook
 often (the underhook is how it turns him), and turns him (1 + its underhooks) × as often. The Muay Thai fighter would rather have
 the collar tie: `pummel` 0.5 and `strip_grip` 1.5 in his file. Everyone else is at 1 for both.
 
-**Balance.** Harness, no calls, 200 fights a pairing, seed 1, pro rules: main (D253, 630b0e5) → now. *Grips* is the share of the
+**Balance.** Harness, no calls, 200 fights a pairing, seed 1, pro rules: main (D253, 630b0e5) → with D261 (before D262's
+changes; the numbers with both are in §40.10). *Grips* is the share of the
 clinch each fighter had at least one underhook (both in brackets), red · blue; *turns* are spin-offs and turns on the fence a
 fight, both fighters. Kicker vs Boxer never clinches, so it plays out exactly as before.
 
@@ -3054,7 +3055,7 @@ What it says:
 - **Fewer finishes in the clinch fights**: a body lock smothers the short punches and the collar tie is harder against it, so the
   Muay Thai and Dirty boxer fights go to the cards more (Dirty boxer vs Muay Thai 82 → 55% finished).
 - **Turns on the fence happen about as often as before**, but now they come off the underhook, and the man just turned can win
-  one and turn it back. Asked how many there should be, Kyle left it to the odds (§40.8, question 5).
+  one and turn it back. Shown that, Kyle asked for about twice as many (D262, §40.10).
 - The sim is about 7% slower a tick in the harness (121 → 129 µs, D105) in these clinch-heavy pairings.
 
 Golden fights (§2.2): one of the four changes (Wrestler vs Boxer with the sprawl rule and the AI corner: a decision now, was a
@@ -3067,7 +3068,7 @@ submission in round 2), re-pinned.
   `collar_tie`); the flags in `data/enums/flags.json`.
 - The state: `FightSim._grips`, `underhooks()`, `grips()`, `set_grips()`, `_take_grip()`, `_grip_flags()`; the pressed shot's
   underhook in `_pressed_on_fence()`.
-- The AI: `FighterAI.GRIP_MIN` (0.2), `GRIP_PER_HIS` (1.0), `FENCE_PUMMEL` (1.5), the `pummel`, `strip_grip` and `turn_him` cases
+- The AI: `FighterAI.GRIP_MIN` (0.2), `GRIP_PER_HIS` (1.0), `FENCE_PUMMEL` (1.5), `FENCE_TURN` (3.0, D262), the `pummel`, `strip_grip` and `turn_him` cases
   in `_tied()`; who wants which: `pummel` and `strip_grip` in a fighter's `tendencies`.
 - The harness: a **Grips** line for every pairing and CSV columns `underhook_*`, `body_lock_*`, `pummels_*`, `pummels_won_*`,
   `strips_*`, `strips_won_*`. The feed lines: `ui/fight_log_formatter.gd`.
@@ -3080,6 +3081,63 @@ back; the pressed shot's underhook; the AI pummels by its liking and never with 
 Wrestler wins underhooks against the Boxer in real fights), `tests/sim/fight/test_cage_clinch.gd` (turning him now with an
 underhook), `tests/sim/balance/test_balance_report.gd` (the Grips line), `tests/ui/test_fight_log_formatter.gd` and
 `tests/data/test_data_files.gd` (`clinch.grip`, a required `UNDERHOOK` or `OVERHOOK`).
+
+### 40.10 Built: turning each other round on the fence (D262)
+Shown D261's numbers (turns on the fence about as often as before), Kyle picked "about twice as often" (2026-10-31). What
+changed, on top of §40.9:
+
+| | What it does | Where it lives |
+|---|---|---|
+| **He turns it more off the underhook** | Held on the fence with an underhook, a fighter turns him 3 × as often as in D261, liking the clinch or not (at least 0.2, so a striker with an underhook turns too). Without one he pummels for it 1.5 × as often (D261) | `FighterAI.FENCE_TURN` (3.0), `GRIP_MIN`; the `turn_him` case in `_tied()` |
+| **The holder's answers** | His own underhook on the other side (over-under) makes the turn −10%. Holding a man who has an underhook, he re-pummels 1.5 × as often to take it away before it's turned on him; a strip does the same for a striker | the `UNDERHOOK` opponent opportunity in `turn_him.json`; the `pummel` case in `_tied()` (`FENCE_PUMMEL`) |
+| **The underhook leads to the shot** | The double leg off an underhook is +10% (was +5%), +20% off the body lock: a wrestler who wins the inside shoots off it, instead of only pummelling. Without it the Wrestler lost 6–10 points against the Dirty boxer once turns went up | the `UNDERHOOK` own opportunity in `double_leg.json` |
+| **Counted** | Turns on the fence (turning him and keeping hold) apart from spin-offs (turning and coming away): the **Grips** line's "turns him on the fence", CSV `turns_*`, `turns_won_*` | `FighterState.turns_tried`, `turns_won` |
+
+Harness, no calls, 200 fights a pairing, seed 1, pro rules: main (D253) → with D261 and D262. *Turns* are turns on the fence
+that keep the clinch, both fighters, a fight: with D261 alone (where measured) → now.
+
+| Pairing | Wins (first-named): main → now | Finishes | Grips now (red · blue) | Turns: D261 → now |
+|---|---|---|---|---|
+| Kicker vs Boxer | 44.5% → 44.5% | 35% → 35% | – | – |
+| Wrestler vs Kicker | 73% → 72.5% | 40% → 40% | 5.1% · 0.2% | 0 |
+| Wrestler vs Boxer | 77.5% → 74% | 52% → 44% | 33.4% (9.7%) · 5.6% | → 0.6 |
+| Pressure wrestler vs Kicker | 93.5% → 95% | 68% → 66% | 6.1% · 0.9% | 0 |
+| Pressure wrestler vs Boxer | 87% → 79.5% | 32% → 36% | 37.6% (12.4%) · 6.4% | 0.2 → 0.4 |
+| Ground-and-pound wrestler vs Kicker | 89.5% → 89% | 92% → 94% | 3.5% · 0.3% | 0 |
+| Ground-and-pound wrestler vs Boxer | 86.5% → 83.5% | 83% → 80% | 19.6% (5.0%) · 3.6% | → 0.2 |
+| Dirty boxer vs Kicker | 19% → 17% | 17% → 13% | 12.0% · 2.7% | → 0.1 |
+| Dirty boxer vs Boxer | 67% → 68.5% | 99% → 96% | 29.9% (9.2%) · 11.6% | 0.4 → 1.1 |
+| Dirty boxer vs Wrestler | 72% → 74% | 26% → 24% | 22.8% (4.1%) · 45.4% (13.8%) | 3.7 → 5.1 |
+| Dirty boxer vs Muay Thai | 38.5% → **56.5%** | 82% → 50% | 32.0% (8.3%) · 17.2% (1.7%) | 2.6 → **5.2** |
+| Muay Thai vs Kicker | 87.5% → 91% | 32% → 26% | 7.9% · 2.5% | 0 |
+| Muay Thai vs Boxer | 64.5% → 70% | 89% → 84% | 12.5% · 10.1% | 0.4 → 0.8 |
+| Muay Thai vs Wrestler | 70% → 65.5% | 58% → 44% | 7.4% · 40.0% (12.3%) | 2.0 → 2.8 |
+| Judoka vs Boxer | 69.5% → 64% | 48% → 50% | 10.7% · 1.6% | 0 |
+| Judoka vs Wrestler | 96.5% → 97.5% | 28% → 28% | 20.9% (4.3%) · 20.6% (3.8%) | → 0.9 |
+| BJJ vs Boxer | 81% → 76.5% | 72% → 69% | 16.4% · 2.8% | → 0.2 |
+| Sambo vs Boxer | 86.5% → 89% | 70% → 70% | 16.1% · 3.3% | → 0.3 |
+
+What it says:
+- **Turns that keep the clinch about doubled** where there's fence clinching to turn: Dirty boxer vs Muay Thai 2.6 → 5.2 a fight,
+  the Dirty boxer vs the Boxer 0.4 → 1.1, Muay Thai vs the Boxer 0.4 → 0.8, the Pressure wrestler vs the Boxer 0.2 → 0.4. The
+  Dirty boxer and the Wrestler 3.7 → 5.1 (the Wrestler turns most: he has the underhooks). Spin-offs (turning and away) are as
+  they were.
+- **Kyle's balance rule (D220's)**: Kicker vs Boxer unchanged; Dirty boxer vs Muay Thai is inside 60/40 both ways now (38.5% →
+  56.5%); six outliers closer to even (the Wrestler, Pressure wrestler, Ground-and-pound wrestler, Judoka and BJJ fighter
+  against the Boxer by 3–7.5 points, and Muay Thai against the Wrestler). Further out: **Muay Thai against the Boxer 64.5 →
+  70%** (5.5 points; seed by seed the range crosses 0, so it may be the dice) and Muay Thai against the Kicker, the Sambo
+  fighter, the Dirty boxer against the Kicker, the Boxer and the Wrestler, the Pressure wrestler against the Kicker and the
+  Judoka against the Wrestler by 1–3.5 points, inside the dice.
+- **Fewer finishes** in the clinch fights, as with D261 (Dirty boxer vs Muay Thai 82 → 50% finished, Muay Thai vs the Wrestler
+  58 → 44%).
+- The sim is about 5% slower a tick than main in the harness (121 → 127 µs, D105).
+
+Golden fights (§2.2): the same one changes again (Wrestler vs Boxer with the sprawl rule and the AI corner: the Boxer by decision
+now), re-pinned.
+
+Tested in `tests/sim/fight/test_grips.gd` (his own underhook makes the turn harder; held on the fence with an underhook the AI
+turns him, without one it fights for it; holding him there the AI re-pummels when he has one; the double leg off the underhook
+and the body lock) and `tests/sim/balance/test_balance_report.gd` (turns on the Grips line).
 
 Sources: [Evolve MMA, underhooks and overhooks](https://evolve-mma.com/blog/understanding-underhooks-and-overhooks-in-mma/),
 [Evolve MMA, pummeling](https://evolve-mma.com/blog/what-is-pummeling-and-how-to-do-it-correctly-for-mma-training/),

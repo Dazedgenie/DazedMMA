@@ -330,6 +330,10 @@ const GRIP_PER_HIS: float = 1.0
 ## Held on the fence (D261, §40.4), the underhook is how he turns it round: he pummels FENCE_PUMMEL ×
 ## as often, and with an underhook he turns him (1 + his underhooks) × as often.
 const FENCE_PUMMEL: float = 1.5
+## Turning each other round on the fence (D262, Kyle: "about twice as often"): held there with an
+## underhook he turns him FENCE_TURN × as often, liking the clinch or not (at least GRIP_MIN); holding
+## him there, the man whose opponent has an underhook re-pummels FENCE_PUMMEL × as often to take it away.
+const FENCE_TURN: float = 3.0
 ## In a scramble: back to the feet × (1 − Base / 100), the top × (1 + Base / 100).
 ## Switching direction (D107): away from the fence (further than SWITCH_FENCE), circling
 ## fighters think again every SWITCH_EVERY ticks and change direction on a chance of
@@ -959,7 +963,7 @@ func _tied(view: FightView, layer: DecisionLayer) -> Decision:
 				w *= maxf(CLINCH_BREAK_MIN, 1.0 - base - range_leaning / 2.0)  # Wants out, like the break.
 				reason = "spins off the fence"
 			FightSim.TURN_HIM:
-				w *= clinch_liking(base * 100.0, range_leaning * 100.0) * (1.0 + view.underhooks())  # Wants to stay, with him on the fence.
+				w *= maxf(GRIP_MIN, clinch_liking(base * 100.0, range_leaning * 100.0)) * (1.0 + view.underhooks()) * FENCE_TURN  # Turns it round off the underhook.
 				reason = "turns him onto the fence off the underhook"
 			FightSim.PUMMEL:
 				var mine: int = view.underhooks()
@@ -968,6 +972,9 @@ func _tied(view: FightView, layer: DecisionLayer) -> Decision:
 				if fenced:
 					w *= FENCE_PUMMEL
 					reason = "fights for the underhook to turn him"
+				elif fencing and view.opponent_underhooks() > 0:
+					w *= FENCE_PUMMEL
+					reason = "takes the underhook away before he turns it"
 			FightSim.STRIP_GRIP:
 				w *= maxf(CLINCH_BREAK_MIN, 1.0 - base - range_leaning / 2.0) * GRIP_PER_HIS * view.opponent_underhooks()
 				reason = "strips the underhook"

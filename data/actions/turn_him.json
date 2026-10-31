@@ -15,7 +15,8 @@
 		{ "own_flag": "HELD_ON_FENCE", "required": true, "success_bonus": 0.0 },
 		{ "own_flag": "POSTURE_BROKEN", "success_bonus": -0.15 },
 		{ "own_flag": "UNDERHOOK", "required": true, "success_bonus": 0.0 },
-		{ "own_flag": "BODY_LOCK", "success_bonus": 0.10 }
+		{ "own_flag": "BODY_LOCK", "success_bonus": 0.10 },
+		{ "opponent_flag": "UNDERHOOK", "success_bonus": -0.10 }
 	],
 	"requires_technique": null
 }

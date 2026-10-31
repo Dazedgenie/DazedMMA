@@ -86,25 +86,25 @@
 				]
 			],
 			"pinned": {
-				"winner_id": "wrestler",
+				"winner_id": "boxer",
 				"method": "decision",
-				"result": "unanimous decision",
+				"result": "split decision",
 				"end_round": 3,
 				"end_second": 300,
-				"events": 3289,
+				"events": 3565,
 				"knockdowns_red": 0,
 				"knockdowns_blue": 0,
-				"thrown_red": 88,
-				"landed_red": 64,
-				"thrown_blue": 103,
-				"landed_blue": 47,
-				"takedowns_red": 14,
+				"thrown_red": 82,
+				"landed_red": 46,
+				"thrown_blue": 127,
+				"landed_blue": 80,
+				"takedowns_red": 13,
 				"takedowns_blue": 0,
 				"calls_red": 0,
 				"calls_blue": 3,
 				"fired_red": 0,
-				"fired_blue": 8,
-				"event_hash": "919bbeeb3a40929c92a028b0d90d2bfd"
+				"fired_blue": 9,
+				"event_hash": "717278a73b0be03edda5efb6845808e6"
 			}
 		},
 		{

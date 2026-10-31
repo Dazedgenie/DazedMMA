@@ -199,6 +199,14 @@ func test_turning_him_on_the_fence_needs_an_underhook() -> void:
 	assert_almost_eq(sim.odds(1, FightSim.TURN_HIM) - one, 0.10, 0.001, "better with both")
 
 
+func test_his_own_underhook_makes_the_turn_harder() -> void:
+	var sim: FightSim = _on_the_fence()
+	sim.set_grips([1, NONE])
+	var free: float = sim.odds(1, FightSim.TURN_HIM)
+	sim.set_grips([1, 0])
+	assert_almost_eq(sim.odds(1, FightSim.TURN_HIM) - free, -0.10, 0.001, "over-under: the holder's underhook stops the turn (D262)")
+
+
 func test_turning_him_keeps_the_grips_so_he_can_win_one_back_and_turn_it_again() -> void:
 	var sim: FightSim = _on_the_fence(WORST, BEST)
 	sim.set_grips([1, 0])
@@ -226,7 +234,7 @@ func test_takedowns_and_trips_come_off_the_body_lock_and_his_body_lock_stops_you
 	sim.set_grips([0, 0])
 	for id in ["double_leg", "outside_trip"]:
 		var b: OddsBreakdown = sim.odds_breakdown(0, id)
-		assert_almost_eq(_bonus(b, "own UNDERHOOK") + _bonus(b, "own BODY_LOCK"), 0.15, 0.001, id)
+		assert_almost_eq(_bonus(b, "own UNDERHOOK") + _bonus(b, "own BODY_LOCK"), 0.20 if id == "double_leg" else 0.15, 0.001, id)
 		assert_lt(_bonus(sim.odds_breakdown(1, id), FightSim.BODY_LOCK), 0.0, "Blue can't change level in it: " + id)
 	assert_almost_eq(_bonus(sim.odds_breakdown(0, "hip_throw"), "own UNDERHOOK"), 0.05, 0.001)
 	sim.set_grips([1, NONE])
@@ -319,6 +327,41 @@ func test_a_striker_with_an_underhook_on_him_strips_it_more_than_a_grappler() ->
 			_ticks(sim, 20)
 			strips[k] += _ai_starts(sim, 0, FightSim.STRIP_GRIP)
 	assert_gt(strips[0], strips[1])
+
+
+## Red holding Blue on the fence, both AI fighters who like the clinch; `grips` set as they tie up.
+func _ai_on_the_fence(fight_seed: int, grips: Array) -> FightSim:
+	var red := FighterState.new("Red", { "clinch_control": 60, "strength": 60 }, ["knee"], 0.015, StyleLeanings.new({ "base": 60 }))
+	var blue := FighterState.new("Blue", { "clinch_control": 60, "strength": 60 }, ["knee"], 0.015, StyleLeanings.new({ "base": 60 }))
+	var sim := FightSim.new(fight_seed, [red, blue], _actions, 1, 300)
+	sim.fighters[0].pos = Vector2(3.0, 0.0)
+	sim.fighters[1].pos = Vector2(4.0, 0.0)
+	assert_true(sim.apply_transition(0, "clinch_entry"))
+	sim.set_grips([int(grips[0]), int(grips[1])])
+	return sim
+
+
+func test_held_on_the_fence_with_an_underhook_he_turns_him_and_without_one_he_fights_for_it() -> void:
+	var turns: Array[int] = [0, 0]
+	var pummels: Array[int] = [0, 0]
+	for n in SEEDS:
+		for k in 2:
+			var sim: FightSim = _ai_on_the_fence(SEED + n, [[NONE, NONE], [1, NONE]][k])
+			_ticks(sim, 15)
+			turns[k] += _ai_starts(sim, 1, FightSim.TURN_HIM)
+			pummels[k] += _ai_starts(sim, 1, FightSim.PUMMEL)
+	assert_gt(turns[1], turns[0], "he turns it off the underhook (without one he has to win one first)")
+	assert_gt(pummels[0], 0, "without one he pummels for it")
+
+
+func test_holding_him_there_the_ai_takes_his_underhook_away_before_he_turns_it() -> void:
+	var pummels: Array[int] = [0, 0]
+	for n in SEEDS:
+		for k in 2:
+			var sim: FightSim = _ai_on_the_fence(SEED + n, [[0, NONE], [0, 1]][k])
+			_ticks(sim, 15)
+			pummels[k] += _ai_starts(sim, 0, FightSim.PUMMEL)
+	assert_gt(pummels[1], pummels[0], "Blue's underhook on the fence makes Red re-pummel")
 
 
 func test_in_real_fights_the_wrestler_wins_underhooks_against_the_boxer() -> void:

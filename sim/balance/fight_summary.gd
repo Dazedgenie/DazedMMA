@@ -36,8 +36,8 @@ const COLUMNS: Array[String] = [
 	"collar_ties_blue", "collar_ties_won_blue", "clinch_knees_blue", "tied_knees_blue",
 	"fence_hold_red", "fence_drives_red", "fence_drives_won_red", "spin_offs_red", "spin_offs_won_red",
 	"fence_hold_blue", "fence_drives_blue", "fence_drives_won_blue", "spin_offs_blue", "spin_offs_won_blue",
-	"underhook_red", "body_lock_red", "pummels_red", "pummels_won_red", "strips_red", "strips_won_red",
-	"underhook_blue", "body_lock_blue", "pummels_blue", "pummels_won_blue", "strips_blue", "strips_won_blue",
+	"underhook_red", "body_lock_red", "pummels_red", "pummels_won_red", "strips_red", "strips_won_red", "turns_red", "turns_won_red",
+	"underhook_blue", "body_lock_blue", "pummels_blue", "pummels_won_blue", "strips_blue", "strips_won_blue", "turns_blue", "turns_won_blue",
 	"full_guard", "half_guard", "side_control", "mount", "back_control", "advances_red", "escapes_red", "advances_blue", "escapes_blue",
 	"feints_red", "feints_bit_red", "blind_red", "blind_landed_red", "feints_blue", "feints_bit_blue", "blind_blue", "blind_landed_blue",
 	"combos_red", "combo_strikes_red", "combo_landed_red", "combos_blue", "combo_strikes_blue", "combo_landed_blue",
@@ -224,6 +224,8 @@ static func of(sim: FightSim, lows: Array[float] = [], moves: Dictionary = {}) -
 		row["pummels_won_" + side] = f.pummels_won
 		row["strips_" + side] = f.strips_tried
 		row["strips_won_" + side] = f.strips_won
+		row["turns_" + side] = f.turns_tried
+		row["turns_won_" + side] = f.turns_won
 		row["advances_" + side] = f.advances
 		row["escapes_" + side] = f.escapes
 		row["feints_" + side] = f.feints_tried
