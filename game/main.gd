@@ -108,6 +108,7 @@ func _ready() -> void:
 	hub = CareerHub.new()
 	hub.visible = false
 	hub.week_pressed.connect(run_career_week)
+	hub.advance_pressed.connect(advance_career)
 	hub.title_pressed.connect(_hub_to_title)
 	ui.add_child(hub)
 	result = FightResultCard.new()
@@ -183,9 +184,10 @@ func load_career(slot: int) -> void:
 	show_hub()
 
 
-func show_hub(last_week: Dictionary = {}) -> void:
+## The career hub (D303). `reports`: what the last Run this week or Advance did.
+func show_hub(reports: Array = []) -> void:
 	_hide_screens()
-	hub.show_career(career, last_week)
+	hub.show_career(career, reports)
 	hub.visible = true
 	state = CAREER
 	hub.focus_first()
@@ -197,7 +199,16 @@ func run_career_week() -> void:
 		return
 	var report: Dictionary = career.run_week()
 	save_career()
-	show_hub(report)
+	show_hub([report])
+
+
+## Advance on the hub: weeks until something happens (Career.advance, D303), then an autosave.
+func advance_career() -> void:
+	if career == null:
+		return
+	var reports: Array[Dictionary] = career.advance()
+	save_career()
+	show_hub(reports)
 
 
 ## Saves the career in its slot. Returns false when it couldn't (the hub keeps going; the last save stays).
