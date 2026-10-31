@@ -292,13 +292,63 @@ func test_a_smarter_fighter_sets_up_more_of_his_shots() -> void:
 	assert_almost_eq(FighterAI.setup_chance(FighterState.new("Even")), FighterAI.SETUP_BASE + FighterAI.SETUP_PER_IQ * 0.5, 0.001)
 
 
-func test_strikers_feint_only_to_herd_a_man_they_are_cutting_off() -> void:
+func test_strikers_feint_by_style_the_kicker_to_draw_him_and_the_boxer_to_set_up_his_shots() -> void:
+	var why: Array[Dictionary] = [{}, {}]
+	for s in 3:
+		var sim := FightSim.new(SEED + s, _roster.make_pair("kicker", "boxer"), _actions)
+		_ticks(sim, 3000)
+		for e in sim.events:
+			if e.type == FightEvent.ACTION_PHASE and e.data.phase == "telegraph" and e.data.action_id == FightSim.FEINT:
+				var reason: String = String(e.data.get("why", ""))
+				if reason.begins_with("feints to set up"):
+					reason = "feints to set up"
+				why[e.actor][reason] = int(why[e.actor].get(reason, 0)) + 1
+	assert_gt(int(why[0].get("feints to draw him", 0)), 0, "the Kicker baits the counter (D236): %s" % why[0])
+	assert_false(why[0].has("feints to set up"), "an outside fighter doesn't feint into his own strikes")
+	assert_gt(int(why[1].get("feints to set up", 0)), 0, "the Boxer sets his shots up (D236): %s" % why[1])
+	assert_false(why[1].has("feints to draw him"), "and doesn't bait")
+
+
+func test_a_strike_on_a_man_bitten_on_a_feint_lands_more_often() -> void:
+	var sim: FightSim = _pair({}, {}, 1.0)
+	var before: float = sim.odds_breakdown(0, "cross").chance
+	sim.fighters[1].bit_ticks = 5
+	var after: OddsBreakdown = sim.odds_breakdown(0, "cross")
+	assert_almost_eq(after.chance - before, FightSim.FEINT_STRIKE_BONUS, 0.001, "hands up, weight back")
+	assert_true(_has_bonus(after, "off the feint"))
+
+
+func test_a_patient_counter_striker_bites_on_feints_more() -> void:
+	var roster := _roster
+	var cs := FightSim.new(SEED, roster.make_pair("boxer", "counter_striker"), _actions)
+	var brawler := FightSim.new(SEED, roster.make_pair("boxer", "brawler"), _actions)
+	for sim: FightSim in [cs, brawler]:
+		sim.fighters[0].pos = Vector2(-0.6, 0.0)
+		sim.fighters[1].pos = Vector2(0.6, 0.0)
+	var b: OddsBreakdown = cs.odds_breakdown(0, FightSim.FEINT)
+	assert_true(_has_bonus(b, "waiting to counter"), "Pace −70: sitting back to counter")
+	assert_false(_has_bonus(brawler.odds_breakdown(0, FightSim.FEINT), "waiting to counter"), "a Brawler comes forward")
+
+
+func _has_bonus(b: OddsBreakdown, bonus_name: String) -> bool:
+	for bonus: Dictionary in b.bonuses:
+		if bonus.name == bonus_name:
+			return true
+	return false
+
+
+func test_a_bitten_bait_opens_a_counter_for_the_outside_fighter() -> void:
 	var sim := FightSim.new(SEED, _roster.make_pair("kicker", "boxer"), _actions)
-	_ticks(sim, 3000)
-	for e in sim.events:
-		if e.type == FightEvent.ACTION_PHASE and e.data.phase == "telegraph" and e.data.action_id == FightSim.FEINT:
-			assert_has(["herds him with a feint", "feints at his way out"], String(e.data.get("why", "")),
-				"no shots to set up: a striker's feints herd him by the fence (D232) or sell his way out shut (D235)")
+	sim.fighters[0].pos = Vector2(-0.9, 0.0)
+	sim.fighters[1].pos = Vector2(0.9, 0.0)
+	var ai: FighterAI = sim.decisions[0].ai
+	ai._bait_at = sim.now
+	ai.on_event(sim.views[0], FightEvent.new(sim.now, 0, FightEvent.FEINTED, 0, { "action_id": FightSim.FEINT, "bit": true }), sim.decisions[0])
+	assert_eq(String(ai._follow.get("why", "")), "off the bait", "he fires into the bite")
+	var plain := FightSim.new(SEED, _roster.make_pair("kicker", "boxer"), _actions)
+	var other: FighterAI = plain.decisions[0].ai
+	other.on_event(plain.views[0], FightEvent.new(plain.now, 0, FightEvent.FEINTED, 0, { "action_id": FightSim.FEINT, "bit": true }), plain.decisions[0])
+	assert_true(other._follow.is_empty(), "a feint that wasn't bait opens nothing")
 
 
 func test_a_blind_shot_is_easier_to_read_and_one_off_a_bite_is_harder() -> void:

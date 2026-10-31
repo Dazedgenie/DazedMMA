@@ -160,6 +160,12 @@ const SET_UP_TICKS: int = 5
 ## FEINT_REPEAT less likely to bite: the same feint over and over stops working.
 const FEINT_MEMORY_TICKS: int = 300
 const FEINT_REPEAT: float = 0.1
+## Striker feints (D236, docs/01 §29.6): a strike that lands on a man bitten on a feint, hands up
+## and weight back, gets FEINT_STRIKE_BONUS (on top of being read less, FighterAI.BIT_READ). A
+## patient man, sitting back to counter, bites more: FEINT_PATIENT × how far his Pace leans
+## below 0 (Pace −100: all of it).
+const FEINT_STRIKE_BONUS: float = 0.1
+const FEINT_PATIENT: float = 0.1
 ## A blind shot that gets sprawled on is stuck this many ticks longer (more knees, a
 ## guillotine), and a blind shot that's stuffed (sprawled on or defended) costs this much more stamina.
 const BLIND_STUCK_TICKS: int = 5
@@ -1492,6 +1498,11 @@ func odds_breakdown(i: int, id: String, ahead: int = 0) -> OddsBreakdown:
 		var again: int = _recent_feints(i)
 		if again > 0:
 			b.add_bonus("feinted again", -FEINT_REPEAT * again)
+		var patient: float = -fighters[1 - i].style.value(StyleLeanings.PACE) / 100.0
+		if patient > 0.0:
+			b.add_bonus("waiting to counter", FEINT_PATIENT * minf(patient, 1.0))
+	elif action.category == "strike" and opponent_flags.has("BIT_ON_FEINT"):
+		b.add_bonus("off the feint", FEINT_STRIKE_BONUS)
 	var f: FighterState = fighters[i]
 	if f.combo_step > 0 and f.combo_id != "" and f.action_id == id and action.category == "strike":
 		_combo_bonuses(i, action, b)
@@ -1638,6 +1649,8 @@ func _land_strike(i: int, action: Dictionary) -> void:
 		return
 	if not ruleset.allows_target(action, target):
 		target = "body"  # Amateur rules: ground strikes to the body only (docs/08, D121).
+	if defender.bit_ticks > 0:
+		attacker.off_feint_thrown += 1
 	if _strike_defended(i, action):
 		return
 	var counter: bool = is_counter(i)
@@ -1680,6 +1693,8 @@ func _land_strike(i: int, action: Dictionary) -> void:
 	if push > 0.0:
 		_push(1 - i, push)
 	attacker.strikes_landed += 1
+	if defender.bit_ticks > 0:
+		attacker.off_feint_landed += 1
 	if attacker.combo_step > 0 and attacker.combo_id != "":
 		attacker.combo_landed += 1
 	# A clean shot breaks the combination he was in the middle of (D133).

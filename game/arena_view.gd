@@ -48,6 +48,17 @@ const LAYOUT_SPEED: float = 6.0
 const CLINCH_BODY_GAP: float = 0.82
 ## The tag grows this much when the range or position changes, then settles (docs/06 §2).
 const TAG_BUMP: float = 1.7
+## Standing, the sim's ranges are wider than a person's reach (pocket up to 1.5 m, long range 3 m apart), so
+## the view draws the gap at human scale (D281): a gap of DRAWN_FROM metres or less is drawn as it is, each
+## metre more out to DRAWN_UNTIL is drawn as DRAWN_SHARE of a metre, and beyond that a metre is a metre again.
+const DRAWN_FROM: float = 0.9
+const DRAWN_SHARE: float = 0.45
+const DRAWN_UNTIL: float = 3.0
+## A strike thrown out of range (the sim says "out of range") steps in this much less than it would need.
+const SHORT_BY: float = 0.3
+## The most a strike steps in (metres), and the closest two stepping strikers get (D281).
+const LUNGE_MAX: float = 0.75
+const LUNGE_CLOSEST: float = 0.85
 
 var driver: FightDriver
 var camera: Camera3D
@@ -74,6 +85,7 @@ var _tell_until: Array[int] = [-1, -1]
 var _offset: Array[Vector2] = [Vector2.ZERO, Vector2.ZERO]
 var _facing: Array[float] = [0.0, 0.0]
 var _facing_set: bool = false
+var _venue: LocalVenue
 
 
 func _ready() -> void:
@@ -108,6 +120,8 @@ func watch(p_driver: FightDriver) -> void:
 		var figure := FighterFigure.new(FIGHTER_COLOURS[i], southpaw, i)
 		add_child(figure)
 		figures.append(figure)
+	for i in figures.size():
+		figures[i].opponent = figures[1 - i]  # Strikes aim at the other man (D281).
 	driver.sim.event_emitted.connect(_on_event)
 	_focus = Vector3.ZERO
 	_zoom = ZOOM_STANDING
@@ -121,17 +135,29 @@ func _process(delta: float) -> void:
 	var sim: FightSim = driver.sim
 	var spots: Array[Vector2] = [driver.shown_pos(0), driver.shown_pos(1)]
 	var placed: Array[Dictionary] = ground_spots(sim, spots)
+	if sim.situation.is_standing():
+		var drawn: Array[Vector2] = standing_spots(spots)
+		for i in placed.size():
+			placed[i].at = drawn[i]
 	var k: float = 1.0 - exp(-LAYOUT_SPEED * delta)
+	var shown: Array[Vector2] = []
 	for i in figures.size():
 		var want: float = placed[i].facing
 		_offset[i] = _offset[i].lerp(placed[i].at - spots[i], k if _facing_set else 1.0)
 		_facing[i] = lerp_angle(_facing[i], want, k) if _facing_set else want
-		var at: Vector2 = spots[i] + _offset[i]
+		shown.append(spots[i] + _offset[i])
+	if sim.situation.is_standing() and figures.size() == 2:
+		shown = strike_spots(sim, shown, [figures[0].knock, figures[1].knock], driver.alpha())
+	_side_labels()
+	for i in figures.size():
+		var at: Vector2 = shown[i]
 		figures[i].label_scale = zoom_share()
 		figures[i].show_state(sim, i, at, at + Vector2.from_angle(_facing[i]), delta, delta * driver.rate())
 		figures[i].show_tell(_tell_limb[i] if tell_cues and sim.now <= _tell_until[i] else "")
 	_facing_set = true
 	var middle: Vector2 = (spots[0] + spots[1]) / 2.0
+	if _venue != null:
+		_venue.show_near_fence(shown, delta)
 	_show_tag(sim, middle, delta)
 	_place_camera(delta, middle, sim)
 	if debug_marks:
@@ -160,6 +186,89 @@ static func tag_text(sim: FightSim) -> String:
 	if top >= 0:
 		text += " · %s %s" % [sim.fighters[top].name, sim.positions.top_label(sim.situation.position)]
 	return text
+
+
+## Standing, where the two are drawn (D281): the same line between them, the gap shrunk to a person's reach
+## (drawn_gap), moving whoever has more room off the fence, so a man on the fence stays on it.
+static func standing_spots(spots: Array[Vector2]) -> Array[Vector2]:
+	var gap: float = spots[0].distance_to(spots[1])
+	var cut: float = gap - drawn_gap(gap)
+	if cut <= 0.0 or gap < 0.001:
+		return spots.duplicate()
+	var toward: Vector2 = (spots[1] - spots[0]) / gap
+	var room: Array[float] = []
+	for p: Vector2 in spots:
+		room.append(clampf((Octagon.distance_to_fence(p) - Octagon.BODY_MARGIN) / Octagon.NEAR_WITHIN, 0.0, 1.0))
+	var share: float = 0.5 if room[0] + room[1] < 0.001 else room[0] / (room[0] + room[1])
+	return [spots[0] + toward * cut * share, spots[1] - toward * cut * (1.0 - share)]
+
+
+## The drawn gap for a sim gap (D281): see DRAWN_FROM, DRAWN_SHARE and DRAWN_UNTIL.
+static func drawn_gap(gap: float) -> float:
+	if gap <= DRAWN_FROM:
+		return gap
+	var squeezed: float = DRAWN_FROM + (minf(gap, DRAWN_UNTIL) - DRAWN_FROM) * DRAWN_SHARE
+	return squeezed + maxf(0.0, gap - DRAWN_UNTIL)
+
+
+## How far fighter i steps in for the strike he's throwing (metres, D281), from the drawn gap: enough for it to
+## land at its contact gap (FighterFigure.AIMS), less SHORT_BY when the sim has it out of range. Eased in over
+## the telegraph and windup, held through the active part, and taken back over the recovery.
+static func lunge_for(sim: FightSim, i: int, gap: float, fraction: float = 0.0) -> float:
+	var f: FighterState = sim.fighters[i]
+	if not FighterFigure.AIMS.has(f.action_id) or not sim.actions.has(f.action_id):
+		return 0.0
+	var action: Dictionary = sim.actions.get_action(f.action_id)
+	var need: float = gap - float(FighterFigure.AIMS[f.action_id].contact)
+	if not action.ranges.has(sim.band()):
+		need -= SHORT_BY
+	if need <= 0.0:
+		return 0.0
+	var total: float = maxf(1.0, sim.phase_ticks(f, f.action_id, f.phase))
+	var progress: float = clampf((total - f.phase_ticks_left + fraction) / total, 0.0, 1.0)
+	var ease: float = 0.0
+	match f.phase:
+		"telegraph": ease = 0.6 * smoothstep(0.0, 1.0, progress)
+		"windup": ease = lerpf(0.6, 1.0, progress)
+		"active": ease = 1.0
+		"recovery": ease = 1.0 - smoothstep(0.0, 1.0, progress)
+	return minf(need, LUNGE_MAX) * ease
+
+
+## Standing, the drawn spots with each striker stepped in toward the other (lunge_for) and each man hit
+## knocked back (`knock`, metres), kept inside the fence (D281).
+static func strike_spots(sim: FightSim, spots: Array[Vector2], knock: Array[float], fraction: float = 0.0) -> Array[Vector2]:
+	var gap: float = spots[0].distance_to(spots[1])
+	if gap < 0.001:
+		return spots.duplicate()
+	var toward: Vector2 = (spots[1] - spots[0]) / gap
+	var lunge: Array[float] = [lunge_for(sim, 0, gap, fraction), lunge_for(sim, 1, gap, fraction)]
+	# Two men stepping in together share the step: they stop at the shorter strike's contact gap.
+	var closest: float = LUNGE_CLOSEST
+	if lunge[0] > 0.0 and lunge[1] > 0.0:
+		closest = maxf(closest, minf(_contact(sim, 0), _contact(sim, 1)))
+	var room: float = maxf(0.0, gap - closest)
+	if lunge[0] + lunge[1] > room:
+		var scale: float = room / (lunge[0] + lunge[1])
+		lunge = [lunge[0] * scale, lunge[1] * scale]
+	var a: Vector2 = spots[0] + toward * (lunge[0] - knock[0])
+	var b: Vector2 = spots[1] - toward * (lunge[1] - knock[1])
+	return [Octagon.keep_inside(a), Octagon.keep_inside(b)]
+
+
+static func _contact(sim: FightSim, i: int) -> float:
+	return float(FighterFigure.AIMS.get(sim.fighters[i].action_id, {}).get("contact", 0.0))
+
+
+## The two move labels lean apart on screen when both are up, so they don't print over each other (D281).
+func _side_labels() -> void:
+	if figures.size() < 2 or camera == null or not camera.is_inside_tree():
+		return
+	var left: float = camera.unproject_position(figures[0]._head.global_position).x
+	var right: float = camera.unproject_position(figures[1]._head.global_position).x
+	var both: bool = figures[0]._move_label.visible and figures[1]._move_label.visible
+	figures[0].label_side = (-1.0 if left <= right else 1.0) if both else 0.0
+	figures[1].label_side = -figures[0].label_side
 
 
 ## Where each fighter is drawn and the way he faces (radians on the canvas), from their sim spots:
@@ -250,8 +359,8 @@ func _on_event(event: FightEvent) -> void:
 	if event.type == FightEvent.ROUND_ENDED:
 		_tell_until = [-1, -1]
 		return
-	if event.type == FightEvent.STRIKE_LANDED and event.actor in [0, 1]:
-		figures[1 - event.actor].show_impact(String(event.data.target), float(event.data.damage))
+	if event.actor in [0, 1] and figures.size() == 2:
+		_show_strike(event)
 	var sim: FightSim = driver.sim
 	var triggers: TriggerLibrary = TriggerLibrary.shared()
 	for i in sim.fighters.size():
@@ -268,8 +377,32 @@ func _on_event(event: FightEvent) -> void:
 		figures[event.actor].show_ignored()
 
 
+## A strike's outcome on both men (D281): the thrower's aim follows it, the man hit reacts.
+func _show_strike(event: FightEvent) -> void:
+	var a: int = event.actor
+	var action: String = String(event.data.get("action_id", ""))
+	match event.type:
+		FightEvent.STRIKE_LANDED:
+			var covered: bool = bool(event.data.get("covered", false))
+			figures[a].show_outcome(action, "covered" if covered else "landed")
+			var hook: bool = FighterFigure.AIMS.has(action) and String(FighterFigure.AIMS[action].bend) in ["out", "round"]
+			var turn: float = 0.0
+			if hook:  # A hook or round kick turns his head away from the side it came from.
+				turn = 1.0 if String(FighterFigure.AIMS[action].limb).begins_with("lead") == (figures[a].lead < 0.0) else -1.0
+			figures[1 - a].show_hit(String(event.data.target), float(event.data.damage), covered, turn)
+		FightEvent.STRIKE_MISSED:
+			var reason: String = String(event.data.get("reason", ""))
+			var outcome: String = "missed"
+			if reason == "out of range":
+				outcome = "short"
+			elif String(event.data.get("by_action", "")) == "check_kick":
+				outcome = "checked"
+			figures[a].show_outcome(action, outcome)
+
+
 func _build_cage() -> void:
-	add_child(LocalVenue.new())
+	_venue = LocalVenue.new()
+	add_child(_venue)
 
 
 func _build_camera() -> void:

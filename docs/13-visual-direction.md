@@ -69,6 +69,58 @@ presentation improvements, not new movement, reach, collision or strike-resoluti
 existing action poses still supply the direction and extent of each move; paired grappling
 animations and an authored production rig remain future work.
 
+## Strikes that connect (D281)
+
+A strike that lands touches the man in front, and a clean hit, a blocked one, a slipped or checked one and a
+miss each look different. All of it reads the sim's state and events; nothing here changes a fight.
+
+- **Drawn spacing** (`ArenaView.standing_spots`, `drawn_gap`). The sim's ranges are wider than a person's reach,
+  so standing the view draws the gap at human scale: up to `DRAWN_FROM` (0.9 m) as it is, each metre more out to
+  `DRAWN_UNTIL` (3 m) as `DRAWN_SHARE` (0.45) of a metre, then a metre a metre. Mid range (1.5–2.2 m) draws at about
+  1.15–1.45 m. Whoever has more room off the fence moves, so a man pinned on the fence stays on it.
+- **Stepping in** (`ArenaView.lunge_for`, `strike_spots`). A striker steps in to his strike's contact gap
+  (`FighterFigure.AIMS[...].contact`), 60% over the telegraph, the rest over the windup, holds it through the active
+  part and steps back over the recovery; at most `LUNGE_MAX` (0.75 m). Out of range in the sim he steps `SHORT_BY`
+  (0.3 m) less, so it falls short. Two men stepping in together stop at the shorter strike's contact gap and never
+  closer than `LUNGE_CLOSEST` (0.85 m).
+- **Aiming** (`FighterFigure.AIMS`, `aim_point`). Each punch and kick aims at a point on the man (`strike_point`: head,
+  lower ribs, thigh above the lead knee, or calf), offset to the side by `across` for hooks and round kicks, and
+  stops `STANDOFF` short of its centre. The elbow or knee bends by `bend`: down for straight punches, out for hooks,
+  under for uppercuts, turned over for round kicks, up for the teep.
+- **Fixed arms.** `UPPER_ARM` 0.31 m and `FOREARM` 0.32 m, solved with `FighterMotion.solve_bones` like the legs.
+  An arm never stretches; a punch that needs more reach gets it from the step in and the shoulder turn.
+- **Outcomes** (`ArenaView._show_strike`, `FighterFigure.show_outcome`). Landed: the glove or shin meets the point.
+  Into the guard (`covered`): a head shot lands on his nearer glove, a body or leg shot on his elbow. Missed (rolled
+  out or slipped): it goes `MISS_PAST` (0.35 m) past and `MISS_THROUGH` (0.12 m) through, over his shoulder. Out of
+  range: short. Checked: it meets his raised shin.
+- **Hit reactions** (`FighterFigure.show_hit`). A clean hit snaps the part hit, scaled by damage (full at
+  `HIT_FULL_DAMAGE`, 18): the head back `HIT_HEAD_SNAP` (0.42 rad) and turned `HIT_HEAD_TURN` (0.35 rad) by hooks and
+  round kicks, the body folded `HIT_BODY_FOLD` (0.35 rad), the legs dipped `HIT_LEG_DIP` (7 cm), and he's knocked
+  back up to `HIT_KNOCK` (0.14 m). It's over in `HIT_FADE` (0.3 s of fight time, so slow motion shows it slowly and
+  pause freezes it). A blocked shot knocks his gloves back into his face instead. No camera shake.
+- **Defence poses.** The check lifts and turns out the lead knee, the slip drops the head off the line to the
+  outside, the cover-up puts the gloves to the temples with the elbows in.
+- **Feet.** The support feet turn on the ball of the foot (`FOOT_BALL`, 9 cm in front of the foot's origin) by
+  `FOOT_PIVOT` (35% of the hip turn for the lead foot, 80% for the rear), and the rear heel lifts `HEEL_LIFT`
+  (0.6 rad per radian of turn, at most 0.45). Round kicks turn the hips over further than before (body kick 1.0 rad,
+  head kick 1.1, leg kick 0.7).
+- **The near fence** (`LocalVenue.show_near_fence`). The camera-side panels stay cut down to a rail, but a panel fades
+  in, see-through (`NEAR_FENCE_ALPHA` 0.7), while a fighter is within `NEAR_FENCE_WITHIN` (1.2 m) of it.
+- **Labels.** The move label, call label, delay ring, stars and the tell's "!" sit `LABEL_ABOVE_HEAD` (0.5 m) over
+  his head wherever it is, standing or down, and the two move labels lean apart on screen when both are up.
+
+Not covered yet: clinch knees, elbows and dirty boxing keep their poses (they don't step in), ground strikes aim the
+fist at the head but nothing else, and grappling is untouched (paired poses wait for the rig, D280).
+
+Arranged clips of every covered strike and outcome, side on to the camera, at fight time (24 frames a fight second):
+
+```sh
+godot --path . --script res://tools/strike_preview.gd -- --out=res://build/strikes
+ffmpeg -framerate 24 -i build/strikes/frame-%04d.png -c:v libx264 -pix_fmt yuv420p build/strikes.mp4
+```
+
+Tests: `tests/game/test_strike_contact.gd`.
+
 ## Review and verification
 
 Open `project.godot` in Godot 4.7.2 and run the game normally. Start a fight and check striking,

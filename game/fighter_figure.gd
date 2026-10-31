@@ -32,6 +32,55 @@ const IGNORED_SECONDS: float = 1.5
 const TELL_COLOUR := Color("#fff3a0")
 const RING_COLOUR := Color("#ffc94d")
 const READ_COLOUR := Color("#66d9e8")
+## Arm bones (D281): shoulder to elbow, and elbow to the glove's centre. An arm never stretches past
+## them; a punch that has further to go turns the shoulder, leans and steps in (ArenaView.lunge_for).
+const UPPER_ARM: float = 0.31
+const FOREARM: float = 0.32
+## Strikes that aim at the man in front (D281). limb: what throws it. point: where it lands on him
+## (head, body, legs or calf). contact: the drawn centre-to-centre gap it lands at, so the view knows how
+## far to step in. across: metres the contact sits toward the striking limb's side (a hook lands on the
+## side of the head, a round kick on the ribs). bend: which way the elbow or knee points ("down" for a
+## straight punch, "out" for a hook, "under" for an uppercut, "round" for a round kick, "up" for a teep).
+const AIMS := {
+	"jab": { "limb": "lead_arm", "point": "head", "contact": 1.0, "across": 0.0, "bend": "down" },
+	"cross": { "limb": "rear_arm", "point": "head", "contact": 1.0, "across": 0.0, "bend": "down" },
+	"hook": { "limb": "lead_arm", "point": "head", "contact": 0.85, "across": 0.1, "bend": "out" },
+	"overhand": { "limb": "rear_arm", "point": "head", "contact": 0.95, "across": 0.06, "bend": "out" },
+	"uppercut": { "limb": "rear_arm", "point": "head", "contact": 0.8, "across": 0.0, "bend": "under" },
+	"body_hook": { "limb": "lead_arm", "point": "body", "contact": 0.8, "across": 0.12, "bend": "out" },
+	"short_hook": { "limb": "lead_arm", "point": "head", "contact": 0.7, "across": 0.1, "bend": "out" },
+	"short_uppercut": { "limb": "rear_arm", "point": "head", "contact": 0.7, "across": 0.0, "bend": "under" },
+	"elbow": { "limb": "rear_arm", "point": "head", "contact": 0.7, "across": 0.08, "bend": "out" },
+	"ground_punch": { "limb": "rear_arm", "point": "head", "contact": 0.0, "across": 0.0, "bend": "down" },
+	"ground_elbow": { "limb": "rear_arm", "point": "head", "contact": 0.0, "across": 0.0, "bend": "out" },
+	"teep": { "limb": "lead_leg", "point": "body", "contact": 1.1, "across": 0.0, "bend": "up" },
+	"body_kick": { "limb": "rear_leg", "point": "body", "contact": 1.0, "across": 0.14, "bend": "round" },
+	"head_kick": { "limb": "rear_leg", "point": "head", "contact": 0.9, "across": 0.14, "bend": "round" },
+	"leg_kick": { "limb": "rear_leg", "point": "legs", "contact": 0.95, "across": 0.1, "bend": "round" },
+	"calf_kick": { "limb": "rear_leg", "point": "calf", "contact": 0.95, "across": 0.08, "bend": "round" },
+}
+## How far a glove or shin stops short of the point's centre (the head, ribs or thigh is that thick).
+const STANDOFF := { "head": 0.15, "body": 0.2, "legs": 0.1, "calf": 0.08 }
+## A strike that misses goes this far past the side of him, and this far through (D281).
+const MISS_PAST: float = 0.35
+const MISS_THROUGH: float = 0.12
+## Hit reactions (D281): the head snaps back and turns (radians at full), the body folds, the legs dip,
+## and he is knocked back this far (metres). Full is a hit of HIT_FULL_DAMAGE or more; it fades in HIT_FADE s.
+const HIT_HEAD_SNAP: float = 0.42
+const HIT_HEAD_TURN: float = 0.35
+const HIT_BODY_FOLD: float = 0.35
+const HIT_LEG_DIP: float = 0.07
+const HIT_KNOCK: float = 0.14
+const HIT_FULL_DAMAGE: float = 18.0
+const HIT_FADE: float = 0.3
+## The support feet turn on the ball of the foot with the hips (D281): this share of the hip turn for the
+## lead and rear foot, and the rear heel lifts this much (radians) per radian of turn.
+const FOOT_PIVOT: Array[float] = [0.35, 0.8]
+const HEEL_LIFT: float = 0.6
+## Where the ball of the foot is, in front of the foot's origin (metres): the foot turns about it.
+const FOOT_BALL: float = 0.09
+## The labels over his head sit this far (metres) above it, wherever his head is (D281).
+const LABEL_ABOVE_HEAD: float = 0.5
 
 var colour: Color
 ## Overhead labels and marks are sized in metres; the view shrinks them as the camera moves in.
@@ -60,7 +109,6 @@ var _upper_arms: Array[MeshInstance3D] = []
 var _forearms: Array[MeshInstance3D] = []
 var _cut: MeshInstance3D
 var _bruise: MeshInstance3D
-var _impact: float = 0.0
 var motion := FighterMotion.new()
 var _thighs: Array[Node3D] = []
 var _shins: Array[Node3D] = []
@@ -73,6 +121,19 @@ var _body_material: StandardMaterial3D
 var _pose := {}
 var _ignored_left: float = 0.0
 var _time: float = 0.0
+## The other man, whose head, body and legs strikes aim at (D281); set by the view. Null: no aiming.
+var opponent: FighterFigure
+## Which way the overhead labels lean so the two don't overlap (-1 left, 0 centred, +1 right on screen).
+var label_side: float = 0.0
+## How far a hit knocks him back right now (metres); the view draws him that far away from the hitter.
+var knock: float = 0.0
+var _hit := { "head": 0.0, "body": 0.0, "legs": 0.0, "guard": 0.0 }
+var _hit_turn: float = 0.0
+## What became of the strike he is throwing (D281): "" (not known yet), "landed", "covered", "missed",
+## "short" or "checked"; and how far the aim has moved off him for a miss (0 to 1).
+var _outcome: String = ""
+var _outcome_action: String = ""
+var _miss: float = 0.0
 
 
 func _init(p_colour: Color = Color.WHITE, southpaw: bool = false, appearance: int = 0) -> void:
@@ -96,8 +157,14 @@ func show_state(sim: FightSim, i: int, at: Vector2, toward: Vector2, delta: floa
 	else:
 		_tick_fraction = minf(0.99, _tick_fraction + _motion_delta * FightClock.TICKS_PER_SECOND)
 	_time += delta
-	_impact = maxf(0.0, _impact - delta * 4.0)
+	for part: String in _hit:
+		_hit[part] = maxf(0.0, float(_hit[part]) - _motion_delta / HIT_FADE)
+	knock = maxf(0.0, knock - _motion_delta * HIT_KNOCK / HIT_FADE)
 	var f: FighterState = sim.fighters[i]
+	if f.action_id != _outcome_action:
+		_outcome = ""
+		_outcome_action = f.action_id
+	_miss = move_toward(_miss, 1.0 if _outcome == "missed" else 0.0, _motion_delta * 10.0)
 	_clinch_grip = sim.situation.position == PositionLibrary.CLINCH and sim.hold().is_empty() \
 		and f.tied_up_ticks == 0 and sim.fighters[1 - i].tied_up_ticks == 0 \
 		and (f.action_id == "" or (sim.actions.has(f.action_id) and sim.actions.get_action(f.action_id).category != "strike"))
@@ -112,8 +179,7 @@ func show_state(sim: FightSim, i: int, at: Vector2, toward: Vector2, delta: floa
 		_pose[key] = lerpf(float(_pose.get(key, target[key])), float(target[key]), k)
 	_apply_pose(f)
 	_show_overhead(sim, i, delta)
-	for label: Label3D in [_move_label, _call_label, _tell_label]:
-		label.scale = Vector3.ONE * label_scale
+	_place_overhead()
 
 
 ## The pose (joint angles and heights) for fighter i right now: plain numbers, so it can be tested.
@@ -308,7 +374,7 @@ func pose_for(sim: FightSim, i: int, fractional_tick: float = 0.0) -> Dictionary
 			p.twist = lerpf(0.0, 0.5, reach)
 		"leg_kick":
 			p.leg_rear = lerpf(0.0, 0.9, reach)
-			p.twist = lerpf(0.0, 0.4, reach)
+			p.twist = lerpf(0.0, 0.7, reach)
 		"soccer_kick":  # A punt at the head of a man on the floor (PRIDE, D141).
 			p.leg_rear = lerpf(0.0, 1.1, reach)
 			p.lean = lerpf(p.lean, 0.35, reach)
@@ -324,11 +390,11 @@ func pose_for(sim: FightSim, i: int, fractional_tick: float = 0.0) -> Dictionary
 			p.twist = lerpf(0.0, 0.3, reach)
 		"body_kick":
 			p.leg_rear = lerpf(0.0, 1.45, reach)
-			p.twist = lerpf(0.0, 0.6, reach)
+			p.twist = lerpf(0.0, 1.0, reach)
 			p.lean = lerpf(p.lean, 0.25, reach)
 		"head_kick":
 			p.leg_rear = lerpf(0.0, 2.1, reach)
-			p.twist = lerpf(0.0, 0.7, reach)
+			p.twist = lerpf(0.0, 1.1, reach)
 			p.lean = lerpf(p.lean, 0.4, reach)
 		"teep":
 			p.leg_lead = lerpf(0.0, 1.5, reach)
@@ -379,9 +445,21 @@ func pose_for(sim: FightSim, i: int, fractional_tick: float = 0.0) -> Dictionary
 			p.arm_rear = lerpf(p.arm_rear, 3.0, reach)
 			p.reach_lead = lerpf(1.0, 1.3, reach)
 			p.reach_rear = lerpf(1.0, 1.3, reach)
+		"check_kick":  # The lead knee comes up and turns out to meet the shin (D180, D281).
+			p.leg_lead = lerpf(p.leg_lead, 1.25, reach)
+			p.check = reach
+		"slip":  # The head drops off the line to the outside (D180, D281).
+			p.slip = reach
+			p.hip_y = lerpf(p.hip_y, HIP_HEIGHT - 0.14, reach)
+			p.lean = lerpf(p.lean, -0.22, reach)
+		"cover_up":  # Gloves to the temples, elbows in, chin down (D180, D281).
+			p.cover = reach
+			p.lean = lerpf(p.lean, -0.18, reach)
 		_:
 			if action.category == "strike":
 				p.arm_lead = lerpf(p.arm_lead, 1.57, reach)
+	if AIMS.has(f.action_id):
+		p.aim = reach
 	return p
 
 
@@ -471,11 +549,14 @@ func _show_overhead(sim: FightSim, i: int, delta: float) -> void:
 func _apply_pose(f: FighterState) -> void:
 	var lie: float = _pose.lie
 	var breathing: float = 0.004 * sin(_motion_clock * 2.6) if lie < 0.05 and float(_pose.kneel) < 0.05 else 0.0
-	_hips.position.y = float(_pose.hip_y) - 0.12 * float(_pose.kneel) + breathing
+	_hips.position.y = float(_pose.hip_y) - 0.12 * float(_pose.kneel) + breathing \
+		- (0.05 * float(_hit.body) + HIT_LEG_DIP * float(_hit.legs)) * (1.0 - lie)
 	var sway: float = 0.0
 	if f.is_rocked() and not f.is_down():
 		sway = 0.18 * sin(_time * 7.0)
-	_hips.rotation = Vector3(lerpf(_pose.lean, PI / 2.0, lie), _pose.twist * lead, sway)
+	sway -= lead * 0.5 * float(_pose.slip)
+	var lean: float = float(_pose.lean) + 0.1 * float(_hit.head) - HIT_BODY_FOLD * float(_hit.body)
+	_hips.rotation = Vector3(lerpf(lean, PI / 2.0, lie), _pose.twist * lead, sway)
 	_arms[0].rotation.x = _pose.arm_lead
 	_arms[1].rotation.x = _pose.arm_rear
 	_pose_arm(0, float(_pose.reach_lead), float(_pose.arm_lead))
@@ -483,16 +564,94 @@ func _apply_pose(f: FighterState) -> void:
 	_legs[0].rotation = Vector3(_pose.leg_lead, 0.0, lead * _pose.spread)
 	_legs[1].rotation = Vector3(_pose.leg_rear, 0.0, -lead * _pose.spread)
 	_pose_legs()
-	_head.rotation.x = -_impact * 0.16
+	_head.rotation.x = -HIT_HEAD_SNAP * float(_hit.head) - 0.12 * float(_hit.guard)
+	_head.rotation.y = HIT_HEAD_TURN * float(_hit.head) * _hit_turn
 	_cut.visible = f.hurt("head") > 0.18
 	_bruise.visible = f.hurt("head") > 0.08
 	_body_material.albedo_color = _skin
 
 
-## Damage cosmetics read existing damage; they never create a new simulation injury.
-func show_impact(target: String, damage: float) -> void:
-	if target == "head":
-		_impact = clampf(damage / 25.0, 0.15, 1.0)
+## A strike landed on him (D281): a short snap of the part hit, scaled by the damage, or, through
+## his guard (`covered`), his gloves knocked back into his face. `from_side` is +1 or -1, the way his
+## head turns. Damage cosmetics read existing damage; they never create a new simulation injury.
+func show_hit(target: String, damage: float, covered: bool = false, from_side: float = 0.0) -> void:
+	var amount: float = clampf(damage / HIT_FULL_DAMAGE, 0.3, 1.0)
+	if covered:
+		_hit.guard = 1.0
+		knock = maxf(knock, HIT_KNOCK * 0.35)
+		return
+	var part: String = target if _hit.has(target) else "body"
+	_hit[part] = maxf(float(_hit[part]), amount)
+	if part == "head":
+		_hit_turn = from_side
+	knock = maxf(knock, HIT_KNOCK * amount)
+
+
+## What became of the strike he's throwing (D281), from the fight's events: "landed", "covered" (into the
+## guard), "missed" (rolled out or slipped), "short" (out of range) or "checked". The aim follows it.
+func show_outcome(action_id: String, outcome: String) -> void:
+	_outcome_action = action_id
+	_outcome = outcome
+
+
+## Where on him a strike to `point` (head, body, legs or calf) lands, in the world (D281).
+func strike_point(point: String) -> Vector3:
+	match point:
+		"head":
+			return _head.global_position
+		"legs":  # Above the lead knee, on the thigh.
+			return _shins[0].global_position + Vector3.UP * 0.14
+		"calf":
+			return _shins[0].global_position + Vector3.DOWN * 0.14
+	return _torso.global_position + Vector3.DOWN * 0.06  # Body: the lower ribs.
+
+
+## Where his nearer glove is, in the world: a strike into his guard lands there (D281).
+func guard_point(from: Vector3) -> Vector3:
+	var a: Vector3 = _gloves[0].global_position
+	var b: Vector3 = _gloves[1].global_position
+	return a if a.distance_to(from) < b.distance_to(from) else b
+
+
+## The way the striking limb's side points (lead or rear), in the world.
+func _limb_side(limb: String) -> Vector3:
+	return global_basis.x * (lead if limb.begins_with("lead") else -lead)
+
+
+## Where the move he's throwing aims, in the world, from the limb's root (shoulder or hip); Vector3.INF
+## when there's nothing to aim at (no opponent, or not an aimed strike, D281).
+func aim_point(action_id: String, root: Vector3) -> Vector3:
+	if opponent == null or not is_instance_valid(opponent) or not AIMS.has(action_id):
+		return Vector3.INF
+	var aim: Dictionary = AIMS[action_id]
+	var side: Vector3 = _limb_side(String(aim.limb))
+	var point: Vector3 = opponent.strike_point(String(aim.point)) + side * float(aim.across)
+	var approach: Vector3 = point - root
+	approach.y *= 0.3  # Stop short of him mostly along the ground, not down through his head.
+	var toward: Vector3 = approach.normalized() if approach.length() > 0.01 else -global_basis.z
+	point -= toward * float(STANDOFF.get(aim.point, 0.15))
+	if _outcome == "covered" and String(aim.point) == "head":  # Into his gloves.
+		point = opponent.guard_point(root) - toward * 0.07
+	elif _outcome == "covered":  # Into his elbow, just short of the ribs.
+		point -= toward * 0.06
+	elif _outcome == "checked":
+		point = opponent.strike_point("legs") - toward * 0.08  # Into the raised shin.
+	return point + (-side * MISS_PAST + toward * MISS_THROUGH + Vector3.UP * 0.08) * _miss  # Over his shoulder.
+
+
+## Labels, the delay ring, the stars and the tell's "!" ride a set height over his head, standing or
+## down, and lean apart when the view says the two would overlap (D281).
+func _place_overhead() -> void:
+	var head: float = maxf(_head.global_position.y - global_position.y, 0.3)
+	_move_label.position.y = head + LABEL_ABOVE_HEAD
+	_call_label.position.y = head + LABEL_ABOVE_HEAD + 0.3
+	_ring.position.y = head + 0.25
+	_stars.position.y = head + 0.2
+	_tell_label.position.y = head + 0.25
+	for label: Label3D in [_move_label, _call_label, _tell_label]:
+		label.scale = Vector3.ONE * label_scale
+	var width: float = ThemeDB.fallback_font.get_string_size(_move_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, _move_label.font_size).x
+	_move_label.offset.x = label_side * (width / 2.0 + 12.0)
 
 
 func _pose_legs() -> void:
@@ -502,17 +661,21 @@ func _pose_legs() -> void:
 	for i in 2:
 		var lateral: float = lead if i == 0 else -lead
 		goals.append(global_position + global_basis * Vector3(lateral * 0.19, 0.032, -0.22 if i == 0 else 0.22))
-		support.append(upright and absf(_legs[i].rotation.x) < 0.5 and (i == 0 or float(_pose.knee_short) < 0.1))
+		var tucked: float = float(_pose.knee_short) if i == 1 else float(_pose.check)
+		support.append(upright and absf(_legs[i].rotation.x) < 0.5 and tucked < 0.1)
 	motion.update(goals, support, _motion_delta)
 	var weight: float = 0.0
 	if upright and motion.swing >= 0:
 		weight = (lead if motion.swing == 1 else -lead) * 0.03
 		_hips.position.y -= sin(motion.progress * PI) * 0.008
 	_hips.position.x = lerpf(_hips.position.x, weight, 1.0 - exp(-12.0 * _motion_delta))
+	var kick: String = _outcome_action if AIMS.has(_outcome_action) and String(AIMS[_outcome_action].limb).ends_with("_leg") else ""
+	var turn: float = _hips.rotation.y
 	for i in 2:
 		var pivot: Node3D = _leg_meshes[i]
 		var hip: Vector3 = pivot.global_position
 		var foot_basis: Basis = global_basis if support[i] else pivot.global_basis.orthonormalized()
+		var pole: Vector3 = _hips.global_basis * Vector3.FORWARD
 		var ankle: Vector3
 		var knee: Vector3
 		if float(_pose.kneel) > 0.5:
@@ -524,13 +687,27 @@ func _pose_legs() -> void:
 			foot_basis = global_basis
 		else:
 			if support[i]:
-				ankle = motion.feet[i] + foot_basis * Vector3(0, 0.065, 0.035)
+				# The foot turns on its ball with the hips, and the rear heel comes up (D281).
+				var lift: float = HEEL_LIFT * absf(turn) if i == 1 else 0.0
+				foot_basis = Basis(Vector3.UP, turn * FOOT_PIVOT[i]) * global_basis * Basis(Vector3.RIGHT, -minf(lift, 0.45))
+				var ball: Vector3 = motion.feet[i] + global_basis * Vector3(0, 0, -FOOT_BALL)
+				ankle = ball - foot_basis * Vector3(0, 0, -FOOT_BALL) + foot_basis * Vector3(0, 0.065, 0.035)
 			else:
-				var reach: float = lerpf(0.84, 0.53, float(_pose.knee_short) if i == 1 else 0.0)
+				var tucked: float = float(_pose.knee_short) if i == 1 else float(_pose.check)
+				var reach: float = lerpf(0.84, 0.53, tucked)
 				if float(_pose.lie) > 0.5 and _legs[i].rotation.x > 0.5:
 					reach = 0.62  # Bent knees wrapping the top fighter in guard.
 				ankle = pivot.to_global(Vector3(0, -reach, 0))
-			var solved: Array[Vector3] = FighterMotion.solve(hip, ankle, _hips.global_basis * Vector3.FORWARD)
+				if kick != "" and String(AIMS[kick].limb) == ("lead_leg" if i == 0 else "rear_leg"):
+					var target: Vector3 = aim_point(kick, hip)
+					var aim: float = float(_pose.aim)
+					if target.is_finite():
+						ankle = ankle.lerp(target, aim)
+						var bend: Vector3 = Vector3.UP + global_basis.z * -0.6  # A teep: the knee up in front.
+						if String(AIMS[kick].bend) == "round":  # The knee turned over toward him.
+							bend = (target - hip).normalized() + Vector3.UP * 0.5 + _limb_side(String(AIMS[kick].limb)) * 0.6
+						pole = pole.lerp(bend, aim)
+			var solved: Array[Vector3] = FighterMotion.solve(hip, ankle, pole)
 			knee = solved[0]
 			ankle = solved[1]
 		_bone(_thighs[i], pivot.to_local(hip), pivot.to_local(knee), FighterMotion.THIGH)
@@ -556,6 +733,35 @@ func _pose_arm(side: int, reach: float, angle: float) -> void:
 		var undo_shoulder := Basis(Vector3.RIGHT, -angle)
 		hand = undo_shoulder * Vector3(-lateral * 0.08, 0.05, -0.35)
 		elbow = undo_shoulder * Vector3(lateral * 0.035, -0.25, -0.12)
+	var pivot: Node3D = _arm_meshes[side]
+	hand += Vector3(0.0, 0.06, 0.08) * float(_hit.guard)  # Knocked back toward his face.
+	if float(_pose.cover) > 0.0:  # Covering up: gloves to the temples, elbows in (D180).
+		var lateral: float = lead if side == 0 else -lead
+		var temple: Vector3 = _head.global_position + global_basis * Vector3(lateral * 0.12, 0.02, -0.06)
+		var tucked: Vector3 = _head.global_position + global_basis * Vector3(lateral * 0.1, -0.32, -0.12)
+		hand = hand.lerp(pivot.to_local(temple), float(_pose.cover))
+		elbow = elbow.lerp(pivot.to_local(tucked), float(_pose.cover))
+	var pole: Vector3 = elbow
+	var aim: float = float(_pose.aim)
+	var action: String = _outcome_action
+	if aim > 0.001 and AIMS.has(action) and String(AIMS[action].limb) == ("lead_arm" if side == 0 else "rear_arm"):
+		var target: Vector3 = aim_point(action, pivot.global_position)
+		if target.is_finite():
+			hand = hand.lerp(pivot.to_local(target), aim)
+			var out: Vector3 = _limb_side(String(AIMS[action].limb))
+			var bend: Vector3
+			match String(AIMS[action].bend):
+				"out":
+					bend = out + Vector3.UP * 0.25
+				"under":
+					bend = Vector3.DOWN + global_basis.z * 0.4
+				_:
+					bend = Vector3.DOWN + out * 0.6
+			pole = pole.lerp(pivot.global_basis.inverse() * bend, aim)
+	# Fixed bones (D281): the hand stops at full extension instead of stretching the arm.
+	var joints: Array[Vector3] = FighterMotion.solve_bones(Vector3.ZERO, hand, pole, UPPER_ARM, FOREARM)
+	elbow = joints[0]
+	hand = joints[1]
 	_segment(_upper_arms[side], Vector3.ZERO, elbow)
 	_segment(_forearms[side], elbow, hand)
 	_gloves[side].position = hand
@@ -571,7 +777,7 @@ static func _segment(mesh: MeshInstance3D, start: Vector3, end: Vector3) -> void
 static func _rest_pose() -> Dictionary:
 	return { "hip_y": HIP_HEIGHT - 0.07, "lean": -0.08, "lie": 0.0, "twist": 0.0, "arm_lead": 2.0, "arm_rear": 1.85,
 		"leg_lead": 0.22, "leg_rear": -0.25, "reach_lead": 1.0, "reach_rear": 1.0, "knee_short": 0.0,
-		"spread": 0.08, "kneel": 0.0 }
+		"spread": 0.08, "kneel": 0.0, "aim": 0.0, "check": 0.0, "slip": 0.0, "cover": 0.0 }
 
 
 func _build() -> void:

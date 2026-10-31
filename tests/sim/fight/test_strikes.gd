@@ -178,7 +178,8 @@ func test_the_muay_thai_fighter_throws_no_elbows_in_an_amateur_fight() -> void:
 # --- The fighters ------------------------------------------------------------------
 
 func test_each_fighter_throws_the_new_strikes_in_their_profile() -> void:
-	# [red, blue, strikes red throws over three fights]
+	# [red, blue, strikes red throws over five fights]. Five, not three: the Wrestler's overhand is a rare
+	# shot (about two a fight, none in some), and three fights went without one once fights changed (D290).
 	var cases: Array = [
 		["boxer", "kicker", ["uppercut", "overhand", "body_hook"]],
 		["kicker", "boxer", ["calf_kick"]],
@@ -188,7 +189,7 @@ func test_each_fighter_throws_the_new_strikes_in_their_profile() -> void:
 	]
 	for c: Array in cases:
 		var seen: Dictionary = {}
-		for n in 3:
+		for n in 5:
 			var sim := FightSim.new(SEED + n, _roster.make_pair(c[0], c[1]), _actions)
 			sim.run_to_end()
 			seen.merge(_thrown(sim, 0))

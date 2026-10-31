@@ -455,9 +455,10 @@ func _pair_lines(of_rows: Array[Dictionary], names: Dictionary) -> PackedStringA
 		_pct(average(of_rows, "mount")), _pct(average(of_rows, "back_control")),
 		red, average(of_rows, "advances_red"), blue, average(of_rows, "advances_blue"),
 		red, average(of_rows, "escapes_red"), blue, average(of_rows, "escapes_blue")])
-	lines.append("  Feints     %s %.1f a fight, %.1f bit on · %s %.1f, %.1f · blind shots %s %.1f (%.1f worked), %s %.1f (%.1f) (D131)" % [
+	lines.append("  Feints     %s %.1f a fight, %.1f bit on · %s %.1f, %.1f · blind shots %s %.1f (%.1f worked), %s %.1f (%.1f) · strikes off a bite %s %.1f (%.1f landed), %s %.1f (%.1f) (D131, D236)" % [
 		red, average(of_rows, "feints_red"), average(of_rows, "feints_bit_red"), blue, average(of_rows, "feints_blue"), average(of_rows, "feints_bit_blue"),
-		red, average(of_rows, "blind_red"), average(of_rows, "blind_landed_red"), blue, average(of_rows, "blind_blue"), average(of_rows, "blind_landed_blue")])
+		red, average(of_rows, "blind_red"), average(of_rows, "blind_landed_red"), blue, average(of_rows, "blind_blue"), average(of_rows, "blind_landed_blue"),
+		red, average(of_rows, "off_feint_red"), average(of_rows, "off_feint_landed_red"), blue, average(of_rows, "off_feint_blue"), average(of_rows, "off_feint_landed_blue")])
 	lines.append("  Combos     %s %.1f a fight, follow-ups land %s · %s %.1f, %s (D133)" % [
 		red, average(of_rows, "combos_red"), _pct(_ratio(of_rows, "combo_landed_red", "combo_strikes_red")),
 		blue, average(of_rows, "combos_blue"), _pct(_ratio(of_rows, "combo_landed_blue", "combo_strikes_blue"))])
