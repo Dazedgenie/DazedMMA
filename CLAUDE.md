@@ -60,5 +60,5 @@
 - The result screen (the verdict and when, both figures as they finished, the fight sheet, the judges' cards round by round, your corner's letter grade and its numbers): `docs/06-fight-hud.md` §6.9 (D173).
 - The fight night card (the full-screen card after the camp: gas tank, fatigue, injury, the doctor's stamp, what the camp added, Fight! or Pull out; the display font on the fight screen): `docs/02-fighter-and-training.md` §3.11 (D171).
 - Mitt work, the first minigame (the coach's calls in boxing's numbers, keys 1–6 and ← ↓, timing windows, how it scores the session, ticking Play in the planner, the numbers to tune it): `docs/02-fighter-and-training.md` §3.9 (D137).
-- Opponent style sheets (the 15 styles, how opponents are generated from them, scouting cards, `tools/style_sheets.gd`): `docs/03-career-and-world.md` §7.1 (D160).
+- Opponent style sheets (the 15 styles, how opponents are generated from them, scouting cards, `tools/style_sheets.gd`): `docs/03-career-and-world.md` §7.1 (D160); the Leg-kick specialist's rework (what beat him, what was tried, D255): same section.
 - Import/refresh the project cache: `godot --headless --import`
