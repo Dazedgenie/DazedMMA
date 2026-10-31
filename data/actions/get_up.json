@@ -14,7 +14,9 @@
 	"stats": { "offense": ["scrambles", "takedown_defense"], "defense": ["top_control"] },
 	"opportunities": [
 		{ "own_flag": "BACK_TO_CAGE", "success_bonus": 0.15 },
-		{ "opponent_flag": "POSTURED_UP", "success_bonus": 0.20 }
+		{ "opponent_flag": "POSTURED_UP", "success_bonus": 0.20 },
+		{ "own_flag": "UNDERHOOK", "success_bonus": 0.10 },
+		{ "opponent_flag": "UNDERHOOK", "success_bonus": -0.10 }
 	],
 	"requires_technique": null
 }

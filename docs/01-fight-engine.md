@@ -1482,7 +1482,7 @@ punches and the posture-up bomb as well, and the man underneath can cover up, §
 |---|---|---|---|---|
 | Ground punch (*everyone*) | Top | 0.1 · 0.2 · 0.1 · 0.3 s | 50% + (Top control, Boxing) − Guard, +10% on `HANDS_LOW`; 4 to the head × Power × 0.8 (full guard top) | `POSTURED_UP` from wind-up to the end |
 | Ground elbow | Top, a technique (the Wrestler has it) | 0.2 · 0.3 · 0.1 · 0.4 s | 50% + (Top control, Power) − Guard; 7 to the head | Not where elbows are banned (amateur rules) |
-| Tie up (*everyone*) | Bottom | 0 · 0.2 · 0.3 · 0.2 s | 45% + (Guard, Strength) − Top control, +15% on `POSTURED_UP` | Works: the top fighter's posture is broken (`POSTURE_BROKEN`) for 3 s, the strike he was winding up is smothered, and no ground strikes until it wears off. The fight stays in full guard |
+| Tie up (*everyone*) | Bottom | 0 · 0.2 · 0.3 · 0.2 s | 45% + (Guard, Strength) − Top control, +15% on `POSTURED_UP` | Works: the top fighter's posture is broken (`POSTURE_BROKEN`), the strike he was winding up is smothered, and no ground strikes. The fight stays in full guard. Until D263 it wore off after 3 s; now it's the collar tie, held until he postures up, next to wrist control (§40.11) |
 | Get up (as §21.1) | Bottom | | +20% on `POSTURED_UP` | Posturing up to strike gives the space to get up |
 
 - **Rocked again on the ground** is the KO roll (§8) instead of a knockdown: there's nowhere to fall. The feed says "ROCKED again
@@ -1535,7 +1535,7 @@ The harness without calls, 100 fights a pairing (seed 1, pro rules), and with th
 - Health: `FighterState.HURT_SCALE` (10; it also sets how fast damage slows a fighter down, so it moves every fight).
 - The referee: `FightSim.STOP_UNANSWERED` (2), `GROUND_STOP_PER_HEALTH` (14), `STOP_BIAS_HEALTH` (0.5) and each ruleset's
   `early_stoppage_bias`.
-- Ground strikes and the tie-up: `data/actions/ground_punch.json`, `ground_elbow.json`, `tie_up.json` (`ground.ties_up_ms`, `09`);
+- Ground strikes and the tie-up: `data/actions/ground_punch.json`, `ground_elbow.json`, `tie_up.json` (held until he postures up since D263: `ground.grip`, `09`, §40.11);
   the get-up bonus: the `POSTURED_UP` opportunity in `get_up.json`; the full guard top multiplier: `data/positions/full_guard.json`.
 - The AI: `FighterAI.GNP_RATE` (1.2), `GROUND_UNDER_FIRE` (3.0), `TIE_UP_CALM` (0.3), `TIE_UP_PRESSED` (1.5), `ROCKED_GET_UP` (0.3).
 - The call: `data/calls/ground_and_pound.json`. Judges: `Judging.TAKEDOWN_POINTS`, `CONTROL_POINTS_PER_S`, and `round_card`'s
@@ -2992,7 +2992,7 @@ by its liking, never a man already there, stays when it likes it, works to get o
 the Boxer on the fence in real fights), `tests/sim/balance/test_balance_report.gd` (the Cage line), `tests/ui/test_fight_log_formatter.gd`
 and `tests/data/test_data_files.gd` (`drives_m`, `turns`, a required `HELD_ON_FENCE`, the `pressed` result).
 
-## 40. Grips and hand fighting (D260 the plan; built: D261 the clinch grips, D262 turning each other on the fence)
+## 40. Grips and hand fighting (D260 the plan; built: D261 the clinch grips, D262 turning each other on the fence, D263 grips in the guard and half guard)
 Kyle asked for it (2026-10-31): "clinch fighting improvements: fighters should be hand fighting, trying to get underhooks,
 overhooks, they should be spinning each other around when up against the cage", with research on real clinch and cage
 fighting, and then: "this isn't clinch specific, this will be used for grappling in general, so hand fighting on the ground
@@ -3312,6 +3312,85 @@ Sources: [Evolve MMA, underhooks and overhooks](https://evolve-mma.com/blog/unde
 [Evolve MMA, grip fighting in no-gi](https://evolve-mma.com/blog/heres-what-you-need-to-know-about-grip-fighting-in-no-gi-bjj/),
 [Evolve MMA, ground and pound](https://evolve-mma.com/blog/the-complete-guide-to-ground-and-pound/),
 [AgentMMA, what a reversal is in UFC stats](https://agentmma.com/mma-lab/ufc-reversal-stat-explained).
+
+### 40.11 Built: grips on the ground, guard and half guard (D263)
+The third pull request of §40.8's plan, the first half of the ground part. Kyle's picks (2026-10-31): the tie-up from the
+bottom becomes real grips ("Replace it with grips"), ground finishes stay about where they are (he asked for the
+recommendation over more ground and pound), and the guard and half guard come first ("Guard and half guard first"); frames,
+the crucifix wrist pin and the two hands against the choke are next (§40.5's last two rows).
+
+| | What it does | Where it lives |
+|---|---|---|
+| **The collar tie from underneath** | The tie-up (D121) is now held: his head is pulled down (`POSTURE_BROKEN`: the pass −10%, the triangle +15% as before), the punch he was winding up is smothered and he can't strike at all until he postures up or the position changes. Before, it wore off after 3 s. 45% + (Guard, Strength) − Top control, +15% when he's postured up, +10% with one of his wrists held. Taking it again while it's held is refused | `tie_up.json` (`ground.grip` `"collar"`) |
+| **Wrist control** | Everyone underneath has it, in full guard, half guard and mount. One wrist held (`WRIST_HELD`): his ground strikes are −10% (the hammerfist −5%: it comes round the grip), the armbar +10%, the tie-up +10%. Both held (`WRISTS_HELD`): no ground strikes, as with the collar tie. 50% + (Guard, Strength) − Top control, +10% when he's postured up, −10% for the second wrist | `wrist_control.json` (`"wrist"`) |
+| **Posturing up** | On top, everyone can posture up to strip a grip: the collar tie first, then a wrist. 60% + (Top control, Strength) − Guard, +10% when his hands are down or he's covering up. While he does it he's postured up (`POSTURED_UP`), so it opens the get-up, the tie-up and the armbar, as a ground punch does. Refused with nothing to strip | `posture_up.json` (`"posture"`) |
+| **The half-guard underhook** | In half guard one man has the near-side underhook (`UNDERHOOK`), or neither. Underneath he digs for it (45% + (Guard, Strength) − (Top control, Strength), +10% when the top man is postured up); on top the crossface takes it (45% the other way, +10% when he's covering up, −10% with a wrist held). With it underneath: the get-up +10%, the sweep +15%, back to guard +10%, and the pass against him −15%. With it on top: the pass +15%, his get-up −10%, his sweep −10% | `dig_underhook.json`, `crossface.json`; the `UNDERHOOK` openings in `guard_pass`, `get_up`, `sweep`, `recover_guard` |
+| **When they go** | Every ground grip goes when the position changes (a pass, a sweep, a get-up, the back), and with a new clinch | `FightSim._clear_grips()` |
+| **The AI underneath** | Ties up as before (more when he's being hit, `TIE_UP_PRESSED`), grabs a wrist half as often as that (`FighterAI.WRIST_WEIGHT` 0.5), and in half guard digs for the underhook, more the more he likes being on top (`HALF_UNDERHOOK` × (1 + Base / 100)) | the `wrist_control` and `dig_underhook` cases in `_tied()` |
+| **The AI on top** | Posturing up and the crossface are two of the ways he works position (`_work_position`, at its own pace, like a pass). Held by the head or both wrists he throws nothing until he's out; one wrist held he keeps punching with the other hand | `_pound()`, `_advance_reason()` |
+| **The referee** | Tying him up so he can't punch counts as answering him, as the tie-up did (D121); one wrist or the half-guard underhook doesn't | `FightSim._take_ground_grip()` |
+| **How they look** | Simple poses so each move shows (D282's rule: every move has a pose): both hands to his wrist, onto the side swimming the near arm in for the underhook, sitting up tall with the hands on his body, the forearm across his face | the `wrist_control`, `dig_underhook`, `posture_up` and `crossface` cases in `game/fighter_figure.gd` |
+| **The feed and the harness** | "TIES HIM UP from the bottom", "CONTROLS A WRIST", "POSTURES UP out of the tie-up", "CROSSFACES HIM", "DIGS THE UNDERHOOK". The harness's **Ground grip** line: ties up and wrists won of tried, how much of the time on top he was held and how much with no punches, postures up, and the share of half guard each had the underhook; CSV `ground_ties_*`, `wrists_*`, `postures_*`, `half_uhs_*`, `held_top_*`, `tied_top_*`, `half_uh_*` | `ui/fight_log_formatter.gd`, `sim/balance/` |
+
+**Finding the cause of fewer finishes.** The first version also had the man on top posture up on his own roll before he
+punched. That cost the wrestlers 10–12 points of ground finishes (the Pressure wrestler against the Kicker 74 → 62%, the
+Sambo fighter against the Boxer 77 → 66%), and pushed the Wrestler further out against the Dirty boxer and the Muay Thai
+fighter (to 83.5% and 66.5% for them). Taking things out one at a time showed it wasn't the grips underneath (no wrist control,
+no half-guard underhook, or no tie-up at all changed little): it was the turns the man on top spent posturing up instead of
+punching. Posturing up as one of his position moves instead put the finishes back where they were. Two clinch tweaks tried
+on the way (pummelling less) did nothing for the Wrestler, and were left out.
+
+Harness, no calls, 200 fights a pairing, seed 1, pro rules: main (at #101: with the clinch grips, reset to the centre and
+the career saves) → with D263. *Held on top* is the share of the grappler's time on top (the first-named, or the Wrestler)
+that a grip held him, and in brackets with no punches at all; *ties* are collar ties won by the man underneath him a fight.
+(The tuning above was measured against main at #91; the numbers below were run again on the latest main.)
+
+| Pairing | Wins (first-named): main → now | Finishes | Held on top (no punches) | Ties |
+|---|---|---|---|---|
+| Kicker vs Boxer | 38% → 38.5% | 29% → 27.5% | – | – |
+| Wrestler vs Kicker | 69% → 70.5% | 34% → 34% | 21.1% (16.4%) | 3.8 |
+| Wrestler vs Boxer | 79% → 79.5% | 42% → 44.5% | 21.9% (17.5%) | 6.1 |
+| Pressure wrestler vs Kicker | 95% → 93.5% | 68.5% → 74.5% | 20.8% (15.5%) | 5.3 |
+| Pressure wrestler vs Boxer | 88% → 88% | 35% → 44.5% | 22.2% (17.5%) | 8.2 |
+| Ground-and-pound wrestler vs Kicker | 87.5% → 84.5% | 87% → **74%** | 21.2% (16.7%) | 4.0 |
+| Ground-and-pound wrestler vs Boxer | 86.5% → 84% | 75.5% → 77% | 22.7% (17.3%) | 5.3 |
+| Dirty boxer vs Kicker | 26.5% → 25.5% | 15.5% → 14.5% | – | – |
+| Dirty boxer vs Boxer | 72.5% → 73.5% | 92.5% → 92.5% | – | – |
+| Dirty boxer vs Wrestler | 69% → 68.5% | 22% → 19.5% | Wrestler 23.8% (18.7%) | 6.2 |
+| Dirty boxer vs Muay Thai | 54.5% → 53% | 53% → 53% | – | – |
+| Muay Thai vs Kicker | 91.5% → 88% | 32.5% → 32% | – | – |
+| Muay Thai vs Boxer | 66.5% → 68.5% | 78% → 78.5% | – | – |
+| Muay Thai vs Wrestler | 60% → 55% | 49.5% → 51% | Wrestler 22.9% (17.2%) | 5.0 |
+| Judoka vs Boxer | 77% → **64%** | 51% → 53% | 16.3% (12.6%) | 4.6 |
+| Judoka vs Wrestler | 93% → 94% | 29.5% → 26.5% | 20.6% (15.4%) | 5.4 |
+| BJJ vs Boxer | 78% → 74% | 74% → 69% | 22.6% (18.2%) | 3.9 |
+| Sambo vs Boxer | 89.5% → 86% | 76% → 73% | 22.4% (17.4%) | 4.8 |
+
+What it says:
+- **Ground finishes about the same**, as Kyle asked: 52.5% of all these fights finished on main, 52.1% now. Most ground
+  pairings move a few points either way; the most are the Ground-and-pound wrestler against the Kicker, 87 → 74% (the Kicker
+  ties him up and grabs his wrists from underneath, and he can't punch until he postures up), and the Pressure wrestler against
+  the Boxer, 35 → 44.5% the other way.
+- **The grips are busy**: a man on top is held about a fifth of his time there, and can't punch for about a sixth; he postures up
+  2–4 times a fight. Strikers underneath tie up 4–8 times a fight; the half-guard underhook goes back and forth a few times a
+  fight.
+- **Kyle's balance rule (D220's)**: nothing inside 60/40 left it, and Muay Thai against the Wrestler came inside (60 → 55%).
+  Closer to even: the Judoka against the Boxer (77 → 64%), the BJJ fighter, the Sambo fighter and the Ground-and-pound
+  wrestler against the Boxer, the Muay Thai fighter against the Kicker, the Pressure wrestler and the Ground-and-pound
+  wrestler against the Kicker. Further out by 0.5–2 points, inside the dice: the Wrestler against the Kicker and the Boxer,
+  the Dirty boxer and the Muay Thai fighter against the Boxer, the Judoka against the Wrestler.
+
+Golden fights (§2.2): re-pinned (the ground fights play out differently with the grips).
+
+Tested in `tests/sim/fight/test_ground_grips.gd` (one wrist then both; one wrist makes his strikes harder and both stop them;
+the collar tie stops them, makes the pass harder and opens the triangle; a held wrist opens the armbar and the tie-up; a grip he
+already has is refused; posturing up frees the head first, then a wrist; nothing to strip is refused; posturing up opens the
+armbar and the get-up; the grips go when the position changes; the half-guard underhook's openings, and the crossface taking it
+back; the half-guard moves only in half guard; the AI ties up, grabs wrists and postures up; both fight for the half-guard
+underhook) and `tests/sim/fight/test_ground_and_pound.gd` (the tie-up is the collar tie now).
+
+Sources: [Evolve MMA, grip fighting in no-gi](https://evolve-mma.com/blog/heres-what-you-need-to-know-about-grip-fighting-in-no-gi-bjj/),
+[Evolve MMA, ground and pound](https://evolve-mma.com/blog/the-complete-guide-to-ground-and-pound/), as §40.1.
 
 ## 41. More ground and pound: hammerfists, body punches, the posture-up bomb, covering up and turning away (D270)
 Kyle asked to "increase ground and pound variety" (2026-10-31). Before this the man on top had one strike everyone knew (the

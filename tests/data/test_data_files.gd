@@ -213,13 +213,14 @@ func test_values_come_from_the_allowed_lists() -> void:
 				problems.append("action '%s': a %s move needs a '%s' block with base_success" % [id, category, category])
 			elif not block.get("partial_within", 0.0) is float or block.get("partial_within", 0.0) < 0.0:
 				problems.append("action '%s': %s.partial_within is a chance, 0 or more" % [id, category])
-			elif block.has("ties_up_ms") and ((category != "ground" and category != "clinch") or not block.ties_up_ms is float or block.ties_up_ms <= 0.0):
-				problems.append("action '%s': ties_up_ms (how long a tie-up breaks the opponent's posture) is a ground or clinch move's, in ms (D121, D129)" % id)
+			elif block.has("ties_up_ms") and (category != "clinch" or not block.ties_up_ms is float or block.ties_up_ms <= 0.0):
+				problems.append("action '%s': ties_up_ms (how long the collar tie breaks the opponent's posture) is a clinch move's, in ms (D129; on the ground the tie-up is a grip, D263)" % id)
 			elif (block.has("drives_m") or block.has("turns")) and (category != "clinch" or not block.get("drives_m", 1.0) is float \
 					or block.get("drives_m", 1.0) <= 0.0 or not block.get("turns", false) is bool):
 				problems.append("action '%s': drives_m (metres walked back to the fence, above 0) and turns (true or false) are a clinch move's (D220)" % id)
-			elif block.has("grip") and (category != "clinch" or block.grip not in ["inside", "strip"]):
-				problems.append("action '%s': grip (\"inside\" to pummel for an underhook, \"strip\" to take one of his off) is a clinch move's (D261)" % id)
+			elif block.has("grip") and not ((category == "clinch" and block.grip in ["inside", "strip"]) \
+					or (category == "ground" and block.grip in ["collar", "wrist", "posture", "half_inside"])):
+				problems.append("action '%s': grip is a clinch move's (\"inside\" to pummel for an underhook, \"strip\" to take one of his off, D261) or a ground move's (\"collar\", \"wrist\", \"posture\", \"half_inside\", D263)" % id)
 			elif (block.has("throw") or block.has("landing_damage")) and (category != "takedown" or not block.get("throw", false) is bool \
 					or not block.get("landing_damage", 0.0) is float or block.get("landing_damage", 0.0) < 0.0):
 				problems.append("action '%s': throw (true or false) and landing_damage (0 or more) are a takedown's (D128)" % id)

@@ -455,6 +455,13 @@ func _pair_lines(of_rows: Array[Dictionary], names: Dictionary) -> PackedStringA
 		average(of_rows, "strips_won_red"), average(of_rows, "strips_red"), average(of_rows, "turns_won_red"), average(of_rows, "turns_red"),
 		blue, _pct(average(of_rows, "underhook_blue")), _pct(average(of_rows, "body_lock_blue")), average(of_rows, "pummels_won_blue"), average(of_rows, "pummels_blue"),
 		average(of_rows, "strips_won_blue"), average(of_rows, "strips_blue"), average(of_rows, "turns_won_blue"), average(of_rows, "turns_blue")])
+	lines.append("  Ground grip %s ties up %.1f of %.1f, wrists %.1f of %.1f; held on top %s of his time there (no punches %s), postures up %.1f of %.1f; half-guard underhook %s, %.1f of %.1f · %s %.1f of %.1f, %.1f of %.1f; %s (%s), %.1f of %.1f; %s, %.1f of %.1f (D263)" % [
+		red, average(of_rows, "ground_ties_won_red"), average(of_rows, "ground_ties_red"), average(of_rows, "wrists_won_red"), average(of_rows, "wrists_red"),
+		_pct(average(of_rows, "held_top_red")), _pct(average(of_rows, "tied_top_red")), average(of_rows, "postures_won_red"), average(of_rows, "postures_red"),
+		_pct(average(of_rows, "half_uh_red")), average(of_rows, "half_uhs_won_red"), average(of_rows, "half_uhs_red"),
+		blue, average(of_rows, "ground_ties_won_blue"), average(of_rows, "ground_ties_blue"), average(of_rows, "wrists_won_blue"), average(of_rows, "wrists_blue"),
+		_pct(average(of_rows, "held_top_blue")), _pct(average(of_rows, "tied_top_blue")), average(of_rows, "postures_won_blue"), average(of_rows, "postures_blue"),
+		_pct(average(of_rows, "half_uh_blue")), average(of_rows, "half_uhs_won_blue"), average(of_rows, "half_uhs_blue")])
 	lines.append("  Positions  full guard %s · half guard %s · side control %s · mount %s · back %s of the fight · better positions on top %s %.1f, %s %.1f · out from under %s %.1f, %s %.1f a fight (D130)" % [
 		_pct(average(of_rows, "full_guard")), _pct(average(of_rows, "half_guard")), _pct(average(of_rows, "side_control")),
 		_pct(average(of_rows, "mount")), _pct(average(of_rows, "back_control")),

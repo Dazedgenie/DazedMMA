@@ -13,7 +13,8 @@
 	"stats": { "offense": ["submissions", "guard"], "defense": ["submission_defense", "strength"] },
 	"opportunities": [
 		{ "opponent_flag": "POSTURED_UP", "success_bonus": 0.20 },
-		{ "opponent_flag": "ESCAPING", "success_bonus": 0.20 }
+		{ "opponent_flag": "ESCAPING", "success_bonus": 0.20 },
+		{ "opponent_flag": "WRIST_HELD", "success_bonus": 0.10 }
 	],
 	"requires_technique": null
 }

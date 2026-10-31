@@ -163,7 +163,7 @@ func test_posturing_up_to_strike_gives_the_bottom_fighter_a_way_out() -> void:
 	assert_has(_bonus_names(sim.odds_breakdown(1, "tie_up").to_dict()), "POSTURED_UP")
 
 
-func test_a_tie_up_from_the_bottom_smothers_the_strike_and_stops_ground_strikes_for_a_while() -> void:
+func test_a_tie_up_from_the_bottom_smothers_the_strike_and_stops_ground_strikes_until_he_postures_up() -> void:
 	var tied: int = 0
 	for n in SEEDS:
 		var sim: FightSim = _on_the_ground({ "top_control": 0 }, { "guard": 100, "strength": 100 }, SEED + n)
@@ -174,10 +174,10 @@ func test_a_tie_up_from_the_bottom_smothers_the_strike_and_stops_ground_strikes_
 		if won.is_empty():
 			continue
 		tied += 1
-		assert_eq(won[0].data.result, "tied_up")
+		assert_eq(won[0].data.result, "collar", "the tie-up is the collar tie, held until he postures up (D263)")
 		assert_eq(sim.situation.position, "full_guard", "the fight stays where it is")
 		assert_eq(_events(sim, FightEvent.STRIKE_LANDED, 0).size(), 0, "the punch was smothered")
-		assert_gt(sim.fighters[0].tied_up_ticks, 20)
+		assert_true(sim.ground_grips().collar)
 		assert_has(sim.active_flags(0), "POSTURE_BROKEN")
 		_queue(sim, sim.now, 0, "ground_punch")
 		_ticks(sim, 8)
@@ -246,19 +246,24 @@ func test_underneath_a_fighter_under_fire_ties_up_and_gets_up() -> void:
 	assert_gt(starts.get("get_up", 0), 0, "and works to get up")
 
 
-func test_tied_up_the_fighter_on_top_holds_until_the_posture_comes_back() -> void:
+func test_tied_up_the_fighter_on_top_postures_up_before_he_punches_again() -> void:
 	var roster := FighterLibrary.load_dir()
 	var sim := FightSim.new(SEED, roster.make_pair("wrestler", "boxer"), _actions, 1, 300)
 	sim.apply_transition(0, "double_leg")
-	sim.fighters[0].tied_up_ticks = 30
+	sim.set_ground_grips(0, true)  # His head is tied (D263).
 	sim.fighters[1].work_rate = 0.0
+	var postured: int = -1
 	var thrown: int = 0
-	for k in 25:
+	for k in 300:
 		sim.tick()
+		if not sim.ground_grips().collar:
+			postured = k
+			break
 	for e in _events(sim, FightEvent.ACTION_PHASE, 0):
-		if e.data.phase == "telegraph":
+		if e.data.phase == "telegraph" and sim.actions.get_action(e.data.action_id).category == "strike":
 			thrown += 1
-	assert_eq(thrown, 0)
+	assert_gt(postured, -1, "he postures up out of it")
+	assert_eq(thrown, 0, "and throws nothing while his head is tied")
 
 
 # --- Judges ----------------------------------------------------------------------
