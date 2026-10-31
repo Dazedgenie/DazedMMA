@@ -1,6 +1,6 @@
 # 03 — Career, World & Life
 
-> Related decisions: D7, D16–D19, D21, D22, D25, D41–D45, D160, D300–D305. Status: **design draft**; §7.1 and §10.1–§10.4 are built.
+> Related decisions: D7, D16–D19, D21, D22, D25, D41–D45, D160, D300–D305. Status: **design draft**; §7.1 and §10.1–§10.5 are built.
 
 ---
 
@@ -233,7 +233,7 @@ Phase 1 joins what's built into a career that goes on from fight to fight and sa
 | The title screen and a new career | D302 | Built (§10.2) |
 | The career hub and the calendar | D303 | Built (§10.3) |
 | Fight offers and matchmaking | D304 | Built (§10.4) |
-| The aftermath, and skipping a fight | D305 | Next |
+| The aftermath, and skipping a fight | D305 | Built (§10.5) |
 
 ### 10.1 The career and its save file (D301)
 
@@ -416,8 +416,7 @@ from the career's dice. A career fight can't be restarted from the pause menu. W
 carries on, the fight week ends and the career saves. The result screen says what it did to his record and his money, and
 *Back to the hub* goes home.
 
-**Not yet:** what a fight does to him afterwards (damage, suspensions, time off: D305), simming a fight instead of watching
-it (D305), short-notice offers, a rematch, an opponent's own record and camp, and reputation for turning fights down.
+**Not yet:** short-notice offers, a rematch, an opponent's own record and camp, and reputation for turning fights down.
 
 **What to change:** every number above is a constant at the top of `sim/world/matchmaker.gd`; when offers come and how a
 fight is recorded are in `sim/world/career.gd` (`_check_offers`, `accept`, `finish_fight`); the offer cards in
@@ -425,4 +424,30 @@ fight is recorded are in `sim/world/career.gd` (`_check_offers`, `accept`, `fini
 (`open_career_camp`, `_career_fight`, `_finish_career_fight`). Tests: `tests/sim/world/test_matchmaker.gd`,
 `tests/ui/test_career_screens.gd`, `tests/game/test_main_scene.gd`. Fights themselves don't change (no golden re-pin).
 Then update this section and D304.
+
+### 10.5 The aftermath, and simming a fight (D305)
+
+The last piece of the career spine. The picks put to Kyle; Kyle (2026-10-31): "Sounds good for now".
+
+**The medical suspension.** After every fight the commission sits him out (`sim/world/aftermath.gd`): a KO loss 60 days and
+1 point of Chin gone for good; a TKO loss (the referee, the doctor or the towel) 30 days and half a point of Chin; a hard
+fight, won or lost, 21 days; any other fight 7 days. A hard fight is one where he was knocked down, or finished at least half
+hurt to the head or 60% hurt to the body (`Aftermath.is_hard`, from `FighterState.hurt`). The suspension counts from fight
+night, so by the Monday after two of its days are gone (`Career.FIGHT_TO_MONDAY`). While suspended no offers come (§10.4), the
+hub says how long is left and the calendar shows the week he's cleared. Each fight's line on his record keeps its suspension,
+why and the Chin lost. Chin already wears a little with hard sparring (`docs/02` §3.5); this is the knockout's own toll on
+top, and it doesn't heal.
+
+**Simming a fight.** The fight night card in a career has **Sim the fight** beside *Fight!*: the same fight (the booked man,
+the rules, a seed from the career's dice, the camp's condition), played out at once with the sound off and no calls (the
+fighters' own AI fights it), straight to the result screen, which says it was simmed. It counts exactly as a watched fight.
+
+**Not yet:** damage that carries over as named injuries, a doctor's check that can lengthen a
+suspension, and the AI corner coaching a simmed fight for him (D113).
+
+**What to change:** the days and the Chin in `sim/world/aftermath.gd` (`KO_DAYS`, `KO_CHIN`, `TKO_DAYS`, `TKO_CHIN`,
+`HARD_DAYS`, `HARD_HEAD`, `HARD_BODY`, `OTHER_DAYS`); where it's applied in `Career.finish_fight`; Sim the fight in
+`ui/fight_night_card.gd` and `game/main.gd` (`sim_career_fight`); the result line in `game/main.gd` (`aftermath_text`). Tests:
+`tests/sim/world/test_aftermath.gd`, `tests/game/test_main_scene.gd`. Fights don't change (no golden re-pin). Then update
+this section and D305.
 

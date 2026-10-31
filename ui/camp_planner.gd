@@ -15,6 +15,8 @@ signal fight_pressed(profile: Dictionary)
 signal back_pressed
 ## A camp week has run (its run_plan report): a career's planner moves the calendar on and saves (D304).
 signal week_ran(report: Dictionary)
+## Sim the fight on a career's fight night card (D305), with the fighter as the camp left him.
+signal sim_pressed(profile: Dictionary)
 
 ## Camp length in weeks: usually 4–8, 1–2 on short notice (docs/02 §4).
 const WEEKS_MIN: int = 1
@@ -202,6 +204,8 @@ func use_career(c: Career) -> void:
 		(heading as Label).visible = false
 	_reset.visible = false
 	_back.text = "Back to the hub"
+	night_card.sim_allowed = true
+	night_card.sim_pressed.connect(func() -> void: sim_pressed.emit(trained_profile()))
 	_refresh()
 
 

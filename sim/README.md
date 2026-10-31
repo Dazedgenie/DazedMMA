@@ -52,3 +52,4 @@ The career and world simulation (D100), starting with training (`docs/02` §3.5,
 | `training_camp.gd` | A fighter in training: runs week plans of sessions into attribute points, fatigue, style pushes, chin wear and camp injuries; `profile()` is the trained fighter@1 profile. Run by `tools/camp.gd` |
 | `career.gd` | One fighter's career (docs/03 §10, D301–D304): the calendar, his record, money, offers and the booked fight, saved as career@1 |
 | `matchmaker.gd` | Fight offers (docs/03 §10.4, D304): who's offered from the style sheets, how hard, when, under which rules and for what purse |
+| `aftermath.gd` | What a fight does to him afterwards (docs/03 §10.5, D305): the medical suspension and the Chin a knockout takes |

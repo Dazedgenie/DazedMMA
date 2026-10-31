@@ -245,6 +245,7 @@ func open_career_camp() -> void:
 	planner.use_career(career)
 	planner.week_ran.connect(_career_camp_week)
 	planner.fight_pressed.connect(_career_fight)
+	planner.sim_pressed.connect(sim_career_fight)
 	planner.back_pressed.connect(_career_camp_back)
 	$UI.add_child(planner)
 	$UI.move_child(_console, -1)
@@ -271,19 +272,35 @@ func _career_camp_back() -> void:
 
 ## Fight! from a career's camp: the booked man, under the booked rules, with a seed from the career's dice, saved first.
 func _career_fight(profile: Dictionary) -> void:
+	var s: Dictionary = _career_settings(profile)
+	save_career()
+	start_fight(s)
+
+
+## Sim the fight (D305): the same fight, played out at once with no sound, straight to the result. The fighters' own AI
+## fights it (the AI corner calls nothing for him: the player isn't watching).
+func sim_career_fight(profile: Dictionary) -> void:
+	var s: Dictionary = _career_settings(profile)
+	s.sim = true
+	s.sound_volume = 0.0
+	save_career()
+	start_fight(s)
+	while not driver.sim.is_over():
+		driver.step()
+
+
+func _career_settings(profile: Dictionary) -> Dictionary:
 	var opponent: Dictionary = career.booked_opponent()
 	_roster.add(opponent)
-	var s := {
+	return {
 		"career": true,
 		"label": "%s vs %s" % [career.fighter_name(), String(opponent.get("name", ""))],
 		"red": String(profile.id), "red_profile": profile, "blue": String(opponent.id),
 		"ruleset": String(career.booked.get("ruleset", Ruleset.DEFAULT_ID)),
 		"seed": career.next_seed(), "normal_rate": 2.0, "auto_slow": true, "flourishes": true, "tell_cues": true,
-		"sound_volume": float(settings.get("sound_volume", 1.0)), "easy": false, "rules": [],
+		"sound_volume": float(setup.settings().get("sound_volume", 1.0)), "easy": false, "rules": [],
 		"camp": planner.summary(),
 	}
-	save_career()
-	start_fight(s)
 
 
 ## A career fight is over (D304): onto his record (Career.finish_fight), any injury fighting hurt made worse, saved.
@@ -299,14 +316,34 @@ func _finish_career_fight(sim: FightSim, record: Dictionary, injury: Dictionary)
 	if not injury.is_empty():
 		career.trainee.injured_days = int(injury.days_out)
 		career.trainee.injury_area = String(injury.area)
+	var me: FighterState = sim.fighters[driver.player]
 	var paid: int = career.finish_fight({ "result": result, "method": method_text(String(ended.get("result", ""))),
-		"round": sim.clock.current_round, "seed": sim.fight_seed })
+		"round": sim.clock.current_round, "seed": sim.fight_seed, "simmed": bool(settings.get("sim", false)),
+		"hard": Aftermath.is_hard(me.hurt("head"), me.hurt("body"), me.knockdowns) })
 	save_career()
-	var lines: Array[String] = ["%s: %s on his %s record, now %s." % [career.fighter_name(), result.to_upper(), "pro" if career.pro else "amateur",
-		career.record_text(career.pro)]]
+	var lines: Array[String] = []
+	if bool(settings.get("sim", false)):
+		lines.append("Simmed: the fighters' own AI fought it.")
+	lines.append("%s: %s on his %s record, now %s." % [career.fighter_name(), result.to_upper(), "pro" if career.pro else "amateur",
+		career.record_text(career.pro)])
 	if paid > 0:
 		lines.append("Paid $%d. Savings: $%d." % [paid, career.money])
+	lines.append(aftermath_text(career.fights[-1]))
 	return lines
+
+
+## The aftermath line for the result screen: the suspension and why, and any Chin lost.
+static func aftermath_text(fight: Dictionary) -> String:
+	var days: int = int(fight.get("suspension_days", 0))
+	var lost: float = float(fight.get("chin_lost", 0.0))
+	var out: String = "Medical suspension: %d days" % days
+	var why: String = String(fight.get("suspension_why", ""))
+	if why != "":
+		out += " (%s)" % why
+	out += "."
+	if lost > 0.0:
+		out += " [color=#ff8787]He loses %s Chin for good.[/color]" % ("%.1f" % lost).trim_suffix(".0")
+	return out
 
 
 ## How a fight ended, as his fights list says it: "KO", "TKO", "Submission", "Unanimous decision"…

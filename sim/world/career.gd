@@ -46,6 +46,8 @@ const FIGHT_NIGHT := "fight_night"
 const WORN_DOWN := "worn_down"
 ## Fight offers came in (D304): { kind, count }.
 const OFFERS := "offers"
+## Days from fight night (Saturday) to the Monday after it.
+const FIGHT_TO_MONDAY: int = 2
 ## How many weeks a year has for a birthday: TrainingCamp ages him 1/52 of a year a week (docs/02 §3.8).
 const WEEKS_PER_YEAR: float = 52.0
 
@@ -308,18 +310,29 @@ func booked_opponent() -> Dictionary:
 
 
 ## The booked fight is over (D304): onto his record, his purse paid, the fight week done. `entry` is as add_fight()
-## takes it, without `opponent` (the booked one). Returns what he was paid.
+## takes it, without `opponent` (the booked one), and `hard` (Aftermath.is_hard) when it was a hard fight for him.
+## Then the aftermath (D305, Aftermath.of): a medical suspension counted from fight night, and the Chin a knockout
+## takes for good; the fight's entry keeps them (`suspension_days`, `suspension_why`, `chin_lost`). Returns what he was paid.
 func finish_fight(entry: Dictionary) -> int:
 	var e: Dictionary = entry.duplicate(true)
+	var hard: bool = bool(e.get("hard", false))
+	e.erase("hard")
 	e.opponent = String(booked.get("opponent", ""))
 	e.ruleset = String(booked.get("ruleset", ""))
 	var purse: Dictionary = booked.get("purse", {})
 	var paid: int = int(purse.get("show", 0)) + (int(purse.get("win", 0)) if String(e.result) == "win" else 0)
 	if paid > 0:
 		e.purse = paid
+	var after: Dictionary = Aftermath.of(String(e.result), String(e.get("method", "")), hard)
+	e.suspension_days = int(after.days)
+	e.chin_lost = float(after.chin)
+	e.suspension_why = String(after.why)
 	add_fight(e)
 	money += paid
+	trainee.stats["chin"] = maxf(0.0, trainee.stat("chin") - float(after.chin))
 	_after_booking()
+	# The suspension runs from fight night (Saturday): by Monday two of its days are gone.
+	suspended_days = maxi(suspended_days, int(after.days) - FIGHT_TO_MONDAY)
 	return paid
 
 
