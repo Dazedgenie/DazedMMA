@@ -115,6 +115,8 @@ static func _describe(event: FightEvent, sim: FightSim) -> String:
 			var them: String = _fighter(1 - event.actor, sim)
 			if event.data.has("reason"):
 				return "%s feints at nothing (%s)" % [who, event.data.reason]
+			if event.data.get("sold", false):
+				return "%s feints at the way out and %s [b]BITES[/b]: he thinks it's shut%s" % [who, them, _odds(event)]
 			if event.data.bit:
 				return "%s feints and %s [b]BITES[/b]: hands up, weight back%s" % [who, them, _odds(event)]
 			return "%s feints; %s doesn't bite%s" % [who, them, _odds(event)]
@@ -225,6 +227,8 @@ static func movement_line(sim: FightSim, i: int) -> String:
 	var line: String = "%s circled %s · cut off the cage %s" % [_fighter(i, sim), _fight_time(sim.circling_ticks[i], sim.now), _fight_time(sim.cutting_ticks[i], sim.now)]
 	if sim.cut_offs[i] > 0:
 		line += " · trapped him on the fence %d time%s" % [sim.cut_offs[i], "" if sim.cut_offs[i] == 1 else "s"]
+	if sim.doors_sold[i] > 0:
+		line += " · sold him a way out shut %d time%s (he turned back into it %d)" % [sim.doors_sold[i], "" if sim.doors_sold[i] == 1 else "s", sim.turned_back[i]]
 	var trapped: int = sim.cut_offs[1 - i]
 	if trapped > 0:
 		line += " · got back to the middle %d of %d time%s he was trapped" % [sim.cage_escapes[i], trapped, "" if trapped == 1 else "s"]

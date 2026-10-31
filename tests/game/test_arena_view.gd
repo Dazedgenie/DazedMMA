@@ -242,4 +242,82 @@ func test_the_face_gloves_and_toes_are_on_the_front_of_the_fighter() -> void:
 	assert_gt(figure._gloves[0].global_position.x, figure._hips.global_position.x, "his guard is up in front of him")
 	sim.apply_transition(0, "double_leg")
 	figure.show_state(sim, 0, Vector2.ZERO, Vector2(1.0, 0.0), 1.0)
-	assert_false(figure._feet[0].visible, "kneeling on top, only the thigh shows")
+	assert_true(figure._feet[0].visible, "kneeling keeps the folded lower leg and foot")
+	assert_almost_eq(figure._shins[0].global_position.y, 0.075, 0.005, "the knee rests on the canvas")
+	assert_lt(figure._feet[0].global_position.x, figure._shins[0].global_position.x, "the shin folds behind the knee")
+
+
+func test_the_closer_camera_keeps_heads_and_feet_clear_of_the_top_and_bottom_hud() -> void:
+	var viewport := SubViewport.new()
+	viewport.size = Vector2i(1920, 1080)
+	add_child_autofree(viewport)
+	var view := ArenaView.new()
+	viewport.add_child(view)
+	var sim: FightSim = _sim()
+	view.watch(FightDriver.new(sim))
+	for pair: Array in [
+		[Vector2(-0.7, 0.7), Vector2(0.7, -0.7)],
+		[Vector2(2.8, 1.8), Vector2(3.8, 0.6)],
+		[Vector2(-3.8, -0.6), Vector2(-2.8, -1.8)],
+		[Vector2(-4, 0), Vector2(4, 0)],
+		[Vector2(-2.8, -2.8), Vector2(2.8, 2.8)]
+	]:
+		for i in 2:
+			sim.fighters[i].pos = pair[i]
+		for frame in 30:
+			view._place_camera(0.2, (pair[0] + pair[1]) / 2.0, sim)
+		for at: Vector2 in pair:
+			for height: float in [0.0, 2.0]:
+				var point := Vector3(at.x, height, at.y)
+				var screen: Vector2 = view.camera.unproject_position(point) / Vector2(viewport.size)
+				assert_false(view.camera.is_position_behind(point))
+				assert_between(screen.x, 0.08, 0.92, "both fighters fit horizontally")
+				assert_between(screen.y, 0.18, 0.82, "heads and feet clear the broadcast/control bars")
+
+
+func test_clearing_the_arena_detaches_the_old_fight_events() -> void:
+	var view := ArenaView.new()
+	add_child_autofree(view)
+	var sim: FightSim = _sim()
+	view.watch(FightDriver.new(sim))
+	view.watch(null)
+	assert_false(sim.event_emitted.is_connected(view._on_event))
+	sim.event_emitted.emit(FightEvent.new(1, 1, FightEvent.STRIKE_LANDED, 0, {"target": "head", "damage": 10}))
+	assert_true(view.figures.is_empty())
+
+
+func test_idle_feet_touch_the_mat_and_a_kick_can_lift_then_replant_them() -> void:
+	var sim: FightSim = _sim()
+	var figure := FighterFigure.new(Color.BLUE, false, 1)
+	add_child_autofree(figure)
+	figure.show_state(sim, 1, Vector2.ZERO, Vector2(1, 0), 1.0)
+	for foot: MeshInstance3D in figure._feet:
+		assert_almost_eq(_lowest_vertex(foot), 0.0, 0.005, "the neutral stance meets the canvas")
+	sim.fighters[1].action_id = "body_kick"
+	sim.fighters[1].phase = "active"
+	figure.show_state(sim, 1, Vector2.ZERO, Vector2(1, 0), 1.0)
+	assert_gt(_lowest_vertex(figure._feet[1]), 0.4, "planting must not pin a kicking foot to the floor")
+	sim.fighters[1].clear_action()
+	figure.show_state(sim, 1, Vector2.ZERO, Vector2(1, 0), 1.0)
+	for foot: MeshInstance3D in figure._feet:
+		assert_almost_eq(_lowest_vertex(foot), 0.0, 0.005, "returning to guard restores the stance")
+
+
+func _lowest_vertex(mesh: MeshInstance3D) -> float:
+	var lowest: float = INF
+	var vertices: PackedVector3Array = mesh.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+	for point: Vector3 in vertices:
+		lowest = minf(lowest, mesh.to_global(point).y)
+	return lowest
+
+
+func test_clinch_bodies_have_room_at_the_fence_without_moving_the_sim() -> void:
+	var sim: FightSim = _sim()
+	sim.apply_transition(0, "clinch_entry")
+	var before: Array[Vector2] = [sim.fighters[0].pos, sim.fighters[1].pos]
+	var spots: Array[Vector2] = [Vector2(3.9, 0), Vector2(4.2, 0)]
+	var placed: Array[Dictionary] = ArenaView.ground_spots(sim, spots)
+	assert_gt(placed[0].at.distance_to(placed[1].at), 0.75, "the sculpted torsos must not pass through each other")
+	for pose: Dictionary in placed:
+		assert_gte(Octagon.distance_to_fence(pose.at), Octagon.BODY_MARGIN - 0.001)
+	assert_eq([sim.fighters[0].pos, sim.fighters[1].pos], before, "spacing is presentation-only")

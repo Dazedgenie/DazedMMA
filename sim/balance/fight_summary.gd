@@ -30,6 +30,7 @@ const COLUMNS: Array[String] = [
 	"fence_red", "pinned_red", "centre_red", "fence_blue", "pinned_blue", "centre_blue", "chase",
 	"circling_red", "cutting_red", "circling_blue", "cutting_blue", "cut_offs_red", "cut_offs_blue",
 	"cage_escapes_red", "cage_escapes_blue", "shut_in_red", "shut_in_blue", "cut_hurt_red", "cut_hurt_blue",
+	"doors_sold_red", "doors_sold_blue", "turned_back_red", "turned_back_blue",
 	"shots_red", "takedowns_red", "shots_blue", "takedowns_blue", "clinch", "ground", "top_red", "top_blue",
 	"subs_red", "locked_red", "subs_blue", "locked_blue",
 	"leg_locks_red", "leg_locked_red", "leg_locks_blue", "leg_locked_blue", "leg_lock_finish",
@@ -48,6 +49,8 @@ const COLUMNS: Array[String] = [
 	"calls_red", "calls_blue", "fired_red", "fired_blue",
 	"chosen_ai_red", "chosen_call_red", "chosen_rule_red", "chosen_command_red",
 	"chosen_ai_blue", "chosen_call_blue", "chosen_rule_blue", "chosen_command_blue",
+	"ai_defence_red", "ai_counter_red", "ai_combination_red", "ai_set_up_red", "ai_lead_red", "ai_cage_red", "ai_tied_red", "ai_downed_red",
+	"ai_defence_blue", "ai_counter_blue", "ai_combination_blue", "ai_set_up_blue", "ai_lead_blue", "ai_cage_blue", "ai_tied_blue", "ai_downed_blue",
 ]
 const SIDES: Array[String] = ["red", "blue"]
 ## The ground positions whose share of the fight each row reports (D130).
@@ -228,6 +231,8 @@ static func of(sim: FightSim, lows: Array[float] = [], moves: Dictionary = {}) -
 			row["%s_%s" % [key, side]] = 0
 		for layer: String in CHOOSERS:
 			row["chosen_%s_%s" % [layer, side]] = 0
+		for part: String in FighterAI.PARTS:
+			row["ai_%s_%s" % [part, side]] = f.ai_parts.get(part, 0)  # Which part of his own AI chose them (D254).
 		row["top_" + side] = _share_of(moves.get("top", [0, 0])[i], ticks)
 		row["circling_" + side] = _seconds(sim.circling_ticks[i])
 		row["cutting_" + side] = _seconds(sim.cutting_ticks[i])
@@ -235,6 +240,8 @@ static func of(sim: FightSim, lows: Array[float] = [], moves: Dictionary = {}) -
 		row["cage_escapes_" + side] = sim.cage_escapes[i]
 		row["shut_in_" + side] = _seconds(sim.shut_in_ticks[i])
 		row["cut_hurt_" + side] = sim.cut_damage_taken[i]
+		row["doors_sold_" + side] = sim.doors_sold[i]
+		row["turned_back_" + side] = sim.turned_back[i]
 		for key: String in ["fence", "pinned", "centre"]:
 			row[key + "_" + side] = _share_of(moves.get(key, [0, 0])[i], standing)
 	for e in sim.events:

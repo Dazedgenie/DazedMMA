@@ -8,6 +8,8 @@ extends RefCounted
 ## D97: draws under 2%, and 10-10 rounds very rare (read here as under 2% of judges' round cards).
 const DRAWS_UNDER: float = 0.02
 const EVEN_CARDS_UNDER: float = 0.02
+## FighterAI.PARTS as the AI parts line names them (D254).
+const PART_NAMES: Array[String] = ["defence", "counter", "combination", "set-up", "lead", "cage", "tied up", "downed"]
 ## docs/12 §4: the showcase pair should be within 60/40 once the AI (#14) lands.
 const SHOWCASE: Array[String] = ["kicker", "boxer"]
 const SHOWCASE_WITHIN: float = 0.6
@@ -461,6 +463,7 @@ func _pair_lines(of_rows: Array[Dictionary], names: Dictionary) -> PackedStringA
 		blue, average(of_rows, "checked_blue"), average(of_rows, "checks_blue"), average(of_rows, "slipped_blue"), average(of_rows, "slips_blue"), average(of_rows, "covered_hits_blue")])
 	lines.append("  GnP        %s %s · %s %s (D270)" % [red, _gnp_line(of_rows, "red", "blue"), blue, _gnp_line(of_rows, "blue", "red")])
 	lines.append("  Chosen by  %s %s · %s %s (D250)" % [red, _chosen_line(of_rows, "red"), blue, _chosen_line(of_rows, "blue")])
+	lines.append("  AI parts   %s %s · %s %s (D254)" % [red, _parts_line(of_rows, "red"), blue, _parts_line(of_rows, "blue")])
 	lines.append("  Tired      someone under 50%% of the tank in %s of fights" % _pct(tired_share(of_rows)))
 	lines.append("  Odds       %s of exchanges hit the 5–95%% clamp" % _pct(clamped_share(of_rows)))
 	return lines
@@ -490,6 +493,21 @@ static func _chosen_line(of_rows: Array[Dictionary], side: String) -> String:
 	return "%s of %.0f moves a fight" % [" · ".join(parts), total]
 
 
+## Which part of a side's own AI chose its moves (FighterAI.PARTS, D254), as shares, the ones it never used
+## left out: "lead 61.2% · counter 20.4% · combination 12.0% · defence 6.4% of 140 a fight".
+static func _parts_line(of_rows: Array[Dictionary], side: String) -> String:
+	var counts: Array[float] = []
+	var total: float = 0.0
+	for part: String in FighterAI.PARTS:
+		counts.append(average(of_rows, "ai_%s_%s" % [part, side]))
+		total += counts[-1]
+	var shown: PackedStringArray = []
+	for n in counts.size():
+		if counts[n] > 0.0:
+			shown.append("%s %s" % [PART_NAMES[n], _pct(counts[n] / total)])
+	return "%s of %.0f a fight" % [" · ".join(shown) if not shown.is_empty() else "nothing", total]
+
+
 ## A share of these fights with its 95% range (D250): "55.0% (45.3–64.4%)".
 static func _share_text(of_rows: Array[Dictionary], fraction: float) -> String:
 	return BalanceStats.share_text(fraction, BalanceStats.wilson(fraction * of_rows.size(), of_rows.size()))
@@ -497,15 +515,17 @@ static func _share_text(of_rows: Array[Dictionary], fraction: float) -> String:
 
 ## A fight-seconds column as "m:ss a fight (share of fight time)", e.g. "6:12 a fight (41%)" (D119).
 ## Being cut off (D233), for one side: how often he got back to the middle of the times he was
-## cut off onto the fence, how long he was shut in, and what cutting him off cost the other man.
+## cut off onto the fence, how long he was shut in, and what cutting him off cost the other man;
+## then the doors the other man sold him shut with a feint and how often he turned back into it (D235).
 static func _cut_off_line(of_rows: Array[Dictionary], who: String, side: String, other: String) -> String:
 	var trapped: float = average(of_rows, "cut_offs_" + other)
 	if trapped < 0.05:
 		return "%s never cut off" % who
 	var escaped: float = average(of_rows, "cage_escapes_" + side)
 	var seconds: int = roundi(average(of_rows, "shut_in_" + side))
-	return "%s got back to the middle %.1f of %.1f times a fight (%s), shut in %d:%02d, %.0f damage to the man cutting him off" % [
-		who, escaped, trapped, _pct(escaped / trapped if trapped > 0.0 else 0.0), seconds / 60, seconds % 60, average(of_rows, "cut_hurt_" + other)]
+	return "%s got back to the middle %.1f of %.1f times a fight (%s), shut in %d:%02d, %.0f damage to the man cutting him off, sold %.1f doors shut (turned back into %.1f)" % [
+		who, escaped, trapped, _pct(escaped / trapped if trapped > 0.0 else 0.0), seconds / 60, seconds % 60, average(of_rows, "cut_hurt_" + other),
+		average(of_rows, "doors_sold_" + other), average(of_rows, "turned_back_" + other)]
 
 
 static func _time_line(of_rows: Array[Dictionary], key: String) -> String:

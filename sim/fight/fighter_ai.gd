@@ -44,6 +44,20 @@ const GROUND := "ground"
 const SUBMISSION := "submission"
 const TELL := "tell"
 const COMBO := "combo"
+## The parts of choose() a move can come from, for the harness's AI parts line (D254): answering a
+## move it read with a defence (sprawl, check, slip) or covering up rocked; countering (an opening it
+## read, meeting an advance, a guillotine on a shot, catching a burst); the next strike of a combination;
+## a set-up (a tell it spotted, the shot off its own feint); a lead of its own; cage work (herding,
+## tying him up off the fence); tied up in the clinch or on the ground; a downed opponent.
+const PART_DEFENCE := "defence"
+const PART_COUNTER := "counter"
+const PART_COMBINATION := "combination"
+const PART_SET_UP := "set_up"
+const PART_LEAD := "lead"
+const PART_CAGE := "cage"
+const PART_TIED := "tied"
+const PART_DOWNED := "downed"
+const PARTS: Array[String] = [PART_DEFENCE, PART_COUNTER, PART_COMBINATION, PART_SET_UP, PART_LEAD, PART_CAGE, PART_TIED, PART_DOWNED]
 ## Far to close: the bands a standing fighter can plan to fight from.
 const BANDS: Array[String] = [Octagon.BAND_LONG, Octagon.BAND_MID, Octagon.BAND_POCKET]
 ## Inside each band, where a fighter may stand (between the band's edges, a little in).
@@ -194,6 +208,8 @@ const INTERCEPT_CUT_OFF: float = 0.2
 ## HERD_FENCE of the fence, a cutter feints on a chance of HERD_RATE × Cage cutting / 100 a free
 ## tick. If it bites, he plants for a beat (FightSim.BIT_FEET) and the cut closes the door.
 const HERD_RATE: float = 0.015
+## With a way out still open to sell shut (D235), he feints at it DOOR_HERD times as often.
+const DOOR_HERD: float = 3.0
 const HERD_FENCE: float = 1.5
 ## Closer to the centre than this, no fence is within HERD_FENCE.
 const CLEAR_OF_HERD: float = Octagon.APOTHEM - Octagon.BODY_MARGIN - HERD_FENCE - 0.01
@@ -242,6 +258,11 @@ const ESCAPE_TICKS: int = 15
 ## the cutter has to read again (FightSim.CUT_READ_BASE).
 const REVERSE_RATE: float = 0.06
 const REVERSE_TICKS: int = 8
+## A door sold shut by a feint (D235, FightSim.SOLD_TICKS): sure his way's shut, he reverses
+## SOLD_REVERSE times as readily, back into the cut; the cutter catches him turning back as he
+## catches a burst (CATCH_RATE), for TURN_CATCH_TICKS after the turn.
+const SOLD_REVERSE: float = 3.0
+const TURN_CATCH_TICKS: int = 3
 ## Shut in (D234, Kyle: "Pick by style"): with every way out shut by a cage cutter, a fighter
 ## answers by style. Outside fighters (Range below 0) burst out round him, all they can for
 ## BURST_TICKS (FightSim.BURST_EXTRA), on a chance of BURST_RATE × Fight IQ / 100 a tick and at
@@ -467,44 +488,52 @@ func choose(view: FightView, layer: DecisionLayer) -> Decision:
 	if f.repertoire.is_empty() or f.work_rate <= 0.0:
 		return DecisionLayer.IDLE
 	if view.opponent.is_down():
-		return _downed(view, layer)
+		return _part(_downed(view, layer), PART_DOWNED)
 	_choice_ready = false
 	if not view.is_standing():
-		return _tied(view, layer)
+		return _part(_tied(view, layer), PART_TIED)
 	if f.is_rocked():
 		var cover: Decision = _cover(view, layer)
 		if cover != null:
-			return cover
+			return _part(cover, PART_DEFENCE)
 		# Hurt: only the odd desperate shot.
-		return _lead(view, layer) if _leads(view, layer) else DecisionLayer.IDLE
+		return _part(_lead(view, layer), PART_LEAD) if _leads(view, layer) else DecisionLayer.IDLE
 	var registered: bool = _registered(view)
 	var d: Decision = null
 	if registered and _opp.category == TAKEDOWN:
-		d = _defend(view, layer)
+		d = _part(_defend(view, layer), PART_DEFENCE)
 	elif registered and _opp.category == STRIKE:
-		d = _guard(view, layer)
+		d = _part(_guard(view, layer), PART_DEFENCE)
 	if d == null:
-		d = _guillotine(view, layer)
+		d = _part(_guillotine(view, layer), PART_COUNTER)
 	if d == null and not _follow.is_empty():
-		d = _follow_up(view, layer)
+		var kind: String = _follow.kind
+		d = _part(_follow_up(view, layer), PART_SET_UP if kind == TELL else PART_COMBINATION)
 	if d == null and registered and not _opp.decided:
-		d = _opening(view, layer)
+		d = _part(_opening(view, layer), PART_COUNTER)
 	if d == null:
 		if _closing < INTERCEPT_CLOSING or not view.opponent.is_free():
 			_met_advance = false
 		elif not _met_advance:
-			d = _meet_advance(view, layer)
+			d = _part(_meet_advance(view, layer), PART_COUNTER)
 	if d == null:
-		d = _shut_in_tie_up(view, layer)
+		d = _part(_shut_in_tie_up(view, layer), PART_CAGE)
 	if d == null:
-		d = _catch_burst(view, layer)
+		d = _part(_catch_burst(view, layer), PART_COUNTER)
 	if d == null:
-		d = _herd(view)
+		d = _part(_herd(view), PART_CAGE)
 	if d != null:
 		return d
 	if _leads(view, layer):
-		return _lead(view, layer)
+		return _part(_lead(view, layer), PART_LEAD)
 	return DecisionLayer.IDLE
+
+
+## Marks which part of choose() a move came from (PARTS, D254): only a real move, never the shared idle.
+static func _part(d: Decision, part: String) -> Decision:
+	if d != null and not d.is_idle() and d.part == "":
+		d.part = part
+	return d
 
 
 ## How this fighter answers being shut in (D234): ANSWER_BURST, ANSWER_TIE_UP or ANSWER_PLANT.
@@ -526,9 +555,11 @@ func _shut_in_tie_up(view: FightView, layer: DecisionLayer) -> Decision:
 	return Decision.new(CLINCH_ENTRY, DecisionLayer.AI, "ties him up off the fence")
 
 
-## The man he's cutting off bursts out past him: once a burst, throw his best strike at him (CATCH_RATE).
+## The man he's cutting off bursts out past him, or turns back off a door sold shut (D235): once
+## each, throw his best strike at him (CATCH_RATE).
 func _catch_burst(view: FightView, layer: DecisionLayer) -> Decision:
-	if not view.opponent_bursting() or _burst_read_at >= view.now - BURST_TICKS:
+	var turned: bool = view.opponent_turned_back(TURN_CATCH_TICKS)
+	if not (turned or view.opponent_bursting()) or _burst_read_at >= view.now - BURST_TICKS:
 		return null
 	_burst_read_at = view.now
 	if view.roll() >= CATCH_RATE * view.me.effective_stat("cage_cutting") / 100.0:
@@ -537,7 +568,7 @@ func _catch_burst(view: FightView, layer: DecisionLayer) -> Decision:
 	var weights: Array[float] = []
 	if not _strikes(view, layer, options, weights):
 		return null
-	return Decision.new(options[_pick(view, weights)], DecisionLayer.AI, "catches him bursting out")
+	return Decision.new(options[_pick(view, weights)], DecisionLayer.AI, "catches him turning back into it" if turned else "catches him bursting out")
 
 
 ## Herding (D230): cutting him off as he circles by the fence, feint to plant his feet (HERD_RATE).
@@ -548,11 +579,12 @@ func _herd(view: FightView) -> Decision:
 		return null
 	if Octagon.distance_to_fence(view.opponent.pos) - Octagon.BODY_MARGIN >= HERD_FENCE:
 		return null
-	if view.roll() >= HERD_RATE * view.me.effective_stat("cage_cutting") / 100.0:
+	var door: bool = view.opponent_door_open()
+	if view.roll() >= HERD_RATE * (DOOR_HERD if door else 1.0) * view.me.effective_stat("cage_cutting") / 100.0:
 		return null
 	if not view.actions.has(FightSim.FEINT) or not _usable(view, view.actions.get_action(FightSim.FEINT)):
 		return null
-	return Decision.new(FightSim.FEINT, DecisionLayer.AI, "herds him with a feint")
+	return Decision.new(FightSim.FEINT, DecisionLayer.AI, "feints at his way out" if door else "herds him with a feint")
 
 
 ## The opponent is down from a knockdown (D141, D142): follow him down to the ground and
@@ -1622,7 +1654,7 @@ func _plan_steps(view: FightView, layer: DecisionLayer, out: FeetPlan) -> void:
 			and me.pos.length_squared() >= CLEAR_OF_SWITCH * CLEAR_OF_SWITCH \
 			and o.pos.length_squared() < me.pos.length_squared() \
 			and view.way_out() == -view.circle_way() \
-			and view.roll() < REVERSE_RATE * _feet_outside * me.effective_stat("fight_iq") / 100.0:
+			and view.roll() < REVERSE_RATE * (SOLD_REVERSE if view.sold() else 1.0) * _feet_outside * me.effective_stat("fight_iq") / 100.0:
 		# Cut off: the way he's going is shut and the other way's open: turn back before it shuts too.
 		_reverse_until = view.now + REVERSE_TICKS
 		_reverse_way = view.way_out()
