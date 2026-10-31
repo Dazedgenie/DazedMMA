@@ -108,7 +108,8 @@ func test_a_career_comes_back_from_its_save_exactly() -> void:
 	var saved: Dictionary = _through_json(c.to_dict())
 	var back: Career = Career.from_dict(saved)
 	assert_not_null(back, Career.load_error)
-	assert_eq(_text(back.to_dict()), _text(saved), "everything in the save comes back")
+	_assert_same(_through_json(back.to_dict()), saved, "career")
+	assert_eq(back.to_dict().dice, saved.dice, "the dice come back")
 	assert_eq(back.week, 3)
 	assert_eq(back.date_text(), c.date_text())
 	assert_eq(back.record_text(false), "1-0-0")
@@ -126,7 +127,8 @@ func test_a_reloaded_career_carries_on_as_if_it_never_stopped() -> void:
 		straight.run_week("all_out")
 		reloaded.run_week("all_out")
 	assert_eq(reloaded.next_seed(), straight.next_seed(), "the career's dice carry on")
-	assert_eq(_text(reloaded.to_dict()), _text(straight.to_dict()), "the same weeks, injuries and points as without the save")
+	# The same weeks, injuries and points as without the save.
+	_assert_same(_through_json(reloaded.to_dict()), _through_json(straight.to_dict()), "career")
 
 
 func test_the_same_seed_plays_the_same_career() -> void:
@@ -171,3 +173,20 @@ func test_the_load_screen_summary_says_who_when_and_how_he_is_doing() -> void:
 	assert_eq(s.date, "Mon 4 Jan 2027")
 	assert_eq(s.amateur_record, "0-0-0")
 	assert_false(s.pro)
+
+
+## The two are the same, numbers to within a billionth: a number read back from a JSON file can come back a last
+## binary digit off (about 1e-16 of it), which no dice roll can tell apart.
+func _assert_same(got: Variant, want: Variant, path: String = "") -> void:
+	if want is Dictionary:
+		assert_true(got is Dictionary and got.size() == want.size(), "%s has the same keys" % path)
+		for key: Variant in want:
+			_assert_same(got.get(key) if got is Dictionary else null, want[key], "%s.%s" % [path, key])
+	elif want is Array:
+		assert_true(got is Array and got.size() == want.size(), "%s has the same length" % path)
+		for i in mini(want.size(), got.size() if got is Array else 0):
+			_assert_same(got[i], want[i], "%s[%d]" % [path, i])
+	elif want is float or want is int:
+		assert_true((got is float or got is int) and absf(float(got) - float(want)) <= 1e-9 * maxf(1.0, absf(float(want))), "%s: %s vs %s" % [path, got, want])
+	else:
+		assert_eq(got, want, path)
