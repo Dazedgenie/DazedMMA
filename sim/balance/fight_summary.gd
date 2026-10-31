@@ -46,7 +46,9 @@ const COLUMNS: Array[String] = [
 	"postures_red", "postures_won_red", "half_uhs_red", "half_uhs_won_red",
 	"held_top_blue", "tied_top_blue", "half_uh_blue", "ground_ties_blue", "ground_ties_won_blue", "wrists_blue", "wrists_won_blue",
 	"postures_blue", "postures_won_blue", "half_uhs_blue", "half_uhs_won_blue",
-	"full_guard", "half_guard", "side_control", "mount", "back_control", "advances_red", "escapes_red", "advances_blue", "escapes_blue",
+	"frames_red", "frames_won_red", "crucifixes_red", "crucifixes_won_red", "two_on_ones_red", "two_on_ones_won_red",
+	"frames_blue", "frames_won_blue", "crucifixes_blue", "crucifixes_won_blue", "two_on_ones_blue", "two_on_ones_won_blue",
+	"full_guard", "half_guard", "side_control", "mount", "back_control", "crucifix", "advances_red", "escapes_red", "advances_blue", "escapes_blue",
 	"feints_red", "feints_bit_red", "blind_red", "blind_landed_red", "feints_blue", "feints_bit_blue", "blind_blue", "blind_landed_blue",
 	"off_feint_red", "off_feint_landed_red", "off_feint_blue", "off_feint_landed_blue",
 	"combos_red", "combo_strikes_red", "combo_landed_red", "combos_blue", "combo_strikes_blue", "combo_landed_blue",
@@ -62,7 +64,7 @@ const COLUMNS: Array[String] = [
 ]
 const SIDES: Array[String] = ["red", "blue"]
 ## The ground positions whose share of the fight each row reports (D130).
-const GROUND_POSITIONS: Array[String] = ["full_guard", "half_guard", "side_control", "mount", "back_control"]
+const GROUND_POSITIONS: Array[String] = ["full_guard", "half_guard", "side_control", "mount", "back_control", "crucifix"]
 ## Ground strikes counted by kind (D270): the action, and its column.
 const GNP_KINDS := { "hammerfist": "gnp_hammer", "ground_body_punch": "gnp_body", "posture_bomb": "gnp_bomb" }
 const GNP_COUNTS: Array[String] = ["gnp_landed", "gnp_hammer", "gnp_body", "gnp_bomb", "gnp_covered"]
@@ -264,6 +266,12 @@ static func of(sim: FightSim, lows: Array[float] = [], moves: Dictionary = {}) -
 		row["postures_won_" + side] = f.postures_won
 		row["half_uhs_" + side] = f.half_underhooks_tried
 		row["half_uhs_won_" + side] = f.half_underhooks_won
+		row["frames_" + side] = f.frames_tried
+		row["frames_won_" + side] = f.frames_won
+		row["crucifixes_" + side] = f.crucifixes_tried
+		row["crucifixes_won_" + side] = f.crucifixes_won
+		row["two_on_ones_" + side] = f.two_on_ones_tried
+		row["two_on_ones_won_" + side] = f.two_on_ones_won
 		row["advances_" + side] = f.advances
 		row["escapes_" + side] = f.escapes
 		row["feints_" + side] = f.feints_tried

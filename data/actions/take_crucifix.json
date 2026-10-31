@@ -1,0 +1,21 @@
+{
+	"schema": "action@2",
+	"id": "take_crucifix",
+	"name": "Crucifix",
+	"category": "ground",
+	"basic": true,
+	"positions": ["side_control"],
+	"roles": ["top"],
+	"ranges": ["clinch"],
+	"phases_ms": { "telegraph": 0, "windup": 300, "active": 300, "recovery": 300 },
+	"stamina_cost": 5,
+	"flags_self": [],
+	"ground": { "base_success": 0.2 },
+	"stats": { "offense": ["top_control", "scrambles"], "defense": ["guard", "scrambles"] },
+	"opportunities": [
+		{ "opponent_flag": "COVERED", "success_bonus": 0.10 },
+		{ "opponent_flag": "ESCAPING", "success_bonus": 0.10 },
+		{ "opponent_flag": "FRAMED", "success_bonus": -0.10 }
+	],
+	"requires_technique": null
+}

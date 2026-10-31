@@ -235,8 +235,8 @@ bone name).
 
 The rig's faceted pieces can be swapped for a skinned, auto-rigged body: one mesh that bends at the joints. Kyle
 made the first one in Tripo (image to model, Humanoid auto-rig with the Mixamo skeleton preset, just under 12,000
-faces, exported as GLB); it lives at `tools/bodies/tripo_fighter.glb` (a `.gdignore` keeps Godot from importing
-it, and `tools/` is left out of the exported game). Tripo's colour texture came at 8192 × 8192 (7.4 MB, 256 MB
+faces, exported as GLB); it lives at `game/bodies/tripo_fighter.glb` (until D285 it was kept in `tools/bodies/`,
+out of the exported game). Tripo's colour texture came at 8192 × 8192 (7.4 MB, 256 MB
 of video memory a body once loaded); it was scaled to 2048 × 2048 (1.6 MB file), which looks the same at fight
 distance.
 
@@ -277,6 +277,48 @@ body's bones keep their length, the shorts take the corner's colour).
 
 The preview tools start a throwaway fight from the title screen (D302); a fight now hides every menu screen when
 it starts, so the arranged clips show the fight, not the title.
+
+## The fight screen draws the skinned body (D285)
+
+Both fighters in the fight are now drawn with the Tripo body (`game/bodies/tripo_fighter.glb`, imported with the
+game and exported with it). The first step copies today's figures: the faceted pieces still pose every frame
+exactly as before (strikes aim and land, hit reactions, grips, ground positions, the scouted tell), but they
+aren't drawn; the body follows their joints. Every strike, move and position already in the game shows on the
+body at once. The rig's paired poses (D283) take over the clinch and ground positions one at a time later.
+
+**How** (`FighterFigure.use_body`, `FighterFigure.body_pose`, `SkinnedBody.follow_joints`):
+
+- `ArenaView.BODY` names the body the fight draws (`""` draws the faceted pieces as before). Each figure loads
+  it, tints its shorts the corner's colour and hides its pieces from every camera and light (render layers 0),
+  except the scouted tell's glow.
+- The pieces are taller in the trunk than the body (shoulders 1.52 m against 1.39 m when both stand with hips
+  at 0.92 m), so the body is scaled by **shoulder height** to match. Each frame its hips then move along with
+  the pieces' hips so its shoulders sit where the pieces' shoulders are; its longer legs take up the gap.
+- The arms and legs are solved in the body's own lengths toward the pieces' gloves and ankles, bending where
+  the pieces' elbows and knees bend. The feet are lifted by the difference in ankle height (`BODY_ANKLE_UP`
+  0.097 m for the pieces, against the body's own), so the soles stay on the canvas.
+- **A long punch throws the shoulder.** The body's arms are a little shorter than the pieces'. A bent arm keeps
+  the pieces' bend (the hand goes the same share of the arm's length toward the glove); from 85% straight
+  (`STRAIGHT_FROM`) the hand starts reaching for the glove itself and from 96% (`STRAIGHT_AT`) goes all the way.
+  When the glove is then out of reach the shoulder blade turns toward it (up to `SHOULDER_REACH`, 0.5 rad) to
+  make up the gap, as a man does when he extends a punch; a landed jab touches the face.
+- **Fists.** The fingers curl into a gloved fist when the body loads (`FIST_CURL` 1.35 rad a joint, the thumb
+  about half as far). Mixamo's left-hand finger bones are mirrored, so they bend the other way round; each
+  thumb folds about its own axis (`THUMB_AXIS`, found by search).
+
+**To change:** `ArenaView.BODY` (another Mixamo-rigged GLB under `game/`, or `""` for the pieces);
+`SkinnedBody.FIST_CURL`, `THUMB_AXIS`, `SHOULDER_REACH`, `STRAIGHT_FROM`, `STRAIGHT_AT`;
+`FighterFigure.BODY_ANKLE_UP`.
+
+**Limits:** the ground positions, clinch and grips are still today's piece layouts, so where the pieces
+touched (a hand on a head, legs round a waist) the body can sit a few centimetres off or into the other man
+until the paired poses replace them. Today's clinch holds the gloves out wide beside the other man's back, which
+the slimmer body shows more plainly; the rig's body lock (D283) is the first position to replace. One body and
+one face for both corners; smooth-shaded, not faceted.
+
+Tests: `tests/game/test_fight_body.gd` (the fight draws the body and hides the pieces but not the tell, the
+shoulders sit where the pieces' do, the hands go where the gloves do in guard, the jab, the hook and the clinch
+within 4 cm, standing feet are under the pieces' feet with the toes on the mat).
 
 ## Review and verification
 

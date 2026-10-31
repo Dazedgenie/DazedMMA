@@ -1,0 +1,15 @@
+{
+	"schema": "position@2",
+	"id": "crucifix",
+	"name": "Crucifix",
+	"phase": "ground",
+	"roles": ["top", "bottom"],
+	"stamina_drain_per_s": { "top": 0.2, "bottom": 0.5 },
+	"control_score": { "top": 1.75, "bottom": 0.0 },
+	"strike_damage_multiplier": { "top": 1.2, "bottom": 0.0 },
+	"transitions": [
+		{ "action": "take_back", "from_role": "top", "to": "back_control", "roles": { "actor": "top", "opponent": "bottom" } },
+		{ "action": "escape_crucifix", "from_role": "bottom", "to": "side_control", "roles": { "actor": "bottom", "opponent": "top" } },
+		{ "action": "escape_crucifix", "from_role": "bottom", "result": "partial", "to": "scramble", "roles": { "actor": "neutral", "opponent": "neutral" } }
+	]
+}

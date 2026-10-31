@@ -21,6 +21,8 @@ const CAMERA_SPEED: float = 2.5
 const FOLLOW_SHARE: float = 0.85
 ## Lower three-quarter view, about 28° down; enough elevation to read grappling.
 const CAMERA_FROM := Vector3(1.0, 0.76, 1.0)
+## The skinned body the fighters are drawn with (D285); "" draws today's faceted pieces.
+const BODY := SkinnedBody.TRIPO_BODY
 const TAG_COLOURS := {
 	"out": Color("#adb5bd"), "long": Color("#69db7c"), "mid": Color("#ffd43b"),
 	"pocket": Color("#ffa94d"), "clinch": Color("#da77f2"),
@@ -39,6 +41,7 @@ const GROUND_LAYOUTS := {
 	"side_control": { "at": Vector2(-0.35, 0.55), "face": Vector2(0.0, -1.0) },
 	"mount": { "at": Vector2(-0.2, 0.0), "face": Vector2(-1.0, 0.0) },
 	"back_control": { "at": Vector2(-0.5, 0.0), "face": Vector2(1.0, 0.0), "facing_camera": true },
+	"crucifix": { "at": Vector2(-0.55, 0.45), "face": Vector2(0.4, -1.0) },  # Across him from the head side (D264).
 }
 ## The man underneath lies across the screen, feet turned this far (radians) away from the camera (D210).
 const LIE_TURN: float = 0.45
@@ -120,6 +123,8 @@ func watch(p_driver: FightDriver) -> void:
 		var southpaw: bool = driver.sim.fighters[i].profile.get("stance", "orthodox") == "southpaw"
 		var figure := FighterFigure.new(FIGHTER_COLOURS[i], southpaw, i)
 		add_child(figure)
+		if BODY != "":
+			figure.use_body(BODY)
 		figures.append(figure)
 	for i in figures.size():
 		figures[i].opponent = figures[1 - i]  # Strikes aim at the other man (D281).

@@ -1,0 +1,19 @@
+{
+	"schema": "action@2",
+	"id": "frame",
+	"name": "Frame",
+	"category": "ground",
+	"basic": true,
+	"positions": ["side_control", "mount"],
+	"roles": ["bottom"],
+	"ranges": ["clinch"],
+	"phases_ms": { "telegraph": 0, "windup": 100, "active": 200, "recovery": 200 },
+	"stamina_cost": 2,
+	"flags_self": [],
+	"ground": { "base_success": 0.45, "grip": "frame" },
+	"stats": { "offense": ["guard", "strength"], "defense": ["top_control"] },
+	"opportunities": [
+		{ "opponent_flag": "POSTURED_UP", "success_bonus": 0.10 }
+	],
+	"requires_technique": null
+}

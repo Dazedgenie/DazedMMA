@@ -273,6 +273,7 @@ the other man's hips (`ArenaView.GROUND_LAYOUTS`):
 | Side control | 0.35 m up by his chest, 0.55 m to the far side, across him | Lying across his chest, knees by his hip | Knees bent, hands framing |
 | Mount | On his belly (0.2 m up from the hips), facing his head | Sat up, knees spread either side | Flat, hands pushing on the hips |
 | Back control | 0.5 m behind him, facing the same way | Sat behind, legs round the waist, arms round the neck | Sat up facing the camera (`facing_camera`), legs out |
+| Crucifix (D264, `01` §40.12) | 0.55 m up by his head, 0.45 m to the far side, across him from the head side | Lying across his chest, his near arm trapped between the knees | Flat, both arms stretched out and trapped |
 
 A kneeling leg shows just the thigh (`kneel`, `KNEEL_LENGTH` 0.65 of the leg); `spread` opens the legs sideways. When the
 position changes, the top man slides and turns to his new spot (`LAYOUT_SPEED` 6 per second: most of the way in half a
