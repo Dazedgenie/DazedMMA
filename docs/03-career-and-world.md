@@ -301,7 +301,8 @@ the cage (D170): CHIN CHECK in the display font, Lampsmoke Games under it (D242)
 and where he comes from: one of the 12 backgrounds of `docs/02` §1.2 (Q4 in the plan: picked from a list until phase 2's
 childhood scenes pick it instead). The screen opens already rolled, so *Start career* works straight away; *Roll everything*
 rolls again. Hometowns are real cities in 12 countries (`data/names/`), and a rolled name comes from his hometown's country.
-Each background shows what it's strong and weak at, the style he'll grow into, the money he starts with and its story hook.
+Each background shows what it's strong and weak at, the style he'll grow into, the money he starts with (in dollars, Kyle's
+call) and its story hook.
 *Start career* takes the first free slot and saves at once; with all three in use it asks you to delete one first.
 
 **The fighter a background makes** (`BackgroundLibrary.make_fighter`, `sim/world/background_library.gd`, from
@@ -313,7 +314,7 @@ scouted range (D136). He rolls 0 to 2 gifts (45%, 40%, 15%) and a flaw 35% of th
 background favours (a street kid's Granite chin, a football player's Freak athlete and Slow healer). Bleeder and Hard cut stay
 off his card until they show (D90). His moves, combinations and habits are his background fighter's (data/fighters: the
 Wrestler for a wrestling family, the Boxer for the boxing gym kid), only worse. The same background, seed and choices always
-make the same fighter.
+make the same fighter. Kyle (2026-10-31) was happy with that starting level.
 
 **The career hub, first version** (`ui/career_hub.gd`; D303 fills it in): the top bar (his name and nickname, age, records,
 coach, the date and the week), his card (background, hometown, stance, height and reach, the gifts and flaws he knows of,
