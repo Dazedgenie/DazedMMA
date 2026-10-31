@@ -21,6 +21,8 @@ const CAMERA_SPEED: float = 2.5
 const FOLLOW_SHARE: float = 0.85
 ## Lower three-quarter view, about 28° down; enough elevation to read grappling.
 const CAMERA_FROM := Vector3(1.0, 0.76, 1.0)
+## The skinned body the fighters are drawn with (D285); "" draws today's faceted pieces.
+const BODY := SkinnedBody.TRIPO_BODY
 const TAG_COLOURS := {
 	"out": Color("#adb5bd"), "long": Color("#69db7c"), "mid": Color("#ffd43b"),
 	"pocket": Color("#ffa94d"), "clinch": Color("#da77f2"),
@@ -120,6 +122,8 @@ func watch(p_driver: FightDriver) -> void:
 		var southpaw: bool = driver.sim.fighters[i].profile.get("stance", "orthodox") == "southpaw"
 		var figure := FighterFigure.new(FIGHTER_COLOURS[i], southpaw, i)
 		add_child(figure)
+		if BODY != "":
+			figure.use_body(BODY)
 		figures.append(figure)
 	for i in figures.size():
 		figures[i].opponent = figures[1 - i]  # Strikes aim at the other man (D281).

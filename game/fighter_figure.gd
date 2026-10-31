@@ -160,6 +160,10 @@ var _ignored_left: float = 0.0
 var _time: float = 0.0
 ## The other man, whose head, body and legs strikes aim at (D281); set by the view. Null: no aiming.
 var opponent: FighterFigure
+## A skinned body (D285) drawn instead of the faceted pieces, posed from them every frame; null draws the pieces.
+var body: SkinnedBody
+## How high the pieces' ankle sits over the sole (the foot is drawn 0.065 below and the ball 0.032 up).
+const BODY_ANKLE_UP: float = 0.097
 ## Which way the overhead labels lean so the two don't overlap (-1 left, 0 centred, +1 right on screen).
 var label_side: float = 0.0
 ## How far a hit knocks him back right now (metres); the view draws him that far away from the hitter.
@@ -216,8 +220,49 @@ func show_state(sim: FightSim, i: int, at: Vector2, toward: Vector2, delta: floa
 	for key: String in target:
 		_pose[key] = lerpf(float(_pose.get(key, target[key])), float(target[key]), k)
 	_apply_pose(f)
+	if body != null:
+		body.follow_joints(body_pose())
 	_show_overhead(sim, i, delta)
 	_place_overhead()
+
+
+## Draws the skinned body at `path` (D285; SkinnedBody) instead of the faceted pieces. The pieces still pose
+## every frame (strikes aim, grips and tells read them) but aren't drawn; the body follows their joints. False
+## (and the pieces stay) if the body can't be loaded.
+func use_body(path: String) -> bool:
+	var skinned := SkinnedBody.new()
+	add_child(skinned)
+	var shoulders: float = _arm_meshes[0].global_position.y - global_position.y
+	if not skinned.load_body(path, shoulders):
+		skinned.queue_free()
+		return false
+	body = skinned
+	body.set_colour(colour)
+	for found: Node in _hips.find_children("*", "GeometryInstance3D", true, false):
+		if found != _tell and not _tell.is_ancestor_of(found):
+			var piece: GeometryInstance3D = found
+			piece.layers = 0  # Not drawn by any camera or light, whatever the posing does to `visible`.
+	return true
+
+
+## The pieces' joints in the world, for the skinned body (SkinnedBody.follow_joints).
+func body_pose() -> Dictionary:
+	var pose := {
+		"pelvis_at": _hips.global_position, "pelvis": _hips.global_basis.orthonormalized(),
+		"chest": _torso.global_basis.orthonormalized(), "neck": _torso.global_basis.orthonormalized(),
+		"head": _head.global_basis.orthonormalized(), "ankle_up": BODY_ANKLE_UP,
+		"shoulders_at": (_arm_meshes[0].global_position + _arm_meshes[1].global_position) / 2.0,
+	}
+	for i in 2:
+		var side: String = "l" if (lead if i == 0 else -lead) < 0.0 else "r"
+		pose["shoulder_" + side] = _arm_meshes[i].global_position
+		pose["elbow_" + side] = _upper_arms[i].global_transform * Vector3(0, -1, 0)
+		pose["wrist_" + side] = _gloves[i].global_position
+		pose["hip_" + side] = _leg_meshes[i].global_position
+		pose["knee_" + side] = _thighs[i].global_transform * Vector3(0, -FighterMotion.THIGH, 0)
+		pose["ankle_" + side] = _shins[i].global_transform * Vector3(0, -FighterMotion.SHIN, 0)
+		pose["foot_" + side] = _feet[i].global_basis.orthonormalized()
+	return pose
 
 
 ## The pose (joint angles and heights) for fighter i right now: plain numbers, so it can be tested.
