@@ -89,7 +89,7 @@ pinned on purpose, and the PR then shows the old and new numbers side by side.
 
 | Fight | Covers |
 |---|---|
-| Kicker vs Boxer, no corners (seed 35003; 35002 until D253, when it became a decision) | The striking engine and judges on their own: a KO for the Kicker in round 3 (since D253) |
+| Kicker vs Boxer, no corners (seed 35005; 35003 until D235 and 35002 until D253, each time it became a decision) | The striking engine and judges on their own: a KO for the Boxer in round 2 (since D235) |
 | Wrestler vs Kicker, ideal corner vs AI corner, Wrestler drilled on catch-kick-and-shoot at 80% (seed 35006) | Calls, a drilled rule firing, takedowns, ground and pound, feints (D131): a decision for the Wrestler (since D233; a TKO for the Wrestler in round 2 after D131) |
 | Wrestler vs Boxer, AI corner for the Boxer, Boxer drilled on sprawl-on-the-shot at 80% (seed 35011; 35007 until D130, when it became a decision) | Sprawls, the opponent's corner and rules, passes, side control and the back (D130), blind shots (D131): a submission for the Wrestler in round 2 (since D253; a decision after D131, a TKO in round 3 after D130) |
 | The check fighters, amateur adult rules (seed 35001) | A ruleset other than pro: 3 × 3:00, a split decision |
@@ -279,6 +279,43 @@ and the footwork test above runs four fights each and asks for the poor mover to
 
 **To change it:** `FightSim.first_at` is the whole rule. Making both fighters move at once from where they stood at the start
 of the tick would be the other way to remove the edge; it is a bigger change (every move would need resolving in pairs).
+
+### 2.6 Behaviour contracts and the AI's parts (D254)
+
+The golden fights (§2.2) catch a change; they can't tell a good one from a bad one. The outside review's sixth point was to
+add contracts: things that must hold in every fight whoever wins it. `tests/sim/fight/test_behaviour_contracts.gd` plays 13
+whole fights (every style in `data/fighters`, pro, PRIDE and amateur rules, the AI corner calling for both men, outside
+fighters walked down by cage cutters), watches each one as it goes, and checks:
+
+| Contract | How it's checked | The number |
+|---|---|---|
+| No fighter answers a move before he could have seen it | Every sprawl, check or slip the AI picks starts no sooner than the opponent's move started, plus a tick if it started after his turn, plus his reaction time fresh (`FighterState.reaction_ticks`; tired, it's only longer) | Over 50 answers looked at |
+| A stuffed shot never counts as a takedown | A fighter's takedowns are exactly the takedowns that put him on top (not a failed one that put him underneath), and never more than his shots | Over 20 takedowns |
+| Every move a fighter starts is legal where he is | Its `positions`, `roles` and the ruleset allow it at the moment it starts, whoever picked it (AI, call, rule or command) | Over 2,000 moves |
+| Nearly every strike the AI picks is still in range when it lands | Under `OUT_OF_RANGE_UNDER` 15% of a fighter's AI strikes miss "out of range" (the opponent stepped out of it on its way), for fighters with 30 or more | The Kicker against the Boxer: about 10% |
+| Every move the AI picks says which part of it chose it | The parts add up to the AI's moves, and are all ones the harness reports | |
+| Defences never crowd out the rest of the AI | Under `DEFENCE_UNDER` 25% of a fighter's own moves are defences (for 50 moves or more), and the Kicker and the Boxer still throw their combinations | The Counter-striker defends most: about 16% |
+| An outside fighter cut off onto the fence gets back to the middle | Fighters with Range under 0, across the fights: back in the middle after at least `ESCAPES_AT_LEAST` 80% of the times they were cut off | About 95% (117 of 123 in a first look) |
+
+The contracts were checked by breaking one on purpose (the AI noticing a move with no reaction time): the first contract
+failed in every fight with sprawls or checks in it.
+
+**The AI's parts.** Every move the fighter's own AI picks now says which part of it chose it (`Decision.part`,
+`FighterAI.PARTS`, counted in `FighterState.ai_parts` when the move starts, not on the fight's events, so no fight changes):
+**defence** (a sprawl, check or slip on a move it read, or covering up rocked), **counter** (an opening it read, meeting an
+advance, a guillotine on a shot, catching a burst), **combination** (the next strike of one), **set-up** (a tell it spotted,
+the shot off its own feint), **lead** (a move of its own), **cage** (herding feints, tying him up when shut in), **tied up**
+(the clinch and the ground) and **downed** (the opponent down). The harness adds the `ai_<part>_red`/`_blue` columns and an
+*AI parts* line under *Chosen by*. A first look, 40 fights a pairing: the Kicker against the Boxer leads 43%, counters 31%,
+combinations 20%, defence 3%; the Boxer combinations 36%, leads 28%, counters 25%, defence 6%; a Counter-striker against a
+Pressure wrestler defends 16% and counters 24%; grapplers pick about 70% of their moves tied up.
+
+**Found on the way:** a striker who isn't an outside fighter (the Leg-kick specialist, Range +10) plants his feet and fights
+when he's shut in (D234), so against a Dirty boxer he got back to the middle 0 times of 20 cut-offs and was shut in for over
+6 minutes of the fight. That's the style answer Kyle picked; the last contract leaves those fighters out.
+
+**To change it:** the three numbers at the top of the test file, the fights in `FIGHTS`, the parts in `FighterAI.choose`
+(`_part`) and their names in `BalanceReport.PART_NAMES`.
 ---
 
 ## 3. Spatial model (D2, D33)
@@ -823,7 +860,7 @@ and **herding with feints now, strikes aimed at the escape side later** (D232).
 | The diagonal step | The step across comes first and the step in gets what's left of his walking pace, so cutting off he closes the distance more slowly and doesn't run past the exit | `FightSim._move()` |
 | Reversing (the man being cut off) | An outside fighter circling by the fence (within 0.8 m) with the opponent cutting from the inside turns back the other way, all he can for 0.8 s, on a chance of 6% × how far outside he leans × Fight IQ / 100 a tick. **Since D233** only when the way he's going is shut and the other way is open (§20.6) | `REVERSE_RATE` 0.06, `REVERSE_TICKS` 8 in `sim/fight/fighter_ai.gd` |
 | Plant and counter | Being cut off, the chance to meet the cutter with a strike as he steps in (§20) goes up by 0.2 | `INTERCEPT_CUT_OFF` 0.2 in `fighter_ai.gd` |
-| Herding with a feint | Cutting the cage off with the opponent circling within 1.5 m of the fence, the cutter feints (D131) on a chance of 1.5% × Cage cutting / 100 a free tick. A feint that bites now also plants the feet: a bitten fighter's feet move 40% of a step while it lasts (D131's 1 s), so the cut closes the door. This works for every feint, the ones before a shot too | `HERD_RATE` 0.015, `HERD_FENCE` 1.5 m in `fighter_ai.gd`; `BIT_FEET` 0.4 in `fight_sim.gd` |
+| Herding with a feint | Cutting the cage off with the opponent circling within 1.5 m of the fence, the cutter feints (D131) on a chance of 1.5% × Cage cutting / 100 a free tick. A feint that bites now also plants the feet: a bitten fighter's feet move 40% of a step while it lasts (D131's 1 s), so the cut closes the door. This works for every feint, the ones before a shot too. **Since D235** a herding feint at an open way out comes 3× as often and sells it shut (§20.7) | `HERD_RATE` 0.015, `HERD_FENCE` 1.5 m in `fighter_ai.gd`; `BIT_FEET` 0.4 in `fight_sim.gd` |
 | *Cut the cage!* (key **R**) | A 15 s focus call (`data/calls/cut_the_cage.json`, voice 20): Range +30, Pace +20, he cuts all his stat allows (`cut` 1.0) from anywhere in the cage (reach 1 m, or his own if that's closer in) and doesn't circle. Number keys 0–9 are all taken standing, so it's the first call on a letter key; the call bar shows it as *R Cut the cage* | the call's file; `CUT_CALLED_FROM` 1.0 m in `fight_sim.gd`; `FighterAI._plan_steps()` |
 | Cut off onto the fence | Reported after the fight next to the cutting time: how many times the opponent was walked from open space onto the fence: his cage proximity changed from the centre (after at least 3 s there) to near the fence within 1 s of this fighter's cut working. The result screen and debug console add *trapped him on the fence N times* to the movement line (§20.3); the harness adds it to the **Circling** line and the CSV (`cut_offs_red`, `cut_offs_blue`) | `CUT_OFF_TICKS` 10 and `CUT_OFF_FROM_TICKS` 30 in `fight_sim.gd`; `FightSim.cut_offs` |
 
@@ -905,9 +942,41 @@ time he gets back to the middle; the cutter wins by what he lands while he's the
 check costs about 5 µs a simulated tick on the cloud machines, and fights with D233–D234 run about 9% slower than main (125 →
 136 µs a tick; D105's 100 µs budget was already passed, §2.4's speed line).
 
-Not yet: feints that change which route the man thinks is shut (the review's idea; D232's feints still plant his feet); the
-route check for the man himself away from a cutter; the AI corner calling *Cut the cage!*. Tested in
-`tests/sim/fight/test_cage_cutting.gd`.
+Not yet: the route check for the man himself away from a cutter; the AI corner calling *Cut the cage!*. Feints that change
+which route the man thinks is shut came next (D235, §20.7). Tested in `tests/sim/fight/test_cage_cutting.gd`.
+
+### 20.7 Selling a door shut (D235)
+Kyle (2026-10-31): "lets work on feints". The outside review and both guides say a cutter's feints make the exit
+predictable: he shows the man a door closing so the man turns back the way the cutter wants. D232's herding feint only
+planted his feet. Now a feint that bites while cutting him off also changes what he believes about his ways out. Only his
+belief changes: the routes (§20.6) and the cutter's own read of them stay true.
+
+| Behaviour | What the fighter does | To change it |
+|---|---|---|
+| Feinting at the door (the cutter) | D232's herding feint, with the man by the fence and a way out still open to sell shut, comes 3× as often: 4.5% × Cage cutting / 100 a free tick. The feed reads "feints at his way out" | `DOOR_HERD` 3.0 (× `HERD_RATE` 0.015) in `sim/fight/fighter_ai.gd`; `FighterAI._herd()` |
+| Selling the door | A feint that bites (D131's roll) while the feinter is cutting the man off (§20.5: his cut working within the last 0.5 s, since he stands still to feint), with a way out still open (§20.6), sells that way shut. Any feint does it, herding ones and the ones before a shot. For 2 s (the bite's 1 s and another second) the man reads it as shut and the other way round the cutter as his way out, and a burst goes that way too. One sale at a time | `SOLD_TICKS` 20, `SOLD_CUT_TICKS` 5 in `sim/fight/fight_sim.gd`; `FightSim.way_out()`, `burst_way()` |
+| Turning back into it (the man) | D230's reverse now fires on what he believes, so sold a door shut he turns back the other way: into the side the cutter really has shut. Sure his way's shut, he does it 3× as readily: 18% × how far outside he leans × Fight IQ / 100 a tick | `SOLD_REVERSE` 3.0 in `sim/fight/fighter_ai.gd` |
+| Catching the turn (the cutter) | As he turns back, the cutter can throw his best strike at him, as he does at a burst (§20.6): 30% × Cage cutting / 100, once a turn, for 0.3 s after it | `CATCH_RATE` 0.3, `TURN_CATCH_TICKS` 3 in `fighter_ai.gd`; `FighterAI._catch_burst()` |
+| The feed | "Boxer feints at the way out and Kicker BITES: he thinks it's shut", then "Boxer … catches him turning back into it" | `FightLogFormatter` (`FEINTED` with `sold`) |
+| Reported after the fight | Doors each fighter sold shut and how many times the man turned back into one: the movement line adds *sold him a way out shut N times (he turned back into it M)*, the harness's **Cut off** line adds *sold N doors shut (turned back into M)*, CSV columns `doors_sold_*`, `turned_back_*` (by the cutter) | `FightSim.doors_sold`, `turned_back` |
+
+Measured (200 fights a pairing, pro rules, the same seeds as main, compared fight by fight with `tools/balance_compare.gd`, §2.4):
+
+| Pairing | The cutter wins: main → with D235 (change, 95% range) | Doors sold a fight (he turned back into) | The cutter's feints a fight (bitten), main → now |
+|---|---|---|---|
+| Kicker vs Boxer | Boxer 55.5% → 61.5% (+6.0, −2.9 to +14.9) | 1.9 (1.3) | 4.6 (1.6) → 8.3 (3.0) |
+| Brawler vs Kicker | Brawler 73.0% → 71.5% (−1.5, −9.5 to +6.5) | 1.0 (0.7) | 2.1 (0.8) → 4.0 (1.5) |
+| Pressure wrestler vs Counter-striker | Pressure wrestler 69.5% → 71.0% (+1.5, −7.0 to +10.0) | 1.3 (0.1) | 16.5 (3.1) → 19.2 (3.5) |
+| Wrestler vs Kicker | Wrestler 73.0% → 71.5% (−1.5, −9.0 to +6.0) | 1.4 (0.9) | 7.9 (2.9) → 9.6 (3.5) |
+| Karate vs Boxer | Karate 89.5% → 92.0% (+2.5, −2.4 to +7.4) | 0.9 (0.7) | 2.7 (0.7) → 5.3 (1.3) |
+
+Every range crosses 0, so none of the win changes is clearly more than luck at this many fights; the Boxer's +6 against
+the Kicker is the one to watch. A good cutter sells one or two doors a fight and the man turns back into most of them;
+the Counter-striker hardly ever does (he plants rather than circles, §20.6). The first try, before `SOLD_CUT_TICKS`, sold
+none at all: the cutter stands still while he feints, so his cut had always stopped by the time it bit.
+
+Tested in `tests/sim/fight/test_cage_cutting.gd` (a feint that bites while cutting sells the door and wears off, one in open
+space sells nothing, turning back more readily, counting a turn once a sale, catching the turn).
 
 ## 21. Clinch, takedowns and the ground in the engine (#15, D98, D108, D109)
 What `sim/` does for §4, §5.1 and D29 in the Phase 1 playtest. The scope is the trimmed one (D98): one clinch position, the
