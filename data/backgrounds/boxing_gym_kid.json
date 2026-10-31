@@ -1,0 +1,43 @@
+{
+	"schema": "background@1",
+	"id": "boxing_gym_kid",
+	"name": "Boxing gym kid",
+	"fighter": "boxer",
+	"about": "Swept the floor at the local boxing gym for free lessons.",
+	"strengths": [
+		"boxing",
+		"striking_defense",
+		"footwork",
+		"power"
+	],
+	"weaknesses": [
+		"kicking",
+		"guard",
+		"takedown_defense"
+	],
+	"style": {
+		"pace": 10,
+		"range": 0,
+		"base": -60,
+		"risk": 0
+	},
+	"frame": {
+		"height_cm": [
+			170,
+			186
+		],
+		"build": "average"
+	},
+	"personality": {
+		"loyal": 20
+	},
+	"gift_weights": {
+		"heavy_hands": 2,
+		"granite_chin": 1
+	},
+	"flaw_weights": {
+		"brittle_hands": 2
+	},
+	"hook": "His old boxing coach feels betrayed by the move to MMA.",
+	"money": 100
+}

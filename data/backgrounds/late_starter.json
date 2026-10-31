@@ -1,0 +1,46 @@
+{
+	"schema": "background@1",
+	"id": "late_starter",
+	"name": "Late starter",
+	"fighter": "counter_striker",
+	"about": "Private school, comfortable home, found fighting late and fell for it.",
+	"strengths": [
+		"fight_iq",
+		"composure",
+		"recovery",
+		"footwork"
+	],
+	"weaknesses": [
+		"chin",
+		"durability",
+		"heart"
+	],
+	"style": {
+		"pace": -30,
+		"range": -20,
+		"base": -10,
+		"risk": -20
+	},
+	"frame": {
+		"height_cm": [
+			172,
+			188
+		],
+		"build": "lean"
+	},
+	"personality": {
+		"discipline": 20,
+		"coachable": 20,
+		"ego": 10
+	},
+	"gift_weights": {
+		"fast_learner": 3,
+		"ice_in_the_veins": 1
+	},
+	"flaw_weights": {
+		"glass_jaw": 2,
+		"fragile": 1
+	},
+	"hook": "He has everything to prove, mostly to himself.",
+	"money": 1500
+}

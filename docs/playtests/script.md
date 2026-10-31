@@ -8,7 +8,7 @@
 ## 0. Before the session
 
 - [ ] The newest Windows build from **Actions → Playtest build** on `main` ([`README.md`](README.md) §1), unzipped, opens to
-      the setup screen.
+      the title screen; **Quick fight** goes to the setup screen.
 - [ ] Give each tester a number in the order they play (T1, T2, …). **Odd** numbers play fight 2 at **2× first**, then 1×;
       **even** numbers play it at **1× first**, then 2×. That way the second go isn't always at the same speed (D91).
 - [ ] Remote testers (Discord): they share their screen and talk; you take notes. They send their saved fights at the end.

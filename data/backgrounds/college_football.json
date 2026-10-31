@@ -1,0 +1,43 @@
+{
+	"schema": "background@1",
+	"id": "college_football",
+	"name": "Football athlete",
+	"fighter": "pressure_wrestler",
+	"about": "Starting linebacker, recruited before he ever threw a punch.",
+	"strengths": [
+		"speed",
+		"strength",
+		"power",
+		"takedowns"
+	],
+	"weaknesses": [
+		"cardio",
+		"guard",
+		"submissions"
+	],
+	"style": {
+		"pace": 30,
+		"range": 30,
+		"base": 20,
+		"risk": 20
+	},
+	"frame": {
+		"height_cm": [
+			178,
+			192
+		],
+		"build": "stocky"
+	},
+	"personality": {
+		"ego": 20
+	},
+	"gift_weights": {
+		"freak_athlete": 3,
+		"heavy_hands": 1
+	},
+	"flaw_weights": {
+		"slow_healer": 2
+	},
+	"hook": "An old knee injury from football never quite went away.",
+	"money": 500
+}

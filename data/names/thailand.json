@@ -1,0 +1,51 @@
+{
+	"schema": "names@1",
+	"id": "thailand",
+	"country": "Thailand",
+	"cities": [
+		"Bangkok",
+		"Chiang Mai",
+		"Buriram",
+		"Khon Kaen",
+		"Nakhon Ratchasima",
+		"Phuket",
+		"Udon Thani",
+		"Surin"
+	],
+	"first": [
+		"Somchai",
+		"Anan",
+		"Kittisak",
+		"Prasert",
+		"Chaiya",
+		"Narong",
+		"Sombat",
+		"Wichai",
+		"Thanakorn",
+		"Pongsak",
+		"Saenchai",
+		"Petch",
+		"Rattana",
+		"Sakda",
+		"Nattapong",
+		"Jirayu"
+	],
+	"last": [
+		"Srisuk",
+		"Chaiyaporn",
+		"Wongsawat",
+		"Boonmee",
+		"Sukjai",
+		"Kaewmanee",
+		"Thongdee",
+		"Rattanakorn",
+		"Saengthong",
+		"Phromma",
+		"Inthawong",
+		"Somboon",
+		"Charoensuk",
+		"Kongkaew",
+		"Siriwat",
+		"Thammasat"
+	]
+}

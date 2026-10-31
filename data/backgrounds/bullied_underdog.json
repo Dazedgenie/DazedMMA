@@ -1,0 +1,44 @@
+{
+	"schema": "background@1",
+	"id": "bullied_underdog",
+	"name": "Bullied underdog",
+	"fighter": "sprawl_brawl",
+	"about": "Got jumped after school one too many times and walked into a gym.",
+	"strengths": [
+		"heart",
+		"composure"
+	],
+	"weaknesses": [
+		"strength",
+		"power",
+		"takedowns",
+		"chin"
+	],
+	"style": {
+		"pace": -10,
+		"range": 0,
+		"base": -10,
+		"risk": -10
+	},
+	"frame": {
+		"height_cm": [
+			166,
+			182
+		],
+		"build": "lean"
+	},
+	"personality": {
+		"coachable": 40,
+		"ego": -30,
+		"loyal": 30
+	},
+	"gift_weights": {
+		"fast_learner": 3,
+		"ice_in_the_veins": 2
+	},
+	"flaw_weights": {
+		"fragile": 1
+	},
+	"hook": "A bully from school shows up in the world.",
+	"money": 0
+}

@@ -1,0 +1,43 @@
+{
+	"schema": "background@1",
+	"id": "muay_thai_abroad",
+	"name": "Muay Thai camp abroad",
+	"fighter": "muay_thai",
+	"about": "Spent two summers at a camp in Thailand with an uncle.",
+	"strengths": [
+		"clinch_striking",
+		"kicking",
+		"durability",
+		"clinch_control"
+	],
+	"weaknesses": [
+		"takedowns",
+		"takedown_defense",
+		"guard"
+	],
+	"style": {
+		"pace": 10,
+		"range": 20,
+		"base": -40,
+		"risk": 10
+	},
+	"frame": {
+		"height_cm": [
+			172,
+			186
+		],
+		"build": "lean"
+	},
+	"personality": {
+		"discipline": 15
+	},
+	"gift_weights": {
+		"ice_in_the_veins": 2,
+		"long_limbs": 1
+	},
+	"flaw_weights": {
+		"bleeder": 1
+	},
+	"hook": "His Thai trainer still sends messages after every fight.",
+	"money": 300
+}

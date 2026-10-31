@@ -1,0 +1,30 @@
+{
+	"schema": "enum@1",
+	"id": "nicknames",
+	"values": {
+		"hammer": "The Hammer",
+		"natural": "The Natural",
+		"kid": "The Kid",
+		"iron": "Iron",
+		"machine": "The Machine",
+		"bulldog": "Bulldog",
+		"storm": "The Storm",
+		"lights_out": "Lights Out",
+		"ghost": "The Ghost",
+		"pitbull": "Pitbull",
+		"prodigy": "The Prodigy",
+		"ice": "Ice",
+		"wolf": "The Wolf",
+		"thunder": "Thunder",
+		"bull": "The Bull",
+		"hurricane": "Hurricane",
+		"viper": "The Viper",
+		"hitman": "Hitman",
+		"anvil": "The Anvil",
+		"showtime": "Showtime",
+		"mule": "The Mule",
+		"spider": "Spider",
+		"rocky": "Rocky",
+		"butchers_boy": "The Butcher's Boy"
+	}
+}
