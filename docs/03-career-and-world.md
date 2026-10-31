@@ -374,7 +374,7 @@ in `sim/world/career.gd`; how many fights the list shows (`FIGHTS_SHOWN`) and th
 ### 10.4 Fight offers, the camp and the fight (D304)
 
 A career now goes from fight to fight. Kyle said start (2026-10-31); the numbers are the picks put to him, built while he
-answers (his answers go here and in D304).
+answered, and Kyle confirmed them: "Fight numbers seemed fine to me" (2026-10-31).
 
 **When offers come.** While he's free (not booked, not hurt, not suspended), a set of 2–3 offers comes in every few weeks
 (`Matchmaker.OFFERS_MIN`, `OFFERS_MAX`): the first after his first week, then 1–3 weeks after a set closes
