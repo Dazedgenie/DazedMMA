@@ -18,6 +18,12 @@ range, side on to the camera, at 24 frames a fight second (D281, `docs/13`):
 
     godot --script res://tools/strike_preview.gd -- --out=res://build/strikes
 
+`grapple_preview.gd` arranges the clinch grips (hand fighting, an underhook, the body lock), each grip and clinch move,
+ground and pound, covering up and turning away, the sweeps, passes and throws, and every submission going on and held,
+side on to the camera, at 24 frames a fight second (D282, `docs/13`). `--only=` takes move or position ids:
+
+    godot --script res://tools/grapple_preview.gd -- --out=res://build/grapples --only=pummel,armbar
+
 Headless runners and utilities. `run_sim.gd` runs one placeholder fight (a kicker against a boxer) with no scene tree
 and prints a summary; `--fights=N` runs N seeds and counts how they ended:
 

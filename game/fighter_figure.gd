@@ -53,6 +53,9 @@ const AIMS := {
 	"elbow": { "limb": "rear_arm", "point": "head", "contact": 0.7, "across": 0.08, "bend": "out" },
 	"ground_punch": { "limb": "rear_arm", "point": "head", "contact": 0.0, "across": 0.0, "bend": "down" },
 	"ground_elbow": { "limb": "rear_arm", "point": "head", "contact": 0.0, "across": 0.0, "bend": "out" },
+	"hammerfist": { "limb": "rear_arm", "point": "head", "contact": 0.0, "across": 0.0, "bend": "out" },
+	"ground_body_punch": { "limb": "rear_arm", "point": "body", "contact": 0.0, "across": 0.06, "bend": "down" },
+	"posture_bomb": { "limb": "rear_arm", "point": "head", "contact": 0.0, "across": 0.0, "bend": "down" },
 	"teep": { "limb": "lead_leg", "point": "body", "contact": 1.1, "across": 0.0, "bend": "up" },
 	"body_kick": { "limb": "rear_leg", "point": "body", "contact": 1.0, "across": 0.14, "bend": "round" },
 	"head_kick": { "limb": "rear_leg", "point": "head", "contact": 0.9, "across": 0.14, "bend": "round" },
@@ -81,6 +84,31 @@ const HEEL_LIFT: float = 0.6
 const FOOT_BALL: float = 0.09
 ## The labels over his head sit this far (metres) above it, wherever his head is (D281).
 const LABEL_ABOVE_HEAD: float = 0.5
+## Clinch grips you can see (D282): where each hand sits on the other man, in metres from the middle of his
+## chest: x out to the side the arm is on, y up, z round behind his back. "under": the underhook, under his
+## arm to the shoulder blade; "over": the overhook, over his arm, clamping it at the triceps; "lock": the body
+## lock, both hands locked at the small of his back; "collar": the collar tie, behind his head (from his head);
+## "elbow": on his elbow, where a strip pushes it off.
+const GRIP_HANDS := {
+	"under": Vector3(0.09, 0.08, 0.17),
+	"over": Vector3(0.2, 0.04, 0.03),
+	"lock": Vector3(0.03, -0.14, 0.19),
+	"collar": Vector3(0.04, -0.06, 0.07),
+	"elbow": Vector3(0.21, -0.14, -0.06),
+}
+## Moves that aren't strikes but move smoothly through their phases like one (D282), not in steps.
+const SMOOTH_MOVES: Array[String] = ["pummel", "strip_grip", "collar_tie", "fence_drive", "turn_him", "spin_off",
+	"ground_cover", "turn_away", "guillotine", "triangle", "armbar", "rear_naked_choke", "arm_triangle", "ankle_lock",
+	"kneebar", "heel_hook", "bridge", "escape_back", "recover_guard", "sweep", "guard_pass", "take_mount", "take_back",
+	"scramble", "follow_down", "foot_sweep", "hip_throw", "outside_trip", "guard_pull"]
+## How tall he kneels when he postures up out of the guard for the bomb (D282): hip height, metres.
+const POSTURE_HIP: float = 0.68
+## How quickly a gripping hand follows a grip changing (per second).
+const GRIP_EASE: float = 18.0
+## A pummel's hand dips this far under his arm on the way in (metres, at the middle of the swim).
+const PUMMEL_DIP: float = 0.14
+## A strip pushes his elbow this far out to the side (metres).
+const STRIP_PUSH: float = 0.1
 
 var colour: Color
 ## Overhead labels and marks are sized in metres; the view shrinks them as the camera moves in.
@@ -117,6 +145,14 @@ var _motion_clock: float = 0.0
 var _seen_tick: int = -1
 var _tick_fraction: float = 0.0
 var _clinch_grip: bool = false
+## What each hand [lead, rear] is doing on him in the clinch (D282): "" (hand fighting on his arm), "under",
+## "over", "lock" or "collar"; and the grip move one hand is making: {arm, move ("pummel"/"strip"), amount}.
+var _grip_hands: Array[String] = ["", ""]
+var _grip_move := {}
+## Which of his own arms the striking move uses, so the other hand keeps its grip (D282): -1 none.
+var _striking_arm: int = -1
+## Where each gripping hand sits, in the other man's chest frame, eased so a grip changing hands doesn't jump.
+var _grip_at: Array[Vector3] = [Vector3.INF, Vector3.INF]
 var _body_material: StandardMaterial3D
 var _pose := {}
 var _ignored_left: float = 0.0
@@ -165,9 +201,10 @@ func show_state(sim: FightSim, i: int, at: Vector2, toward: Vector2, delta: floa
 		_outcome = ""
 		_outcome_action = f.action_id
 	_miss = move_toward(_miss, 1.0 if _outcome == "missed" else 0.0, _motion_delta * 10.0)
-	_clinch_grip = sim.situation.position == PositionLibrary.CLINCH and sim.hold().is_empty() \
-		and f.tied_up_ticks == 0 and sim.fighters[1 - i].tied_up_ticks == 0 \
-		and (f.action_id == "" or (sim.actions.has(f.action_id) and sim.actions.get_action(f.action_id).category != "strike"))
+	_clinch_grip = sim.situation.position == PositionLibrary.CLINCH and sim.hold().is_empty() and f.tied_up_ticks == 0
+	var limb: String = limb_for(f.action_id)
+	_striking_arm = 0 if limb == "lead_arm" else (1 if limb == "rear_arm" else -1)
+	_read_grips(sim, i)
 	position = Vector3(at.x, 0.0, at.y)
 	var facing: Vector2 = toward - at
 	if facing.length() > 0.01:
@@ -315,21 +352,24 @@ func pose_for(sim: FightSim, i: int, fractional_tick: float = 0.0) -> Dictionary
 			p.leg_rear = 1.3
 			p.arm_lead = 1.2
 			p.arm_rear = 1.2
-		else:
-			p.leg_lead = 1.4
-			p.lean = 0.3
+		else:  # Sat back on the mat with the caught leg out straight, reaching for it (D282; was kneeling up).
+			p.lie = 0.3
+			p.hip_y = 0.28
+			p.kneel = 0.0
+			p.lean = 0.2
+			p.leg_lead = 1.45
+			p.leg_rear = 1.0
+			p.spread = 0.2
+			p.arm_lead = 1.2
+			p.arm_rear = 1.2
+	elif not hold.is_empty():  # Held in a choke or an arm lock (D282).
+		_sub_pose(p, String(hold.action_id), int(hold.attacker) == i, 1.0)
 	if f.action_id == "" or not sim.actions.has(f.action_id):
 		return p
 	var reach: float = float(PHASE_REACH.get(f.phase, 0.0))
 	var action: Dictionary = sim.actions.get_action(f.action_id)
-	if action.category == "strike":
-		var total: float = maxf(1.0, sim.phase_ticks(f, f.action_id, f.phase))
-		var progress: float = clampf((total - f.phase_ticks_left + fractional_tick) / total, 0, 1)
-		match f.phase:
-			"telegraph": reach = 0.12 * progress
-			"windup": reach = lerpf(0.12, 1.0, progress * progress)
-			"active": reach = 1.0
-			"recovery": reach = 1.0 - smoothstep(0.0, 1.0, progress)
+	if action.category == "strike" or SMOOTH_MOVES.has(f.action_id):
+		reach = move_reach(sim, f, fractional_tick)
 	match f.action_id:
 		"jab":
 			p.twist = 0.12 * reach
@@ -440,6 +480,110 @@ func pose_for(sim: FightSim, i: int, fractional_tick: float = 0.0) -> Dictionary
 		"ground_elbow":
 			p.lean = lerpf(p.lean, -0.35, reach)
 			p.arm_rear = lerpf(p.arm_rear, 2.7 if f.phase == "telegraph" or f.phase == "windup" else 0.5, reach)
+		"hammerfist":  # The rear fist up by the ear, then the bottom of it dropped on his head (D270, D282).
+			p.lean = lerpf(p.lean, -0.45, reach)
+			p.arm_rear = lerpf(p.arm_rear, 2.9 if f.phase == "telegraph" or f.phase == "windup" else 0.6, reach)
+		"ground_body_punch":  # Leans down low and digs the rear hand into his ribs (D270, D282).
+			p.lean = lerpf(p.lean, -1.0, reach)
+			p.hip_y = lerpf(p.hip_y, p.hip_y - 0.06, reach)
+			p.arm_rear = lerpf(p.arm_rear, 0.8, reach)
+		"posture_bomb":  # Sits up tall out of his guard with the hand cocked high, then drops it all on him (D270, D282).
+			if f.phase == "telegraph" or f.phase == "windup":
+				p.lean = 0.05
+				p.hip_y = POSTURE_HIP
+				p.arm_rear = lerpf(p.arm_rear, 3.0, maxf(reach, 0.5))
+			else:
+				p.lean = lerpf(p.lean, -0.7, reach)
+				p.arm_rear = lerpf(p.arm_rear, 0.5, reach)
+		"ground_cover":  # Forearms over his face, elbows in (D270, D282).
+			p.cover = reach
+		"turn_away":  # Rolls onto his front, away from the punches, giving up his back (D270, D282).
+			p.roll = 2.0 * lead * reach
+			p.arm_lead = lerpf(p.arm_lead, 2.9, reach)
+			p.arm_rear = lerpf(p.arm_rear, 2.9, reach)
+		"pummel", "strip_grip":  # The shoulder dips into the swim or the shove (D261, D282); the hand is placed by the grip.
+			p.lean = lerpf(p.lean, -0.42, reach)
+			p.hip_y = lerpf(p.hip_y, HIP_HEIGHT - 0.12, reach)
+			p.twist = lerpf(0.0, 0.18, reach)
+		"fence_drive":  # Head in his chest, hips low, driving off the back foot (D220, D282).
+			p.lean = lerpf(p.lean, -0.5, reach)
+			p.hip_y = lerpf(p.hip_y, HIP_HEIGHT - 0.12, reach)
+			p.leg_rear = lerpf(p.leg_rear, -0.4, reach)
+		"turn_him", "spin_off":  # The hips turn the corner, his way or out of it (D220, D282).
+			p.twist = lerpf(0.0, 0.75 if f.action_id == "turn_him" else -0.75, reach)
+			p.lean = lerpf(p.lean, -0.4, reach)
+			p.hip_y = lerpf(p.hip_y, HIP_HEIGHT - 0.1, reach)
+		"collar_tie":  # Both hands go up to the back of his head (D129, D282); the hands are placed by the grip.
+			p.lean = lerpf(p.lean, -0.2, reach)
+		"guillotine", "triangle", "armbar", "rear_naked_choke", "arm_triangle":  # Going for the hold (D126, D130, D282).
+			_sub_pose(p, f.action_id, true, reach)
+		"ankle_lock", "kneebar", "heel_hook":  # Sitting back onto the leg (D132, D282).
+			_ease(p, "lie", 1.0, reach)
+			_ease(p, "hip_y", 0.22, reach)
+			_ease(p, "leg_lead", 1.3, reach)
+			_ease(p, "leg_rear", 1.3, reach)
+			_ease(p, "arm_lead", 1.2, reach)
+			_ease(p, "arm_rear", 1.2, reach)
+		"bridge":  # Feet planted, hips thrown up, rolling him off to one side (D130, D282).
+			_ease(p, "hip_y", 0.42, reach)
+			_ease(p, "leg_lead", 0.75, reach)
+			_ease(p, "leg_rear", 0.75, reach)
+			p.roll = 0.5 * lead * reach
+		"escape_back":  # Turning in to face him, peeling the hands off his neck (D130, D282).
+			p.twist = lerpf(0.0, -0.8, reach)
+			_ease(p, "arm_lead", 2.6, reach)
+			_ease(p, "arm_rear", 2.6, reach)
+		"recover_guard":  # Onto his hip, a knee back in between them (D130, D282).
+			_ease(p, "leg_lead", 1.4, reach)
+			_ease(p, "leg_rear", 1.1, reach)
+			p.roll = 0.6 * lead * reach
+		"sweep":  # A leg hooks under and kicks him over, rolling with him (D128, D282).
+			_ease(p, "leg_lead", 1.75, reach)
+			_ease(p, "leg_rear", 0.6, reach)
+			_ease(p, "arm_lead", 2.6, reach)
+			p.roll = 1.0 * lead * reach
+		"guard_pass":  # Hips up and back, knee cutting across the legs (D130, D282).
+			_ease(p, "hip_y", p.hip_y + 0.15, reach)
+			_ease(p, "lean", -0.9, reach)
+			_ease(p, "leg_rear", -0.3, reach)
+			p.twist = lerpf(0.0, 0.6, reach)
+		"take_mount":  # The knee slides over his belly (D130, D282).
+			_ease(p, "leg_lead", 1.6, reach)
+			_ease(p, "spread", 0.6, reach)
+			_ease(p, "hip_y", p.hip_y + 0.1, reach)
+			_ease(p, "lean", -0.7, reach)
+		"take_back":  # Swinging round behind him (D130, D282).
+			p.twist = lerpf(0.0, 1.0, reach)
+			_ease(p, "leg_lead", 1.3, reach)
+			_ease(p, "lean", -0.6, reach)
+		"scramble":  # Hips turning, fighting to come up on top (D108, D282).
+			p.twist = lerpf(0.0, 0.6, reach)
+			_ease(p, "hip_y", 0.75, reach)
+			_ease(p, "lean", -0.5, reach)
+		"follow_down":  # Dropping onto the man on the floor (D142, D282).
+			_ease(p, "hip_y", 0.55, reach)
+			_ease(p, "lean", -0.9, reach)
+			_ease(p, "kneel", 1.0, reach)
+			_ease(p, "arm_lead", 1.2, reach)
+			_ease(p, "arm_rear", 1.2, reach)
+		"foot_sweep":  # The lead foot sweeps his across while the hands pull him the other way (D128, D282).
+			_ease(p, "leg_lead", 0.55, reach)
+			_ease(p, "arm_lead", 1.6, reach)
+			_ease(p, "arm_rear", 1.6, reach)
+			p.twist = lerpf(0.0, -0.5, reach)
+		"hip_throw":  # Hips in low and across, turning him over the hip (D128, D282).
+			p.twist = lerpf(0.0, 1.3, reach)
+			_ease(p, "hip_y", HIP_HEIGHT - 0.2, reach)
+			_ease(p, "lean", -0.5, reach)
+		"outside_trip":  # The lead leg reaps behind his while the chest drives into him (D128, D282).
+			_ease(p, "leg_lead", -0.45, reach)
+			_ease(p, "lean", -0.55, reach)
+			p.twist = lerpf(0.0, 0.4, reach)
+		"guard_pull":  # Sitting down with the legs coming up round him (D128, D282).
+			_ease(p, "lie", 0.7, reach)
+			_ease(p, "hip_y", 0.4, reach)
+			_ease(p, "leg_lead", 1.2, reach)
+			_ease(p, "leg_rear", 1.2, reach)
 		"tie_up":
 			p.arm_lead = lerpf(p.arm_lead, 3.0, reach)
 			p.arm_rear = lerpf(p.arm_rear, 3.0, reach)
@@ -463,12 +607,95 @@ func pose_for(sim: FightSim, i: int, fractional_tick: float = 0.0) -> Dictionary
 	return p
 
 
+## How far through his move he is, as a share of full extension, moving smoothly through its phases:
+## up to 0.12 in the telegraph, out to 1 through the wind-up, held through the active part, back to 0 in the recovery.
+static func move_reach(sim: FightSim, f: FighterState, fractional_tick: float = 0.0) -> float:
+	var total: float = maxf(1.0, sim.phase_ticks(f, f.action_id, f.phase))
+	var progress: float = clampf((total - f.phase_ticks_left + fractional_tick) / total, 0, 1)
+	match f.phase:
+		"telegraph": return 0.12 * progress
+		"windup": return lerpf(0.12, 1.0, progress * progress)
+		"active": return 1.0
+		"recovery": return 1.0 - smoothstep(0.0, 1.0, progress)
+	return 0.0
+
+
+## A choke or arm lock (D282), for the man putting it on (`attacker`) or the man in it, eased in by `amount`.
+func _sub_pose(p: Dictionary, id: String, attacker: bool, amount: float) -> void:
+	match id:
+		"guillotine":  # The arm under his chin, the head trapped under the armpit.
+			if attacker:
+				_ease(p, "lean", 0.2, amount)
+				_ease(p, "hip_y", HIP_HEIGHT - 0.1, amount)
+				_ease(p, "arm_lead", 1.3, amount)
+				_ease(p, "arm_rear", 1.5, amount)
+				_ease(p, "reach_lead", 0.7, amount)
+				_ease(p, "reach_rear", 0.7, amount)
+			else:
+				_ease(p, "lean", -0.95, amount)
+				_ease(p, "arm_lead", 1.0, amount)
+				_ease(p, "arm_rear", 1.0, amount)
+		"triangle":  # Legs locked round his head and one arm, pulling the head down.
+			if attacker:
+				_ease(p, "leg_lead", 2.1, amount)
+				_ease(p, "leg_rear", 1.7, amount)
+				_ease(p, "spread", 0.25, amount)
+				_ease(p, "arm_lead", 2.6, amount)
+				_ease(p, "arm_rear", 2.6, amount)
+				_ease(p, "reach_lead", 0.8, amount)
+				_ease(p, "reach_rear", 0.8, amount)
+			else:
+				_ease(p, "lean", -1.2, amount)
+				_ease(p, "arm_lead", 0.6, amount)
+		"armbar":  # Falls back with both legs across him, his arm straightened against the hips.
+			if attacker:
+				_ease(p, "lie", 1.0, amount)
+				_ease(p, "hip_y", 0.22, amount)
+				_ease(p, "leg_lead", 2.0, amount)
+				_ease(p, "leg_rear", 2.0, amount)
+				_ease(p, "spread", 0.15, amount)
+				_ease(p, "arm_lead", 2.8, amount)
+				_ease(p, "arm_rear", 2.8, amount)
+				_ease(p, "reach_lead", 0.7, amount)
+				_ease(p, "reach_rear", 0.7, amount)
+			else:
+				_ease(p, "arm_lead", 1.57, amount)
+				_ease(p, "reach_lead", 1.3, amount)
+		"rear_naked_choke":  # One arm round the neck, the other hand behind his head; he fights the hands.
+			if attacker:
+				_ease(p, "arm_lead", 2.0, amount)
+				_ease(p, "arm_rear", 2.5, amount)
+				_ease(p, "reach_lead", 0.65, amount)
+				_ease(p, "reach_rear", 0.65, amount)
+				_ease(p, "lean", 0.3, amount)
+			else:
+				_ease(p, "arm_lead", 2.6, amount)
+				_ease(p, "arm_rear", 2.6, amount)
+				_ease(p, "lean", 0.1, amount)
+		"arm_triangle":  # Head and arm wrapped together, chest driving down; his arm pinned up by his head.
+			if attacker:
+				_ease(p, "lean", -1.35, amount)
+				_ease(p, "hip_y", p.hip_y - 0.05, amount)
+				_ease(p, "arm_lead", 2.2, amount)
+				_ease(p, "arm_rear", 2.2, amount)
+				_ease(p, "reach_lead", 0.7, amount)
+				_ease(p, "reach_rear", 0.7, amount)
+			else:
+				_ease(p, "arm_lead", 2.8, amount)
+
+
+## Moves pose key `key` toward `value` by `amount` (0 leaves it, 1 sets it).
+static func _ease(p: Dictionary, key: String, value: float, amount: float) -> void:
+	p[key] = lerpf(float(p[key]), value, amount)
+
+
 ## Which body part a move is thrown with ("lead_arm", "rear_leg", "hips" …), for the tell cue.
 static func limb_for(action_id: String) -> String:
 	match action_id:
 		"jab", "hook", "body_hook", "short_hook":
 			return "lead_arm"
-		"cross", "uppercut", "short_uppercut", "overhand", "elbow", "ground_punch", "ground_elbow":
+		"cross", "uppercut", "short_uppercut", "overhand", "elbow", "ground_punch", "ground_elbow", "hammerfist", \
+				"ground_body_punch", "posture_bomb":
 			return "rear_arm"
 		"teep", "stomp":
 			return "lead_leg"
@@ -557,6 +784,8 @@ func _apply_pose(f: FighterState) -> void:
 	sway -= lead * 0.5 * float(_pose.slip)
 	var lean: float = float(_pose.lean) + 0.1 * float(_hit.head) - HIT_BODY_FOLD * float(_hit.body)
 	_hips.rotation = Vector3(lerpf(lean, PI / 2.0, lie), _pose.twist * lead, sway)
+	if absf(float(_pose.roll)) > 0.001:  # Rolling about his own spine (turning away underneath, D282).
+		_hips.basis = _hips.basis * Basis(Vector3.UP, float(_pose.roll))
 	_arms[0].rotation.x = _pose.arm_lead
 	_arms[1].rotation.x = _pose.arm_rear
 	_pose_arm(0, float(_pose.reach_lead), float(_pose.arm_lead))
@@ -592,6 +821,88 @@ func show_hit(target: String, damage: float, covered: bool = false, from_side: f
 func show_outcome(action_id: String, outcome: String) -> void:
 	_outcome_action = action_id
 	_outcome = outcome
+
+
+## Reads the clinch grips for his hands (D282): which side of the clinch each of his arms is on, who has the
+## inside there, and the grip move one hand is making.
+func _read_grips(sim: FightSim, i: int) -> void:
+	_grip_hands = ["", ""]
+	_grip_move = {}
+	if not _clinch_grip:
+		_grip_at = [Vector3.INF, Vector3.INF]
+		return
+	var f: FighterState = sim.fighters[i]
+	if sim.fighters[1 - i].tied_up_ticks > 0:  # Holding the collar tie (D129): both hands behind his head.
+		_grip_hands = ["collar", "collar"]
+		return
+	var who: Array[int] = sim.grips()
+	var lock: bool = who[0] == i and who[1] == i
+	for side in 2:
+		if who[side] == i:
+			_grip_hands[grip_arm(i, side)] = "lock" if lock else "under"
+		elif who[side] == 1 - i:
+			_grip_hands[grip_arm(i, side)] = "over"
+	if not sim.actions.has(f.action_id):
+		return
+	var amount: float = move_reach(sim, f, _tick_fraction)
+	match f.action_id:
+		"pummel", "strip_grip":  # On the side the fight will take it: where he has the inside, or a free side.
+			var side: int = who.find(1 - i)
+			if side < 0 and f.action_id == "pummel":
+				side = who.find(FightSim.NO_GRIP)
+			if side >= 0:
+				_grip_move = { "arm": grip_arm(i, side), "move": "pummel" if f.action_id == "pummel" else "strip", "amount": amount }
+		"collar_tie":
+			_grip_move = { "arm": -1, "move": "collar", "amount": amount }
+
+
+## Which of his arms (0 lead, 1 rear) is on clinch side `side` (D282): red's arm `side` meets the blue arm
+## across from it, his left against the other man's right.
+func grip_arm(i: int, side: int) -> int:
+	if i == 0 or opponent == null or not is_instance_valid(opponent):
+		return side
+	var theirs: Vector3 = opponent._arm_meshes[side].global_position
+	var near_lead: bool = _arm_meshes[0].global_position.distance_to(theirs) <= _arm_meshes[1].global_position.distance_to(theirs)
+	return 0 if near_lead else 1
+
+
+## Where a hand making grip `kind` on arm `arm`'s side sits on the other man, in the world (D282).
+func grip_point(arm: int, kind: String) -> Vector3:
+	var offset: Vector3 = GRIP_HANDS.get(kind, Vector3.ZERO)
+	var centre: Vector3 = opponent._head.global_position if kind == "collar" else opponent._torso.global_position
+	var out: Vector3 = _limb_side("lead_arm" if arm == 0 else "rear_arm")
+	return centre + out * offset.x + Vector3.UP * offset.y + opponent.global_basis.z * offset.z
+
+
+## Where the hand on arm `arm` goes in the clinch (D282), in the world: its grip, or `fighting` (hand
+## fighting on his arm), moved along by a pummel, strip or collar tie on the way.
+func _grip_target(arm: int, fighting: Vector3) -> Vector3:
+	var kind: String = _grip_hands[arm]
+	var base: Vector3 = fighting if kind == "" else grip_point(arm, kind)
+	if _grip_move.is_empty() or (int(_grip_move.arm) != arm and int(_grip_move.arm) != -1):
+		return base
+	var a: float = float(_grip_move.amount)
+	match String(_grip_move.move):
+		"pummel":  # Swims down under his arm and up inside it.
+			return base.lerp(grip_point(arm, "under"), a) + Vector3.DOWN * PUMMEL_DIP * sin(PI * a)
+		"strip":  # Onto his elbow and shoves it out.
+			var out: Vector3 = _limb_side("lead_arm" if arm == 0 else "rear_arm")
+			return base.lerp(grip_point(arm, "elbow") + out * STRIP_PUSH * a, a)
+		"collar":
+			return base.lerp(grip_point(arm, "collar"), a)
+	return base
+
+
+## Which way his elbow points for the grip on arm `arm` (D282), in the world: down for the underhook and
+## the body lock, up and out over the top for the overhook, in front of his chest for the collar tie.
+func _grip_bend(arm: int) -> Vector3:
+	var out: Vector3 = _limb_side("lead_arm" if arm == 0 else "rear_arm")
+	match _grip_hands[arm]:
+		"over":
+			return out + Vector3.UP * 0.7
+		"collar":
+			return Vector3.DOWN - global_basis.z * 0.6
+	return Vector3.DOWN + out * 0.5
 
 
 ## Where on him a strike to `point` (head, body, legs or calf) lands, in the world (D281).
@@ -728,17 +1039,26 @@ func _pose_arm(side: int, reach: float, angle: float) -> void:
 	var length: float = lerpf(ARM_LENGTH, 0.4, guard) * reach
 	var hand := Vector3((-lead if side == 0 else lead) * guard * 0.105, -length + guard * 0.05, -guard * 0.13)
 	var elbow := Vector3(0, -length * 0.5, lerpf(0.035, 0.25, guard) / maxf(reach, 1.0))
-	if _clinch_grip:
+	var pivot: Node3D = _arm_meshes[side]
+	if _clinch_grip and side != _striking_arm:
 		var lateral: float = lead if side == 0 else -lead
 		var undo_shoulder := Basis(Vector3.RIGHT, -angle)
 		hand = undo_shoulder * Vector3(-lateral * 0.08, 0.05, -0.35)
 		elbow = undo_shoulder * Vector3(lateral * 0.035, -0.25, -0.12)
-	var pivot: Node3D = _arm_meshes[side]
+		if opponent != null and is_instance_valid(opponent):  # His grip on the other man (D282).
+			var frame: Transform3D = opponent._torso.global_transform.orthonormalized()
+			var target: Vector3 = frame.affine_inverse() * _grip_target(side, pivot.to_global(hand))
+			var k: float = 1.0 - exp(-GRIP_EASE * _motion_delta)
+			_grip_at[side] = target if not _grip_at[side].is_finite() else _grip_at[side].lerp(target, k)
+			hand = pivot.to_local(frame * _grip_at[side])
+			if _grip_hands[side] != "":
+				elbow = pivot.global_basis.inverse() * _grip_bend(side)
 	hand += Vector3(0.0, 0.06, 0.08) * float(_hit.guard)  # Knocked back toward his face.
 	if float(_pose.cover) > 0.0:  # Covering up: gloves to the temples, elbows in (D180).
 		var lateral: float = lead if side == 0 else -lead
-		var temple: Vector3 = _head.global_position + global_basis * Vector3(lateral * 0.12, 0.02, -0.06)
-		var tucked: Vector3 = _head.global_position + global_basis * Vector3(lateral * 0.1, -0.32, -0.12)
+		var frame: Basis = global_basis if float(_pose.lie) < 0.5 else _hips.global_basis.orthonormalized()  # Lying down (D282): over his face.
+		var temple: Vector3 = _head.global_position + frame * Vector3(lateral * 0.12, 0.02, -0.06)
+		var tucked: Vector3 = _head.global_position + frame * Vector3(lateral * 0.1, -0.32, -0.12)
 		hand = hand.lerp(pivot.to_local(temple), float(_pose.cover))
 		elbow = elbow.lerp(pivot.to_local(tucked), float(_pose.cover))
 	var pole: Vector3 = elbow
@@ -777,7 +1097,7 @@ static func _segment(mesh: MeshInstance3D, start: Vector3, end: Vector3) -> void
 static func _rest_pose() -> Dictionary:
 	return { "hip_y": HIP_HEIGHT - 0.07, "lean": -0.08, "lie": 0.0, "twist": 0.0, "arm_lead": 2.0, "arm_rear": 1.85,
 		"leg_lead": 0.22, "leg_rear": -0.25, "reach_lead": 1.0, "reach_rear": 1.0, "knee_short": 0.0,
-		"spread": 0.08, "kneel": 0.0, "aim": 0.0, "check": 0.0, "slip": 0.0, "cover": 0.0 }
+		"spread": 0.08, "kneel": 0.0, "aim": 0.0, "check": 0.0, "slip": 0.0, "cover": 0.0, "roll": 0.0 }
 
 
 func _build() -> void:
