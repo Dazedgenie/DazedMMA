@@ -390,6 +390,16 @@ const SETUP_PER_IQ: float = 0.6
 const FEINT_FOLLOW_TICKS: int = 3
 const BLIND_READ: float = 0.3
 const BIT_READ: float = 0.5
+## Striker feints by style (D236, Kyle: "Both, by style", docs/01 §29.6). Fighters who don't
+## lean outside (Range 0 or more) set their strikes up: about to lead with anything but a jab,
+## they feint first on a chance of STRIKE_SETUP_BASE + STRIKE_SETUP_PER_IQ × Fight IQ / 100 and
+## throw it off the feint (FEINT_FOLLOW_TICKS). Outside fighters (Range below 0) bait the
+## counter: in range with the opponent free, they feint on a chance of BAIT_RATE × Fight IQ / 100
+## a free tick and, if he bites, fire into it: strikes for BAIT_COUNTER_TICKS ("off the bait").
+const STRIKE_SETUP_BASE: float = 0.05
+const STRIKE_SETUP_PER_IQ: float = 0.2
+const BAIT_RATE: float = 0.003
+const BAIT_COUNTER_TICKS: int = 6
 
 var _triggers: TriggerLibrary
 var _ready_for: FighterState
@@ -439,6 +449,8 @@ var _reverse_way: int = 0
 var _burst_until: int = -1000
 var _burst_way: int = 0
 var _burst_read_at: int = -1000
+## When it last started a feint as bait (D236): a bite on that one opens a counter.
+var _bait_at: int = -1000
 ## Which way they circle in open space (±1), thought again at _way_at + SWITCH_EVERY.
 var _way: int = 1
 var _way_at: int = -SWITCH_EVERY
@@ -537,6 +549,8 @@ func choose(view: FightView, layer: DecisionLayer) -> Decision:
 		d = _part(_catch_burst(view, layer), PART_COUNTER)
 	if d == null:
 		d = _part(_herd(view), PART_CAGE)
+	if d == null:
+		d = _part(_bait(view, layer), PART_SET_UP)
 	if d != null:
 		return d
 	if _leads(view, layer):
@@ -904,6 +918,9 @@ func _lead(view: FightView, layer: DecisionLayer) -> Decision:
 	if _feints_first(view, id):
 		_follow = { "kind": TELL, "id": id, "until": view.now + _feint_ticks(view) + FEINT_FOLLOW_TICKS, "reason": "shoots off the feint" }
 		return Decision.new(FightSim.FEINT, DecisionLayer.AI, "feints to set up the %s" % String(view.actions.get_action(id).name).to_lower())
+	if _feints_before_strike(view, layer, id):
+		_follow = { "kind": TELL, "id": id, "until": view.now + _feint_ticks(view) + FEINT_FOLLOW_TICKS, "reason": "throws off the feint" }
+		return Decision.new(FightSim.FEINT, DecisionLayer.AI, "feints to set up the %s" % String(view.actions.get_action(id).name).to_lower())
 	var setup: String = _setups.get(id, "")
 	if setup != "" and view.me.repertoire.has(setup) and _usable(view, view.actions.get_action(setup)):
 		return Decision.new(setup, DecisionLayer.AI, "sets up the %s" % String(view.actions.get_action(id).name).to_lower())
@@ -915,6 +932,34 @@ func _feints_first(view: FightView, id: String) -> bool:
 	if not view.actions.has(FightSim.FEINT) or not _usable(view, view.actions.get_action(FightSim.FEINT)) or not view.would_be_blind(id):
 		return false
 	return view.roll() < setup_chance(view.me)
+
+
+## About to lead with a strike (D236): a fighter who doesn't lean outside feints first, now and
+## then (strike_setup_chance). Never before a jab: the jab is the set-up.
+func _feints_before_strike(view: FightView, layer: DecisionLayer, id: String) -> bool:
+	if id == "jab" or view.actions.get_action(id).category != STRIKE or _lean(view, layer, StyleLeanings.RANGE) < 0.0:
+		return false
+	if not view.actions.has(FightSim.FEINT) or not _usable(view, view.actions.get_action(FightSim.FEINT)):
+		return false
+	return view.roll() < strike_setup_chance(view.me)
+
+
+## Chance to feint before a lead strike (D236): STRIKE_SETUP_BASE + STRIKE_SETUP_PER_IQ × Fight IQ / 100.
+static func strike_setup_chance(f: FighterState) -> float:
+	return clampf(STRIKE_SETUP_BASE + STRIKE_SETUP_PER_IQ * f.effective_stat("fight_iq") / 100.0, 0.0, 1.0)
+
+
+## Baiting the counter (D236): an outside fighter in range of a free opponent feints to draw him
+## (BAIT_RATE × Fight IQ / 100 a free tick); a bite opens a counter (FightEvent.FEINTED below).
+func _bait(view: FightView, layer: DecisionLayer) -> Decision:
+	if _lean(view, layer, StyleLeanings.RANGE) >= 0.0 or not view.opponent.is_free() or view.opponent.is_rocked() or view.me.is_rocked():
+		return null
+	if view.roll() >= BAIT_RATE * view.me.effective_stat("fight_iq") / 100.0:
+		return null
+	if not view.actions.has(FightSim.FEINT) or not _usable(view, view.actions.get_action(FightSim.FEINT)):
+		return null
+	_bait_at = view.now
+	return Decision.new(FightSim.FEINT, DecisionLayer.AI, "feints to draw him")
 
 
 ## Chance to feint before a shot that would be blind: SETUP_BASE + SETUP_PER_IQ × Fight IQ / 100.
@@ -1906,6 +1951,12 @@ func on_event(view: FightView, event: FightEvent, layer: DecisionLayer) -> void:
 			if event.actor != me and _last_move != "" and _timed_on_me(view, event):
 				_caught[_last_move] = int(_caught.get(_last_move, 0)) + 1
 				rethink()
+		FightEvent.FEINTED:
+			if event.actor == me and event.tick - _bait_at <= _feint_ticks(view):
+				_bait_at = -1000
+				if event.data.get("bit", false) and not view.me.is_rocked():
+					# He bit on the bait: fire into it (D236).
+					_follow = { "kind": COMBO, "until": event.tick + BAIT_COUNTER_TICKS, "last": "", "why": "off the bait" }
 		FightEvent.STRIKE_DEFENDED:
 			if event.actor == me and event.data.worked and not view.me.is_rocked():
 				# Off the slip, or while he's still on one leg from the check (D180).

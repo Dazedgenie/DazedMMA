@@ -52,14 +52,21 @@ func update(goals: Array[Vector3], support: Array[bool], delta: float) -> void:
 
 ## Returns knee and reachable ankle; the knee bends toward the pole without stretching bones.
 static func solve(hip: Vector3, ankle: Vector3, pole: Vector3) -> Array[Vector3]:
-	var offset: Vector3 = ankle - hip
-	var distance: float = clampf(offset.length(), 0.02, THIGH + SHIN - 0.002)
+	return solve_bones(hip, ankle, pole, THIGH, SHIN)
+
+
+## Any two-bone limb (a leg, or an arm from the shoulder, D281): the middle joint bends toward
+## the pole, and an end out of reach stops at full extension instead of stretching the bones.
+static func solve_bones(root: Vector3, end: Vector3, pole: Vector3, first: float, second: float) -> Array[Vector3]:
+	var hip: Vector3 = root
+	var offset: Vector3 = end - hip
+	var distance: float = clampf(offset.length(), absf(first - second) + 0.02, first + second - 0.002)
 	var axis: Vector3 = offset.normalized() if offset.length() > 0.001 else Vector3.DOWN
 	var bend: Vector3 = pole - axis * pole.dot(axis)
 	if bend.length_squared() < 0.001:
 		bend = Vector3.UP - axis * Vector3.UP.dot(axis)
 	if bend.length_squared() < 0.001:
 		bend = Vector3.RIGHT - axis * Vector3.RIGHT.dot(axis)
-	var along: float = (THIGH * THIGH - SHIN * SHIN + distance * distance) / (2.0 * distance)
-	var height: float = sqrt(maxf(0.0, THIGH * THIGH - along * along))
+	var along: float = (first * first - second * second + distance * distance) / (2.0 * distance)
+	var height: float = sqrt(maxf(0.0, first * first - along * along))
 	return [hip + axis * along + bend.normalized() * height, hip + axis * distance]

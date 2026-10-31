@@ -43,6 +43,7 @@ const COLUMNS: Array[String] = [
 	"underhook_blue", "body_lock_blue", "pummels_blue", "pummels_won_blue", "strips_blue", "strips_won_blue", "turns_blue", "turns_won_blue",
 	"full_guard", "half_guard", "side_control", "mount", "back_control", "advances_red", "escapes_red", "advances_blue", "escapes_blue",
 	"feints_red", "feints_bit_red", "blind_red", "blind_landed_red", "feints_blue", "feints_bit_blue", "blind_blue", "blind_landed_blue",
+	"off_feint_red", "off_feint_landed_red", "off_feint_blue", "off_feint_landed_blue",
 	"combos_red", "combo_strikes_red", "combo_landed_red", "combos_blue", "combo_strikes_blue", "combo_landed_blue",
 	"checks_red", "checked_red", "slips_red", "slipped_red", "covered_hits_red",
 	"checks_blue", "checked_blue", "slips_blue", "slipped_blue", "covered_hits_blue",
@@ -240,6 +241,8 @@ static func of(sim: FightSim, lows: Array[float] = [], moves: Dictionary = {}) -
 		row["escapes_" + side] = f.escapes
 		row["feints_" + side] = f.feints_tried
 		row["feints_bit_" + side] = f.feints_bit
+		row["off_feint_" + side] = f.off_feint_thrown
+		row["off_feint_landed_" + side] = f.off_feint_landed
 		row["blind_" + side] = f.blind_shots
 		row["blind_landed_" + side] = f.blind_landed
 		row["combos_" + side] = f.combos_thrown

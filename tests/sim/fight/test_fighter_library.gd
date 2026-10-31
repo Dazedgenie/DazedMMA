@@ -60,8 +60,8 @@ func test_tendencies_tilt_what_the_fighter_throws() -> void:
 	sim.run_to_end()
 	var thrown := { "jab": 0, "cross": 0 }
 	for e in sim.events:
-		if e.type == FightEvent.ACTION_PHASE and e.data.phase == "telegraph" and e.actor == 0:
-			thrown[e.data.action_id] += 1
+		if e.type == FightEvent.ACTION_PHASE and e.data.phase == "telegraph" and e.actor == 0 and thrown.has(e.data.action_id):
+			thrown[e.data.action_id] += 1  # Not the feints he sets the cross up with (D236).
 	assert_gt(thrown.jab, thrown.cross * 2, "jab weighted 4× over the cross")
 
 
