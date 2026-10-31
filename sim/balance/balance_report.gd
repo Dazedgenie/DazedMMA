@@ -461,11 +461,22 @@ func _pair_lines(of_rows: Array[Dictionary], names: Dictionary) -> PackedStringA
 	lines.append("  Defence    %s checks %.1f of %.1f worked, slips %.1f of %.1f, %.1f hits on the guard · %s %.1f of %.1f, %.1f of %.1f, %.1f (D180)" % [
 		red, average(of_rows, "checked_red"), average(of_rows, "checks_red"), average(of_rows, "slipped_red"), average(of_rows, "slips_red"), average(of_rows, "covered_hits_red"),
 		blue, average(of_rows, "checked_blue"), average(of_rows, "checks_blue"), average(of_rows, "slipped_blue"), average(of_rows, "slips_blue"), average(of_rows, "covered_hits_blue")])
+	lines.append("  GnP        %s %s · %s %s (D270)" % [red, _gnp_line(of_rows, "red", "blue"), blue, _gnp_line(of_rows, "blue", "red")])
 	lines.append("  Chosen by  %s %s · %s %s (D250)" % [red, _chosen_line(of_rows, "red"), blue, _chosen_line(of_rows, "blue")])
 	lines.append("  AI parts   %s %s · %s %s (D254)" % [red, _parts_line(of_rows, "red"), blue, _parts_line(of_rows, "blue")])
 	lines.append("  Tired      someone under 50%% of the tank in %s of fights" % _pct(tired_share(of_rows)))
 	lines.append("  Odds       %s of exchanges hit the 5–95%% clamp" % _pct(clamped_share(of_rows)))
 	return lines
+
+
+## One side's ground and pound (D270): "lands 14.2 a fight (hammerfists 21% · body 18% · bombs 6%),
+## the other man covers up 2.1 times (3.4 on the gloves), turns away 0.2".
+static func _gnp_line(of_rows: Array[Dictionary], side: String, other: String) -> String:
+	var landed: float = average(of_rows, "gnp_landed_" + side)
+	var share := func(key: String) -> String: return _pct(average(of_rows, "%s_%s" % [key, side]) / landed if landed > 0.0 else 0.0)
+	return "lands %.1f a fight (hammerfists %s · body %s · bombs %s), the other covers up %.1f (%.1f on the gloves), turns away %.2f" % [
+		landed, share.call("gnp_hammer"), share.call("gnp_body"), share.call("gnp_bomb"),
+		average(of_rows, "ground_covers_" + other), average(of_rows, "gnp_covered_" + other), average(of_rows, "turned_away_" + other)]
 
 
 ## Who chose a side's moves, as shares: "own AI 97.1% · calls 2.4% · rules 0.5% · commands 0.0% of 312 moves a fight".

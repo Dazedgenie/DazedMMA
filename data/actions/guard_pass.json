@@ -14,6 +14,7 @@
 	"stats": { "offense": ["top_control", "strength"], "defense": ["guard"] },
 	"opportunities": [
 		{ "opponent_flag": "HANDS_LOW", "success_bonus": 0.10 },
+		{ "opponent_flag": "COVERED", "success_bonus": 0.15 },
 		{ "own_flag": "POSTURE_BROKEN", "success_bonus": -0.10 }
 	],
 	"requires_technique": null

@@ -1,0 +1,16 @@
+{
+	"schema": "action@2",
+	"id": "turn_away",
+	"name": "Turn away",
+	"category": "ground",
+	"positions": ["mount"],
+	"roles": ["bottom"],
+	"ranges": ["clinch"],
+	"phases_ms": { "telegraph": 0, "windup": 100, "active": 100, "recovery": 100 },
+	"stamina_cost": 0,
+	"flags_self": [],
+	"ground": { "base_success": 1.0 },
+	"stats": { "offense": [], "defense": [] },
+	"opportunities": [],
+	"requires_technique": null
+}
