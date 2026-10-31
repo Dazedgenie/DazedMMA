@@ -222,6 +222,27 @@ What a fight on the fight screen leaves behind, one file per fight in the player
 | `replay` | `FightSim.record()` plus `ticks`: the fight replays from it to the same ending |
 | `profiles` | `{id: fighter@1 profile}` for any fighter not in `data/fighters/` (the camp planner's `<id>_camp`, D134); `PlaytestReport.replays` adds them to the roster before replaying. Empty otherwise |
 
+### career@1 (saved by the game, not in `data/`)
+One career (D301, `docs/03` §10.1): a slot's file in the player's `user://saves/` folder (`slot_0.json` … `slot_2.json`,
+each with a `.backup.json` of the save before it). Written by `CareerSaves` (`game/career_saves.gd`) from `Career.to_dict()`
+(`sim/world/career.gd`). Numbers come back from JSON as floats; `Career.from_dict()` makes whole numbers whole again.
+
+| Field | Meaning |
+|---|---|
+| `schema`, `version` | `"career"` and the format's version (1). A newer version than the game knows is refused; older ones go through `Career.migrate()` |
+| `seed`, `dice` | The career's seed and where its dice are, as text (64-bit numbers don't survive a JSON number) |
+| `coach` | `{name}`: the head coach, the player |
+| `fighter` | The fighter@1 profile he started with (id `career_fighter`); what changes with training is in `trainee` |
+| `about` | `nickname`, `hometown`, `country`, `background`: shown on screens, not used by fights |
+| `trainee` | `TrainingCamp.snapshot()`: `stats` (with fractions), `style`, `fatigue`, `injured_days`, `injury_area`, `age_years`, `potential`, `camp_gains` (this camp's, for the soft cap) and `dice` |
+| `calendar` | `first_monday` (days since 1 Jan 1970 of week 0's Monday) and `week` (weeks since) |
+| `suspended_days`, `money`, `pro`, `week_plan` | Days of medical suspension left; money; turned pro; the data/week_plans id run between fights |
+| `fights` | One entry per fight, oldest first: `result` (`win`, `loss`, `draw`, `no_contest`), `opponent` (an id in `opponents`), `week`, `pro`, and what the fight screen adds (`method`, `round`, `time`, `ruleset`, `purse`) |
+| `opponents` | `{id: fighter@1 profile}` for everyone he's fought or is booked to fight |
+| `booked`, `offers` | The next fight and the offers on the table (D304) |
+| `summary` | What the load screen shows without loading the career: `name`, `nickname`, `coach`, `age`, `date`, `week`, `pro`, `amateur_record`, `pro_record` |
+| `saved_at`, `saved_unix`, `game` | Added by `CareerSaves`: when (UTC, and Unix seconds for *Continue*), and the game name and Godot version |
+
 ## 4. What the validator checks
 Valid JSON with a known schema · id matches file name and folder · required fields present with the right types ·
 action timings are whole ticks · values come from the allowed lists · every reference (positions, actions, calls, triggers,
@@ -229,4 +250,4 @@ flags, stats, sessions, gameplans) points to something that exists · a session'
 of 2 sessions.
 
 ## 5. Not yet defined (comes with the issue that needs it)
-Technique proficiency and the `techniques` link to `requires_technique` (D6), state/threshold trigger fields (#16), backgrounds/vignettes, techniques, promotions and names (Alpha), the career save (`docs/04` §11).
+Technique proficiency and the `techniques` link to `requires_technique` (D6), state/threshold trigger fields (#16), backgrounds/vignettes, techniques, promotions and names (Alpha).

@@ -288,6 +288,41 @@ func camp_gains() -> Dictionary:
 	return _camp_gains.duplicate()
 
 
+## Everything that changes as the fighter trains, so a career can be saved in the middle of a camp and carry on
+## exactly as if it never stopped (Career, docs/03 §10.1, D301): the stats with their fractions, the style, fatigue,
+## any injury, the age to the week, the potential, this camp's gains (the soft cap) and where the dice are.
+## The dice are text: a 64-bit number doesn't survive a JSON number.
+func snapshot() -> Dictionary:
+	var leanings: Dictionary = {}
+	for leaning in StyleLeanings.LEANINGS:
+		leanings[leaning] = style.value(leaning)
+	return {
+		"stats": stats.duplicate(), "style": leanings, "fatigue": fatigue,
+		"injured_days": injured_days, "injury_area": injury_area,
+		"age_years": age_years, "potential": potential,
+		"camp_gains": _camp_gains.duplicate(), "dice": str(_rng.state),
+	}
+
+
+## Puts a snapshot() back. Numbers read back from JSON come as floats, so whole numbers are made whole again.
+func restore(snap: Dictionary) -> void:
+	stats = {}
+	for id: String in snap.get("stats", {}):
+		stats[id] = float(snap.stats[id])
+	style = StyleLeanings.new(snap.get("style", {}))
+	fatigue = float(snap.get("fatigue", 0.0))
+	injured_days = int(snap.get("injured_days", 0))
+	injury_area = String(snap.get("injury_area", ""))
+	age_years = float(snap.get("age_years", age_years))
+	age = int(age_years + 0.0001)
+	potential = float(snap.get("potential", potential))
+	_camp_gains = {}
+	for id: String in snap.get("camp_gains", {}):
+		_camp_gains[id] = float(snap.camp_gains[id])
+	if snap.has("dice"):
+		_rng.state = String(snap.dice).to_int()
+
+
 ## The letter grade for a stat value (docs/11 §2.4).
 static func grade(value: float) -> String:
 	for entry: Array in GRADES:

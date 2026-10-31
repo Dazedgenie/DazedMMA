@@ -391,3 +391,19 @@ func test_in_fight_week_the_fight_is_on_saturday_evening_with_no_sunday_to_recov
 	var tapered := TrainingCamp.new(_fighter(), 1, _no_injuries())
 	tapered.run_camp(["all_out", "taper"] as Array[String], true)
 	assert_eq(TrainingCamp.tank_at(tapered.fatigue), 1.0, "a Taper week brings the fighter in with a full tank")
+
+
+func test_a_snapshot_put_back_trains_on_exactly_the_same() -> void:
+	var straight := TrainingCamp.new(_fighter(), 11)
+	var resumed := TrainingCamp.new(_fighter(), 11)
+	for plan: String in ["all_out", "all_out"]:
+		straight.run_week(plan)
+		resumed.run_week(plan)
+	var saved: Dictionary = JSON.parse_string(JSON.stringify(resumed.snapshot(), "", true, true))
+	resumed = TrainingCamp.new(_fighter(), 0)
+	resumed.restore(saved)
+	for plan: String in ["all_out", "all_out", "taper"]:
+		straight.run_week(plan)
+		resumed.run_week(plan)
+	assert_eq(JSON.stringify(resumed.snapshot(), "", true, true), JSON.stringify(straight.snapshot(), "", true, true),
+		"stats, style, fatigue, injuries, age and dice as if it never stopped (D301)")
