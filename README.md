@@ -9,7 +9,8 @@ takedowns, ground positions and submissions, with the corner's calls on the keyb
 childhood vignettes come with the vertical slice (Phase 2).
 
 - Start here: [`docs/00-design-planning.md`](docs/00-design-planning.md) (vision, decisions log, doc index)
-- Engine: Godot 4.7 · low-poly 3D with an isometric camera · Windows first, with Linux and browser builds (D240)
+- Visual sample: [`docs/13-visual-direction.md`](docs/13-visual-direction.md) — local fight night, faceted fighters, closer camera.
+- Engine: Godot 4.7 · low-poly 3D with a three-quarter camera · Windows first, with Linux and browser builds (D240)
 
 ## Playing it
 - **In the browser:** [dazedgenie.itch.io/chin-check](https://dazedgenie.itch.io/chin-check) on itch.io (D242).

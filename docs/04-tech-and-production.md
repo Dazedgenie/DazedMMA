@@ -102,6 +102,9 @@ Key rules:
 
 ## 3. Art pipeline (low-poly 3D, isometric camera: D80)
 
+The first playable local-fight-night art pass and the user-selected direction are in
+[`13-visual-direction.md`](13-visual-direction.md). It explores a lower camera and faceted fighters.
+
 The hard part of AI-assisted art is **consistency**. Real-time 3D with one shared rig fixes most of that.
 
 1. **Style bible first**: low-poly shape language, palette, flat/toon shading, lighting, UI look. Locked before mass production.

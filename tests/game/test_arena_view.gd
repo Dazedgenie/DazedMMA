@@ -243,3 +243,42 @@ func test_the_face_gloves_and_toes_are_on_the_front_of_the_fighter() -> void:
 	sim.apply_transition(0, "double_leg")
 	figure.show_state(sim, 0, Vector2.ZERO, Vector2(1.0, 0.0), 1.0)
 	assert_false(figure._feet[0].visible, "kneeling on top, only the thigh shows")
+
+
+func test_the_closer_camera_keeps_heads_and_feet_clear_of_the_top_and_bottom_hud() -> void:
+	var viewport := SubViewport.new()
+	viewport.size = Vector2i(1920, 1080)
+	add_child_autofree(viewport)
+	var view := ArenaView.new()
+	viewport.add_child(view)
+	var sim: FightSim = _sim()
+	view.watch(FightDriver.new(sim))
+	for pair: Array in [
+		[Vector2(-0.7, 0.7), Vector2(0.7, -0.7)],
+		[Vector2(2.8, 1.8), Vector2(3.8, 0.6)],
+		[Vector2(-3.8, -0.6), Vector2(-2.8, -1.8)],
+		[Vector2(-4, 0), Vector2(4, 0)],
+		[Vector2(-2.8, -2.8), Vector2(2.8, 2.8)]
+	]:
+		for i in 2:
+			sim.fighters[i].pos = pair[i]
+		for frame in 30:
+			view._place_camera(0.2, (pair[0] + pair[1]) / 2.0, sim)
+		for at: Vector2 in pair:
+			for height: float in [0.0, 2.0]:
+				var point := Vector3(at.x, height, at.y)
+				var screen: Vector2 = view.camera.unproject_position(point) / Vector2(viewport.size)
+				assert_false(view.camera.is_position_behind(point))
+				assert_between(screen.x, 0.08, 0.92, "both fighters fit horizontally")
+				assert_between(screen.y, 0.18, 0.82, "heads and feet clear the broadcast/control bars")
+
+
+func test_clearing_the_arena_detaches_the_old_fight_events() -> void:
+	var view := ArenaView.new()
+	add_child_autofree(view)
+	var sim: FightSim = _sim()
+	view.watch(FightDriver.new(sim))
+	view.watch(null)
+	assert_false(sim.event_emitted.is_connected(view._on_event))
+	sim.event_emitted.emit(FightEvent.new(1, 1, FightEvent.STRIKE_LANDED, 0, {"target": "head", "damage": 10}))
+	assert_true(view.figures.is_empty())
