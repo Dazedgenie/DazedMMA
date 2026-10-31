@@ -6,6 +6,13 @@ extends Node3D
 const RED := Color("#a83c3d")
 const BLUE := Color("#37688e")
 const HEIGHT: float = 1.9
+## The camera-side fence (D281): a panel fades in, see-through, while a fighter is within NEAR_FENCE_WITHIN
+## metres of it, up to NEAR_FENCE_ALPHA, over about 1 / NEAR_FENCE_SPEED seconds.
+const NEAR_FENCE_WITHIN: float = 1.2
+const NEAR_FENCE_ALPHA: float = 0.7
+const NEAR_FENCE_SPEED: float = 4.0
+## The camera-side panels: {node, material, normal (Vector2, out of the cage), fade}.
+var near_panels: Array[Dictionary] = []
 var _batches: Dictionary = {}
 var _cube := BoxMesh.new()
 var _cylinder := CylinderMesh.new()
@@ -94,6 +101,7 @@ func _cage() -> void:
 		# Camera-side panels are cut down to an ankle-high rail, keeping fence grappling visible.
 		_box(Vector3(middle.x, 0.07, middle.y), Vector3(length, 0.1, 0.09), "#20252c", angle)
 		if near_side:
+			_near_panel(middle, length, angle)
 			continue
 		var panel := QuadMesh.new()
 		panel.size = Vector2(length, HEIGHT)
@@ -108,6 +116,33 @@ func _cage() -> void:
 	# A small stair unit at the visible entrance.
 	for step in 3:
 		_box(Vector3(4.2 + step * 0.32, -0.48 - step * 0.12, 3.3), Vector3(0.45, 0.14, 1.1), "#343d45")
+
+
+func _near_panel(middle: Vector2, length: float, angle: float) -> void:
+	var material := ShaderMaterial.new()
+	material.shader = load("res://game/shaders/chain_link_fade.gdshader")
+	material.set_shader_parameter("fade", 0.0)
+	var panel := QuadMesh.new()
+	panel.size = Vector2(length, HEIGHT)
+	var wire: MeshInstance3D = FightMesh.instance(self, panel, material, Vector3(middle.x, HEIGHT / 2.0, middle.y))
+	wire.rotation.y = angle
+	wire.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	wire.visible = false
+	near_panels.append({ "node": wire, "material": material, "normal": middle.normalized(), "fade": 0.0 })
+
+
+## Fades in the camera-side fence where a fighter (drawn at `spots`) is against it, and out again (D281).
+func show_near_fence(spots: Array[Vector2], delta: float) -> void:
+	for panel: Dictionary in near_panels:
+		var normal: Vector2 = panel.normal
+		var want: float = 0.0
+		for p: Vector2 in spots:
+			var facing_it: bool = p.length() < 0.5 or p.normalized().dot(normal) > cos(PI / 8.0 + 0.2)
+			if facing_it and Octagon.APOTHEM - p.dot(normal) < NEAR_FENCE_WITHIN + Octagon.BODY_MARGIN:
+				want = NEAR_FENCE_ALPHA
+		panel.fade = move_toward(float(panel.fade), want, delta * NEAR_FENCE_SPEED * NEAR_FENCE_ALPHA)
+		(panel.material as ShaderMaterial).set_shader_parameter("fade", panel.fade)
+		(panel.node as MeshInstance3D).visible = float(panel.fade) > 0.01
 
 
 func _room() -> void:
