@@ -47,14 +47,20 @@ static func contour(profile: Array[Vector4], sides: int = 12, offsets: Array[Vec
 	return surface.commit()
 
 
-static func torso(stocky: bool) -> ArrayMesh:
-	var profile: Array[Vector4] = [
+## The torso; `from` and `to` (metres from its middle) keep only the rings between them, so the rig (D283) can
+## cut it at the waist and bend it there.
+static func torso(stocky: bool, from: float = -INF, to: float = INF) -> ArrayMesh:
+	var all: Array[Vector4] = [
 		Vector4(-0.31, 0.17, 0.105, 0.10), Vector4(-0.23, 0.165, 0.115, 0.115),
 		Vector4(-0.15, 0.17, 0.127, 0.12), Vector4(-0.07, 0.19, 0.14, 0.13),
 		Vector4(0.015, 0.235, 0.147, 0.145), Vector4(0.09, 0.265, 0.177, 0.155),
 		Vector4(0.17, 0.282, 0.175, 0.15), Vector4(0.235, 0.275, 0.14, 0.135),
 		Vector4(0.285, 0.17, 0.103, 0.11), Vector4(0.335, 0.086, 0.077, 0.085)
 	]
+	var profile: Array[Vector4] = []
+	for ring: Vector4 in all:
+		if ring.x >= from - 0.001 and ring.x <= to + 0.001:
+			profile.append(ring)
 	return contour(profile, 16, [], func(p: Vector3) -> Vector3:
 		# Sternum, pectoral lobes and the abdominal midline are in the surface, not stuck-on blocks.
 		if p.z < 0:

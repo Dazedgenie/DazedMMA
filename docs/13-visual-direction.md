@@ -168,6 +168,69 @@ ffmpeg -framerate 24 -i build/grapples/frame-%04d.png -c:v libx264 -pix_fmt yuv4
 Tests: `tests/game/test_grapple_poses.gd` (the grips sit where they should, and every move in the library moves the
 figure).
 
+## The rig prototype (D283)
+
+Today's figures pose each man on his own, so on the ground and in the clinch their limbs pass through each other.
+The rig prototype is the step before paired grappling: a skeleton that can be posed against a second one.
+
+**The skeleton** (`game/rig/fighter_rig.gd`, `FighterRig`) is built in code in today's faceted look. The pelvis
+carries a waist joint 0.29 m up where the torso is cut (`FighterSculpt.torso(stocky, from, to)` keeps the rings
+between two heights), so the chest bends forward, twists and side-bends over the hips. The neck and head nod and
+turn. Arms (0.31 + 0.32 m) and legs (0.46 + 0.45 m) are two-bone chains solved like the fighters' legs
+(`FighterMotion.solve_bones`): fixed lengths, the elbow or knee bent toward a pole, a target out of reach stopping
+at full stretch.
+
+**Points on a body.** Hands and feet go to named points on either man: `chest`, `sternum`, `back`, `blade_l/r`
+(shoulder blades), `belly`, `lower_back`, `waist_l/r`, `hip_l/r`, `seat`, `neck`, `nape`, `head`,
+`back_of_head`, `chin`, `shoulder_l/r`, `armpit_l/r`, a limb's middle (`thigh_l`, `shin_r`, `upper_l`, `fore_r`)
+or a joint (`elbow_l`, `knee_r`, `wrist_l`, `ankle_r`). Each is a bone and an offset in that bone's frame
+(`FighterRig.POINTS`), so the hand stays on his back when his back moves.
+
+**Paired poses** (`game/rig/rig_pairs.gd`, `RigPairs`) are data in one frame for both men: the origin on the
+canvas between them, red on the +Z side facing -Z, blue facing him (turn 180). A body is `root` (the pelvis),
+`turn`, `lean` (forward +, -90 on his back), `roll`, `bend` [forward, twist, side] at the waist and `head` [nod,
+turn], in degrees and metres. Each hand and foot is `{"to": "b.back", "off": [x, y, z]}` (a point on the other
+man; `a.` is himself), `{"at": [x, y, z]}` (a place in the frame) or nothing (hands up, feet under the hips),
+with an optional `pole` (where the elbow or knee points, in his pelvis frame) and `flat` (1 lays the foot on
+the canvas). The prototype's set:
+
+| Pose | Red | Blue |
+| --- | --- | --- |
+| Clinch (body lock) | arms under blue's, hands round his shoulder blades, head on his shoulder, hips back | overhooks on red's shoulder blades, head on the other side |
+| Double leg | level changed, rear knee down, head on blue's ribs to the outside, hands behind his knees | tall, hands on red's back |
+| Full guard | kneeling between his legs, hands on his belly | on his back, legs round red's waist with the ankles crossed behind his lower back, a hand on the back of red's neck and one on his arm |
+| Sprawl | down on his knees, arms short at blue's hips | hips dropped on red's head, legs kicked back, chest over his back, one arm over his back and one under his arm |
+| Getting up | sitting back on a hand posted behind, the other framing, one foot planted and the other leg out at blue | waiting a step away |
+
+`FighterRig.pose_pair(a, b, pose, frame, to, t)` places both bodies, then solves the limbs twice (so a hand on his
+arm finds the arm where it ended up). With `to` and `t` it blends: the body numbers are mixed, and each hand and
+foot target is mixed in the world, so a hand on him stays on him through the move. The clips: standing to the
+clinch, shooting the double leg and finishing it into the guard, shooting into a sprawl, and getting up.
+
+**A skinned body later.** A single mesh that bends at the joints (for example an auto-rigged Tripo or Mixamo
+body) will look better than separate faceted pieces. The rig is the part that body still needs: what moves the
+bones so two men fit together. `FighterRig.HUMANOID` maps each joint to the bone names of Godot's standard
+humanoid skeleton (`Hips`, `Chest`, `Neck`, `Head`, `LeftUpperArm`, `LeftLowerArm`, `LeftHand`, `LeftUpperLeg`,
+`LeftLowerLeg`, `LeftFoot` and the right side's), and `bone_transforms()` gives each one's place and turn, so the
+same poses can drive an imported body's skeleton.
+
+**Not yet:** the rig isn't in the fight screen; poses are hand-placed with no physics; no grip, ground or
+submission position past these five; the hands are mitts with no fingers. Next: drive a skinned humanoid body
+with the same poses, then replace the fight view's grappling positions one at a time.
+
+Preview, side on in the real venue (the clinch and the full guard are first shown as today's figures draw them);
+`--stills` writes one picture per pose, `--angle=80` turns the camera round the pair:
+
+```sh
+godot --path . --script res://tools/rig_preview.gd -- --out=res://build/rig [--stills] [--angle=80]
+ffmpeg -framerate 24 -i build/rig/frame-%04d.png -c:v libx264 -pix_fmt yuv420p build/rig.mp4
+```
+
+Tests: `tests/game/test_fighter_rig.gd` (bones keep their length in every pose and blend, every hand and foot gets
+within 3 cm of its point, the bodies touch without passing through each other's core, the guard's ankles cross
+behind his back, nothing goes through the canvas and standing feet stay on it, and every joint has a humanoid
+bone name).
+
 ## Review and verification
 
 Open `project.godot` in Godot 4.7.2 and run the game normally. Start a fight and check striking,
