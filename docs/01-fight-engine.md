@@ -279,6 +279,43 @@ and the footwork test above runs four fights each and asks for the poor mover to
 
 **To change it:** `FightSim.first_at` is the whole rule. Making both fighters move at once from where they stood at the start
 of the tick would be the other way to remove the edge; it is a bigger change (every move would need resolving in pairs).
+
+### 2.6 Behaviour contracts and the AI's parts (D254)
+
+The golden fights (§2.2) catch a change; they can't tell a good one from a bad one. The outside review's sixth point was to
+add contracts: things that must hold in every fight whoever wins it. `tests/sim/fight/test_behaviour_contracts.gd` plays 13
+whole fights (every style in `data/fighters`, pro, PRIDE and amateur rules, the AI corner calling for both men, outside
+fighters walked down by cage cutters), watches each one as it goes, and checks:
+
+| Contract | How it's checked | The number |
+|---|---|---|
+| No fighter answers a move before he could have seen it | Every sprawl, check or slip the AI picks starts no sooner than the opponent's move started, plus a tick if it started after his turn, plus his reaction time fresh (`FighterState.reaction_ticks`; tired, it's only longer) | Over 50 answers looked at |
+| A stuffed shot never counts as a takedown | A fighter's takedowns are exactly the takedowns that put him on top (not a failed one that put him underneath), and never more than his shots | Over 20 takedowns |
+| Every move a fighter starts is legal where he is | Its `positions`, `roles` and the ruleset allow it at the moment it starts, whoever picked it (AI, call, rule or command) | Over 2,000 moves |
+| Nearly every strike the AI picks is still in range when it lands | Under `OUT_OF_RANGE_UNDER` 15% of a fighter's AI strikes miss "out of range" (the opponent stepped out of it on its way), for fighters with 30 or more | The Kicker against the Boxer: about 10% |
+| Every move the AI picks says which part of it chose it | The parts add up to the AI's moves, and are all ones the harness reports | |
+| Defences never crowd out the rest of the AI | Under `DEFENCE_UNDER` 25% of a fighter's own moves are defences (for 50 moves or more), and the Kicker and the Boxer still throw their combinations | The Counter-striker defends most: about 16% |
+| An outside fighter cut off onto the fence gets back to the middle | Fighters with Range under 0, across the fights: back in the middle after at least `ESCAPES_AT_LEAST` 80% of the times they were cut off | About 95% (117 of 123 in a first look) |
+
+The contracts were checked by breaking one on purpose (the AI noticing a move with no reaction time): the first contract
+failed in every fight with sprawls or checks in it.
+
+**The AI's parts.** Every move the fighter's own AI picks now says which part of it chose it (`Decision.part`,
+`FighterAI.PARTS`, counted in `FighterState.ai_parts` when the move starts, not on the fight's events, so no fight changes):
+**defence** (a sprawl, check or slip on a move it read, or covering up rocked), **counter** (an opening it read, meeting an
+advance, a guillotine on a shot, catching a burst), **combination** (the next strike of one), **set-up** (a tell it spotted,
+the shot off its own feint), **lead** (a move of its own), **cage** (herding feints, tying him up when shut in), **tied up**
+(the clinch and the ground) and **downed** (the opponent down). The harness adds the `ai_<part>_red`/`_blue` columns and an
+*AI parts* line under *Chosen by*. A first look, 40 fights a pairing: the Kicker against the Boxer leads 43%, counters 31%,
+combinations 20%, defence 3%; the Boxer combinations 36%, leads 28%, counters 25%, defence 6%; a Counter-striker against a
+Pressure wrestler defends 16% and counters 24%; grapplers pick about 70% of their moves tied up.
+
+**Found on the way:** a striker who isn't an outside fighter (the Leg-kick specialist, Range +10) plants his feet and fights
+when he's shut in (D234), so against a Dirty boxer he got back to the middle 0 times of 20 cut-offs and was shut in for over
+6 minutes of the fight. That's the style answer Kyle picked; the last contract leaves those fighters out.
+
+**To change it:** the three numbers at the top of the test file, the fights in `FIGHTS`, the parts in `FighterAI.choose`
+(`_part`) and their names in `BalanceReport.PART_NAMES`.
 ---
 
 ## 3. Spatial model (D2, D33)

@@ -1137,6 +1137,9 @@ func _start_action(i: int, id: String, decision: Decision = null) -> void:
 	var why: Dictionary = {}
 	if decision != null:
 		why = { "by": decision.layer, "why": decision.reason }
+		if decision.layer == DecisionLayer.AI:
+			var part: String = decision.part if decision.part != "" else FighterAI.PART_LEAD
+			f.ai_parts[part] = f.ai_parts.get(part, 0) + 1
 	if blind:
 		why.blind = true
 	if f.combo_id != "":

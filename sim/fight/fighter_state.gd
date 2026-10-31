@@ -148,6 +148,8 @@ var blind_landed: int = 0
 var combos_thrown: int = 0
 var combo_strikes: int = 0
 var combo_landed: int = 0
+## Moves the fighter's own AI started, by the part of it that chose them (FighterAI.PARTS, D254).
+var ai_parts: Dictionary = {}
 
 var action_id: String = ""  # "" = free to act
 var phase: String = ""
