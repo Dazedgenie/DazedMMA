@@ -983,7 +983,7 @@ Kyle (2026-10-31): "Fighters should reset to the center of the cage occasionally
 only outside fighters (Range below 0) ever headed back to the middle, and only while further out than the opponent (§20.2).
 Everyone else never did: a Boxer backed onto the fence by a wrestler stayed there, and a chaser landing nothing kept chasing.
 Now a fighter who's been getting the worse of it lately walks back to the middle of the cage now and then, the patient
-thinkers most. Built on the recommended answer to each of the four questions while Kyle's cards were open (the rows D291–D294
+thinkers most. Built on the recommended answer to each of the four questions while Kyle's cards were open; he picked all four (the rows D291–D294
 say which).
 
 | Behaviour | What the fighter does | To change it |
