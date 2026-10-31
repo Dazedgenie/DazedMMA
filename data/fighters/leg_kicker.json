@@ -12,7 +12,7 @@
 	"flaws": [],
 	"techniques": ["jab", "cross", "hook", "leg_kick", "calf_kick", "body_kick", "knee"],
 	"combos": ["jab_leg_kick", "jab_calf_kick", "one_two", "one_two_leg_kick"],
-	"tendencies": { "work_rate": 0.018, "actions": { "jab": 1.0, "cross": 1.0, "hook": 0.8, "leg_kick": 2.0, "calf_kick": 1.6, "body_kick": 0.5, "knee": 0.3 } },
+	"tendencies": { "work_rate": 0.018, "actions": { "jab": 1.0, "cross": 1.0, "hook": 0.8, "leg_kick": 2.0, "calf_kick": 1.0, "body_kick": 0.5, "knee": 0.3 } },
 	"tells": [
 		{ "trigger": "own_jab_blocked", "action": "calf_kick", "chance": 0.6, "within_ms": 1000 }
 	]
