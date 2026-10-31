@@ -154,6 +154,17 @@ func test_a_collar_tie_says_the_head_is_pulled_down() -> void:
 	assert_string_contains(_plain(FightLogFormatter.line(tied, _sim)), "Red gets the COLLAR TIE: his head is pulled down for the knees")
 
 
+func test_the_grips_say_who_won_the_underhook_and_how_they_stand() -> void:
+	var hook := FightEvent.new(10, 1, FightEvent.GRAPPLE_WON, 0, { "action_id": "pummel", "result": "underhook", "underhooks": 2, "his_underhooks": 0 })
+	assert_string_contains(_plain(FightLogFormatter.line(hook, _sim)), "Red WINS THE UNDERHOOK: he has both now, the BODY LOCK")
+	var over := FightEvent.new(10, 1, FightEvent.GRAPPLE_WON, 1, { "action_id": "pummel", "result": "underhook", "underhooks": 1, "his_underhooks": 1 })
+	assert_string_contains(_plain(FightLogFormatter.line(over, _sim)), "Blue WINS THE UNDERHOOK: over-under")
+	var strip := FightEvent.new(10, 1, FightEvent.GRAPPLE_WON, 1, { "action_id": "strip_grip", "result": "stripped", "underhooks": 0, "his_underhooks": 0 })
+	assert_string_contains(_plain(FightLogFormatter.line(strip, _sim)), "Blue STRIPS THE UNDERHOOK: back to hand fighting")
+	var no_hook := FightEvent.new(10, 1, FightEvent.GRAPPLE_STOPPED, 1, { "action_id": "turn_him", "reason": "no underhook" })
+	assert_string_contains(_plain(FightLogFormatter.line(no_hook, _sim)), "he needs an underhook first")
+
+
 func test_the_cage_clinch_says_who_has_whose_back_on_the_fence() -> void:
 	var driven := FightEvent.new(10, 1, FightEvent.GRAPPLE_WON, 0, { "action_id": "fence_drive", "result": "driven" })
 	assert_string_contains(_plain(FightLogFormatter.line(driven, _sim)), "Red DRIVES HIM TO THE FENCE")

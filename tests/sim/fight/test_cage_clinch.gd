@@ -212,6 +212,7 @@ func test_turning_him_onto_the_fence_keeps_the_clinch_with_his_back_on_it() -> v
 	var turned: int = 0
 	for n in SEEDS:
 		var sim: FightSim = _on_the_fence(WORST, BEST, SEED + n)
+		sim.set_grips([1, FightSim.NO_GRIP])  # Turning him takes an underhook (D261).
 		_queue(sim, sim.now, 1, FightSim.TURN_HIM)
 		_ticks(sim, 7)
 		if _events(sim, FightEvent.GRAPPLE_WON, 1).is_empty():

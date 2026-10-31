@@ -13,7 +13,10 @@
 	"stats": { "offense": ["clinch_control", "strength"], "defense": ["clinch_control", "strength"] },
 	"opportunities": [
 		{ "opponent_flag": "POSTURE_BROKEN", "success_bonus": 0.10 },
-		{ "own_flag": "POSTURE_BROKEN", "success_bonus": -0.15 }
+		{ "own_flag": "POSTURE_BROKEN", "success_bonus": -0.15 },
+		{ "own_flag": "UNDERHOOK", "success_bonus": 0.10 },
+		{ "own_flag": "BODY_LOCK", "success_bonus": 0.10 },
+		{ "own_flag": "OVERHOOK", "success_bonus": -0.10 }
 	],
 	"requires_technique": null
 }

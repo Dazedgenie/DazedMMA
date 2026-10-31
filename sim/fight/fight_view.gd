@@ -168,6 +168,16 @@ func opponent_held_on_fence() -> bool:
 	return _sim().held_on_fence(1 - index)
 
 
+## My underhooks in the clinch (D261): 0, 1 or 2 (the body lock).
+func underhooks() -> int:
+	return _sim().underhooks(index)
+
+
+## His underhooks on me in the clinch (D261): my overhooks.
+func opponent_underhooks() -> int:
+	return _sim().underhooks(1 - index)
+
+
 ## A drive to the fence under way in the clinch (D220): {by, dir, left}, or empty.
 func drive() -> Dictionary:
 	return _sim().drive()

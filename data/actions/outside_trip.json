@@ -12,7 +12,10 @@
 	"stats": { "offense": ["takedowns", "clinch_control"], "defense": ["takedown_defense", "clinch_control"] },
 	"opportunities": [
 		{ "opponent_flag": "BACK_TO_CAGE", "success_bonus": 0.15 },
-		{ "opponent_flag": "LEANING", "success_bonus": 0.10 }
+		{ "opponent_flag": "LEANING", "success_bonus": 0.10 },
+		{ "own_flag": "UNDERHOOK", "success_bonus": 0.05 },
+		{ "own_flag": "BODY_LOCK", "success_bonus": 0.10 },
+		{ "opponent_flag": "BODY_LOCK", "success_bonus": -0.10 }
 	],
 	"requires_technique": null
 }

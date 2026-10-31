@@ -18,7 +18,8 @@
 		{ "opponent_flag": "POSTURE_BROKEN", "success_bonus": 0.15, "target": "head", "damage_multiplier": 1.2 },
 		{ "opponent_flag": "HELD_ON_FENCE", "success_bonus": 0.05 },
 		{ "own_flag": "POSTURE_BROKEN", "success_bonus": -0.15 },
-		{ "opponent_flag": "COVERED", "success_bonus": 0.15 }
+		{ "opponent_flag": "COVERED", "success_bonus": 0.15 },
+		{ "own_flag": "UNDERHOOK", "success_bonus": 0.05 }
 	],
 	"requires_technique": null
 }
