@@ -14,7 +14,9 @@
 	"stats": { "offense": ["takedowns", "strength"], "defense": ["takedown_defense", "clinch_control"] },
 	"opportunities": [
 		{ "opponent_flag": "BACK_TO_CAGE", "success_bonus": -0.10 },
-		{ "opponent_flag": "LEANING", "success_bonus": 0.15 }
+		{ "opponent_flag": "LEANING", "success_bonus": 0.15 },
+		{ "own_flag": "OVERHOOK", "success_bonus": 0.10 },
+		{ "own_flag": "UNDERHOOK", "success_bonus": 0.05 }
 	],
 	"requires_technique": null
 }

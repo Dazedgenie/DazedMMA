@@ -133,6 +133,15 @@ var fence_drives_tried: int = 0
 var fence_drives_won: int = 0
 var spin_offs_tried: int = 0
 var spin_offs_won: int = 0
+## Grips in the clinch (D261): pummels (swimming an arm inside for an underhook) and strips (taking
+## one of his underhooks off) this fighter went for and won.
+var pummels_tried: int = 0
+var pummels_won: int = 0
+var strips_tried: int = 0
+var strips_won: int = 0
+## Turns on the fence (D262): turning him onto the fence (not the spin-off and away), went for and won.
+var turns_tried: int = 0
+var turns_won: int = 0
 ## Times this fighter moved to a better position on top (a pass, the mount, the back) and got
 ## out from underneath (back to guard, up, a reversal) (D130).
 var advances: int = 0

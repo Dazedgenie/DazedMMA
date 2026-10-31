@@ -13,7 +13,10 @@
 	"opportunities": [
 		{ "opponent_flag": "POSTURE_BROKEN", "success_bonus": 0.15, "damage_multiplier": 1.2 },
 		{ "opponent_flag": "HELD_ON_FENCE", "success_bonus": 0.05 },
-		{ "own_flag": "POSTURE_BROKEN", "success_bonus": -0.15 }
+		{ "own_flag": "POSTURE_BROKEN", "success_bonus": -0.15 },
+		{ "own_flag": "BODY_LOCK", "success_bonus": -0.10 },
+		{ "opponent_flag": "BODY_LOCK", "success_bonus": -0.10 },
+		{ "own_flag": "OVERHOOK", "success_bonus": 0.05 }
 	],
 	"requires_technique": null
 }

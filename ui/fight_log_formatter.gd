@@ -83,6 +83,10 @@ static func _describe(event: FightEvent, sim: FightSim) -> String:
 				return "%s gets the [b]COLLAR TIE[/b]: his head is pulled down for the knees%s" % [who, _odds(event)]
 			if event.data.result == "tied_up":
 				return "%s [b]TIES HIM UP[/b] from the bottom: no ground strikes for a few seconds%s" % [who, _odds(event)]
+			if event.data.result == "underhook":
+				return "%s [b]WINS THE UNDERHOOK[/b]%s%s" % [who, _grip_state(event), _odds(event)]
+			if event.data.result == "stripped":
+				return "%s [b]STRIPS THE UNDERHOOK[/b]%s%s" % [who, _grip_state(event), _odds(event)]
 			if event.data.result == "driven":
 				return "%s [b]DRIVES HIM TO THE FENCE[/b]%s" % [who, _odds(event)]
 			if event.data.result == "turned" and event.data.action_id == FightSim.TURN_HIM:
@@ -254,7 +258,24 @@ static func _stopped(event: FightEvent, sim: FightSim) -> String:
 			return "is [b]STOPPED[/b] by the %s" % _action_name(event.data.get("by_action", ""), sim).to_lower()
 		"nothing to catch":
 			return "finds nothing to catch%s" % _odds(event)
+		"no underhook":
+			return "can't: he needs an underhook first"
 	return "comes up short (%s)" % event.data.reason
+
+
+## How the grips stand after a pummel or a strip (D261): ": he has both now (the body lock)".
+static func _grip_state(event: FightEvent) -> String:
+	var mine: int = int(event.data.get("underhooks", 0))
+	var his: int = int(event.data.get("his_underhooks", 0))
+	if mine == 2:
+		return ": he has both now, the [b]BODY LOCK[/b]"
+	if mine == 1 and his == 1:
+		return ": over-under"
+	if mine == 1:
+		return ": one underhook"
+	if his == 1:
+		return ": he still has one"
+	return ": back to hand fighting"
 
 
 ## e.g. "Red wins by KO", "Blue wins by split decision (29-28, 28-29, 29-28)", "Draw (...)".

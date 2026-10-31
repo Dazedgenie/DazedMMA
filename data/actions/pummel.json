@@ -1,0 +1,20 @@
+{
+	"schema": "action@2",
+	"id": "pummel",
+	"name": "Pummel for the underhook",
+	"category": "clinch",
+	"basic": true,
+	"positions": ["clinch"],
+	"ranges": ["clinch"],
+	"phases_ms": { "telegraph": 0, "windup": 100, "active": 200, "recovery": 200 },
+	"stamina_cost": 3,
+	"flags_self": [],
+	"clinch": { "base_success": 0.45, "grip": "inside" },
+	"stats": { "offense": ["clinch_control", "strength"], "defense": ["clinch_control", "strength"] },
+	"opportunities": [
+		{ "own_flag": "UNDERHOOK", "success_bonus": 0.05 },
+		{ "opponent_flag": "HANDS_LOW", "success_bonus": 0.10 },
+		{ "own_flag": "POSTURE_BROKEN", "success_bonus": -0.15 }
+	],
+	"requires_technique": null
+}

@@ -39,6 +39,8 @@ const COLUMNS: Array[String] = [
 	"collar_ties_blue", "collar_ties_won_blue", "clinch_knees_blue", "tied_knees_blue",
 	"fence_hold_red", "fence_drives_red", "fence_drives_won_red", "spin_offs_red", "spin_offs_won_red",
 	"fence_hold_blue", "fence_drives_blue", "fence_drives_won_blue", "spin_offs_blue", "spin_offs_won_blue",
+	"underhook_red", "body_lock_red", "pummels_red", "pummels_won_red", "strips_red", "strips_won_red", "turns_red", "turns_won_red",
+	"underhook_blue", "body_lock_blue", "pummels_blue", "pummels_won_blue", "strips_blue", "strips_won_blue", "turns_blue", "turns_won_blue",
 	"full_guard", "half_guard", "side_control", "mount", "back_control", "advances_red", "escapes_red", "advances_blue", "escapes_blue",
 	"feints_red", "feints_bit_red", "blind_red", "blind_landed_red", "feints_blue", "feints_bit_blue", "blind_blue", "blind_landed_blue",
 	"off_feint_red", "off_feint_landed_red", "off_feint_blue", "off_feint_landed_blue",
@@ -101,7 +103,8 @@ static func setup(fight_seed: int, roster: FighterLibrary, actions: ActionLibrar
 static func play(sim: FightSim) -> Dictionary:
 	var lows: Array[float] = [1.0, 1.0]
 	var moves := { "standing": 0, "chase": 0, "fence": [0, 0], "pinned": [0, 0], "centre": [0, 0],
-		"ticks": 0, "clinch": 0, "ground": 0, "top": [0, 0], "fence_hold": [0, 0] }
+		"ticks": 0, "clinch": 0, "ground": 0, "top": [0, 0], "fence_hold": [0, 0],
+		"underhook": [0, 0], "body_lock": [0, 0] }
 	while not sim.is_over():
 		var before: Array[Vector2] = [sim.fighters[0].pos, sim.fighters[1].pos]
 		var round_before: int = sim.clock.current_round
@@ -131,6 +134,14 @@ static func count_movement(sim: FightSim, before: Array[Vector2], moves: Diction
 			for i in 2:
 				if sim.held_on_fence(1 - i):
 					moves.fence_hold[i] += 1  # Fighter i holds the other on the fence (D220).
+				var hooks: int = sim.underhooks(i)
+				for grip: String in ["underhook", "body_lock"]:
+					if not moves.has(grip):
+						moves[grip] = [0, 0]
+				if hooks >= 1:
+					moves.underhook[i] += 1  # At least one underhook (D261).
+				if hooks == 2:
+					moves.body_lock[i] += 1
 		if GROUND_POSITIONS.has(sim.situation.position):
 			moves[sim.situation.position] = moves.get(sim.situation.position, 0) + 1
 		for i in 2:
@@ -217,6 +228,15 @@ static func of(sim: FightSim, lows: Array[float] = [], moves: Dictionary = {}) -
 		row["fence_drives_won_" + side] = f.fence_drives_won
 		row["spin_offs_" + side] = f.spin_offs_tried
 		row["spin_offs_won_" + side] = f.spin_offs_won
+		var clinch_ticks: int = moves.get("clinch", 0)
+		row["underhook_" + side] = _share_of(moves.get("underhook", [0, 0])[i], clinch_ticks)
+		row["body_lock_" + side] = _share_of(moves.get("body_lock", [0, 0])[i], clinch_ticks)
+		row["pummels_" + side] = f.pummels_tried
+		row["pummels_won_" + side] = f.pummels_won
+		row["strips_" + side] = f.strips_tried
+		row["strips_won_" + side] = f.strips_won
+		row["turns_" + side] = f.turns_tried
+		row["turns_won_" + side] = f.turns_won
 		row["advances_" + side] = f.advances
 		row["escapes_" + side] = f.escapes
 		row["feints_" + side] = f.feints_tried
