@@ -135,6 +135,8 @@ var age_years: float  # Age with the weeks since the last birthday: each week ru
 var potential: float
 
 var _profile: Dictionary
+## The head coach's specialty (Coach, D311): a career sets it; "" trains as before.
+var coach_specialty: String = ""
 var _library: TrainingLibrary
 var _rng := RandomNumberGenerator.new()
 var _camp_gains: Dictionary = {}  # stat id → points gained this camp
@@ -228,6 +230,7 @@ func run_plan(plan: Dictionary, played: Dictionary = {}, fight_week: bool = fals
 ## `skips_expected` say how likely the dice were to change that.
 func forecast(plan: Dictionary, fight_week: bool = false) -> Dictionary:
 	var copy := TrainingCamp.new(profile(), 0, _library)
+	copy.coach_specialty = coach_specialty
 	copy.stats = stats.duplicate()
 	copy.fatigue = fatigue
 	copy.injured_days = injured_days
@@ -261,6 +264,8 @@ func fight_profile() -> Dictionary:
 	for area: String in night.hurt:
 		hurt[area] = snappedf(night.hurt[area], 0.001)
 	out.condition = { "tank": snappedf(night.tank, 0.001), "hurt": hurt }
+	if Coach.call_delay(coach_specialty) != 1.0:
+		out.condition.call_delay = Coach.call_delay(coach_specialty)  # A Tactician's calls reach him sooner (D311).
 	return out
 
 
@@ -371,7 +376,7 @@ func learning(stat_id: String = "") -> float:
 			break
 	if "fast_learner" in _profile.get("gifts", []):
 		out *= FAST_LEARNER
-	return out
+	return out * Coach.xp_share(coach_specialty, String(_groups.get(stat_id, "")))
 
 
 ## Style pushes × this, from Coachable and age.
@@ -406,7 +411,7 @@ func injury_chance(session: Dictionary) -> float:
 
 
 func skip_chance() -> float:
-	return maxf(0.0, -float(_profile.get("personality", {}).get("discipline", 0.0))) * SKIP_PER_PARTY_POINT
+	return maxf(0.0, -float(_profile.get("personality", {}).get("discipline", 0.0))) * SKIP_PER_PARTY_POINT * Coach.skip_share(coach_specialty)
 
 
 func _run_slot(id: String, day: int, quality: float, variety: float, instruction: Dictionary, week: Dictionary) -> String:
@@ -472,7 +477,7 @@ func _roll(chance: float) -> bool:
 
 func _add_fatigue(amount: float) -> void:
 	if amount > 0.0:
-		amount *= FATIGUE_RECOVERY_BASE - stat("recovery") / 200.0
+		amount *= (FATIGUE_RECOVERY_BASE - stat("recovery") / 200.0) * Coach.fatigue_share(coach_specialty)
 	fatigue = clampf(fatigue + amount, 0.0, 100.0)
 
 

@@ -808,3 +808,15 @@ func _find_json(dir_path: String) -> Array[String]:
 	for sub in DirAccess.get_directories_at(dir_path):
 		found.append_array(_find_json(dir_path.path_join(sub)))
 	return found
+
+
+func test_every_coach_background_has_a_name_and_a_line_about_it() -> void:
+	var problems: Array[String] = []
+	var backgrounds: Dictionary = _items("enums").get("coach_backgrounds", {}).get("values", {})
+	if backgrounds.is_empty():
+		problems.append("data/enums/coach_backgrounds.json is missing or empty (D311)")
+	for id: String in backgrounds:
+		var b: Variant = backgrounds[id]
+		if not b is Dictionary or not b.get("name") is String or not b.get("about") is String:
+			problems.append("coach background '%s': needs a name and an about line, both text (D311)" % id)
+	_report(problems)

@@ -55,8 +55,11 @@ const WEEKS_PER_YEAR: float = 52.0
 static var load_error: String = ""
 
 var career_seed: int = 0
-## The head coach: the player (D15).
+## The head coach: the player (D15), with a background and a specialty (Coach, D311). A career saved before D311 has
+## neither ("").
 var coach_name: String = ""
+var coach_background: String = ""
+var coach_specialty: String = ""
 ## The fighter@1 profile he started with: name, frame, stance, personality, gifts, flaws and moves. What changes
 ## with training (stats, style, age, condition) is in `trainee`; profile() puts the two together.
 var fighter: Dictionary = {}
@@ -91,8 +94,8 @@ var _library: TrainingLibrary
 var _matchmaker: Matchmaker
 
 
-## A new career for this fighter (a fighter@1 profile) on week 0. `extra` may give `coach` (the player's name) and
-## ABOUT_KEYS.
+## A new career for this fighter (a fighter@1 profile) on week 0. `extra` may give `coach` (the player's name),
+## `coach_background` and `coach_specialty` (Coach, D311) and ABOUT_KEYS.
 static func create(profile_in: Dictionary, new_seed: int, extra: Dictionary = {}, library: TrainingLibrary = null) -> Career:
 	var c := Career.new()
 	c._library = library if library != null else TrainingLibrary.shared()
@@ -102,10 +105,13 @@ static func create(profile_in: Dictionary, new_seed: int, extra: Dictionary = {}
 	c.fighter.id = FIGHTER_ID
 	c.fighter.erase("condition")
 	c.coach_name = String(extra.get("coach", ""))
+	c.coach_background = String(extra.get("coach_background", ""))
+	c.coach_specialty = String(extra.get("coach_specialty", ""))
 	for key in ABOUT_KEYS:
 		c.about[key] = String(extra.get(key, ""))
 	c.first_monday = days_from_civil(START_DATE[0], START_DATE[1], START_DATE[2])
 	c.trainee = TrainingCamp.new(c.fighter, c._dice.randi(), c._library)
+	c.trainee.coach_specialty = c.coach_specialty
 	return c
 
 
@@ -419,6 +425,7 @@ func record_text(pro_fights: bool) -> String:
 func summary() -> Dictionary:
 	return {
 		"name": fighter_name(), "nickname": String(about.get("nickname", "")), "coach": coach_name,
+		"coach_specialty": coach_specialty,
 		"hometown": String(about.get("hometown", "")), "country": String(about.get("country", "")),
 		"background": String(about.get("background", "")),
 		"age": age(), "date": date_text(), "week": week, "pro": pro,
@@ -432,7 +439,7 @@ func to_dict() -> Dictionary:
 	return {
 		"schema": SCHEMA, "version": VERSION,
 		"seed": str(career_seed), "dice": str(_dice.state),
-		"coach": { "name": coach_name },
+		"coach": { "name": coach_name, "background": coach_background, "specialty": coach_specialty },
 		"fighter": fighter.duplicate(true), "about": about.duplicate(true),
 		"trainee": trainee.snapshot(),
 		"calendar": { "first_monday": first_monday, "week": week },
@@ -460,6 +467,8 @@ static func from_dict(data: Dictionary, library: TrainingLibrary = null) -> Care
 	c._dice.seed = c.career_seed
 	c._dice.state = String(d.get("dice", "0")).to_int()
 	c.coach_name = String(d.get("coach", {}).get("name", ""))
+	c.coach_background = String(d.get("coach", {}).get("background", ""))
+	c.coach_specialty = String(d.get("coach", {}).get("specialty", ""))
 	c.fighter = d.fighter.duplicate(true)
 	for key in ABOUT_KEYS:
 		c.about[key] = String(d.get("about", {}).get(key, ""))
@@ -476,6 +485,7 @@ static func from_dict(data: Dictionary, library: TrainingLibrary = null) -> Care
 	c.booked = d.get("booked", {}).duplicate(true)
 	c.offers = d.get("offers", []).duplicate(true)
 	c.trainee = TrainingCamp.new(c.fighter, 0, c._library)
+	c.trainee.coach_specialty = c.coach_specialty
 	c.trainee.restore(d.trainee)
 	return c
 
