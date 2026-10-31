@@ -14,7 +14,8 @@
 	"stats": { "offense": ["submissions", "strength"], "defense": ["submission_defense", "scrambles"] },
 	"opportunities": [
 		{ "opponent_flag": "HANDS_LOW", "success_bonus": 0.15 },
-		{ "opponent_flag": "COVERED", "success_bonus": 0.15 }
+		{ "opponent_flag": "COVERED", "success_bonus": 0.15 },
+		{ "opponent_flag": "TWO_ON_ONE", "success_bonus": -0.20 }
 	],
 	"requires_technique": null
 }

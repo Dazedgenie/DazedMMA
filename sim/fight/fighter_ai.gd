@@ -69,6 +69,7 @@ const BAND_SPOTS := {
 ## Flags that come from how a fighter is or where they stand, not from a move: anyone sees them.
 ## The grips in the clinch (D261) are there to see too, his and your own.
 const STATE_FLAGS := { "HANDS_LOW": true, "BACK_TO_CAGE": true, "HELD_ON_FENCE": true, "BODY_LOCK": true, "WRIST_HELD": true,
+	"FRAMED": true, "ARM_PINNED": true, "TWO_ON_ONE": true, "own FRAMED": true, "own ARM_PINNED": true, "own TWO_ON_ONE": true,
 	"own UNDERHOOK": true, "own BODY_LOCK": true, "own OVERHOOK": true }
 ## The opponent knocked down (D141, D142): the chance a free tick of following him down, or of a
 ## soccer kick or a stomp where the rules allow them (× 0.5 to 1.5 from the Risk leaning).
@@ -347,6 +348,12 @@ const COVER_GROUND: float = 1.0
 ## wrists held he throws nothing until he's out, one wrist held he keeps punching with the other hand.
 const HALF_UNDERHOOK: float = 1.0
 const WRIST_WEIGHT: float = 0.5
+## The rest of the ground (D264): underneath in side control and mount he sets a frame weighted
+## FRAME_WEIGHT; with his back taken he goes for two hands on the choking arm weighted
+## TWO_ON_ONE_WEIGHT. On top, flattening the frame, taking the crucifix and stripping the hands are
+## position moves (_work_position), like the pass; in the crucifix he works his way out like any escape.
+const FRAME_WEIGHT: float = 0.6
+const TWO_ON_ONE_WEIGHT: float = 0.75
 const COVER_GROUND_ROCKED: float = 2.0
 const COVERED_WORK: float = 3.0
 ## Submissions (D126): only on an opening their hold looks for (the top fighter postured up for
@@ -1145,6 +1152,12 @@ func _tied(view: FightView, layer: DecisionLayer) -> Decision:
 			FightSim.DIG_UNDERHOOK:
 				w *= HALF_UNDERHOOK * (1.0 + maxf(0.0, base))
 				reason = "digs for the underhook"
+			FightSim.FRAME:
+				w *= FRAME_WEIGHT
+				reason = "sets a frame"
+			FightSim.TWO_ON_ONE:
+				w *= TWO_ON_ONE_WEIGHT
+				reason = "two hands on the choking arm"
 			"guard_pull":
 				w *= GUARD_PULL_WEIGHT * sub_liking(view, layer)
 				reason = "pulls guard"
@@ -1156,6 +1169,8 @@ func _tied(view: FightView, layer: DecisionLayer) -> Decision:
 				reason = "bridges to roll him off"
 			"escape_back":
 				reason = "turns out of the back"
+			FightSim.ESCAPE_CRUCIFIX:
+				reason = "frees the trapped arm"
 			"take_back":
 				reason = "goes for the back"
 			_:
@@ -1302,6 +1317,12 @@ static func _advance_reason(id: String) -> String:
 			return "crossfaces him for the underhook"
 		FightSim.POSTURE_UP:
 			return "postures up out of his grips"
+		FightSim.FLATTEN:
+			return "flattens his frame"
+		FightSim.TAKE_CRUCIFIX:
+			return "traps the arm for the crucifix"
+		FightSim.STRIP_HANDS:
+			return "strips the hands off the choking arm"
 		"guard_pass":
 			return "passes the guard"
 		"take_mount":

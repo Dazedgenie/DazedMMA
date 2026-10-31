@@ -1,0 +1,19 @@
+{
+	"schema": "action@2",
+	"id": "flatten",
+	"name": "Flatten him",
+	"category": "ground",
+	"basic": true,
+	"positions": ["side_control", "mount"],
+	"roles": ["top"],
+	"ranges": ["clinch"],
+	"phases_ms": { "telegraph": 0, "windup": 200, "active": 200, "recovery": 200 },
+	"stamina_cost": 3,
+	"flags_self": [],
+	"ground": { "base_success": 0.5, "grip": "flatten" },
+	"stats": { "offense": ["top_control", "strength"], "defense": ["guard", "strength"] },
+	"opportunities": [
+		{ "opponent_flag": "COVERED", "success_bonus": 0.10 }
+	],
+	"requires_technique": null
+}

@@ -3,7 +3,7 @@
 	"id": "ground_elbow",
 	"name": "Ground elbow",
 	"category": "strike",
-	"positions": ["full_guard", "half_guard", "side_control", "mount"],
+	"positions": ["full_guard", "half_guard", "side_control", "mount", "crucifix"],
 	"roles": ["top"],
 	"ranges": ["clinch"],
 	"phases_ms": { "telegraph": 200, "windup": 300, "active": 100, "recovery": 400 },
@@ -15,7 +15,8 @@
 	"stats": { "offense": ["top_control", "power"], "defense": ["guard"] },
 	"opportunities": [
 		{ "opponent_flag": "HANDS_LOW", "success_bonus": 0.10 },
-		{ "own_flag": "WRIST_HELD", "success_bonus": -0.10 }
+		{ "own_flag": "WRIST_HELD", "success_bonus": -0.10 },
+		{ "opponent_flag": "ARM_PINNED", "success_bonus": 0.10 }
 	],
 	"requires_technique": null
 }

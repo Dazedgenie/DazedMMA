@@ -10,6 +10,7 @@
 	"transitions": [
 		{ "action": "take_mount", "from_role": "top", "to": "mount", "roles": { "actor": "top", "opponent": "bottom" } },
 		{ "action": "take_back", "from_role": "top", "to": "back_control", "roles": { "actor": "top", "opponent": "bottom" } },
+		{ "action": "take_crucifix", "from_role": "top", "to": "crucifix", "roles": { "actor": "top", "opponent": "bottom" } },
 		{ "action": "arm_triangle", "from_role": "top", "to": "submission", "roles": { "actor": "attacker", "opponent": "defender" } },
 		{ "action": "recover_guard", "from_role": "bottom", "to": "full_guard", "roles": { "actor": "bottom", "opponent": "top" } },
 		{ "action": "recover_guard", "from_role": "bottom", "result": "partial", "to": "half_guard", "roles": { "actor": "bottom", "opponent": "top" } }

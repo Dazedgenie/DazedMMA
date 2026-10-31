@@ -18,7 +18,8 @@ func _statue(fighter_name: String, p_stats: Dictionary = {}) -> FighterState:
 	return FighterState.new(fighter_name, p_stats, [], 0.0)
 
 
-## Red on top of Blue (no rolls): in full guard, or passed half-way into half guard.
+## Red on top of Blue (no rolls): in full guard, passed half-way into half guard, or on to side
+## control, the mount, his back or the crucifix.
 func _red_on_top(where: String = "full_guard", red_stats: Dictionary = {}, blue_stats: Dictionary = {}, fight_seed: int = SEED) -> FightSim:
 	var sim := FightSim.new(fight_seed, [_statue("Red", red_stats), _statue("Blue", blue_stats)], _actions, 1, 300)
 	sim.fighters[0].pos = Vector2(-0.6, 0.0)
@@ -26,6 +27,14 @@ func _red_on_top(where: String = "full_guard", red_stats: Dictionary = {}, blue_
 	assert_true(sim.apply_transition(0, "double_leg"))
 	if where == "half_guard":
 		assert_true(sim.apply_transition(0, "guard_pass", PositionLibrary.PARTIAL))
+	elif where != "full_guard":
+		assert_true(sim.apply_transition(0, "guard_pass"))
+		if where == "mount":
+			assert_true(sim.apply_transition(0, "take_mount"))
+		elif where == "back_control":
+			assert_true(sim.apply_transition(0, "take_back"))
+		elif where == "crucifix":
+			assert_true(sim.apply_transition(0, "take_crucifix"))
 	assert_eq(sim.situation.position, where)
 	return sim
 
@@ -162,7 +171,8 @@ func test_the_grips_go_when_the_position_changes() -> void:
 	var sim: FightSim = _red_on_top()
 	sim.set_ground_grips(2, true)
 	assert_true(sim.apply_transition(0, "guard_pass"))
-	assert_eq(sim.ground_grips(), { "wrists": 0, "collar": false, "half_inside": FightSim.NO_GRIP })
+	var grips: Dictionary = sim.ground_grips()
+	assert_eq([grips.wrists, grips.collar, grips.half_inside], [0, false, FightSim.NO_GRIP])
 	assert_false(sim.hands_tied(0))
 
 
@@ -233,3 +243,157 @@ func test_in_half_guard_both_fight_for_the_underhook() -> void:
 				tried[e.data.action_id] = tried.get(e.data.action_id, 0) + 1
 	assert_gt(tried.get("dig_underhook", 0), 0, "underneath he digs for it")
 	assert_gt(tried.get("crossface", 0), 0, "on top he crossfaces")
+
+
+# --- The rest of the ground (D264) ------------------------------------------------
+
+func test_a_frame_helps_him_out_from_under_and_makes_the_mount_harder() -> void:
+	var sim: FightSim = _red_on_top("side_control")
+	sim.set_ground_grips(0, false, FightSim.NO_GRIP, true)
+	assert_has(sim.active_flags(1), FightSim.FRAMED)
+	assert_almost_eq(_bonus(sim, 1, "recover_guard", "own " + FightSim.FRAMED), 0.15, 0.001)
+	assert_almost_eq(_bonus(sim, 0, "take_mount", FightSim.FRAMED), -0.10, 0.001)
+	var mounted: FightSim = _red_on_top("mount")
+	mounted.set_ground_grips(0, false, FightSim.NO_GRIP, true)
+	assert_almost_eq(_bonus(mounted, 1, "bridge", "own " + FightSim.FRAMED), 0.10, 0.001)
+
+
+func test_flattening_him_takes_the_frame_away() -> void:
+	var gone: int = 0
+	for n in SEEDS:
+		var sim: FightSim = _red_on_top("side_control", { "top_control": 100, "strength": 100 }, { "guard": 0, "strength": 0 }, SEED + n)
+		sim.set_ground_grips(0, false, FightSim.NO_GRIP, true)
+		_queue(sim, 0, 0, "flatten")
+		_ticks(sim, 8)
+		if not sim.ground_grips().frame:
+			gone += 1
+			assert_string_contains(FightLogFormatter.describe(_events(sim, FightEvent.GRAPPLE_WON, 0)[0], sim), "FLATTENS")
+	assert_gt(gone, SEEDS / 2)
+	var sim2: FightSim = _red_on_top("side_control")
+	assert_eq(sim2.odds_breakdown(0, "flatten").missing, "no frame")
+
+
+func test_the_crucifix_traps_his_arms_and_opens_his_face() -> void:
+	var sim: FightSim = _red_on_top("crucifix")
+	assert_has(sim.active_flags(1), FightSim.ARM_PINNED)
+	assert_almost_eq(_bonus(sim, 0, "ground_punch", FightSim.ARM_PINNED), 0.10, 0.001)
+	assert_almost_eq(_bonus(sim, 0, "ground_elbow", FightSim.ARM_PINNED), 0.10, 0.001)
+	assert_ne(sim.why_not(1, "frame"), "", "no frame with both arms trapped")
+	assert_ne(sim.why_not(1, "recover_guard"), "", "no guard to recover: he has to free the arm first")
+	assert_eq(sim.why_not(1, "escape_crucifix"), "")
+	assert_eq(sim.why_not(0, "take_back"), "", "the back is a step away")
+
+
+func test_taking_the_crucifix_from_side_control() -> void:
+	var taken: int = 0
+	for n in SEEDS:
+		var sim: FightSim = _red_on_top("side_control", { "top_control": 100, "scrambles": 100 }, { "guard": 0, "scrambles": 0 }, SEED + n)
+		_queue(sim, 0, 0, "take_crucifix")
+		_ticks(sim, 10)
+		if sim.situation.position == FightSim.CRUCIFIX:
+			taken += 1
+			assert_eq(sim.situation.role(0), PositionLibrary.TOP)
+			assert_eq(sim.fighters[0].crucifixes_won, 1)
+		assert_eq(sim.fighters[0].crucifixes_tried, 1)
+	assert_gt(taken, SEEDS / 3)
+	var framed: FightSim = _red_on_top("side_control")
+	framed.set_ground_grips(0, false, FightSim.NO_GRIP, true)
+	assert_almost_eq(_bonus(framed, 0, "take_crucifix", FightSim.FRAMED), -0.10, 0.001, "a frame keeps the arm out of reach")
+
+
+func test_freeing_the_arm_gets_him_back_to_side_control() -> void:
+	var out: int = 0
+	for n in SEEDS:
+		var sim: FightSim = _red_on_top("crucifix", { "top_control": 0 }, { "scrambles": 100, "strength": 100 }, SEED + n)
+		_queue(sim, 0, 1, "escape_crucifix")
+		_ticks(sim, 10)
+		if sim.situation.position != FightSim.CRUCIFIX:
+			out += 1
+			assert_true(sim.situation.position in ["side_control", PositionLibrary.SCRAMBLE], sim.situation.position)
+	assert_gt(out, SEEDS / 2)
+
+
+func test_in_the_crucifix_his_cover_up_barely_helps() -> void:
+	var through: Dictionary = {}
+	for where: String in ["side_control", "crucifix"]:
+		var dealt: Array[int] = []
+		for covered: bool in [false, true]:
+			var sim: FightSim = _red_on_top(where, { "top_control": 100, "boxing": 100 }, { "guard": 0 })
+			if covered:
+				_queue(sim, 0, 1, "ground_cover")
+				_ticks(sim, 2)
+			_queue(sim, sim.now, 0, "ground_punch")
+			_ticks(sim, 10)
+			var landed: Array[FightEvent] = _events(sim, FightEvent.STRIKE_LANDED, 0)
+			assert_eq(landed.size(), 1, "%s covered %s" % [where, covered])
+			dealt.append(int(landed[0].data.damage))
+		through[where] = float(dealt[1]) / float(dealt[0])
+	assert_gt(through.crucifix, through.side_control, "more gets through the cover-up with his arms trapped")
+	assert_gte(through.crucifix, FightSim.PINNED_COVER_SHARE - 0.15)
+
+
+func test_two_hands_on_the_choking_arm_stop_the_choke_and_help_him_out() -> void:
+	var sim: FightSim = _red_on_top("back_control")
+	sim.set_ground_grips(0, false, FightSim.NO_GRIP, false, true)
+	assert_has(sim.active_flags(1), FightSim.TWO_ON_ONE_HELD)
+	assert_almost_eq(_bonus(sim, 0, "rear_naked_choke", FightSim.TWO_ON_ONE_HELD), -0.20, 0.001)
+	assert_almost_eq(_bonus(sim, 1, "escape_back", "own " + FightSim.TWO_ON_ONE_HELD), 0.10, 0.001)
+	assert_eq(sim.odds_breakdown(1, "two_on_one").missing, "has the arm already")
+	var stripped: int = 0
+	for n in SEEDS:
+		var s2: FightSim = _red_on_top("back_control", { "submissions": 100, "strength": 100 }, { "submission_defense": 0, "strength": 0 }, SEED + n)
+		s2.set_ground_grips(0, false, FightSim.NO_GRIP, false, true)
+		_queue(s2, 0, 0, "strip_hands")
+		_ticks(s2, 8)
+		if not s2.ground_grips().two_on_one:
+			stripped += 1
+	assert_gt(stripped, SEEDS / 2)
+	var s3: FightSim = _red_on_top("back_control")
+	assert_eq(s3.odds_breakdown(0, "strip_hands").missing, "no hands on the arm")
+
+
+func test_a_frame_or_two_hands_on_the_arm_answer_the_referee_but_freeing_nothing_doesnt() -> void:
+	for setup: Array in [["side_control", "frame"], ["back_control", "two_on_one"]]:
+		var answered: int = 0
+		for n in SEEDS:
+			var sim: FightSim = _red_on_top(setup[0], {}, { "guard": 100, "strength": 100, "submission_defense": 100 }, SEED + n)
+			sim.fighters[1].unanswered = 5
+			_queue(sim, 0, 1, setup[1])
+			_ticks(sim, 6)
+			if _events(sim, FightEvent.GRAPPLE_WON, 1).is_empty():
+				assert_eq(sim.fighters[1].unanswered, 5, "%s: missing it answers nothing" % setup[1])
+			else:
+				answered += 1
+				assert_eq(sim.fighters[1].unanswered, 0, "%s: he's defending" % setup[1])
+		assert_gt(answered, SEEDS / 2, setup[1])
+
+
+func test_underneath_in_side_control_the_ai_frames_and_on_top_it_flattens_or_takes_the_crucifix() -> void:
+	var roster := FighterLibrary.load_dir()
+	var tried: Dictionary = {}
+	for n in 10:
+		var sim := FightSim.new(SEED + n, roster.make_pair("wrestler", "boxer"), _actions, 1, 300)
+		sim.apply_transition(0, "double_leg")
+		sim.apply_transition(0, "guard_pass")
+		_ticks(sim, 300)
+		for e in _events(sim, FightEvent.ACTION_PHASE):
+			if e.data.phase == "windup":
+				tried[e.data.action_id] = tried.get(e.data.action_id, 0) + 1
+	assert_gt(tried.get("frame", 0), 0, "the Boxer frames")
+	assert_gt(tried.get("flatten", 0) + tried.get("take_crucifix", 0), 0, "the Wrestler flattens him or goes for the crucifix")
+
+
+func test_with_his_back_taken_the_ai_fights_the_hands() -> void:
+	var roster := FighterLibrary.load_dir()
+	var tried: Dictionary = {}
+	for n in 10:
+		var sim := FightSim.new(SEED + n, roster.make_pair("bjj", "boxer"), _actions, 1, 300)
+		sim.apply_transition(0, "double_leg")
+		sim.apply_transition(0, "guard_pass")
+		sim.apply_transition(0, "take_back")
+		_ticks(sim, 200)
+		for e in _events(sim, FightEvent.ACTION_PHASE):
+			if e.data.phase == "windup":
+				tried[e.data.action_id] = tried.get(e.data.action_id, 0) + 1
+	assert_gt(tried.get("two_on_one", 0), 0, "the Boxer gets two hands on the arm")
+	assert_gt(tried.get("strip_hands", 0), 0, "the BJJ fighter strips them")

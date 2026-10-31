@@ -13,7 +13,8 @@
 	"ground": { "base_success": 0.3 },
 	"stats": { "offense": ["top_control", "scrambles"], "defense": ["guard", "scrambles"] },
 	"opportunities": [
-		{ "opponent_flag": "HANDS_LOW", "success_bonus": 0.10 }
+		{ "opponent_flag": "HANDS_LOW", "success_bonus": 0.10 },
+		{ "opponent_flag": "FRAMED", "success_bonus": -0.10 }
 	],
 	"requires_technique": null
 }

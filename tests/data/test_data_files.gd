@@ -219,8 +219,8 @@ func test_values_come_from_the_allowed_lists() -> void:
 					or block.get("drives_m", 1.0) <= 0.0 or not block.get("turns", false) is bool):
 				problems.append("action '%s': drives_m (metres walked back to the fence, above 0) and turns (true or false) are a clinch move's (D220)" % id)
 			elif block.has("grip") and not ((category == "clinch" and block.grip in ["inside", "strip"]) \
-					or (category == "ground" and block.grip in ["collar", "wrist", "posture", "half_inside"])):
-				problems.append("action '%s': grip is a clinch move's (\"inside\" to pummel for an underhook, \"strip\" to take one of his off, D261) or a ground move's (\"collar\", \"wrist\", \"posture\", \"half_inside\", D263)" % id)
+					or (category == "ground" and block.grip in ["collar", "wrist", "posture", "half_inside", "frame", "flatten", "two_on_one", "strip_hands"])):
+				problems.append("action '%s': grip is a clinch move's (\"inside\" to pummel for an underhook, \"strip\" to take one of his off, D261) or a ground move's (\"collar\", \"wrist\", \"posture\", \"half_inside\", D263; \"frame\", \"flatten\", \"two_on_one\", \"strip_hands\", D264)" % id)
 			elif (block.has("throw") or block.has("landing_damage")) and (category != "takedown" or not block.get("throw", false) is bool \
 					or not block.get("landing_damage", 0.0) is float or block.get("landing_damage", 0.0) < 0.0):
 				problems.append("action '%s': throw (true or false) and landing_damage (0 or more) are a takedown's (D128)" % id)

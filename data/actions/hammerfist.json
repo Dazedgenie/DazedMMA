@@ -4,7 +4,7 @@
 	"name": "Hammerfist",
 	"category": "strike",
 	"basic": true,
-	"positions": ["full_guard", "half_guard", "side_control", "mount", "back_control"],
+	"positions": ["full_guard", "half_guard", "side_control", "mount", "back_control", "crucifix"],
 	"roles": ["top"],
 	"ranges": ["clinch"],
 	"phases_ms": { "telegraph": 100, "windup": 200, "active": 100, "recovery": 300 },
@@ -15,7 +15,8 @@
 	"opportunities": [
 		{ "opponent_flag": "COVERED", "success_bonus": 0.10 },
 		{ "opponent_flag": "HANDS_LOW", "success_bonus": 0.10 },
-		{ "own_flag": "WRIST_HELD", "success_bonus": -0.05 }
+		{ "own_flag": "WRIST_HELD", "success_bonus": -0.05 },
+		{ "opponent_flag": "ARM_PINNED", "success_bonus": 0.10 }
 	],
 	"requires_technique": null
 }

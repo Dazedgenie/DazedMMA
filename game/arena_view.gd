@@ -39,6 +39,7 @@ const GROUND_LAYOUTS := {
 	"side_control": { "at": Vector2(-0.35, 0.55), "face": Vector2(0.0, -1.0) },
 	"mount": { "at": Vector2(-0.2, 0.0), "face": Vector2(-1.0, 0.0) },
 	"back_control": { "at": Vector2(-0.5, 0.0), "face": Vector2(1.0, 0.0), "facing_camera": true },
+	"crucifix": { "at": Vector2(-0.55, 0.45), "face": Vector2(0.4, -1.0) },  # Across him from the head side (D264).
 }
 ## The man underneath lies across the screen, feet turned this far (radians) away from the camera (D210).
 const LIE_TURN: float = 0.45

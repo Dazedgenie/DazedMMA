@@ -1866,6 +1866,7 @@ takedown points and the 3D view's lying down all carry over. On the back, `top` 
 | **Side control** | 0.2 / 0.4 · 1.5 / 0 · 1.0 / 0.4 | Top: **take the mount** → mount; **take the back** → back; the **arm-triangle**. Bottom: recover guard → full guard (half working: half guard). No getting straight up |
 | **Mount** | 0.2 / 0.5 · 2.0 / 0 · **1.3** / 0.4 | Top: take the back; the **armbar**; the arm-triangle. Bottom: **bridge and roll** → full guard with the bridger on top (a reversal); half working → half guard underneath |
 | **Back control** | 0.3 / 0.5 · 2.0 / 0 · 0.7 / 0 | Top: the **rear-naked choke**. Bottom: **escape the back** → full guard with the escaper on top (turning into his guard); half working → a scramble |
+| **Crucifix** (D264, §40.12) | 0.2 / 0.5 · 1.75 / 0 · 1.2 / 0 | Top: take the back. Bottom: **free the arm** → side control; half working → a scramble. In from the top of side control (*take the crucifix*) |
 | Scramble (as before) | 0.8 each · 0 · 0 | New: take the back (a technique) → back control |
 
 Where the fight lands from the feet: the double leg, the catch, the outside trip, the foot sweep and winning a scramble still
@@ -2992,13 +2993,13 @@ by its liking, never a man already there, stays when it likes it, works to get o
 the Boxer on the fence in real fights), `tests/sim/balance/test_balance_report.gd` (the Cage line), `tests/ui/test_fight_log_formatter.gd`
 and `tests/data/test_data_files.gd` (`drives_m`, `turns`, a required `HELD_ON_FENCE`, the `pressed` result).
 
-## 40. Grips and hand fighting (D260 the plan; built: D261 the clinch grips, D262 turning each other on the fence, D263 grips in the guard and half guard)
+## 40. Grips and hand fighting (D260 the plan; built: D261 the clinch grips, D262 turning each other on the fence, D263 grips in the guard and half guard, D264 frames, the crucifix and two hands on the choke)
 Kyle asked for it (2026-10-31): "clinch fighting improvements: fighters should be hand fighting, trying to get underhooks,
 overhooks, they should be spinning each other around when up against the cage", with research on real clinch and cage
 fighting, and then: "this isn't clinch specific, this will be used for grappling in general, so hand fighting on the ground
 and fighting in the clinch". §40.1–§40.8 are the plan (Kyle's answers at the top of §40.8); §40.9 is the first part as built,
-the grips in the clinch (D261); §40.10 the second, turning each other round on the fence (D262). The ground (§40.5) and the
-call (§40.7) come next. Every number is a first guess for the harness.
+the grips in the clinch (D261); §40.10 the second, turning each other round on the fence (D262); §40.11 and §40.12 the ground
+(§40.5: D263 the guard and half guard, D264 frames, the crucifix and two hands on the choke). The call (§40.7) comes next. Every number is a first guess for the harness.
 
 ### 40.1 What real fighters do
 From MMA and grappling coaching write-ups (sources at the end of §40):
@@ -3391,6 +3392,92 @@ underhook) and `tests/sim/fight/test_ground_and_pound.gd` (the tie-up is the col
 
 Sources: [Evolve MMA, grip fighting in no-gi](https://evolve-mma.com/blog/heres-what-you-need-to-know-about-grip-fighting-in-no-gi-bjj/),
 [Evolve MMA, ground and pound](https://evolve-mma.com/blog/the-complete-guide-to-ground-and-pound/), as §40.1.
+
+### 40.12 Built: the rest of the ground: frames, the crucifix and two hands on the choke (D264)
+The fourth pull request of §40.8's plan, the second half of the ground part (§40.5's last two rows). Kyle's picks
+(2026-10-31): "Rest of the ground first" (before the call), "A frame you hold" (a grip held until it's taken away, like the
+collar tie, not a one-off push), the crucifix as "Its own position" (between side control and the back, with its own strikes,
+escapes and look, not just a grip in side control), "Two hands on the arm" against the rear-naked choke, and ground finishes
+kept about where they are, as for D263.
+
+| | What it does | Where it lives |
+|---|---|---|
+| **The frame** | Underneath side control or mount, everyone can set a forearm frame and hold it (`FRAMED`): getting back to guard +15%, the bridge +10%, and the mount and the crucifix −10% each against him. 45% + (Guard, Strength) − Top control, +10% when he's postured up. Setting one he already has is refused | `frame.json` (`ground.grip` `"frame"`) |
+| **Flattening it** | On top, everyone can drive the frame down: 50% + (Top control, Strength) − (Guard, Strength), +10% when he's covering up. Refused with no frame to flatten | `flatten.json` (`"flatten"`) |
+| **The crucifix** | A new ground position (`crucifix.json`), between side control and the back. The man on top traps the near arm between his legs and the far one under his arm (`ARM_PINNED` on the man underneath). Taking it from side control: 20% + (Top control, Scrambles) − (Guard, Scrambles), +10% when he's covering up or getting out, −10% against a frame. In it: stamina 0.2 / 0.5 a second, the judges' control 1.75 (between side control's 1.5 and the mount's 2.0, so taking it scores 1.5 points), his punches, hammerfists and elbows ×1.2 and +10% to land, and nothing back from underneath. His cover-up barely helps: at least 75% of the head damage gets through (`FightSim.PINNED_COVER_SHARE`; 50% normally). From it the man on top can take the back (if he knows it) | `take_crucifix.json`; the `crucifix` position file; `side_control.json`'s new transition |
+| **Freeing the arm** | Underneath, the only way out of the crucifix: back to side control. 25% + (Scrambles, Strength) − Top control, +10% when he's postured up; within 10%: a scramble. It's an escape, so it shows `ESCAPING` (the back is there to take) and counts in the harness's *out from under* | `escape_crucifix.json` |
+| **Two hands on the choking arm** | With his back taken, everyone can grab the choking arm with both hands and hold it (`TWO_ON_ONE`): the rear-naked choke −20% and escaping the back +10%. 50% + (Submission defense, Strength) − Submissions, +10% when he's postured up | `two_on_one.json` (`"two_on_one"`) |
+| **Stripping the hands** | On the back, the man behind peels them off: 45% + (Submissions, Strength) − (Submission defense, Strength), +10% when he's covering up or getting out. Refused with no hands on the arm | `strip_hands.json` (`"strip_hands"`) |
+| **The referee** | Winning a frame or two hands on the arm counts as answering him (it's defending), as tying him up does (D121, D263) | `FightSim._take_ground_grip()` |
+| **When they go** | Like every ground grip, the frame and the two-on-one go when the position changes | `FightSim._clear_grips()` |
+| **The AI underneath** | Frames under side control and mount weighted `FighterAI.FRAME_WEIGHT` (0.6) against his other moves, and grabs the choking arm weighted `TWO_ON_ONE_WEIGHT` (0.75); in the crucifix he works to free the arm like any escape | the `frame`, `two_on_one` and `escape_crucifix` cases in `_tied()` |
+| **The AI on top** | Flattening the frame, taking the crucifix and stripping the hands are position moves (`_work_position`, at its pace, like the pass), as D263 found works best | `_work_position()`, `_advance_reason()` |
+| **How they look** | The crucifix is drawn across him from the head side in the 3D view and on the HUD's position diagram, the man underneath flat with both arms stretched out; poses for the frame, flattening it, taking the crucifix, freeing the arm, two hands on the arm and stripping them | `game/arena_view.gd` `GROUND_LAYOUTS`, `ui/position_diagram.gd` `POSES`, `game/fighter_figure.gd` |
+| **The feed and the harness** | "SETS A FRAME", "FLATTENS HIM", "gets TWO HANDS ON THE CHOKING ARM", "STRIPS THE HANDS"; the crucifix moves read as position changes. The harness's **Frames** line: frames, crucifixes and two-on-ones won of tried; the **Positions** line has the crucifix's share; CSV `frames_*`, `crucifixes_*`, `two_on_ones_*`, `crucifix` | `ui/fight_log_formatter.gd`, `sim/balance/` |
+
+**Finding the cause of more finishes.** The first full run finished 54.3% of fights (52.1% on main): the Pressure wrestler
+finished the Boxer 57.5% of the time (44.5% on main) and the Kicker 87% (74.5%). It wasn't the crucifix (taking it out changed
+little). It was the man underneath spending his turns framing and grabbing the arm, which didn't count for the referee, so his
+count ran on while he was defending. Counting a won frame or two-on-one as answering him put the finishes back. Two smaller
+changes on the way: the two-on-one first also opened his face to punches (+10%), which added finishes and was dropped; and
+with the crucifix's strikes at ×1.0 the Ground-and-pound wrestler, who can't take the back, sat in a crucifix that led nowhere
+instead of the mount, so its strikes went to ×1.2 (between side control's 1.0 and the mount's 1.3) and freeing the arm from
+30% to 25%. Grabbing the arm half as often (`TWO_ON_ONE_WEIGHT` 1.5 → 0.75) took a few points off the BJJ fighter against the
+Boxer.
+
+Harness, no calls, 200 fights a pairing, seed 1, pro rules: main (at #103, with D263) → with D264. *Crucifix* is the share
+of the fight spent in it; *frames* and *two on one* are the man underneath's won of tried a fight (the second-named, or the
+striker against the Wrestler); *crucifixes* the man on top's.
+
+| Pairing | Wins (first-named): main → now | Finishes | Crucifix | Frames | Crucifixes | Two on one |
+|---|---|---|---|---|---|---|
+| Kicker vs Boxer | 38.5% → 38% | 27.5% → 27.5% | – | – | – | – |
+| Wrestler vs Kicker | 70.5% → 70.5% | 34% → 34.5% | 0.8% | 0.7 of 3.1 | 0.4 of 1.0 | 1.9 of 5.3 |
+| Wrestler vs Boxer | 79.5% → 75% | 44.5% → 46% | 1.3% | 1.6 of 6.5 | 0.7 of 1.6 | 2.4 of 7.3 |
+| Pressure wrestler vs Kicker | 93.5% → 93% | 74.5% → 69.5% | 1.9% | 1.3 of 5.8 | 0.9 of 1.9 | 3.3 of 8.8 |
+| Pressure wrestler vs Boxer | 88% → 88% | 44.5% → 40% | 2% | 2.2 of 8.0 | 1.0 of 2.5 | 3.3 of 8.6 |
+| Ground-and-pound wrestler vs Kicker | 84.5% → 86% | 74% → 81.5% | 6.9% | 0.9 of 5.7 | 1.2 of 2.8 | 0.0 of 0.1 |
+| Ground-and-pound wrestler vs Boxer | 84% → 81% | 77% → 76.5% | 7% | 1.5 of 7.3 | 1.3 of 2.9 | 0.1 of 0.5 |
+| Dirty boxer vs Kicker | 25.5% → 25.5% | 14.5% → 14.5% | – | – | – | – |
+| Dirty boxer vs Boxer | 73.5% → 73% | 92.5% → 93% | – | – | – | – |
+| Dirty boxer vs Wrestler | 68.5% → 70.5% | 19.5% → 23.5% | 0.8% | 1.4 of 3.8 | 0.4 of 1.1 | 1.0 of 2.4 |
+| Dirty boxer vs Muay Thai | 53% → 53.5% | 53% → 55.5% | – | – | – | – |
+| Muay Thai vs Kicker | 88% → 88.5% | 32% → 32% | – | – | – | – |
+| Muay Thai vs Boxer | 68.5% → 69% | 78.5% → 78% | – | – | – | – |
+| Muay Thai vs Wrestler | 55% → 53.5% | 51% → 44% | 0.8% | 1.3 of 4.2 | 0.5 of 1.2 | 1.4 of 3.3 |
+| Judoka vs Boxer | 64% → 67.5% | 53% → 52% | 1.3% | 1.7 of 5.4 | 0.7 of 1.7 | 1.6 of 4.6 |
+| Judoka vs Wrestler | 94% → 94.5% | 26.5% → 29% | 1.4% | 2.9 of 8.9 | 0.8 of 2.2 | 1.2 of 3.4 |
+| BJJ vs Boxer | 74% → 81% | 69% → 69% | 0.9% | 0.8 of 3.1 | 0.4 of 0.9 | 1.3 of 6.1 |
+| Sambo vs Boxer | 86% → 88% | 73% → 78% | 2.3% | 2.0 of 6.8 | 0.8 of 1.9 | 1.3 of 6.4 |
+
+What it says:
+- **Ground finishes about the same**, as Kyle asked: 52.1% of these fights finished on main, 52.4% now. The most: the
+  Ground-and-pound wrestler finishes the Kicker more (74 → 81.5%: the crucifix, 7% of those fights, hits hard and the cover-up
+  barely helps), the Pressure wrestler a few points less (the frames and the two-on-one keep the referee out longer), the
+  Muay Thai fighter against the Wrestler 51 → 44%.
+- **It's all in use**: the man underneath frames 3–9 times a fight and wins about a third, grabs the choking arm 2–9 times and
+  wins about a third; the man on top takes the crucifix about once a fight, and the fight spends 1–2% of its time there (7%
+  for the Ground-and-pound wrestler, who has no back take to move on with).
+- **Kyle's balance rule (D220's)**: nothing inside 60/40 left it (Muay Thai against the Wrestler 55 → 53.5%, closer).
+  Closer to even: the Wrestler and the Ground-and-pound wrestler against the Boxer (79.5 → 75%, 84 → 81%). Further out: the BJJ
+  fighter against the Boxer, 74 → 81% (+7, with a paired range of +0.1 to +13.9; on a second seed, 400 fights, +3.2, −1.2 to
+  +7.7, so a small lean, mostly from more time on the back and more decisions), the Judoka against the Boxer 64 → 67.5% (on
+  the second seed 68.8 → 64%, closer), the Sambo fighter against the Boxer 86 → 88%, the Dirty boxer against the Wrestler
+  68.5 → 70.5% and the Ground-and-pound wrestler against the Kicker 84.5 → 86%, all inside the dice.
+
+
+Golden fights (§2.2): re-pinned (the ground fights play out differently).
+
+Tested in `tests/sim/fight/test_ground_grips.gd` (a frame helps him out and makes the mount harder; flattening takes it away;
+the crucifix traps his arms and opens his face, with no frame and no guard to recover; taking the crucifix from side control,
+and a frame making it harder; freeing the arm back to side control; in the crucifix the cover-up barely helps; two hands on the
+choking arm stop the choke and help him out, and stripping them; a frame or two hands on the arm answer the referee; the AI
+frames underneath and flattens or takes the crucifix on top; the AI fights the hands on the back).
+
+To change it: the odds and openings are in the six move files and `crucifix.json`; the cover-up through the crucifix is
+`FightSim.PINNED_COVER_SHARE`; how often the AI frames and grabs the arm is `FighterAI.FRAME_WEIGHT` and `TWO_ON_ONE_WEIGHT`.
+
+Sources: as §40.1 and §40.5.
 
 ## 41. More ground and pound: hammerfists, body punches, the posture-up bomb, covering up and turning away (D270)
 Kyle asked to "increase ground and pound variety" (2026-10-31). Before this the man on top had one strike everyone knew (the
