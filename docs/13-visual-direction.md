@@ -46,13 +46,28 @@ Gloves now have wrist tape, shaped padding, separate exposed finger ends and a t
 the forearm's direction. Shorts have a fitted waistband, narrow side seams and hem trim. Hidden
 upper-thigh skin is omitted to prevent it poking through the shorts when the legs move. Feet have
 ankles, forefeet and individual toe forms. The neutral guard brings the hands closer to the face;
-idle support feet lie flat on the canvas and release when lifted for a kick. This is a limited stance
-correction, not a walking-foot IK system or a replacement for the planned production rig.
+idle support feet lie flat on the canvas and release when lifted for a kick.
 
 The clinch's drawn body centres now have 0.82 m of separation to fit the leaning torsos, and the
 neutral grip bends the elbows toward the opponent's shoulders. At the fence, both drawn positions
 shift inward together if necessary. The simulation's positions, reach and collision rules remain
 unchanged. Strikes, collar ties and submissions retain their own poses.
+
+## Movement refinement
+
+`game/fighter_motion.gd` plans support-foot steps in world space and solves the thigh and shin
+separately. The stance sits lower with bent knees. A foot stays planted until the stance moves far
+enough to need a step; one foot swings at a time, with a small lift and a landing position ahead of
+the moving body. The hips shift slightly toward the support leg. Kicks release their leg from the
+step planner and replant on returning to guard. Kneeling poses retain their folded shins and feet,
+and the bottom fighter bends the knees in guard. Stepping and breathing follow fight speed and
+stop while the driver is paused or held.
+
+Strikes extend through windup and return toward the guard over recovery, using the simulation's
+existing phase durations. Jabs and crosses turn the hips and shoulders. These are procedural
+presentation improvements, not new movement, reach, collision or strike-resolution rules. The
+existing action poses still supply the direction and extent of each move; paired grappling
+animations and an authored production rig remain future work.
 
 ## Review and verification
 
@@ -75,16 +90,26 @@ front, three-quarter and back uses the same real character meshes in a neutral p
 godot --path . --script res://tools/character_preview.gd -- --out=res://build/characters
 ```
 
+The motion preview records a real seeded Boxer–Kicker fight at 1× fight speed, with the HUD hidden
+and a fixed 24 frames per fight second. It does not arrange actions or write a saved fight:
+
+```sh
+godot --path . --script res://tools/motion_preview.gd -- --out=res://build/motion --seconds=12
+ffmpeg -framerate 24 -i build/motion/frame-%04d.png -c:v libx264 -pix_fmt yuv420p build/motion.mp4
+```
+
 Run the existing GUT suite
 and the main-scene smoke check as described in the root README. The presentation-only regression
 test compares a watched fight with the same seed run without a view. The stance check verifies
 both feet meet the mat, a body kick can lift the kicking foot, and returning to guard plants it again.
 Another check keeps the clinch's drawn bodies inside the fence without moving the simulation.
+Motion checks cover planted support, pause during a step, kick release, advancing and retreating,
+fixed bone lengths (including degenerate solver inputs), and strike extension/recovery.
 
 ## Remaining art work
 
 This is a foundation for iteration, not a match to the concept. The current procedural fighters
-still use the prototype pose system. A shared production rig, foot planting, paired grappling
+still use the prototype pose system. A shared production rig, authored foot pivots, paired grappling
 animations, better faces, persistent body variations and authored clothing are the next major
 character work. The wider menus and training spaces need their own visual pass. Tripo can help
 provide starting meshes, but anatomy, topology and rigging must be checked before replacing these

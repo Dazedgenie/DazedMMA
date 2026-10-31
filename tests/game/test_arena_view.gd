@@ -242,7 +242,9 @@ func test_the_face_gloves_and_toes_are_on_the_front_of_the_fighter() -> void:
 	assert_gt(figure._gloves[0].global_position.x, figure._hips.global_position.x, "his guard is up in front of him")
 	sim.apply_transition(0, "double_leg")
 	figure.show_state(sim, 0, Vector2.ZERO, Vector2(1.0, 0.0), 1.0)
-	assert_false(figure._feet[0].visible, "kneeling on top, only the thigh shows")
+	assert_true(figure._feet[0].visible, "kneeling keeps the folded lower leg and foot")
+	assert_almost_eq(figure._shins[0].global_position.y, 0.075, 0.005, "the knee rests on the canvas")
+	assert_lt(figure._feet[0].global_position.x, figure._shins[0].global_position.x, "the shin folds behind the knee")
 
 
 func test_the_closer_camera_keeps_heads_and_feet_clear_of_the_top_and_bottom_hud() -> void:

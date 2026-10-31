@@ -1,7 +1,8 @@
 class_name FighterFigure
 extends Node3D
 ## Faceted procedural fighter (docs/13), using the existing move poses with articulated
-## elbows, skin, hair and corner-coloured gear. A first art pass before a production rig.
+## elbows and knees, planted stepping feet, skin, hair and corner-coloured gear.
+## A procedural art pass before a production rig.
 ##
 ## Over the head (docs/06 §2): the move's name (coloured by phase), the delay ring
 ## while a call is being processed (it shrinks as the fighter gets to it), "nah" when
@@ -19,8 +20,6 @@ const SHOULDER_WIDTH: float = 0.245
 const OVERHEAD: float = 2.05
 ## Default skin fallback; corner colours are reserved for equipment.
 const FACE_COLOUR := Color("#e8c4a0")
-## A kneeling leg shows only the thigh: this share of the whole leg (D210).
-const KNEEL_LENGTH: float = 0.65
 ## How quickly the pose follows the move (per second; higher is snappier).
 const POSE_SPEED: float = 14.0
 ## How far each phase of a move goes, as a share of the full extension.
@@ -62,6 +61,13 @@ var _forearms: Array[MeshInstance3D] = []
 var _cut: MeshInstance3D
 var _bruise: MeshInstance3D
 var _impact: float = 0.0
+var motion := FighterMotion.new()
+var _thighs: Array[Node3D] = []
+var _shins: Array[Node3D] = []
+var _motion_delta: float = 0.0
+var _motion_clock: float = 0.0
+var _seen_tick: int = -1
+var _tick_fraction: float = 0.0
 var _clinch_grip: bool = false
 var _body_material: StandardMaterial3D
 var _pose := {}
@@ -80,8 +86,15 @@ func _init(p_colour: Color = Color.WHITE, southpaw: bool = false, appearance: in
 
 
 ## Puts the figure where the fighter is, facing `toward`, posed for what they're doing.
-## `delta` is real seconds since the last frame (for smoothing).
-func show_state(sim: FightSim, i: int, at: Vector2, toward: Vector2, delta: float) -> void:
+## `delta` is real seconds for smoothing; `motion_delta` follows fight speed, including pause.
+func show_state(sim: FightSim, i: int, at: Vector2, toward: Vector2, delta: float, motion_delta: float = -1.0) -> void:
+	_motion_delta = delta if motion_delta < 0.0 else motion_delta
+	_motion_clock += _motion_delta
+	if sim.now != _seen_tick:
+		_seen_tick = sim.now
+		_tick_fraction = 0.0
+	else:
+		_tick_fraction = minf(0.99, _tick_fraction + _motion_delta * FightClock.TICKS_PER_SECOND)
 	_time += delta
 	_impact = maxf(0.0, _impact - delta * 4.0)
 	var f: FighterState = sim.fighters[i]
@@ -92,8 +105,9 @@ func show_state(sim: FightSim, i: int, at: Vector2, toward: Vector2, delta: floa
 	var facing: Vector2 = toward - at
 	if facing.length() > 0.01:
 		rotation.y = atan2(-facing.x, -facing.y)
-	var target: Dictionary = pose_for(sim, i)
-	var k: float = 1.0 - exp(-POSE_SPEED * delta)
+	var target: Dictionary = pose_for(sim, i, _tick_fraction)
+	var response: float = 45.0 if f.phase == "active" or f.phase == "windup" else POSE_SPEED
+	var k: float = 1.0 - exp(-response * delta)
 	for key: String in target:
 		_pose[key] = lerpf(float(_pose.get(key, target[key])), float(target[key]), k)
 	_apply_pose(f)
@@ -106,8 +120,8 @@ func show_state(sim: FightSim, i: int, at: Vector2, toward: Vector2, delta: floa
 ## Keys: hip_y, lean (radians, forward is negative), lie (0 standing, 1 flat on the back),
 ## arm_lead/arm_rear and leg_lead/leg_rear (radians forward from hanging down),
 ## reach_lead/reach_rear (arm stretch, 1 = normal), spread (legs apart, radians each way),
-## kneel (0 to 1: the legs shorten to thighs, knees on the mat).
-func pose_for(sim: FightSim, i: int) -> Dictionary:
+## kneel (0 to 1: knees on the mat, shins folded behind).
+func pose_for(sim: FightSim, i: int, fractional_tick: float = 0.0) -> Dictionary:
 	var f: FighterState = sim.fighters[i]
 	var p: Dictionary = _rest_pose()
 	var role: String = sim.situation.role(i)
@@ -242,11 +256,22 @@ func pose_for(sim: FightSim, i: int) -> Dictionary:
 		return p
 	var reach: float = float(PHASE_REACH.get(f.phase, 0.0))
 	var action: Dictionary = sim.actions.get_action(f.action_id)
+	if action.category == "strike":
+		var total: float = maxf(1.0, sim.phase_ticks(f, f.action_id, f.phase))
+		var progress: float = clampf((total - f.phase_ticks_left + fractional_tick) / total, 0, 1)
+		match f.phase:
+			"telegraph": reach = 0.12 * progress
+			"windup": reach = lerpf(0.12, 1.0, progress * progress)
+			"active": reach = 1.0
+			"recovery": reach = 1.0 - smoothstep(0.0, 1.0, progress)
 	match f.action_id:
 		"jab":
+			p.twist = 0.12 * reach
+			p.lean = lerpf(p.lean, -0.14, reach)
 			p.arm_lead = lerpf(p.arm_lead, 1.57, reach)
 			p.reach_lead = lerpf(1.0, 1.45, reach)
 		"cross":
+			p.twist = -0.32 * reach
 			p.arm_rear = lerpf(p.arm_rear, 1.57, reach)
 			p.reach_rear = lerpf(1.0, 1.5, reach)
 			p.lean = lerpf(p.lean, -0.2, reach)
@@ -445,7 +470,8 @@ func _show_overhead(sim: FightSim, i: int, delta: float) -> void:
 
 func _apply_pose(f: FighterState) -> void:
 	var lie: float = _pose.lie
-	_hips.position.y = _pose.hip_y
+	var breathing: float = 0.004 * sin(_motion_clock * 2.6) if lie < 0.05 and float(_pose.kneel) < 0.05 else 0.0
+	_hips.position.y = float(_pose.hip_y) - 0.12 * float(_pose.kneel) + breathing
 	var sway: float = 0.0
 	if f.is_rocked() and not f.is_down():
 		sway = 0.18 * sin(_time * 7.0)
@@ -456,22 +482,7 @@ func _apply_pose(f: FighterState) -> void:
 	_pose_arm(1, float(_pose.reach_rear), float(_pose.arm_rear))
 	_legs[0].rotation = Vector3(_pose.leg_lead, 0.0, lead * _pose.spread)
 	_legs[1].rotation = Vector3(_pose.leg_rear, 0.0, -lead * _pose.spread)
-	var thighs: float = lerpf(1.0, KNEEL_LENGTH, _pose.kneel)
-	_leg_meshes[0].scale.y = thighs
-	_leg_meshes[1].scale.y = lerpf(1.0, 0.55, _pose.knee_short) * thighs
-	# Gloves and feet ride the ends of the stretched limbs but keep their own shape (D211).
-	for side in 2:
-		_gloves[side].scale.y = 1.0 / maxf(0.1, _arm_meshes[side].scale.y)
-		_feet[side].transform = Transform3D(Basis.IDENTITY, Vector3(0, -LEG_LENGTH + 0.035, -0.04))
-		_feet[side].scale.y = 1.0 / maxf(0.1, _leg_meshes[side].scale.y)
-		_feet[side].visible = _pose.kneel < 0.5 and _leg_meshes[side].scale.y > 0.8  # Kneeling: only the thigh shows.
-	if lie < 0.05 and float(_pose.kneel) < 0.05 and float(_pose.hip_y) > HIP_HEIGHT - 0.04:
-		for side in 2:
-			if absf(_legs[side].rotation.x) < 0.4:
-				_feet[side].global_basis = global_basis
-				var planted: Vector3 = _feet[side].global_position
-				planted.y = global_position.y + 0.032
-				_feet[side].global_position = planted
+	_pose_legs()
 	_head.rotation.x = -_impact * 0.16
 	_cut.visible = f.hurt("head") > 0.18
 	_bruise.visible = f.hurt("head") > 0.08
@@ -482,6 +493,57 @@ func _apply_pose(f: FighterState) -> void:
 func show_impact(target: String, damage: float) -> void:
 	if target == "head":
 		_impact = clampf(damage / 25.0, 0.15, 1.0)
+
+
+func _pose_legs() -> void:
+	var upright: bool = float(_pose.lie) < 0.1 and float(_pose.kneel) < 0.1 and float(_pose.hip_y) > 0.72
+	var goals: Array[Vector3] = []
+	var support: Array[bool] = []
+	for i in 2:
+		var lateral: float = lead if i == 0 else -lead
+		goals.append(global_position + global_basis * Vector3(lateral * 0.19, 0.032, -0.22 if i == 0 else 0.22))
+		support.append(upright and absf(_legs[i].rotation.x) < 0.5 and (i == 0 or float(_pose.knee_short) < 0.1))
+	motion.update(goals, support, _motion_delta)
+	var weight: float = 0.0
+	if upright and motion.swing >= 0:
+		weight = (lead if motion.swing == 1 else -lead) * 0.03
+		_hips.position.y -= sin(motion.progress * PI) * 0.008
+	_hips.position.x = lerpf(_hips.position.x, weight, 1.0 - exp(-12.0 * _motion_delta))
+	for i in 2:
+		var pivot: Node3D = _leg_meshes[i]
+		var hip: Vector3 = pivot.global_position
+		var foot_basis: Basis = global_basis if support[i] else pivot.global_basis.orthonormalized()
+		var ankle: Vector3
+		var knee: Vector3
+		if float(_pose.kneel) > 0.5:
+			# Knees on the canvas, shins folded behind: no shortening or disappearing lower legs.
+			knee = hip + global_basis * Vector3(0, 0, -0.24)
+			knee.y = global_position.y + 0.075
+			ankle = knee + global_basis * Vector3(0, 0, 0.40)
+			ankle.y = global_position.y + 0.097
+			foot_basis = global_basis
+		else:
+			if support[i]:
+				ankle = motion.feet[i] + foot_basis * Vector3(0, 0.065, 0.035)
+			else:
+				var reach: float = lerpf(0.84, 0.53, float(_pose.knee_short) if i == 1 else 0.0)
+				if float(_pose.lie) > 0.5 and _legs[i].rotation.x > 0.5:
+					reach = 0.62  # Bent knees wrapping the top fighter in guard.
+				ankle = pivot.to_global(Vector3(0, -reach, 0))
+			var solved: Array[Vector3] = FighterMotion.solve(hip, ankle, _hips.global_basis * Vector3.FORWARD)
+			knee = solved[0]
+			ankle = solved[1]
+		_bone(_thighs[i], pivot.to_local(hip), pivot.to_local(knee), FighterMotion.THIGH)
+		_bone(_shins[i], pivot.to_local(knee), pivot.to_local(ankle), FighterMotion.SHIN)
+		_feet[i].visible = true
+		_feet[i].global_basis = foot_basis
+		_feet[i].global_position = ankle - foot_basis * Vector3(0, 0.065, 0.035)
+
+
+static func _bone(node: Node3D, start: Vector3, end: Vector3, length: float) -> void:
+	var direction: Vector3 = end - start
+	node.position = start
+	node.basis = Basis(Quaternion(Vector3.DOWN, direction.normalized())).scaled_local(Vector3(1, direction.length() / length, 1))
 
 
 func _pose_arm(side: int, reach: float, angle: float) -> void:
@@ -507,7 +569,7 @@ static func _segment(mesh: MeshInstance3D, start: Vector3, end: Vector3) -> void
 
 
 static func _rest_pose() -> Dictionary:
-	return { "hip_y": HIP_HEIGHT, "lean": -0.08, "lie": 0.0, "twist": 0.0, "arm_lead": 2.0, "arm_rear": 1.85,
+	return { "hip_y": HIP_HEIGHT - 0.07, "lean": -0.08, "lie": 0.0, "twist": 0.0, "arm_lead": 2.0, "arm_rear": 1.85,
 		"leg_lead": 0.22, "leg_rear": -0.25, "reach_lead": 1.0, "reach_rear": 1.0, "knee_short": 0.0,
 		"spread": 0.08, "kneel": 0.0 }
 
@@ -686,18 +748,32 @@ func _build_gear_and_limbs() -> void:
 		hip.add_child(leg_pivot)
 		_legs.append(hip)
 		_leg_meshes.append(leg_pivot)
-		FightMesh.instance(leg_pivot, FighterSculpt.leg(_appearance == 1), _body_material)
-		FightMesh.instance(leg_pivot, FighterSculpt.contour([
+		var thigh := Node3D.new()
+		leg_pivot.add_child(thigh)
+		_thighs.append(thigh)
+		var shin := Node3D.new()
+		leg_pivot.add_child(shin)
+		_shins.append(shin)
+		FightMesh.instance(thigh, FighterSculpt.contour([
+			Vector4(-0.23, 0.125 * muscle, 0.127, 0.13), Vector4(-0.32, 0.103 * muscle, 0.107, 0.11),
+			Vector4(-FighterMotion.THIGH, 0.072, 0.077, 0.075)
+		]), _body_material)
+		FightMesh.instance(shin, FighterSculpt.contour([
+			Vector4(0.025, 0.072, 0.078, 0.075), Vector4(-0.08, 0.09 * muscle, 0.077, 0.105),
+			Vector4(-0.17, 0.087 * muscle, 0.065, 0.1), Vector4(-0.32, 0.053, 0.046, 0.06),
+			Vector4(-FighterMotion.SHIN, 0.043, 0.042, 0.046)
+		]), _body_material)
+		FightMesh.instance(thigh, FighterSculpt.contour([
 			Vector4(-0.065, 0.143 * muscle, 0.15, 0.155), Vector4(-0.14, 0.151 * muscle, 0.154, 0.155),
 			Vector4(-0.255, 0.142 * muscle, 0.145, 0.147)
 		]), cloth)
-		FightMesh.instance(leg_pivot, FighterSculpt.contour([
+		FightMesh.instance(thigh, FighterSculpt.contour([
 			Vector4(-0.252, 0.143 * muscle, 0.147, 0.149), Vector4(-0.267, 0.141 * muscle, 0.145, 0.147)
 		]), gear)
 		# A narrow sewn side stripe instead of the old large white rectangular patch.
-		var stripe: MeshInstance3D = FightMesh.box(leg_pivot, Vector3(0.009, 0.16, 0.035), trim, Vector3(side * 0.153 * muscle, -0.15, 0))
+		var stripe: MeshInstance3D = FightMesh.box(thigh, Vector3(0.009, 0.16, 0.035), trim, Vector3(side * 0.153 * muscle, -0.15, 0))
 		stripe.rotation.z = side * -0.06
-		FightMesh.box(leg_pivot, Vector3(0.052, 0.028, 0.004), trim, Vector3(0.025 * side, -0.2, -0.151))
+		FightMesh.box(thigh, Vector3(0.052, 0.028, 0.004), trim, Vector3(0.025 * side, -0.2, -0.151))
 		var foot: MeshInstance3D = FightMesh.instance(leg_pivot, FighterSculpt.foot(), _body_material,
 			Vector3(0, -LEG_LENGTH + 0.035, -0.04))
 		for toe in 5:

@@ -4,9 +4,14 @@ The rendered visual reviews require a graphics display (Godot 4.7.2). `visual_pr
 the real fight screen in standing, striking, kicking, clinch, ground and fence poses; `--720p`
 checks the smaller desktop window. `character_preview.gd` captures the actual fighter models
 from the front, three-quarter and back under neutral lighting. Neither writes a saved fight.
+`motion_preview.gd` captures a real seeded Boxer–Kicker fight at 1× speed, with the HUD hidden,
+as 960×540 PNG frames at 24 fps. It also leaves saved fights untouched. Use a fresh output folder
+when changing the duration so old trailing frames do not enter the encoded video.
 
     godot --script res://tools/visual_preview.gd -- --out=res://build/visual --720p
     godot --script res://tools/character_preview.gd -- --out=res://build/characters
+    godot --script res://tools/motion_preview.gd -- --out=res://build/motion --seconds=12
+    ffmpeg -framerate 24 -i build/motion/frame-%04d.png -c:v libx264 -pix_fmt yuv420p build/motion.mp4
 
 Headless runners and utilities. `run_sim.gd` runs one placeholder fight (a kicker against a boxer) with no scene tree
 and prints a summary; `--fights=N` runs N seeds and counts how they ended:

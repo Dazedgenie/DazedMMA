@@ -128,7 +128,7 @@ func _process(delta: float) -> void:
 		_facing[i] = lerp_angle(_facing[i], want, k) if _facing_set else want
 		var at: Vector2 = spots[i] + _offset[i]
 		figures[i].label_scale = zoom_share()
-		figures[i].show_state(sim, i, at, at + Vector2.from_angle(_facing[i]), delta)
+		figures[i].show_state(sim, i, at, at + Vector2.from_angle(_facing[i]), delta, delta * driver.rate())
 		figures[i].show_tell(_tell_limb[i] if tell_cues and sim.now <= _tell_until[i] else "")
 	_facing_set = true
 	var middle: Vector2 = (spots[0] + spots[1]) / 2.0
