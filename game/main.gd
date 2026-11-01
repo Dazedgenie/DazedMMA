@@ -68,6 +68,8 @@ var _actions: ActionLibrary
 var _roster: FighterLibrary
 var _console: DebugConsole
 var _break_rules: RuleSlots
+## The gameplan pickers on the between-rounds panel (D320).
+var _break_plan: GameplanPicker
 
 
 func _ready() -> void:
@@ -343,7 +345,10 @@ func _career_camp_week(report: Dictionary) -> void:
 ## cancelled and the week's over.
 func _career_camp_back() -> void:
 	if planner != null and planner.done() and not planner.can_fight():
-		career.cancel_fight()
+		if career.tournament_stage() > 0:
+			career.withdraw()  # Between a tournament's rounds: out, with any medal for the round he'd have fought (D315).
+		else:
+			career.cancel_fight()
 		save_career()
 	show_hub()
 
@@ -367,9 +372,15 @@ func sim_career_fight(profile: Dictionary) -> void:
 		driver.step()
 
 
+## In a tournament's later rounds (D315) he goes in as the last fight left him (Career.tournament_condition), not as the
+## camp did, and fighting hurt was the first round's worry (its injury roll is done).
 func _career_settings(profile: Dictionary) -> Dictionary:
 	var opponent: Dictionary = career.booked_opponent()
 	_roster.add(opponent)
+	var camp: Dictionary = planner.summary() if planner != null else {}
+	if career.tournament_stage() > 0:
+		profile = career.round_profile()
+		camp = {}
 	return {
 		"career": true,
 		"label": "%s vs %s" % [career.fighter_name(), String(opponent.get("name", ""))],
@@ -377,7 +388,9 @@ func _career_settings(profile: Dictionary) -> Dictionary:
 		"ruleset": String(career.booked.get("ruleset", Ruleset.DEFAULT_ID)),
 		"seed": career.next_seed(), "normal_rate": 2.0, "auto_slow": true, "flourishes": true, "tell_cues": true,
 		"sound_volume": float(setup.settings().get("sound_volume", 1.0)), "easy": false, "rules": [],
-		"camp": planner.summary(),
+		# Tonight's plan from the fight night card; a tournament's later rounds keep the last round's (D320).
+		"gameplan": planner.night_card.gameplan.picked() if planner != null else Dictionary(settings.get("gameplan", {})),
+		"camp": camp,
 	}
 
 
@@ -395,9 +408,12 @@ func _finish_career_fight(sim: FightSim, record: Dictionary, injury: Dictionary)
 		career.trainee.injured_days = int(injury.days_out)
 		career.trainee.injury_area = String(injury.area)
 	var me: FighterState = sim.fighters[driver.player]
+	var condition: Variant = settings.get("red_profile", {}).get("condition", {})
+	var tank_in: float = float(condition.get("tank", 1.0)) if condition is Dictionary else 1.0
 	var paid: int = career.finish_fight({ "result": result, "method": method_text(String(ended.get("result", ""))),
 		"round": sim.clock.current_round, "seed": sim.fight_seed, "simmed": bool(settings.get("sim", false)),
-		"hard": Aftermath.is_hard(me.hurt("head"), me.hurt("body"), me.knockdowns) })
+		"hard": Aftermath.is_hard(me.hurt("head"), me.hurt("body"), me.knockdowns),
+		"tank": tank_in, "hurt": { "head": me.hurt("head"), "body": me.hurt("body"), "legs": me.hurt("legs") } })
 	save_career()
 	var lines: Array[String] = []
 	if bool(settings.get("sim", false)):
@@ -406,8 +422,33 @@ func _finish_career_fight(sim: FightSim, record: Dictionary, injury: Dictionary)
 		career.record_text(career.pro)])
 	if paid > 0:
 		lines.append("Paid $%d. Savings: $%d." % [paid, career.money])
+	var through: String = tournament_text(career)
+	if through != "":
+		lines.append(through)
+		return lines  # The suspension comes at the end of his day.
+	var medal: String = String(career.fights[-1].get("medal", ""))
+	if medal != "":
+		lines.append("[color=#ffd43b]%s medal, %s.[/color]" % [medal.capitalize(), String(career.fights[-1].tournament.name)])
+	elif career.fights[-1].get("tournament") is Dictionary:
+		lines.append("Out of the %s in the %s." % [String(career.fights[-1].tournament.name),
+			Tournament.stage_name(int(career.fights[-1].tournament.size), int(career.fights[-1].tournament.stage)).to_lower()])
 	lines.append(aftermath_text(career.fights[-1]))
 	return lines
+
+
+## Between a tournament's rounds (D315): who's next and how he goes in. "" when he isn't between rounds.
+static func tournament_text(c: Career) -> String:
+	if c.tournament_stage() <= 0:
+		return ""
+	var t: Dictionary = c.booked.tournament
+	var carried: Dictionary = c.tournament_condition()
+	var hurt: Array[String] = []
+	for area: String in carried.get("hurt", {}):
+		if float(carried.hurt[area]) >= 0.05:
+			hurt.append("%s %d%%" % [area, roundi(float(carried.hurt[area]) * 100.0)])
+	return "[color=#69db7c]Through to the %s[/color] against %s, later today. He goes in with %d%% of his gas tank%s." % [
+		Tournament.stage_name(int(t.size), int(t.stage)).to_lower(), String(c.booked_opponent().get("name", "")),
+		roundi(float(carried.get("tank", 1.0)) * 100.0), (", still hurt: " + ", ".join(hurt)) if not hurt.is_empty() else ""]
 
 
 ## The aftermath line for the result screen: the suspension and why, and any Chin lost.
@@ -431,6 +472,27 @@ static func method_text(result: String) -> String:
 	if result == FightSim.RESULT_SUB:
 		return "Submission"
 	return result.substr(0, 1).to_upper() + result.substr(1)
+
+
+## A tournament's next round (D315): the next man, straight away, carrying the last fight (simmed again if the last
+## one was).
+func next_tournament_fight() -> void:
+	if career == null or career.tournament_stage() <= 0:
+		return
+	result.visible = false
+	if bool(settings.get("sim", false)):
+		sim_career_fight(career.round_profile())
+	else:
+		_career_fight(career.round_profile())
+
+
+## Pulls him out of the tournament between rounds (D315, Career.withdraw): the medal for the round he'd have fought,
+## then the hub.
+func withdraw_from_tournament() -> void:
+	if career != null:
+		career.withdraw()
+		save_career()
+	_career_after_fight()
 
 
 func _career_after_fight() -> void:
@@ -480,6 +542,12 @@ func start_fight(p_settings: Dictionary) -> void:
 	for entry: Array in settings.get("rules", []):
 		if String(entry[1]) != "":
 			driver.set_rule(int(entry[0]), String(entry[1]), float(entry[2]))
+	var plan: Dictionary = settings.get("gameplan", {})
+	if Gameplan.check(plan) == "" and Gameplan.describe(plan) != Gameplan.OWN_GAME:
+		driver.set_gameplan(plan)
+	var their_plan: Dictionary = StyleLibrary.gameplan_of(sim.fighters[1].profile)
+	if not their_plan.is_empty():
+		sim.submit(FightCommand.set_gameplan(0, 1, their_plan))  # His corner's plan (D324).
 	driver.round_over.connect(_on_round_over)
 	driver.fight_over.connect(_on_fight_over)
 	arena.tell_cues = bool(settings.get("tell_cues", true))
@@ -633,9 +701,14 @@ func _on_round_over(event: FightEvent) -> void:
 	var sim: FightSim = driver.sim
 	_break_rules = RuleSlots.new(sim.fighters[driver.player].profile, _actions)
 	_break_rules.show_rules(_current_rules())
-	var next: int = sim.clock.current_round
+	_break_plan = GameplanPicker.new("Gameplan for the next round")
+	_break_plan.show_plan(_current_plan())
+	var extra := VBoxContainer.new()
+	extra.add_child(_break_rules)
+	extra.add_child(_break_plan)
+	var next: int = event.round_number + 1  # The clock may not have moved on yet when the bell rings.
 	hud.show_dialog("End of round %d" % event.round_number, round_summary(sim, event),
-		[["Start round %d" % next, _start_next_round]], _break_rules)
+		[["Start round %d" % next, _start_next_round]], extra)
 
 
 ## The bell's text: each judge's card for the round, the totals and how both fighters are.
@@ -657,7 +730,7 @@ static func round_summary(sim: FightSim, event: FightEvent) -> String:
 		lines.append("%s: stamina %d/%d, landed %d of %d, damage taken head %d · body %d · legs %d" % [f.name,
 			roundi(f.stamina), roundi(f.max_stamina()), f.strikes_landed, f.strikes_thrown, f.damage.head, f.damage.body, f.damage.legs])
 	lines.append("")
-	lines.append("[color=#adb5bd]Change your drilled rules for the next round if you like.[/color]")
+	lines.append("[color=#adb5bd]Change your drilled rules and gameplan for the next round if you like.[/color]")
 	return "\n".join(lines)
 
 
@@ -668,10 +741,21 @@ func _start_next_round() -> void:
 		var same: bool = slot < now.size() and now[slot][1] == entry[1] and (entry[1] == "" or is_equal_approx(float(now[slot][2]), float(entry[2])))
 		if not same:
 			driver.set_rule(int(entry[0]), String(entry[1]), float(entry[2]))
+	if _break_plan.picked() != _current_plan():
+		driver.set_gameplan(_break_plan.picked())
 	hud.hide_dialog()
 	state = FIGHT
 	driver.resume()
 	hud.show_banner("Round %d" % driver.sim.clock.current_round)
+
+
+## The player's gameplan as it stands: {approach, target, where} ("" = his own game).
+func _current_plan() -> Dictionary:
+	var plan: Gameplan = driver.sim.decisions[driver.player].gameplan
+	var out: Dictionary = {}
+	for part: String in Gameplan.PARTS:
+		out[part] = "" if plan == null else String(plan.parts.get(part, ""))
+	return out
 
 
 ## The player's rules as they stand: [[slot, rule id, drilled 0–100], …].
@@ -698,7 +782,12 @@ func _on_fight_over(_event: FightEvent) -> void:
 	if bool(settings.get("career", false)) and career != null:
 		notes.append_array(_finish_career_fight(sim, record, injury))
 		hud.hide_dialog()
-		result.show_result(sim, driver.player, record.stats, notes, [["Back to the hub", _career_after_fight]])
+		if career.tournament_stage() > 0:
+			var stage: String = Tournament.stage_name(int(career.booked.tournament.size), career.tournament_stage())
+			result.show_result(sim, driver.player, record.stats, notes,
+				[["On to the %s" % stage.to_lower(), next_tournament_fight], ["Pull out", withdraw_from_tournament]])
+		else:
+			result.show_result(sim, driver.player, record.stats, notes, [["Back to the hub", _career_after_fight]])
 		return
 	notes.append("Seed %d (type it in the setup to replay this fight's start)" % sim.fight_seed)
 	if last_record_path != "":
@@ -732,6 +821,7 @@ func open_camp(p_settings: Dictionary) -> void:
 	_close_camp()
 	planner = CampPlanner.new(_roster.profile(settings.red), randi())
 	planner.opponent_name = String(_roster.profile(settings.blue).get("name", ""))
+	planner.plan_start = settings.get("gameplan", {})
 	planner.fight_pressed.connect(_fight_after_camp)
 	planner.back_pressed.connect(_back_to_setup)
 	$UI.add_child(planner)
@@ -744,6 +834,7 @@ func _fight_after_camp(profile: Dictionary) -> void:
 	var s: Dictionary = settings.duplicate(true)
 	s.red_profile = profile
 	s.camp = planner.summary()
+	s.gameplan = planner.night_card.gameplan.picked()
 	s.label = "%s after camp" % settings.get("label", "")
 	start_fight(s)
 

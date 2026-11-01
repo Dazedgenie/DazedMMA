@@ -10,6 +10,7 @@
 	],
 	"southpaw_chance": 0.15,
 	"variation": { "stats": 6, "style": 12, "tendencies": 0.2, "personality": 30, "height_cm": 4 },
+	"gameplan": { "approach": "", "target": "legs", "where": "" },
 	"scouting": {
 		"summary": "Walks forward behind punches and chops the legs with low kicks and calf kicks until you can't stand.",
 		"strengths": [

@@ -117,6 +117,9 @@ var _filling: bool = false  # Setting the slots from a preset, not by hand.
 ## The fight night card (D171) shown over the planner once the camp is over, and whether the player has gone back
 ## from it to look at the camp.
 var night_card: FightNightCard
+## The gameplan the fight night card starts from (the setup's, D320); the camp's last instruction fills its part in.
+var plan_start: Dictionary = {}
+var _plan_filled: bool = false
 var _night_open: bool = true
 ## In a career (D304, use_career()): the camp is the career's own, its length the weeks to the booked fight.
 var career: Career
@@ -350,6 +353,18 @@ func trained_profile() -> Dictionary:
 	return out
 
 
+## The plan the camp points to (D320): plan_start, with the part of the last week's instruction
+## (e.g. "Told to: Take him down" fills Where) put in.
+func camp_plan() -> Dictionary:
+	var out: Dictionary = plan_start.duplicate()
+	for n in range(reports.size() - 1, -1, -1):
+		var id: String = String(reports[n].get("instruction", ""))
+		if id != "":
+			out[String(Gameplan.read(id).get("part", Gameplan.APPROACH))] = id
+			break
+	return out
+
+
 ## What the camp was, for the fight's record: its weeks (each week's plan id) and fight night (TrainingCamp.fight_night).
 func summary() -> Dictionary:
 	var night: Dictionary = camp.fight_night()
@@ -495,7 +510,7 @@ func _build_week_card() -> Control:
 	var names: Array = ["No instruction"]
 	for file in _sorted_files(Gameplan.DEFAULT_DIR):
 		var data: Variant = JSON.parse_string(FileAccess.get_file_as_string(Gameplan.DEFAULT_DIR.path_join(file)))
-		if data is Dictionary:
+		if data is Dictionary and not data.get("leanings", {}).is_empty():  # A target plan pushes no leaning (D320).
 			_instruction_ids.append(String(data.id))
 			names.append("Told to: %s" % data.get("name", data.id))
 	_instruction = _picker(picks, "Instruction", names)
@@ -821,6 +836,9 @@ func _refresh() -> void:
 	_refresh_stats(forecast.get("gains", {}))
 	_night_button.visible = done()
 	night_card.visible = done() and _night_open
+	if done() and not _plan_filled:
+		_plan_filled = true
+		night_card.gameplan.show_plan(camp_plan())
 	if night_card.visible:
 		night_card.show_night(_night_info())
 	elif can_fight():

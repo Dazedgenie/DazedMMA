@@ -1,0 +1,10 @@
+{
+	"schema": "gameplan@2",
+	"id": "clinch_work",
+	"name": "Clinch work",
+	"part": "where",
+	"order": 2,
+	"summary": "Tie him up and work him in the clinch and on the fence.",
+	"leanings": { "range": 40 },
+	"weights": { "clinch_entry": 2.5, "collar_tie": 1.5, "fence_drive": 1.5 }
+}

@@ -16,6 +16,10 @@ const LIVE_CALL := "live_call"
 ## slots (DrilledRules, docs/01 §23). data: {slot (1 or 2), rule_id (a data/rules id, "" empties
 ## the slot), drilled (0–100: how well it was drilled in camp)}
 const SET_RULE := "set_rule"
+## Before a round (tick 0, or a round's first tick): the corner's gameplan for this fighter (D320,
+## Gameplan, docs/01 §42), replacing the last one. data: {approach, target, where}: data/gameplans
+## ids of that part, "" = his own game.
+const SET_GAMEPLAN := "set_gameplan"
 ## The corner throws in the towel (D31, docs/01 §10): the fight ends there, a TKO loss for this fighter. data: {}
 const THROW_TOWEL := "throw_towel"
 
@@ -47,6 +51,13 @@ static func live_call(p_tick: int, p_fighter: int, call_id: String) -> FightComm
 
 static func set_rule(p_tick: int, p_fighter: int, slot: int, rule_id: String, drilled: float) -> FightCommand:
 	return FightCommand.new(p_tick, p_fighter, SET_RULE, { "slot": slot, "rule_id": rule_id, "drilled": drilled })
+
+
+static func set_gameplan(p_tick: int, p_fighter: int, parts: Dictionary) -> FightCommand:
+	var data: Dictionary = {}
+	for part: String in Gameplan.PARTS:
+		data[part] = String(parts.get(part, ""))
+	return FightCommand.new(p_tick, p_fighter, SET_GAMEPLAN, data)
 
 
 static func throw_towel(p_tick: int, p_fighter: int) -> FightCommand:

@@ -14,6 +14,10 @@ extends MainLoop
 ## --rules=wrestler:catch_kick_and_shoot@80,kicker:sprawl_on_the_shot@60 runs every pair once more
 ## with those fighters' drilled rules (data/rules ids @ how well drilled, 0–100; a fighter's
 ## rules fill slots 1 and 2 in order), so the report shows what the rules did (#17).
+## --gameplans=pressure,legs,pressure+legs+wrestle_heavy runs every pair once more per plan (data/gameplans
+## ids joined by +, one per part), with the plan in red's corner, then in blue's (--coach=red or blue for one
+## side), so the report shows what each plan did to that fighter's wins (D320, docs/01 §42).
+## --gameplans=style gives each fighter his style sheet's plan, the one his corner picks in the game (D324).
 ## --jobs=N plays the fights in N Godot processes at once (default: one per CPU core; --jobs=1 plays
 ## them all in this one). The CSV and summary are the same whatever N is (D123, docs/01 §2.3).
 ## Writes <out>/balance.csv (one line per fight) and <out>/summary.txt, and prints the summary.
@@ -39,6 +43,7 @@ func _initialize() -> void:
 	var corners: PackedStringArray = [Corner.NONE]
 	var coach_sides: Array[int] = [0, 1]
 	var drilled: Dictionary = {}  # fighter id → ["rule_id@percent", …]
+	var gameplans: PackedStringArray = []
 	var processes: int = OS.get_processor_count()
 	var worker: int = -1  # Set when this process is one of the extra ones (--worker=k), playing its share.
 	var rows_path: String = ""
@@ -66,6 +71,20 @@ func _initialize() -> void:
 			_blue_first = true
 		elif arg.begins_with("--rows="):
 			rows_path = arg.trim_prefix("--rows=")
+		elif arg.begins_with("--gameplans="):
+			gameplans = arg.trim_prefix("--gameplans=").split(",", false)
+			for g in gameplans:
+				if g == FightSummary.STYLE_PLAN:
+					continue  # Each fighter's own style sheet's plan (D324).
+				var parts: Dictionary = {}
+				for id in g.split("+", false):
+					if not FileAccess.file_exists(Gameplan.DEFAULT_DIR.path_join(id + ".json")):
+						printerr("A gameplan is data/gameplans ids joined by +, e.g. pressure+legs (got '%s')" % g)
+						return
+					parts[String(Gameplan.read(id).part)] = id
+				if Gameplan.check(parts) != "":
+					printerr("Gameplan '%s': %s" % [g, Gameplan.check(parts)])
+					return
 		elif arg.begins_with("--rules="):
 			for entry in arg.trim_prefix("--rules=").split(","):
 				var parts: PackedStringArray = entry.split(":")
@@ -90,7 +109,7 @@ func _initialize() -> void:
 			printerr("No coaching bot '%s' (have: %s; ideal:a+b or ai:a+b for only some of its moments, %s; mash:<call id>)" % [style, ", ".join(Corner.STYLES), "+".join(Corner.MOMENTS)])
 			return
 	var rules: Ruleset = Ruleset.load_id(ruleset_id)
-	var jobs: Array[Dictionary] = HarnessJobs.plan(pairs, fights, first_seed, corners, coach_sides, drilled)
+	var jobs: Array[Dictionary] = HarnessJobs.plan(pairs, fights, first_seed, corners, coach_sides, drilled, gameplans)
 	processes = mini(processes, jobs.size())
 	if worker >= 0:
 		var file := FileAccess.open(rows_path, FileAccess.WRITE)

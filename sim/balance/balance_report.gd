@@ -61,6 +61,8 @@ static func pair_key(row: Dictionary) -> String:
 			key += " %s corner %s" % [side, corner(row, side)]
 		if drilled(row, side) != "":
 			key += " %s rules %s" % [side, drilled(row, side)]
+		if planned(row, side) != "":
+			key += " %s plan %s" % [side, planned(row, side)]
 	return key
 
 
@@ -81,11 +83,18 @@ static func drilled(row: Dictionary, side: String) -> String:
 	return text if text != "0" else ""
 
 
+## A side's gameplan as the row has it ("pressure+legs+wrestle_heavy"), "" for his own game (D320).
+static func planned(row: Dictionary, side: String) -> String:
+	var text: String = str(row.get("plan_" + side, ""))
+	return text if text != "0" else ""
+
+
 ## The fights with no coaching bot in either corner and no drilled rules: the fight engine's own balance.
 func uncoached() -> Array[Dictionary]:
 	return rows.filter(func(row: Dictionary) -> bool:
 		return corner(row, "red") == Corner.NONE and corner(row, "blue") == Corner.NONE \
-			and drilled(row, "red") == "" and drilled(row, "blue") == "")
+			and drilled(row, "red") == "" and drilled(row, "blue") == "" \
+			and planned(row, "red") == "" and planned(row, "blue") == "")
 
 
 func rows_for(pair: String) -> Array[Dictionary]:
@@ -171,7 +180,7 @@ func checks() -> Array[Dictionary]:
 	# The engine's targets are about fights without calls; coached fights get their own checks.
 	var plain: Array[Dictionary] = uncoached()
 	if plain.is_empty():
-		return coaching_checks() + rule_checks()
+		return coaching_checks() + rule_checks() + plan_checks()
 	var draws: float = method_share(plain, FightSummary.METHOD_DRAW)
 	out.append(_check("Draws under 2%", "D97", _share_text(plain, draws), draws < DRAWS_UNDER))
 	var even: float = even_card_share(plain)
@@ -209,6 +218,7 @@ func checks() -> Array[Dictionary]:
 	out.append(_info("Standing time the more-fenced fighter spends near the fence", "D107", _pct(fenced_share(plain))))
 	out.append_array(coaching_checks())
 	out.append_array(rule_checks())
+	out.append_array(plan_checks())
 	return out
 
 
@@ -314,6 +324,37 @@ static func _change(changed: Array, plain: Dictionary, ids: PackedStringArray) -
 		how = "%d and %d fights, not paired" % [before.size(), after.size()]
 	return { "mean": change.mean, "text": "%s, %s → %s, %s" % [BalanceStats.change_text(change),
 		_pct(BalanceStats.mean(before)), _pct(BalanceStats.mean(after)), how] }
+
+
+## For each fighter with a gameplan (the other on his own game, no bots, no rules) against an
+## opponent, next to the same two fighters without one: what the plan did to his wins, with its
+## 95% range (D320, docs/01 §42; reported with no pass mark).
+func plan_checks() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	var by_plan: Dictionary = {}  # "id:opponent" → plan → [rows, side]
+	for row in rows:
+		var side: String = planned_side(row)
+		if side == "":
+			continue
+		by_plan.get_or_add("%s:%s" % [row[side], row[_other(side)]], {}).get_or_add(planned(row, side), []).append([row, side])
+	var plain: Dictionary = _by_fight(uncoached())
+	for key: String in by_plan:
+		var ids: PackedStringArray = key.split(":")
+		for plan: String in by_plan[key]:
+			var change: Dictionary = _change(by_plan[key][plan], plain, ids)
+			if not change.is_empty():
+				out.append(_info("%s on %s against the %s" % [ids[0].capitalize(), plan, ids[1].capitalize()], "D320", change.text))
+	return out
+
+
+## "red" or "blue" when exactly one side has a gameplan (and no bots or rules either side), else "".
+static func planned_side(row: Dictionary) -> String:
+	var red: bool = planned(row, "red") != ""
+	var blue: bool = planned(row, "blue") != ""
+	if red == blue or corner(row, "red") != Corner.NONE or corner(row, "blue") != Corner.NONE \
+			or drilled(row, "red") != "" or drilled(row, "blue") != "":
+		return ""
+	return "red" if red else "blue"
 
 
 ## "red" or "blue" when exactly one corner has a coaching bot (and no rules either side), else "".

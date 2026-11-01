@@ -1,0 +1,11 @@
+{
+	"schema": "gameplan@2",
+	"id": "body",
+	"name": "Body",
+	"part": "target",
+	"order": 2,
+	"summary": "Go to the body: slow him down and drain his tank.",
+	"leanings": {},
+	"weights": {},
+	"targets": { "head": 0.75, "body": 2.0, "legs": 0.75 }
+}

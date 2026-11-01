@@ -1,0 +1,21 @@
+{
+	"schema": "cards@1",
+	"id": "open",
+	"name": "Local amateur opens",
+	"about": "A one-day tournament for four: a semi-final in the afternoon and the final the same evening.",
+	"names": [
+		"{city} Amateur Open",
+		"{city} Novice Open",
+		"{city} Cage Cup",
+		"{city} Shield"
+	],
+	"venues": [
+		"Sports Centre",
+		"Leisure Centre",
+		"Community Centre",
+		"Social Club"
+	],
+	"home_share": 0.7,
+	"every_weeks": 26,
+	"size": 4
+}

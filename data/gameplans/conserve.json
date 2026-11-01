@@ -1,7 +1,10 @@
 {
-	"schema": "gameplan@1",
+	"schema": "gameplan@2",
 	"id": "conserve",
 	"name": "Conserve",
+	"part": "approach",
+	"order": 4,
+	"summary": "Pace yourself and take no risks.",
 	"leanings": { "pace": -50, "risk": -40 },
 	"weights": {}
 }

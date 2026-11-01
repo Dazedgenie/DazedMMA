@@ -22,7 +22,7 @@ extends RefCounted
 
 ## Every key a row has, in CSV column order.
 const COLUMNS: Array[String] = [
-	"seed", "ruleset", "red", "blue", "corner_red", "corner_blue", "rules_red", "rules_blue", "winner", "winner_id", "result", "method", "end_round", "end_second", "fight_seconds",
+	"seed", "ruleset", "red", "blue", "corner_red", "corner_blue", "rules_red", "rules_blue", "plan_red", "plan_blue", "winner", "winner_id", "result", "method", "end_round", "end_second", "fight_seconds",
 	"knockdowns_red", "knockdowns_blue", "rocked_red", "rocked_blue",
 	"thrown_red", "landed_red", "thrown_blue", "landed_blue",
 	"head_damage_red", "body_damage_red", "leg_damage_red", "head_damage_blue", "body_damage_blue", "leg_damage_blue",
@@ -92,8 +92,16 @@ static func run(fight_seed: int, roster: FighterLibrary, actions: ActionLibrary,
 
 ## The fight run() plays, set up but not started: the same arguments as run().
 ## The golden fights (GoldenFights, D122) use it to keep the finished fight.
-static func setup(fight_seed: int, roster: FighterLibrary, actions: ActionLibrary, red_id: String, blue_id: String, rules: Variant = null, round_seconds: int = 300, corners: Array[String] = [], drilled: Array = []) -> FightSim:
+static func setup(fight_seed: int, roster: FighterLibrary, actions: ActionLibrary, red_id: String, blue_id: String, rules: Variant = null, round_seconds: int = 300, corners: Array[String] = [], drilled: Array = [], plans: Array = []) -> FightSim:
 	var sim := FightSim.new(fight_seed, roster.make_pair(red_id, blue_id), actions, rules, round_seconds)
+	for i in plans.size():
+		var parts: Dictionary = {}
+		if String(plans[i]) == STYLE_PLAN:
+			parts = StyleLibrary.gameplan_of(sim.fighters[i].profile)
+		elif String(plans[i]) != "":
+			parts = plan_parts(String(plans[i]))
+		if not parts.is_empty():
+			sim.submit(FightCommand.set_gameplan(0, i, parts))
 	for i in drilled.size():
 		var slot: int = 1
 		for entry: String in drilled[i]:
@@ -104,6 +112,30 @@ static func setup(fight_seed: int, roster: FighterLibrary, actions: ActionLibrar
 		if corners[i] != Corner.NONE:
 			sim.corners[i] = Corner.new(corners[i], corner_seed(fight_seed, i))
 	return sim
+
+
+## `--gameplans=style`: each fighter gets the plan his style sheet's corner gives him (D324).
+const STYLE_PLAN := "style"
+
+
+## A fighter's gameplan as the harness writes it: its part ids joined by "+" ("pressure+legs"), "" for his own game (D320).
+static func plan_text(sim: FightSim, i: int) -> String:
+	var plan: Gameplan = sim.decisions[i].gameplan
+	if plan == null:
+		return ""
+	var ids: Array[String] = []
+	for part: String in Gameplan.PARTS:
+		if String(plan.parts.get(part, "")) != "":
+			ids.append(String(plan.parts[part]))
+	return "+".join(ids)
+
+
+## A plan written as the harness writes it ("pressure+legs") as its parts {approach, target, where}.
+static func plan_parts(text: String) -> Dictionary:
+	var out: Dictionary = {}
+	for id in text.split("+", false):
+		out[String(Gameplan.read(id).part)] = id
+	return out
 
 
 ## Plays a set-up fight to the end, tracking stamina lows and movement tick by
@@ -199,6 +231,7 @@ static func of(sim: FightSim, lows: Array[float] = [], moves: Dictionary = {}) -
 		"red": sim.fighters[0].id, "blue": sim.fighters[1].id,
 		"corner_red": _style(sim.corners[0]), "corner_blue": _style(sim.corners[1]), "calls_red": 0, "calls_blue": 0,
 		"rules_red": "", "rules_blue": "", "fired_red": 0, "fired_blue": 0,
+		"plan_red": plan_text(sim, 0), "plan_blue": plan_text(sim, 1),
 		"checks_red": 0, "checked_red": 0, "slips_red": 0, "slipped_red": 0, "covered_hits_red": 0,
 		"checks_blue": 0, "checked_blue": 0, "slips_blue": 0, "slipped_blue": 0, "covered_hits_blue": 0,
 		"winner": "draw" if winner < 0 else SIDES[winner],

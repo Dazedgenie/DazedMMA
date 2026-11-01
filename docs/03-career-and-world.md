@@ -472,8 +472,8 @@ this order (D310), each playable when it lands:
 | The childhood scenes at 8, 12 and 15, replacing the background list | D312 | Built (§11.2) |
 | The gym walk-in at 16 | D313 | Built (§11.3) |
 | School weeks and local cards | D314 | Built (§11.4) |
-| The one-day tournament | D315 | Next |
-| The story as the tutorial (the first three amateur fights, tip cards, the Coach's Notebook) | D316 | |
+| The one-day tournament | D315 | Built (§11.5) |
+| The story as the tutorial (the first three amateur fights, tip cards, the Coach's Notebook) | D316 | Next |
 
 ### 11.1 The head coach (D311)
 
@@ -652,7 +652,7 @@ the hub says one of:
 
 It's advice only: *Turn pro* still works whenever `can_turn_pro` allows it (18, four amateur fights).
 
-His amateur record was already on the hub's top line; medals come with the one-day tournament (D315).
+His amateur record was already on the hub's top line; medals come with the one-day tournament (D315, §11.5).
 
 **Not yet:** exams, a part-time job, school events and parents having a say (phase 5's life events), holidays other than
 the summer, and the advice changing his first pro contract (phase 3, `08` §2's "pro hype").
@@ -666,3 +666,53 @@ word on turning pro there too (`pro_advice`, `PRO_WIN_SHARE`, `PRO_READY_AVG`, `
 `ui/career_hub.gd` (`week_text`, `offer_text`, `fights_text`), the planner's tiles in `ui/camp_planner.gd`. Tests:
 `tests/sim/world/test_school.gd`, `tests/sim/world/test_matchmaker.gd`, `tests/data/test_data_files.gd`. Fights don't change
 (no golden re-pin). Then update this section and D314.
+
+### 11.5 The one-day tournament (D315)
+
+`08` §2's "a one-day bracket of 2–3 short fights, with damage carrying over between them" (plan Q10: a tournament every 3 to
+4 months, 2 or 3 fights, damage carrying over, medals on his card).
+
+**When.** While he's amateur, from his 12th week and then every 13 to 17 weeks, one offer in a set of offers is a
+tournament instead of a single fight. Turn it down and the next one still comes 3 to 4 months later. Pros don't get them.
+
+**Two sizes** (Kyle, 2026-11-01: "Either, depending on the event"). A local open is four men:
+a semi-final and the final, named from `data/cards/open.json` (*Leeds Amateur Open 2027 · the Sports Centre, Leeds*; 70% in
+his hometown). A regional championship is eight men: a quarter-final, a semi-final and the final, from
+`data/cards/championship.json` (*Leeds Regional Championships 2027 · the Arena*; 40% at home, so more often away). Each is
+half the time. A tournament is named by its year, not numbered like the local shows.
+
+**The men.** The man he'd meet in each round is made when the offer comes, each a different style and each harder than the
+last: an eight-man bracket goes easier, even, harder, and a four-man one even, harder. The later men have had fights of
+their own that day, so they go in with less gas tank: 92% in the second round, 85% in the third. The offer's card shows the
+first man (scouted as usual), how many men, how many fights and that the damage carries.
+
+**The day.** The camp builds to fight night as for any fight. Each win takes him to the next round the same day: the result
+screen says *Through to the final against Ryan Hart, later today. He goes in with 80% of his gas tank, still hurt: head 21%*
+and offers *On to the final* or *Pull out*. He goes in with 70% of each area's damage from the last fight still on him and his
+gas tank 10 points smaller for each fight he's had (never under the camp's floor, 50%). The first fight's camp injury is rolled
+once, on the first fight. A simmed first fight sims the rest too. A loss or a draw puts him out (amateur tournaments need a
+winner; a draw goes to the other man). The week ends when his day does. If the game's closed between rounds, the save
+carries on from the next round: Go to camp goes straight to fight night, where *Fight!* takes him into the next round as
+the last fight left him, and *Pull out* is pulling out of the tournament.
+
+**Medals.** Gold for winning it, silver for losing the final (or pulling out before it), bronze for losing a semi-final he
+won a quarter-final to reach (both of an eight-man bracket's semi-final losers get one, as in real amateur tournaments). A
+four-man open's semi-final losers get nothing: otherwise every man in it would go home with a medal. Medals go on his card on
+the hub (*Medals: gold, Leeds Amateur Open 2027*), and the fights list shows each fight's round and any medal. Every fight
+of the day goes on his record.
+
+**The suspension** is the day's worst, from the end of it: a hard semi-final he won still keeps him out 21 days after the
+final.
+
+**Not yet:** seeing the rest of the bracket (the other men's fights), weigh-ins and weight classes, a ruleset with shorter
+tournament rounds, team scoring for his gym and a medal table on the hub.
+
+**What to change:** the sizes, how often, the men's difficulty and tiredness, what carries and the medals in
+`sim/world/tournament.gd` (`SIZES`, `BIG_CHANCE`, `FIRST_WEEK`, `GAP_MIN`, `GAP_MAX`, `DIFFICULTIES`, `OPPONENT_TANK`,
+`CARRY_HURT`, `TANK_PER_FIGHT`, `medal`); the names, venues and home share in `data/cards/open.json` and
+`championship.json` (docs/09 cards@1's `size`); how the offer's made in `sim/world/matchmaker.gd` (`make_tournament`); the day
+in `sim/world/career.gd` (`_check_offers`, `accept`, `finish_fight`, `withdraw`, `round_profile`); the result screen's
+buttons and lines in `game/main.gd` (`_finish_career_fight`, `tournament_text`, `next_tournament_fight`,
+`withdraw_from_tournament`); the hub in `ui/career_hub.gd` (`offer_text`, `week_text`, `fights_text`, `medals_text`). Tests:
+`tests/sim/world/test_tournament.gd`, `tests/game/test_main_scene.gd`, `tests/data/test_data_files.gd`. Fights don't change
+(no golden re-pin). Then update this section and D315.

@@ -100,6 +100,31 @@ func test_a_full_three_round_fight_plays_through_the_bell_to_the_result() -> voi
 		assert_eq(sim.clock.current_round, 3)
 
 
+func test_the_setups_gameplan_goes_into_the_fight_and_can_change_at_the_break() -> void:
+	_main.setup.gameplan.show_plan({ "approach": "pressure", "where": "wrestle_heavy" })
+	assert_eq(_main.setup.settings().gameplan, { "approach": "pressure", "target": "", "where": "wrestle_heavy" })
+	_start()
+	var sim: FightSim = _main.driver.sim
+	_main._process(FRAME)
+	assert_eq(sim.decisions[0].gameplan.label, "Pressure · Take him down")
+	assert_eq(sim.decisions[1].gameplan.label, "Legs", "the Kicker's corner gives him his style's plan (D324)")
+	assert_string_contains(FightHud.plan_text(sim, 0), "Pressure · Take him down")
+	_main.driver.speed = FightDriver.FAST
+	var frames: int = 0
+	while _main.state != _main.ROUND_BREAK and not sim.is_over() and frames < 20000:
+		frames += 1
+		_main._process(FRAME)
+	if sim.is_over():
+		pass_test("finished in the first round")
+		return
+	assert_eq(_main._break_plan.picked(), { "approach": "pressure", "target": "", "where": "wrestle_heavy" }, "the break shows the plan")
+	_main._break_plan.show_plan({ "target": "body" })
+	_main._start_next_round()
+	_main._process(FRAME)
+	_main._process(FRAME)
+	assert_eq(sim.decisions[0].gameplan.label, "Body", "changed at the break")
+
+
 func test_the_menu_holds_the_fight_and_the_towel_ends_it() -> void:
 	_start()
 	_main._process(FRAME)
@@ -351,9 +376,12 @@ func test_a_career_fight_goes_from_the_offer_through_the_camp_to_his_record() ->
 	assert_eq(_main.career.week, fight_week, "fight week waits for the fight")
 	assert_true(planner.done())
 	assert_eq(int(CareerSaves.info(0, SAVE_DIR).week), fight_week, "each camp week saved")
+	assert_eq(planner.night_card.gameplan.picked(), { "approach": "", "target": "", "where": "" }, "a time-off camp told him nothing")
+	planner.night_card.gameplan.pick(Gameplan.APPROACH, "counter")
 	planner.fight_pressed.emit(planner.trained_profile())
 	assert_eq(_main.state, _main.FIGHT)
 	assert_true(bool(_main.settings.career))
+	assert_eq(String(_main.settings.gameplan.approach), "counter", "tonight's plan from the fight night card (D320)")
 	assert_eq(String(_main.settings.ruleset), Matchmaker.TEEN_RULES)
 	_main.driver.throw_towel()
 	var frames: int = 0
@@ -397,3 +425,52 @@ func test_simming_a_career_fight_goes_straight_to_the_result() -> void:
 	assert_string_contains(_main.result.text(), "Simmed")
 	assert_string_contains(_main.result.text(), "Medical suspension")
 	assert_eq(str(_main.result.button_labels()), str(["Back to the hub"]))
+
+
+func test_a_tournament_goes_on_round_by_round_and_ends_with_a_medal() -> void:
+	_main.open_new_career()
+	_main.new_career.set_play_childhood(false)
+	_main.new_career.press_start()
+	_main.gym_screen.pick(0)
+	_main.gym_screen.press_start()
+	var c: Career = _main.career
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 3
+	c.offers = [c.matchmaker().make_tournament(c, rng, 4)]  # A four-man open (D315).
+	_main.show_hub()
+	var offer_id: String = _main.hub.offer_ids()[0]
+	var fight_week: int = int(c.offer(offer_id).week)
+	_main.hub.press_accept(offer_id)
+	_main.hub.press_camp()
+	var planner: CampPlanner = _main.planner
+	planner.pick_preset("time_off")
+	planner.run_rest()
+	planner.fight_pressed.emit(planner.trained_profile())
+	var tank_in: float = float(_main.settings.red_profile.condition.tank)
+	_main.driver.sim.submit(FightCommand.throw_towel(_main.driver.sim.now, 1))  # His opponent's corner gives up.
+	var frames: int = 0
+	while _main.state != _main.OVER and frames < 100:
+		frames += 1
+		_main._process(FRAME)
+	assert_eq(String(c.fights[-1].result), "win")
+	assert_eq(c.week, fight_week, "the same day")
+	assert_eq(c.tournament_stage(), 1)
+	assert_string_contains(_main.result.text(), "Through to the final")
+	assert_eq(str(_main.result.button_labels()), str(["On to the final", "Pull out"]))
+	assert_eq(int(CareerSaves.load_slot(0, SAVE_DIR).booked.tournament.stage), 1, "saved between rounds")
+	_main.next_tournament_fight()
+	assert_eq(_main.state, _main.FIGHT, "the final, straight away")
+	assert_eq(String(_main.settings.blue), String(c.booked.tournament.men[1].id))
+	assert_almost_eq(float(_main.settings.red_profile.condition.tank), tank_in - Tournament.TANK_PER_FIGHT, 0.001, "tired from the semi-final")
+	_main.driver.throw_towel()
+	frames = 0
+	while _main.state != _main.OVER and frames < 100:
+		frames += 1
+		_main._process(FRAME)
+	assert_eq(String(c.fights[-1].result), "loss")
+	assert_eq(c.week, fight_week + 1, "his day's over")
+	assert_eq(String(c.medals[0].medal), Tournament.SILVER)
+	assert_string_contains(_main.result.text(), "Silver medal")
+	assert_eq(str(_main.result.button_labels()), str(["Back to the hub"]))
+	_main._career_after_fight()
+	assert_string_contains(_main.hub.text(), "Medals: silver")

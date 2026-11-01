@@ -9,6 +9,7 @@
 	],
 	"southpaw_chance": 0.15,
 	"variation": { "stats": 6, "style": 12, "tendencies": 0.2, "personality": 30, "height_cm": 4 },
+	"gameplan": { "approach": "", "target": "", "where": "wrestle_heavy" },
 	"scouting": {
 		"summary": "Mixes takedowns and throws, then attacks the legs in every scramble.",
 		"strengths": [
