@@ -477,8 +477,8 @@ the wrong way round); no fight or clinch pose changes.
 `StrikeSounds` (`THUD_*`); `tools/strike_sounds.gd` writes it to `build/strike_sounds/takedown_thud.wav`.
 
 **Limits:** takedowns from standing (a double leg shot from range, the foot sweep, the catch-kick single) and the
-ground positions themselves still use today's figures; a takedown's landing eases into today's ground pose, which
-doesn't match the rig's exactly; the defender doesn't fight the attempt (a whizzer, a hand on the head) beyond the
+ground positions themselves still used today's figures (they are posed from the rig since D289, and a takedown's
+landing goes straight into the ground pose); the defender doesn't fight the attempt (a whizzer, a hand on the head) beyond the
 sprawl.
 
 Preview: `tools/rig_preview.gd --takedowns --body` (every key from the clinch to the landing, halves between for
@@ -494,6 +494,72 @@ the clinch; a sprawl puts the shooter on his knees until his move is over; the h
 and lands him beyond the thrower; a half-worked takedown lands both on their knees; the guard pull puts the puller
 underneath; turns go the short way round; off the fence he lands inside the cage);
 `tests/game/test_strike_sounds.gd` (the thud is the same every time, low, and muting silences it).
+
+## The ground positions from the rig (D289)
+
+The fifth step of Kyle's route: the ground positions come off today's figures and onto the rig. Kyle said "We can
+start the ground rig" (2026-11-01) and picked *all six positions held* in this step, *a pose for each grip*, *ease,
+sweeps and bridges roll* between positions, and ground and pound with *the arm only, the bomb sits up*.
+
+**A pose for each position** (`game/rig/ground_pair.gd`, `GroundPair`), written like the clinch's with the man on top
+as "a" and the man underneath as "b", in a ground frame with its origin under the bottom man's hips and its +Z toward
+his feet:
+
+| Position | The man on top | The man underneath |
+|---|---|---|
+| Full guard | kneeling between his legs, hands on his belly (`RigPairs.full_guard`) | on his back, legs locked round the waist, hands on the forearms |
+| Half guard | chest down on him, one leg trapped between his, the other posted out | on his back, legs locked round the trapped shin, a hand on the shoulder and one at the neck |
+| Side control | across him on his side, an arm round the head, the other at the far hip (the hip throw lands here) | flat, a hand pushing the hip |
+| Mount | sat on his hips, knees down by his ribs, hands on his chest | flat, hands on the hips, feet planted to bridge |
+| The back | sat behind him, heels hooked inside his thighs, arms in a seat belt | sat up in front, hands on the top arm |
+| Crucifix | across him from the head side, his near arm trapped between the legs | flat, the trapped arm pinned |
+
+**Where it is drawn** (`ArenaView.ground_frame`). The frame is laid out the way today's figures lay the position out
+(`lay_out`, D210): the bottom man across the screen where the sim has him (moved by `_ground_shift` after a takedown
+that landed elsewhere, D288), the man on top on the side away from the camera in half guard, side control and the
+crucifix (`GroundPair.build`'s `far` mirrors the pose). The frame is kept while the position lasts, so the pose doesn't
+swing round when the sim nudges their spots. Landing from a clinch takedown goes straight into it.
+
+**The grips** (`ArenaView.ground_grips_now` from the sim's ground grips, D263, D264). In the guard and half guard: his
+wrists held (one or both of the bottom man's hands on them), the collar tie (both hands behind his head, his posture
+broken: `COLLAR_LEAN`, `COLLAR_SINK`, `COLLAR_FORWARD`), and in half guard the underhook (the bottom man turned toward
+him, `UNDERHOOK_ROLL`, an arm under his round his back) or the crossface (the top man's forearm across the face, the
+head turned away). Under side control or mount: the frame (a forearm on his neck, or a hand on his chest in mount).
+With the back taken: two hands on the choking arm. Covering up (`ground_cover`): both gloves in front of his face.
+Posturing up (the move, or the bomb's wind-up) sits the top man up (`POSTURE_LEAN`, `POSTURE_RISE`) with his hands up
+and tears the bottom man's grips off. A new position eases in over `GROUND_EASE` (0.4 s), a grip over `CLINCH_EASE`.
+
+**Rolling over** (`GroundPair.roll_path`, `ArenaView._pose_roll`). A sweep, a bridge or getting out from under the
+back (`GroundPair.ROLLS`) that works plays a roll over `ROLL_SECONDS` (0.6 s): from the pose before it, the man going
+over tipped onto his side (`ROLL_SIDE`) as the other comes up, to the new position the other way round. A pass, a
+mount, taking the back and the other moves ease from one pose to the next.
+
+**Ground and pound** (`GroundPair.STRIKES`, `ArenaView.strike_blend`). The ground punch, hammerfist, elbow, body punch
+and the bomb move only the striking arm in the rig: cocked by his ear (`COCKED`) over the first `COCK_SHARE` (65%) of
+the telegraph and wind-up, down onto the man underneath (the head, or the belly for the body punch) through the rest
+and its active part, leaning `STRIKE_LEAN` (14°) into it, and back over the recovery. The bomb sits him up first (his
+posture through the wind-up), then comes down.
+
+**What stays on today's figures:** standing up and getting up (`GROUND_UNPOSED`), the scramble, a submission once it
+is locked in and the leg locks; the ease takes the bodies from the rig to them and back.
+
+**To change:** the poses, grips, `STRIKES`, `COCKED`, `STRIKE_LEAN` and the roll in `game/rig/ground_pair.gd`;
+`GROUND_EASE`, `ROLL_SECONDS`, `COCK_SHARE` and `GROUND_UNPOSED` at the top of `game/arena_view.gd`.
+
+**Limits:** the submissions and leg locks, the scramble and standing up are still today's figures; passes, taking
+the mount and the back ease between poses rather than stepping round; the knee on the ground (PRIDE) and the
+up-kick keep the pose; the poses are tuned on the Tripo body and are hand-placed, with no physics.
+
+Preview: `tools/rig_preview.gd --ground --body` (every position and grip, then a sweep in steps); a real fight:
+`tools/motion_preview.gd --red=bjj --blue=wrestler --seed=35005 --from=5 --seconds=30` (a guard pull, ground and pound
+in the guard, side control and frames, a sweep and a scramble, the BJJ fighter on top).
+
+Tests: `tests/game/test_ground_pair.gd` (every hand and foot in place, bodies not passing through each other, no one
+under the canvas, the man underneath down and the top man over him, the far side mirrored, the grips where they hold,
+each strike landing from cocked by his ear, a sweep rolling them over) and `tests/game/test_ground_view.gd` (every
+position posed where today's figures lay it out, the top man on the far side, the frame kept while the position lasts,
+the grips on the bodies, a punch landing and the bomb sitting up first, a sweep rolling them over with the sweeper on
+top, standing up and the scramble back to today's figures).
 
 ## Review and verification
 
