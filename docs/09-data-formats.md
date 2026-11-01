@@ -20,7 +20,7 @@ Rules:
 
 | Folder | Schema | What it is |
 |---|---|---|
-| `data/enums/` | `enum@1` | Fixed vocabularies: `flags` (state flags, `docs/01` §5), `stats` (attributes, `docs/02` §2), `gifts` and `flaws` (`docs/11` §4.3), `nicknames` (what *Roll* picks from on the new-career screen, D302), `coach_backgrounds` (who the head coach was before him: id → `{name, about}`, D311) |
+| `data/enums/` | `enum@1` | Fixed vocabularies: `flags` (state flags, `docs/01` §5), `stats` (attributes, `docs/02` §2), `gifts` and `flaws` (`docs/11` §4.3), `nicknames` (what *Roll* picks from on the new-career screen, D302), `coach_backgrounds` (who the head coach was before him: id → `{name, about}`, D311), `gym_cultures` (a gym's culture: id → `{name, about, skips, injury, sparring_xp}`, the shares it changes those by, D313) |
 | `data/actions/` | `action@2` | Everything a fighter can do: strikes, takedowns, defenses, ground moves |
 | `data/positions/` | `position@2` | Standing, clinch and ground positions (`docs/01` §4) |
 | `data/calls/` | `call@2` | Coach calls: now/read, intent/technique (`docs/01` §6, §22) |
@@ -35,6 +35,7 @@ Rules:
 | `data/styles/` | `style@1` | Opponent style sheets: the recipe the world makes opponents of one style from, and the style's scouting card (D160, `docs/03` §7.1) |
 | `data/backgrounds/` | `background@1` | Where a career's fighter comes from: the 12 backgrounds of `docs/02` §1.2 and the 16-year-old each makes (D302, `docs/03` §10.2) |
 | `data/names/` | `names@1` | One country each: its cities (hometowns) and common first and last names, for new careers and generated fighters (D302, D57) |
+| `data/gyms/` | `gym@1` | The five kinds of gym you can coach at: what each trains better and worse, its fee, names and owners (D313, `docs/03` §11.3) |
 | `data/vignettes/` | `vignette@1` | His childhood scenes: one scene at age 8, 12 or 15, with three choices that make him who he is at 16 (D312, `docs/03` §11.2) |
 | `data/combos/` | `combo@1` | Combinations: a named run of strikes a fighter has drilled, the 1-2, a jab into a low kick (D133, `docs/01` §31) |
 
@@ -185,6 +186,19 @@ fighter@1 profile from it: the same background, seed and choices always make the
 | `hook` | string | The story hook (`docs/02` §1.2), on the screen and his card |
 | `money` | number | What he starts the career with |
 
+### gym@1 (examples: `boxing_gym.json`, `mma_gym.json`)
+A kind of gym (D313, `docs/03` §11.3). Loaded by `Gym` (`sim/world/gym.gd`), whose `offers(city, country_id, background,
+seed)` rolls the three gyms a new career offers.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `name`, `about` | strings | The kind's name and a line on what it's like, as the gym card shows them |
+| `xp` | `{session kind: share}` | Each kind of session's XP × this (0.5–1.5; `striking`, `wrestling`, `grappling`, `sparring`, `conditioning`, `mind`, `recovery`; missing = 1) |
+| `fee` | `[low, high]` | Its monthly fee in dollars, rolled in that range |
+| `names` | strings | Names for a gym of this kind; `{city}` is his hometown and `{surname}` the owner's surname |
+| `owners` | strings | A line about the owner, one picked per gym |
+| `backgrounds` | background ids | The backgrounds it suits: the first gym on offer is a kind that suits his (every background must have one) |
+
 ### vignette@1 (examples: `age8_flyer.json`, `age15_trip.json`)
 One childhood scene (D312, `docs/03` §11.2). Loaded by `Childhood` (`sim/world/childhood.gd`), which draws one scene per age
 for a career and turns the choices into his background and changes to his fighter.
@@ -274,6 +288,7 @@ each with a `.backup.json` of the save before it). Written by `CareerSaves` (`ga
 | `coach` | `{name, background?, specialty?}`: the head coach, the player. `background` is a `data/enums/coach_backgrounds` id and `specialty` one of `striking`, `wrestling`, `bjj`, `motivator`, `tactician` (D311, `docs/03` §11.1); a career saved before D311 has neither and loads with none |
 | `fighter` | The fighter@1 profile he started with (id `career_fighter`); what changes with training is in `trainee`. A career made on the new-career screen adds `background`, `age` and `potential` (D302) |
 | `about` | `nickname`, `hometown`, `country`, `background`: shown on screens, not used by fights |
+| `gym` | Your gym, where he trains (D313, `docs/03` §11.3): `{kind (a data/gyms id), culture (a gym_cultures id), name, owner_name, owner, fee}`. Optional: `{}` (or missing) for a career before D313 |
 | `childhood` | His childhood scenes (D312, `docs/03` §11.2): `{picks: [{scene, choice}], second (the runner-up background), people: [{role, name, about, age}]}`. Optional: `{}` (or missing) when his background was picked from the list or the career predates D312 |
 | `trainee` | `TrainingCamp.snapshot()`: `stats` (with fractions), `style`, `fatigue`, `injured_days`, `injury_area`, `age_years`, `potential`, `camp_gains` (this camp's, for the soft cap) and `dice` |
 | `calendar` | `first_monday` (days since 1 Jan 1970 of week 0's Monday) and `week` (weeks since) |
@@ -290,7 +305,8 @@ Valid JSON with a known schema · id matches file name and folder · required fi
 action timings are whole ticks · values come from the allowed lists · every reference (positions, actions, calls, triggers,
 flags, stats, sessions, gameplans) points to something that exists · a session's shares add up to 1 · a week plan has 6 days
 of 2 sessions · a background builds on a real fighter with real stats, gifts and flaws · a country has cities and names · a childhood
-scene has three choices leaning toward real backgrounds, and every background can come out of every age.
+scene has three choices leaning toward real backgrounds, and every background can come out of every age · a gym trains real
+session kinds and every background has a gym that suits him.
 
 ## 5. Not yet defined (comes with the issue that needs it)
 Technique proficiency and the `techniques` link to `requires_technique` (D6), state/threshold trigger fields (#16), techniques and promotions (Alpha).

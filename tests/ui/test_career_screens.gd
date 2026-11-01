@@ -230,3 +230,23 @@ func test_play_his_childhood_is_on_by_default_and_greys_out_the_list() -> void:
 	screen.set_play_childhood(false)
 	assert_false(screen.choices().play_childhood)
 	assert_string_contains(screen.text(), "Strong:")
+
+
+func test_where_you_coach_offers_three_gyms_then_the_walk_in() -> void:
+	var screen: GymScreen = add_child_autofree(GymScreen.new())
+	screen.begin({ "coach": "Sam Reed", "name": "Danny Hill", "hometown": "Leeds", "country_id": "england", "background": "farm_kid" }, 5)
+	assert_eq(screen.gyms.size(), 3)
+	assert_string_contains(screen.text(), "WHERE YOU COACH")
+	assert_string_contains(screen.text(), "a month")
+	watch_signals(screen)
+	screen.press_start()
+	assert_signal_not_emitted(screen, "finished", "pick a gym first")
+	screen.pick(2)
+	assert_true(screen.on_walk_in())
+	assert_string_contains(screen.text(), "THE WALK-IN")
+	assert_string_contains(screen.text(), String(screen.gyms[2].name))
+	screen.press_back()
+	assert_false(screen.on_walk_in(), "back to the three gyms")
+	screen.pick(2)
+	screen.press_start()
+	assert_signal_emitted_with_parameters(screen, "finished", [screen.gyms[2]])

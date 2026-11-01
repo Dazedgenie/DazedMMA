@@ -1,0 +1,32 @@
+{
+	"schema": "gym@1",
+	"id": "bjj_academy",
+	"name": "BJJ academy",
+	"about": "Clean mats, a wall of belts and a strict no-shoes rule. Everyone rolls at the end of every class.",
+	"xp": {
+		"grappling": 1.25,
+		"mind": 1.1,
+		"striking": 0.75,
+		"wrestling": 0.9
+	},
+	"fee": [
+		60,
+		90
+	],
+	"names": [
+		"{city} Jiu-Jitsu",
+		"{surname} BJJ",
+		"Gentle Art {city}",
+		"{city} Grappling Academy"
+	],
+	"owners": [
+		"A black belt who smiles the whole time he's choking you.",
+		"Moved here from Rio and still can't believe how cold it gets.",
+		"Teaches every class himself and remembers every student's name."
+	],
+	"backgrounds": [
+		"jiu_jitsu_prodigy",
+		"judo_sambo_household",
+		"bullied_underdog"
+	]
+}

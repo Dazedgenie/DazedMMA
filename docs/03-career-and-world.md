@@ -462,8 +462,8 @@ this order (D310), each playable when it lands:
 |---|---|---|
 | The head coach | D311 | Built (§11.1) |
 | The childhood scenes at 8, 12 and 15, replacing the background list | D312 | Built (§11.2) |
-| The gym walk-in at 16 | D313 | Next |
-| School weeks and local cards | D314 | |
+| The gym walk-in at 16 | D313 | Built (§11.3) |
+| School weeks and local cards | D314 | Next |
 | The one-day tournament | D315 | |
 | The story as the tutorial (the first three amateur fights, tip cards, the Coach's Notebook) | D316 | |
 
@@ -551,3 +551,51 @@ that age's pool); the flavour, the height lean and the ages in `sim/world/childh
 `open_childhood`), his card in `ui/career_hub.gd` (`fighter_card_text`). Tests: `tests/sim/world/test_childhood.gd`,
 `tests/ui/test_career_screens.gd`, `tests/game/test_main_scene.gd`, `tests/data/test_data_files.gd`. Then update this
 section and D312.
+
+### 11.3 Your gym and the walk-in (D313)
+
+You coach at a gym, and that's where he walks in at 16 (D37). Kyle (2026-11-01) picked **Yours** on the plan's card ("Whose
+gym does he walk into at 16?"): you coach at a gym, picked from three in his hometown when he walks in, and the walk-in is
+the scene where you meet him.
+
+**Where you coach** (`ui/gym_screen.gd`) is the last step of a new career, after his childhood (§11.2) or straight after the
+new-career screen when *Play his childhood* is unticked. It shows three gyms in his hometown side by side (`Gym.offers`):
+three different kinds, and the first always suits where he comes from (a boxing gym for the boxing gym kid, a wrestling
+club for the wrestling family's son). Each card has the gym's name, its kind and culture, what it trains better and worse,
+the owner (named from his country, with a line about them) and the monthly fee. *Coach here* picks it.
+
+**The walk-in** is that gym on the first Monday of January: the door bangs open, he walks in out of the cold, his
+background's hook, whoever from his childhood sent him ("His dad, Gary Hill, told him to come here."), "I'm Danny Hill, I
+want to fight," and the owner nodding at you from the office door. *Back* goes back to the three gyms; *Start career* starts
+it. Back from the gyms (or Esc) goes to the new-career screen with what you'd filled in kept.
+
+**What a gym does** (`sim/world/gym.gd`, `data/gyms/`, `docs/09` gym@1). Each of the five kinds changes the XP of each kind
+of session (`data/sessions` `kind`; missing = no change):
+
+| Kind | Session XP | Fee a month |
+|---|---|---|
+| BJJ academy | grappling ×1.25, mind ×1.1, striking ×0.75, wrestling ×0.9 | $60–90 |
+| Boxing gym | striking ×1.2, sparring ×1.1, wrestling ×0.8, grappling ×0.7 | $35–55 |
+| MMA gym | sparring ×1.1, mind ×1.05 | $70–110 |
+| Muay Thai camp | striking ×1.2, conditioning ×1.1, wrestling ×0.8, grappling ×0.7 | $45–70 |
+| Wrestling club | wrestling ×1.25, conditioning ×1.1, striking ×0.75, grappling ×0.9 | $25–45 |
+
+Each gym also has one of three cultures (`data/enums/gym_cultures.json`): a **family gym** (a party animal skips a quarter
+less), **hard sparring** (sparring XP ×1.2, injuries ×1.5) or a **party gym** (skips ×1.5). The fee comes out of his savings
+on the first Monday of every month, as much of it as he has (never below $0; for now nothing happens when he can't pay).
+The hub says where he trains, the fee beside his savings, and what he paid in *Last week*.
+
+The gym lives on the career (`gym`, `docs/09` career@1; optional, so a career saved before D313 loads with no gym, which
+trains as before and pays nothing) and on its `TrainingCamp` (`gym`), so it counts between fights and in the camp alike.
+Fights and the camp planner outside a career don't change (no golden re-pin).
+
+**Not yet:** changing gyms, the gym's other fighters as sparring partners and rivals, what happens when he can't pay, and a
+fee that grows with the gym (phase 4, `02` §5). Amateurs earn nothing yet, so the fee only runs his savings down.
+
+**What to change:** the kinds, their XP, fees, names, owners and the backgrounds they suit in `data/gyms/`; the cultures
+in `data/enums/gym_cultures.json`; how many gyms are offered (`OFFERS`) and how they're rolled in `sim/world/gym.gd`; where
+training reads them in `sim/world/training_camp.gd` (`_run_slot`, `skip_chance`, `injury_chance`); the fee in
+`sim/world/career.gd` (`end_week`); the screen and the walk-in's words in `ui/gym_screen.gd` (`gym_text`, `walk_in_text`);
+the flow in `game/main.gd` (`start_career`, `open_gym`); the hub in `ui/career_hub.gd`. Tests: `tests/sim/world/test_gym.gd`,
+`tests/ui/test_career_screens.gd`, `tests/game/test_main_scene.gd`, `tests/data/test_data_files.gd`. Then update this
+section and D313.

@@ -68,6 +68,9 @@ var about: Dictionary = {}
 ## His childhood (Childhood, D312): { picks: [{scene, choice}], second: the runner-up background, people: [{role, name,
 ## about, age}] }. {} when the player picked his background from the list instead (or the career predates D312).
 var childhood: Dictionary = {}
+## Your gym, where he trains (Gym, D313): { kind, culture, name, owner_name, owner, fee }. {} for a career before D313 (no
+## gym: training as before, no fee).
+var gym: Dictionary = {}
 var trainee: TrainingCamp
 ## The day (days since 1 Jan 1970) of the Monday that starts week 0, and the week it is now.
 var first_monday: int = 0
@@ -98,7 +101,7 @@ var _matchmaker: Matchmaker
 
 
 ## A new career for this fighter (a fighter@1 profile) on week 0. `extra` may give `coach` (the player's name),
-## `coach_background` and `coach_specialty` (Coach, D311) and ABOUT_KEYS.
+## `coach_background` and `coach_specialty` (Coach, D311), `gym` (one of Gym.offers(), D313) and ABOUT_KEYS.
 static func create(profile_in: Dictionary, new_seed: int, extra: Dictionary = {}, library: TrainingLibrary = null) -> Career:
 	var c := Career.new()
 	c._library = library if library != null else TrainingLibrary.shared()
@@ -115,6 +118,9 @@ static func create(profile_in: Dictionary, new_seed: int, extra: Dictionary = {}
 	c.first_monday = days_from_civil(START_DATE[0], START_DATE[1], START_DATE[2])
 	c.trainee = TrainingCamp.new(c.fighter, c._dice.randi(), c._library)
 	c.trainee.coach_specialty = c.coach_specialty
+	if extra.get("gym") is Dictionary:
+		c.gym = (extra.gym as Dictionary).duplicate(true)
+	c.trainee.gym = c.gym
 	return c
 
 
@@ -179,7 +185,7 @@ func run_week(plan: Variant = null, played: Dictionary = {}) -> Dictionary:
 		plan_data = _library.plan(week_plan if plan == null else String(plan))
 	var before := { "injured_days": trainee.injured_days, "suspended_days": suspended_days, "age": age() }
 	var report: Dictionary = trainee.run_plan(plan_data, played)
-	end_week()
+	report.gym_fee = end_week()
 	report.week = week - 1
 	report.events = _events_since(before)
 	var worn: bool = float(report.get("fatigue_peak", 0.0)) >= TrainingCamp.FATIGUE_FREE
@@ -383,9 +389,16 @@ func _after_booking() -> void:
 
 
 ## Moves the calendar on to next Monday. run_week() calls it; a camp week run on `trainee` by the planner calls it too.
-func end_week() -> void:
+## Returns the gym fee he paid as the week turned ($, 0 when none was due): his gym's `fee` comes out of his savings on
+## the first Monday of each month (D313), as much of it as he has.
+func end_week() -> int:
 	week += 1
 	suspended_days = maxi(0, suspended_days - DAYS_PER_WEEK)
+	if gym.is_empty() or int(date(0, week).month) == int(date(0, week - 1).month):
+		return 0
+	var paid: int = mini(int(gym.get("fee", 0)), money)
+	money -= paid
+	return paid
 
 
 ## Dice for something outside the career's own dice, such as a fight: the same career always hands out the same seeds.
@@ -466,6 +479,7 @@ func to_dict() -> Dictionary:
 		"seed": str(career_seed), "dice": str(_dice.state),
 		"coach": { "name": coach_name, "background": coach_background, "specialty": coach_specialty },
 		"fighter": fighter.duplicate(true), "about": about.duplicate(true), "childhood": childhood.duplicate(true),
+		"gym": gym.duplicate(true),
 		"trainee": trainee.snapshot(),
 		"calendar": { "first_monday": first_monday, "week": week },
 		"suspended_days": suspended_days, "money": money, "pro": pro, "week_plan": week_plan,
@@ -513,8 +527,12 @@ static func from_dict(data: Dictionary, library: TrainingLibrary = null) -> Care
 	c.opponents = d.get("opponents", {}).duplicate(true)
 	c.booked = d.get("booked", {}).duplicate(true)
 	c.offers = d.get("offers", []).duplicate(true)
+	c.gym = d.get("gym", {}).duplicate(true) if d.get("gym") is Dictionary else {}
+	if c.gym.has("fee"):
+		c.gym.fee = int(c.gym.fee)
 	c.trainee = TrainingCamp.new(c.fighter, 0, c._library)
 	c.trainee.coach_specialty = c.coach_specialty
+	c.trainee.gym = c.gym
 	c.trainee.restore(d.trainee)
 	return c
 

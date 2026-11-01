@@ -1,0 +1,32 @@
+{
+	"schema": "gym@1",
+	"id": "wrestling_club",
+	"name": "Wrestling club",
+	"about": "Mats wall to wall in a school annex, the heater on full. Shots, sprawls and drilling until the windows steam up.",
+	"xp": {
+		"wrestling": 1.25,
+		"conditioning": 1.1,
+		"striking": 0.75,
+		"grappling": 0.9
+	},
+	"fee": [
+		25,
+		45
+	],
+	"names": [
+		"{city} Wrestling Club",
+		"{city} Takedown Club",
+		"{surname} Wrestling Academy",
+		"Mat Rats {city}"
+	],
+	"owners": [
+		"A former state champion who coaches the high school team in the afternoons.",
+		"Believes every problem in life is solved by a better double leg.",
+		"Hands out mouthguards and opinions in equal measure."
+	],
+	"backgrounds": [
+		"wrestling_family",
+		"college_football",
+		"farm_kid"
+	]
+}

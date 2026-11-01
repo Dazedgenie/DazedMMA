@@ -1,0 +1,32 @@
+{
+	"schema": "gym@1",
+	"id": "boxing_gym",
+	"name": "Boxing gym",
+	"about": "Heavy bags, a ring with a sagging rope and a wall of old fight posters. Hands first, last and always.",
+	"xp": {
+		"striking": 1.2,
+		"sparring": 1.1,
+		"wrestling": 0.8,
+		"grappling": 0.7
+	},
+	"fee": [
+		35,
+		55
+	],
+	"names": [
+		"{city} Boxing Club",
+		"{surname}'s Boxing",
+		"The Corner Gym",
+		"Southside Boxing",
+		"Golden Gloves {city}"
+	],
+	"owners": [
+		"An old pro who still spars on Fridays and never lets anyone forget it.",
+		"Runs the place on cash and coffee and hasn't missed a morning in thirty years.",
+		"A former Golden Gloves champion with a bad knee and a long memory."
+	],
+	"backgrounds": [
+		"boxing_gym_kid",
+		"street_kid"
+	]
+}
