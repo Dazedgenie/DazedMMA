@@ -10,6 +10,11 @@ var _actions: ActionLibrary
 var _roster: FighterLibrary
 
 
+## The ideal corner without the D257/D259 moments: Red is a grappler against a man who doesn't shoot, so the
+## plain corner would also have him pressing (close_in_fresh) while these tests watch the reads.
+const OLD_CALLS := "ideal:"
+
+
 func before_all() -> void:
 	_actions = ActionLibrary.load_dir()
 	_roster = FighterLibrary.load_dir()
@@ -55,7 +60,7 @@ func test_a_corner_that_never_calls_leaves_the_fight_as_it_was() -> void:
 func test_the_ideal_corner_calls_takedown_as_the_kick_starts_and_the_fighter_catches_it() -> void:
 	# Blue's body kick: telegraph at tick 20, the leg up from 23 until the end of the recovery.
 	var sim: FightSim = _statues()
-	sim.corners[0] = Corner.new(Corner.IDEAL, 1)
+	sim.corners[0] = Corner.new(OLD_CALLS, 1)
 	sim.submit(FightCommand.queue_action(20, 1, "body_kick"))
 	for n in 40:
 		sim.tick()
@@ -71,7 +76,7 @@ func test_the_ideal_corner_calls_takedown_as_the_kick_starts_and_the_fighter_cat
 
 func test_the_ideal_corner_primes_catch_the_kick_when_the_kickers_scouted_tell_fires() -> void:
 	var sim: FightSim = _pair("wrestler", "kicker")
-	var corner := Corner.new(Corner.IDEAL, 1)
+	var corner := Corner.new(OLD_CALLS, 1)
 	var view: FightView = sim.views[0]
 	view.now = 10
 	corner.on_event(view, FightEvent.new(10, 1, FightEvent.STRIKE_MISSED, 1, { "action_id": "jab", "chance": 0.4 }))
@@ -314,3 +319,29 @@ func test_keep_pressing_when_he_is_winning_the_exchanges_on_the_feet() -> void:
 	assert_eq(_due_after(corner, view, Corner.IDEAL_REACTION), ["pressure"] as Array[String], "11 ahead: Pressure!")
 	view.now += Corner.PRESSING_TICKS + 1
 	assert_eq(corner.due(view, LiveCalls.VOICE_MAX), [] as Array[String], "the lead gets old and goes")
+
+
+## The ticks a corner shouts Pressure! over the first `ticks` of a standing fight, full voice.
+func _pressure_ticks(corner: Corner, view: FightView, ticks: int) -> Array[int]:
+	var out: Array[int] = []
+	for n in ticks:
+		view.now = n
+		if corner.due(view, LiveCalls.VOICE_MAX).has("pressure"):
+			out.append(n)
+	return out
+
+
+func test_close_in_has_a_grappler_press_a_striker_to_get_to_his_shots() -> void:
+	var view: FightView = _pair("wrestler", "kicker").views[0]
+	assert_eq(_pressure_ticks(Corner.new("ideal:close_in", 1), view, 400), [3, 157, 311] as Array[int],
+		"Pressure! again the tick after each one's 15 s are up, and a coach's reaction later")
+	assert_eq(_pressure_ticks(Corner.new("ideal:close_in", 1), _pair("boxer", "kicker").views[0], 400), [] as Array[int], "not for a striker")
+	assert_eq(_pressure_ticks(Corner.new("ideal:close_in", 1), _pair("wrestler", "pressure_wrestler").views[0], 400), [] as Array[int],
+		"not against a man who shoots too")
+
+
+func test_close_in_fresh_waits_until_pressure_would_be_fresh_again() -> void:
+	var view: FightView = _pair("wrestler", "kicker").views[0]
+	var ticks: Array[int] = _pressure_ticks(Corner.new("ideal:close_in_fresh", 1), view, 1400)
+	assert_eq(ticks, [Corner.IDEAL_REACTION, LiveCalls.REPEAT_TICKS + Corner.IDEAL_REACTION, 2 * LiveCalls.REPEAT_TICKS + Corner.IDEAL_REACTION] as Array[int],
+		"once a minute, so it never wears off")

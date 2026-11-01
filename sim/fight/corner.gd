@@ -44,6 +44,9 @@ extends RefCounted
 ##   - follow_down: the opponent is knocked down and this fighter is a grappler: Takedown! (D142)
 ##   - keep_pressing: he isn't an outside fighter (Range 0 or more), he's winning the exchanges on the
 ##     feet (PRESSING_LEAD more damage in the last PRESSING_TICKS) and no other focus is on: Pressure!
+##   - close_in: this fighter shoots and the opponent doesn't, they're standing apart and no other focus
+##     is on: Pressure!, to close the distance and get to his shots (D259); close_in_fresh the same but
+##     only once a call would be fresh again (LiveCalls.REPEAT_TICKS since the last Pressure!)
 ##   - hand_fight: the opponent wins a grip in the clinch or on the ground (D265), with voice to spare
 ##     (SPARE_VOICE): Hand fight!
 ## A focus call never replaces a more urgent one still running (Survive!, Pressure!, Ground and
@@ -58,10 +61,12 @@ const STYLES: Array[String] = [NONE, IDEAL, AI, SPAM, MASH]
 ## The moments the ideal and AI corners have called since D257. A style written `ideal:fire_back+pass`
 ## (the harness's --corners) uses only these of them, `ideal:` none, to weigh each one on its own.
 const MOMENTS: Array[String] = ["fire_back", "defend_the_shot", "feint", "get_up", "pass",
-	"go_for_the_finish", "collar_tie", "cut_the_cage", "circle_out", "follow_down", "keep_pressing", "hand_fight"]
+	"go_for_the_finish", "collar_tie", "cut_the_cage", "circle_out", "follow_down", "keep_pressing", "hand_fight",
+	"close_in", "close_in_fresh"]
 ## The moments a plain `ideal` or `ai` corner uses: the ones that won fights when tried one by one
 ## (docs/01 §22.10). The others cost wins at these moments and stay for the harness to try again.
-const DEFAULT_MOMENTS: Array[String] = ["fire_back", "get_up", "collar_tie", "cut_the_cage", "follow_down", "keep_pressing"]
+const DEFAULT_MOMENTS: Array[String] = ["fire_back", "get_up", "collar_tie", "cut_the_cage", "follow_down", "keep_pressing",
+	"close_in_fresh"]
 ## keep_pressing: Pressure! when this fighter has landed this much more damage than he's taken over
 ## the last PRESSING_TICKS standing, and no other focus is on.
 const PRESSING_LEAD: float = 10.0
@@ -116,6 +121,8 @@ var _focus_until: int = -1
 var _grappler: bool = false
 ## Whether the opponent shoots (D257 defend_the_shot is only worth a voice against a shooter).
 var _opponent_shoots: bool = false
+## When the corner last called Pressure!, for close_in_fresh (D259).
+var _last_pressure: int = -1000000
 ## The strikes landed standing lately, for keep_pressing: [{tick, dealt (true: by this fighter), damage}].
 var _recent: Array[Dictionary] = []
 
@@ -282,6 +289,10 @@ func _watch(view: FightView) -> void:
 			lead += hit.damage if hit.dealt else -hit.damage
 		if lead >= PRESSING_LEAD and (_focus_until < view.now or _focus_id == "pressure"):
 			_moment(view, view.now, "keep_pressing", "pressure")
+	if (moments.has("close_in") or moments.has("close_in_fresh")) and _grappler and not _opponent_shoots \
+			and view.position() == PositionLibrary.STANDING and _focus_until < view.now \
+			and (moments.has("close_in") or view.now - _last_pressure >= LiveCalls.REPEAT_TICKS):
+		_moment(view, view.now, "close_in" if moments.has("close_in") else "close_in_fresh", "pressure")
 	if moments.has("circle_out") and my_range < 0.0 and view.opponent_cutting() \
 			and view.my_cage_proximity() != Octagon.CAGE_CENTRE:
 		_moment(view, view.now, "circle_out")
@@ -311,6 +322,8 @@ func _decide(tick: int, call_id: String) -> void:
 		return
 	if notice < 1.0 and _rng.randf() >= notice:
 		return
+	if call_id == "pressure":
+		_last_pressure = tick
 	_queue.append({ "at": tick + reaction, "call_id": call_id })
 
 
