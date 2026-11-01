@@ -8,6 +8,8 @@ from the front, three-quarter and back under neutral lighting. Neither writes a 
 as 960×540 PNG frames at 24 fps. It also leaves saved fights untouched. Use a fresh output folder
 when changing the duration so old trailing frames do not enter the encoded video. `--red=`, `--blue=` and `--seed=`
 record another fight (the Muay Thai fighter against the Wrestler on seed 35013 spends most of a minute in the clinch).
+`--from=` plays the fight's first seconds without saving frames, to get to a moment quickly (D288: the Judoka against
+the Wrestler on seed 35000 from 11.5 s throws him with a hip throw).
 
     godot --script res://tools/visual_preview.gd -- --out=res://build/visual --720p
     godot --script res://tools/character_preview.gd -- --out=res://build/characters
@@ -30,10 +32,12 @@ the double leg, the full guard, the sprawl and getting up, blended from one to t
 the clinch and the guard. `--stills` writes one picture per pose; `--angle=` turns the camera; `--body` puts Kyle's
 skinned Tripo body (`game/bodies/tripo_fighter.glb`, D284; the fight screen draws it too, D285) on the rigs;
 `--clinch` writes the clinch poses built from grips instead (D286, `clinch-<name>.png`), the fence's too (D287: the
-drive, spinning off, turning him, breaking):
+drive, spinning off, turning him, breaking); `--takedowns` writes the clinch takedowns from the clinch to the canvas
+(D288, `takedown-<move>-<n>.png`, with the scramble and the sprawl):
 
     godot --script res://tools/rig_preview.gd -- --out=res://build/rig --stills
     godot --script res://tools/rig_preview.gd -- --out=res://build/clinch --clinch --body
+    godot --script res://tools/rig_preview.gd -- --out=res://build/takedowns --takedowns --body
 
 Headless runners and utilities. `run_sim.gd` runs one placeholder fight (a kicker against a boxer) with no scene tree
 and prints a summary; `--fights=N` runs N seeds and counts how they ended:
@@ -119,7 +123,8 @@ only when a change is meant to change fights, commit the file and say why in the
 
 `strike_sounds.gd` writes every strike's sounds (D190, `docs/06` §6.8) to `build/strike_sounds/` as WAV files: one per
 strike (connected, missed, blocked with a pause between), `all_strikes.wav` with every strike in turn, and
-`fence_rattle.wav` with the fence's rattle when a man is slammed into it (D287). `--only` picks
+`fence_rattle.wav` with the fence's rattle when a man is slammed into it (D287) and `takedown_thud.wav` with a
+takedown's landing (D288). `--only` picks
 some:
 
     godot --headless --script res://tools/strike_sounds.gd

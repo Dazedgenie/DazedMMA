@@ -417,7 +417,7 @@ the top of `game/rig/clinch_pair.gd`; the turn, bow and slam numbers at the top 
 rattle in `StrikeSounds` (`RATTLE_*`, `RING_*`); `tools/strike_sounds.gd` writes it to
 `build/strike_sounds/fence_rattle.wav`.
 
-**Limits:** the clinch takedowns and throws still use today's figures; the drive's steps slide a little when the
+**Limits:** the clinch takedowns and throws still use today's figures (since D288 they don't); the drive's steps slide a little when the
 fight's pace changes; the fence bows at one place at a time; only the drive and the turn rattle it (knees into a
 man on the fence don't yet).
 
@@ -430,6 +430,70 @@ passing through) and `tests/game/test_fence_view.gd` (held on the fence he is fl
 it his hips come out and a hand posts on the wire, a drive steps them across and slams him in, a slam bows the
 fence further then it springs back, a turn takes them round each other onto the fence, only the panel he is
 against bows); `tests/game/test_strike_sounds.gd` (the rattle is the same every time, muting silences it).
+
+## Clinch takedowns from the rig (D288)
+
+The fourth step of Kyle's route: the takedowns in the clinch come off today's figures and onto the rig. Kyle
+picked them after the fence (2026-11-01, before the ground positions), the fall *during the attempt*, a *thud,
+bigger for the throws* and a *big hip throw, feet over the top*.
+
+**A path of poses** (`game/rig/takedown_pair.gd`, `TakedownPair`). Each takedown is a path of paired poses from
+the clinch pose it started in to the canvas, written like the clinch's with the man taking it down as "a":
+
+| Move | Its keys after the clinch | Lands in |
+|---|---|---|
+| Double leg | the shot (level change, arms round the knees: `RigPairs.double_leg`), the drive through (blue tipping back, feet leaving the canvas) | his guard |
+| Outside trip | the hook (red's leg round behind blue's), the tip (the leg reaped up, blue going back over it, a hand reaching for the canvas) | his guard |
+| Hip throw | the load (turned in, hips under his, an arm round the waist and the other pulling his arm across), over the hip (blue lying across red's back), over the top (blue upside down beside him, feet in the air) | side control |
+| Guard pull | the sit (red sits under blue, a foot on his hip, pulling his head down) | red's own guard, red underneath |
+
+**When it falls** (`ArenaView.attempt_x`). Through the move's telegraph and wind-up the pair goes into the entry;
+through its active part, while the fight has not decided yet, he is taken `fall` of the way toward the canvas
+(`TakedownPair.TIMING`: half the way for a shot or a trip, a third for the hip throw, more for the guard pull).
+When it works he goes the rest of the way in `land` seconds, quicker as he comes down. When it is stopped
+(defended, a knee into the shot, pressed on the fence) the bodies ease back to the clinch over `STUFF_EASE`
+(0.3 s), and the clinch is drawn from the rig while the shooter gets over it. When he is sprawled on he goes
+down onto his knees under the sprawl (`RigPairs.sprawl`, `SPRAWL_SECONDS`) and stays there until his move is
+over. A takedown that only half works lands them both on their knees, face to face (`TakedownPair.scramble`).
+
+**Where it lands.** The landing is turned the way today's figures lay out the ground position it ends in
+(`ArenaView.lay_out`, the man underneath across the screen), so when the takedown is done the bodies ease into
+today's figures (`LAND_EASE`, 0.45 s) without turning round. It lands where the move puts him (`TIMING.at`: a
+double leg or trip drives him back, the hip throw puts him on the far side of the man throwing him), and today's
+figures carry on there (`_ground_shift`) until they are back on their feet. Near the fence each pose along the
+way is moved in so neither man's head, back or hips goes through it (`_keep_off_fence`, `FENCE_GAP`): a double
+leg off the fence lands him along it.
+
+**The thud.** The landing plays `ArenaView.takedown_landed` → `StrikeSounds.play_thud`: a low thump of a body on
+the mat (`THUD_HZ` falling to `THUD_LOW_HZ`, a smaller bounce after it) under the slap of the canvas, made in
+code like the strike sounds (`render_thud`, three versions). How hard: the hip throw 1, the trip 0.8, the double
+leg 0.7, a scramble 0.4, the guard pull 0.35 (`TIMING.thud`, `SCRAMBLE_THUD`); harder is louder and deeper.
+
+Along the way `ClinchPair.half_turn` now turns a man whose pose doesn't say which way he faces (it left him facing
+the wrong way round); no fight or clinch pose changes.
+
+**To change:** the keys and `TIMING` in `game/rig/takedown_pair.gd`; the takedown numbers at the top of
+`game/arena_view.gd` (`TAKEDOWN_EASE`, `STUFF_EASE`, `SPRAWL_SECONDS`, `LAND_EASE`, `FENCE_GAP`); the thud in
+`StrikeSounds` (`THUD_*`); `tools/strike_sounds.gd` writes it to `build/strike_sounds/takedown_thud.wav`.
+
+**Limits:** takedowns from standing (a double leg shot from range, the foot sweep, the catch-kick single) and the
+ground positions themselves still use today's figures; a takedown's landing eases into today's ground pose, which
+doesn't match the rig's exactly; the defender doesn't fight the attempt (a whizzer, a hand on the head) beyond the
+sprawl.
+
+Preview: `tools/rig_preview.gd --takedowns --body` (every key from the clinch to the landing, halves between for
+the double leg and the hip throw, the scramble and the sprawl); real fights:
+`tools/motion_preview.gd --red=judoka --blue=wrestler --seed=35000 --from=11.5` (a hip throw stuffed, then one
+landing) and `--seed=35002 --from=9` (double legs landing and sprawled on). `--from=` is new: it plays the fight
+up to there without saving frames.
+
+Tests: `tests/game/test_takedown_pair.gd` (every key: hands and feet in place, bodies not passing through each
+other, no one under the canvas) and `tests/game/test_takedown_view.gd` (a double leg starts falling during the
+attempt and lands in his guard with a thud; the landing lines up with today's figures; a stuffed shot goes back to
+the clinch; a sprawl puts the shooter on his knees until his move is over; the hip throw goes feet over the top
+and lands him beyond the thrower; a half-worked takedown lands both on their knees; the guard pull puts the puller
+underneath; turns go the short way round; off the fence he lands inside the cage);
+`tests/game/test_strike_sounds.gd` (the thud is the same every time, low, and muting silences it).
 
 ## Review and verification
 

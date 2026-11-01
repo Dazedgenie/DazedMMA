@@ -7,7 +7,8 @@ extends MainLoop
 ##
 ## Writes build/strike_sounds/<strike>.wav (connected, missed, blocked with a pause between, at the loudness
 ## the fight plays them: connected as a hard hit) and build/strike_sounds/all_strikes.wav (every strike in turn),
-## and build/strike_sounds/fence_rattle.wav (D287: each version of the fence's rattle, hardest slam first).
+## and build/strike_sounds/fence_rattle.wav (D287: each version of the fence's rattle, hardest slam first) and
+## build/strike_sounds/takedown_thud.wav (D288: each version of a takedown's landing).
 
 const OUT_DIR := "res://build/strike_sounds/"
 const GAP_SECONDS: float = 0.35
@@ -49,6 +50,12 @@ func _initialize() -> void:
 		rattle.append_array(gap)
 	StrikeSounds.to_wav(rattle).save_to_wav(OUT_DIR + "fence_rattle.wav")
 	print("fence rattle    %d versions" % StrikeSounds.RATTLE_KINDS)
+	var thud := PackedFloat32Array()
+	for k in StrikeSounds.THUD_KINDS:
+		thud.append_array(StrikeSounds.render_thud(k + 1))
+		thud.append_array(gap)
+	StrikeSounds.to_wav(thud).save_to_wav(OUT_DIR + "takedown_thud.wav")
+	print("takedown thud   %d versions" % StrikeSounds.THUD_KINDS)
 	print("Wrote %s in %d ms" % [ProjectSettings.globalize_path(OUT_DIR), Time.get_ticks_msec() - started])
 
 
