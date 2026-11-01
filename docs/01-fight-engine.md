@@ -1298,6 +1298,8 @@ What the ideal and AI corners call (only calls their fighter can act on: a known
 - the opponent's scouted tell fires (the Kicker's jab gets blocked: a body kick is coming): the read call for that move,
   **Catch the kick!**, so the fighter is primed before the kick;
 - their fighter rocked: **Survive!**; the opponent rocked: **Pressure!**
+- the opponent wins a grip in the clinch or on the ground (a move whose `clinch` or `ground` block has a `grip`): **Hand fight!**
+  (D265, §40.13)
 
 They don't call Get up! (the fighter works to get up on their own) or Defend the shot! on the Wrestler's stance shift (the
 shot follows within a second, before the call lands; the fighter reads repeated shots better on their own, §21.8).
@@ -2993,13 +2995,13 @@ by its liking, never a man already there, stays when it likes it, works to get o
 the Boxer on the fence in real fights), `tests/sim/balance/test_balance_report.gd` (the Cage line), `tests/ui/test_fight_log_formatter.gd`
 and `tests/data/test_data_files.gd` (`drives_m`, `turns`, a required `HELD_ON_FENCE`, the `pressed` result).
 
-## 40. Grips and hand fighting (D260 the plan; built: D261 the clinch grips, D262 turning each other on the fence, D263 grips in the guard and half guard, D264 frames, the crucifix and two hands on the choke)
+## 40. Grips and hand fighting (D260 the plan; built: D261 the clinch grips, D262 turning each other on the fence, D263 grips in the guard and half guard, D264 frames, the crucifix and two hands on the choke, D265 the Hand fight! call)
 Kyle asked for it (2026-10-31): "clinch fighting improvements: fighters should be hand fighting, trying to get underhooks,
 overhooks, they should be spinning each other around when up against the cage", with research on real clinch and cage
 fighting, and then: "this isn't clinch specific, this will be used for grappling in general, so hand fighting on the ground
 and fighting in the clinch". §40.1–§40.8 are the plan (Kyle's answers at the top of §40.8); §40.9 is the first part as built,
 the grips in the clinch (D261); §40.10 the second, turning each other round on the fence (D262); §40.11 and §40.12 the ground
-(§40.5: D263 the guard and half guard, D264 frames, the crucifix and two hands on the choke). The call (§40.7) comes next. Every number is a first guess for the harness.
+(§40.5: D263 the guard and half guard, D264 frames, the crucifix and two hands on the choke); §40.13 the call (§40.7, D265). Every number is a first guess for the harness.
 
 ### 40.1 What real fighters do
 From MMA and grappling coaching write-ups (sources at the end of §40):
@@ -3478,6 +3480,54 @@ To change it: the odds and openings are in the six move files and `crucifix.json
 `FightSim.PINNED_COVER_SHARE`; how often the AI frames and grabs the arm is `FighterAI.FRAME_WEIGHT` and `TWO_ON_ONE_WEIGHT`.
 
 Sources: as §40.1 and §40.5.
+
+### 40.13 Built: the *Hand fight!* call (D265)
+The last pull request of §40.8's plan (step 4). Kyle's picks (2026-10-31): the call has him "Fight for the grip that fits"
+where he is, for about 10 s, and it goes on key **H**.
+
+| | What it does | Where it lives |
+|---|---|---|
+| **The call** | *Hand fight!* on **H**, in the clinch and on every ground position (not standing or in a scramble). A 10 s focus, voice 15. While it's on, every grip move he goes for is **+15%** to work: the pummel and the strip in the clinch; the wrist, the collar tie, the half-guard underhook, the frame and two hands on the choking arm underneath; posturing up, the crossface, flattening the frame and stripping the hands on top. Which grip is still his own pick for where he is, so it's always the one that fits. Standing it's refused as impossible | `data/calls/hand_fight.json` (`focus.grip_bonus` 0.15); `LiveCalls.grip_bonus()`; the "hand fight" bonus in `FightSim.odds_breakdown()` |
+| **The AI corner** | Calls it when the other man wins a grip (any move whose `clinch` or `ground` block has a `grip`), but only with voice to spare (90 or more), so it never costs the calls that win fights (*Ground and pound!*, *Survive!*, the reads) their voice | `Corner.on_event()`, `Corner.SPARE_VOICE` |
+| **The HUD** | A yellow grips line under the position caption: who holds what in the clinch ("WRESTLER: BODY LOCK · BOXER: OVERHOOK", the panel now shows in the clinch too, as just "CLINCH" and the line) and on the ground ("BOXER HOLDS A WRIST, FRAMES", "BOXER'S ARMS TRAPPED"); hidden when nobody holds anything (`06` §6.10) | `FightHud.grips_text()` |
+| **The key** | H is handled with R as a letter call; the call bar shows *H Hand fight!* | `game/main.gd` |
+
+**What was tried first.** The first version had him go for grips twice as often for the 10 s, with the grip moves picked three
+times as readily. With the good-coaching bot (D12) calling it, the coached fighters won *less* (55.2% → 52.8% on average): the
+grapplers stopped doing their own game (the top man posturing up instead of punching, the clinch fighter pummelling instead of
+shooting). Adding the grip tries on top of his own game instead of in their place was worse (51.5%), and holding the call back
+for spare voice didn't fix it (52.0%). Making the grips he already goes for easier to win did (56.0%); adding half as many
+tries again on top of that took it back down (54.3%). So the call sharpens his hand fighting instead of adding more of it.
+
+Harness, 200 fights a pairing, seed 1, pro rules, the good-coaching bot (`--corners=ideal`) in one corner at a time: main (at
+#110) → with *Hand fight!*. The coached fighter's wins:
+
+| Pairing | First-named coached: main → now | Second-named coached: main → now |
+|---|---|---|
+| Wrestler vs Boxer | 84% → 86.5% | 19.5% → 23.5% |
+| Wrestler vs Kicker | 88% → 89.5% | 31% → 39% |
+| Dirty boxer vs Wrestler | 68.5% → 72.5% | 33.5% → 36.5% |
+| Muay Thai vs Wrestler | 59.5% → 56% | 57% → 52.5% |
+| BJJ vs Boxer | 91% → 86% | 22.5% → 21.5% |
+| Judoka vs Boxer | 82% → 85% | 32.5% → 28.5% |
+| Pressure wrestler vs Boxer | 91.5% → 94% | 12.5% → 14.5% |
+| Sambo vs Boxer | 93.5% → 93.5% | 16.5% → 17.5% |
+
+What it says:
+- **Good coaching is worth a little more**: coached fighters won 55.2% of these fights on main and 56.0% with the call. It
+  helps most where the grips matter on the feet and against the cage (the Wrestler, the Kicker and the Dirty boxer coached),
+  and isn't worth it for the Muay Thai fighter against the Wrestler and the BJJ fighter against the Boxer (3.5–5 points down,
+  inside the dice on 200 fights, but on both sides for Muay Thai vs the Wrestler).
+- **Fights with no calls don't change**: nothing rolls unless the call is on. Golden fights (§2.2): the two with an AI corner
+  re-pinned (it calls *Hand fight!* now); the two without one play out as before.
+
+Tested in `tests/sim/fight/test_hand_fight_call.gd` (H in the clinch and on the ground only; on the call his grips are easier
+to win for 10 s, in the clinch, in the guard and under side control; it does nothing for his other moves; standing it's
+refused; the AI corner calls it when the other man wins a grip, not for his own or for a takedown, and not without voice to
+spare; the HUD's grips line).
+
+To change it: how much it helps, `focus.grip_bonus` in `hand_fight.json`; how long, `focus.duration_ms`; when the AI corner
+calls it, `Corner.SPARE_VOICE` and `Corner.on_event()`.
 
 ## 41. More ground and pound: hammerfists, body punches, the posture-up bomb, covering up and turning away (D270)
 Kyle asked to "increase ground and pound variety" (2026-10-31). Before this the man on top had one strike everyone knew (the

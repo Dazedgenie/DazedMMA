@@ -361,6 +361,13 @@ func struggle_stamina() -> float:
 	return float(focus.call.focus.get("struggle_stamina", 0.0))
 
 
+## *Hand fight!* (D265): while its focus is on, this much on the odds of every grip move (its `grip_bonus`).
+func grip_bonus() -> float:
+	if focus.is_empty():
+		return 0.0
+	return float(focus.call.focus.get("grip_bonus", 0.0))
+
+
 ## *Go for the finish!* (D200): while its focus is on, the top fighter hunts a hold (FighterAI._work_position).
 func hunt(_view: FightView) -> Dictionary:
 	if focus.is_empty() or not focus.call.focus.has("hunt"):

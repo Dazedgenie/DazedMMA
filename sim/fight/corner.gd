@@ -23,6 +23,7 @@ extends RefCounted
 ##   - this fighter rocked: Survive!; the opponent rocked: Pressure!
 ##   - this fighter ends up on top: Ground and pound! (D121), once: not again for a pass (D130)
 ##   - a submission locks in (D126): Finish it! for the attacker, Defend the sub! for the defender
+##   - the opponent wins a grip in the clinch or on the ground (D265): Hand fight!
 ## It doesn't call Get up!: the fighter works to get up on their own, and a called try
 ## adds a tired try more than it helps. Nor Defend the shot! on the Wrestler's
 ## stance shift: the shot comes within a second, before the call can land, and the fighter
@@ -43,6 +44,9 @@ const AI_NOTICE: float = 0.5
 const SPAM_EVERY: int = 15
 ## The ideal and AI corners don't call with less voice than this (it would be garbled).
 const SAVE_VOICE: float = LiveCalls.GARBLED_BELOW
+## Hand fight! (D265) only goes out with at least this much voice: it's called often, and the
+## calls that win fights (Ground and pound!, Survive!, the reads) need the voice more.
+const SPARE_VOICE: float = 90.0
 
 var style: String
 var reaction: int = IDEAL_REACTION
@@ -87,6 +91,8 @@ func due(view: FightView, voice: float) -> Array[String]:
 		return out
 	while not _queue.is_empty() and _queue[0].at <= view.now:
 		var id: String = _queue.pop_front().call_id
+		if id == "hand_fight" and voice < SPARE_VOICE:
+			continue  # Not worth the voice the bigger calls need (D265).
 		if voice >= SAVE_VOICE + float(_calls.get_call(id).voice_cost) or voice >= LiveCalls.VOICE_MAX:
 			out.append(id)
 			voice -= float(_calls.get_call(id).voice_cost)
@@ -116,6 +122,9 @@ func on_event(view: FightView, event: FightEvent) -> void:
 				_decide(event.tick, "defend_the_sub")
 		FightEvent.ROUND_ENDED:
 			_was_top = false  # Every round starts standing.
+		FightEvent.GRAPPLE_WON:
+			if event.actor != me and _is_grip(view, String(event.data.get("action_id", ""))):
+				_decide(event.tick, "hand_fight")  # He's won a grip: fight the hands (D265).
 		FightEvent.ACTION_PHASE:
 			if event.data.phase == "telegraph" and event.actor != me:
 				for read_id: String in _reads:
@@ -126,6 +135,14 @@ func on_event(view: FightView, event: FightEvent) -> void:
 			for read_id: String in _reads:
 				if _reads[read_id].has(tell.action):
 					_decide(event.tick, read_id)
+
+
+## A grip move in the clinch or on the ground (D261, D263, D264): its `clinch` or `ground` block has a `grip`.
+static func _is_grip(view: FightView, action_id: String) -> bool:
+	if not view.actions.has(action_id):
+		return false
+	var action: Dictionary = view.actions.get_action(action_id)
+	return action.get("clinch", {}).has("grip") or action.get("ground", {}).has("grip")
 
 
 ## Queues a call for the coach's reaction time from now, if it's one this fighter can act on
