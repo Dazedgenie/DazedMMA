@@ -62,5 +62,6 @@ The career and world simulation (D100), starting with training (`docs/02` §3.5,
 | `world.gd` | The world's fighters (docs/03 §12.2, D352): about 100 named men a division in a pyramid of levels, local lads at home and the hotbeds at the top, each man's fighter made from his style, seed and level, his record, rematches, and saving them in the career |
 | `world_weeks.gd` | The world's weeks (docs/03 §12.3, D353): the world's men matched and fighting about 3 times a year, getting better young and slower old, turning pro, retiring, and new men each month (lads each January) |
 | `promotions.gd` | The world's promotions (docs/03 §12.4, D354): the organisations and regional promotions each career makes, every pro signed by level, their cards, call-ups and cuts |
+| `rankings.gd` | The rankings (docs/03 §12.5, D355): every promotion's own table in each division from points for recent results, fading and sliding, each move's reason, the career's fighter ranked from his pro fights |
 | `result_model.gd` | The quick result model (docs/03 §12.3, D350, D353): who wins a world fight, how and in which round, from the style matchup table the engine made (data/world/matchups.json) |
 | `aftermath.gd` | What a fight does to him afterwards (docs/03 §10.5, D305): the medical suspension and the Chin a knockout takes |
