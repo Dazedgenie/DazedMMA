@@ -24,7 +24,7 @@ Rules:
 | `data/actions/` | `action@2` | Everything a fighter can do: strikes, takedowns, defenses, ground moves |
 | `data/positions/` | `position@2` | Standing, clinch and ground positions (`docs/01` §4) |
 | `data/calls/` | `call@2` | Coach calls: now/read, intent/technique (`docs/01` §6, §22) |
-| `data/gameplans/` | `gameplan@1` | Gameplan presets: Pressure, Counter, Range, Wrestle-heavy, Conserve (`docs/01` §6.0, §22.4) |
+| `data/gameplans/` | `gameplan@2` | The parts a corner builds a gameplan from (D320): approaches (Pressure, Counter, Range, Conserve), targets (Head, Body, Legs) and where to fight (Keep it standing, Clinch work, Take him down) (`docs/01` §6.0, §42) |
 | `data/triggers/` | `trigger@1` | Building blocks for read calls and drilled rules ("opponent starts a kick") |
 | `data/rules/` | `rule@2` | Drilled-rule presets: trigger → action (`docs/01` §6.0) |
 | `data/rulesets/` | `ruleset@1` | Amateur/pro rules (`docs/08`) |
@@ -101,9 +101,14 @@ Loaded by `CallLibrary` (`sim/fight/call_library.gd`). call@2 replaced call@1's 
 `name` (as the feed says it, "1-2-3"), `moves` (two or more action ids, each a strike thrown standing, in order). A fighter
 throws the ones in their profile's `combos` (D133, `docs/01` §31). Loaded by `ComboLibrary` (`sim/fight/combo_library.gd`).
 
-### gameplan@1 (example: `pressure.json`)
-`name`, `leanings` (points added to Pace/Range/Base/Risk for the fight, −100 to 100), `weights` (action id or category →
-multiplier, 0–10). Loaded by `Gameplan.load_id` (`sim/fight/gameplan.gd`).
+### gameplan@2 (examples: `pressure.json`, `legs.json`, `wrestle_heavy.json`)
+One part of a gameplan (D320, `docs/01` §42). `name`, `part` (`approach`, `target` or `where`: which picker it's in),
+`order` (its place in that picker), `summary` (what it tells the fighter, one line), `leanings` (points added to
+Pace/Range/Base/Risk for the fight, −100 to 100; a built plan stops at ±70, D321), `weights` (action id or category →
+multiplier, 0–10), and optional `targets` (`head`/`body`/`legs` → multiplier for strikes landing there, 0–10). A target
+part has `targets` and no leanings, so it can't be a camp week's instruction. Loaded by `Gameplan.compose`
+(`sim/fight/gameplan.gd`); `Gameplan.load_id` loads one part alone (tests, the camp's instruction).
+gameplan@1 had no `part`, `order` or `summary`; Wrestle-heavy became the *Take him down* part of where to fight (same id).
 
 ### trigger@1 (examples: `opp_kick_starts.json`, `own_jab_blocked.json`)
 `name`, `type` (`event`/`state`/`threshold`), `event` (for event triggers: a fight event type such as `action_phase`,
@@ -164,6 +169,7 @@ makes a complete fighter@1 profile from it: the same style, seed and level alway
 | `roots` | strings | Backgrounds and trips this style comes from (`docs/02` §1.2, §6); display text for now |
 | `southpaw_chance` | 0–1 | The chance an opponent of this style fights southpaw |
 | `variation` | `{stats, style, tendencies, personality, height_cm}` | How far an opponent may differ from the signature fighter: each stat ± `stats` points (at most 20), each style leaning ± `style` (at most 40), each move preference × (1 ± `tendencies`) (at most 0.5), each personality axis ± `personality`, height ± `height_cm` (reach keeps the signature fighter's reach-to-height gap, ± 3 cm) |
+| `gameplan` (optional) | `{approach, target, where}` | The plan his corner gives him (D324, `docs/01` §42.4): data/gameplans ids of each part, `""` for his own game. Generated opponents and the signature fighter fight to it; scouting shows it |
 | `scouting` | `{summary, strengths, weaknesses, tell, how_to_beat}` | The scouting card: one line on how they fight, lists of strengths and weaknesses, the tell in words (`null` if the signature fighter has no tell; the validator checks they agree), and how to beat them |
 
 What `generate` keeps from the signature fighter: moves, combinations, tells, gifts, flaws and build. The quality `level`

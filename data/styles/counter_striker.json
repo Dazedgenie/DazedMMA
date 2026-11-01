@@ -10,6 +10,7 @@
 	],
 	"southpaw_chance": 0.25,
 	"variation": { "stats": 6, "style": 12, "tendencies": 0.2, "personality": 30, "height_cm": 4 },
+	"gameplan": { "approach": "counter", "target": "head", "where": "keep_standing" },
 	"scouting": {
 		"summary": "Patient. Waits for you to lead, makes you miss and fires back. Rarely starts the exchange himself.",
 		"strengths": [

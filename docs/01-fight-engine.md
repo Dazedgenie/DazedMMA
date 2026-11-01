@@ -1256,7 +1256,7 @@ or keys 1–9 (Q = Catch the kick!; 0 still works too). Calls work while paused 
 The five presets in `data/gameplans/` (`09` gameplan@1) shift the style leanings for the whole fight and can scale move
 weights: **Pressure** Pace +40, Range +30; **Counter** Pace −40, Risk −20; **Range** Range −50; **Wrestle-heavy** Base +60,
 takedowns ×1.5; **Conserve** Pace −50, Risk −40. `Gameplan.load_id("pressure")`, added to a fighter's decision layer
-(`sim.decisions[i].add_source(...)`). Picking one in the corner comes with the fight screen (#19).
+(`sim.decisions[i].add_source(...)`). Since D320 they are parts of a plan the corner builds from three pickers, at half strength: §42.
 
 ### 22.5 What a call costs (D115)
 A call should pick the moment, not add work: the coach chooses *when* the fighter shoots, the fighter doesn't shoot twice as
@@ -3788,3 +3788,83 @@ the bomb's posture, the body punch dropping the hands, amateur rules, covering u
 counting, what covering up opens, turning away and when it can't happen, the AI's mix on top and covering up underneath, the feed
 lines), `tests/game/test_strike_sounds.gd` (every strike has a sound) and `tests/data/test_data_files.gd` (`through_cover`,
 `hands_down_ms`).
+
+---
+
+## 42. The pre-fight gameplan (D320–D324)
+
+Kyle (2026-11-01): "fight gameplan". Before this the engine had five plans (§22.4) that nothing in the game used: the setup,
+the career's fight night and the corner didn't offer them, and nobody had measured them. Now the corner builds a plan from three
+parts before the fight, can change it at every round break, and the opponent's corner gives him his style's plan.
+
+### 42.1 Three parts (D320; Kyle picked "Build a plan from three parts")
+Each part is one picker with *Own game* first; each option is a file in `data/gameplans/` (`09` gameplan@2):
+
+| Part | Options | What it does |
+|---|---|---|
+| **Approach** (how he fights) | Pressure (Pace +40, Range +30), Counter (Pace −40, Risk −20), Range (Range −35), Conserve (Pace −50, Risk −40) | Shifts his style leanings for the fight |
+| **Target** (where his strikes go) | Head (head ×1.6, body ×0.7, legs ×0.6), Body (body ×2, the rest ×0.75), Legs (legs ×2, the rest ×0.75) | Multiplies the weight of every strike that lands there, standing or on the ground |
+| **Where** (where he wants the fight) | Keep it standing (Base −50, takedowns ×0.3, clinch entries ×0.5, no guard pulls), Clinch work (Range +40, clinch entries ×2.5, collar ties and fence drives ×1.5), Take him down (Base +60, takedowns ×1.5; was *Wrestle-heavy*) | Leanings and move weights |
+
+The parts add up: the leanings add, the multipliers multiply (`Gameplan.compose`). A plan never picks a move itself: it only tilts the
+fighter's own AI (§16 A2). It goes in as a `set_gameplan` command (`FightCommand.SET_GAMEPLAN`) on a round's first tick, so a saved
+fight replays with it; a plan sent mid-round is refused (*"gameplans are set before a round"*). A new plan replaces the old one.
+
+### 42.2 How hard a plan pulls (D321, D322)
+- **Capped at ±70 (D321).** A plan never pushes a leaning past ±70 and never pulls back one that's already past it. Without the cap the
+  Range plan put the Kicker (Range −60) at −100, where he stops throwing anything but the jab: he went from 38% to 0% against the Boxer.
+- **Half strength (D322; Kyle picked "Half strength" over full and gentle).** A built plan's leanings count half and its multipliers
+  pull as their square root (×2 works as ×1.41). `Gameplan.STRENGTH` 0.5.
+
+### 42.3 Drifting off the plan (D323)
+When it goes badly he keeps less of the plan: rocked, under 25% of his stamina, head or body at least half gone, or taking at least
+twice what he lands (with 15 or more landed on him). Then he keeps `0.35 + 0.006 × Fight IQ + 0.002 × (trust − 50) − 0.003 × ego`
+of its pull (at least 0.2): Fight IQ 90 keeps 89%, Fight IQ 30 with ego 80 keeps 29%. The plan panel says *drifting off the plan (N%)*.
+Fresh and even, he follows all of it.
+
+### 42.4 The opponent's corner and scouting (D324)
+A style sheet (`09` style@1) can carry a `gameplan`: generated opponents and the authored fighter the sheet is built on fight to it
+(`StyleLibrary.gameplan_of`), in quick fights and the career. Scouting cards (the tale of the tape, fight offers on the hub) say
+*Expect his corner's plan: Pressure · Head · Keep it standing*. The plans fit how each style fights: the Pressure boxer Pressure ·
+Head · Keep it standing, the wrestlers Take him down, the Kicker and the Leg-kick specialist Legs, the Muay Thai fighter Body · Clinch
+work, and so on. The opponent's corner doesn't change its plan between rounds yet.
+
+### 42.5 On the screens
+- **Fight setup:** *Gameplan for your fighter* under the drilled rules, with a line a part saying what it tells him.
+- **Between rounds:** the bell's panel has the pickers under the rule slots, showing the plan as it stands.
+- **Career fight night card:** *GAMEPLAN: how he fights tonight*, filled in from the setup's plan (quick fights) and the camp's last
+  instruction (*Told to: Take him down* fills Where). *Sim the fight* uses it too.
+- **The plan panel** (top left of the fight) shows the plan instead of *own game*.
+
+### 42.6 Balance (2026-11-01, 40 fights a plan, paired by seed, the plan on the first-named fighter)
+Full strength first, then half (what's in the game):
+
+| Fighter vs opponent (own game) | Best part, full → half | Worst part, full → half |
+|---|---|---|
+| Kicker vs Boxer (38%) | Counter +38 → +30 | Pressure −33 → −25 |
+| Wrestler vs Kicker (68%) | Body +13 → Pressure, Range +8 | Keep it standing −43 → −20 |
+| BJJ vs Boxer (83%) | Legs +5 → Conserve +5 | Keep it standing −70 → −38 |
+| Leg-kick specialist vs Pressure wrestler (65%) | Head +18 → +10 | Take him down −53 → Range −45 (at the softened Range −35) |
+| Muay Thai vs Wrestler (60%) | none → Pressure, Head +5 | Range −45 → Body −13 |
+
+Wrong plans cost more than right ones help, because every fighter is already built around his own game. Each style's own plan
+(§42.4), against the same fights on his own game: Boxer vs Kicker +7.5, Boxer vs Karate +15, Karate vs Wrestler +5, Wrestler vs
+Counter-striker +5, Wrestler vs BJJ +2.5, BJJ vs Sambo −10 (all inside the noise at 40 fights except the Boxer vs Karate). The Leg-kick
+specialist's first pick (Legs · Keep it standing) cost him 15 against the Pressure wrestler, so his plan is Legs alone.
+
+To re-run: `godot --headless --script res://tools/balance.gd -- --fights=40 --pairs=kicker:boxer --gameplans=counter,legs,counter+legs --coach=red`
+(`--gameplans=style` gives each fighter his style sheet's plan). Plan fights are kept out of the engine's own targets and reported as
+*Kicker on counter+legs against the Boxer* lines (D320).
+
+### 42.7 To change it, and the tests
+- The parts: `data/gameplans/*.json` (`leanings`, `weights`, `targets`, `summary`, `order`; a new file shows up in its picker).
+- How hard: `Gameplan.STRENGTH` (0.5), `LEANING_CAP` (70).
+- Drifting: `Gameplan.STICK_*`, `PRESSURE_HURT` (0.5), `PRESSURE_STAMINA` (0.25), `LOSING_RATIO` (2), `LOSING_MIN` (15).
+- The opponents' plans: each style sheet's `gameplan`.
+- The camp's instruction list only offers parts with leanings (a target part pushes no style).
+
+Tested in `tests/sim/fight/test_gameplan.gd` (the parts, composing, targets, the cap, the command before a round and not during, a
+new plan replacing the old, refusals, replays, the Legs plan sending more strikes low, drifting off it), `tests/ui/test_gameplan_picker.gd`
+(the pickers, scouting's line, the camp filling it in), `tests/game/test_main_scene.gd` (the setup's plan in the fight, the opponent's,
+changing it at the break, the career's fight night plan), `tests/sim/balance/` (the harness's `--gameplans` and report lines) and
+`tests/data/test_data_files.gd` (gameplan@2, style sheets' plans).

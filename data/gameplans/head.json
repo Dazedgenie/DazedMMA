@@ -1,0 +1,11 @@
+{
+	"schema": "gameplan@2",
+	"id": "head",
+	"name": "Head",
+	"part": "target",
+	"order": 1,
+	"summary": "Head-hunt: look for the knockout.",
+	"leanings": {},
+	"weights": {},
+	"targets": { "head": 1.6, "body": 0.7, "legs": 0.6 }
+}

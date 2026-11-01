@@ -57,8 +57,9 @@ const SCHEMAS := {
 		"name": TYPE_STRING, "kind": TYPE_STRING, "tier": TYPE_STRING, "voice_cost": TYPE_FLOAT,
 		"positions": TYPE_ARRAY, "actions": TYPE_ARRAY,
 	} },
-	"gameplan@1": { "folder": "gameplans", "fields": {
-		"name": TYPE_STRING, "leanings": TYPE_DICTIONARY, "weights": TYPE_DICTIONARY,
+	"gameplan@2": { "folder": "gameplans", "fields": {
+		"name": TYPE_STRING, "part": TYPE_STRING, "order": TYPE_FLOAT, "summary": TYPE_STRING,
+		"leanings": TYPE_DICTIONARY, "weights": TYPE_DICTIONARY,
 	} },
 	"trigger@1": { "folder": "triggers", "fields": {
 		"name": TYPE_STRING, "type": TYPE_STRING, "match": TYPE_DICTIONARY,
@@ -432,6 +433,15 @@ func test_calls_are_an_attempt_a_focus_or_a_read() -> void:
 		var g: Dictionary = _items("gameplans")[id]
 		_expect_numbers(problems, "gameplan '%s'" % id, "leanings", g.get("leanings", {}), LEANINGS, -100, 100)
 		_expect_weights(problems, "gameplan '%s'" % id, "weights", g.get("weights", {}))
+		if not Gameplan.PARTS.has(String(g.get("part", ""))):
+			problems.append("gameplan '%s': part is one of %s (D320)" % [id, Gameplan.PARTS])
+		var targets: Variant = g.get("targets", {})
+		if not targets is Dictionary:
+			problems.append("gameplan '%s': targets is {head|body|legs: multiplier}" % id)
+		else:
+			_expect_numbers(problems, "gameplan '%s'" % id, "targets", targets, ["head", "body", "legs"], 0, 10)
+		if String(g.get("part", "")) == Gameplan.TARGET and (not g.get("leanings", {}).is_empty() or targets.is_empty()):
+			problems.append("gameplan '%s': a target plan has targets and no leanings" % id)
 	_report(problems)
 
 
@@ -640,6 +650,8 @@ func test_week_plans_fill_six_days_of_two_sessions() -> void:
 		var instruction: Variant = p.get("instruction")
 		if instruction != null:
 			_expect_ids(problems, where, "gameplans", [instruction])
+			if _items("gameplans").has(instruction) and _items("gameplans")[instruction].get("leanings", {}).is_empty():
+				problems.append("%s: the instruction must push a leaning (a target plan pushes none, D320)" % where)
 	_report(problems)
 
 
@@ -677,6 +689,12 @@ func test_style_sheets_build_on_a_real_fighter_and_carry_a_scouting_card() -> vo
 			problems.append("%s: scouting.tell must be a sentence or null" % where)
 		if base in fighters and (tell != null) != not (fighters[base].get("tells", []) as Array).is_empty():
 			problems.append("%s: scouting.tell should describe the signature fighter's tell, and only if it has one" % where)
+		if s.has("gameplan"):
+			var plan: Variant = s.gameplan
+			if not plan is Dictionary or not plan.keys().all(func(k: String) -> bool: return Gameplan.PARTS.has(k)):
+				problems.append("%s: gameplan is {approach, target, where} (D324)" % where)
+			elif Gameplan.check(plan) != "":
+				problems.append("%s: gameplan: %s" % [where, Gameplan.check(plan)])
 	_report(problems)
 
 

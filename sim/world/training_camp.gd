@@ -203,6 +203,7 @@ func run_plan(plan_in: Dictionary, played: Dictionary = {}, fight_week: bool = f
 		"done": 0, "skipped": 0, "injured": 0, "chin_wear": 0.0,
 		"fatigue_start": fatigue, "fatigue_peak": fatigue, "fatigue_end": 0.0,
 		"injury_odds": 0.0, "skips_expected": 0.0, "variety": false, "fight_week": fight_week,
+		"instruction": "" if plan.get("instruction") == null else String(plan.instruction),
 	}
 	var variety: float = VARIETY_BONUS if _groups_trained(plan) >= VARIETY_GROUPS else 1.0
 	week.variety = variety > 1.0
@@ -528,7 +529,7 @@ func _instruction(gameplan_id: Variant) -> Dictionary:
 		for leaning: String in leanings:
 			strongest = maxf(strongest, absf(float(leanings[leaning])))
 		var push: Dictionary = {}
-		for leaning: String in leanings:
+		for leaning: String in (leanings if strongest > 0.0 else {}):
 			push[leaning] = INSTRUCTION_PUSH * float(leanings[leaning]) / strongest
 		_instructions[gameplan_id] = push
 	return _instructions[gameplan_id]

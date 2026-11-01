@@ -53,6 +53,8 @@ var _pull_out: Button
 var _sim: Button
 ## Shows Sim the fight (a career's fight night, D305).
 var sim_allowed: bool = false
+## Tonight's gameplan (D320): the camp fills it in, the player can change it before Fight!.
+var gameplan: GameplanPicker
 
 
 func _init() -> void:
@@ -83,6 +85,12 @@ func _init() -> void:
 	body.add_child(_build_fighter_card())
 	body.add_child(_build_condition_card())
 	body.add_child(_build_camp_card())
+
+	var plan_row := CenterContainer.new()
+	column.add_child(plan_row)
+	gameplan = GameplanPicker.new("GAMEPLAN", true)
+	gameplan.custom_minimum_size.x = 900.0
+	plan_row.add_child(gameplan)
 
 	var buttons := HBoxContainer.new()
 	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
