@@ -17,7 +17,10 @@ the Wrestler on seed 35000 from 11.5 s throws him with a hip throw).
     ffmpeg -framerate 24 -i build/motion/frame-%04d.png -c:v libx264 -pix_fmt yuv420p build/motion.mp4
 
 `strike_preview.gd` arranges every covered strike landing, blocked, slipped or checked, missing and thrown out of
-range, side on to the camera, at 24 frames a fight second (D281, `docs/13`):
+range, side on to the camera, at 24 frames a fight second (D281, `docs/13`). Since D360 each one shows its tell in
+the telegraph and travels out over its wind-up, and the kicks chamber first; slow a clip down to study one. For the
+camera turning to see them side-on (D361) and the stances by style (D362), record a real fight with
+`motion_preview.gd` (the Boxer against the Kicker for 20 s, or `--red=wrestler --blue=muay_thai` for two stances):
 
     godot --script res://tools/strike_preview.gd -- --out=res://build/strikes
 

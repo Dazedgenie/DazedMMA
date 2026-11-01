@@ -561,6 +561,59 @@ position posed where today's figures lay it out, the top man on the far side, th
 the grips on the bodies, a punch landing and the bomb sitting up first, a sweep rolling them over with the sweeper on
 top, standing up and the scramble back to today's figures).
 
+## Stand-up striking polish (D360–D362)
+
+Kyle picked stand-up striking polish after the ground positions (D289): most of a fight is on the feet. A
+20-second Boxer–Kicker fight on the skinned body showed four things: strikes snapped out (nothing for half a
+second, then the limb fully out in two or three frames, kicks with no chamber), the camera ended up behind one
+man so his back hid the other's strikes, everyone stood the same, and the uppercut read as a straight punch.
+
+**Wind-ups that read (D360).** Standing, a strike's telegraph shows a tell, `FighterFigure.TELLS`: the shoulder
+loads (the rear one back for the cross and overhand, the lead dipping for the jab, turning away for the hook),
+the hand drops and the knees dip for the uppercut, the hips open and the hand drops for a kick. The tell's size
+is the telegraph the sim gave him over the move's own (`TELL_SIZE_MIN` 0.35 to `TELL_SIZE_MAX` 1.25), so a quick
+man, a good kicker and the second shot of a combination show less; it is gone by the middle of the wind-up. The
+wind-up then carries the strike out over its whole length (`FighterFigure.strike_shape`). A kick chambers first
+(`KICK_CHAMBER`: the knee up, the shin folded) over the first `KICK_LIFT_SHARE` of the wind-up, goes out from
+`KICK_CHAMBER_SHARE`, and comes back through `KICK_RECHAMBER` of the chamber in the recovery; the kicking side's
+arm swings down (`KICK_ARM_SWING`). The uppercut aims under the chin (`AIMS.uppercut.drop`, contact 0.72 m) and
+drives up off the legs, and one man stepping in alone gets as close as his strike's contact (the uppercut and
+the body hook get inside `ArenaView.LUNGE_CLOSEST`).
+
+**The camera sees them side-on (D361).** Standing, when the two are lined up with the view (side-on-ness, the
+sine of the angle between the view and the line between them, under `ArenaView.CAMERA_SIDE_ON_BELOW` 0.65) the
+camera eases round the cage at `CAMERA_TURN_SPEED` to square them up, at most `CAMERA_SWING_MAX` (0.7 rad, 40°)
+either way of `CAMERA_FROM`, so it stays on the side whose fence is cut down to a rail. Where that leaves them
+short of `CAMERA_RISE_BELOW` side-on it climbs, up to `CAMERA_RISE_MAX` (0.35 rad, 20°) at `CAMERA_RISE_FULL`.
+Off their feet it eases back to `CAMERA_FROM`, which the clinch and ground layouts are drawn for.
+
+**Stances by style (D362).** Standing, `FighterFigure.stance_for` builds each man's stance from his leanings and
+what he throws, so a generated opponent stands like his style too. Each `STANCE_PULLS` line is what all the way
+along it adds: "grappler" (Base +100: low, leaning in, hands lower and a little out, wider), "boxer" (Boxing 30
+or more over Kicking: bladed, tight high guard, knees bent, narrower), "kicker" (Kicking 30 or more over Boxing:
+square, upright, weight back, the lead hand out), "outside" (Range −100: a longer stance leaning back) and
+"aggressive" (Pace +100: leaning in). `width` and `length` move the feet from `STANCE_WIDTH` and
+`STANCE_LENGTH`. Strikes now turn from his own stance rather than from square, and a fighter who bit on a feint
+puts his hands up from his own guard.
+
+**To change:** the tells, chambers and stances at the top of `game/fighter_figure.gd` (`TELLS`, `TELL_SIZE_*`,
+`KICK_*`, `STANCE_*`, `AIMS.uppercut`); the camera's `CAMERA_SIDE_ON_BELOW`, `CAMERA_SWING_MAX`,
+`CAMERA_TURN_SPEED` and `CAMERA_RISE_*` at the top of `game/arena_view.gd`.
+
+**Limits:** the clinch and ground keep their own poses (no stance or tell there); the camera can't swing past
+40° because the fence is only cut down on one side; strikes still have no follow-through past the target or
+weight transfer through the feet; the faceted pieces carry the same changes but aren't drawn.
+
+Preview: `tools/strike_preview.gd` (each strike thrown and landing, blocked, missed or checked, with its tell
+and chamber) and a real fight, `tools/motion_preview.gd --seconds=20` (the Boxer against the Kicker, seed 35003).
+
+Tests: `tests/game/test_strike_tells.gd` (every standing strike's tell, the second shot of a combination
+showing less, punches travelling out over the wind-up, kicks chambering and coming back through it, the arm
+swing, the uppercut under the chin, nothing in the clinch), `tests/game/test_fight_camera.gd` (staying put
+side-on, turning to see them side-on but no further than its limit, climbing where it can't, back to
+`CAMERA_FROM` off their feet, easing rather than cutting) and `tests/game/test_stances.gd` (the Boxer bladed and
+the Kicker square, a wrestler low with his hands lower, every fighter's stance in bounds, none in the clinch).
+
 ## Review and verification
 
 Open `project.godot` in Godot 4.7.2 and run the game normally. Start a fight and check striking,
