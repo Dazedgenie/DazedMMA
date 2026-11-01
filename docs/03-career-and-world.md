@@ -463,8 +463,8 @@ this order (D310), each playable when it lands:
 | The head coach | D311 | Built (§11.1) |
 | The childhood scenes at 8, 12 and 15, replacing the background list | D312 | Built (§11.2) |
 | The gym walk-in at 16 | D313 | Built (§11.3) |
-| School weeks and local cards | D314 | Next |
-| The one-day tournament | D315 | |
+| School weeks and local cards | D314 | Built (§11.4) |
+| The one-day tournament | D315 | Next |
 | The story as the tutorial (the first three amateur fights, tip cards, the Coach's Notebook) | D316 | |
 
 ### 11.1 The head coach (D311)
@@ -608,3 +608,53 @@ training reads them in `sim/world/training_camp.gd` (`_run_slot`, `skip_chance`,
 the flow in `game/main.gd` (`start_career`, `open_gym`); the hub in `ui/career_hub.gd`. Tests: `tests/sim/world/test_gym.gd`,
 `tests/ui/test_career_screens.gd`, `tests/game/test_main_scene.gd`, `tests/data/test_data_files.gd`. Then update this
 section and D313.
+
+### 11.4 School weeks and local cards (D314)
+
+The teen amateur stage of `08` §2: school, local shows and the word on turning pro.
+
+**School weeks.** Until his 18th birthday a week in term time isn't all his. School takes the five weekday mornings and
+homework two evenings (Tuesday and Thursday), so he trains Monday, Wednesday and Friday evenings and Saturday: 5 of the 12
+sessions (plan Q9; Kyle, 2026-11-01: "Mornings and two evenings"). In the summer holidays (a week whose Monday is in July
+or August) every session is his, which is when a long camp pays most. The slots are taken whatever the plan says: the
+hub's weeks and a fight camp both lose them, and the camp planner shows them as *School* and *Homework* tiles that can't
+be changed or played (the `school` and `homework` sessions: no XP, no fatigue). That's too few sessions for even a week
+all out to wear him down. The week school breaks up, the week it starts again and the week he leaves it for good are
+news, so *Advance* stops on them, and the calendar shows them coming. The hub says what this week is: "School week:
+weekday mornings at school and homework on Tuesday and Thursday evenings, so he trains 5 of the 12 sessions" or "Summer
+holidays: every session this week is his". He leaves school on his 18th birthday (no exams or sixth-form years), and a
+career saved before D314 gets its school weeks as it loads: they're worked out from the calendar and his age, so nothing
+new goes in the save.
+
+**Local cards.** Every amateur offer is on a named local show, "Leeds Fight Night 4 · the Sports Centre, Leeds": 60% in his
+hometown, the rest in another city of his country, and the man he's offered is a local lad (from his country). A series
+keeps its venue, and its number goes up one every 8 weeks, so the same show comes round again. The card is on the offer,
+on the booked line (*Booked: vs Lee Kelly, Sat 27 Feb 2027 on Leeds Fight Night 4*), on the camp's countdown and on the
+fight in his record. Pro offers aren't on cards yet (phase 3's promotions).
+
+**The word on turning pro** (`08` §2: "the game recommends it based on record + skills"). From 18, while he's amateur,
+the hub says one of:
+
+| Word | When |
+|---|---|
+| Not yet | Fewer than 4 amateur fights: he can turn pro after N more |
+| Risky | He's won under 60% of his decided amateur fights, or his stats average under 38 (a C; a top prospect is 45 at 18, `02` §3.8) |
+| Wise | He's won 60% or more and his stats average 38 or more |
+| Time to turn pro | As *wise*, from 22: every year he waits is a prime year gone |
+
+It's advice only: *Turn pro* still works whenever `can_turn_pro` allows it (18, four amateur fights).
+
+His amateur record was already on the hub's top line; medals come with the one-day tournament (D315).
+
+**Not yet:** exams, a part-time job, school events and parents having a say (phase 5's life events), holidays other than
+the summer, and the advice changing his first pro contract (phase 3, `08` §2's "pro hype").
+
+**What to change:** which slots school takes, the holidays and when he leaves in `sim/world/school.gd` (`MORNINGS`,
+`EVENINGS`, `HOLIDAY_MONTHS`, `LEAVES_AT`) and the slots themselves in `data/sessions/school.json` and `homework.json`; how a week runs taken slots in
+`sim/world/training_camp.gd` (`taken`, `with_taken`); the events in `sim/world/career.gd` (`SCHOOL_OUT`, `BACK_TO_SCHOOL`,
+`LEFT_SCHOOL`, `_events_since`, `calendar`, `_school_week`). The cards' names, venues, home share and how often the number
+goes up in `data/cards/local.json`, and how a card is made in `sim/world/matchmaker.gd` (`local_card`, `SERIES_START`); the
+word on turning pro there too (`pro_advice`, `PRO_WIN_SHARE`, `PRO_READY_AVG`, `PRO_LATE_AGE`). The hub in
+`ui/career_hub.gd` (`week_text`, `offer_text`, `fights_text`), the planner's tiles in `ui/camp_planner.gd`. Tests:
+`tests/sim/world/test_school.gd`, `tests/sim/world/test_matchmaker.gd`, `tests/data/test_data_files.gd`. Fights don't change
+(no golden re-pin). Then update this section and D314.

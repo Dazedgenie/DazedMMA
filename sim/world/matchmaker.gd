@@ -41,6 +41,23 @@ const PURSE_STEP: int = 250
 const AGE_YOUNGER: int = 3
 const AGE_OLDER: int = 4
 const OLDEST: int = 40
+## Local amateur cards (docs/03 §11.4, D314): where the names and venues come from (docs/09 cards@1).
+const CARDS_PATH := "res://data/cards/local.json"
+## A card's number in its series: 1 + up to SERIES_START (seeded by the career and the series) + one every `every_weeks`.
+const SERIES_START: int = 9
+## Turning pro (docs/08 §2, D314): the hub's word on it from PRO_AGE. Wise when he has won at least PRO_WIN_SHARE of his
+## decided amateur fights and his stats average PRO_READY_AVG (a C: a top prospect is 45 at 18, docs/02 §3.8); and from
+## PRO_LATE_AGE, waiting longer costs him prime years.
+const PRO_WIN_SHARE: float = 0.6
+const PRO_READY_AVG: float = 38.0
+const PRO_LATE_AGE: int = 22
+## The hub's word on turning pro.
+const PRO_NOT_YET := "not_yet"
+const PRO_WISE := "wise"
+const PRO_RISKY := "risky"
+const PRO_LATE := "late"
+
+static var _cards: Dictionary = {}
 
 static var _shared: Matchmaker
 
@@ -82,7 +99,8 @@ func make_offers(c: Career, rng: RandomNumberGenerator) -> Array:
 ## One offer: { id, profile (the opponent, fighter@1), about (nickname, hometown, country), style, difficulty,
 ## week (fight night is that week's Saturday), expires (the last week it's open), ruleset, pro, purse ({show, win} or {}) }.
 func make_offer(c: Career, style_id: String, difficulty: String, rng: RandomNumberGenerator, index: int = 0) -> Dictionary:
-	var person: Dictionary = names.roll(rng)
+	var country_id: String = names.country_id_of(String(c.about.get("country", "")))
+	var person: Dictionary = names.roll(rng) if c.pro or country_id == "" else names.roll_in(rng, country_id)
 	var id: String = "opp_w%d_%d" % [c.week, index]
 	var level: int = level_against(c.profile().stats, style_id) + int(DIFFICULTY_LEVELS.get(difficulty, 0)) \
 		+ rng.randi_range(-LEVEL_SPREAD, LEVEL_SPREAD)
@@ -95,7 +113,46 @@ func make_offer(c: Career, style_id: String, difficulty: String, rng: RandomNumb
 		"style": style_id, "difficulty": difficulty,
 		"week": c.week + camp - 1, "expires": c.week + OPEN_WEEKS - 1,
 		"ruleset": rules_for(c), "pro": c.pro, "purse": purse_for(c),
+		"card": {} if c.pro else local_card(c, rng, country_id),
 	}
+
+
+## The shipped local cards (data/cards/local.json), loaded once.
+static func local_cards() -> Dictionary:
+	if _cards.is_empty():
+		var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(CARDS_PATH))
+		if parsed is Dictionary:
+			_cards = parsed
+	return _cards
+
+
+## The local amateur card an offer is on (D314): { name, venue, city }, e.g. "Leeds Fight Night 4" at the Sports
+## Centre in Leeds. Mostly in his hometown (`home_share`), otherwise another city in his country. A series keeps its
+## venue, and its number goes up one every `every_weeks` weeks.
+func local_card(c: Career, rng: RandomNumberGenerator, country_id: String) -> Dictionary:
+	var data: Dictionary = local_cards()
+	var city: String = String(c.about.get("hometown", ""))
+	var others: Array = names.cities(country_id).filter(func(x: Variant) -> bool: return String(x) != city)
+	if (city == "" or rng.randf() >= float(data.get("home_share", 1.0))) and not others.is_empty():
+		city = String(others[rng.randi_range(0, others.size() - 1)])
+	var patterns: Array = data.get("names", ["{city} Fight Night"])
+	var pattern: String = String(patterns[rng.randi_range(0, patterns.size() - 1)])
+	var series: String = "%d:%s:%s" % [c.career_seed, pattern, city]
+	var venues: Array = data.get("venues", ["Sports Centre"])
+	var number: int = 1 + absi(series.hash()) % (SERIES_START + 1) + c.week / maxi(1, int(data.get("every_weeks", 8)))
+	return {
+		"name": "%s %d" % [pattern.format({ "city": city }).strip_edges(), number],
+		"venue": String(venues[absi(("venue:" + series).hash()) % venues.size()]) if not venues.is_empty() else "",
+		"city": city,
+	}
+
+
+## "Leeds Fight Night 4 · the Sports Centre, Leeds" ("" when the offer isn't on a card).
+static func card_text(card: Dictionary) -> String:
+	if String(card.get("name", "")) == "":
+		return ""
+	var where: String = ", ".join([String(card.get("venue", "")), String(card.get("city", ""))].filter(func(x: String) -> bool: return x != ""))
+	return String(card.name) + (" · the %s" % where if where != "" else "")
 
 
 ## The quality level (StyleLibrary.generate) that makes a man of this style about as good as him: his average stat
@@ -136,6 +193,39 @@ static func purse_for(c: Career) -> Dictionary:
 ## Whether he can turn pro now: old enough, enough amateur fights, not pro already and not booked.
 static func can_turn_pro(c: Career) -> bool:
 	return not c.pro and c.booked.is_empty() and c.age() >= PRO_AGE and amateur_fights(c) >= PRO_AFTER_FIGHTS
+
+
+## The hub's word on turning pro (docs/08 §2, D314), once he's PRO_AGE and still amateur: { word (PRO_NOT_YET,
+## PRO_WISE, PRO_RISKY or PRO_LATE), text }. {} before then, or once he's pro. Advice only: the choice is yours.
+static func pro_advice(c: Career) -> Dictionary:
+	if c.pro or c.age() < PRO_AGE:
+		return {}
+	var fights: int = amateur_fights(c)
+	if fights < PRO_AFTER_FIGHTS:
+		var more: int = PRO_AFTER_FIGHTS - fights
+		return { "word": PRO_NOT_YET, "text": "He can turn pro after %d more amateur fight%s." % [more, "" if more == 1 else "s"] }
+	var r: Dictionary = c.record(false)
+	var decided: int = int(r.win) + int(r.loss)
+	var share: float = float(r.win) / decided if decided > 0 else 0.0
+	var level: float = average_stat(c.profile().get("stats", {}))
+	var grade: String = TrainingCamp.grade(level)
+	var record: String = c.record_text(false)
+	if share < PRO_WIN_SHARE:
+		return { "word": PRO_RISKY, "text": "Turning pro looks risky: %s as an amateur. A few more wins first." % record }
+	if level < PRO_READY_AVG:
+		return { "word": PRO_RISKY, "text": "Turning pro looks risky: %s as an amateur, but his skills (%s) aren't at a pro's level yet." % [record, grade] }
+	if c.age() >= PRO_LATE_AGE:
+		return { "word": PRO_LATE, "text": "Time to turn pro: %s as an amateur at %d, and every year he waits is a prime year gone." % [record, c.age()] }
+	return { "word": PRO_WISE, "text": "Turning pro looks wise: %s as an amateur, and his skills (%s) are ready for a pro debut." % [record, grade] }
+
+
+## His average over every stat (data/enums/stats; a missing one counts FighterState.DEFAULT_STAT).
+static func average_stat(stats: Dictionary) -> float:
+	var ids: Array = StyleLibrary.stat_ids()
+	var total: float = 0.0
+	for id: String in ids:
+		total += float(stats.get(id, FighterState.DEFAULT_STAT))
+	return total / maxf(1.0, ids.size())
 
 
 static func amateur_fights(c: Career) -> int:
