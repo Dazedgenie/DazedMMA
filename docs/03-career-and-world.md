@@ -773,7 +773,7 @@ hotbeds at the top, each organisation's own top 15, about 3 fights a year (champ
 |---|---|---|
 | Weight divisions: a walk-around weight, growing into his natural division by about 21, moved one up or down at his pro debut if you like (Kyle, 2026-11-01: "Grows into it, move at debut"; refines D35) | D351 | Built (§12.1) |
 | The world's fighters: about 100 named men a division, from local amateurs to world class; offers come from them, and the local lads he meets as an amateur are real men who can turn pro alongside him (Kyle, 2026-11-01: "Yes, amateurs in the roster") | D352 | Built (§12.2) |
-| The world's weeks: the other men fight about 3 times a year, age, retire, and new prospects join each January | D353 | Planned |
+| The world's weeks: the other men fight about 3 times a year, age, retire, and new prospects join each January | D353 | Built (§12.3) |
 | Promotions and their cards: 3 or 4 regional pro promotions and 2 international organisations, made up each career (D57) | D354 | Planned |
 | Rankings: each organisation's top 15, updated weekly, each move with its reason (A10) | D355 | Planned |
 | Titles: belts, 5-round title fights, defences, vacating | D356 | Planned |
@@ -831,7 +831,7 @@ at the top ("Home locally, hotbeds at top").
   kept in the save (a career saved before D352 makes its world when it next needs it). The same career makes the same men.
 - **The pyramid**, in each division: 25 amateurs, 20 local pros, 30 regional pros, 18 national-level pros and 7
   world-class pros. A pro's average stat is 38–50 local, 46–58 regional, 55–67 national-level and 64–80 world class; an
-  amateur's comes from his age, about 28 at 16 and 2.5 more a year (give or take 6). Amateurs are 14 to 24 and lean
+  amateur's comes from his age, about 28 at 16 and 2.5 more a year (give or take 6). Amateurs are 14 to 22 and lean
   young; pros are 20 to 35, the best a little older.
 - **Where they're from.** Every amateur is from his country, half of them his hometown. Of the pros, 75% of the local
   ones are from his country, 45% of the regional ones, 25% of the national-level ones and 10% of the world-class ones;
@@ -855,8 +855,8 @@ at the top ("Home locally, hotbeds at top").
   first (amateurs while he's one), best first by the scouts' grade, each with his age, hometown, level, record, style
   and how it went if he's fought him.
 
-Nobody else fights yet (the world's weeks, D353), so the men don't age into new divisions, turn pro or improve except by
-the calendar. Fights don't change (no golden re-pin).
+From D353 the men fight each other too, get better and older, turn pro and retire (§12.3). Fights don't change (no
+golden re-pin).
 
 **To change it:** the pyramid, ages, levels, home shares, records and nicknames in `World.LEVELS` and the numbers at the
 top of `sim/world/world.gd` (`PER_DIVISION`, `AMATEUR_AVG_*`, `HOMETOWN_SHARE`, `HOME_STYLE_WEIGHT`, `REMATCH_WEEKS`,
@@ -865,3 +865,82 @@ top of `sim/world/world.gd` (`PER_DIVISION`, `AMATEUR_AVG_*`, `HOMETOWN_SHARE`, 
 in `game/main.gd` (`open_division`, `DIVISION_WIDTH`). Tests: `tests/sim/world/test_world.gd`,
 `tests/ui/test_career_screens.gd`, `tests/game/test_main_scene.gd`, `tests/data/test_data_files.gd`. Then update this
 section and D352.
+
+### 12.3 The world's weeks (D353)
+
+The world's men now live between his fights. Every Saturday the men who are due a fight fight each other, decided by the
+quick result model (D350); they get better while they're young and slower when they're old, wins build them up and
+knockouts wear them down, the good amateurs turn pro, men retire when they're too old and new ones join. Kyle
+(2026-11-01) picked "Wins and losses change them too", "When they're ready, 18 to 23", "Only when they're too old" and
+"Results in his division on the hub".
+
+- **The weeks catch up when the career needs the world.** The world remembers the last Saturday it played (`played`);
+  each time the hub, an offer or a fight needs the world, it plays every Saturday up to last week's. A world saved before
+  D353 starts from the week it's loaded. The man booked to fight him, and the men in his offers (and a tournament's later
+  rounds), don't take other fights.
+- **About 3 fights a year** (Kyle's earlier pick, "3 a year, champions 2"; champions come with titles, D356). After a fight
+  a man is due again in 17 weeks, give or take 5; 8 more after being knocked out, 2 more after being submitted. Each
+  week, in each division, the due men are paired with a man of the same kind (amateurs with amateurs, teenagers with
+  teenagers, pros with pros) whose average stat is within 5, one more for every week the first has waited, and whom he
+  hasn't met in a year. Nobody fights before 16.
+- **Who wins** is the result model: the logistic of the styles' edge at an even level, plus `per_point` for every point
+  of average stat he's better, plus his form (0.08 for each of his last 3 fights won, taken off for each lost) and rust
+  (0.2 off after a year out). How it ends and which round come from what the engine did for those two styles (the
+  winner's style's wins and the loser's style's losses by each method, averaged). Results go on both records.
+- **The matchup table** is data, `data/world/matchups.json` (docs/09 matchups@1), made by `tools/matchups.gd`: every pair
+  of the 15 styles (105 pairs) plays 60 fights on the engine at an average stat of 55 give or take 6, the two up to 8
+  apart, red and blue corners taking turns, on every core. It fits each pair's edge (pulled a little toward even) and the
+  worth of a point together, and a test plays the most lopsided pair again and checks the model's share sits inside the
+  engine's 95% range. Rebuild it whenever fights change (`godot --headless --script res://tools/matchups.gd --
+  --fights=60`, about 17 minutes on 4 cores).
+- **Getting better and older** (like his own fighter, D136). Each man has a potential, made once: his average now plus
+  0.3 to 3.6 points (leaning low) for every year he's under 28, at most 84. Each year he closes 35% of the way to it
+  under 18, 30% to 21, 20% to 25 and 10% to 28, and nothing more at 28 and 29; from 31 he loses 0.6 points a year, and
+  1.5 from 34. A pro's level (local, regional, national-level, world class) follows his average stat.
+- **Wins and losses change them too** (Kyle's pick). Every win adds 0.4 to his average stat and his potential for good
+  (confidence and rounds in the bank). Being knocked out takes 0.8 off both, and 0.4 more for every other knockout loss
+  in his last 4 fights. A decision or submission loss leaves him as he was. His last 3 results also nudge his next fight
+  (form, above).
+- **Turning pro.** An amateur turns pro within about half a year once he's 18, has had 4 fights, has won 55% of them
+  and averages 38. At 23 he turns pro if he averages 34, or gives it up. A pro keeps his amateur record beside his pro one
+  (which starts at 0-0-0), starts as a local pro, and his division is fixed from then on, like the career's fighter's.
+- **Retiring only when they're too old** (Kyle's pick). Nobody retires before 32. From then a pro's chance of retiring
+  in a year is 10% for every point his average stat has fallen from his best (the first point free), plus 40% when he's
+  lost 3 of his last 4 and 25% after 2 knockout losses in them; at 45 he's done. So a man still at his best and winning
+  keeps going into his 40s (a 10-year run had a 41-year-old world-class man at 38-2-2), and most go at 33 to 37. An
+  amateur only gives it up at 23 (above). A retired man keeps his name, style, level and records (for the world's
+  history, D358) and loses the rest; each January, retired amateurs who never turned pro and never fought him are let go.
+- **New men.** The first week of every month each division's regional, national-level and world-class pros are topped
+  back up to the pyramid's counts (§12.2) with men new to the division, and its local pros too while it has fewer pros
+  in all than the pyramid's (the amateurs turning pro fill the bottom); each January its amateurs too, with lads of 14
+  to 16 from home. With nobody retiring young, a division settles at about 110 men.
+- **On the hub** (Kyle's pick, results in his division): under *This week*, AROUND THE <DIVISION> gives up to 4 lines from the
+  weeks just run in his division: the men he's fought first ("who you beat", "who beat you"), then upsets (the winner
+  had under 35% beforehand), first-round finishes, the best men (averaging 58 or more) and men of his kind. Men he's
+  fought turning pro or retiring are news too. His division's list shows each man's record as it now stands.
+- **The save** keeps the last 8 weeks of results and, on each man, his level to a fraction, potential, when he's next
+  due, his last 6 fights, and when he turned pro or retired (docs/09 career@1 `world`). After 10 years it's about 610 KB.
+
+**How healthy it is** (10 years from a fresh career on the shipped table, 2026-11-01): about 2.6 fights a man a year;
+15 to 30 men turn pro and 35 to 90 retire a year (more as the first men age); 650 to 680 active men, 100 to 112 in the
+lightweights, the pyramid's levels within a few men of their counts except about 8 extra local pros a division; the
+best man averages 83 to 85; retired pros' median age 34, the oldest 42; a year takes about 0.4 s. The 30-year check
+(D359) will watch this for longer.
+
+**What the table says about the styles** (60 fights a pair, a point of average stat worth 0.32 on the logit, 0.4%
+draws, 44% knockouts, 15% submissions, 41% decisions; the model inside the engine's 95% range for all 105 pairs): some
+matchups are lopsided at an even level. The Karate point fighter beats the Dirty boxer about 97% of the time (an edge
+of 3.6), and the Sprawl-and-brawl beats the Pressure wrestler, the Leg-kick specialist the Range kicker, the Karate point
+fighter the Sambo leg-locker and the Counter-striker the Submission grappler about 92%. That's the engine's balance, which the world copies; a balance pass
+on the styles would show up here when the table is rebuilt.
+
+His own fights stay on the engine, so no fight changes (no golden re-pin).
+
+**To change it:** the numbers at the top of `sim/world/world_weeks.gd` (`GAP_WEEKS`, `GAP_SPREAD`, `MATCH_GAP`,
+`MATCH_WIDEN`, `KO_OUT_WEEKS`, `SUB_OUT_WEEKS`, `FORM_PER_RESULT`, `RUST`, `GROWTH`, `DECLINE*`, `HEADROOM`,
+`POTENTIAL_MAX`, `WIN_GAIN`, `KO_WEAR*`, `PRO_*`, `RETIRE_FROM`, `FALLEN_FREE`, `TOO_OLD`, `BAD_RUN*`, `KO_RUN*`,
+`RETIRE_BY`, `NEW_AMATEUR_AGES`, `HISTORY`,
+`RESULTS_WEEKS`); the result model in `sim/world/result_model.gd` (`EDGE_PRIOR`, `METHOD_PRIOR`) and its table by
+re-running `tools/matchups.gd`; when the world catches up in `Career.world`; the hub's lines in `CareerHub.news_text`
+(`NEWS_MAX`, `UPSET_CHANCE`, `NEWS_BEST`). Tests: `tests/sim/world/test_world_weeks.gd`, `tests/data/test_data_files.gd`.
+Then update this section and D353.

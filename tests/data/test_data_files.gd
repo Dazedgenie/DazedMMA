@@ -107,6 +107,10 @@ const SCHEMAS := {
 	"division@1": { "folder": "divisions", "fields": {
 		"name": TYPE_STRING, "short": TYPE_STRING, "limit_kg": TYPE_FLOAT, "limit_lb": TYPE_FLOAT, "order": TYPE_FLOAT,
 	} },
+	"matchups@1": { "folder": "world", "fields": {
+		"per_point": TYPE_FLOAT, "draw": TYPE_FLOAT, "edges": TYPE_DICTIONARY, "wins": TYPE_DICTIONARY, "losses": TYPE_DICTIONARY,
+		"rounds": TYPE_DICTIONARY, "methods": TYPE_DICTIONARY, "fights_per_pair": TYPE_FLOAT,
+	} },
 	"tip@1": { "folder": "tips", "fields": {
 		"title": TYPE_STRING, "text": TYPE_STRING, "where": TYPE_STRING, "order": TYPE_FLOAT,
 	} },
@@ -1045,6 +1049,35 @@ func test_each_country_says_how_much_of_a_hotbed_it_is_and_its_styles() -> void:
 		for style_id: Variant in c.get("styles", []):
 			if not styles.has(String(style_id)):
 				problems.append("%s: styles names '%s', which is not in data/styles" % [where, style_id])
+	_report(problems)
+
+
+func test_the_matchup_table_has_every_pair_of_styles_and_shares_that_add_up() -> void:
+	var problems: Array[String] = []
+	var t: Dictionary = _items("world").get("matchups", {})
+	if t.is_empty():
+		problems.append("data/world/matchups.json is missing: build it with tools/matchups.gd (D353)")
+	var styles: Array = _items("styles").keys()
+	styles.sort()
+	for i in styles.size():
+		for j in range(i + 1, styles.size()):
+			if not t.get("edges", {}).has("%s:%s" % [styles[i], styles[j]]):
+				problems.append("matchups: no edge for %s:%s (rebuild with tools/matchups.gd after adding a style)" % [styles[i], styles[j]])
+	if float(t.get("per_point", 0.0)) <= 0.0:
+		problems.append("matchups: per_point is above 0 (a better man wins more)")
+	for part: String in ["wins", "losses"]:
+		for style: String in styles:
+			var shares: Dictionary = t.get(part, {}).get(style, {})
+			var sum: float = float(shares.get("ko", 0)) + float(shares.get("submission", 0)) + float(shares.get("decision", 0))
+			if absf(sum - 1.0) > 0.01:
+				problems.append("matchups: %s's %s shares add up to %.3f, not 1" % [style, part, sum])
+	for method: String in ["ko", "submission"]:
+		var rounds: Array = t.get("rounds", {}).get(method, [])
+		var sum: float = 0.0
+		for x: Variant in rounds:
+			sum += float(x)
+		if rounds.size() != 3 or absf(sum - 1.0) > 0.01:
+			problems.append("matchups: %s rounds are three shares adding up to 1" % method)
 	_report(problems)
 
 
