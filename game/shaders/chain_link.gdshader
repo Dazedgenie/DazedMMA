@@ -1,5 +1,16 @@
 shader_type spatial;
 render_mode cull_disabled;
+// The fence bowing where a man is held on it (D287, LocalVenue.bow_fence): bow_depth metres out of the cage
+// at bow_at (on the panel, from its middle), fading over bow_size, held flat at the posts and rails.
+uniform vec2 bow_at = vec2(0.0);
+uniform float bow_depth = 0.0;
+uniform vec2 bow_size = vec2(0.5, 0.65);
+uniform vec2 panel_half = vec2(1.0, 0.95);
+void vertex() {
+	vec2 d = (VERTEX.xy - bow_at) / bow_size;
+	vec2 edge = clamp((panel_half - abs(VERTEX.xy)) / 0.3, 0.0, 1.0);
+	VERTEX.z += bow_depth * exp(-dot(d, d) * 2.0) * edge.x * edge.y;
+}
 void fragment() {
 	vec2 p = UV * vec2(26.0, 13.0);
 	float diagonal_a = abs(fract(p.x + p.y) - 0.5);

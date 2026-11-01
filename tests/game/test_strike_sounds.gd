@@ -89,3 +89,18 @@ func test_a_fight_plays_hits_and_misses_and_muting_silences_them() -> void:
 			sim.tick()
 	assert_gt(heard.size(), 0)
 	assert_true(heard.all(func(h: Array) -> bool: return not h[2]), "muted: nothing is heard")
+
+
+func test_the_fence_rattles_the_same_every_time_and_muting_silences_it() -> void:
+	var once: PackedFloat32Array = StrikeSounds.render_rattle(1)
+	assert_eq(once, StrikeSounds.render_rattle(1), "the same version sounds the same")
+	assert_ne(once, StrikeSounds.render_rattle(2), "versions differ")
+	assert_eq(once.size(), int(StrikeSounds.RATE * StrikeSounds.RATTLE_SECONDS))
+	var sounds := StrikeSounds.new()
+	add_child_autofree(sounds)
+	watch_signals(sounds)
+	sounds.play_rattle(0.8)
+	assert_signal_emitted_with_parameters(sounds, "rattled", [0.8, true])
+	sounds.muted = true
+	sounds.play_rattle(0.8)
+	assert_signal_emitted_with_parameters(sounds, "rattled", [0.8, false])

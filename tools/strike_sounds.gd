@@ -6,7 +6,8 @@ extends MainLoop
 ##   godot --headless --script res://tools/strike_sounds.gd [-- --only=jab,leg_kick]
 ##
 ## Writes build/strike_sounds/<strike>.wav (connected, missed, blocked with a pause between, at the loudness
-## the fight plays them: connected as a hard hit) and build/strike_sounds/all_strikes.wav (every strike in turn).
+## the fight plays them: connected as a hard hit) and build/strike_sounds/all_strikes.wav (every strike in turn),
+## and build/strike_sounds/fence_rattle.wav (D287: each version of the fence's rattle, hardest slam first).
 
 const OUT_DIR := "res://build/strike_sounds/"
 const GAP_SECONDS: float = 0.35
@@ -42,6 +43,12 @@ func _initialize() -> void:
 		reel.append_array(gap)
 		print("%-15s connected · missed · blocked" % id)
 	StrikeSounds.to_wav(reel).save_to_wav(OUT_DIR + "all_strikes.wav")
+	var rattle := PackedFloat32Array()
+	for k in StrikeSounds.RATTLE_KINDS:
+		rattle.append_array(StrikeSounds.render_rattle(k + 1))
+		rattle.append_array(gap)
+	StrikeSounds.to_wav(rattle).save_to_wav(OUT_DIR + "fence_rattle.wav")
+	print("fence rattle    %d versions" % StrikeSounds.RATTLE_KINDS)
 	print("Wrote %s in %d ms" % [ProjectSettings.globalize_path(OUT_DIR), Time.get_ticks_msec() - started])
 
 

@@ -374,6 +374,63 @@ changes nothing) and `tests/game/test_clinch_view.gd` (a body lock in the fight 
 hands round his back, each grip changes the pose, a knee keeps the hold and lifts only the knee, a takedown goes
 back to today's figures and eases out, standing and on the ground the rig doesn't pose them).
 
+## The fence from the rig (D287)
+
+The third step of Kyle's route: the moves on the fence come off today's figures and onto the rig. Kyle picked
+the fence next (2026-11-01, over the clinch takedowns or the ground positions), the held man *flat, fighting
+when he moves* (over always flat or always fighting) and the fence that *gives and rattles* (over a rattle only
+or neither).
+
+**Held on the fence** (`ClinchPair.body("fence")`, `ArenaView.fence_frame`). While one man is held on the fence
+(D220) the pair frame is squared to the fence panel behind him, so he is pressed flat on it: back, hips and back
+of the head on the wire (`ClinchPair.FENCE_Z`, 0.5 m behind the frame's middle), feet a little out, the other
+man in low with his head under his chin. The fence bows `ArenaView.PRESS_DEPTH` (3 cm) under him and he sinks
+in with it.
+
+**Fighting off it** (`ClinchPair._work`, `WORK_MOVES`). While the held man tries a spin-off, a turn or a clinch
+break his hips come out (`WORK_HIPS_OUT`, the other man giving a little ground), he turns toward his way out
+(`WORK_TURN`: to his underhook's side turning him, his overhook's side spinning off), looks that way and posts
+the other hand on the wire (`POST_OUT`, `POST_UP`); breaking, both hands frame on the other man instead.
+
+**The drive** (`ClinchPair.body("drive")`, `_step`). Setting up a drive (its windup) and while the fight drives
+him back (`FightSim.drive`), the driver changes levels with his head in the other's chest and the other man is
+upright, leaning back, giving ground. Both men step: each foot is planted and slides back as far as the pair
+goes, then lifts (`STEP_LIFT`) and swings forward, the feet taking turns every `DRIVE_STRIDE` metres.
+
+**The slam and the rattle.** When a drive ends with him pinned, or a turn puts the other man on the fence, the
+fence bows further (up to `SLAM_DEPTH`, 9 cm, times how hard) and springs back (`SLAM_HZ`, `SLAM_DAMPING`) to his
+weight on it, and `ArenaView.fence_slammed` plays the rattle (`StrikeSounds.play_rattle`): his back thudding into
+the wire, the chain link clattering and dying away, a faint ring of the posts, made in code like the strike
+sounds (`render_rattle`, three versions). A drive is as hard as how far it went (`DRIVE_SLAM_MIN` to full after
+`SLAM_FULL_AFTER` metres); a turn is `TURN_SLAM`. The wire is a grid fine enough to bend (`LocalVenue.BOW_GRID`)
+and the bow is drawn in the chain-link shaders (`bow_at`, `bow_depth`), held flat at the posts and rails.
+
+**The turn** (`ClinchPair.turning`, `ArenaView.TURN_SECONDS`). When a turn or a spin-off works the fight swaps the
+men's places at once; the view takes them round each other over 0.45 s, from the pose before to the one after
+(after a spin-off, standing apart, `ClinchPair.apart`), then a spin-off eases back to today's figures.
+
+**A clinch break** away from the fence: the man breaking frames on the other with both hands and pushes his hips
+back (`BREAK_HIPS_BACK`) until they come apart.
+
+**To change:** the poses in `ClinchPair.body` ("fence", "drive"), `_work`, `_break`, `apart` and the constants at
+the top of `game/rig/clinch_pair.gd`; the turn, bow and slam numbers at the top of `game/arena_view.gd`; the
+rattle in `StrikeSounds` (`RATTLE_*`, `RING_*`); `tools/strike_sounds.gd` writes it to
+`build/strike_sounds/fence_rattle.wav`.
+
+**Limits:** the clinch takedowns and throws still use today's figures; the drive's steps slide a little when the
+fight's pace changes; the fence bows at one place at a time; only the drive and the turn rattle it (knees into a
+man on the fence don't yet).
+
+Preview: `tools/rig_preview.gd --clinch --body` (the new examples: the drive, the drive mid step, spinning off,
+turning him, breaking off the fence, a break in the open); a real fence fight:
+`tools/motion_preview.gd --red=dirty_boxer --blue=wrestler --seed=35024`.
+
+Tests: `tests/game/test_clinch_pair.gd` (every example, the new ones too: hands and feet in place, bodies not
+passing through) and `tests/game/test_fence_view.gd` (held on the fence he is flat on it and it bows, working off
+it his hips come out and a hand posts on the wire, a drive steps them across and slams him in, a slam bows the
+fence further then it springs back, a turn takes them round each other onto the fence, only the panel he is
+against bows); `tests/game/test_strike_sounds.gd` (the rattle is the same every time, muting silences it).
+
 ## Review and verification
 
 Open `project.godot` in Godot 4.7.2 and run the game normally. Start a fight and check striking,
