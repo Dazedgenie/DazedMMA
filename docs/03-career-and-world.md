@@ -360,6 +360,13 @@ this week or Advance).
 - **The calendar:** the coming 8 weeks (`Career.CALENDAR_WEEKS`), this one first, each with what will happen in it if
   nothing changes: an injury healed, a suspension over, his birthday, fight night (`Career.calendar()`).
 
+**Fitting the screen (D340):** the hub is one screen and the page itself doesn't scroll (Kyle, 2026-11-01, found it
+running off the bottom). The long parts scroll inside their own cards instead, with the mouse wheel or by dragging the
+bar: the fighter card's text, his stats, this week's news together with the offers under it, and his fights. The
+headings, the week plan, the buttons (Run this week, Advance, Go to camp, Turn pro, Save and go to the title) and the
+calendar stay put, so however long his record or last week's report gets, they're always on screen. Each refresh puts
+the scrolling parts back at the top.
+
 Each week's report from `Career.run_week()` now says what happened in it (`events`: hurt, healed, cleared, birthday,
 fight night) and which week it was.
 
@@ -367,7 +374,8 @@ fight night) and which week it was.
 booked fight's camp are §10.4.
 
 **What to change:** how many weeks Advance runs at most (`ADVANCE_MAX_WEEKS`) and the calendar shows (`CALENDAR_WEEKS`)
-in `sim/world/career.gd`; how many fights the list shows (`FIGHTS_SHOWN`) and the colours in `ui/career_hub.gd`. Tests:
+in `sim/world/career.gd`; how many fights the list shows (`FIGHTS_SHOWN`), the colours and which parts scroll (`_scroll()`
+in `_init()`, D340) in `ui/career_hub.gd`. Tests:
 `tests/sim/world/test_career.gd`, `tests/ui/test_career_screens.gd`, `tests/game/test_main_scene.gd`. Fights don't change
 (no golden re-pin). Then update this section and D303.
 
