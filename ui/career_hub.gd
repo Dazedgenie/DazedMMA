@@ -183,7 +183,7 @@ func show_career(p_career: Career, reports: Array = []) -> void:
 	var records: String = "Amateur %s" % career.record_text(false)
 	if career.pro:
 		records += " · Pro %s" % career.record_text(true)
-	_line.text = "Age %d · %s · coached by %s" % [career.age(), records, career.coach_name]
+	_line.text = "Age %d · %s · coached by %s" % [career.age(), records, coach_text(career)]
 	_date.text = "%s\nWEEK %d" % [career.date_text(), career.week + 1]
 	var night: Dictionary = career.trainee.fight_night()
 	for area: String in BodyDamageFigure.AREAS:
@@ -218,6 +218,12 @@ func pick_plan(id: String) -> void:
 	_week_text.text = week_text(career, [])
 
 
+## Who coaches him, for the top bar: "Sam Reed (Tactician)", or the name alone for a career saved before D311.
+static func coach_text(c: Career) -> String:
+	var specialty: String = Coach.specialty_name(c.coach_specialty)
+	return c.coach_name + (" (%s)" % specialty if specialty != "" else "")
+
+
 ## The fighter card's text: background and hometown, stance and frame, gifts and flaws he knows of, scouted potential.
 static func fighter_card_text(c: Career, gift_names: Dictionary = {}, flaw_names: Dictionary = {}) -> String:
 	var p: Dictionary = c.fighter
@@ -225,6 +231,9 @@ static func fighter_card_text(c: Career, gift_names: Dictionary = {}, flaw_names
 	var bg_id: String = String(c.about.get("background", ""))
 	var bg_name: String = String(BackgroundLibrary.shared().get_background(bg_id).name) if BackgroundLibrary.shared().has(bg_id) else ""
 	if bg_name != "":
+		var second: String = String(c.childhood.get("second", ""))
+		if second != "" and BackgroundLibrary.shared().has(second):
+			bg_name += ", with a bit of %s" % String(BackgroundLibrary.shared().get_background(second).name).to_lower()
 		lines.append("[b]%s[/b]" % bg_name)
 	var town: String = ", ".join([c.about.get("hometown", ""), c.about.get("country", "")].filter(func(s: String) -> bool: return s != ""))
 	if town != "":
@@ -249,6 +258,12 @@ static func fighter_card_text(c: Career, gift_names: Dictionary = {}, flaw_names
 	if bg_name != "":
 		lines.append("")
 		lines.append("[i]%s[/i]" % String(BackgroundLibrary.shared().get_background(bg_id).hook))
+	for person: Variant in c.childhood.get("people", []):
+		if person is Dictionary:
+			lines.append(Childhood.person_text(person))
+	if c.coach_specialty != "":
+		lines.append("[color=%s]Your specialty:[/color] %s. %s" % [DIM.to_html(false), Coach.specialty_name(c.coach_specialty),
+			Coach.specialty_does(c.coach_specialty)])
 	return "\n".join(lines)
 
 

@@ -1,0 +1,57 @@
+{
+	"schema": "vignette@1",
+	"id": "age12_summer_job",
+	"age": 12,
+	"title": "Summer money",
+	"text": "He wants money of his own this summer. There's a farm hiring kids to bring the hay in, a Muay Thai camp abroad where his uncle can get him a job sweeping the ring, or his parents will pay for a fancy sports camp instead.",
+	"choices": [
+		{
+			"id": "hay",
+			"text": "Bringing the hay in.",
+			"outcome": "Twelve-hour days, blistered hands, and his first real wages.",
+			"backgrounds": {
+				"farm_kid": 3
+			},
+			"stats": {
+				"strength": 3,
+				"cardio": 3
+			},
+			"personality": {
+				"discipline": 10
+			},
+			"money": 150
+		},
+		{
+			"id": "thai_camp",
+			"text": "Sweeping the ring at the Thai camp.",
+			"outcome": "The fighters start letting him join the end of their sessions. By August he can clinch with the young ones.",
+			"backgrounds": {
+				"muay_thai_abroad": 3
+			},
+			"stats": {
+				"clinch_striking": 4,
+				"kicking": 2
+			},
+			"person": {
+				"role": "Thai trainer",
+				"about": "Calls him 'little brother' and says to come back any time."
+			}
+		},
+		{
+			"id": "sports_camp",
+			"text": "The sports camp his parents pay for.",
+			"outcome": "Good food, good coaches, a bit of everything. He comes home fit and a little spoiled.",
+			"backgrounds": {
+				"late_starter": 3
+			},
+			"stats": {
+				"fight_iq": 3,
+				"cardio": 3
+			},
+			"personality": {
+				"ego": 10
+			},
+			"money": 400
+		}
+	]
+}

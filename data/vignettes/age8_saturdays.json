@@ -1,0 +1,63 @@
+{
+	"schema": "vignette@1",
+	"id": "age8_saturdays",
+	"age": 8,
+	"title": "Saturday mornings",
+	"text": "Saturday mornings are his own. His grandad wants help in the yard, the boxing gym on the corner lets kids sweep up in return for a lesson, and the park has a football game every week.",
+	"choices": [
+		{
+			"id": "yard",
+			"text": "The yard with his grandad.",
+			"outcome": "He carries feed sacks half his size and comes home filthy and proud.",
+			"backgrounds": {
+				"farm_kid": 3
+			},
+			"stats": {
+				"strength": 4,
+				"durability": 3
+			},
+			"personality": {
+				"discipline": 10
+			},
+			"person": {
+				"role": "Grandad",
+				"family": true,
+				"about": "Has worked the same land for fifty years and doesn't believe in days off."
+			}
+		},
+		{
+			"id": "sweep",
+			"text": "Sweeping up at the boxing gym.",
+			"outcome": "The old trainer shows him how to hold his hands up. He practises in the mirror every night.",
+			"backgrounds": {
+				"boxing_gym_kid": 3
+			},
+			"stats": {
+				"boxing": 4,
+				"striking_defense": 2
+			},
+			"personality": {
+				"loyal": 10
+			},
+			"person": {
+				"role": "Old trainer",
+				"about": "Has run the corner boxing gym for thirty years."
+			}
+		},
+		{
+			"id": "football",
+			"text": "The football game in the park.",
+			"outcome": "He's the smallest on the field and the hardest to tackle.",
+			"backgrounds": {
+				"college_football": 3
+			},
+			"stats": {
+				"speed": 3,
+				"strength": 3
+			},
+			"personality": {
+				"ego": 10
+			}
+		}
+	]
+}

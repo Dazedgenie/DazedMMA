@@ -1,0 +1,62 @@
+{
+	"schema": "vignette@1",
+	"id": "age8_summer",
+	"age": 8,
+	"title": "The long summer",
+	"text": "The family has a whole summer. His uncle has a place near Bangkok and says the boy can come out, a cousin goes to a jiu-jitsu kids' class every afternoon, or there's the tennis camp his mum has already paid for.",
+	"choices": [
+		{
+			"id": "bangkok",
+			"text": "A summer with his uncle near Bangkok.",
+			"outcome": "A camp down the road lets him hit pads with the Thai kids. He comes home brown, skinny and kicking.",
+			"backgrounds": {
+				"muay_thai_abroad": 3
+			},
+			"stats": {
+				"kicking": 3,
+				"clinch_striking": 3
+			},
+			"person": {
+				"role": "Uncle",
+				"family": true,
+				"about": "Moved to Thailand years ago and knows everyone at the local camp."
+			}
+		},
+		{
+			"id": "jiu_jitsu",
+			"text": "Jiu-jitsu with his cousin every afternoon.",
+			"outcome": "He gets stuck under bigger kids all summer and learns to wriggle out. By August he's the one on top.",
+			"backgrounds": {
+				"jiu_jitsu_prodigy": 3
+			},
+			"stats": {
+				"guard": 4,
+				"submissions": 2
+			},
+			"personality": {
+				"coachable": 10
+			},
+			"person": {
+				"role": "Cousin",
+				"family": true,
+				"about": "Two years older, a blue belt already, and never lets him forget it."
+			}
+		},
+		{
+			"id": "tennis",
+			"text": "The tennis camp his mum paid for.",
+			"outcome": "He's good at it and bored by it. He reads about fighters on his phone between lessons.",
+			"backgrounds": {
+				"late_starter": 3
+			},
+			"stats": {
+				"fight_iq": 4,
+				"footwork": 2
+			},
+			"personality": {
+				"ego": 10
+			},
+			"money": 300
+		}
+	]
+}

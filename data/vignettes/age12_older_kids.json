@@ -1,0 +1,59 @@
+{
+	"schema": "vignette@1",
+	"id": "age12_older_kids",
+	"age": 12,
+	"title": "The older kids",
+	"text": "A group of older kids have started picking on him at the bus stop. He's had enough.",
+	"choices": [
+		{
+			"id": "swing",
+			"text": "He waits for the biggest one and swings first.",
+			"outcome": "Suspended for a week. Nobody at the bus stop says a word to him again.",
+			"backgrounds": {
+				"street_kid": 3
+			},
+			"stats": {
+				"power": 4,
+				"chin": 2
+			},
+			"personality": {
+				"ego": 15,
+				"discipline": -10
+			},
+			"person": {
+				"role": "Best friend",
+				"about": "Was there that day, and has had his back ever since."
+			}
+		},
+		{
+			"id": "boxing",
+			"text": "He walks into the boxing gym on the high street.",
+			"outcome": "The trainer makes him skip for a month before he's allowed to hit anything.",
+			"backgrounds": {
+				"boxing_gym_kid": 3
+			},
+			"stats": {
+				"boxing": 4,
+				"footwork": 2
+			},
+			"personality": {
+				"discipline": 10
+			}
+		},
+		{
+			"id": "bjj",
+			"text": "He signs up at the jiu-jitsu academy.",
+			"outcome": "Six months later one of them tries it again and ends up on his back, with the boy calmly on top.",
+			"backgrounds": {
+				"jiu_jitsu_prodigy": 3
+			},
+			"stats": {
+				"top_control": 4,
+				"submissions": 2
+			},
+			"personality": {
+				"coachable": 10
+			}
+		}
+	]
+}

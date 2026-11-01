@@ -92,6 +92,9 @@ const SCHEMAS := {
 		"style": TYPE_DICTIONARY, "frame": TYPE_DICTIONARY, "personality": TYPE_DICTIONARY, "gift_weights": TYPE_DICTIONARY,
 		"flaw_weights": TYPE_DICTIONARY, "hook": TYPE_STRING, "money": TYPE_FLOAT,
 	} },
+	"vignette@1": { "folder": "vignettes", "fields": {
+		"title": TYPE_STRING, "age": TYPE_FLOAT, "text": TYPE_STRING, "choices": TYPE_ARRAY,
+	} },
 	"names@1": { "folder": "names", "fields": {
 		"country": TYPE_STRING, "cities": TYPE_ARRAY, "first": TYPE_ARRAY, "last": TYPE_ARRAY,
 	} },
@@ -808,3 +811,68 @@ func _find_json(dir_path: String) -> Array[String]:
 	for sub in DirAccess.get_directories_at(dir_path):
 		found.append_array(_find_json(dir_path.path_join(sub)))
 	return found
+
+
+func test_every_coach_background_has_a_name_and_a_line_about_it() -> void:
+	var problems: Array[String] = []
+	var backgrounds: Dictionary = _items("enums").get("coach_backgrounds", {}).get("values", {})
+	if backgrounds.is_empty():
+		problems.append("data/enums/coach_backgrounds.json is missing or empty (D311)")
+	for id: String in backgrounds:
+		var b: Variant = backgrounds[id]
+		if not b is Dictionary or not b.get("name") is String or not b.get("about") is String:
+			problems.append("coach background '%s': needs a name and an about line, both text (D311)" % id)
+	_report(problems)
+
+
+func test_childhood_scenes_have_three_choices_that_lean_toward_real_backgrounds() -> void:
+	var problems: Array[String] = []
+	var stats: Dictionary = _items("enums").get("stats", {}).get("values", {})
+	var backgrounds: Dictionary = _items("backgrounds")
+	var covered: Dictionary = {}  # age → { background → true }
+	for age: int in Childhood.AGES:
+		covered[age] = {}
+	for id: String in _items("vignettes"):
+		var v: Dictionary = _items("vignettes")[id]
+		var where := "childhood scene '%s'" % id
+		var age: int = int(v.get("age", 0))
+		if not covered.has(age):
+			problems.append("%s: age %d isn't one of the scene ages %s (D312)" % [where, age, Childhood.AGES])
+			continue
+		var choices: Array = v.get("choices", [])
+		if choices.size() != 3:
+			problems.append("%s: needs exactly 3 choices, has %d" % [where, choices.size()])
+		var choice_ids: Array = []
+		for ch: Variant in choices:
+			if not ch is Dictionary:
+				problems.append("%s: a choice isn't an object" % where)
+				continue
+			var at := "%s choice '%s'" % [where, ch.get("id")]
+			if not ch.get("id") is String or ch.id in choice_ids:
+				problems.append("%s: needs an id of its own" % at)
+			choice_ids.append(ch.get("id"))
+			for field: String in ["text", "outcome"]:
+				if String(ch.get(field, "")).is_empty():
+					problems.append("%s: %s must be a sentence" % [at, field])
+			var leans: Variant = ch.get("backgrounds")
+			if not leans is Dictionary or (leans as Dictionary).is_empty():
+				problems.append("%s: must lean toward at least one background" % at)
+			else:
+				_expect_numbers(problems, at, "backgrounds", leans, backgrounds.keys(), 1, 5)
+				for bg: String in leans:
+					covered[age][bg] = true
+			_expect_numbers(problems, at, "stats", ch.get("stats", {}), stats.keys(), -10, 10)
+			_expect_numbers(problems, at, "personality", ch.get("personality", {}), PERSONALITY_AXES, -30, 30)
+			if int(ch.get("height", 0)) < -1 or int(ch.get("height", 0)) > 1:
+				problems.append("%s: height leans -1, 0 or 1" % at)
+			if float(ch.get("money", 0)) < 0.0:
+				problems.append("%s: money can't be below 0" % at)
+			var person: Variant = ch.get("person")
+			if person != null and (not person is Dictionary or String(person.get("role", "")).is_empty()
+					or String(person.get("about", "")).is_empty()):
+				problems.append("%s: a person needs a role and an about line" % at)
+	for age: int in covered:
+		for bg: String in backgrounds:
+			if not covered[age].has(bg):
+				problems.append("no scene at age %d leans toward '%s': every background must be reachable at every age" % [age, bg])
+	_report(problems)

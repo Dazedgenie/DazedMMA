@@ -1,0 +1,59 @@
+{
+	"schema": "vignette@1",
+	"id": "age15_party",
+	"age": 15,
+	"title": "The party",
+	"text": "Somebody starts something outside a party. A lad from the year above is shoving a smaller kid around, and everyone's watching to see what happens.",
+	"choices": [
+		{
+			"id": "fight",
+			"text": "He steps in and finishes it with one punch.",
+			"outcome": "The video goes round school by Monday. So does his name.",
+			"backgrounds": {
+				"street_kid": 3
+			},
+			"stats": {
+				"power": 3,
+				"chin": 3
+			},
+			"personality": {
+				"ego": 15,
+				"discipline": -10
+			}
+		},
+		{
+			"id": "stand_up",
+			"text": "He stands in front of the smaller kid and doesn't move.",
+			"outcome": "He takes a punch and doesn't fall. The smaller kid becomes his best friend.",
+			"backgrounds": {
+				"bullied_underdog": 3
+			},
+			"stats": {
+				"heart": 4,
+				"chin": 2
+			},
+			"personality": {
+				"loyal": 15
+			},
+			"person": {
+				"role": "Best friend",
+				"about": "The kid he stood up for outside the party."
+			}
+		},
+		{
+			"id": "walk_away",
+			"text": "He walks away and goes for a long run instead.",
+			"outcome": "Ten miles in the dark. He's never felt clearer.",
+			"backgrounds": {
+				"track_star": 3
+			},
+			"stats": {
+				"cardio": 4,
+				"composure": 2
+			},
+			"personality": {
+				"discipline": 10
+			}
+		}
+	]
+}
