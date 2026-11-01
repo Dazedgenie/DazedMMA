@@ -24,6 +24,12 @@ camera turning to see them side-on (D361) and the stances by style (D362), recor
 
     godot --script res://tools/strike_preview.gd -- --out=res://build/strikes
 
+Since D363 it also throws the cross, hook and overhand being slipped and the body and head kick missing, to see a
+miss carry him past and a round kick turn through. `--only=` keeps some cases (strike ids, or `strike:outcome`) and
+`--red=` picks who throws them; a heavy hitter drives a landed shot through and a quick man snaps it back:
+
+    godot --script res://tools/strike_preview.gd -- --out=res://build/strikes --only=cross:landed,hook:landed --red=brawler
+
 `grapple_preview.gd` arranges the clinch grips (hand fighting, an underhook, the body lock), each grip and clinch move,
 ground and pound, covering up and turning away, the sweeps, passes and throws, and every submission going on and held,
 side on to the camera, at 24 frames a fight second (D282, `docs/13`). `--only=` takes move or position ids:

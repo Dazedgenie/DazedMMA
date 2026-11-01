@@ -97,7 +97,9 @@ func test_a_landed_cross_touches_his_head_and_a_missed_one_goes_past_it() -> voi
 	assert_gt(glove.distance_to(head), 0.08, "without passing into his head")
 	figures[0].show_outcome("cross", "missed")
 	_pose(sim, figures, 1.0)
-	assert_gt(figures[0]._gloves[1].global_position.distance_to(figures[1]._head.global_position), 0.3, "a miss goes past him")
+	# Past the side of his head (D363: his weight carries him in behind it, so it passes closer than it did).
+	var past: Vector3 = figures[0]._gloves[1].global_position - figures[1]._head.global_position
+	assert_gt(absf(past.z), 0.15, "a miss goes past him")
 
 
 func test_a_landed_body_kick_reaches_his_ribs() -> void:
