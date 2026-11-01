@@ -765,8 +765,9 @@ section and D316.
 
 Phase 3 of the plan (§10, D300). Kyle (2026-11-01): "We can start planning phase 3". Today every opponent is made for one
 offer and nobody else fights; phase 3 fills six weight divisions (D56) with about 100 named men each (D55) who keep fighting
-each other, with promotions, rankings and belts to climb. The plan and its 10 questions are in the phase 3 plan doc (https://claude.ai/artifact/EgqAcbosfRoFa46UCERW5i); my picks
-are built until Kyle answers. Nine pieces, in this order (D350), each playable when it lands:
+each other, with promotions, rankings and belts to climb. The plan and its 10 questions are in the phase 3 plan doc (https://claude.ai/artifact/EgqAcbosfRoFa46UCERW5i); Kyle
+answered all ten on 2026-11-01, taking my pick on eight. He also picked all 6 divisions at about 100 men, local men at home and the
+hotbeds at the top, each organisation's own top 15, about 3 fights a year (champions 2), and grounded, plausible promotion names. Nine pieces, in this order (D350), each playable when it lands:
 
 | Piece | Decision | Status |
 |---|---|---|
@@ -776,8 +777,8 @@ are built until Kyle answers. Nine pieces, in this order (D350), each playable w
 | Promotions and their cards: 3 or 4 regional pro promotions and 2 international organisations, made up each career (D57) | D354 | Planned |
 | Rankings: each organisation's top 15, updated weekly, each move with its reason (A10) | D355 | Planned |
 | Titles: belts, 5-round title fights, defences, vacating | D356 | Planned |
-| Climbing the ladder: call-ups to the bigger promotion, title eliminators; fight-by-fight deals until phase 5 | D357 | Planned |
-| A history before day one: the world played 5 years before his career starts | D358 | Planned |
+| Climbing the ladder: call-ups to the bigger promotion, title eliminators, and asking for a step up from the hub at a risk of a tougher fight or a no (Kyle, 2026-11-01: "Call-ups plus asking for it"); fight-by-fight deals until phase 5 | D357 | Planned |
+| A history before day one: the world played 10 years before his career starts, so there are long records and some retired legends (Kyle, 2026-11-01: "10 years") | D358 | Planned |
 | The 30-year check: a tool and a test that the world stays healthy (A10) | D359 | Planned |
 
 **The world's other fights** are decided by a quick result model, not the fight engine (Kyle, 2026-11-01: "A quick result model"; this changes A9's middle tier). The
