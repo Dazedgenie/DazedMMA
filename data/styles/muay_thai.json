@@ -9,6 +9,7 @@
 	],
 	"southpaw_chance": 0.15,
 	"variation": { "stats": 6, "style": 12, "tendencies": 0.2, "personality": 30, "height_cm": 4 },
+	"gameplan": { "approach": "", "target": "body", "where": "clinch_work" },
 	"scouting": {
 		"summary": "Walks into the clinch, grabs a collar tie and goes to work with knees and elbows.",
 		"strengths": [

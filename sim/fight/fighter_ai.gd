@@ -80,7 +80,7 @@ const FOLLOW_DOWN_VALUE: float = 10.0
 ## Whether he follows this knockdown down at all, decided once as the man drops: this × his
 ## tendency for it × (1 + Base / 100), so a grappler (Base 70) about 85%, a striker (0) half the time.
 const FOLLOW_DOWN_CHANCE: float = 0.5
-## Standing up from the top (D330, D334, docs/01 §42). On top, a chance a free tick of STAND_RATE ×
+## Standing up from the top (D330, D334, docs/01 §43). On top, a chance a free tick of STAND_RATE ×
 ## work rate × how much he wants out × (the odds / 50%)², at most 1. How much he wants out: how much
 ## he'd rather be on his feet, STAND_FEET_FROM − Base / 100 (a striker at Base 0, 0.4; a grappler,
 ## none), once he's been in this position STAND_AFTER_TICKS, × STAND_DOMINANT in side control, the

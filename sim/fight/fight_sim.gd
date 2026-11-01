@@ -143,7 +143,7 @@ const STOP_BIAS_HEALTH: float = 0.5
 const GROUND_COVER := "ground_cover"
 const TURN_AWAY := "turn_away"
 const TURN_AWAY_BASE: float = 0.12
-## Standing up from the top (D330–D333, docs/01 §42): the move, and the opening it gives underneath.
+## Standing up from the top (D330–D333, docs/01 §43): the move, and the opening it gives underneath.
 const STAND_UP := "stand_up"
 const STANDING_UP := "STANDING_UP"
 const UP_KICK := "up_kick"
@@ -791,6 +791,8 @@ func _apply_commands() -> void:
 			decisions[i].set_rule(views[i], int(command.data.slot), String(command.data.rule_id), float(command.data.drilled))
 			for n: Dictionary in decisions[i].take_notes():
 				_emit(n.type, i, n.data)
+		elif command.type == FightCommand.SET_GAMEPLAN:
+			decisions[command.fighter].set_gameplan(command.data)
 		elif command.type == FightCommand.THROW_TOWEL:
 			command_log.append(command)
 			_finish(1 - command.fighter, RESULT_TKO, STOPPED_BY_TOWEL)
@@ -822,6 +824,10 @@ func _reject_reason(command: FightCommand) -> String:
 				return "rules are set before a round"
 			return decisions[command.fighter].rules.check(views[command.fighter], int(command.data.get("slot", 0)),
 				String(command.data.get("rule_id", "")), float(command.data.get("drilled", -1.0)))
+		FightCommand.SET_GAMEPLAN:
+			if clock.tick_in_round != 0:
+				return "gameplans are set before a round"
+			return Gameplan.check(command.data)
 	return "unknown command"
 
 

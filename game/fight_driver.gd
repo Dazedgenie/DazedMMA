@@ -129,6 +129,12 @@ func set_rule(slot: int, rule_id: String, drilled: float) -> bool:
 	return sim.submit(FightCommand.set_rule(sim.now, player, slot, rule_id, drilled))
 
 
+## The player's corner sets his gameplan (D320; only before a round: tick 0 or between rounds).
+## {approach, target, where} → data/gameplans id, "" = his own game.
+func set_gameplan(parts: Dictionary) -> bool:
+	return sim.submit(FightCommand.set_gameplan(sim.now, player, parts))
+
+
 ## The player's corner throws in the towel (D31): a TKO loss on the next tick.
 func throw_towel() -> void:
 	sim.submit(FightCommand.throw_towel(sim.now, player))

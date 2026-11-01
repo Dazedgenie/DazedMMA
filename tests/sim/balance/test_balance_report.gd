@@ -342,6 +342,21 @@ func test_the_summary_says_which_part_of_each_fighters_ai_chose_his_moves_and_le
 	assert_string_contains(text, "AI parts   Kicker (red) defence 10.0% · counter 30.0% · lead 60.0% of 100 a fight · Boxer (blue) tied up 100.0% of 4 a fight (D254)")
 
 
+# --- Gameplans (D320) -----------------------------------------------------------------------
+
+func test_a_fighters_gameplan_is_reported_against_the_same_fights_without_one() -> void:
+	var rows: Array[Dictionary] = _coached(Corner.NONE, 10)
+	for n in 20:
+		rows.append(_row({ "seed": n + 1, "plan_red": "counter+legs",
+			"winner": "red" if n < 14 else "blue", "winner_id": "kicker" if n < 14 else "boxer" }))
+	var report: BalanceReport = _report(rows)
+	var c: Dictionary = _check(report, "Kicker on counter+legs against the Boxer")
+	assert_eq(c.status, BalanceReport.INFO)
+	assert_eq(c.value, "+20.0% (+2.0 to +38.0), 50.0% → 70.0%, 20 fights paired by seed")
+	assert_eq(report.uncoached().size(), 20, "plan fights are kept out of the engine's own targets")
+	assert_eq(report.pairs(), ["kicker:boxer", "kicker:boxer red plan counter+legs"] as Array[String])
+
+
 # --- Drilled rules (#17) --------------------------------------------------------------------
 
 func test_a_fighters_drilled_rules_are_reported_against_the_same_fights_without_them() -> void:

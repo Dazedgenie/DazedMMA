@@ -1,5 +1,5 @@
 extends GutTest
-## Standing up from the top (docs/01 §42, D330–D335): the move and how hard it is from each position,
+## Standing up from the top (docs/01 §43, D330–D335): the move and how hard it is from each position,
 ## the grips that hold him down, the man underneath left on his back a moment, the up-kick and the
 ## leg grab as he rises, the fighter AI standing up (strikers, and anyone in a dangerous guard), and
 ## *Get up!* doing it on top.

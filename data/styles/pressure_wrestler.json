@@ -9,6 +9,7 @@
 	],
 	"southpaw_chance": 0.15,
 	"variation": { "stats": 6, "style": 12, "tendencies": 0.2, "personality": 30, "height_cm": 4 },
+	"gameplan": { "approach": "pressure", "target": "", "where": "wrestle_heavy" },
 	"scouting": {
 		"summary": "Never stops coming. Walks you to the fence and chains shot after shot for fifteen minutes.",
 		"strengths": [

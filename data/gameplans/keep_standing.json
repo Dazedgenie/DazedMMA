@@ -1,0 +1,10 @@
+{
+	"schema": "gameplan@2",
+	"id": "keep_standing",
+	"name": "Keep it standing",
+	"part": "where",
+	"order": 1,
+	"summary": "Strike with him and stay off the mat.",
+	"leanings": { "base": -50 },
+	"weights": { "takedown": 0.3, "clinch_entry": 0.5, "guard_pull": 0.0 }
+}

@@ -107,6 +107,24 @@ func generate(style_id: String, fighter_seed: int, level: int, roster: FighterLi
 	return p
 
 
+## The plan his corner gives a fighter (D324): his style sheet's `gameplan` ({approach, target,
+## where}), the sheet being his `style_id` (a generated opponent) or the one built on his data file
+## (an authored fighter). Empty when he has none: he fights his own way.
+static func gameplan_of(profile: Dictionary, library: StyleLibrary = null) -> Dictionary:
+	var styles: StyleLibrary = library if library != null else shared()
+	var id: String = String(profile.get("style_id", ""))
+	if id == "" or not styles.has(id):
+		id = ""
+		for style_id: String in styles.ids():
+			if String(styles.get_style(style_id).get("fighter", "")) == String(profile.get("id", "")):
+				id = style_id
+				break
+	if id == "":
+		return {}
+	var plan: Variant = styles.get_style(id).get("gameplan", {})
+	return plan if plan is Dictionary else {}
+
+
 ## Every attribute id (data/enums/stats), sorted so generation rolls them in a fixed order.
 static func stat_ids() -> Array:
 	if _stat_ids.is_empty():

@@ -10,6 +10,7 @@
 	],
 	"southpaw_chance": 0.15,
 	"variation": { "stats": 6, "style": 12, "tendencies": 0.2, "personality": 30, "height_cm": 4 },
+	"gameplan": { "approach": "", "target": "head", "where": "keep_standing" },
 	"scouting": {
 		"summary": "A striker who stuffs takedowns and gets straight back up, so the fight stays standing.",
 		"strengths": [

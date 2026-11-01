@@ -9,6 +9,7 @@
 	],
 	"southpaw_chance": 0.15,
 	"variation": { "stats": 6, "style": 12, "tendencies": 0.2, "personality": 30, "height_cm": 4 },
+	"gameplan": { "approach": "pressure", "target": "head", "where": "" },
 	"scouting": {
 		"summary": "Comes forward swinging hooks and overhands, takes one to give one, and looks for the knockout.",
 		"strengths": [

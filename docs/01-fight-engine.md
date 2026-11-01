@@ -1256,7 +1256,7 @@ or keys 1–9 (Q = Catch the kick!; 0 still works too). Calls work while paused 
 The five presets in `data/gameplans/` (`09` gameplan@1) shift the style leanings for the whole fight and can scale move
 weights: **Pressure** Pace +40, Range +30; **Counter** Pace −40, Risk −20; **Range** Range −50; **Wrestle-heavy** Base +60,
 takedowns ×1.5; **Conserve** Pace −50, Risk −40. `Gameplan.load_id("pressure")`, added to a fighter's decision layer
-(`sim.decisions[i].add_source(...)`). Picking one in the corner comes with the fight screen (#19).
+(`sim.decisions[i].add_source(...)`). Since D320 they are parts of a plan the corner builds from three pickers, at half strength: §42.
 
 ### 22.5 What a call costs (D115)
 A call should pick the moment, not add work: the coach chooses *when* the fighter shoots, the fighter doesn't shoot twice as
@@ -2060,7 +2060,7 @@ tie-ups don't move the fight, so this changes nothing for them, and nothing that
   *Takedown!*, which is only standing and in the clinch (`data/calls/pass.json`). The AI corner doesn't call it yet.
 - *Get up!* (key 7) now works from under every position and calls the way out from there: up from full guard or half guard,
   back to guard from side control, the bridge from mount, turning out of the back.
-  On top it stands him up out of it (D335, §42), and in the crucifix it frees the arm.
+  On top it stands him up out of it (D335, §43), and in the crucifix it frees the arm.
 - *Ground and pound!* and *Survive!* work in every ground position.
 - *Go for the finish!* (D200, key 2, §25.7) sends the top fighter after a hold for 10 s, passing to get to one.
 
@@ -3790,13 +3790,92 @@ counting, what covering up opens, turning away and when it can't happen, the AI'
 lines), `tests/game/test_strike_sounds.gd` (every strike has a sound) and `tests/data/test_data_files.gd` (`through_cover`,
 `hands_down_ms`).
 
-## 42. Standing up from the top (D330–D335)
+---
+
+## 42. The pre-fight gameplan (D320–D324)
+
+Kyle (2026-11-01): "fight gameplan". Before this the engine had five plans (§22.4) that nothing in the game used: the setup,
+the career's fight night and the corner didn't offer them, and nobody had measured them. Now the corner builds a plan from three
+parts before the fight, can change it at every round break, and the opponent's corner gives him his style's plan.
+
+### 42.1 Three parts (D320; Kyle picked "Build a plan from three parts")
+Each part is one picker with *Own game* first; each option is a file in `data/gameplans/` (`09` gameplan@2):
+
+| Part | Options | What it does |
+|---|---|---|
+| **Approach** (how he fights) | Pressure (Pace +40, Range +30), Counter (Pace −40, Risk −20), Range (Range −35), Conserve (Pace −50, Risk −40) | Shifts his style leanings for the fight |
+| **Target** (where his strikes go) | Head (head ×1.6, body ×0.7, legs ×0.6), Body (body ×2, the rest ×0.75), Legs (legs ×2, the rest ×0.75) | Multiplies the weight of every strike that lands there, standing or on the ground |
+| **Where** (where he wants the fight) | Keep it standing (Base −50, takedowns ×0.3, clinch entries ×0.5, no guard pulls), Clinch work (Range +40, clinch entries ×2.5, collar ties and fence drives ×1.5), Take him down (Base +60, takedowns ×1.5; was *Wrestle-heavy*) | Leanings and move weights |
+
+The parts add up: the leanings add, the multipliers multiply (`Gameplan.compose`). A plan never picks a move itself: it only tilts the
+fighter's own AI (§16 A2). It goes in as a `set_gameplan` command (`FightCommand.SET_GAMEPLAN`) on a round's first tick, so a saved
+fight replays with it; a plan sent mid-round is refused (*"gameplans are set before a round"*). A new plan replaces the old one.
+
+### 42.2 How hard a plan pulls (D321, D322)
+- **Capped at ±70 (D321).** A plan never pushes a leaning past ±70 and never pulls back one that's already past it. Without the cap the
+  Range plan put the Kicker (Range −60) at −100, where he stops throwing anything but the jab: he went from 38% to 0% against the Boxer.
+- **Half strength (D322; Kyle picked "Half strength" over full and gentle).** A built plan's leanings count half and its multipliers
+  pull as their square root (×2 works as ×1.41). `Gameplan.STRENGTH` 0.5.
+
+### 42.3 Drifting off the plan (D323)
+When it goes badly he keeps less of the plan: rocked, under 25% of his stamina, head or body at least half gone, or taking at least
+twice what he lands (with 15 or more landed on him). Then he keeps `0.35 + 0.006 × Fight IQ + 0.002 × (trust − 50) − 0.003 × ego`
+of its pull (at least 0.2): Fight IQ 90 keeps 89%, Fight IQ 30 with ego 80 keeps 29%. The plan panel says *drifting off the plan (N%)*.
+Fresh and even, he follows all of it.
+
+### 42.4 The opponent's corner and scouting (D324)
+A style sheet (`09` style@1) can carry a `gameplan`: generated opponents and the authored fighter the sheet is built on fight to it
+(`StyleLibrary.gameplan_of`), in quick fights and the career. Scouting cards (the tale of the tape, fight offers on the hub) say
+*Expect his corner's plan: Pressure · Head · Keep it standing*. The plans fit how each style fights: the Pressure boxer Pressure ·
+Head · Keep it standing, the wrestlers Take him down, the Kicker and the Leg-kick specialist Legs, the Muay Thai fighter Body · Clinch
+work, and so on. The opponent's corner doesn't change its plan between rounds yet.
+
+### 42.5 On the screens
+- **Fight setup:** *Gameplan for your fighter* under the drilled rules, with a line a part saying what it tells him.
+- **Between rounds:** the bell's panel has the pickers under the rule slots, showing the plan as it stands.
+- **Career fight night card:** *GAMEPLAN: how he fights tonight*, filled in from the setup's plan (quick fights) and the camp's last
+  instruction (*Told to: Take him down* fills Where). *Sim the fight* uses it too.
+- **The plan panel** (top left of the fight) shows the plan instead of *own game*.
+
+### 42.6 Balance (2026-11-01, 40 fights a plan, paired by seed, the plan on the first-named fighter)
+Full strength first, then half (what's in the game):
+
+| Fighter vs opponent (own game) | Best part, full → half | Worst part, full → half |
+|---|---|---|
+| Kicker vs Boxer (38%) | Counter +38 → +30 | Pressure −33 → −25 |
+| Wrestler vs Kicker (68%) | Body +13 → Pressure, Range +8 | Keep it standing −43 → −20 |
+| BJJ vs Boxer (83%) | Legs +5 → Conserve +5 | Keep it standing −70 → −38 |
+| Leg-kick specialist vs Pressure wrestler (65%) | Head +18 → +10 | Take him down −53 → Range −45 (at the softened Range −35) |
+| Muay Thai vs Wrestler (60%) | none → Pressure, Head +5 | Range −45 → Body −13 |
+
+Wrong plans cost more than right ones help, because every fighter is already built around his own game. Each style's own plan
+(§42.4), against the same fights on his own game: Boxer vs Kicker +7.5, Boxer vs Karate +15, Karate vs Wrestler +5, Wrestler vs
+Counter-striker +5, Wrestler vs BJJ +2.5, BJJ vs Sambo −10 (all inside the noise at 40 fights except the Boxer vs Karate). The Leg-kick
+specialist's first pick (Legs · Keep it standing) cost him 15 against the Pressure wrestler, so his plan is Legs alone.
+
+To re-run: `godot --headless --script res://tools/balance.gd -- --fights=40 --pairs=kicker:boxer --gameplans=counter,legs,counter+legs --coach=red`
+(`--gameplans=style` gives each fighter his style sheet's plan). Plan fights are kept out of the engine's own targets and reported as
+*Kicker on counter+legs against the Boxer* lines (D320).
+
+### 42.7 To change it, and the tests
+- The parts: `data/gameplans/*.json` (`leanings`, `weights`, `targets`, `summary`, `order`; a new file shows up in its picker).
+- How hard: `Gameplan.STRENGTH` (0.5), `LEANING_CAP` (70).
+- Drifting: `Gameplan.STICK_*`, `PRESSURE_HURT` (0.5), `PRESSURE_STAMINA` (0.25), `LOSING_RATIO` (2), `LOSING_MIN` (15).
+- The opponents' plans: each style sheet's `gameplan`.
+- The camp's instruction list only offers parts with leanings (a target part pushes no style).
+
+Tested in `tests/sim/fight/test_gameplan.gd` (the parts, composing, targets, the cap, the command before a round and not during, a
+new plan replacing the old, refusals, replays, the Legs plan sending more strikes low, drifting off it), `tests/ui/test_gameplan_picker.gd`
+(the pickers, scouting's line, the camp filling it in), `tests/game/test_main_scene.gd` (the setup's plan in the fight, the opponent's,
+changing it at the break, the career's fight night plan), `tests/sim/balance/` (the harness's `--gameplans` and report lines) and
+`tests/data/test_data_files.gd` (gameplan@2, style sheets' plans).
+## 43. Standing up from the top (D330–D335)
 Kyle (2026-11-01): "needs a way to disengage and stand back up when on top in grappling". Until now only the man underneath
 could get back to his feet (*Get up*, §21.1): a striker who ended up on top, after a sweep, a scramble or following a knockdown
 down, was stuck grappling until the other man escaped, and nobody could get out of a dangerous guard. Kyle answered five
 questions on cards; each answer is a decision below.
 
-### 42.1 The move (D330, D331)
+### 43.1 The move (D330, D331)
 **Stand up** (`data/actions/stand_up.json`): everyone knows it (`basic`), on top of the full guard, half guard, side control,
 the mount, the back and the crucifix, back to standing. 0.2 · 0.4 · 0.4 · 0.3 s, 4 stamina. While he's getting up (wind-up to
 the end of the active phase) he carries `STANDING_UP`: weight coming off the man underneath, a foot planted.
@@ -3817,7 +3896,7 @@ His grips from underneath hold him down (D333): his head tied with the collar ti
 underhook in half guard −10%. The man on top's own crossface underhook +5%, the man underneath's hands low (tired or hurt) +10%.
 A stand-up that doesn't work leaves him where he was.
 
-### 42.2 After he's up (D332)
+### 43.2 After he's up (D332)
 Kyle picked *The other man is down a moment*: the man underneath is left on his back (`DOWN`) for 1 s (`leaves_down_ms`) as the
 other stands over him, a standing gap away. It isn't a knockdown (no count, no judges' points, not one of the three in a round),
 and he isn't hurt. In that second the man standing can:
@@ -3829,9 +3908,9 @@ and he isn't hurt. In that second the man standing can:
 - **let him up**: under unified rules nothing else reaches him. After the second he gets up (the feed says *gets back up off
   his back*, not that he beat a count) and the fight goes on standing.
 
-### 42.3 What the man underneath can do (D333)
+### 43.3 What the man underneath can do (D333)
 Kyle picked *That, plus an up-kick*:
-- **Hold him**: the grips in §42.1.
+- **Hold him**: the grips in §43.1.
 - **The up-kick** (`up_kick.json`, everyone's): flat on his back from the full or half guard, the lead heel driven up at the man
   standing up. Only on `STANDING_UP` (required), so only while he's getting up: 0 · 0.2 · 0.1 · 0.4 s, 5 stamina, 50% + 10% +
   (Kicking, Speed) − Striking defense, 8 damage to the head (× 2.5 on the opening, so the bottom's ×0.4 for strikes from
@@ -3846,7 +3925,7 @@ The fighter AI underneath takes one look a stand-up, once one of these would lan
 (`_punish_stand`): the up-kick on 35% × (0.5 + Kicking / 100) × (its odds / 50%)² (`UP_KICK_CHANCE`), a leg lock on 25% × how
 much he likes submissions × (its odds / 50%)² (`STAND_LEG_GRAB`).
 
-### 42.4 Who stands up on his own (D334)
+### 43.4 Who stands up on his own (D334)
 Kyle picked *Strikers, and anyone in danger*. On top, before working position, a chance a free tick of 1.0 (`STAND_RATE`) ×
 work rate × how much he wants out × (the stand-up's odds / 50%)², at most 1:
 - **He'd rather be on his feet**: 0.4 − Base / 100 (`STAND_FEET_FROM`; the Boxer and the Kicker 0.4, the Karate man 0.7, the
@@ -3860,20 +3939,20 @@ work rate × how much he wants out × (the stand-up's odds / 50%)², at most 1:
 Never while either man is rocked (he pounds a hurt man, and a hurt man on top holds on), nor while he's hunting a hold on *Go
 for the finish!* (D200). Standing up isn't one of the "better positions" he works for (§28.4).
 
-### 42.5 The call (D335)
+### 43.5 The call (D335)
 Kyle picked *Get up! does it on top too*: *Get up!* (key 7) on top stands him up out of any ground position, the same key that
 gets him up from underneath (`stand_up` is last in `data/calls/get_up.json`'s `actions`, and the call's `roles` now include
 `top`). It also frees the arm in the crucifix now (`escape_crucifix`). The AI corner still calls it only for the man underneath
 when the man on top is rocked (§22.7): it doesn't call it on top yet.
 
-### 42.6 On screen and in the harness
+### 43.6 On screen and in the harness
 The man on top comes off his knees and up (`game/fighter_figure.gd`), the up-kick drives the lead heel up from his back, with a
 sound of its own (`game/strike_sounds.gd`). The feed: *"Kicker STANDS UP out of it and leaves him on his back → Standing"*, and
 the reason the AI picked it (*"stands up out of the guard"*, *"gets out of a dangerous guard"*, *"lets him up: wants it on the
 feet"*). The harness's **Stand-ups** line gives each side's stand-ups and tries a fight, and the up-kicks and leg grabs the
 other man answered them with (CSV `stand_ups_*`, `stand_ups_tried_*`, `up_kicks_*`, `stand_leg_grabs_*`).
 
-### 42.7 Balance
+### 43.7 Balance
 Harness, no calls, pro rules, 150 fights a pairing from seed 1, main (#119) → now, matched seed by seed with
 `tools/balance_compare.gd` (the pairings with a submission guard after the last tuning pass below):
 
@@ -3905,7 +3984,7 @@ in the BJJ man's guard, had his leg grabbed on 1.1 of them and lost 8% more (78.
 plays differently (the Kicker ends up on top once and stands up; still the Wrestler on points), re-pinned; the other three are
 unchanged.
 
-### 42.8 To change it, and the tests
+### 43.8 To change it, and the tests
 - How hard: `ground.base_success` and `position_bonus` in `data/actions/stand_up.json`; the grips' bonuses in its
   `opportunities`; where it goes: the `stand_up` transition in each position file.
 - How long he's down after: `ground.leaves_down_ms`; whether the AI dives back on him: `STOOD_FOLLOW` in `sim/fight/fighter_ai.gd`.

@@ -54,6 +54,8 @@ var _sound: HSlider
 var _seed: LineEdit
 var _rules_box: VBoxContainer
 var _rules: RuleSlots
+## Your fighter's gameplan (D320): approach, target and where to fight.
+var gameplan: GameplanPicker
 var _start: Button
 var _camp: Button
 var _step: OptionButton
@@ -184,6 +186,8 @@ func _init(p_roster: FighterLibrary = null, p_actions: ActionLibrary = null) -> 
 	toggles.add_child(rules_title)
 	_rules_box = VBoxContainer.new()
 	left.add_child(_rules_box)
+	gameplan = GameplanPicker.new("Gameplan", true)
+	left.add_child(gameplan)
 	var help := RichTextLabel.new()
 	help.bbcode_enabled = true
 	help.fit_content = true
@@ -208,7 +212,8 @@ func _init(p_roster: FighterLibrary = null, p_actions: ActionLibrary = null) -> 
 
 
 ## What was picked: {label, red, blue, ruleset (data/rulesets id), normal_rate, easy, tell_cues, auto_slow,
-## flourishes, sound_volume (0–1, D190), rules ([[slot, rule id, drilled], …]), seed (-1 = random), tester}, and for a
+## flourishes, sound_volume (0–1, D190), rules ([[slot, rule id, drilled], …]), gameplan ({approach, target, where},
+## D320), seed (-1 = random), tester}, and for a
 ## playtest fight also {step, calls (the call bar's calls, [] = all), tip}.
 func settings() -> Dictionary:
 	var typed: String = _seed.text.strip_edges()
@@ -220,6 +225,7 @@ func settings() -> Dictionary:
 		"tell_cues": _tells.button_pressed, "auto_slow": _auto_slow.button_pressed, "flourishes": _flourish.button_pressed,
 		"sound_volume": _sound.value,
 		"rules": _rules.picked(),
+		"gameplan": gameplan.picked(),
 		"seed": int(typed) if typed.is_valid_int() else -1,
 		"tester": _tester.text.strip_edges(),
 	}
@@ -264,6 +270,7 @@ func pick_step(id: String) -> void:
 func show_settings(s: Dictionary) -> void:
 	pick_fighters(String(s.get("red", DEFAULT_RED)), String(s.get("blue", DEFAULT_BLUE)))
 	_rules.show_rules(s.get("rules", []))
+	gameplan.show_plan(s.get("gameplan", {}))
 	_tells.button_pressed = bool(s.get("tell_cues", true))
 	_ruleset.selected = maxi(0, RULESETS.map(func(r: Array) -> String: return r[1]).find(String(s.get("ruleset", "pro"))))
 	_tester.text = String(s.get("tester", ""))
@@ -326,7 +333,7 @@ func _refresh() -> void:
 		_kinds[corner].text = kind if kind.to_upper() != _names[corner].text else ""
 		var height: float = float(profile.get("frame", {}).get("height_cm", FIGURE_TALLEST_CM))
 		_figures[corner].custom_minimum_size = Vector2(FIGURE_H * 0.6, FIGURE_H * minf(1.0, height / FIGURE_TALLEST_CM))
-		_scouting[corner].text = _scouting_bbcode(sheet.get("scouting", {}))
+		_scouting[corner].text = _scouting_bbcode(sheet.get("scouting", {}), sheet.get("gameplan", {}))
 	_tape.show_fighters(profiles[0], profiles[1])
 	var keys: Array[String] = TaleOfTheTape.keys(profiles[0], profiles[1], _style_of.get(picked[1], {}).get("scouting", {}))
 	_keys.text = "\n".join(keys.map(func(k: String) -> String: return "• " + k)) if not keys.is_empty() else "[color=%s]An even match on paper.[/color]" % DIM
@@ -340,7 +347,7 @@ static func _fit_name(label: Label) -> void:
 	label.add_theme_font_size_override("font_size", font_size)
 
 
-static func _scouting_bbcode(scouting: Dictionary) -> String:
+static func _scouting_bbcode(scouting: Dictionary, plan: Variant = {}) -> String:
 	var lines: Array[String] = []
 	if String(scouting.get("summary", "")) != "":
 		lines.append(String(scouting.summary))
@@ -348,6 +355,8 @@ static func _scouting_bbcode(scouting: Dictionary) -> String:
 		lines.append("[color=#51cf66]+[/color] " + strength)
 	for weakness: String in scouting.get("weaknesses", []):
 		lines.append("[color=#ff6b6b]−[/color] " + weakness)
+	if plan is Dictionary and not plan.is_empty():
+		lines.append("[color=#ffc94d]%s[/color]" % GameplanPicker.expect_text(plan))
 	return "\n".join(lines)
 
 

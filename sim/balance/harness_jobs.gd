@@ -6,14 +6,15 @@ extends RefCounted
 ## whichever number of processes ran them.
 ##
 ## A job is one fight: { seed, red, blue, corners ([red, blue] Corner styles),
-## rules ([red, blue] lists of "rule_id@drilled"), group (a label for progress) }.
+## rules ([red, blue] lists of "rule_id@drilled"), plans ([red, blue] gameplans as "pressure+legs",
+## "" = own game, D320), group (a label for progress) }.
 
 
 ## Every fight a harness run plays, in report order: for each pair, every
 ## corner style (with the bot in each side in `coach_sides`), then the pair
 ## with its fighters' drilled rules if any are given (`drilled`: fighter id →
 ## ["rule_id@drilled", …]).
-static func plan(pairs: PackedStringArray, fights: int, first_seed: int, corners: PackedStringArray, coach_sides: Array[int], drilled: Dictionary) -> Array[Dictionary]:
+static func plan(pairs: PackedStringArray, fights: int, first_seed: int, corners: PackedStringArray, coach_sides: Array[int], drilled: Dictionary, gameplans: PackedStringArray = []) -> Array[Dictionary]:
 	var jobs: Array[Dictionary] = []
 	for pair in pairs:
 		var ids: PackedStringArray = pair.split(":")
@@ -29,6 +30,13 @@ static func plan(pairs: PackedStringArray, fights: int, first_seed: int, corners
 			for n in fights:
 				jobs.append({ "seed": first_seed + n, "red": ids[0], "blue": ids[1], "corners": [] as Array[String],
 					"rules": with_rules, "group": pair + ", drilled rules" })
+		for gameplan in gameplans:
+			for side in coach_sides:
+				var both: Array[String] = ["", ""]
+				both[side] = gameplan
+				for n in fights:
+					jobs.append({ "seed": first_seed + n, "red": ids[0], "blue": ids[1], "corners": [] as Array[String], "rules": [],
+						"plans": both, "group": "%s, %s in %s's corner" % [pair, gameplan, ["red", "blue"][side]] })
 	return jobs
 
 
@@ -37,7 +45,7 @@ static func plan(pairs: PackedStringArray, fights: int, first_seed: int, corners
 static func run(job: Dictionary, roster: FighterLibrary, actions: ActionLibrary, rules: Ruleset, blue_first: bool = false) -> Dictionary:
 	var corners: Array[String] = []
 	corners.assign(job.corners)
-	var sim: FightSim = FightSummary.setup(job.seed, roster, actions, job.red, job.blue, rules, 300, corners, job.rules)
+	var sim: FightSim = FightSummary.setup(job.seed, roster, actions, job.red, job.blue, rules, 300, corners, job.rules, job.get("plans", []))
 	if blue_first:
 		sim.first_step = 1
 	return FightSummary.play(sim)
