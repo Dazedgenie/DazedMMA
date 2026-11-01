@@ -28,6 +28,7 @@
 - Clinch, takedowns and the ground (how a shot resolves, sprawls, knees into shots, getting up, judges' grappling points, the AI tied up): `docs/01-fight-engine.md` §21 (D108).
 - How live coaching calls work (voice, delay, compliance, attempts/focus/reads) and where their numbers live: `docs/01-fight-engine.md` §22 (D111, D112).
 - Coaching bots and the AI corner (who calls what, the harness's `--corners`/`--coach`, the D12 coaching checks), what a call costs, and strikers' answers to grappling: `docs/01-fight-engine.md` §22.5–22.9 and §21.8 (D113–D115).
+- The corner that uses every call (each call's moment, the ones left out and why, `--corners=ideal:pass+feint` and `mash:<call>`, the *won the exchange* count per call and the Calls line, the numbers to tune them): `docs/01-fight-engine.md` §22.10 (D257).
 - Health, the referee's stoppages and ground and pound (the health bar, what stops a fight, ground punches, elbows and tie-ups, the "Ground and pound!" call, the numbers to tune finishes): `docs/01-fight-engine.md` §24 (D120, D121).
 - More ground and pound (the hammerfist, body punch and posture-up bomb, covering up underneath and what it opens, turning away from mount to give up the back, the GnP harness line, the numbers to tune them): `docs/01-fight-engine.md` §41 (D270).
 - Submissions (the guillotine, triangle and armbar, how a hold locks in, the struggle's danger meter, Finish it! / Defend the sub!, the AI's openings, the numbers to tune them): `docs/01-fight-engine.md` §25 (D126).
