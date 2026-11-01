@@ -47,6 +47,8 @@ const OLDEST: int = 40
 const AGE_PENALTY: float = 1.0
 const PICK_WITHIN: float = 2.5
 const NEWCOMER_PAST: float = 4.0
+## The share of his pro offers on his home promotion's cards (D354, pro_cards).
+const HOME_OFFER_SHARE: float = 0.75
 ## Local amateur cards (docs/03 §11.4, D314): where the names and venues come from (docs/09 cards@1).
 const CARDS_PATH := "res://data/cards/local.json"
 ## A card's number in its series: 1 + up to SERIES_START (seeded by the career and the series) + one every `every_weeks`.
@@ -113,23 +115,73 @@ func make_offer(c: Career, style_id: String, difficulty: String, rng: RandomNumb
 		+ float(rng.randi_range(-LEVEL_SPREAD, LEVEL_SPREAD))
 	var division: String = c.division_now()
 	var w: World = c.world()
-	var id: String = pick_man(c, w, division, target, style_id, taken, rng)
-	if id == "":
+	var cards: Dictionary = pro_cards(c, w, rng) if c.pro else {}
+	var regional_ids: Array = Promotions.regionals(w).map(func(x: Dictionary) -> String: return String(x.id)) if c.pro else []
+	var id: String = pick_man(c, w, division, target, style_id, taken, rng, regional_ids)
+	var fresh: bool = id == ""
+	if fresh:
 		var used: Array = taken.map(func(o: Dictionary) -> String: return String(o.get("style", "")))
 		var style_ids: Array = styles.ids().filter(func(x: Variant) -> bool: return not String(x) in used)
 		style_ids.sort()
 		var new_style: String = style_id if style_id != "" else String(style_ids[rng.randi_range(0, style_ids.size() - 1)])
 		id = w.add_newcomer(rng, division, c.pro, new_style, target, newcomer_age(c, rng), c.week)
+	var card_ids: Array = cards.keys()
+	card_ids.sort()
+	var on: String = String(card_ids[rng.randi_range(0, card_ids.size() - 1)]) if not card_ids.is_empty() else ""
+	if c.pro and on != "" and fresh:
+		w.man(id).promotion = on  # A newcomer signs where the card is.
 	var m: Dictionary = w.man(id)
 	var p: Dictionary = w.profile(id, c.week)
 	var camp: int = rng.randi_range(CAMP_WEEKS_MIN + OPEN_WEEKS - 1, CAMP_WEEKS_MAX)
+	var week: int = c.week + camp - 1
+	var card: Dictionary = {}
+	var promotion: Dictionary = {}
+	if c.pro:
+		promotion = Promotions.by_id(w, on) if on != "" else Promotions.of(w, m)
+		var weeks: Array = cards.get(on, [])
+		if not promotion.is_empty():
+			if weeks.is_empty():
+				weeks = Promotions.card_weeks(promotion, c.week + CAMP_WEEKS_MIN + OPEN_WEEKS - 2, c.week + 52).slice(0, 1)
+			week = int(weeks[rng.randi_range(0, weeks.size() - 1)])
+			card = Promotions.card(w, promotion, week)
+			card.kind = String(promotion.kind)
+	else:
+		card = local_card(c, rng, country_id)
 	return {
 		"id": "offer_w%d_%d" % [c.week, index], "profile": p, "about": World.about(m),
 		"style": String(m.style), "difficulty": difficulty, "division": division,
-		"week": c.week + camp - 1, "expires": c.week + OPEN_WEEKS - 1,
-		"ruleset": rules_for(c), "pro": c.pro, "purse": purse_for(c),
-		"card": {} if c.pro else local_card(c, rng, country_id),
+		"week": week, "expires": c.week + OPEN_WEEKS - 1,
+		"ruleset": rules_for(c), "pro": c.pro, "purse": purse_for(c, promotion),
+		"card": card,
 	}
+
+
+## The pro cards an offer can be on (D354), as { promotion id: [weeks] }. Until he's called up (D357) his offers come
+## from the regional promotions, fight by fight, mostly his home one (Kyle, 2026-11-01: "Mostly home, sometimes
+## others"): HOME_OFFER_SHARE of offers are on his hometown promotion's next card from CAMP_WEEKS_MIN weeks away; the
+## rest on another regional promotion's card CAMP_WEEKS_MIN to CAMP_WEEKS_MAX weeks away (the soonest after that when
+## none has one).
+static func pro_cards(c: Career, w: World, rng: RandomNumberGenerator) -> Dictionary:
+	var lo: int = c.week + CAMP_WEEKS_MIN + OPEN_WEEKS - 2
+	var hi: int = c.week + CAMP_WEEKS_MAX - 1
+	var home: Dictionary = Promotions.home(w)
+	var others: Array = Promotions.regionals(w).filter(func(p: Dictionary) -> bool: return String(p.id) != String(home.get("id", "")))
+	if not home.is_empty() and (others.is_empty() or rng.randf() < HOME_OFFER_SHARE):
+		var weeks: Array[int] = Promotions.card_weeks(home, lo, maxi(hi, lo + int(home.every) - 1))
+		return { String(home.id): weeks.slice(0, 1) } if not weeks.is_empty() else {}
+	var out: Dictionary = {}
+	var soonest: Dictionary = {}
+	var soonest_week: int = 1 << 30
+	for p: Dictionary in others:
+		var weeks: Array[int] = Promotions.card_weeks(p, lo, hi)
+		if not weeks.is_empty():
+			out[String(p.id)] = weeks
+		else:
+			var next: Array[int] = Promotions.card_weeks(p, lo, lo + 52)
+			if not next.is_empty() and next[0] < soonest_week:
+				soonest_week = next[0]
+				soonest = { String(p.id): [next[0]] }
+	return out if not out.is_empty() else soonest
 
 
 ## The world's man for an offer (D352): of his division this week, an amateur or a pro as he is, 16 or 17 while he's
@@ -137,7 +189,8 @@ func make_offer(c: Career, style_id: String, difficulty: String, rng: RandomNumb
 ## (or of a style none of `taken` has). Each is scored by how far his average stat is off `target`, plus AGE_PENALTY a
 ## year he's outside AGE_YOUNGER–AGE_OLDER of the career's fighter; one of those within PICK_WITHIN, or the closest
 ## within NEWCOMER_PAST. "" when nobody is that close.
-func pick_man(c: Career, w: World, division: String, target: float, style_id: String, taken: Array, rng: RandomNumberGenerator) -> String:
+func pick_man(c: Career, w: World, division: String, target: float, style_id: String, taken: Array, rng: RandomNumberGenerator,
+		promotions: Array = []) -> String:
 	var taken_ids: Array = taken.map(func(o: Dictionary) -> String: return String(o.get("profile", {}).get("id", "")))
 	for o: Dictionary in taken:
 		if o.get("tournament") is Dictionary:
@@ -152,6 +205,8 @@ func pick_man(c: Career, w: World, division: String, target: float, style_id: St
 	for m: Dictionary in w.in_division(division, c.week):
 		if bool(m.pro) != c.pro or String(m.id) in taken_ids or not World.can_rematch(m, c.week):
 			continue
+		if not promotions.is_empty() and not String(m.get("promotion", "")) in promotions:
+			continue  # A pro offer is on one of these promotions' cards (D354).
 		if (style_id != "" and String(m.style) != style_id) or (style_id == "" and String(m.style) in taken_styles):
 			continue
 		var age: float = World.age_of(m, c.week)
@@ -287,12 +342,15 @@ static func rules_for(c: Career) -> String:
 	return TEEN_RULES if c.age() < ADULT_AGE else ADULT_RULES
 
 
-## What a fight pays him: {} as an amateur, else { show, win } in dollars.
-static func purse_for(c: Career) -> Dictionary:
+## What a fight pays him: {} as an amateur, else { show, win } in dollars: the promotion's pay (D354; PURSE_SHOW and
+## PURSE_WIN when there's none), each PURSE_STEP more for every pro win.
+static func purse_for(c: Career, promotion: Dictionary = {}) -> Dictionary:
 	if not c.pro:
 		return {}
 	var wins: int = int(c.record(true).win)
-	return { "show": PURSE_SHOW + PURSE_STEP * wins, "win": PURSE_WIN + PURSE_STEP * wins }
+	var show: int = int(promotion.get("show", PURSE_SHOW))
+	var win: int = int(promotion.get("win", PURSE_WIN))
+	return { "show": show + PURSE_STEP * wins, "win": win + PURSE_STEP * wins }
 
 
 ## Whether he can turn pro now: old enough, enough amateur fights, not pro already and not booked.

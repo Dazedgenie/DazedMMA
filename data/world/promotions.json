@@ -1,0 +1,59 @@
+{
+	"schema": "promotions@1",
+	"id": "promotions",
+	"about": "What a career's promotions are made from (D354, docs/03 §12.4): 3 or 4 regional pro promotions in his country and 2 international organisations, each with a made-up name, a home city, a venue, a pay scale and a card every few weeks.",
+	"regional": {
+		"count": [3, 4],
+		"names": [
+			"{region} Cage Championship",
+			"{region} Fighting Championship",
+			"{city} Fight League",
+			"{city} Combat Series",
+			"{region} MMA League",
+			"{city} Cage Series",
+			"Battle in {city}",
+			"{region} Combat Federation"
+		],
+		"regions": ["Elite", "Iron", "Steel", "Lionheart", "Ironside", "Thunder", "Royal", "Union"],
+		"venues": ["Arena", "Exhibition Centre", "Events Centre", "Sports Arena", "Convention Centre", "Ice Arena", "Indoor Arena"],
+		"capacity": [800, 4000],
+		"every_weeks": [6, 8],
+		"show": [750, 1500],
+		"win": [750, 1500],
+		"home_city_share": 0.7
+	},
+	"organisations": [
+		{
+			"rank": 0,
+			"kind": "World organisation",
+			"capacity": [12000, 20000],
+			"every_weeks": 2,
+			"show": 12000,
+			"win": 12000
+		},
+		{
+			"rank": 1,
+			"kind": "International organisation",
+			"capacity": [4000, 9000],
+			"every_weeks": 4,
+			"show": 4000,
+			"win": 4000
+		}
+	],
+	"first": ["Apex", "Summit", "Crown", "Meridian", "Vanguard", "Pinnacle", "Sovereign", "Atlas", "Frontier", "Paramount", "Monarch", "Keystone", "Ascent", "Granite"],
+	"second": ["Combat League", "Fighting Championship", "Fight Series", "Cage Federation", "Fighting Alliance", "MMA Championship"],
+	"organisation_venues": ["Arena", "Dome", "Garden", "Center", "Pavilion", "Coliseum"],
+	"real": [
+		"Ultimate Fighting Championship", "UFC", "Bellator", "Bellator MMA", "Professional Fighters League", "PFL", "ONE Championship",
+		"Cage Warriors", "Rizin", "Rizin Fighting Federation", "KSW", "Konfrontacja Sztuk Walki", "Legacy Fighting Alliance", "LFA",
+		"Invicta Fighting Championships", "Brave Combat Federation", "BRAVE CF", "Absolute Championship Akhmat", "ACA", "M-1 Global",
+		"Pancrase", "Shooto", "Strikeforce", "Pride Fighting Championships", "World Extreme Cagefighting", "WEC", "DREAM", "Glory",
+		"Titan FC", "Titan Fighting Championship", "Cage Fury Fighting Championships", "CFFC", "Fury Fighting Championship",
+		"Ares Fighting Championship", "Oktagon MMA", "UAE Warriors", "Eagle Fighting Championship", "Hexagone MMA", "Cage Titans",
+		"King of the Cage", "Resurrection Fighting Alliance", "Xtreme Fighting Championships", "Jungle Fight", "Road FC", "Deep",
+		"Bare Knuckle Fighting Championship", "World Series of Fighting", "Combate Global", "Golden Boy MMA", "Fight Nation Championship",
+		"Lion Fight", "Bushido", "Shamrock FC", "Fusion Fighting Championship", "Global Fighting Championship", "Superior Challenge",
+		"Brave", "Apex", "UFC Apex", "Summit Fighting Championship", "Premier Fighting League", "Pinnacle Fighting Championship",
+		"Vanguard Fighting Championship", "Atlas Fights", "Frontier Fighting Championship", "Paramount Fighting Championship"
+	]
+}

@@ -144,6 +144,7 @@ func _ready() -> void:
 	hub.camp_pressed.connect(open_career_camp)
 	hub.notebook_pressed.connect(open_notebook)
 	hub.division_pressed.connect(open_division)
+	hub.promotions_pressed.connect(open_promotions)
 	ui.add_child(hub)
 	result = FightResultCard.new()
 	result.visible = false
@@ -321,6 +322,13 @@ func open_division() -> void:
 	if career != null:
 		tips.show_page("HIS DIVISION", CareerHub.division_title(career), CareerHub.division_text(career), DIVISION_WIDTH, DIVISION_HEIGHT)
 		save_career()  # A career saved before D352 has just made its world.
+
+
+## The world's promotions (D354): each one's pay, next cards and last results in his division, to read.
+func open_promotions() -> void:
+	if career != null:
+		tips.show_page("PROMOTIONS", "The promotions", CareerHub.promotions_text(career), DIVISION_WIDTH, DIVISION_HEIGHT)
+		save_career()  # A career saved before D354 has just made its promotions.
 
 
 ## Run this week on the hub: a week between fights, then an autosave (docs/03 §10.1).

@@ -168,11 +168,14 @@ func test_he_can_turn_pro_at_18_after_four_amateur_fights_and_gets_paid() -> voi
 	assert_false(c.offers.is_empty(), "pro offers the week after")
 	var o: Dictionary = c.offers[0]
 	assert_eq(String(o.ruleset), Matchmaker.PRO_RULES)
-	assert_true((o.card as Dictionary).is_empty(), "local cards are for amateurs (D314)")
+	var promotion: Dictionary = Promotions.by_id(c.world(), String(o.card.get("promotion", "")))
+	assert_eq(int(promotion.get("rank", -1)), Promotions.REGIONAL, "a pro offer is on a regional promotion's card (D354)")
+	assert_eq(o.purse, Promotions.purse(promotion), "at its pay")
 	var money: int = c.money
 	c.accept(String(o.id))
-	assert_eq(c.finish_fight({ "result": "win", "method": "KO", "round": 1 }), Matchmaker.PURSE_SHOW + Matchmaker.PURSE_WIN, "show and win")
-	assert_eq(c.money, money + Matchmaker.PURSE_SHOW + Matchmaker.PURSE_WIN)
+	var pay: int = int(o.purse.show) + int(o.purse.win)
+	assert_eq(c.finish_fight({ "result": "win", "method": "KO", "round": 1 }), pay, "show and win")
+	assert_eq(c.money, money + pay)
 	assert_eq(c.record_text(true), "1-0-0")
 	assert_eq(int(Matchmaker.purse_for(c).show), Matchmaker.PURSE_SHOW + Matchmaker.PURSE_STEP, "a win raises the purse")
 
