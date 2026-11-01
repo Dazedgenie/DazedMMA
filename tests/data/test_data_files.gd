@@ -247,6 +247,8 @@ func test_values_come_from_the_allowed_lists() -> void:
 			elif (block.has("leg_lock") or block.has("step")) and (category != "submission" or not block.get("leg_lock", false) is bool \
 					or not block.get("step", 20.0) is float or block.get("step", 20.0) <= 0.0 or block.get("step", 20.0) > 100.0):
 				problems.append("action '%s': leg_lock (true or false) and step (danger a beat, above 0 up to 100) are a submission's (D132)" % id)
+			elif (block.has("position_bonus") or block.has("leaves_down_ms")) and not _stand_up_ok(category, block, action.get("positions", [])):
+				problems.append("action '%s': position_bonus (a bonus for each of the move's positions it names) and leaves_down_ms (ms the man underneath stays down, a multiple of %d, above 0) are a ground move's (D331, D332)" % [id, FightClock.TICK_MS])
 		if category == "defense" and action.get("defense") is Dictionary and not action.defense.has("head_share"):
 			var against: Array = action.defense.get("against_categories", []) + action.defense.get("against_strikes", [])
 			if against.is_empty():
@@ -284,6 +286,21 @@ func test_values_come_from_the_allowed_lists() -> void:
 				if not n is float or n <= 0.0 or fmod(n, 1.0) != 0.0:
 					problems.append("ruleset '%s': each of round_lengths is a whole number of seconds (D141)" % id)
 	_report(problems)
+
+
+## A ground move's position_bonus and leaves_down_ms (D331, D332): bonuses for its own positions,
+## and a whole number of ticks down.
+static func _stand_up_ok(category: String, block: Dictionary, positions: Array) -> bool:
+	if category != "ground":
+		return false
+	var bonuses: Variant = block.get("position_bonus", {})
+	if not bonuses is Dictionary:
+		return false
+	for where: Variant in bonuses:
+		if not positions.has(where) or not bonuses[where] is float:
+			return false
+	var down: Variant = block.get("leaves_down_ms", float(FightClock.TICK_MS))
+	return down is float and down > 0.0 and fmod(down, FightClock.TICK_MS) == 0.0
 
 
 func test_references_point_to_things_that_exist() -> void:

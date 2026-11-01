@@ -143,6 +143,10 @@ const STOP_BIAS_HEALTH: float = 0.5
 const GROUND_COVER := "ground_cover"
 const TURN_AWAY := "turn_away"
 const TURN_AWAY_BASE: float = 0.12
+## Standing up from the top (D330–D333, docs/01 §43): the move, and the opening it gives underneath.
+const STAND_UP := "stand_up"
+const STANDING_UP := "STANDING_UP"
+const UP_KICK := "up_kick"
 
 ## Tied up (clinch or ground), the fighters' centres are this close, on the spot
 ## where the one being taken down or tied up stood.
@@ -870,7 +874,8 @@ func _advance_fighter(i: int) -> void:
 	if f.is_down():
 		f.down_ticks -= 1
 		if f.down_ticks == 0:
-			_emit(FightEvent.GOT_UP, i)
+			_emit(FightEvent.GOT_UP, i, { "left_down": true } if f.left_down else {})
+			f.left_down = false
 		return
 	if f.liver_ticks > 0:
 		f.liver_ticks -= 1
@@ -1298,6 +1303,7 @@ func apply_transition(i: int, action_id: String, result: String = PositionLibrar
 		f.tied_up_ticks = 0
 		if not situation.is_standing():
 			f.down_ticks = 0  # Followed down after a knockdown (D142): on the ground now, still rocked.
+			f.left_down = false
 		f.unanswered = 0
 	_place_bodies(i)
 	var changed := { "action_id": action_id, "position": situation.position, "phase": situation.phase, "roles": roles.duplicate() }
@@ -1306,6 +1312,12 @@ func apply_transition(i: int, action_id: String, result: String = PositionLibrar
 	_emit(FightEvent.POSITION_CHANGED, i, changed)
 	if action_id == TAKE_CRUCIFIX and situation.position == CRUCIFIX:
 		fighters[i].crucifixes_won += 1
+	if actions.has(action_id) and actions.get_action(action_id).category == "ground" and situation.is_standing() \
+			and actions.get_action(action_id).ground.has("leaves_down_ms") and was_top[i]:
+		# Stood up out of it (D330, D332): the man underneath is still on his back a moment.
+		fighters[i].stand_ups += 1
+		fighters[1 - i].down_ticks = int(actions.get_action(action_id).ground.leaves_down_ms) / FightClock.TICK_MS
+		fighters[1 - i].left_down = true
 	var gained: float = float(positions.get_position(t.to).control_score.get(PositionLibrary.TOP, 0.0)) - control_before
 	if roles[i] == PositionLibrary.TOP and was_top[i]:
 		if gained > 0.0:
@@ -1421,6 +1433,8 @@ func _start_action(i: int, id: String, decision: Decision = null) -> void:
 		f.subs_tried += 1
 		if ActionLibrary.is_leg_lock(action):
 			f.leg_locks_tried += 1
+			if fighters[1 - i].action_id == STAND_UP:
+				f.stand_leg_grabs += 1  # Grabbing the leg as he stands up (D333).
 	elif id == COLLAR_TIE:
 		f.collar_ties_tried += 1
 	elif id == FENCE_DRIVE:
@@ -1435,6 +1449,8 @@ func _start_action(i: int, id: String, decision: Decision = null) -> void:
 		f.strips_tried += 1
 	elif id == GROUND_COVER:
 		f.ground_covers += 1
+	elif id == STAND_UP:
+		f.stand_ups_tried += 1
 	elif id == TIE_UP:
 		f.ground_ties_tried += 1
 	elif id == WRIST_CONTROL:
@@ -1692,6 +1708,10 @@ func odds_breakdown(i: int, id: String, ahead: int = 0) -> OddsBreakdown:
 			b.missing = opp.opponent_flag
 	if action.category == "ground" and b.missing == "" and action.ground.has("grip"):
 		b.missing = _ground_grip_missing(i, String(action.ground.grip))
+	if action.category == "ground" and action.ground.has("position_bonus"):
+		var from_here: float = float(action.ground.position_bonus.get(situation.position, 0.0))
+		if from_here != 0.0:
+			b.add_bonus("from " + String(positions.get_position(situation.position).name).to_lower(), from_here)  # Stepping off the mount is easier than out of the guard (D331).
 	if action.get("clinch", {}).has("grip") or action.get("ground", {}).has("grip"):
 		var hands: float = decisions[i].calls.grip_bonus() if i < decisions.size() and decisions[i] != null else 0.0
 		if hands > 0.0:
@@ -1902,6 +1922,8 @@ func _land_strike(i: int, action: Dictionary) -> void:
 	if push > 0.0:
 		_push(1 - i, push)
 	attacker.strikes_landed += 1
+	if action.id == UP_KICK:
+		attacker.up_kicks_landed += 1  # Kicked up into him as he stood (D333).
 	if defender.bit_ticks > 0:
 		attacker.off_feint_landed += 1
 	if attacker.combo_step > 0 and attacker.combo_id != "":
@@ -2477,6 +2499,7 @@ func _liver_fold(k: int) -> void:
 	d.unanswered = 0
 	d.clear_action()
 	d.down_ticks = LIVER_DOWN_TICKS
+	d.left_down = false
 	d.winded_ticks = LIVER_WINDED_TICKS  # Counted from when he's back up.
 	_round_points[by] += Judging.KNOCKDOWN_POINTS
 	_round_knockdowns[by] += 1
@@ -2508,6 +2531,7 @@ func _leg_impact(i: int, leg: int, dealt: int) -> void:
 		d.clear_action()
 		d.grip = null
 		d.down_ticks = LEG_DOWN_TICKS
+		d.left_down = false
 		d.limping = leg
 		_round_points[i] += Judging.KNOCKDOWN_POINTS
 		_round_knockdowns[i] += 1
@@ -2539,6 +2563,7 @@ func _knockdown(i: int, shock: float, flash: bool = false) -> void:
 		d.liver_ticks = 0  # Dropped while the liver shot was coming: it's the same fall.
 		d.winded_ticks = LIVER_WINDED_TICKS
 	d.down_ticks = DOWN_TICKS
+	d.left_down = false
 	d.rocked_ticks = rocked_duration(d)
 	_round_points[i] += Judging.KNOCKDOWN_POINTS
 	_round_knockdowns[i] += 1
@@ -2594,6 +2619,7 @@ func _next_round() -> void:
 		f.recover_between_rounds()
 		f.rocked_ticks = 0
 		f.down_ticks = 0
+		f.left_down = false
 		f.liver_ticks = 0
 		f.winded_ticks = 0
 		f.stagger_ticks = 0

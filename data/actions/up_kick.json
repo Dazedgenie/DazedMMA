@@ -1,0 +1,19 @@
+{
+	"schema": "action@2",
+	"id": "up_kick",
+	"name": "Up-kick",
+	"category": "strike",
+	"basic": true,
+	"positions": ["full_guard", "half_guard"],
+	"roles": ["bottom"],
+	"ranges": ["clinch"],
+	"phases_ms": { "telegraph": 0, "windup": 200, "active": 100, "recovery": 400 },
+	"stamina_cost": 5,
+	"flags_self": [],
+	"strike": { "target": "head", "base_damage": 8 },
+	"stats": { "offense": ["kicking", "speed"], "defense": ["striking_defense"] },
+	"opportunities": [
+		{ "opponent_flag": "STANDING_UP", "success_bonus": 0.10, "required": true, "ai_takes": true, "damage_multiplier": 2.5, "stops": true }
+	],
+	"requires_technique": null
+}

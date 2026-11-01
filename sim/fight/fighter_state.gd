@@ -92,6 +92,8 @@ var limping: int = -1
 ## Ticks left rocked, and ticks left on the canvas after a knockdown.
 var rocked_ticks: int = 0
 var down_ticks: int = 0
+## Down because the man on top stood up out of it (D332), not knocked down: no count to beat.
+var left_down: bool = false
 ## A liver shot (D143): ticks until it takes him (he freezes, then folds), and ticks left
 ## winded after he's back up, guarding the body with his hands low.
 var liver_ticks: int = 0
@@ -150,6 +152,12 @@ var escapes: int = 0
 ## from the punches in mount and gave up his back.
 var ground_covers: int = 0
 var turned_away: int = 0
+## Standing up from the top (D330): times he went for it and got up; underneath, up-kicks landed on a
+## man standing up and leg locks gone for as he did (D333).
+var stand_ups_tried: int = 0
+var stand_ups: int = 0
+var up_kicks_landed: int = 0
+var stand_leg_grabs: int = 0
 ## Ground grips (D263): tie-ups (the collar tie from underneath), wrists taken, posturing up out
 ## of them, and the half-guard underhook (dug from underneath, the crossface on top), tried and won.
 var ground_ties_tried: int = 0

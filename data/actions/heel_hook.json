@@ -12,7 +12,8 @@
 	"submission": { "base_success": 0.1, "partial_within": 0.15, "start_danger": 35, "step": 30, "escape_to": "scramble", "leg_lock": true, "ai_without_opening": ["scramble"] },
 	"stats": { "offense": ["submissions", "scrambles"], "defense": ["submission_defense", "scrambles"] },
 	"opportunities": [
-		{ "opponent_flag": "POSTURED_UP", "success_bonus": 0.15 }
+		{ "opponent_flag": "POSTURED_UP", "success_bonus": 0.15 },
+		{ "opponent_flag": "STANDING_UP", "success_bonus": 0.15 }
 	],
 	"requires_technique": null
 }

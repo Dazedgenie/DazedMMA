@@ -8,6 +8,7 @@
 	"control_score": { "top": 1.5, "bottom": 0.0 },
 	"strike_damage_multiplier": { "top": 1.0, "bottom": 0.4 },
 	"transitions": [
+		{ "action": "stand_up", "from_role": "top", "to": "standing", "roles": { "actor": "neutral", "opponent": "neutral" } },
 		{ "action": "take_mount", "from_role": "top", "to": "mount", "roles": { "actor": "top", "opponent": "bottom" } },
 		{ "action": "take_back", "from_role": "top", "to": "back_control", "roles": { "actor": "top", "opponent": "bottom" } },
 		{ "action": "take_crucifix", "from_role": "top", "to": "crucifix", "roles": { "actor": "top", "opponent": "bottom" } },
