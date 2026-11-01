@@ -104,3 +104,23 @@ func test_the_fence_rattles_the_same_every_time_and_muting_silences_it() -> void
 	sounds.muted = true
 	sounds.play_rattle(0.8)
 	assert_signal_emitted_with_parameters(sounds, "rattled", [0.8, false])
+
+
+func test_a_takedown_thuds_the_same_every_time_low_and_muting_silences_it() -> void:
+	var once: PackedFloat32Array = StrikeSounds.render_thud(1)
+	assert_eq(once, StrikeSounds.render_thud(1), "the same version sounds the same")
+	assert_ne(once, StrikeSounds.render_thud(2), "versions differ")
+	assert_eq(once.size(), int(StrikeSounds.RATE * StrikeSounds.THUD_SECONDS))
+	var crossings: int = 0  # A low thump: few times through zero in its first tenth of a second.
+	for n in range(1, int(StrikeSounds.RATE * 0.1)):
+		if signf(once[n]) != signf(once[n - 1]):
+			crossings += 1
+	assert_lt(crossings, 120, "low, not a snap")
+	var sounds := StrikeSounds.new()
+	add_child_autofree(sounds)
+	watch_signals(sounds)
+	sounds.play_thud(1.0)
+	assert_signal_emitted_with_parameters(sounds, "thudded", [1.0, true])
+	sounds.muted = true
+	sounds.play_thud(0.35)
+	assert_signal_emitted_with_parameters(sounds, "thudded", [0.35, false])

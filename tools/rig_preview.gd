@@ -7,7 +7,8 @@ extends SceneTree
 ## --stills saves one frame per pose (rig-<name>.png) instead of the clips; --angle turns the camera round the
 ## pair (degrees). --clinch saves the clinch poses built from grips (D286, clinch-<name>.png). --body puts the
 ## skinned Tripo body on the rigs (D284; --body=<file.glb> another Mixamo-rigged
-## body). Nothing in the fight or the fight screen changes.
+## body). --takedowns saves the clinch takedowns' keys from the clinch to the landing (D288, takedown-<move>-<n>.png,
+## n 0 the clinch) and the scramble and sprawl. Nothing in the fight or the fight screen changes.
 
 const FPS: int = 24
 const BLEND_FRAMES: int = 24
@@ -25,6 +26,8 @@ var _out := "res://build/rig"
 var _stills: bool = false
 ## --clinch: stills of the clinch poses built from grips (D286, ClinchPair.examples) instead of RigPairs.
 var _clinch: bool = false
+## --takedowns: stills along each clinch takedown's path (D288, TakedownPair).
+var _takedowns: bool = false
 var _angle: float = 0.0
 var _main: Node3D
 var _frame: int = 0
@@ -44,6 +47,8 @@ func _initialize() -> void:
 			_stills = true
 		elif arg == "--clinch":
 			_clinch = true
+		elif arg == "--takedowns":
+			_takedowns = true
 		elif arg == "--body":
 			_body_path = SkinnedBody.TRIPO_BODY
 		elif arg.begins_with("--body="):
@@ -86,7 +91,30 @@ func _capture() -> void:
 			rig.fit(body.measure())
 			body.set_colour(colour)
 			_bodies.append(body)
-	if _clinch:
+	if _takedowns:
+		var start: Array = [ClinchPair.build([0, 0], ["l", "r"], -1, -1).pair, _pair_frame]
+		for move: String in TakedownPair.MOVES:
+			var path: Array = TakedownPair.path(move, start, _pair_frame.basis)
+			var extra: Array = [["scramble", TakedownPair.to_scramble(path)]]
+			if move == "double_leg":
+				extra.append(["sprawl", TakedownPair.to_sprawl(path, 1.0)])
+			for n in path.size():
+				_title.text = "%s%s %d" % [_prefix(), move.replace("_", " "), n]
+				_takedown_pose(path, float(n))
+				await _frames(1, "takedown-%s-%d.png" % [move, n])
+			if move == "double_leg" or move == "hip_throw":
+				for n in path.size() * 2 - 2:  # The halves between, too.
+					if n % 2 == 1:
+						continue
+					_title.text = "%s%s %.1f" % [_prefix(), move.replace("_", " "), n / 2.0 + 0.5]
+					_takedown_pose(path, n / 2.0 + 0.5)
+					await _frames(1, "takedown-%s-%d-half.png" % [move, n / 2])
+			if move == "outside_trip" or move == "double_leg":
+				for e: Array in extra:
+					_title.text = "%s%s %s" % [_prefix(), move.replace("_", " "), e[0]]
+					_takedown_pose(e[1], float((e[1] as Array).size() - 1))
+					await _frames(1, "takedown-%s-%s.png" % [move, e[0]])
+	elif _clinch:
 		var examples: Dictionary = ClinchPair.examples()
 		for example_name: String in examples:
 			var e: Array = examples[example_name]
@@ -166,6 +194,13 @@ func _pose(pair: Dictionary, to: Dictionary = {}, t: float = 0.0) -> void:
 	FighterRig.pose_pair(_rigs[0], _rigs[1], pair, _pair_frame, to, t)
 	for i in _bodies.size():
 		_bodies[i].follow(_rigs[i])
+
+
+func _takedown_pose(path: Array, x: float) -> void:
+	TakedownPair.pose_along(_rigs[0], _rigs[1], path, x)
+	for i in _bodies.size():
+		_bodies[i].follow(_rigs[i])
+	_show_rigs(true)
 
 
 func _show_rigs(on: bool) -> void:
