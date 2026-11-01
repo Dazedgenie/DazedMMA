@@ -66,6 +66,8 @@ var next_number: Dictionary = {}
 ## The last week the world's fights were played (WorldWeeks, D353), and the results of the last RESULTS_WEEKS weeks.
 var played: int = -1
 var results: Array = []
+## Its promotions (Promotions, D354): the two organisations, then the regional ones.
+var promotions: Array = []
 
 var _styles: StyleLibrary
 var _names: NameLibrary
@@ -96,6 +98,8 @@ static func make(world_seed: int, home_country_id: String, home_town: String, we
 		for level: Dictionary in LEVELS:
 			for i in int(level.count):
 				w._make_man(rng, division_id, level, week)
+	w.promotions = Promotions.make(w, week)
+	Promotions.place_all(w, week)
 	return w
 
 
@@ -203,6 +207,7 @@ func record_fight(id: String, result: String, week: int, close: bool, method: St
 	WorldWeeks.note_fight(m, Career.FIGHTER_ID, theirs, method if method != "" else "decision", week, rng)
 	m.met_week = week
 	m.met_close = close
+	Promotions.after_fight(self, m, week)
 
 
 ## Whether a fight's ending makes it a close one (a rematch comes sooner): a draw, or a split or majority decision.
@@ -275,6 +280,7 @@ func _make_man(rng: RandomNumberGenerator, division_id: String, level: Dictionar
 	WorldWeeks.set_up(self, m, rng, week)
 	men[String(m.id)] = m
 	_names_used[String(m.name)] = true
+	Promotions.place(self, m, week)
 	return m
 
 
@@ -339,7 +345,7 @@ func _name_taken(full_name: String) -> bool:
 func to_dict() -> Dictionary:
 	return { "version": VERSION, "seed": str(seed_value), "country_id": country_id, "hometown": hometown,
 		"men": men.values().map(func(m: Dictionary) -> Dictionary: return m.duplicate(true)), "next_number": next_number.duplicate(),
-		"played": played, "results": results.duplicate(true) }
+		"played": played, "results": results.duplicate(true), "promotions": promotions.duplicate(true) }
 
 
 ## A world back from to_dict() (after a trip through JSON, so whole numbers may come back as floats).
@@ -366,7 +372,7 @@ static func from_dict(data: Dictionary, p_styles: StyleLibrary = null, p_names: 
 			m.record[key] = int(m.get("record", {}).get(key, 0))
 			if m.get("amateur_record") is Dictionary:
 				m.amateur_record[key] = int(m.amateur_record.get(key, 0))
-		for key: String in ["joined", "turned_pro"]:
+		for key: String in ["joined", "turned_pro", "moved"]:
 			if m.has(key):
 				m[key] = int(m[key])
 		if m.get("frame") is Dictionary:
@@ -388,4 +394,13 @@ static func from_dict(data: Dictionary, p_styles: StyleLibrary = null, p_names: 
 	for m: Dictionary in w.men.values():
 		if active(m):
 			WorldWeeks.set_up(w, m, rng, maxi(0, w.played + 1))  # A world saved before D353: what the weeks need.
+	for raw: Variant in data.get("promotions", []):
+		if raw is Dictionary:
+			var p: Dictionary = (raw as Dictionary).duplicate(true)
+			for key: String in ["rank", "capacity", "every", "first_week", "first_number", "show", "win"]:
+				p[key] = int(p.get(key, 0))
+			w.promotions.append(p)
+	if w.promotions.is_empty():  # A world saved before D354: its promotions now, its pros signed by level.
+		w.promotions = Promotions.make(w, maxi(0, w.played + 1))
+		Promotions.place_all(w, maxi(0, w.played + 1))
 	return w

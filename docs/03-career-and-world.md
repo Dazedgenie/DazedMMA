@@ -774,7 +774,7 @@ hotbeds at the top, each organisation's own top 15, about 3 fights a year (champ
 | Weight divisions: a walk-around weight, growing into his natural division by about 21, moved one up or down at his pro debut if you like (Kyle, 2026-11-01: "Grows into it, move at debut"; refines D35) | D351 | Built (§12.1) |
 | The world's fighters: about 100 named men a division, from local amateurs to world class; offers come from them, and the local lads he meets as an amateur are real men who can turn pro alongside him (Kyle, 2026-11-01: "Yes, amateurs in the roster") | D352 | Built (§12.2) |
 | The world's weeks: the other men fight about 3 times a year, age, retire, and new prospects join each January | D353 | Built (§12.3) |
-| Promotions and their cards: 3 or 4 regional pro promotions and 2 international organisations, made up each career (D57) | D354 | Planned |
+| Promotions and their cards: 3 or 4 regional pro promotions and 2 international organisations, made up each career (D57) | D354 | Built (§12.4) |
 | Rankings: each organisation's top 15, updated weekly, each move with its reason (A10) | D355 | Planned |
 | Titles: belts, 5-round title fights, defences, vacating | D356 | Planned |
 | Climbing the ladder: call-ups to the bigger promotion, title eliminators, and asking for a step up from the hub at a risk of a tougher fight or a no (Kyle, 2026-11-01: "Call-ups plus asking for it"); fight-by-fight deals until phase 5 | D357 | Planned |
@@ -879,7 +879,8 @@ knockouts wear them down, the good amateurs turn pro, men retire when they're to
   D353 starts from the week it's loaded. The man booked to fight him, and the men in his offers (and a tournament's later
   rounds), don't take other fights.
 - **About 3 fights a year** (Kyle's earlier pick, "3 a year, champions 2"; champions come with titles, D356). After a fight
-  a man is due again in 17 weeks, give or take 5; 8 more after being knocked out, 2 more after being submitted. Each
+  a man is due again in 15 weeks, give or take 5 (17 until D354, when pros started waiting for their promotion's
+  next card); 8 more after being knocked out, 2 more after being submitted. Each
   week, in each division, the due men are paired with a man of the same kind (amateurs with amateurs, teenagers with
   teenagers, pros with pros) whose average stat is within 5, one more for every week the first has waited, and whom he
   hasn't met in a year. Nobody fights before 16.
@@ -944,3 +945,53 @@ His own fights stay on the engine, so no fight changes (no golden re-pin).
 re-running `tools/matchups.gd`; when the world catches up in `Career.world`; the hub's lines in `CareerHub.news_text`
 (`NEWS_MAX`, `UPSET_CHANCE`, `NEWS_BEST`). Tests: `tests/sim/world/test_world_weeks.gd`, `tests/data/test_data_files.gd`.
 Then update this section and D353.
+
+### 12.4 Promotions and their cards (D354)
+
+Every career now has its own promotions, and the world's pros fight on their cards. Kyle (2026-11-01) picked "By
+level", "Call-ups and cuts as they happen", "Regional ~every 7 weeks, bigger more", "Mostly home, sometimes others"
+and "A Promotions button on the hub". The local amateur shows (§11.4) stay as they are.
+
+- **Six or so promotions a career**, made once from the world's seed (data/world/promotions.json, docs/09
+  promotions@1) and kept in the save. A career saved before D354 gets them, and its pros signed, when it's loaded.
+  - *A world organisation* (rank 0): a card every 2 weeks, 12,000 to 20,000 seats, $12,000 to show and $12,000 to win,
+    its home in a hotbed country, its cards round the hotbeds' cities.
+  - *An international organisation* (rank 1): a card every 4 weeks, 4,000 to 9,000 seats, $4,000 and $4,000.
+  - *3 or 4 regional promotions* in his country, the first in his hometown, each in another of its cities: a card every
+    6 to 8 weeks, 800 to 4,000 seats, $750 to $1,500 to show and to win, 70% of cards at home.
+  - *Names* are grounded and made up (Kyle's earlier pick): an organisation is a first word and a second ("Sovereign
+    Fighting Championship", "Crown Fighting Alliance"); a regional one a pattern with its city or a word ("Iron MMA
+    League", "Newcastle Combat Series", "Battle in Birmingham"). Each has a short name from its initials (SFC) and its
+    cards are numbered on from where a promotion that's been going a while would be (SFC 84). A list of real
+    promotions' names is never used.
+- **Who's where: by level.** In each division the best 18 pros fight for the world organisation, the next 20 for the
+  international one and the rest for the regional ones, each regional man to the one with fewest men in his division
+  (his hometown's first). A new pro joins where his level puts him; an amateur turning pro starts regional.
+- **Pros fight on their promotion's cards.** A pro due a fight waits for his promotion's next card and meets a man of
+  his promotion and division there (amateurs still fight any Saturday). Each result says the card (NCC 14). About 2.5
+  fights a man a year.
+- **Call-ups and cuts as they happen.** Three wins in a row since he last moved and he's called up a rank, while the
+  organisation has room in his division (fewer than its 18 or 20, plus 2); three losses in a row and he's let go a
+  rank down. A move is news.
+- **His pro offers** are on a regional promotion's card, fight by fight (call-ups for him are D357), at its pay plus
+  $250 more for each pro win: three in four on his home promotion's next card at least 5 weeks away (a camp can be up
+  to a card's gap longer than usual), the rest on another regional promotion's card 5 to 8 weeks away. His opponent is
+  any regional pro of his division (or a newcomer, who signs where the card is). Each offer says the card ("On Iron
+  MMA League 41 · the Indoor Arena, Liverpool") and its pay.
+- **On the hub.** A *Promotions* button on the top bar opens a page: each promotion, biggest first, with what it is,
+  its home city, venue and seats, its pay, how many men it has (and in his division), a card every so many weeks,
+  its next two cards (his own fight marked), and its last card's results in his division. *His division* shows each
+  pro's promotion. The news says the card a result was on, and when a man is called up or let go (men he's fought
+  first, and call-ups to the world organisation).
+
+**How healthy it is** (10 years from a fresh career, 2026-11-01): about 2.5 fights a man a year; 50 to 100 call-ups and
+40 to 60 cuts a year; after 10 years about 19 men a division in the world organisation, 22 in the international one and
+about 12 in each regional one, their average stats in that order (about 63, 56 and 47 to 51 at lightweight); a year
+takes about 0.65 s.
+
+**To change it:** the promotions' names, sizes, pay and how often they run cards in `data/world/promotions.json`; who
+goes where and the call-ups in `sim/world/promotions.gd` (`MAJOR_MEN`, `SECOND_MEN`, `CALL_UP_WINS`, `CUT_LOSSES`,
+`CALL_UP_ROOM`, `FIRST_NUMBER_*`); the gap between fights in `WorldWeeks.GAP_WEEKS`; his offers in `Matchmaker`
+(`pro_cards`, `HOME_OFFER_SHARE`, `purse_for`); the page in `CareerHub.promotions_text` and `game/main.gd`
+(`open_promotions`). Tests: `tests/sim/world/test_promotions.gd`, `tests/sim/world/test_matchmaker.gd`,
+`tests/data/test_data_files.gd`. Then update this section and D354.

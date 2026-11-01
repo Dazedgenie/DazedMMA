@@ -12,7 +12,7 @@ extends RefCounted
 
 ## About 3 fights a year (Kyle, 2026-11-01: "3 a year, champions 2"): after a fight he's due again in GAP_WEEKS weeks,
 ## give or take GAP_SPREAD; a man nobody fits waits a week and is matched more loosely (MATCH_WIDEN a week waited).
-const GAP_WEEKS: int = 17
+const GAP_WEEKS: int = 15
 const GAP_SPREAD: int = 5
 ## A match is two due men of the same division and kind (amateur or pro; teenagers with teenagers) whose average stats
 ## are within MATCH_GAP (+ MATCH_WIDEN a week the first has waited), who haven't met in REMATCH_WEEKS.
@@ -139,7 +139,13 @@ static func play_week(w: World, week: int, busy: Dictionary) -> Array:
 		var age: float = World.age_of(m, week)
 		if age < float(BackgroundLibrary.START_AGE):
 			continue
-		var key: String = "%s:%s:%s" % [World.division_of(m, week), "pro" if bool(m.pro) else "am", "teen" if age < 18.0 and not bool(m.pro) else "adult"]
+		var pool: String = "am:teen" if age < 18.0 else "am:adult"
+		if bool(m.pro):
+			var p: Dictionary = Promotions.of(w, m)
+			if not p.is_empty() and not Promotions.has_card(p, week):
+				continue  # A pro fights on his promotion's cards (D354).
+			pool = "pro:" + String(m.get("promotion", ""))
+		var key: String = "%s:%s" % [World.division_of(m, week), pool]
 		pools.get_or_add(key, []).append(m)
 	var keys: Array = pools.keys()
 	keys.sort()
@@ -166,6 +172,8 @@ static func play_week(w: World, week: int, busy: Dictionary) -> Array:
 			taken[String(m.id)] = true
 			taken[String(best.id)] = true
 			w.results.append(fight(w, m, best, week, rng))
+			Promotions.after_fight(w, m, week)
+			Promotions.after_fight(w, best, week)
 	return w.results.slice(first)
 
 
@@ -180,8 +188,13 @@ static func fight(w: World, a: Dictionary, b: Dictionary, week: int, rng: Random
 	var result_b: String = { "a": "loss", "b": "win" }.get(String(r.winner), "draw")
 	note_fight(a, String(b.id), result_a, String(r.method), week, rng)
 	note_fight(b, String(a.id), result_b, String(r.method), week, rng)
-	return { "kind": "fight", "week": week, "division": World.division_of(a, week), "a": String(a.id), "b": String(b.id),
+	var out: Dictionary = { "kind": "fight", "week": week, "division": World.division_of(a, week), "a": String(a.id), "b": String(b.id),
 		"winner": String(r.winner), "method": String(r.method), "round": int(r.round), "chance": snappedf(chance, 0.01), "pro": bool(a.pro) }
+	var p: Dictionary = Promotions.of(w, a)
+	if bool(a.pro) and not p.is_empty():
+		out.card = String(Promotions.card(w, p, week).short)
+		out.promotion = String(p.id)
+	return out
 
 
 ## A fight onto a man's record and history (his `result`: win, loss or draw; `method`: ko, submission, decision or
@@ -308,12 +321,14 @@ static func _age_a_week(w: World, m: Dictionary, week: int, rng: RandomNumberGen
 	if age >= PRO_LATE:
 		if w.average(m) >= PRO_LATE_READY:
 			turn_pro(m, week)
+			Promotions.place(w, m, week, true)
 			w.results.append({ "kind": "pro", "week": week, "id": String(m.id), "division": String(m.division) })
 		else:
 			_retire(w, m, week)
 		return
 	if age >= PRO_FROM and fights >= PRO_AFTER and share >= PRO_WIN_SHARE and w.average(m) >= PRO_READY and rng.randf() < 1.0 / PRO_WEEKS:
 		turn_pro(m, week)
+		Promotions.place(w, m, week, true)
 		w.results.append({ "kind": "pro", "week": week, "id": String(m.id), "division": String(m.division) })
 		return
 

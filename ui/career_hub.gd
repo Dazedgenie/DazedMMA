@@ -22,6 +22,7 @@ signal turn_pro_pressed
 signal notebook_pressed
 ## The division list (D352): the men in his division this week.
 signal division_pressed
+signal promotions_pressed
 
 ## Around his division (D353, news_text): at most NEWS_MAX lines; a winner who had under UPSET_CHANCE is an upset; a man
 ## averaging NEWS_BEST or more is one of the best.
@@ -84,6 +85,7 @@ var _calendar: HBoxContainer
 var _scrolls: Array[ScrollContainer] = []
 var _notebook: Button
 var _division: Button
+var _promotions: Button
 var _groups: Dictionary = {}
 var _gift_names: Dictionary = {}
 var _flaw_names: Dictionary = {}
@@ -128,6 +130,14 @@ func _init() -> void:
 	division.pressed.connect(func() -> void: division_pressed.emit())
 	top.add_child(division)
 	_division = division
+	var promotions := Button.new()
+	promotions.text = "Promotions"
+	promotions.tooltip_text = "The world's promotions, their next cards and their last results"
+	promotions.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	promotions.add_theme_font_size_override("font_size", 18)
+	promotions.pressed.connect(func() -> void: promotions_pressed.emit())
+	top.add_child(promotions)
+	_promotions = promotions
 	_date = Label.new()
 	DisplayFont.apply(_date, 34)
 	_date.add_theme_color_override("font_color", TEXT)
@@ -487,6 +497,78 @@ func press_division() -> void:
 	_division.pressed.emit()
 
 
+func press_promotions() -> void:
+	_promotions.pressed.emit()
+
+
+## The promotions page (D354): each promotion, biggest first: its name, kind, home city and venue, what it pays, its
+## next cards, and its last card's results in his division.
+static func promotions_text(c: Career) -> String:
+	var w: World = c.world()
+	var division: String = c.division_now()
+	var parts: Array[String] = []
+	var ordered: Array = w.promotions.duplicate()
+	ordered.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return int(a.rank) < int(b.rank) if int(a.rank) != int(b.rank) else String(a.id) < String(b.id))
+	for p: Dictionary in ordered:
+		var men: int = 0
+		var his: int = 0
+		for m: Dictionary in w.men.values():
+			if World.active(m) and String(m.get("promotion", "")) == String(p.id):
+				men += 1
+				his += 1 if World.division_of(m, c.week) == division else 0
+		var lines: Array[String] = []
+		lines.append("[color=%s][b]%s[/b] (%s)[/color]" % [WARN.to_html(false), String(p.name), String(p.short)])
+		lines.append("%s · from %s, %s · the %s, %s seats" % [String(p.kind), String(p.city),
+			NameLibrary.shared().country_name(String(p.country)), String(p.venue), _thousands(int(p.capacity))])
+		lines.append("[color=%s]Pays $%s to show and $%s more to win · %d men, %d at %s · a card every %d weeks[/color]" % [
+			DIM.to_html(false), _thousands(int(p.show)), _thousands(int(p.win)), men, his, Weight.name_of(division).to_lower(), int(p.every)])
+		var next: Array[String] = []
+		for week: int in Promotions.card_weeks(p, c.week, c.week + 12).slice(0, 2):
+			var card: Dictionary = Promotions.card(w, p, week)
+			var mine: String = ""
+			if not c.booked.is_empty() and int(c.booked.get("week", -1)) == week and String(c.booked.get("card", {}).get("promotion", "")) == String(p.id):
+				mine = " · [color=%s]his fight[/color]" % GOOD.to_html(false)
+			next.append("%s, %s (%s)%s" % [String(card.short), c.short_date(week, 5), String(card.city), mine])
+		if not next.is_empty():
+			lines.append("Next: " + "; ".join(next))
+		var last: Array[String] = []
+		var last_week: int = -1
+		var last_card: String = ""
+		for r: Dictionary in w.results:
+			if String(r.get("kind", "fight")) == "fight" and String(r.get("promotion", "")) == String(p.id) and String(r.division) == division \
+					and int(r.week) >= last_week:
+				if int(r.week) > last_week:
+					last.clear()
+				last_week = int(r.week)
+				last_card = String(r.get("card", ""))
+				last.append(_result_line(w, r))
+		if not last.is_empty():
+			lines.append("[color=%s]Last %s card, %s:[/color] %s" % [DIM.to_html(false), Weight.name_of(division).to_lower(), last_card, " ".join(last)])
+		parts.append("\n".join(lines))
+	return "\n\n".join(parts) if not parts.is_empty() else "[color=%s]No promotions yet.[/color]" % DIM.to_html(false)
+
+
+## One fight's result: "Ryan Clarke beat Harry Hall by knockout in round 1." (draws too).
+static func _result_line(w: World, r: Dictionary) -> String:
+	var a: Dictionary = w.man(String(r.a))
+	var b: Dictionary = w.man(String(r.b))
+	if String(r.winner) == "draw":
+		return "%s and %s fought to a draw." % [String(a.get("name", "")), String(b.get("name", ""))]
+	var winner: Dictionary = a if String(r.winner) == "a" else b
+	var loser: Dictionary = b if String(r.winner) == "a" else a
+	return "%s beat %s %s." % [String(winner.get("name", "")), String(loser.get("name", "")), _how(String(r.method), int(r.round))]
+
+
+static func _thousands(n: int) -> String:
+	var digits: String = str(absi(n))
+	var out: String = ""
+	while digits.length() > 3:
+		out = "," + digits.substr(digits.length() - 3) + out
+		digits = digits.substr(0, digits.length() - 3)
+	return ("-" if n < 0 else "") + digits + out
+
+
 ## The division list's title (D352): "Lightweight · 103 men".
 static func division_title(c: Career) -> String:
 	var id: String = c.division_now()
@@ -523,8 +605,9 @@ static func _division_line(c: Career, w: World, m: Dictionary, met: Dictionary) 
 	var nick: String = String(m.get("nickname", ""))
 	var line: String = "[b]%s[/b]%s · %d · %s, %s" % [String(m.name), (" '%s'" % nick) if nick != "" else "",
 		int(floor(World.age_of(m, c.week))), String(m.hometown), String(m.country)]
-	line += "\n[color=%s]%s · %s · %s · grade %s[/color]" % [DIM.to_html(false), World.level_name(m), World.record_text(m), style_name,
-		TrainingCamp.grade(w.average(m))]
+	var promotion: Dictionary = Promotions.of(w, m)
+	line += "\n[color=%s]%s%s · %s · %s · grade %s[/color]" % [DIM.to_html(false), World.level_name(m),
+		(" · " + String(promotion.short)) if not promotion.is_empty() else "", World.record_text(m), style_name, TrainingCamp.grade(w.average(m))]
 	if met.has(String(m.id)):
 		var result: String = String(met[String(m.id)])
 		line += " · [color=%s]you %s[/color]" % [(GOOD if result == "win" else BAD if result == "loss" else WARN).to_html(false),
@@ -651,6 +734,17 @@ static func news_text(c: Career, weeks: int = 1) -> String:
 		if int(r.get("week", -1)) < c.week - weeks or String(r.get("division", "")) != division:
 			continue
 		var kind: String = String(r.get("kind", "fight"))
+		if kind == "moved":
+			var mm: Dictionary = w.man(String(r.id))
+			var to: Dictionary = Promotions.by_id(w, String(r.get("to", "")))
+			var moved_score: float = (4.0 if met.has(String(r.id)) else 0.0) + (1.0 if bool(r.get("up", false)) else 0.0) \
+				+ (1.0 if c.pro else 0.0) + (1.0 if not to.is_empty() and int(to.rank) == Promotions.MAJOR else 0.0)
+			if moved_score >= 2.0 and not to.is_empty():
+				var said_move: String = "has been called up to the %s" % String(to.name) if bool(r.get("up", false)) \
+					else "has been let go to the %s" % String(to.name)
+				scored.append([moved_score, "%s%s %s." % [String(mm.get("name", "")),
+					(", " + _met_words(String(met[String(r.id)])) + ",") if met.has(String(r.id)) else "", said_move]])
+			continue
 		if kind != "fight":
 			if met.has(String(r.id)):
 				var m: Dictionary = w.man(String(r.id))
@@ -680,7 +774,8 @@ static func news_text(c: Career, weeks: int = 1) -> String:
 		if String(r.winner) == "draw":
 			line = "%s and %s fought to a draw." % [String(a.name), String(b.name)]
 		else:
-			line = "%s beat %s %s%s." % [String(winner.name), String(loser.name), _how(String(r.method), int(r.round)), " (an upset)" if upset else ""]
+			line = "%s beat %s %s%s%s." % [String(winner.name), String(loser.name), _how(String(r.method), int(r.round)),
+				(" at " + String(r.card)) if String(r.get("card", "")) != "" else "", " (an upset)" if upset else ""]
 		for m: Dictionary in [a, b]:
 			if met.has(String(m.id)):
 				line += " %s %s." % [String(m.name).get_slice(" ", 0), _met_words(String(met[String(m.id)]), true)]

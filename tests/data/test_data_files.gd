@@ -111,6 +111,10 @@ const SCHEMAS := {
 		"per_point": TYPE_FLOAT, "draw": TYPE_FLOAT, "edges": TYPE_DICTIONARY, "wins": TYPE_DICTIONARY, "losses": TYPE_DICTIONARY,
 		"rounds": TYPE_DICTIONARY, "methods": TYPE_DICTIONARY, "fights_per_pair": TYPE_FLOAT,
 	} },
+	"promotions@1": { "folder": "world", "fields": {
+		"regional": TYPE_DICTIONARY, "organisations": TYPE_ARRAY, "first": TYPE_ARRAY, "second": TYPE_ARRAY,
+		"organisation_venues": TYPE_ARRAY, "real": TYPE_ARRAY,
+	} },
 	"tip@1": { "folder": "tips", "fields": {
 		"title": TYPE_STRING, "text": TYPE_STRING, "where": TYPE_STRING, "order": TYPE_FLOAT,
 	} },
@@ -1078,6 +1082,29 @@ func test_the_matchup_table_has_every_pair_of_styles_and_shares_that_add_up() ->
 			sum += float(x)
 		if rounds.size() != 3 or absf(sum - 1.0) > 0.01:
 			problems.append("matchups: %s rounds are three shares adding up to 1" % method)
+	_report(problems)
+
+
+func test_the_promotion_data_makes_both_organisations_and_regional_promotions() -> void:
+	var problems: Array[String] = []
+	var d: Dictionary = _items("world").get("promotions", {})
+	if d.is_empty():
+		problems.append("data/world/promotions.json is missing (D354)")
+	var reg: Dictionary = d.get("regional", {})
+	for key: String in ["count", "every_weeks", "capacity", "show", "win"]:
+		var pair: Array = reg.get(key, [])
+		if pair.size() != 2 or float(pair[0]) > float(pair[1]) or float(pair[0]) <= 0.0:
+			problems.append("promotions: regional %s should be [lowest, highest] above 0" % key)
+	for pattern: Variant in reg.get("names", []):
+		if not "{city}" in String(pattern) and not "{region}" in String(pattern):
+			problems.append("promotions: regional name '%s' needs {city} or {region}" % pattern)
+	var ranks: Array = (d.get("organisations", []) as Array).map(func(o: Dictionary) -> int: return int(o.get("rank", -1)))
+	if ranks != [0, 1]:
+		problems.append("promotions: organisations should be rank 0 (the world one) then rank 1, got %s" % [ranks])
+	for o: Dictionary in d.get("organisations", []):
+		for key: String in ["every_weeks", "show", "win"]:
+			if float(o.get(key, 0)) <= 0.0:
+				problems.append("promotions: organisation %d needs %s above 0" % [int(o.get("rank", -1)), key])
 	_report(problems)
 
 
