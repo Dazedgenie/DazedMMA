@@ -8,7 +8,8 @@ extends SceneTree
 ## pair (degrees). --clinch saves the clinch poses built from grips (D286, clinch-<name>.png). --body puts the
 ## skinned Tripo body on the rigs (D284; --body=<file.glb> another Mixamo-rigged
 ## body). --takedowns saves the clinch takedowns' keys from the clinch to the landing (D288, takedown-<move>-<n>.png,
-## n 0 the clinch) and the scramble and sprawl. Nothing in the fight or the fight screen changes.
+## n 0 the clinch) and the scramble and sprawl. --ground saves the ground positions with their grips (D289,
+## ground-<name>.png, GroundPair.examples). Nothing in the fight or the fight screen changes.
 
 const FPS: int = 24
 const BLEND_FRAMES: int = 24
@@ -28,6 +29,8 @@ var _stills: bool = false
 var _clinch: bool = false
 ## --takedowns: stills along each clinch takedown's path (D288, TakedownPair).
 var _takedowns: bool = false
+## --ground: stills of the ground positions and their grips (D289, GroundPair).
+var _ground: bool = false
 var _angle: float = 0.0
 var _main: Node3D
 var _frame: int = 0
@@ -49,6 +52,8 @@ func _initialize() -> void:
 			_clinch = true
 		elif arg == "--takedowns":
 			_takedowns = true
+		elif arg == "--ground":
+			_ground = true
 		elif arg == "--body":
 			_body_path = SkinnedBody.TRIPO_BODY
 		elif arg.begins_with("--body="):
@@ -91,7 +96,23 @@ func _capture() -> void:
 			rig.fit(body.measure())
 			body.set_colour(colour)
 			_bodies.append(body)
-	if _takedowns:
+	if _ground:
+		var examples: Dictionary = GroundPair.examples()
+		for example_name: String in examples:
+			var e: Array = examples[example_name]
+			_title.text = _prefix() + example_name.replace("_", " ")
+			_pose(GroundPair.build(e[0], e[1], e[2], e[3]).pair)
+			_show_rigs(true)
+			await _frames(1, "ground-%s.png" % example_name)
+		# A sweep from the guard rolling them over (D289), in steps.
+		var swept: Transform3D = _pair_frame * Transform3D(Basis(Vector3.UP, PI), Vector3(0, 0, 0.55))
+		var roll: Array = GroundPair.roll_path(GroundPair.build("full_guard").pair, _pair_frame,
+			ClinchPair.swap(GroundPair.build("full_guard").pair), swept)
+		for n in 9:
+			_title.text = "%ssweep %d" % [_prefix(), n]
+			_takedown_pose(roll, n / 4.0)
+			await _frames(1, "ground-sweep-%d.png" % n)
+	elif _takedowns:
 		var start: Array = [ClinchPair.build([0, 0], ["l", "r"], -1, -1).pair, _pair_frame]
 		for move: String in TakedownPair.MOVES:
 			var path: Array = TakedownPair.path(move, start, _pair_frame.basis)
