@@ -65,6 +65,9 @@ var coach_specialty: String = ""
 var fighter: Dictionary = {}
 ## nickname, hometown, country, background (ABOUT_KEYS).
 var about: Dictionary = {}
+## His childhood (Childhood, D312): { picks: [{scene, choice}], second: the runner-up background, people: [{role, name,
+## about, age}] }. {} when the player picked his background from the list instead (or the career predates D312).
+var childhood: Dictionary = {}
 var trainee: TrainingCamp
 ## The day (days since 1 Jan 1970) of the Monday that starts week 0, and the week it is now.
 var first_monday: int = 0
@@ -118,12 +121,34 @@ static func create(profile_in: Dictionary, new_seed: int, extra: Dictionary = {}
 ## A new career from the new-career screen (docs/03 §10.2, D302): a 16-year-old made from his background
 ## (BackgroundLibrary.make_fighter) and the player's `choices`: coach, name, nickname, hometown, country, background (an
 ## id in data/backgrounds) and stance. He starts with his background's money.
-static func start(choices: Dictionary, new_seed: int, roster: FighterLibrary, backgrounds: BackgroundLibrary = null, library: TrainingLibrary = null) -> Career:
+##
+## With `childhood` (the picks from his childhood scenes, [{scene, choice}]: Childhood, D312, §11.2) his background is
+## the one those choices add up to instead of `background`, and the choices change him on top (Childhood.apply), add
+## to his money and bring in people (named from `country_id`). `new_seed` must be the seed the scenes were drawn with.
+static func start(choices: Dictionary, new_seed: int, roster: FighterLibrary, backgrounds: BackgroundLibrary = null,
+		library: TrainingLibrary = null, scenes: Childhood = null) -> Career:
 	var bgs: BackgroundLibrary = backgrounds if backgrounds != null else BackgroundLibrary.shared()
-	var background: String = String(choices.background)
-	var profile_in: Dictionary = bgs.make_fighter(background, new_seed, roster, choices)
-	var c: Career = create(profile_in, new_seed, choices, library)
+	var picks: Array = choices.get("childhood", [])
+	var kid: Childhood = null
+	var tally: Dictionary = {}
+	if not picks.is_empty():
+		kid = scenes if scenes != null else Childhood.shared()
+		tally = kid.tally(picks)
+	var extra: Dictionary = choices.duplicate(true)
+	if String(tally.get("background", "")) != "" and bgs.has(String(tally.background)):
+		extra.background = String(tally.background)
+	var background: String = String(extra.get("background", ""))
+	var profile_in: Dictionary = bgs.make_fighter(background, new_seed, roster, extra)
+	if not tally.is_empty():
+		profile_in = kid.apply(profile_in, picks, bgs)
+	var c: Career = create(profile_in, new_seed, extra, library)
 	c.money = int(bgs.get_background(background).get("money", 0))
+	if not tally.is_empty():
+		c.money += kid.money(picks)
+		c.childhood = {
+			"picks": picks.duplicate(true), "second": String(tally.second),
+			"people": kid.people(picks, String(profile_in.get("name", "")), String(choices.get("country_id", "")), new_seed),
+		}
 	return c
 
 
@@ -440,7 +465,7 @@ func to_dict() -> Dictionary:
 		"schema": SCHEMA, "version": VERSION,
 		"seed": str(career_seed), "dice": str(_dice.state),
 		"coach": { "name": coach_name, "background": coach_background, "specialty": coach_specialty },
-		"fighter": fighter.duplicate(true), "about": about.duplicate(true),
+		"fighter": fighter.duplicate(true), "about": about.duplicate(true), "childhood": childhood.duplicate(true),
 		"trainee": trainee.snapshot(),
 		"calendar": { "first_monday": first_monday, "week": week },
 		"suspended_days": suspended_days, "money": money, "pro": pro, "week_plan": week_plan,
@@ -472,6 +497,10 @@ static func from_dict(data: Dictionary, library: TrainingLibrary = null) -> Care
 	c.fighter = d.fighter.duplicate(true)
 	for key in ABOUT_KEYS:
 		c.about[key] = String(d.get("about", {}).get(key, ""))
+	c.childhood = d.get("childhood", {}).duplicate(true) if d.get("childhood") is Dictionary else {}
+	for person: Variant in c.childhood.get("people", []):
+		if person is Dictionary:
+			person.age = int(person.get("age", 0))
 	c.first_monday = int(d.calendar.get("first_monday", 0))
 	c.week = int(d.calendar.get("week", 0))
 	c.suspended_days = int(d.get("suspended_days", 0))

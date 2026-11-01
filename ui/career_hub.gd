@@ -231,6 +231,9 @@ static func fighter_card_text(c: Career, gift_names: Dictionary = {}, flaw_names
 	var bg_id: String = String(c.about.get("background", ""))
 	var bg_name: String = String(BackgroundLibrary.shared().get_background(bg_id).name) if BackgroundLibrary.shared().has(bg_id) else ""
 	if bg_name != "":
+		var second: String = String(c.childhood.get("second", ""))
+		if second != "" and BackgroundLibrary.shared().has(second):
+			bg_name += ", with a bit of %s" % String(BackgroundLibrary.shared().get_background(second).name).to_lower()
 		lines.append("[b]%s[/b]" % bg_name)
 	var town: String = ", ".join([c.about.get("hometown", ""), c.about.get("country", "")].filter(func(s: String) -> bool: return s != ""))
 	if town != "":
@@ -255,6 +258,9 @@ static func fighter_card_text(c: Career, gift_names: Dictionary = {}, flaw_names
 	if bg_name != "":
 		lines.append("")
 		lines.append("[i]%s[/i]" % String(BackgroundLibrary.shared().get_background(bg_id).hook))
+	for person: Variant in c.childhood.get("people", []):
+		if person is Dictionary:
+			lines.append(Childhood.person_text(person))
 	if c.coach_specialty != "":
 		lines.append("[color=%s]Your specialty:[/color] %s. %s" % [DIM.to_html(false), Coach.specialty_name(c.coach_specialty),
 			Coach.specialty_does(c.coach_specialty)])

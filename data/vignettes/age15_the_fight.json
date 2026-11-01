@@ -1,0 +1,48 @@
+{
+	"schema": "vignette@1",
+	"id": "age15_the_fight",
+	"age": 15,
+	"title": "The fight on TV",
+	"text": "A big MMA card is on TV and he watches it with his mates. One fighter wins with a slam, one with a triangle off his back, and one with a head kick nobody saw coming. Afterwards he can't sleep.",
+	"choices": [
+		{
+			"id": "slam",
+			"text": "The slam. He wants to put people on their backs.",
+			"outcome": "He's in the wrestling room every morning before school.",
+			"backgrounds": {
+				"wrestling_family": 3
+			},
+			"stats": {
+				"takedowns": 3,
+				"top_control": 3
+			}
+		},
+		{
+			"id": "triangle",
+			"text": "The triangle. He wants to win from anywhere.",
+			"outcome": "He rolls every night and starts beating the adults at open mat.",
+			"backgrounds": {
+				"jiu_jitsu_prodigy": 3
+			},
+			"stats": {
+				"submissions": 4,
+				"guard": 2
+			}
+		},
+		{
+			"id": "head_kick",
+			"text": "The head kick. He wants the knockout nobody sees.",
+			"outcome": "He kicks the heavy bag until his shins go numb.",
+			"backgrounds": {
+				"traditional_martial_arts": 3
+			},
+			"stats": {
+				"kicking": 4,
+				"power": 2
+			},
+			"personality": {
+				"ego": 10
+			}
+		}
+	]
+}
