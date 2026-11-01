@@ -1,6 +1,6 @@
 # 03 — Career, World & Life
 
-> Related decisions: D7, D16–D19, D21, D22, D25, D41–D45, D160, D300–D305. Status: **design draft**; §7.1 and §10.1–§10.5 are built.
+> Related decisions: D7, D16–D19, D21, D22, D25, D35, D41–D45, D55–D57, D160, D300–D316, D350–D359. Status: **design draft**; §7.1 and §10.1–§10.5 and §11 are built; §12 (D350–D359) is planned.
 
 ---
 
@@ -760,3 +760,29 @@ in `game/main.gd` (`show_hub`, `open_career_camp`, `_career_camp_week`, `_career
 (`LESSON_TEXT`); the tick box in `ui/new_career_screen.gd`. Tests: `tests/sim/world/test_tutorial.gd`,
 `tests/game/test_main_scene.gd`, `tests/data/test_data_files.gd`. Fights don't change (no golden re-pin). Then update this
 section and D316.
+
+## 12. A world to climb (D350–D359)
+
+Phase 3 of the plan (§10, D300). Kyle (2026-11-01): "We can start planning phase 3". Today every opponent is made for one
+offer and nobody else fights; phase 3 fills six weight divisions (D56) with about 100 named men each (D55) who keep fighting
+each other, with promotions, rankings and belts to climb. The plan and its 10 questions are in the phase 3 plan doc (https://claude.ai/artifact/EgqAcbosfRoFa46UCERW5i); my picks
+are built until Kyle answers. Nine pieces, in this order (D350), each playable when it lands:
+
+| Piece | Decision | Status |
+|---|---|---|
+| Weight divisions: a walk-around weight, growing into his natural division by about 21 | D351 | Planned |
+| The world's fighters: about 100 named men a division, from local amateurs to world class; offers come from them | D352 | Planned |
+| The world's weeks: the other men fight about 3 times a year, age, retire, and new prospects join each January | D353 | Planned |
+| Promotions and their cards: 3 or 4 regional pro promotions and 2 international organisations, made up each career (D57) | D354 | Planned |
+| Rankings: each organisation's top 15, updated weekly, each move with its reason (A10) | D355 | Planned |
+| Titles: belts, 5-round title fights, defences, vacating | D356 | Planned |
+| Climbing the ladder: call-ups to the bigger promotion, title eliminators; fight-by-fight deals until phase 5 | D357 | Planned |
+| A history before day one: the world played 5 years before his career starts | D358 | Planned |
+| The 30-year check: a tool and a test that the world stays healthy (A10) | D359 | Planned |
+
+**The world's other fights** are decided by a quick result model, not the fight engine (this changes A9's middle tier). The
+engine takes about 0.6 s a fight (94 µs a tick, 2026-11-01), so 600 men fighting 3 times a year would cost about 9 minutes a
+career year. The model takes each man's level, the style matchup edge from the balance harness (every style against every
+style, saved as data), and small nudges for age, form, damage and ring rust; how a fight ends and in which round come from
+what the harness saw for that pair of styles. A tool rebuilds the matchup data when fights change, and a test checks the
+model's win shares sit inside the harness's 95% ranges. His own fights stay on the engine.
