@@ -284,3 +284,27 @@ func test_a_career_camp_shows_his_school_mornings_and_the_card() -> void:
 	assert_false(planner.tile_text(1).contains("School"), "Monday evening is his")
 	assert_false(planner._slots[1].disabled)
 	assert_string_contains(planner._days_note.text, String(c.booked.card.name))
+
+
+func test_the_hub_shows_his_weight_and_picks_his_division_at_the_pro_debut() -> void:
+	var c: Career = _career()
+	var hub: CareerHub = add_child_autofree(CareerHub.new())
+	hub.show_career(c)
+	assert_string_contains(hub.text(), "Walks around at ")
+	assert_string_contains(hub.text(), "fights at %s" % Weight.label(c.division_now()))
+	assert_true(hub.pro_divisions().is_empty(), "nothing to pick before he can turn pro")
+	c.fighter.frame.adult_kg = 78.0
+	c.trainee.age_years = 18.0
+	c.trainee.age = 18
+	for i in Matchmaker.PRO_AFTER_FIGHTS:
+		c.add_opponent({ "id": "opp_%d" % i, "name": "Man %d" % i })
+		c.add_fight({ "result": "win", "opponent": "opp_%d" % i })
+	hub.show_career(c)
+	assert_true(hub.can_turn_pro())
+	assert_eq(hub.pro_divisions(), ["featherweight", "lightweight", "welterweight"])
+	assert_eq(hub.pro_division(), "lightweight", "his natural division to start with")
+	hub.pick_pro_division("welterweight")
+	assert_eq(hub.pro_division(), "welterweight")
+	assert_true(c.turn_pro(hub.pro_division()))
+	hub.show_career(c)
+	assert_string_contains(hub.text(), "fights at Welterweight (77.1 kg, 170 lb) since his pro debut")

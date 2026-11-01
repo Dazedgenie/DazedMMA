@@ -66,6 +66,9 @@ var _week: Button
 var _advance: Button
 var _camp: Button
 var _pro: Button
+## The division he turns pro in (D351): his natural one or one either side.
+var _pro_division: OptionButton
+var _pro_division_ids: Array[String] = []
 var _offers: VBoxContainer
 var _offer_ids: Array[String] = []
 var _fights_text: RichTextLabel
@@ -171,6 +174,9 @@ func _init() -> void:
 	CampPlanner.style_fight_button(_week, 30)
 	_advance = CampPlanner._button(week_box, "Advance until something happens", func() -> void: advance_pressed.emit())
 	_advance.tooltip_text = "Runs weeks on his plan until he's hurt or healed, cleared to fight, worn down, has a birthday, school breaks up or starts again, or offers come in (up to %d weeks)" % Career.ADVANCE_MAX_WEEKS
+	_pro_division = OptionButton.new()
+	_pro_division.tooltip_text = "The division he turns pro in and stays in: his natural one, or one either side of it"
+	week_box.add_child(_pro_division)
 	_pro = CampPlanner._button(week_box, "Turn pro", func() -> void: turn_pro_pressed.emit())
 	_pro.tooltip_text = "From now his fights count on his pro record, under pro rules, for a purse"
 	var title: Button = CampPlanner._button(week_box, "Save and go to the title", func() -> void: title_pressed.emit())
@@ -218,6 +224,16 @@ func show_career(p_career: Career, reports: Array = []) -> void:
 		var left: int = career.camp_weeks_left()
 		_camp.text = "Go to camp: %d week%s to fight night" % [left, "" if left == 1 else "s"]
 	_pro.visible = Matchmaker.can_turn_pro(career)
+	_pro_division.visible = _pro.visible
+	_pro_division_ids.clear()
+	_pro_division.clear()
+	if _pro.visible:
+		var home: String = career.natural_division()
+		for id: String in Weight.debut_choices(career.fighter.get("frame", {})):
+			_pro_division_ids.append(id)
+			var why: String = "his natural division" if id == home else ("a bigger cut" if Weight.ids().find(id) < Weight.ids().find(home) else "heavier than his natural one")
+			_pro_division.add_item("%s: %s" % [Weight.label(id), why])
+		_pro_division.select(_pro_division_ids.find(home))
 	_show_offers()
 	_fights_text.text = fights_text(career)
 	_show_calendar(career.calendar())
@@ -262,6 +278,7 @@ static func fighter_card_text(c: Career, gift_names: Dictionary = {}, flaw_names
 	var frame: Dictionary = p.get("frame", {})
 	lines.append("%s · %d cm, reach %d cm · %s build" % [String(p.get("stance", "orthodox")).capitalize(), int(frame.get("height_cm", 0)),
 		int(frame.get("reach_cm", 0)), String(frame.get("build", "average"))])
+	lines.append(weight_text(c))
 	lines.append("")
 	lines.append("[color=%s]Feels:[/color] %s" % [DIM.to_html(false), feel_text(c.trainee)])
 	lines.append("[color=%s]Style:[/color] %s" % [DIM.to_html(false), style_text(c.trainee.style)])
@@ -354,8 +371,10 @@ static func offer_text(c: Career, o: Dictionary, groups: Dictionary = {}) -> Str
 	if card != "":
 		lines.append("On %s" % card)
 	var frame: Dictionary = p.get("frame", {})
-	lines.append("From %s, %s · age %d · %d cm · %s" % [String(about.get("hometown", "")), String(about.get("country", "")), int(p.get("age", 0)),
-		int(frame.get("height_cm", 0)), String(p.get("stance", "orthodox"))])
+	lines.append("From %s, %s · age %d · %d cm · %s · %s" % [String(about.get("hometown", "")), String(about.get("country", "")), int(p.get("age", 0)),
+		int(frame.get("height_cm", 0)), Weight.kg_text(Weight.walk_kg(frame, float(p.get("age", 0)) + 0.5)), String(p.get("stance", "orthodox"))])
+	if String(o.get("division", "")) != "":
+		lines.append("A %s bout" % Weight.name_of(String(o.division)).to_lower())
 	var scouting: Dictionary = style.get("scouting", {})
 	if scouting.has("summary"):
 		lines.append("[i]%s[/i]" % String(scouting.summary))
@@ -467,6 +486,36 @@ func press_turn_pro() -> void:
 
 func can_turn_pro() -> bool:
 	return _pro.visible
+
+
+## The division picked beside Turn pro ("" when it isn't showing).
+func pro_division() -> String:
+	var at: int = _pro_division.selected
+	return _pro_division_ids[at] if _pro.visible and at >= 0 and at < _pro_division_ids.size() else ""
+
+
+## For tests: the divisions beside Turn pro, and picking one, as a click would.
+func pro_divisions() -> Array[String]:
+	return _pro_division_ids.duplicate()
+
+
+func pick_pro_division(id: String) -> void:
+	var at: int = _pro_division_ids.find(id)
+	if at >= 0:
+		_pro_division.select(at)
+
+
+## His weight line (D351): what he walks around at, the division he fights at, and, while he's growing, the one he's
+## growing into. "Walks around at 66.1 kg · fights at Featherweight (65.8 kg, 145 lb) · growing into Lightweight by 21".
+static func weight_text(c: Career) -> String:
+	var now: String = c.division_now()
+	var line: String = "Walks around at %s · fights at %s" % [Weight.kg_text(c.weight_kg()), Weight.label(now)]
+	if c.division != "":
+		return line + " since his pro debut"
+	var home: String = c.natural_division()
+	if c.trainee.age_years < Weight.GROWN_AT and home != now:
+		line += " · growing into %s by %d" % [Weight.name_of(home), int(Weight.GROWN_AT)]
+	return line
 
 
 ## What the week holds (an offer, a booked fight, hurt, suspended, free), his plan and savings, and what the last

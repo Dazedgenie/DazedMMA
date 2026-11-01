@@ -1,0 +1,9 @@
+{
+	"schema": "division@1",
+	"id": "lightweight",
+	"name": "Lightweight",
+	"short": "Light",
+	"limit_kg": 70.3,
+	"limit_lb": 155,
+	"order": 3
+}

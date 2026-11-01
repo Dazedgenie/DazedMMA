@@ -1,0 +1,9 @@
+{
+	"schema": "division@1",
+	"id": "welterweight",
+	"name": "Welterweight",
+	"short": "Welter",
+	"limit_kg": 77.1,
+	"limit_lb": 170,
+	"order": 4
+}

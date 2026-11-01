@@ -1,6 +1,6 @@
 # 03 — Career, World & Life
 
-> Related decisions: D7, D16–D19, D21, D22, D25, D41–D45, D160, D300–D305. Status: **design draft**; §7.1 and §10.1–§10.5 are built.
+> Related decisions: D7, D16–D19, D21, D22, D25, D35, D41–D45, D55–D57, D160, D300–D316, D350–D359. Status: **design draft**; §7.1 and §10.1–§10.5 and §11 are built; §12 (D350–D359) is planned.
 
 ---
 
@@ -760,3 +760,62 @@ in `game/main.gd` (`show_hub`, `open_career_camp`, `_career_camp_week`, `_career
 (`LESSON_TEXT`); the tick box in `ui/new_career_screen.gd`. Tests: `tests/sim/world/test_tutorial.gd`,
 `tests/game/test_main_scene.gd`, `tests/data/test_data_files.gd`. Fights don't change (no golden re-pin). Then update this
 section and D316.
+
+## 12. A world to climb (D350–D359)
+
+Phase 3 of the plan (§10, D300). Kyle (2026-11-01): "We can start planning phase 3". Today every opponent is made for one
+offer and nobody else fights; phase 3 fills six weight divisions (D56) with about 100 named men each (D55) who keep fighting
+each other, with promotions, rankings and belts to climb. The plan and its 10 questions are in the phase 3 plan doc (https://claude.ai/artifact/EgqAcbosfRoFa46UCERW5i); Kyle
+answered all ten on 2026-11-01, taking my pick on eight. He also picked all 6 divisions at about 100 men, local men at home and the
+hotbeds at the top, each organisation's own top 15, about 3 fights a year (champions 2), and grounded, plausible promotion names. Nine pieces, in this order (D350), each playable when it lands:
+
+| Piece | Decision | Status |
+|---|---|---|
+| Weight divisions: a walk-around weight, growing into his natural division by about 21, moved one up or down at his pro debut if you like (Kyle, 2026-11-01: "Grows into it, move at debut"; refines D35) | D351 | Built (§12.1) |
+| The world's fighters: about 100 named men a division, from local amateurs to world class; offers come from them, and the local lads he meets as an amateur are real men who can turn pro alongside him (Kyle, 2026-11-01: "Yes, amateurs in the roster") | D352 | Planned |
+| The world's weeks: the other men fight about 3 times a year, age, retire, and new prospects join each January | D353 | Planned |
+| Promotions and their cards: 3 or 4 regional pro promotions and 2 international organisations, made up each career (D57) | D354 | Planned |
+| Rankings: each organisation's top 15, updated weekly, each move with its reason (A10) | D355 | Planned |
+| Titles: belts, 5-round title fights, defences, vacating | D356 | Planned |
+| Climbing the ladder: call-ups to the bigger promotion, title eliminators, and asking for a step up from the hub at a risk of a tougher fight or a no (Kyle, 2026-11-01: "Call-ups plus asking for it"); fight-by-fight deals until phase 5 | D357 | Planned |
+| A history before day one: the world played 10 years before his career starts, so there are long records and some retired legends (Kyle, 2026-11-01: "10 years") | D358 | Planned |
+| The 30-year check: a tool and a test that the world stays healthy (A10) | D359 | Planned |
+
+**The world's other fights** are decided by a quick result model, not the fight engine (Kyle, 2026-11-01: "A quick result model"; this changes A9's middle tier). The
+engine takes about 0.6 s a fight (94 µs a tick, 2026-11-01), so 600 men fighting 3 times a year would cost about 9 minutes a
+career year. The model takes each man's level, the style matchup edge from the balance harness (every style against every
+style, saved as data), and small nudges for age, form, damage and ring rust; how a fight ends and in which round come from
+what the harness saw for that pair of styles. A tool rebuilds the matchup data when fights change, and a test checks the
+model's win shares sit inside the harness's 95% ranges. His own fights stay on the engine.
+
+### 12.1 Weight divisions (D351)
+
+Every fighter now has a weight and a division (Kyle, 2026-11-01: "Grows into it, move at debut"; refines D35). The six
+men's divisions (D56) are data, `data/divisions/` (docs/09 division@1): Bantamweight 61.2 kg (135 lb), Featherweight 65.8 kg
+(145 lb), Lightweight 70.3 kg (155 lb), Welterweight 77.1 kg (170 lb), Middleweight 83.9 kg (185 lb) and Light heavyweight
+93.0 kg (205 lb). Heavyweight comes after launch.
+
+- **His grown weight.** What he'll walk around at once he's filled out at 21 comes from his height and build (a body-mass
+  index of 23.5 lean, 25 average or 26.5 stocky at 70 kg, rising 0.06 for every kg over), give or take 4% of his own, rolled
+  once when the career starts and kept as the fighter's `frame.adult_kg`. A 175 cm average build is about 78 kg.
+- **Growing into it.** At 16 he walks around at 88% of it, rising evenly to all of it at 21.
+- **His division** is the lightest whose limit he can make with a normal cut, 12% of what he walks around at (the cut itself,
+  and what a bigger one costs, is phase 4). His *natural* division is the one his grown weight makes. Over the heaviest, he's
+  a light heavyweight.
+- **As an amateur** he fights at whatever division his weight makes that year, so a growing lad moves up a division or two.
+- **At his pro debut** you pick his division beside *Turn pro*: his natural one (picked to start with), one lighter (a bigger
+  cut) or one heavier, and he stays there (the career's `division`). A pro saved before D351 gets his natural division.
+- **His opponents** are made to fit his division: each walks around somewhere in the division's band, with a grown weight to
+  match his age and a height (±3 cm) that goes with that weight and his style's build; his reach keeps his ape index.
+- **On screen.** The hub's fighter card says what he walks around at, the division he fights at (with its limit in kg and
+  lb), and while he's growing the division he's growing into. Who he became says his weight at 16 and the division he'll
+  grow into. Each offer says the opponent's weight and "A lightweight bout". The tale of the tape has a WEIGHT row in a
+  career fight. Weights are in kg, with the divisions' limits in kg and lb as well.
+
+Fights don't read weight, so no fight changes (no golden re-pin); generated opponents' heights now follow their weight.
+
+**To change it:** the divisions in `data/divisions/`; the numbers at the top of `sim/world/weight.gd` (`BUILD_BMI`,
+`BMI_PER_KG`, `PERSONAL_SPREAD`, `GROWN_AT`, `SHARE_AT_16`, `CUT`, `FIT_BAND`, `FIT_HEIGHT_SPREAD_CM`); the choice at the debut
+in `Career.turn_pro` and `CareerHub` (`_pro_division`, `weight_text`); opponents in `Matchmaker.make_offer`. Tests:
+`tests/sim/world/test_weight.gd`, `tests/ui/test_career_screens.gd`, `tests/data/test_data_files.gd`. Then update this
+section and D351.

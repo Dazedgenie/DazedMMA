@@ -96,7 +96,8 @@ func make_offers(c: Career, rng: RandomNumberGenerator) -> Array:
 	return out
 
 
-## One offer: { id, profile (the opponent, fighter@1), about (nickname, hometown, country), style, difficulty,
+## One offer: { id, profile (the opponent, fighter@1, made to fit his division: Weight.fit), about (nickname, hometown,
+## country), style, difficulty, division (D351),
 ## week (fight night is that week's Saturday), expires (the last week it's open), ruleset, pro, purse ({show, win} or {}) }.
 func make_offer(c: Career, style_id: String, difficulty: String, rng: RandomNumberGenerator, index: int = 0) -> Dictionary:
 	var country_id: String = names.country_id_of(String(c.about.get("country", "")))
@@ -106,11 +107,15 @@ func make_offer(c: Career, style_id: String, difficulty: String, rng: RandomNumb
 		+ rng.randi_range(-LEVEL_SPREAD, LEVEL_SPREAD)
 	var p: Dictionary = styles.generate(style_id, rng.randi(), level, roster, id, String(person.name))
 	p.age = opponent_age(c.age(), rng)
+	var division: String = c.division_now()
+	var body := RandomNumberGenerator.new()
+	body.seed = hash([c.career_seed, id, "weight"])  # Its own dice, so the rest of the offer rolls as before.
+	Weight.fit(p, division, float(p.age) + 0.5, body)  # A man of his division (D351).
 	var camp: int = rng.randi_range(CAMP_WEEKS_MIN + OPEN_WEEKS - 1, CAMP_WEEKS_MAX)
 	return {
 		"id": id, "profile": p,
 		"about": { "nickname": String(person.nickname), "hometown": String(person.hometown), "country": String(person.country) },
-		"style": style_id, "difficulty": difficulty,
+		"style": style_id, "difficulty": difficulty, "division": division,
 		"week": c.week + camp - 1, "expires": c.week + OPEN_WEEKS - 1,
 		"ruleset": rules_for(c), "pro": c.pro, "purse": purse_for(c),
 		"card": {} if c.pro else local_card(c, rng, country_id),

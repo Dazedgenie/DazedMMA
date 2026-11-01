@@ -112,6 +112,9 @@ var tutorial: bool = false
 var tips_seen: Array[String] = []
 ## His tournament medals, oldest first: { medal (Tournament.GOLD, SILVER or BRONZE), name, week, size }.
 var medals: Array = []
+## His division once he's turned pro (Weight, D351): picked at the debut from his natural one or one either side, and
+## kept. "" before: an amateur fights at whatever his weight that year makes (division_now()).
+var division: String = ""
 
 var _dice := RandomNumberGenerator.new()
 var _library: TrainingLibrary
@@ -128,6 +131,7 @@ static func create(profile_in: Dictionary, new_seed: int, extra: Dictionary = {}
 	c.fighter = profile_in.duplicate(true)
 	c.fighter.id = FIGHTER_ID
 	c.fighter.erase("condition")
+	give_weight(c.fighter, new_seed)
 	c.coach_name = String(extra.get("coach", ""))
 	c.coach_background = String(extra.get("coach_background", ""))
 	c.coach_specialty = String(extra.get("coach_specialty", ""))
@@ -142,6 +146,16 @@ static func create(profile_in: Dictionary, new_seed: int, extra: Dictionary = {}
 	c.tutorial = bool(extra.get("tutorial", false))
 	c._school_week()
 	return c
+
+
+## Gives a new career's fighter his own grown weight (Weight.set_up, D351) unless he has one, from the career's seed on
+## its own dice (nothing else the seed makes moves). Who he became shows the same man.
+static func give_weight(profile: Dictionary, new_seed: int) -> void:
+	if profile.get("frame", {}).has("adult_kg"):
+		return
+	var body := RandomNumberGenerator.new()
+	body.seed = hash([new_seed, "weight"])
+	Weight.set_up(profile, body)
 
 
 ## A new career from the new-career screen (docs/03 §10.2, D302): a 16-year-old made from his background
@@ -192,6 +206,21 @@ func fighter_name() -> String:
 ## His age in whole years.
 func age() -> int:
 	return trainee.age
+
+
+## What he walks around at this week (kg): a share of his grown weight until GROWN_AT (Weight, D351).
+func weight_kg() -> float:
+	return Weight.walk_kg(fighter.get("frame", {}), trainee.age_years)
+
+
+## The division he fights at now: the one he picked at his pro debut, or as an amateur the one his weight makes.
+func division_now() -> String:
+	return division if division != "" else Weight.division_for(weight_kg())
+
+
+## The division his grown weight makes (Weight.natural).
+func natural_division() -> String:
+	return Weight.natural(fighter.get("frame", {}))
 
 
 ## A week between fights on `plan` (a data/week_plans id or a week_plan@1 Dictionary; the career's `week_plan` when
@@ -393,10 +422,16 @@ func decline(id: String) -> void:
 
 
 ## Turns pro (D304, the hub's button when Matchmaker.can_turn_pro): his fights count on the pro record from now, the
-## amateur offers on the table go and pro offers come next week.
-func turn_pro() -> bool:
+## amateur offers on the table go and pro offers come next week. He fights in `division_id` from now (D351): his natural
+## division or one either side (Weight.debut_choices), his natural one when left out. False, with nothing done, when he
+## can't turn pro or the division isn't one he can pick.
+func turn_pro(division_id: String = "") -> bool:
 	if not Matchmaker.can_turn_pro(self):
 		return false
+	var pick: String = division_id if division_id != "" else natural_division()
+	if not pick in Weight.debut_choices(fighter.get("frame", {})):
+		return false
+	division = pick
 	pro = true
 	offers.clear()
 	next_offers_week = week + 1
@@ -672,7 +707,7 @@ func to_dict() -> Dictionary:
 		"calendar": { "first_monday": first_monday, "week": week },
 		"suspended_days": suspended_days, "money": money, "pro": pro, "week_plan": week_plan,
 		"worn_last_week": worn_last_week, "next_offers_week": next_offers_week,
-		"next_tournament_week": next_tournament_week, "medals": medals.duplicate(true),
+		"next_tournament_week": next_tournament_week, "medals": medals.duplicate(true), "division": division,
 		"tutorial": tutorial, "tips_seen": tips_seen.duplicate(),
 		"fights": fights.duplicate(true), "opponents": opponents.duplicate(true),
 		"booked": booked.duplicate(true), "offers": offers.duplicate(true),
@@ -715,6 +750,9 @@ static func from_dict(data: Dictionary, library: TrainingLibrary = null) -> Care
 	c.next_offers_week = int(d.get("next_offers_week", c.week + 1))
 	c.next_tournament_week = int(d.get("next_tournament_week", c.week + Tournament.FIRST_WEEK))
 	c.tutorial = bool(d.get("tutorial", false))
+	c.division = String(d.get("division", ""))
+	if c.pro and c.division == "":
+		c.division = c.natural_division()  # A pro saved before D351: his natural division.
 	for id: Variant in d.get("tips_seen", []):
 		c.tips_seen.append(String(id))
 	c.medals = d.get("medals", []).duplicate(true) if d.get("medals") is Array else []
