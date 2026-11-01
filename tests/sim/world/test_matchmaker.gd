@@ -84,6 +84,7 @@ func test_a_harder_offer_is_a_better_man_than_an_easier_one() -> void:
 		var harder: Dictionary = m.make_offer(c, style_id, "harder", hard_rng)
 		assert_gt(_average(harder.profile.stats), _average(easier.profile.stats), style_id)
 	var even_rng := RandomNumberGenerator.new()
+	even_rng.seed = 9
 	var even: Dictionary = m.make_offer(c, "boxer", "even", even_rng)
 	assert_almost_eq(_average(even.profile.stats), _average(c.profile().stats), 4.0, "about even is about his level")
 
