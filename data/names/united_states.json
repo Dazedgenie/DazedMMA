@@ -53,5 +53,24 @@
 		"Lopez",
 		"Young",
 		"Mitchell"
-	]
+	],
+	"looks": {
+		"skin": [
+			2,
+			3,
+			2,
+			1.5,
+			1.5,
+			1.5,
+			1
+		],
+		"hair": {
+			"black": 3,
+			"dark_brown": 3,
+			"brown": 2.5,
+			"light_brown": 1.5,
+			"blonde": 1,
+			"red": 0.4
+		}
+	}
 }

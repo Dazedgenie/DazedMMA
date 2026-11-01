@@ -52,5 +52,24 @@
 		"Douglas",
 		"Morgan",
 		"Hunter"
-	]
+	],
+	"looks": {
+		"skin": [
+			3,
+			4,
+			2,
+			1,
+			0.5,
+			0.3,
+			0.2
+		],
+		"hair": {
+			"dark_brown": 2.5,
+			"brown": 3,
+			"light_brown": 2,
+			"blonde": 2,
+			"black": 1.2,
+			"red": 0.6
+		}
+	}
 }

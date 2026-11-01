@@ -4,6 +4,7 @@
 	"name": "Karate point fighter",
 	"template": null,
 	"frame": { "height_cm": 185, "reach_cm": 190, "build": "lean" },
+	"home": "japan",
 	"stance": "orthodox",
 	"stats": { "speed": 70, "footwork": 75, "kicking": 65, "boxing": 55, "striking_defense": 60, "fight_iq": 60, "power": 45, "chin": 50, "cardio": 60, "takedown_defense": 50, "takedowns": 35, "submissions": 40, "submission_defense": 45, "cage_cutting": 35 },
 	"personality": { "ego": 0, "discipline": 20, "coachable": 0, "loyal": 0 },

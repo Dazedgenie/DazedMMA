@@ -4,6 +4,7 @@
 	"name": "Counter-striker",
 	"template": null,
 	"frame": { "height_cm": 180, "reach_cm": 186, "build": "lean" },
+	"home": "nigeria",
 	"stance": "orthodox",
 	"stats": { "boxing": 60, "striking_defense": 65, "footwork": 60, "speed": 60, "fight_iq": 65, "composure": 65, "power": 50, "kicking": 45, "takedown_defense": 55, "takedowns": 35, "submissions": 40, "submission_defense": 50, "cage_cutting": 40 },
 	"personality": { "ego": 0, "discipline": 20, "coachable": 0, "loyal": 0 },

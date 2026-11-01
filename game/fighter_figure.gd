@@ -240,6 +240,8 @@ var _time: float = 0.0
 var opponent: FighterFigure
 ## A skinned body (D285) drawn instead of the faceted pieces, posed from them every frame; null draws the pieces.
 var body: SkinnedBody
+## His look on the body (FighterLook, D364); {} for the body's own.
+var look: Dictionary = {}
 ## How high the pieces' ankle sits over the sole (the foot is drawn 0.065 below and the ball 0.032 up).
 const BODY_ANKLE_UP: float = 0.097
 ## Which way the overhead labels lean so the two don't overlap (-1 left, 0 centred, +1 right on screen).
@@ -308,15 +310,23 @@ func show_state(sim: FightSim, i: int, at: Vector2, toward: Vector2, delta: floa
 ## Draws the skinned body at `path` (D285; SkinnedBody) instead of the faceted pieces. The pieces still pose
 ## every frame (strikes aim, grips and tells read them) but aren't drawn; the body follows their joints. False
 ## (and the pieces stay) if the body can't be loaded.
-func use_body(path: String) -> bool:
+##
+## With his fighter@1 `profile` (D364) he's drawn as that man: his height (the whole figure scaled, pieces and body),
+## his build and reach (FighterLook.sizes) and his look (FighterLook.for_profile: skin, hair, beard).
+func use_body(path: String, profile: Dictionary = {}) -> bool:
+	var sizes: Dictionary = FighterLook.sizes(profile) if not profile.is_empty() else {}
+	scale = Vector3.ONE * float(sizes.get("height", 1.0))
 	var skinned := SkinnedBody.new()
 	add_child(skinned)
 	var shoulders: float = _arm_meshes[0].global_position.y - global_position.y
 	if not skinned.load_body(path, shoulders):
 		skinned.queue_free()
+		scale = Vector3.ONE
 		return false
 	body = skinned
-	body.set_colour(colour)
+	body.set_size(sizes)
+	look = FighterLook.for_profile(profile) if not profile.is_empty() else {}
+	body.set_look(colour, look)
 	for found: Node in _hips.find_children("*", "GeometryInstance3D", true, false):
 		if found != _tell and not _tell.is_ancestor_of(found):
 			var piece: GeometryInstance3D = found
@@ -334,7 +344,7 @@ func body_pose() -> Dictionary:
 	var pose := {
 		"pelvis_at": _hips.global_position, "pelvis": _hips.global_basis.orthonormalized(),
 		"chest": _torso.global_basis.orthonormalized(), "neck": _torso.global_basis.orthonormalized(),
-		"head": _head.global_basis.orthonormalized(), "ankle_up": BODY_ANKLE_UP,
+		"head": _head.global_basis.orthonormalized(), "ankle_up": BODY_ANKLE_UP * scale.y,
 		"shoulders_at": (_arm_meshes[0].global_position + _arm_meshes[1].global_position) / 2.0,
 	}
 	for i in 2:
@@ -1313,7 +1323,7 @@ func _place_overhead() -> void:
 	_stars.position.y = head + 0.2
 	_tell_label.position.y = head + 0.25
 	for label: Label3D in [_move_label, _call_label, _tell_label]:
-		label.scale = Vector3.ONE * label_scale
+		label.scale = Vector3.ONE * label_scale / maxf(scale.x, 0.01)  # The same size whatever his height (D364).
 	var width: float = ThemeDB.fallback_font.get_string_size(_move_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, _move_label.font_size).x
 	_move_label.offset.x = label_side * (width / 2.0 + 12.0)
 

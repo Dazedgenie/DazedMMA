@@ -37,6 +37,9 @@ var _rest_world := {}
 var _ids := {}
 ## Where the hip joints' middle is at rest (the rig's pelvis point).
 var _pelvis_rest := Vector3.ZERO
+## His build (D364, set_size): each bone's scale in its own frame (Y runs along the bone), and how long his arms are.
+var _bone_scale := {}
+var _arm_length: float = 1.0
 
 
 func _init() -> void:
@@ -94,6 +97,29 @@ func attach(scene: Node3D, shoulder_height: float = 0.0) -> bool:
 	return true
 
 
+## The trunk's and the limbs' bones (D364): set_size thickens them across, and lengthens the arms' along.
+const GIRTH_TRUNK: Array[String] = ["Hips", "Spine", "Spine1", "Spine2", "Neck"]
+const GIRTH_LIMBS: Array[String] = ["LeftArm", "LeftForeArm", "RightArm", "RightForeArm", "LeftUpLeg", "LeftLeg",
+	"RightUpLeg", "RightLeg"]
+## The neck takes this share of the trunk's thickening.
+const NECK_GIRTH_SHARE: float = 0.7
+
+
+## Draws him at his build (FighterLook.sizes, D364): `girth` thickens his trunk across, `limbs` his arms and legs,
+## and `arm` lengthens his arms (upper arm and forearm alike). Run before posing, and before the rig is fitted to
+## measure(), which gives the longer arms.
+func set_size(sizes: Dictionary) -> void:
+	var girth: float = float(sizes.get("girth", 1.0))
+	var limbs: float = float(sizes.get("limbs", 1.0))
+	_arm_length = float(sizes.get("arm", 1.0))
+	_bone_scale.clear()
+	for bone: String in GIRTH_TRUNK:
+		var g: float = 1.0 + (girth - 1.0) * (NECK_GIRTH_SHARE if bone == "Neck" else 1.0)
+		_bone_scale[bone] = Vector3(g, 1.0, g)
+	for bone: String in GIRTH_LIMBS:
+		_bone_scale[bone] = Vector3(limbs, _arm_length if bone.contains("Arm") else 1.0, limbs)
+
+
 ## How far each finger joint bends to make a fist (radians; the thumb folds about half as far).
 const FIST_CURL: float = 1.35
 ## The finger bones of a Mixamo hand, each bent by curl_fingers.
@@ -121,6 +147,28 @@ func curl_fingers(amount: float) -> void:
 ## Colours the body's light-grey shorts in a corner's colour (the rest of the texture stays as it is). The body
 ## file's shorts are light grey on purpose so one body serves both corners.
 func set_colour(colour: Color) -> void:
+	set_look(colour, {})
+
+
+## The body's regions (D364): a texture over the body's own, baked from where each part of it is
+## (tools/body_regions.py): red the hair on his head, green where a beard grows, blue his eyebrows, alpha his shorts.
+const REGIONS := "res://game/bodies/tripo_fighter_regions.png"
+## The skin and hair colours the body's own texture has (sRGB), which a look's colours replace.
+const BODY_SKIN := Color(0.745, 0.525, 0.384)
+const BODY_HAIR := Color(0.21, 0.17, 0.14)
+## How much of the hair's colour a buzzed head keeps over the scalp's (a shaved head keeps none).
+const BUZZED_HAIR: float = 0.55
+## How far the hair's shell sinks toward the scalp (metres) for a buzzed or shaved head.
+const HAIR_SINK := { "short": 0.0, "buzzed": 0.014, "shaved": 0.022 }
+## How much of the texture's own skin colour (its blush, lips and shadows) a new skin tone keeps against an even tone
+## shaded as the texture is.
+const SKIN_DETAIL: float = 0.65
+
+
+## Colours the body: the shorts in the corner's `colour` and the skin, hair, eyebrows and beard as `look` (FighterLook,
+## D364) has them; an empty look leaves the body's own skin and hair.
+func set_look(colour: Color, look: Dictionary) -> void:
+	var regions: Texture2D = load(REGIONS) if ResourceLoader.exists(REGIONS) else null
 	for found: Node in find_children("*", "MeshInstance3D", true, false):
 		var mesh: MeshInstance3D = found
 		var base: StandardMaterial3D = mesh.get_active_material(0) as StandardMaterial3D
@@ -130,25 +178,72 @@ func set_colour(colour: Color) -> void:
 		tinted.shader = _tint_shader()
 		tinted.set_shader_parameter("albedo", base.albedo_texture)
 		tinted.set_shader_parameter("tint", colour)
+		tinted.set_shader_parameter("body_skin", BODY_SKIN)
+		tinted.set_shader_parameter("body_hair", BODY_HAIR)
+		tinted.set_shader_parameter("skin_detail", SKIN_DETAIL)
+		if regions != null:
+			tinted.set_shader_parameter("regions", regions)
+			tinted.set_shader_parameter("has_regions", true)
+		var has_look: bool = not look.is_empty()
+		tinted.set_shader_parameter("skin", FighterLook.skin_colour(look) if has_look else BODY_SKIN)
+		tinted.set_shader_parameter("hair", FighterLook.hair_colour(look) if has_look else BODY_HAIR)
+		var style: String = String(look.get("hair_style", "short"))
+		tinted.set_shader_parameter("hair_kept", 1.0 if style == "short" else (BUZZED_HAIR if style == "buzzed" else 0.0))
+		tinted.set_shader_parameter("hair_sink", HAIR_SINK.get(style, 0.0) / maxf(mesh.global_basis.get_scale().y, 0.001))
+		tinted.set_shader_parameter("beard", float(FighterLook.BEARD_SHADE.get(String(look.get("beard", "none")), 0.0)))
 		mesh.material_override = tinted
 
 
 static var _shader: Shader
 
 
-## Light, colourless texels (the shorts) take the tint; skin, gloves, hair and the dark panels don't.
+## Light, colourless texels in the shorts take the corner's tint; skin takes the look's tone (each texel shaded as the
+## body's own skin is there), hair and eyebrows its hair colour (a shaved scalp shows skin), and the beard's zone
+## darkens toward the hair colour by the beard. Gloves, eyes and the shorts' dark panels stay as they are.
 static func _tint_shader() -> Shader:
 	if _shader == null:
 		_shader = Shader.new()
 		_shader.code = """
 shader_type spatial;
 uniform sampler2D albedo : source_color, filter_linear_mipmap;
+uniform sampler2D regions : hint_default_black, filter_linear_mipmap;
+uniform bool has_regions = false;
 uniform vec4 tint : source_color = vec4(1.0);
+uniform vec4 skin : source_color = vec4(0.745, 0.525, 0.384, 1.0);
+uniform vec4 hair : source_color = vec4(0.21, 0.17, 0.14, 1.0);
+uniform vec4 body_skin : source_color = vec4(0.745, 0.525, 0.384, 1.0);
+uniform vec4 body_hair : source_color = vec4(0.21, 0.17, 0.14, 1.0);
+uniform float skin_detail = 0.5;
+uniform float hair_kept = 1.0;
+uniform float beard = 0.0;
+uniform float hair_sink = 0.0;
+float lum(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
+void vertex() {
+	// A buzzed or shaved head: the hair's shell sinks in toward the scalp.
+	if (has_regions && hair_sink > 0.0) {
+		VERTEX -= NORMAL * hair_sink * textureLod(regions, UV, 0.0).r;
+	}
+}
 void fragment() {
 	vec3 c = texture(albedo, UV).rgb;
+	vec4 m = has_regions ? texture(regions, UV) : vec4(0.0, 0.0, 0.0, 1.0);
 	float top = max(c.r, max(c.g, c.b));
-	float grey = (1.0 - smoothstep(0.1, 0.22, (top - min(c.r, min(c.g, c.b))) / max(top, 0.001))) * smoothstep(0.3, 0.5, top);
-	ALBEDO = mix(c, tint.rgb * (0.35 + 0.75 * top), grey);
+	float sat = (top - min(c.r, min(c.g, c.b))) / max(top, 0.001);
+	float grey = (1.0 - smoothstep(0.1, 0.22, sat)) * smoothstep(0.3, 0.5, top) * m.a;
+	// Skin: an even tone shaded as the body's skin is here, with some of the texture's own colour kept.
+	float shade = lum(c) / lum(body_skin.rgb);
+	vec3 toned = mix(skin.rgb * shade, c * skin.rgb / max(body_skin.rgb, vec3(0.001)), skin_detail);
+	float is_skin = smoothstep(0.3, 0.5, sat) * (1.0 - m.r) * (1.0 - m.b) * (1.0 - m.a);
+	vec3 out_c = mix(c, toned, is_skin);
+	// Hair and eyebrows in his hair colour, shaded as the body's hair is; a shaved scalp is skin in the hair's shading.
+	float hair_shade = clamp(lum(c) / lum(body_hair.rgb), 0.0, 3.0);
+	vec3 dyed = hair.rgb * hair_shade;
+	vec3 scalp = skin.rgb * clamp(hair_shade * 0.55 + 0.35, 0.0, 1.1);
+	out_c = mix(out_c, mix(scalp, dyed, hair_kept), m.r);
+	out_c = mix(out_c, dyed, m.b);
+	// The beard darkens the skin toward his hair colour.
+	out_c = mix(out_c, hair.rgb * shade * 1.2, m.g * beard * is_skin);
+	ALBEDO = mix(out_c, tint.rgb * (0.35 + 0.75 * top), grey);
 	ROUGHNESS = 0.85;
 }
 """
@@ -164,8 +259,8 @@ func measure() -> Dictionary:
 		"head_up": Vector3(0, _at("Head").y - _at("Neck").y, _at("Head").z - _at("Neck").z),
 		"shoulder": Vector3(absf(arm.x), arm.y, arm.z),
 		"hip_x": absf(_at("RightUpLeg").x - _pelvis_rest.x),
-		"upper_arm": _at("RightArm").distance_to(_at("RightForeArm")),
-		"forearm": _at("RightForeArm").distance_to(_at("RightHand")),
+		"upper_arm": _at("RightArm").distance_to(_at("RightForeArm")) * _arm_length,
+		"forearm": _at("RightForeArm").distance_to(_at("RightHand")) * _arm_length,
 		"thigh": _at("RightUpLeg").distance_to(_at("RightLeg")),
 		"shin": _at("RightLeg").distance_to(_at("RightFoot")),
 		"ankle_up": _at("RightFoot").y,
@@ -219,6 +314,9 @@ func follow_joints(pose: Dictionary, only: Array[String] = []) -> void:
 			end_at += Basis(pose["foot_" + side]).y * (_at("RightFoot").y - float(pose.ankle_up))
 		var first: float = Transform3D(_rest_world[upper]).origin.distance_to(Transform3D(_rest_world[lower]).origin)
 		var second: float = Transform3D(_rest_world[lower]).origin.distance_to(Transform3D(_rest_world[end]).origin)
+		if arm:
+			first *= _arm_length
+			second *= _arm_length
 		if arm and pose.has("shoulders_at"):
 			# The pieces' arms are longer: a bent arm keeps the pieces' bend (so an arm round a man's back goes
 			# round him, not straight through), and only a nearly straight one, a punch, reaches for the glove.
@@ -338,4 +436,6 @@ func _set_world(bone: String, world: Transform3D, to_skeleton: Transform3D) -> v
 	var local: Transform3D = to_skeleton * world
 	# Keep the bones' own scale (the body's scale lives on the scene above the skeleton).
 	local.basis = local.basis.orthonormalized()
+	if _bone_scale.has(bone):
+		local.basis = local.basis * Basis.from_scale(_bone_scale[bone])  # His build (D364), in the bone's own frame.
 	skeleton.set_bone_global_pose(_ids[bone], local)

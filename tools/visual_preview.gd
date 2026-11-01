@@ -1,11 +1,14 @@
 extends SceneTree
 ## Reproducible rendered samples, using the real game scene and HUD. Needs a graphics display.
 ## godot --path . --script res://tools/visual_preview.gd -- --out=res://build/visual
+## --red= and --blue= pick the fighters (default the Boxer and the Wrestler; D364: each drawn as that man).
 ## The arranged poses live only in this preview; no fight rules or saved data are changed.
 
 var _main: Node3D
 var _out := "res://build/visual"
 var _size := Vector2i(1600, 900)
+var _red := "boxer"
+var _blue := "wrestler"
 
 
 func _initialize() -> void:
@@ -14,6 +17,10 @@ func _initialize() -> void:
 			_size = Vector2i(1280, 720)
 		if arg.begins_with("--out="):
 			_out = arg.trim_prefix("--out=")
+		if arg.begins_with("--red="):
+			_red = arg.trim_prefix("--red=")
+		if arg.begins_with("--blue="):
+			_blue = arg.trim_prefix("--blue=")
 	_capture.call_deferred()
 
 
@@ -22,7 +29,7 @@ func _capture() -> void:
 	_main = load("res://game/main.tscn").instantiate()
 	root.add_child(_main)
 	_main.record_dir = ""
-	_main.start_fight({"red": "boxer", "blue": "wrestler", "seed": 35003, "sound_volume": 0.0, "easy": true})
+	_main.start_fight({"red": _red, "blue": _blue, "seed": 35003, "sound_volume": 0.0, "easy": true})
 	_main.driver.held = true
 	_main.hud._banner_left = 0.0
 	var sim: FightSim = _main.driver.sim
@@ -50,7 +57,7 @@ func _capture() -> void:
 	await _save("side-control")
 	sim.apply_transition(0, "take_mount")
 	await _save("mount")
-	_main.start_fight({"red": "boxer", "blue": "wrestler", "seed": 35003, "sound_volume": 0.0, "easy": true})
+	_main.start_fight({"red": _red, "blue": _blue, "seed": 35003, "sound_volume": 0.0, "easy": true})
 	_main.driver.held = true
 	_main.hud._banner_left = 0.0
 	sim = _main.driver.sim

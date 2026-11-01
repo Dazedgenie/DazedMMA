@@ -4,6 +4,7 @@
 	"name": "Pressure wrestler",
 	"template": null,
 	"frame": { "height_cm": 176, "reach_cm": 178, "build": "stocky" },
+	"home": "russia",
 	"stance": "orthodox",
 	"stats": { "takedowns": 70, "cardio": 75, "clinch_control": 65, "top_control": 65, "strength": 60, "scrambles": 60, "takedown_defense": 60, "heart": 65, "boxing": 45, "power": 50, "chin": 60, "submissions": 40, "submission_defense": 60, "cage_cutting": 75 },
 	"personality": { "ego": 0, "discipline": 20, "coachable": 0, "loyal": 0 },

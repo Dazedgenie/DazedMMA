@@ -4,6 +4,7 @@
 	"name": "BJJ",
 	"template": null,
 	"frame": { "height_cm": 180, "reach_cm": 185, "build": "lean" },
+	"home": "brazil",
 	"stance": "orthodox",
 	"stats": { "submissions": 65, "guard": 75, "submission_defense": 70, "scrambles": 60, "top_control": 60, "clinch_control": 55, "takedowns": 45, "takedown_defense": 45, "cardio": 60, "boxing": 45, "striking_defense": 50, "power": 45, "chin": 60, "cage_cutting": 40 },
 	"personality": { "ego": 0, "discipline": 20, "coachable": 0, "loyal": 0 },

@@ -303,6 +303,9 @@ childhood scenes picked it instead: now they do, unless you untick *Play his chi
 rolls again. Hometowns are real cities in 12 countries (`data/names/`), and a rolled name comes from his hometown's country.
 Each background shows what it's strong and weak at, the style he'll grow into, the money he starts with (in dollars, Kyle's
 call) and its story hook.
+**His look** (D365, Kyle: "You pick for your own fighter"; `docs/13` §Fighters who look different): under Stance, seven
+skin-tone swatches and drop-downs for his hair colour, hair (short, buzzed or shaved) and beard. *Roll everything* rolls them
+for his hometown's country. He's drawn with it in every fight; the world's men get theirs from where they're from.
 *Start career* takes the first free slot and saves at once; with all three in use it asks you to delete one first.
 
 **The fighter a background makes** (`BackgroundLibrary.make_fighter`, `sim/world/background_library.gd`, from

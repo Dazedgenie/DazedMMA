@@ -140,6 +140,8 @@ static func create(profile_in: Dictionary, new_seed: int, extra: Dictionary = {}
 	c.coach_specialty = String(extra.get("coach_specialty", ""))
 	for key in ABOUT_KEYS:
 		c.about[key] = String(extra.get(key, ""))
+	if extra.get("look") is Dictionary and FighterLook.check(extra.look) == "":
+		c.about.look = (extra.look as Dictionary).duplicate()
 	c.first_monday = days_from_civil(START_DATE[0], START_DATE[1], START_DATE[2])
 	c.trainee = TrainingCamp.new(c.fighter, c._dice.randi(), c._library)
 	c.trainee.coach_specialty = c.coach_specialty
@@ -199,6 +201,9 @@ static func start(choices: Dictionary, new_seed: int, roster: FighterLibrary, ba
 func profile() -> Dictionary:
 	var out: Dictionary = trainee.profile()
 	out.id = FIGHTER_ID
+	out.home = NameLibrary.shared().country_id_of(String(about.get("country", "")))
+	if about.get("look") is Dictionary:
+		out.look = (about.look as Dictionary).duplicate()  # Picked on the new-career screen (D364).
 	return out
 
 
@@ -776,6 +781,10 @@ static func from_dict(data: Dictionary, library: TrainingLibrary = null) -> Care
 	c.fighter = d.fighter.duplicate(true)
 	for key in ABOUT_KEYS:
 		c.about[key] = String(d.get("about", {}).get(key, ""))
+	var look: Variant = d.get("about", {}).get("look")
+	if look is Dictionary and FighterLook.check(look) == "":
+		c.about.look = (look as Dictionary).duplicate()
+		c.about.look.skin = int(c.about.look.skin)
 	c.childhood = d.get("childhood", {}).duplicate(true) if d.get("childhood") is Dictionary else {}
 	for person: Variant in c.childhood.get("people", []):
 		if person is Dictionary:

@@ -51,5 +51,20 @@
 		"Kongkaew",
 		"Siriwat",
 		"Thammasat"
-	]
+	],
+	"looks": {
+		"skin": [
+			0.2,
+			1.5,
+			3,
+			4,
+			1.5,
+			0.3,
+			0
+		],
+		"hair": {
+			"black": 6,
+			"dark_brown": 1.5
+		}
+	}
 }
