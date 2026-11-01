@@ -23,21 +23,22 @@ func _kinds(report: Dictionary) -> Array:
 	return report.events.map(func(e: Dictionary) -> String: return String(e.kind))
 
 
-func test_a_school_week_keeps_his_weekday_mornings_for_school() -> void:
+func test_a_school_week_keeps_his_weekday_mornings_and_two_evenings_for_school() -> void:
 	var c: Career = _career()
 	assert_true(School.school_week(c), "a January week at 16 is term time")
-	assert_eq(c.trainee.taken.keys(), [0, 2, 4, 6, 8], "Monday to Friday mornings")
+	assert_eq(c.trainee.taken.keys(), [0, 2, 3, 4, 6, 7, 8], "Monday to Friday mornings, and Tuesday and Thursday evenings")
+	assert_eq(c.trainee.taken[3], School.HOMEWORK, "homework (Kyle, 2026-11-01)")
 	var plan: Dictionary = TrainingLibrary.shared().plan("striker")
 	var forecast: Dictionary = c.trainee.forecast(plan)
 	for slot: Dictionary in forecast.slots:
 		var index: int = int(slot.day) * TrainingCamp.SLOTS_PER_DAY + int(slot.slot)
-		if index in School.SLOTS:
-			assert_eq(String(slot.session), School.SESSION, "slot %d is school" % index)
+		if index in School.slots():
+			assert_eq(String(slot.session), String(c.trainee.taken[index]), "slot %d is school or homework" % index)
 		else:
 			assert_eq(String(slot.session), String(plan.days[slot.day][slot.slot]), "slot %d is his to train" % index)
 	assert_ne(String(plan.days[0][0]), School.SESSION, "the plan itself doesn't change")
-	assert_eq(School.sessions_left(), 7)
-	assert_string_contains(School.week_line(c), "trains 7 of the 12 sessions")
+	assert_eq(School.sessions_left(), 5)
+	assert_string_contains(School.week_line(c), "trains 5 of the 12 sessions")
 	assert_string_contains(CareerHub.week_text(c), "School week")
 	var at_school: Dictionary = c.run_week("striker")
 	var left: Career = _career(18)
@@ -62,7 +63,7 @@ func test_the_summer_holidays_give_him_full_weeks() -> void:
 	c.week = 34  # Mon 30 Aug: the last week of the holidays.
 	var august: Dictionary = c.run_week("time_off")
 	assert_true(Career.BACK_TO_SCHOOL in _kinds(august))
-	assert_eq(c.trainee.taken.size(), School.SLOTS.size(), "mornings at school again from Mon 6 Sep")
+	assert_eq(c.trainee.taken.size(), School.slots().size(), "school again from Mon 6 Sep")
 	assert_ne(Career.event_text({ "kind": Career.SCHOOL_OUT }), Career.SCHOOL_OUT)
 
 

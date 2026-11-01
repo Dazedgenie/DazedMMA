@@ -945,7 +945,8 @@ func test_local_cards_name_a_city_and_a_venue() -> void:
 			problems.append("%s: home_share is a share from 0 to 1" % where)
 		if c.get("every_weeks") is float and float(c.every_weeks) < 1.0:
 			problems.append("%s: every_weeks is 1 or more" % where)
-	var school: Dictionary = _items("sessions").get(School.SESSION, {})
-	if school.is_empty() or not bool(school.get("career_only", false)) or float(school.get("xp", 1.0)) != 0.0:
-		problems.append("data/sessions/%s.json: a career-only session with no XP (D314)" % School.SESSION)
+	for id: String in [School.SESSION, School.HOMEWORK]:
+		var school: Dictionary = _items("sessions").get(id, {})
+		if school.is_empty() or not bool(school.get("career_only", false)) or float(school.get("xp", 1.0)) != 0.0:
+			problems.append("data/sessions/%s.json: a career-only session with no XP (D314)" % id)
 	_report(problems)

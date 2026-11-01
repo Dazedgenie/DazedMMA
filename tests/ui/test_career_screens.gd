@@ -258,8 +258,11 @@ func test_a_career_camp_shows_his_school_mornings_and_the_card() -> void:
 	assert_true(c.accept(String(c.offers[0].id)))
 	var planner: CampPlanner = add_child_autofree(CampPlanner.new(c.profile(), 1))
 	planner.use_career(c)
-	for i: int in School.SLOTS:
+	for i: int in School.MORNINGS:
 		assert_string_contains(planner.tile_text(i), "School", "slot %d is at school (D314)" % i)
+		assert_true(planner._slots[i].disabled, "and can't be changed")
+	for i: int in School.EVENINGS:
+		assert_string_contains(planner.tile_text(i), "Homework", "slot %d is homework" % i)
 		assert_true(planner._slots[i].disabled, "and can't be changed")
 	assert_false(planner.tile_text(1).contains("School"), "Monday evening is his")
 	assert_false(planner._slots[1].disabled)

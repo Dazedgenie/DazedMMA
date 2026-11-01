@@ -807,7 +807,7 @@ func _refresh() -> void:
 	_fight.disabled = not can_fight()
 	_pull_out.disabled = not done() or pulled_out
 	for i in _slots.size():
-		_slots[i].disabled = done() or camp.taken.has(i)  # A school morning isn't his to plan (D314).
+		_slots[i].disabled = done() or camp.taken.has(i)  # School and homework aren't his to plan (D314).
 	_slots[-1].disabled = fight_week() or done()
 	_refresh_play()
 	var forecast: Dictionary = {} if done() else camp.forecast(week_plan(), fight_week())
@@ -875,7 +875,7 @@ func _refresh_tiles(week: Dictionary) -> void:
 		var note: String = ""
 		if camp.taken.has(i) and not done():
 			tile.show_session(session, "school week")
-			tile.tooltip_text = "School: weekday mornings are at school until the summer holidays (D314)"
+			tile.tooltip_text = "%s: school takes weekday mornings and two evenings until the summer holidays (D314)" % String(session.get("name", ""))
 			continue
 		if i < slots.size():
 			note = "fatigue %d" % roundi(slots[i].fatigue)

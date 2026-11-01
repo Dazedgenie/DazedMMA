@@ -212,7 +212,8 @@ func test_advance_runs_until_something_happens() -> void:
 
 
 func test_advance_stops_the_first_week_training_wears_him_down() -> void:
-	var c: Career = _career()
+	# At 18: a 16-year-old's school weeks (D314) leave too few sessions for a week all out to wear him down.
+	var c: Career = Career.create(_fighter(18), 1, { "coach": "Sam" })
 	var kinds := func(report: Dictionary) -> Array: return report.events.map(func(e: Dictionary) -> String: return e.kind)
 	var hard: Dictionary = c.run_week("all_out")
 	assert_gt(float(hard.fatigue_peak), TrainingCamp.FATIGUE_FREE, "a week all out takes him past the line")

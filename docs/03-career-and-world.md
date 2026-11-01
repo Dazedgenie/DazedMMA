@@ -613,16 +613,18 @@ section and D313.
 
 The teen amateur stage of `08` §2: school, local shows and the word on turning pro.
 
-**School weeks.** Until his 18th birthday a week in term time isn't all his. School takes the five weekday mornings, so he
-trains the evenings and Saturday: 7 of the 12 sessions (plan Q9: my pick, on a card for Kyle). In the summer holidays (a
-week whose Monday is in July or August) every session is his, which is when a long camp pays most. The slots are taken
-whatever the plan says: the hub's weeks and a fight camp both lose them, and the camp planner shows them as *School*
-tiles that can't be changed or played. A school slot is the `school` session (no XP, no fatigue). The week school breaks
-up, the week it starts again and the week he leaves it for good are news, so *Advance* stops on them, and the calendar
-shows them coming. The hub says what this week is: "School week: weekday mornings are at school, so he trains 7 of the 12
-sessions" or "Summer holidays: every session this week is his". He leaves school on his 18th birthday (no exams or
-sixth-form years), and a career saved before D314 gets its school weeks as it loads: they're worked out from the calendar
-and his age, so nothing new goes in the save.
+**School weeks.** Until his 18th birthday a week in term time isn't all his. School takes the five weekday mornings and
+homework two evenings (Tuesday and Thursday), so he trains Monday, Wednesday and Friday evenings and Saturday: 5 of the 12
+sessions (plan Q9; Kyle, 2026-11-01: "Mornings and two evenings"). In the summer holidays (a week whose Monday is in July
+or August) every session is his, which is when a long camp pays most. The slots are taken whatever the plan says: the
+hub's weeks and a fight camp both lose them, and the camp planner shows them as *School* and *Homework* tiles that can't
+be changed or played (the `school` and `homework` sessions: no XP, no fatigue). That's too few sessions for even a week
+all out to wear him down. The week school breaks up, the week it starts again and the week he leaves it for good are
+news, so *Advance* stops on them, and the calendar shows them coming. The hub says what this week is: "School week:
+weekday mornings at school and homework on Tuesday and Thursday evenings, so he trains 5 of the 12 sessions" or "Summer
+holidays: every session this week is his". He leaves school on his 18th birthday (no exams or sixth-form years), and a
+career saved before D314 gets its school weeks as it loads: they're worked out from the calendar and his age, so nothing
+new goes in the save.
 
 **Local cards.** Every amateur offer is on a named local show, "Leeds Fight Night 4 · the Sports Centre, Leeds": 60% in his
 hometown, the rest in another city of his country, and the man he's offered is a local lad (from his country). A series
@@ -647,8 +649,8 @@ His amateur record was already on the hub's top line; medals come with the one-d
 **Not yet:** exams, a part-time job, school events and parents having a say (phase 5's life events), holidays other than
 the summer, and the advice changing his first pro contract (phase 3, `08` §2's "pro hype").
 
-**What to change:** which slots school takes, the holidays and when he leaves in `sim/world/school.gd` (`SLOTS`,
-`HOLIDAY_MONTHS`, `LEAVES_AT`) and the slot itself in `data/sessions/school.json`; how a week runs taken slots in
+**What to change:** which slots school takes, the holidays and when he leaves in `sim/world/school.gd` (`MORNINGS`,
+`EVENINGS`, `HOLIDAY_MONTHS`, `LEAVES_AT`) and the slots themselves in `data/sessions/school.json` and `homework.json`; how a week runs taken slots in
 `sim/world/training_camp.gd` (`taken`, `with_taken`); the events in `sim/world/career.gd` (`SCHOOL_OUT`, `BACK_TO_SCHOOL`,
 `LEFT_SCHOOL`, `_events_since`, `calendar`, `_school_week`). The cards' names, venues, home share and how often the number
 goes up in `data/cards/local.json`, and how a card is made in `sim/world/matchmaker.gd` (`local_card`, `SERIES_START`); the

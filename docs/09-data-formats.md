@@ -261,7 +261,7 @@ One kind of training session (`docs/02` §3.5, D125). Loaded by `TrainingLibrary
 | `leanings` | `{leaning: −1–1}` | Style push per session (`docs/11` §4.2) |
 | `chin_wear` | 0–1 | Chin points lost per session (hard sparring) |
 | `minigame` | minigame id or null | The minigame that will play it (D38; only `mitt_work` is built so far, D137): `mitt_work`, `heavy_bag`, `thai_pads`, `wrestling_chain`, `sprawl_reflex`, `rolling_puzzle`, `roadwork`, `film_study`, `hard_sparring`, `meditation` |
-| `career_only` (optional) | bool | Put in by the career, never planned: the camp planner doesn't offer it (the gym shift, D313; school, D314) |
+| `career_only` (optional) | bool | Put in by the career, never planned: the camp planner doesn't offer it (the gym shift, D313; school and homework, D314) |
 
 ### week_plan@1 (examples: `balanced.json`, `wrestler.json`, `taper.json`)
 A training week (`docs/02` §3.5). Loaded by `TrainingLibrary`.
