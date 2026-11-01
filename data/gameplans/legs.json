@@ -1,0 +1,11 @@
+{
+	"schema": "gameplan@2",
+	"id": "legs",
+	"name": "Legs",
+	"part": "target",
+	"order": 3,
+	"summary": "Chop the legs: take his base and his movement.",
+	"leanings": {},
+	"weights": {},
+	"targets": { "head": 0.75, "body": 0.75, "legs": 2.0 }
+}

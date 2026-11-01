@@ -221,9 +221,19 @@ static func area_text(f: FighterState, area: String) -> String:
 	return "%s %d%%" % [area.to_upper(), roundi((1.0 - f.hurt(area)) * 100.0)]
 
 
+## The plan panel's first line: the corner's gameplan (D320), and when he's drifting off it (D323).
+static func plan_line(plan: Gameplan) -> String:
+	if plan == null or plan.is_empty():
+		return "[b]PLAN[/b]  [color=#8a8f98]own game[/color]"
+	var line: String = "[b]PLAN[/b]  %s" % plan.label
+	if plan.last_stick() < 1.0:
+		line += "\n[color=#ff8787]drifting off the plan (%d%% of it)[/color]" % roundi(plan.last_stick() * 100.0)
+	return line
+
+
 ## The plan panel's text (BBCode): rules, the call being acted on, primed reads.
 static func plan_text(sim: FightSim, i: int, flashing: Array[float] = [0.0, 0.0]) -> String:
-	var lines: Array[String] = ["[b]PLAN[/b]  [color=#8a8f98]own game[/color]", "", "[b]Rules[/b]"]
+	var lines: Array[String] = [plan_line(sim.decisions[i].gameplan), "", "[b]Rules[/b]"]
 	var rules: DrilledRules = sim.decisions[i].rules
 	for n in rules.slots.size():
 		var entry: Dictionary = rules.slots[n]

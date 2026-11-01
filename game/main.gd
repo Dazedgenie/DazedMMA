@@ -68,6 +68,8 @@ var _actions: ActionLibrary
 var _roster: FighterLibrary
 var _console: DebugConsole
 var _break_rules: RuleSlots
+## The gameplan pickers on the between-rounds panel (D320).
+var _break_plan: GameplanPicker
 
 
 func _ready() -> void:
@@ -385,6 +387,8 @@ func _career_settings(profile: Dictionary) -> Dictionary:
 		"ruleset": String(career.booked.get("ruleset", Ruleset.DEFAULT_ID)),
 		"seed": career.next_seed(), "normal_rate": 2.0, "auto_slow": true, "flourishes": true, "tell_cues": true,
 		"sound_volume": float(setup.settings().get("sound_volume", 1.0)), "easy": false, "rules": [],
+		# Tonight's plan from the fight night card; a tournament's later rounds keep the last round's (D320).
+		"gameplan": planner.night_card.gameplan.picked() if planner != null else Dictionary(settings.get("gameplan", {})),
 		"camp": camp,
 	}
 
@@ -537,6 +541,12 @@ func start_fight(p_settings: Dictionary) -> void:
 	for entry: Array in settings.get("rules", []):
 		if String(entry[1]) != "":
 			driver.set_rule(int(entry[0]), String(entry[1]), float(entry[2]))
+	var plan: Dictionary = settings.get("gameplan", {})
+	if Gameplan.check(plan) == "" and Gameplan.describe(plan) != Gameplan.OWN_GAME:
+		driver.set_gameplan(plan)
+	var their_plan: Dictionary = StyleLibrary.gameplan_of(sim.fighters[1].profile)
+	if not their_plan.is_empty():
+		sim.submit(FightCommand.set_gameplan(0, 1, their_plan))  # His corner's plan (D324).
 	driver.round_over.connect(_on_round_over)
 	driver.fight_over.connect(_on_fight_over)
 	arena.tell_cues = bool(settings.get("tell_cues", true))
@@ -690,9 +700,14 @@ func _on_round_over(event: FightEvent) -> void:
 	var sim: FightSim = driver.sim
 	_break_rules = RuleSlots.new(sim.fighters[driver.player].profile, _actions)
 	_break_rules.show_rules(_current_rules())
-	var next: int = sim.clock.current_round
+	_break_plan = GameplanPicker.new("Gameplan for the next round")
+	_break_plan.show_plan(_current_plan())
+	var extra := VBoxContainer.new()
+	extra.add_child(_break_rules)
+	extra.add_child(_break_plan)
+	var next: int = event.round_number + 1  # The clock may not have moved on yet when the bell rings.
 	hud.show_dialog("End of round %d" % event.round_number, round_summary(sim, event),
-		[["Start round %d" % next, _start_next_round]], _break_rules)
+		[["Start round %d" % next, _start_next_round]], extra)
 
 
 ## The bell's text: each judge's card for the round, the totals and how both fighters are.
@@ -714,7 +729,7 @@ static func round_summary(sim: FightSim, event: FightEvent) -> String:
 		lines.append("%s: stamina %d/%d, landed %d of %d, damage taken head %d · body %d · legs %d" % [f.name,
 			roundi(f.stamina), roundi(f.max_stamina()), f.strikes_landed, f.strikes_thrown, f.damage.head, f.damage.body, f.damage.legs])
 	lines.append("")
-	lines.append("[color=#adb5bd]Change your drilled rules for the next round if you like.[/color]")
+	lines.append("[color=#adb5bd]Change your drilled rules and gameplan for the next round if you like.[/color]")
 	return "\n".join(lines)
 
 
@@ -725,10 +740,21 @@ func _start_next_round() -> void:
 		var same: bool = slot < now.size() and now[slot][1] == entry[1] and (entry[1] == "" or is_equal_approx(float(now[slot][2]), float(entry[2])))
 		if not same:
 			driver.set_rule(int(entry[0]), String(entry[1]), float(entry[2]))
+	if _break_plan.picked() != _current_plan():
+		driver.set_gameplan(_break_plan.picked())
 	hud.hide_dialog()
 	state = FIGHT
 	driver.resume()
 	hud.show_banner("Round %d" % driver.sim.clock.current_round)
+
+
+## The player's gameplan as it stands: {approach, target, where} ("" = his own game).
+func _current_plan() -> Dictionary:
+	var plan: Gameplan = driver.sim.decisions[driver.player].gameplan
+	var out: Dictionary = {}
+	for part: String in Gameplan.PARTS:
+		out[part] = "" if plan == null else String(plan.parts.get(part, ""))
+	return out
 
 
 ## The player's rules as they stand: [[slot, rule id, drilled 0–100], …].
@@ -794,6 +820,7 @@ func open_camp(p_settings: Dictionary) -> void:
 	_close_camp()
 	planner = CampPlanner.new(_roster.profile(settings.red), randi())
 	planner.opponent_name = String(_roster.profile(settings.blue).get("name", ""))
+	planner.plan_start = settings.get("gameplan", {})
 	planner.fight_pressed.connect(_fight_after_camp)
 	planner.back_pressed.connect(_back_to_setup)
 	$UI.add_child(planner)
@@ -806,6 +833,7 @@ func _fight_after_camp(profile: Dictionary) -> void:
 	var s: Dictionary = settings.duplicate(true)
 	s.red_profile = profile
 	s.camp = planner.summary()
+	s.gameplan = planner.night_card.gameplan.picked()
 	s.label = "%s after camp" % settings.get("label", "")
 	start_fight(s)
 

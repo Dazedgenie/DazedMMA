@@ -100,6 +100,31 @@ func test_a_full_three_round_fight_plays_through_the_bell_to_the_result() -> voi
 		assert_eq(sim.clock.current_round, 3)
 
 
+func test_the_setups_gameplan_goes_into_the_fight_and_can_change_at_the_break() -> void:
+	_main.setup.gameplan.show_plan({ "approach": "pressure", "where": "wrestle_heavy" })
+	assert_eq(_main.setup.settings().gameplan, { "approach": "pressure", "target": "", "where": "wrestle_heavy" })
+	_start()
+	var sim: FightSim = _main.driver.sim
+	_main._process(FRAME)
+	assert_eq(sim.decisions[0].gameplan.label, "Pressure · Take him down")
+	assert_eq(sim.decisions[1].gameplan.label, "Legs", "the Kicker's corner gives him his style's plan (D324)")
+	assert_string_contains(FightHud.plan_text(sim, 0), "Pressure · Take him down")
+	_main.driver.speed = FightDriver.FAST
+	var frames: int = 0
+	while _main.state != _main.ROUND_BREAK and not sim.is_over() and frames < 20000:
+		frames += 1
+		_main._process(FRAME)
+	if sim.is_over():
+		pass_test("finished in the first round")
+		return
+	assert_eq(_main._break_plan.picked(), { "approach": "pressure", "target": "", "where": "wrestle_heavy" }, "the break shows the plan")
+	_main._break_plan.show_plan({ "target": "body" })
+	_main._start_next_round()
+	_main._process(FRAME)
+	_main._process(FRAME)
+	assert_eq(sim.decisions[0].gameplan.label, "Body", "changed at the break")
+
+
 func test_the_menu_holds_the_fight_and_the_towel_ends_it() -> void:
 	_start()
 	_main._process(FRAME)
@@ -351,9 +376,12 @@ func test_a_career_fight_goes_from_the_offer_through_the_camp_to_his_record() ->
 	assert_eq(_main.career.week, fight_week, "fight week waits for the fight")
 	assert_true(planner.done())
 	assert_eq(int(CareerSaves.info(0, SAVE_DIR).week), fight_week, "each camp week saved")
+	assert_eq(planner.night_card.gameplan.picked(), { "approach": "", "target": "", "where": "" }, "a time-off camp told him nothing")
+	planner.night_card.gameplan.pick(Gameplan.APPROACH, "counter")
 	planner.fight_pressed.emit(planner.trained_profile())
 	assert_eq(_main.state, _main.FIGHT)
 	assert_true(bool(_main.settings.career))
+	assert_eq(String(_main.settings.gameplan.approach), "counter", "tonight's plan from the fight night card (D320)")
 	assert_eq(String(_main.settings.ruleset), Matchmaker.TEEN_RULES)
 	_main.driver.throw_towel()
 	var frames: int = 0

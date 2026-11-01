@@ -1,7 +1,10 @@
 {
-	"schema": "gameplan@1",
+	"schema": "gameplan@2",
 	"id": "range",
 	"name": "Range",
-	"leanings": { "range": -50 },
+	"part": "approach",
+	"order": 3,
+	"summary": "Keep him at the end of your shots.",
+	"leanings": { "range": -35 },
 	"weights": {}
 }

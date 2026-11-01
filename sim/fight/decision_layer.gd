@@ -32,6 +32,8 @@ var calls: LiveCalls
 ## This fighter's drilled rules (two slots, set before a round).
 var rules: DrilledRules
 var sources: Array[DecisionSource] = []
+## The corner's plan for this fighter (D320), set before the fight and at round breaks; null = his own game.
+var gameplan: Gameplan
 ## This fighter's footwork, refilled by plan_feet.
 var feet := FeetPlan.new()
 ## The sources that can claim the choice, in CLAIM_ORDER.
@@ -90,6 +92,18 @@ func set_rule(view: FightView, slot: int, rule_id: String, drilled: float) -> St
 	var why: String = rules.set_rule(view, slot, rule_id, drilled)
 	_notes.append_array(rules.take_notes())
 	return why
+
+
+## Puts in the corner's plan (FightSim applies the set_gameplan command), replacing the last
+## one: {approach, target, where} → data/gameplans id ("" = his own game). The AI reads its
+## leanings again straight away.
+func set_gameplan(p_parts: Dictionary) -> void:
+	if gameplan != null:
+		sources.erase(gameplan)
+	gameplan = Gameplan.compose(p_parts)
+	gameplan.corner = calls
+	add_source(gameplan)
+	ai.rethink()
 
 
 ## Moves the calls on by a tick (the sim asks while calls.active): processes calls whose

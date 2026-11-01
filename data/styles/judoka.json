@@ -8,6 +8,7 @@
 	],
 	"southpaw_chance": 0.15,
 	"variation": { "stats": 6, "style": 12, "tendencies": 0.2, "personality": 30, "height_cm": 4 },
+	"gameplan": { "approach": "", "target": "", "where": "clinch_work" },
 	"scouting": {
 		"summary": "Fights for the clinch, then trips and throws you, and takes the back on the way down.",
 		"strengths": [

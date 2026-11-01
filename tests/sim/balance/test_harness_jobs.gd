@@ -20,6 +20,16 @@ func test_the_plan_lists_every_fight_in_report_order() -> void:
 	assert_eq(jobs[-1].group, "wrestler:kicker, drilled rules")
 
 
+func test_each_gameplan_plays_every_pair_again_with_the_plan_in_each_corner() -> void:
+	var jobs: Array[Dictionary] = HarnessJobs.plan(["kicker:boxer"], 2, 1, [Corner.NONE], [0, 1], {}, ["counter+legs"])
+	assert_eq(jobs.size(), 2 + 2 * 2)
+	assert_eq(jobs[2].plans, ["counter+legs", ""])
+	assert_eq(jobs[4].plans, ["", "counter+legs"])
+	assert_eq(jobs[4].group, "kicker:boxer, counter+legs in blue's corner")
+	var row: Dictionary = HarnessJobs.run(jobs[2], FighterLibrary.load_dir(), ActionLibrary.load_dir(), Ruleset.load_id("pro"))
+	assert_eq([row.plan_red, row.plan_blue], ["counter+legs", ""])
+
+
 func test_every_fight_goes_to_exactly_one_process() -> void:
 	for processes in range(1, 6):
 		var seen: Array[int] = []

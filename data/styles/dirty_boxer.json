@@ -9,6 +9,7 @@
 	],
 	"southpaw_chance": 0.15,
 	"variation": { "stats": 6, "style": 12, "tendencies": 0.2, "personality": 30, "height_cm": 4 },
+	"gameplan": { "approach": "pressure", "target": "body", "where": "clinch_work" },
 	"scouting": {
 		"summary": "Ties you up against the fence and works short uppercuts and hooks in the clinch.",
 		"strengths": [
