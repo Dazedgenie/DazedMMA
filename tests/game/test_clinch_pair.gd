@@ -26,7 +26,7 @@ func before_each() -> void:
 
 func _built(example: String) -> Dictionary:
 	var e: Array = ClinchPair.examples()[example]
-	return ClinchPair.build(e[0], e[1], e[2], e[3])
+	return ClinchPair.build(e[0], e[1], e[2], e[3], e[4])
 
 
 func _pose(built: Dictionary) -> void:

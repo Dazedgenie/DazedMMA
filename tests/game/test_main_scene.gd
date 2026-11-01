@@ -425,3 +425,52 @@ func test_simming_a_career_fight_goes_straight_to_the_result() -> void:
 	assert_string_contains(_main.result.text(), "Simmed")
 	assert_string_contains(_main.result.text(), "Medical suspension")
 	assert_eq(str(_main.result.button_labels()), str(["Back to the hub"]))
+
+
+func test_a_tournament_goes_on_round_by_round_and_ends_with_a_medal() -> void:
+	_main.open_new_career()
+	_main.new_career.set_play_childhood(false)
+	_main.new_career.press_start()
+	_main.gym_screen.pick(0)
+	_main.gym_screen.press_start()
+	var c: Career = _main.career
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 3
+	c.offers = [c.matchmaker().make_tournament(c, rng, 4)]  # A four-man open (D315).
+	_main.show_hub()
+	var offer_id: String = _main.hub.offer_ids()[0]
+	var fight_week: int = int(c.offer(offer_id).week)
+	_main.hub.press_accept(offer_id)
+	_main.hub.press_camp()
+	var planner: CampPlanner = _main.planner
+	planner.pick_preset("time_off")
+	planner.run_rest()
+	planner.fight_pressed.emit(planner.trained_profile())
+	var tank_in: float = float(_main.settings.red_profile.condition.tank)
+	_main.driver.sim.submit(FightCommand.throw_towel(_main.driver.sim.now, 1))  # His opponent's corner gives up.
+	var frames: int = 0
+	while _main.state != _main.OVER and frames < 100:
+		frames += 1
+		_main._process(FRAME)
+	assert_eq(String(c.fights[-1].result), "win")
+	assert_eq(c.week, fight_week, "the same day")
+	assert_eq(c.tournament_stage(), 1)
+	assert_string_contains(_main.result.text(), "Through to the final")
+	assert_eq(str(_main.result.button_labels()), str(["On to the final", "Pull out"]))
+	assert_eq(int(CareerSaves.load_slot(0, SAVE_DIR).booked.tournament.stage), 1, "saved between rounds")
+	_main.next_tournament_fight()
+	assert_eq(_main.state, _main.FIGHT, "the final, straight away")
+	assert_eq(String(_main.settings.blue), String(c.booked.tournament.men[1].id))
+	assert_almost_eq(float(_main.settings.red_profile.condition.tank), tank_in - Tournament.TANK_PER_FIGHT, 0.001, "tired from the semi-final")
+	_main.driver.throw_towel()
+	frames = 0
+	while _main.state != _main.OVER and frames < 100:
+		frames += 1
+		_main._process(FRAME)
+	assert_eq(String(c.fights[-1].result), "loss")
+	assert_eq(c.week, fight_week + 1, "his day's over")
+	assert_eq(String(c.medals[0].medal), Tournament.SILVER)
+	assert_string_contains(_main.result.text(), "Silver medal")
+	assert_eq(str(_main.result.button_labels()), str(["Back to the hub"]))
+	_main._career_after_fight()
+	assert_string_contains(_main.hub.text(), "Medals: silver")

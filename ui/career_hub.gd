@@ -36,7 +36,10 @@ const RESULT_MARKS := { "win": ["W", GOOD], "loss": ["L", BAD], "draw": ["D", WA
 ## How many of his fights the list shows (newest first).
 const FIGHTS_SHOWN: int = 12
 ## How an offer's kind reads (Matchmaker.DIFFICULTIES).
-const DIFFICULTY_TEXT := { "easier": "a bit easier", "even": "about even", "harder": "a bit harder" }
+const DIFFICULTY_TEXT := { "easier": "a bit easier", "even": "about even", "harder": "a bit harder",
+	"tournament": "his first round" }
+## Medal colours on his card and fights list (D315).
+const MEDAL_COLOURS := { "gold": Color("#ffd43b"), "silver": Color("#ced4da"), "bronze": Color("#e8a26a") }
 ## The attribute groups an offer's scouting grades show.
 const SCOUTED_GROUPS: Array[String] = ["Striking", "Wrestling", "Grappling", "Physical"]
 
@@ -59,6 +62,7 @@ var _offers: VBoxContainer
 var _offer_ids: Array[String] = []
 var _fights_text: RichTextLabel
 var _calendar: HBoxContainer
+var _scrolls: Array[ScrollContainer] = []
 var _groups: Dictionary = {}
 var _gift_names: Dictionary = {}
 var _flaw_names: Dictionary = {}
@@ -104,8 +108,7 @@ func _init() -> void:
 	fighter_box.add_child(_heading("The fighter"))
 	var fighter_row := HBoxContainer.new()
 	fighter_row.add_theme_constant_override("separation", 12)
-	fighter_row.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	fighter_box.add_child(fighter_row)
+	fighter_box.add_child(_scroll(fighter_row))
 	_figure = BodyDamageFigure.new()
 	_figure.custom_minimum_size = Vector2(110.0, 200.0)
 	_figure.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
@@ -119,29 +122,23 @@ func _init() -> void:
 	body.add_child(stats_card)
 	var stats_box: VBoxContainer = stats_card.get_child(0)
 	stats_box.add_child(_heading("His stats"))
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	stats_box.add_child(scroll)
 	_bars = StatBars.new()
-	_bars.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(_bars)
+	stats_box.add_child(_scroll(_bars))
 
 	var week_card := _card(Vector2(0.0, 0.0))
 	week_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	body.add_child(week_card)
 	var week_box: VBoxContainer = week_card.get_child(0)
 	week_box.add_child(_heading("This week"))
+	# The week's news and the offers scroll together above the buttons, which stay put (D340).
+	var news := VBoxContainer.new()
+	news.add_theme_constant_override("separation", 12)
 	_week_text = _rich()
-	week_box.add_child(_week_text)
+	news.add_child(_week_text)
 	_offers = VBoxContainer.new()
 	_offers.add_theme_constant_override("separation", 8)
-	_offers.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var offers_scroll := ScrollContainer.new()
-	offers_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	offers_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	offers_scroll.add_child(_offers)
-	week_box.add_child(offers_scroll)
+	news.add_child(_offers)
+	week_box.add_child(_scroll(news))
 	_camp = CampPlanner._button(week_box, "Go to camp", func() -> void: camp_pressed.emit())
 	CampPlanner.style_fight_button(_camp, 30)
 	var plan_label := FightNightCard._label(16, DIM)
@@ -167,7 +164,7 @@ func _init() -> void:
 	var fights_box: VBoxContainer = fights_card.get_child(0)
 	fights_box.add_child(_heading("His fights"))
 	_fights_text = _rich()
-	fights_box.add_child(_fights_text)
+	fights_box.add_child(_scroll(_fights_text))
 
 	column.add_child(_heading("The calendar"))
 	_calendar = HBoxContainer.new()
@@ -207,6 +204,8 @@ func show_career(p_career: Career, reports: Array = []) -> void:
 	_show_offers()
 	_fights_text.text = fights_text(career)
 	_show_calendar(career.calendar())
+	for scroll in _scrolls:
+		scroll.scroll_vertical = 0
 
 
 ## Sets the week plan he runs between fights (a data/week_plans id).
@@ -240,6 +239,9 @@ static func fighter_card_text(c: Career, gift_names: Dictionary = {}, flaw_names
 		lines.append("From %s" % town)
 	if not c.gym.is_empty():
 		lines.append("Trains at %s (%s)" % [String(c.gym.get("name", "")), Gym.kind_line(c.gym)])
+	var medals: String = medals_text(c)
+	if medals != "":
+		lines.append(medals)
 	var frame: Dictionary = p.get("frame", {})
 	lines.append("%s · %d cm, reach %d cm · %s build" % [String(p.get("stance", "orthodox")).capitalize(), int(frame.get("height_cm", 0)),
 		int(frame.get("reach_cm", 0)), String(frame.get("build", "average"))])
@@ -289,6 +291,18 @@ static func feel_text(trainee: TrainingCamp) -> String:
 	return out
 
 
+## His tournament medals (D315) as his card shows them: "Medals: gold, Leeds Amateur Open 2027 · bronze, …", newest
+## first. "" when he has none.
+static func medals_text(c: Career) -> String:
+	if c.medals.is_empty():
+		return ""
+	var bits: Array[String] = []
+	for i in range(c.medals.size() - 1, -1, -1):
+		var m: Dictionary = c.medals[i]
+		bits.append("[color=%s]%s[/color], %s" % [(MEDAL_COLOURS.get(String(m.medal), WARN) as Color).to_html(false), String(m.medal), String(m.name)])
+	return "Medals: " + " · ".join(bits)
+
+
 ## The style he's leaning toward (D88: a hint past ±30) and any named style traits, or "no clear style yet".
 static func style_text(style: StyleLeanings) -> String:
 	var bits: Array[String] = []
@@ -308,6 +322,12 @@ static func offer_text(c: Career, o: Dictionary, groups: Dictionary = {}) -> Str
 	var style_id: String = String(o.get("style", ""))
 	var style: Dictionary = StyleLibrary.shared().get_style(style_id) if StyleLibrary.shared().has(style_id) else {}
 	var lines: Array[String] = []
+	var t: Dictionary = o.get("tournament", {}) if o.get("tournament") is Dictionary else {}
+	if not t.is_empty():
+		var size: int = int(t.get("size", 4))
+		lines.append("[color=%s][b]One-day tournament: %d men[/b][/color], up to %d fights on the day, a medal for the top %d." % [
+			GOOD.to_html(false), size, Tournament.rounds(size), 4 if size > Tournament.SIZES[0] else 2])
+		lines.append("First up, in the %s:" % Tournament.stage_name(size, 0).to_lower())
 	var nick: String = String(about.get("nickname", ""))
 	lines.append("[b]%s[/b]%s" % [String(p.get("name", "")), (" '%s'" % nick) if nick != "" else ""])
 	lines.append("[color=%s]%s · %s[/color]" % [WARN.to_html(false), String(style.get("name", style_id)), DIFFICULTY_TEXT.get(String(o.get("difficulty", "")), "")])
@@ -326,6 +346,8 @@ static func offer_text(c: Career, o: Dictionary, groups: Dictionary = {}) -> Str
 	lines.append("[color=%s]Scouted:[/color] %s" % [DIM.to_html(false), scouted_grades(p.get("stats", {}), groups)])
 	var fight_week: int = int(o.get("week", c.week))
 	lines.append("Fight night %s · a %d-week camp · %s" % [c.date_text(5, fight_week), fight_week - c.week + 1, rules_name(String(o.get("ruleset", "")))])
+	if not t.is_empty():
+		lines.append("[color=%s]Win and he goes on that night against harder men who've had fights of their own; what each fight does to him carries into the next.[/color]" % DIM.to_html(false))
 	lines.append(purse_text(o.get("purse", {})))
 	if int(o.get("expires", c.week)) == c.week:
 		lines.append("[color=%s]Last week to answer.[/color]" % BAD.to_html(false))
@@ -433,9 +455,20 @@ static func week_text(c: Career, reports: Array = []) -> String:
 	if not c.booked.is_empty():
 		var who: Dictionary = c.booked_opponent()
 		var on: String = String(c.booked.get("card", {}).get("name", "")) if c.booked.get("card") is Dictionary else ""
-		lines.append("[color=%s]Booked:[/color] vs %s, %s%s (%s). His camp runs from Go to camp." % [RED_CORNER.to_html(false),
-			String(who.get("name", "")), c.date_text(5, int(c.booked.get("week", c.week))), (" on " + on) if on != "" else "",
-			rules_name(String(c.booked.get("ruleset", "")))])
+		if c.tournament_stage() >= 0:
+			var size: int = int(c.booked.tournament.size)
+			var stage: String = Tournament.stage_name(size, c.tournament_stage()).to_lower()
+			if c.tournament_stage() > 0:
+				lines.append("[color=%s]Booked:[/color] the %s of the %s, vs %s, today. Go to camp to fight it, or pull out from there." % [
+					RED_CORNER.to_html(false), stage, on, String(who.get("name", ""))])
+			else:
+				lines.append("[color=%s]Booked:[/color] the %s, a one-day tournament for %d, %s (%s). First up, in the %s: %s. His camp runs from Go to camp." % [
+					RED_CORNER.to_html(false), on, size, c.date_text(5, int(c.booked.get("week", c.week))),
+					rules_name(String(c.booked.get("ruleset", ""))), stage, String(who.get("name", ""))])
+		else:
+			lines.append("[color=%s]Booked:[/color] vs %s, %s%s (%s). His camp runs from Go to camp." % [RED_CORNER.to_html(false),
+				String(who.get("name", "")), c.date_text(5, int(c.booked.get("week", c.week))), (" on " + on) if on != "" else "",
+				rules_name(String(c.booked.get("ruleset", "")))])
 	if c.trainee.injured_days > 0:
 		lines.append("[color=%s]Hurt (%s): %d days to heal.[/color]" % [BAD.to_html(false), c.trainee.injury_area, c.trainee.injured_days])
 	if c.suspended_days > 0:
@@ -515,6 +548,10 @@ static func fights_text(c: Career) -> String:
 			how += (", " if how != "" else "") + "R%d" % int(f.round)
 		lines.append("[color=%s][b]%s[/b][/color] vs %s%s" % [(mark[1] as Color).to_html(false), mark[0], opponent, (" · " + how) if how != "" else ""])
 		var on: String = String(f.get("card", {}).get("name", "")) if f.get("card") is Dictionary else ""
+		if f.get("tournament") is Dictionary:
+			on += ", %s" % Tournament.stage_name(int(f.tournament.size), int(f.tournament.stage)).to_lower()
+			if String(f.get("medal", "")) != "":
+				on += " · [color=%s]%s[/color]" % [(MEDAL_COLOURS.get(String(f.medal), WARN) as Color).to_html(false), String(f.medal)]
 		lines.append("[color=%s]%s · %s%s[/color]" % [DIM.to_html(false), c.date_text(5, int(f.get("week", 0))), "pro" if bool(f.get("pro", false)) else "amateur",
 			(" · " + on) if on != "" else ""])
 	return "\n".join(lines)
@@ -563,6 +600,12 @@ func text() -> String:
 		"\n".join(offer_cards), _camp.text if _camp.visible else "", _fights_text.get_parsed_text(), " | ".join(tiles)]
 
 
+## For tests: the scrolling parts, top to bottom of each card left to right (the fighter, his stats, this week's news
+## and offers, his fights; D340).
+func scrolls() -> Array[ScrollContainer]:
+	return _scrolls.duplicate()
+
+
 func focus_first() -> void:
 	FightHud.focus_later(_camp if _camp.visible else _week)
 
@@ -579,10 +622,23 @@ func _rich() -> RichTextLabel:
 	var label := RichTextLabel.new()
 	label.bbcode_enabled = true
 	label.fit_content = true
-	label.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	label.scroll_active = false
+	label.mouse_filter = Control.MOUSE_FILTER_PASS
 	label.add_theme_font_size_override("normal_font_size", 18)
 	label.add_theme_color_override("default_color", TEXT)
 	return label
+
+
+## Wraps a card's long part so it scrolls inside the card (mouse wheel or drag) instead of pushing the hub past the bottom
+## of the screen (D340). The card's buttons and headings sit outside it and stay put.
+func _scroll(content: Control) -> ScrollContainer:
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(content)
+	_scrolls.append(scroll)
+	return scroll
 
 
 func _card(min_size: Vector2) -> PanelContainer:

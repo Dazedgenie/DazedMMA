@@ -21,6 +21,8 @@ extends Node
 
 ## A sound was played (or would have been, when muted or at volume 0: `heard` is false then).
 signal played(action_id: String, outcome: String, heard: bool)
+## The fence rattled (D287), `strength` 0–1 (or would have, when muted: `heard` false).
+signal rattled(strength: float, heard: bool)
 
 const CONNECTED := "connected"
 const MISSED := "missed"
@@ -83,6 +85,22 @@ const PITCH_JITTER: float = 0.04
 ## Overall loudness, in dB (the setup's Sound slider sets the bus, this sets the mix under it).
 const BASE_DB: float = -6.0
 
+## The fence rattling when a man is slammed into it (D287, ArenaView.fence_slammed): a thud of his back on the
+## wire, the chain link's clatter dying away and a faint ring of the posts. RATTLE_SECONDS long, RATTLE_KINDS
+## versions picked at random; the hardest slam plays RATTLE_DB against a connected strike, the lightest
+## RATTLE_LIGHT_DB quieter and a little higher.
+const RATTLE_SECONDS: float = 0.9
+const RATTLE_KINDS: int = 3
+const RATTLE_DB: float = -2.0
+const RATTLE_LIGHT_DB: float = -8.0
+## The clatter: clicks a second at the start, how long it takes to die away (s), and how bright it is (Hz).
+const RATTLE_CLICKS: float = 160.0
+const RATTLE_DECAY: float = 0.22
+const RATTLE_HZ: float = 3800.0
+## The posts' ring: its pitches (Hz) and how long it hangs (s).
+const RING_HZ: Array[float] = [1180.0, 1730.0, 2650.0]
+const RING_DECAY: float = 0.25
+
 ## The player's volume, 0–1 (the setup's Sound slider, D190). 0 is silent.
 var volume: float = 1.0
 ## Muted with M during a fight.
@@ -90,6 +108,7 @@ var muted: bool = false
 
 ## Made once for the whole game (shared by every StrikeSounds): action id -> { outcome: AudioStreamWAV }.
 static var _sounds := {}
+static var _rattles: Array[AudioStreamWAV] = []
 static var _build_task: int = -1
 var _players: Array[AudioStreamPlayer] = []
 var _next: int = 0
@@ -168,6 +187,64 @@ func play(action_id: String, outcome: String, damage: int = -1) -> void:
 	player.pitch_scale = how.pitch * (1.0 + _rng.randf_range(-PITCH_JITTER, PITCH_JITTER))
 	if player.is_inside_tree():
 		player.play()
+
+
+## Plays the fence rattling (D287) for a slam `strength` 0–1 hard.
+func play_rattle(strength: float) -> void:
+	var heard: bool = not muted and volume > 0.0
+	rattled.emit(strength, heard)
+	if not heard:
+		return
+	if _rattles.is_empty():
+		for k in RATTLE_KINDS:
+			_rattles.append(to_wav(render_rattle(k + 1)))
+	var player: AudioStreamPlayer = _players[_next]
+	_next = (_next + 1) % _players.size()
+	player.stream = _rattles[_rng.randi() % _rattles.size()]
+	var hard: float = clampf(strength, 0.0, 1.0)
+	player.volume_db = BASE_DB + lerpf(RATTLE_DB + RATTLE_LIGHT_DB, RATTLE_DB, hard) + linear_to_db(volume)
+	player.pitch_scale = lerpf(1.1, 0.95, hard) * (1.0 + _rng.randf_range(-PITCH_JITTER, PITCH_JITTER))
+	if player.is_inside_tree():
+		player.play()
+
+
+## The fence's rattle as samples (-1–1) at RATE (D287): the same seed gives the same sound.
+static func render_rattle(sound_seed: int) -> PackedFloat32Array:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = sound_seed
+	var count: int = int(RATE * RATTLE_SECONDS)
+	var out := PackedFloat32Array()
+	out.resize(count)
+	var dt: float = 1.0 / RATE
+	var cut: float = 1.0 - exp(-TAU * RATTLE_HZ * dt)
+	var low: float = 0.0
+	var high: float = 0.0
+	var click: float = 0.0  # The click sounding now, dying fast.
+	var phase: float = 0.0
+	var rings: Array[float] = [0.0, 0.0, 0.0]
+	var peak: float = 0.0
+	for n in count:
+		var t: float = n * dt
+		var env: float = exp(-t / RATTLE_DECAY)
+		if rng.randf() < RATTLE_CLICKS * env * dt:
+			click = rng.randf_range(0.4, 1.0)
+		click *= exp(-dt / 0.004)
+		# Bright noise for the links: high-passed, so it sounds like metal and not hiss.
+		low += cut * (rng.randf_range(-1.0, 1.0) - low)
+		high += 0.5 * (low - high)
+		var sample: float = (low - high) * click * 2.5 + (low - high) * env * 0.25
+		# His back hitting the wire: a short low thud.
+		phase += TAU * 70.0 * (1.0 + exp(-t / 0.02)) * dt
+		sample += sin(phase) * exp(-t / 0.07) * 0.9
+		for k in RING_HZ.size():
+			rings[k] = float(rings[k]) + TAU * RING_HZ[k] * dt
+			sample += sin(rings[k]) * exp(-t / RING_DECAY) * 0.06
+		out[n] = sample
+		peak = maxf(peak, absf(sample))
+	if peak > 0.0:
+		for n in count:
+			out[n] *= 0.9 / peak
+	return out
 
 
 func _on_event(event: FightEvent) -> void:
