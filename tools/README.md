@@ -134,3 +134,11 @@ some:
 
     godot --headless --script res://tools/strike_sounds.gd
     godot --headless --script res://tools/strike_sounds.gd -- --only=jab,leg_kick
+
+`matchups.gd` builds the style matchup table the world's other fights are rolled from (D353, `docs/03` §12.3): every
+style against every other on the fight engine (`--fights=` a pair, 60 by default in the shipped table, about 25 minutes
+on 4 cores), fitted into each pair's edge at an even level and the worth of a point of average stat, with how each
+style's wins and losses end and in which round. It writes `data/world/matchups.json` and prints how many pairs the
+model gets inside the engine's 95% range. Rebuild it when fights change.
+
+    godot --headless --script res://tools/matchups.gd -- --fights=60
