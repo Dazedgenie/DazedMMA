@@ -1,0 +1,290 @@
+{
+	"schema": "matchups@1",
+	"id": "matchups",
+	"per_point": 0.321,
+	"draw": 0.004,
+	"edges": {
+		"bjj:boxer": 0.25,
+		"bjj:brawler": 0.774,
+		"bjj:counter_striker": -2.437,
+		"bjj:dirty_boxer": 0.755,
+		"bjj:gnp_wrestler": 1.449,
+		"bjj:judoka": 0.59,
+		"bjj:karate": -2.287,
+		"bjj:kicker": -1.762,
+		"bjj:leg_kicker": -0.61,
+		"bjj:muay_thai": 0.9,
+		"bjj:pressure_wrestler": 1.59,
+		"bjj:sambo": 1.428,
+		"bjj:sprawl_brawl": -0.006,
+		"bjj:wrestler": 1.248,
+		"boxer:brawler": -0.785,
+		"boxer:counter_striker": 1.206,
+		"boxer:dirty_boxer": 0.653,
+		"boxer:gnp_wrestler": -0.21,
+		"boxer:judoka": 0.561,
+		"boxer:karate": -0.691,
+		"boxer:kicker": 0.8,
+		"boxer:leg_kicker": 1.2,
+		"boxer:muay_thai": 0.632,
+		"boxer:pressure_wrestler": -0.081,
+		"boxer:sambo": -0.081,
+		"boxer:sprawl_brawl": 0.569,
+		"boxer:wrestler": 0.149,
+		"brawler:counter_striker": 1.681,
+		"brawler:dirty_boxer": 1.085,
+		"brawler:gnp_wrestler": -0.702,
+		"brawler:judoka": -0.409,
+		"brawler:karate": 0.889,
+		"brawler:kicker": 2.071,
+		"brawler:leg_kicker": 0.708,
+		"brawler:muay_thai": 1.123,
+		"brawler:pressure_wrestler": 0.553,
+		"brawler:sambo": 0.017,
+		"brawler:sprawl_brawl": 0.887,
+		"brawler:wrestler": 0.201,
+		"counter_striker:dirty_boxer": 0.138,
+		"counter_striker:gnp_wrestler": -1.335,
+		"counter_striker:judoka": 1.091,
+		"counter_striker:karate": 0.377,
+		"counter_striker:kicker": 1.549,
+		"counter_striker:leg_kicker": -0.586,
+		"counter_striker:muay_thai": 0.782,
+		"counter_striker:pressure_wrestler": -0.41,
+		"counter_striker:sambo": 1.182,
+		"counter_striker:sprawl_brawl": -1.22,
+		"counter_striker:wrestler": 0.058,
+		"dirty_boxer:gnp_wrestler": 0.254,
+		"dirty_boxer:judoka": -0.229,
+		"dirty_boxer:karate": -3.613,
+		"dirty_boxer:kicker": -1.192,
+		"dirty_boxer:leg_kicker": 1.099,
+		"dirty_boxer:muay_thai": 0.83,
+		"dirty_boxer:pressure_wrestler": 0.541,
+		"dirty_boxer:sambo": 1.184,
+		"dirty_boxer:sprawl_brawl": 0.927,
+		"dirty_boxer:wrestler": 1.538,
+		"gnp_wrestler:judoka": -1.343,
+		"gnp_wrestler:karate": 0.812,
+		"gnp_wrestler:kicker": 0.499,
+		"gnp_wrestler:leg_kicker": -0.525,
+		"gnp_wrestler:muay_thai": 0.166,
+		"gnp_wrestler:pressure_wrestler": 0.167,
+		"gnp_wrestler:sambo": -1.587,
+		"gnp_wrestler:sprawl_brawl": -0.716,
+		"gnp_wrestler:wrestler": -0.075,
+		"judoka:karate": -2.317,
+		"judoka:kicker": -0.894,
+		"judoka:leg_kicker": -0.843,
+		"judoka:muay_thai": 1.594,
+		"judoka:pressure_wrestler": 1.231,
+		"judoka:sambo": 1.01,
+		"judoka:sprawl_brawl": -0.853,
+		"judoka:wrestler": 2.146,
+		"karate:kicker": 1.28,
+		"karate:leg_kicker": -0.129,
+		"karate:muay_thai": 1.323,
+		"karate:pressure_wrestler": 0.502,
+		"karate:sambo": 2.453,
+		"karate:sprawl_brawl": 1.708,
+		"karate:wrestler": 1.66,
+		"kicker:leg_kicker": -2.532,
+		"kicker:muay_thai": -0.693,
+		"kicker:pressure_wrestler": 0.092,
+		"kicker:sambo": 1.292,
+		"kicker:sprawl_brawl": 0.096,
+		"kicker:wrestler": 0.651,
+		"leg_kicker:muay_thai": -0.657,
+		"leg_kicker:pressure_wrestler": 1.484,
+		"leg_kicker:sambo": 1.251,
+		"leg_kicker:sprawl_brawl": -0.984,
+		"leg_kicker:wrestler": 1.132,
+		"muay_thai:pressure_wrestler": 0.482,
+		"muay_thai:sambo": -0.082,
+		"muay_thai:sprawl_brawl": 0.066,
+		"muay_thai:wrestler": 0.788,
+		"pressure_wrestler:sambo": -1.317,
+		"pressure_wrestler:sprawl_brawl": -2.662,
+		"pressure_wrestler:wrestler": 0.102,
+		"sambo:sprawl_brawl": -0.966,
+		"sambo:wrestler": 0.731,
+		"sprawl_brawl:wrestler": 1.652
+	},
+	"wins": {
+		"boxer": {
+			"ko": 0.824,
+			"submission": 0.019,
+			"decision": 0.157
+		},
+		"bjj": {
+			"ko": 0.038,
+			"submission": 0.709,
+			"decision": 0.253
+		},
+		"brawler": {
+			"ko": 0.913,
+			"submission": 0.021,
+			"decision": 0.067
+		},
+		"counter_striker": {
+			"ko": 0.28,
+			"submission": 0.062,
+			"decision": 0.658
+		},
+		"dirty_boxer": {
+			"ko": 0.544,
+			"submission": 0.09,
+			"decision": 0.366
+		},
+		"gnp_wrestler": {
+			"ko": 0.65,
+			"submission": 0.014,
+			"decision": 0.337
+		},
+		"judoka": {
+			"ko": 0.08,
+			"submission": 0.284,
+			"decision": 0.636
+		},
+		"karate": {
+			"ko": 0.432,
+			"submission": 0.006,
+			"decision": 0.561
+		},
+		"kicker": {
+			"ko": 0.138,
+			"submission": 0.153,
+			"decision": 0.71
+		},
+		"leg_kicker": {
+			"ko": 0.57,
+			"submission": 0.058,
+			"decision": 0.372
+		},
+		"muay_thai": {
+			"ko": 0.635,
+			"submission": 0.1,
+			"decision": 0.265
+		},
+		"pressure_wrestler": {
+			"ko": 0.266,
+			"submission": 0.043,
+			"decision": 0.691
+		},
+		"sambo": {
+			"ko": 0.069,
+			"submission": 0.588,
+			"decision": 0.343
+		},
+		"sprawl_brawl": {
+			"ko": 0.723,
+			"submission": 0.056,
+			"decision": 0.221
+		},
+		"wrestler": {
+			"ko": 0.176,
+			"submission": 0.183,
+			"decision": 0.64
+		}
+	},
+	"losses": {
+		"bjj": {
+			"ko": 0.397,
+			"submission": 0.019,
+			"decision": 0.585
+		},
+		"boxer": {
+			"ko": 0.527,
+			"submission": 0.162,
+			"decision": 0.311
+		},
+		"brawler": {
+			"ko": 0.438,
+			"submission": 0.239,
+			"decision": 0.324
+		},
+		"counter_striker": {
+			"ko": 0.593,
+			"submission": 0.034,
+			"decision": 0.374
+		},
+		"dirty_boxer": {
+			"ko": 0.452,
+			"submission": 0.11,
+			"decision": 0.438
+		},
+		"gnp_wrestler": {
+			"ko": 0.31,
+			"submission": 0.408,
+			"decision": 0.282
+		},
+		"judoka": {
+			"ko": 0.4,
+			"submission": 0.09,
+			"decision": 0.51
+		},
+		"karate": {
+			"ko": 0.467,
+			"submission": 0.054,
+			"decision": 0.48
+		},
+		"kicker": {
+			"ko": 0.49,
+			"submission": 0.048,
+			"decision": 0.462
+		},
+		"leg_kicker": {
+			"ko": 0.62,
+			"submission": 0.089,
+			"decision": 0.291
+		},
+		"muay_thai": {
+			"ko": 0.475,
+			"submission": 0.124,
+			"decision": 0.401
+		},
+		"pressure_wrestler": {
+			"ko": 0.339,
+			"submission": 0.372,
+			"decision": 0.29
+		},
+		"sambo": {
+			"ko": 0.329,
+			"submission": 0.136,
+			"decision": 0.535
+		},
+		"sprawl_brawl": {
+			"ko": 0.547,
+			"submission": 0.096,
+			"decision": 0.357
+		},
+		"wrestler": {
+			"ko": 0.329,
+			"submission": 0.218,
+			"decision": 0.454
+		}
+	},
+	"rounds": {
+		"ko": [
+			0.346,
+			0.339,
+			0.316
+		],
+		"submission": [
+			0.461,
+			0.308,
+			0.23
+		]
+	},
+	"methods": {
+		"ko": 0.44,
+		"submission": 0.153,
+		"decision": 0.407
+	},
+	"fights_per_pair": 60,
+	"made": {
+		"commit": "ea38ca5",
+		"date": "2026-11-01",
+		"seed": 1
+	}
+}

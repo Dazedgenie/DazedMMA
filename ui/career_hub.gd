@@ -23,6 +23,12 @@ signal notebook_pressed
 ## The division list (D352): the men in his division this week.
 signal division_pressed
 
+## Around his division (D353, news_text): at most NEWS_MAX lines; a winner who had under UPSET_CHANCE is an upset; a man
+## averaging NEWS_BEST or more is one of the best.
+const NEWS_MAX: int = 4
+const UPSET_CHANCE: float = 0.35
+const NEWS_BEST: float = 58.0
+
 const BACKGROUND := Color(0.06, 0.07, 0.09)
 const CARD := Color("#1b1f26")
 const TILE := Color("#232830")
@@ -624,7 +630,82 @@ static func week_text(c: Career, reports: Array = []) -> String:
 	if not reports.is_empty():
 		lines.append("")
 		lines.append(last_text(c, reports))
+	var news: String = news_text(c, maxi(1, reports.size()))
+	if news != "":
+		lines.append("")
+		lines.append(news)
 	return "\n".join(lines)
+
+
+## Around his division (D353): the notable things from the world's last `weeks` weeks in his division, at most
+## NEWS_MAX: men he's fought first, then upsets (the winner had under UPSET_CHANCE beforehand), first-round finishes,
+## the best men, and men of his kind; and men he's fought turning pro or retiring.
+static func news_text(c: Career, weeks: int = 1) -> String:
+	var w: World = c.world()
+	var division: String = c.division_now()
+	var met: Dictionary = {}
+	for f: Dictionary in c.fights:
+		met[String(f.get("opponent", ""))] = String(f.get("result", ""))
+	var scored: Array = []
+	for r: Dictionary in w.results:
+		if int(r.get("week", -1)) < c.week - weeks or String(r.get("division", "")) != division:
+			continue
+		var kind: String = String(r.get("kind", "fight"))
+		if kind != "fight":
+			if met.has(String(r.id)):
+				var m: Dictionary = w.man(String(r.id))
+				var said: String = "has turned pro" if kind == "pro" else "has retired"
+				scored.append([5.0, "%s, %s, %s." % [String(m.get("name", "")), _met_words(String(met[String(r.id)])), said]])
+			continue
+		var a: Dictionary = w.man(String(r.a))
+		var b: Dictionary = w.man(String(r.b))
+		var a_won: bool = String(r.winner) == "a"
+		var winner: Dictionary = a if a_won else b
+		var loser: Dictionary = b if a_won else a
+		var score: float = 0.0
+		var upset: bool = String(r.winner) != "draw" and (float(r.chance) if a_won else 1.0 - float(r.chance)) < UPSET_CHANCE
+		if met.has(String(a.id)) or met.has(String(b.id)):
+			score += 4.0
+		if upset:
+			score += 2.0
+		if String(r.method) != "decision" and int(r.round) == 1:
+			score += 1.0
+		if maxf(w.average(a), w.average(b)) >= NEWS_BEST:
+			score += 1.0
+		if bool(r.get("pro", false)) == c.pro:
+			score += 1.0
+		if score < 2.0:
+			continue
+		var line: String
+		if String(r.winner) == "draw":
+			line = "%s and %s fought to a draw." % [String(a.name), String(b.name)]
+		else:
+			line = "%s beat %s %s%s." % [String(winner.name), String(loser.name), _how(String(r.method), int(r.round)), " (an upset)" if upset else ""]
+		for m: Dictionary in [a, b]:
+			if met.has(String(m.id)):
+				line += " %s %s." % [String(m.name).get_slice(" ", 0), _met_words(String(met[String(m.id)]), true)]
+		scored.append([score, line])
+	if scored.is_empty():
+		return ""
+	scored.sort_custom(func(x: Array, y: Array) -> bool: return float(x[0]) > float(y[0]))
+	var out: Array[String] = ["[color=%s]AROUND THE %s[/color]" % [DIM.to_html(false), Weight.name_of(division).to_upper()]]
+	for i in mini(NEWS_MAX, scored.size()):
+		out.append(String(scored[i][1]))
+	return "\n".join(out)
+
+
+static func _how(method: String, round_number: int) -> String:
+	match method:
+		"ko":
+			return "by knockout in round %d" % round_number
+		"submission":
+			return "by submission in round %d" % round_number
+	return "on the judges' cards"
+
+
+static func _met_words(result: String, after_name: bool = false) -> String:
+	var words: String = { "win": "who you beat", "loss": "who beat you", "draw": "who you drew with" }.get(result, "who you fought")
+	return ("is the man " + words) if after_name else words
 
 
 ## What the last Run this week or Advance did: how many weeks, the biggest gains and what happened.

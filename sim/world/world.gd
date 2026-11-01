@@ -25,7 +25,7 @@ const PER_DIVISION: int = 100
 ## anywhere, the hotbeds the most), `win` [lowest, highest] share of his fights he's won, `per_year` fights a year,
 ## `nickname` the share of them with a nickname (most men haven't one; the best have earned one).
 const LEVELS: Array[Dictionary] = [
-	{ "id": "amateur", "name": "Amateur", "count": 25, "pro": false, "ages": [14, 24], "home": 1.0, "win": [0.35, 0.75], "per_year": 3.0, "nickname": 0.2 },
+	{ "id": "amateur", "name": "Amateur", "count": 25, "pro": false, "ages": [14, 22], "home": 1.0, "win": [0.35, 0.75], "per_year": 3.0, "nickname": 0.2 },
 	{ "id": "local", "name": "Local pro", "count": 20, "pro": true, "ages": [20, 31], "avg": [38, 50], "home": 0.75, "win": [0.35, 0.65], "per_year": 2.5, "nickname": 0.35 },
 	{ "id": "regional", "name": "Regional pro", "count": 30, "pro": true, "ages": [21, 33], "avg": [46, 58], "home": 0.45, "win": [0.5, 0.75], "per_year": 2.5, "nickname": 0.45 },
 	{ "id": "national", "name": "National-level pro", "count": 18, "pro": true, "ages": [23, 34], "avg": [55, 67], "home": 0.25, "win": [0.65, 0.85], "per_year": 2.5, "nickname": 0.6 },
@@ -63,6 +63,9 @@ var hometown: String = ""
 var men: Dictionary = {}
 ## The next number for a newcomer's id, by division.
 var next_number: Dictionary = {}
+## The last week the world's fights were played (WorldWeeks, D353), and the results of the last RESULTS_WEEKS weeks.
+var played: int = -1
+var results: Array = []
 
 var _styles: StyleLibrary
 var _names: NameLibrary
@@ -86,6 +89,7 @@ static func make(world_seed: int, home_country_id: String, home_town: String, we
 	w.seed_value = world_seed
 	w.country_id = home_country_id
 	w.hometown = home_town
+	w.played = week - 1
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash([world_seed, "world"])
 	for division_id: String in Weight.ids():
@@ -100,29 +104,42 @@ static func age_of(man: Dictionary, week: int) -> float:
 	return float(man.get("born", 0.0)) + float(week) / Career.WEEKS_PER_YEAR
 
 
-## The division he fights at this week: what his weight makes at his age.
+## The division he fights at this week: a pro's own (picked when he turned pro, D353), an amateur's what his weight
+## makes at his age.
 static func division_of(man: Dictionary, week: int) -> String:
+	if String(man.get("division", "")) != "":
+		return String(man.division)
 	return Weight.division_for(Weight.walk_kg(man.get("frame", {}), age_of(man, week)))
 
 
-## His average stat: his style's signature fighter's, moved by his level (StyleLibrary.generate).
+## Whether he's still fighting (not retired, D353).
+static func active(man: Dictionary) -> bool:
+	return int(man.get("retired", -1)) < 0
+
+
+## His average stat: his style's signature fighter's, moved by his level (StyleLibrary.generate; `lv`, the level to a
+## fraction as the weeks change it, D353).
 func average(man: Dictionary) -> float:
-	var style_id: String = String(man.get("style", ""))
+	return signature_average(String(man.get("style", ""))) + float(man.get("lv", man.get("level", 0)))
+
+
+## A style's signature fighter's average stat.
+func signature_average(style_id: String) -> float:
 	if not _signature_avg.has(style_id):
 		var sig: Dictionary = _roster.profile(String(_styles.get_style(style_id).fighter)).get("stats", {})
 		_signature_avg[style_id] = Matchmaker.average_stat(sig)
-	return float(_signature_avg[style_id]) + float(man.get("level", 0))
+	return float(_signature_avg[style_id])
 
 
 func man(id: String) -> Dictionary:
 	return men.get(id, {})
 
 
-## The men fighting at this division this week, in the order they were made.
+## The men fighting at this division this week (not retired), in the order they were made.
 func in_division(division_id: String, week: int) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	for m: Dictionary in men.values():
-		if division_of(m, week) == division_id:
+		if active(m) and division_of(m, week) == division_id:
 			out.append(m)
 	return out
 
@@ -172,16 +189,18 @@ static func can_rematch(m: Dictionary, week: int) -> bool:
 	return week - met >= (CLOSE_REMATCH_WEEKS if bool(m.get("met_close", false)) else REMATCH_WEEKS)
 
 
-## A fight with the career's fighter is over: onto the man's record (`result` is the career fighter's: a win for him is
-## a loss for the man), and he can't be offered again for a while (can_rematch). `close` for a draw or a split or
-## majority decision.
-func record_fight(id: String, result: String, week: int, close: bool) -> void:
+## A fight with the career's fighter is over: onto the man's record and his last fights (`result` is the career
+## fighter's: a win for him is a loss for the man; `method` as the fight screen gives it), he's due another fight in a
+## while (WorldWeeks.note_fight), and he can't be offered again for a while (can_rematch). `close` for a draw or a
+## split or majority decision.
+func record_fight(id: String, result: String, week: int, close: bool, method: String = "") -> void:
 	var m: Dictionary = man(id)
 	if m.is_empty():
 		return
 	var theirs: String = { "win": "loss", "loss": "win" }.get(result, result)
-	if theirs in ["win", "loss", "draw"]:
-		m.record[theirs] = int(m.record.get(theirs, 0)) + 1
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash([seed_value, id, week, "his fight"])
+	WorldWeeks.note_fight(m, Career.FIGHTER_ID, theirs, method if method != "" else "decision", week, rng)
 	m.met_week = week
 	m.met_close = close
 
@@ -251,7 +270,9 @@ func _make_man(rng: RandomNumberGenerator, division_id: String, level: Dictionar
 		"born": snappedf(age - float(week) / Career.WEEKS_PER_YEAR, 0.01),
 		"frame": { "height_cm": int(body.frame.height_cm), "reach_cm": int(body.frame.reach_cm), "adult_kg": float(body.frame.adult_kg) },
 		"record": _past_record(rng, level, age), "met_week": -1, "met_close": false,
+		"division": division_id if pro else "",
 	}
+	WorldWeeks.set_up(self, m, rng, week)
 	men[String(m.id)] = m
 	_names_used[String(m.name)] = true
 	return m
@@ -317,7 +338,8 @@ func _name_taken(full_name: String) -> bool:
 ## The world as plain data for the career's save (docs/09 career@1 `world`).
 func to_dict() -> Dictionary:
 	return { "version": VERSION, "seed": str(seed_value), "country_id": country_id, "hometown": hometown,
-		"men": men.values().map(func(m: Dictionary) -> Dictionary: return m.duplicate(true)), "next_number": next_number.duplicate() }
+		"men": men.values().map(func(m: Dictionary) -> Dictionary: return m.duplicate(true)), "next_number": next_number.duplicate(),
+		"played": played, "results": results.duplicate(true) }
 
 
 ## A world back from to_dict() (after a trip through JSON, so whole numbers may come back as floats).
@@ -330,15 +352,40 @@ static func from_dict(data: Dictionary, p_styles: StyleLibrary = null, p_names: 
 		if not raw is Dictionary:
 			continue
 		var m: Dictionary = (raw as Dictionary).duplicate(true)
-		m.seed = int(m.get("seed", 0))
+		if m.has("seed"):
+			m.seed = int(m.seed)
 		m.level = int(m.get("level", 0))
 		m.met_week = int(m.get("met_week", -1))
+		for key: String in ["next_week", "out_until", "retired"]:
+			if m.has(key):
+				m[key] = int(m[key])
+		for entry: Variant in m.get("history", []):
+			if entry is Array and not (entry as Array).is_empty():
+				entry[0] = int(entry[0])
 		for key: String in ["win", "loss", "draw"]:
 			m.record[key] = int(m.get("record", {}).get(key, 0))
-		for key: String in ["height_cm", "reach_cm"]:
-			m.frame[key] = int(m.frame.get(key, 0))
+			if m.get("amateur_record") is Dictionary:
+				m.amateur_record[key] = int(m.amateur_record.get(key, 0))
+		for key: String in ["joined", "turned_pro"]:
+			if m.has(key):
+				m[key] = int(m[key])
+		if m.get("frame") is Dictionary:
+			for key: String in ["height_cm", "reach_cm"]:
+				m.frame[key] = int(m.frame.get(key, 0))
 		w.men[String(m.id)] = m
 		w._names_used[String(m.name)] = true
 	for key: Variant in data.get("next_number", {}):
 		w.next_number[String(key)] = int(data.next_number[key])
+	w.played = int(data.get("played", -1))
+	w.results = (data.get("results", []) as Array).duplicate(true) if data.get("results") is Array else []
+	for r: Variant in w.results:
+		if r is Dictionary:
+			for key: String in ["week", "round"]:
+				if r.has(key):
+					r[key] = int(r[key])
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash([w.seed_value, "set up"])
+	for m: Dictionary in w.men.values():
+		if active(m):
+			WorldWeeks.set_up(w, m, rng, maxi(0, w.played + 1))  # A world saved before D353: what the weeks need.
 	return w

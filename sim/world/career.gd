@@ -389,6 +389,20 @@ func world() -> World:
 			_world = World.make(hash([career_seed, "world"]), m.names.country_id_of(String(about.get("country", ""))),
 				String(about.get("hometown", "")), week, m.styles, m.names, m.roster)
 		_world_data = {}
+		if _world.played < 0:
+			_world.played = week - 1  # A world saved before D353 starts its weeks now.
+	if _world.played < week - 1:
+		# The world's Saturdays since it last caught up (D353): everyone but the men booked to fight him or in his
+		# offers.
+		var busy: Dictionary = {}
+		for id: String in _unmet():
+			busy[id] = true
+		for o: Dictionary in offers:
+			busy[String(o.get("profile", {}).get("id", ""))] = true
+			if o.get("tournament") is Dictionary:
+				for r: Dictionary in o.tournament.get("rest", []):
+					busy[String(r.profile.id)] = true
+		WorldWeeks.advance(_world, week - 1, busy, func(w: int) -> Dictionary: return date(0, w))
 	return _world
 
 
@@ -486,7 +500,8 @@ func finish_fight(entry: Dictionary) -> int:
 	e.ruleset = String(booked.get("ruleset", ""))
 	if not world().man(e.opponent).is_empty():
 		# Onto the man's own record too, and no rematch for a while (D352).
-		world().record_fight(e.opponent, String(e.result), week, World.is_close(String(e.result), String(e.get("method", ""))))
+		world().record_fight(e.opponent, String(e.result), week, World.is_close(String(e.result), String(e.get("method", ""))),
+			String(e.get("method", "")))
 	if booked.get("card") is Dictionary and not (booked.card as Dictionary).is_empty():
 		e.card = (booked.card as Dictionary).duplicate()  # The local card it was on (D314).
 	var purse: Dictionary = booked.get("purse", {})
