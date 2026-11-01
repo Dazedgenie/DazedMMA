@@ -667,7 +667,7 @@ word on turning pro there too (`pro_advice`, `PRO_WIN_SHARE`, `PRO_READY_AVG`, `
 **When.** While he's amateur, from his 12th week and then every 13 to 17 weeks, one offer in a set of offers is a
 tournament instead of a single fight. Turn it down and the next one still comes 3 to 4 months later. Pros don't get them.
 
-**Two sizes** (plan card: "Either, depending on the event", my pick while Kyle's card is open). A local open is four men:
+**Two sizes** (Kyle, 2026-11-01: "Either, depending on the event"). A local open is four men:
 a semi-final and the final, named from `data/cards/open.json` (*Leeds Amateur Open 2027 · the Sports Centre, Leeds*; 70% in
 his hometown). A regional championship is eight men: a quarter-final, a semi-final and the final, from
 `data/cards/championship.json` (*Leeds Regional Championships 2027 · the Arena*; 40% at home, so more often away). Each is
