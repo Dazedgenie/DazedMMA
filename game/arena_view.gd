@@ -21,6 +21,19 @@ const CAMERA_SPEED: float = 2.5
 const FOLLOW_SHARE: float = 0.85
 ## Lower three-quarter view, about 28° down; enough elevation to read grappling.
 const CAMERA_FROM := Vector3(1.0, 0.76, 1.0)
+## Standing, the camera eases round the cage to see the two side-on (D361): when the line between them is
+## more than about 40° off square to the view (side-on-ness, the sine of the angle between them, under
+## CAMERA_SIDE_ON_BELOW) it turns to square them up again, at most CAMERA_SWING_MAX radians either way of
+## CAMERA_FROM (so it stays on the side whose fence is cut down to a rail), at CAMERA_TURN_SPEED (per second).
+## Off the feet it eases back to CAMERA_FROM, where the clinch and ground are laid out for.
+const CAMERA_SIDE_ON_BELOW: float = 0.65
+const CAMERA_SWING_MAX: float = 0.7
+const CAMERA_TURN_SPEED: float = 1.4
+## Where the swing can't square them up, the camera climbs: from nothing at CAMERA_RISE_BELOW side-on-ness to
+## CAMERA_RISE_MAX radians more above them at CAMERA_RISE_FULL and less (D361).
+const CAMERA_RISE_MAX: float = 0.35
+const CAMERA_RISE_BELOW: float = 0.85
+const CAMERA_RISE_FULL: float = 0.6
 ## The skinned body the fighters are drawn with (D285); "" draws today's faceted pieces.
 const BODY := SkinnedBody.TRIPO_BODY
 const TAG_COLOURS := {
@@ -234,6 +247,10 @@ func watch(p_driver: FightDriver) -> void:
 	driver.sim.event_emitted.connect(_on_event)
 	_focus = Vector3.ZERO
 	_zoom = ZOOM_STANDING
+	camera_swing = 0.0
+	_swing_want = 0.0
+	camera_rise = 0.0
+	_rise_want = 0.0
 	_tag_text = ""
 
 
@@ -274,7 +291,7 @@ func _process(delta: float) -> void:
 	if _venue != null:
 		_venue.show_near_fence(shown, delta)
 	_show_tag(sim, middle, delta)
-	_place_camera(delta, middle, sim)
+	_place_camera(delta, middle, sim, shown)
 	if debug_marks:
 		for i in _want_rings.size():
 			var want: float = sim.last_wanted_distance(i)
@@ -924,10 +941,55 @@ func _show_tag(sim: FightSim, middle: Vector2, delta: float) -> void:
 	# Labels are sized in metres: shrink them as the camera moves in so they stay the same on screen.
 	_tag.scale = Vector3.ONE * _tag_scale * zoom_share()
 	# Just in front of the fighters as the camera sees them, on the canvas.
-	_tag.position = Vector3(middle.x, 0.05, middle.y) + Vector3(0.9, 0.0, 0.9)
+	_tag.position = Vector3(middle.x, 0.05, middle.y) + Vector3(0.9, 0.0, 0.9).rotated(Vector3.UP, camera_swing)
 
 
-func _place_camera(delta: float, middle: Vector2 = Vector2.ZERO, sim: FightSim = null) -> void:
+## How far round from CAMERA_FROM the camera is turned now (radians about the vertical, D361).
+var camera_swing: float = 0.0
+var _swing_want: float = 0.0
+
+
+var camera_rise: float = 0.0
+var _rise_want: float = 0.0
+
+
+## The camera's direction from what it looks at, turned `swing` radians round from CAMERA_FROM and raised
+## `rise` radians more above it (D361).
+static func camera_from(swing: float, rise: float = 0.0) -> Vector3:
+	var from: Vector3 = CAMERA_FROM.normalized()
+	var flat := Vector3(from.x, 0.0, from.z)
+	var up: float = minf(atan2(from.y, flat.length()) + rise, 1.4)
+	return (flat.normalized() * cos(up) + Vector3.UP * sin(up)).rotated(Vector3.UP, swing)
+
+
+## The swing (radians from CAMERA_FROM, at most CAMERA_SWING_MAX either way) that sees two men standing at
+## `a` and `b` most side-on; 0 when they're on top of each other.
+static func side_on_swing(a: Vector2, b: Vector2) -> float:
+	var line: Vector2 = b - a
+	if line.length() < 0.2:
+		return 0.0
+	var base: float = atan2(CAMERA_FROM.x, CAMERA_FROM.z)
+	var along: float = atan2(line.x, line.y)
+	var best: float = INF
+	for side: float in [PI / 2.0, -PI / 2.0]:
+		var turn: float = wrapf(along + side - base, -PI, PI)
+		if absf(turn) < absf(best):
+			best = turn
+	return clampf(best, -CAMERA_SWING_MAX, CAMERA_SWING_MAX)
+
+
+## How side-on two men at `a` and `b` are to a camera turned `swing` (1 square across the view, 0 one behind
+## the other).
+static func side_on(a: Vector2, b: Vector2, swing: float) -> float:
+	var line: Vector2 = b - a
+	if line.length() < 0.2:
+		return 1.0
+	var from: Vector3 = camera_from(swing)
+	var view := Vector2(from.x, from.z).normalized()
+	return absf(view.cross(line.normalized()))
+
+
+func _place_camera(delta: float, middle: Vector2 = Vector2.ZERO, sim: FightSim = null, shown: Array[Vector2] = []) -> void:
 	var want_zoom: float = ZOOM_STANDING
 	if sim != null and not sim.situation.is_standing():
 		want_zoom = ZOOM_CLINCH if sim.situation.position == PositionLibrary.CLINCH else ZOOM_GROUND
@@ -940,7 +1002,19 @@ func _place_camera(delta: float, middle: Vector2 = Vector2.ZERO, sim: FightSim =
 	_zoom = lerpf(_zoom, want_zoom, k)
 	camera.size = _zoom
 	var distance: float = _zoom / (2.0 * tan(deg_to_rad(camera.fov) / 2.0))
-	camera.position = _focus + CAMERA_FROM.normalized() * distance
+	if sim == null or not sim.situation.is_standing() or shown.size() < 2:
+		_swing_want = 0.0
+		_rise_want = 0.0
+	else:
+		if side_on(shown[0], shown[1], camera_swing) < CAMERA_SIDE_ON_BELOW:
+			_swing_want = side_on_swing(shown[0], shown[1])
+		var left: float = side_on(shown[0], shown[1], _swing_want)
+		var short: float = (CAMERA_RISE_BELOW - left) / (CAMERA_RISE_BELOW - CAMERA_RISE_FULL)
+		_rise_want = CAMERA_RISE_MAX * clampf(short, 0.0, 1.0)
+	var turn: float = 1.0 - exp(-CAMERA_TURN_SPEED * delta)
+	camera_swing = lerp_angle(camera_swing, _swing_want, turn)
+	camera_rise = lerpf(camera_rise, _rise_want, turn)
+	camera.position = _focus + camera_from(camera_swing, camera_rise) * distance
 	camera.look_at(_focus, Vector3.UP)
 
 
