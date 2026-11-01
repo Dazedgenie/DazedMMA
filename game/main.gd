@@ -341,7 +341,10 @@ func _career_camp_week(report: Dictionary) -> void:
 ## cancelled and the week's over.
 func _career_camp_back() -> void:
 	if planner != null and planner.done() and not planner.can_fight():
-		career.cancel_fight()
+		if career.tournament_stage() > 0:
+			career.withdraw()  # Between a tournament's rounds: out, with any medal for the round he'd have fought (D315).
+		else:
+			career.cancel_fight()
 		save_career()
 	show_hub()
 
@@ -365,9 +368,15 @@ func sim_career_fight(profile: Dictionary) -> void:
 		driver.step()
 
 
+## In a tournament's later rounds (D315) he goes in as the last fight left him (Career.tournament_condition), not as the
+## camp did, and fighting hurt was the first round's worry (its injury roll is done).
 func _career_settings(profile: Dictionary) -> Dictionary:
 	var opponent: Dictionary = career.booked_opponent()
 	_roster.add(opponent)
+	var camp: Dictionary = planner.summary() if planner != null else {}
+	if career.tournament_stage() > 0:
+		profile = career.round_profile()
+		camp = {}
 	return {
 		"career": true,
 		"label": "%s vs %s" % [career.fighter_name(), String(opponent.get("name", ""))],
@@ -375,7 +384,7 @@ func _career_settings(profile: Dictionary) -> Dictionary:
 		"ruleset": String(career.booked.get("ruleset", Ruleset.DEFAULT_ID)),
 		"seed": career.next_seed(), "normal_rate": 2.0, "auto_slow": true, "flourishes": true, "tell_cues": true,
 		"sound_volume": float(setup.settings().get("sound_volume", 1.0)), "easy": false, "rules": [],
-		"camp": planner.summary(),
+		"camp": camp,
 	}
 
 
@@ -393,9 +402,12 @@ func _finish_career_fight(sim: FightSim, record: Dictionary, injury: Dictionary)
 		career.trainee.injured_days = int(injury.days_out)
 		career.trainee.injury_area = String(injury.area)
 	var me: FighterState = sim.fighters[driver.player]
+	var condition: Variant = settings.get("red_profile", {}).get("condition", {})
+	var tank_in: float = float(condition.get("tank", 1.0)) if condition is Dictionary else 1.0
 	var paid: int = career.finish_fight({ "result": result, "method": method_text(String(ended.get("result", ""))),
 		"round": sim.clock.current_round, "seed": sim.fight_seed, "simmed": bool(settings.get("sim", false)),
-		"hard": Aftermath.is_hard(me.hurt("head"), me.hurt("body"), me.knockdowns) })
+		"hard": Aftermath.is_hard(me.hurt("head"), me.hurt("body"), me.knockdowns),
+		"tank": tank_in, "hurt": { "head": me.hurt("head"), "body": me.hurt("body"), "legs": me.hurt("legs") } })
 	save_career()
 	var lines: Array[String] = []
 	if bool(settings.get("sim", false)):
@@ -404,8 +416,33 @@ func _finish_career_fight(sim: FightSim, record: Dictionary, injury: Dictionary)
 		career.record_text(career.pro)])
 	if paid > 0:
 		lines.append("Paid $%d. Savings: $%d." % [paid, career.money])
+	var through: String = tournament_text(career)
+	if through != "":
+		lines.append(through)
+		return lines  # The suspension comes at the end of his day.
+	var medal: String = String(career.fights[-1].get("medal", ""))
+	if medal != "":
+		lines.append("[color=#ffd43b]%s medal, %s.[/color]" % [medal.capitalize(), String(career.fights[-1].tournament.name)])
+	elif career.fights[-1].get("tournament") is Dictionary:
+		lines.append("Out of the %s in the %s." % [String(career.fights[-1].tournament.name),
+			Tournament.stage_name(int(career.fights[-1].tournament.size), int(career.fights[-1].tournament.stage)).to_lower()])
 	lines.append(aftermath_text(career.fights[-1]))
 	return lines
+
+
+## Between a tournament's rounds (D315): who's next and how he goes in. "" when he isn't between rounds.
+static func tournament_text(c: Career) -> String:
+	if c.tournament_stage() <= 0:
+		return ""
+	var t: Dictionary = c.booked.tournament
+	var carried: Dictionary = c.tournament_condition()
+	var hurt: Array[String] = []
+	for area: String in carried.get("hurt", {}):
+		if float(carried.hurt[area]) >= 0.05:
+			hurt.append("%s %d%%" % [area, roundi(float(carried.hurt[area]) * 100.0)])
+	return "[color=#69db7c]Through to the %s[/color] against %s, later today. He goes in with %d%% of his gas tank%s." % [
+		Tournament.stage_name(int(t.size), int(t.stage)).to_lower(), String(c.booked_opponent().get("name", "")),
+		roundi(float(carried.get("tank", 1.0)) * 100.0), (", still hurt: " + ", ".join(hurt)) if not hurt.is_empty() else ""]
 
 
 ## The aftermath line for the result screen: the suspension and why, and any Chin lost.
@@ -429,6 +466,27 @@ static func method_text(result: String) -> String:
 	if result == FightSim.RESULT_SUB:
 		return "Submission"
 	return result.substr(0, 1).to_upper() + result.substr(1)
+
+
+## A tournament's next round (D315): the next man, straight away, carrying the last fight (simmed again if the last
+## one was).
+func next_tournament_fight() -> void:
+	if career == null or career.tournament_stage() <= 0:
+		return
+	result.visible = false
+	if bool(settings.get("sim", false)):
+		sim_career_fight(career.round_profile())
+	else:
+		_career_fight(career.round_profile())
+
+
+## Pulls him out of the tournament between rounds (D315, Career.withdraw): the medal for the round he'd have fought,
+## then the hub.
+func withdraw_from_tournament() -> void:
+	if career != null:
+		career.withdraw()
+		save_career()
+	_career_after_fight()
 
 
 func _career_after_fight() -> void:
@@ -696,7 +754,12 @@ func _on_fight_over(_event: FightEvent) -> void:
 	if bool(settings.get("career", false)) and career != null:
 		notes.append_array(_finish_career_fight(sim, record, injury))
 		hud.hide_dialog()
-		result.show_result(sim, driver.player, record.stats, notes, [["Back to the hub", _career_after_fight]])
+		if career.tournament_stage() > 0:
+			var stage: String = Tournament.stage_name(int(career.booked.tournament.size), career.tournament_stage())
+			result.show_result(sim, driver.player, record.stats, notes,
+				[["On to the %s" % stage.to_lower(), next_tournament_fight], ["Pull out", withdraw_from_tournament]])
+		else:
+			result.show_result(sim, driver.player, record.stats, notes, [["Back to the hub", _career_after_fight]])
 		return
 	notes.append("Seed %d (type it in the setup to replay this fight's start)" % sim.fight_seed)
 	if last_record_path != "":

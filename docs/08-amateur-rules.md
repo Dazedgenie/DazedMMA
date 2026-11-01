@@ -50,6 +50,8 @@ rules. `data/rulesets/pride.json`:
   (too early = risky, too late = lost prime years).
 - **Built so far** (D314, `03` §11.4): school takes his weekday mornings and two evenings until 18 (full weeks in July and August), amateur
   offers are on named local cards, and from 18 the hub says whether turning pro looks wise, risky or overdue.
+  The one-day tournament (D315, `03` §11.5): a four- or eight-man bracket every 3–4 months, damage carrying from fight to
+  fight, gold, silver and bronze on his card. "Short fights" aren't in yet: tournament fights run the usual amateur rules.
 - **Weight class emerges (D35)**: amateur weigh-ins use walk-around weight. The pro division is chosen when you turn pro.
 
 ## 3. Pro variants

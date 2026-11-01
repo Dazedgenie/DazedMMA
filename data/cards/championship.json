@@ -1,0 +1,21 @@
+{
+	"schema": "cards@1",
+	"id": "championship",
+	"name": "Regional amateur championships",
+	"about": "A one-day tournament for eight: a quarter-final, a semi-final and the final, all on one day.",
+	"names": [
+		"{city} Regional Championships",
+		"{city} Amateur Championships",
+		"{city} Grand Prix",
+		"{city} Open Championships"
+	],
+	"venues": [
+		"Arena",
+		"Exhibition Hall",
+		"Civic Hall",
+		"Sports Arena"
+	],
+	"home_share": 0.4,
+	"every_weeks": 52,
+	"size": 8
+}
