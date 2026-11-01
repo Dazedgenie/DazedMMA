@@ -245,6 +245,11 @@ func use_body(path: String) -> bool:
 	return true
 
 
+## Which side of his body arm `arm` (0 lead, 1 rear) is on: "l" or "r".
+func arm_letter(arm: int) -> String:
+	return "l" if (lead if arm == 0 else -lead) < 0.0 else "r"
+
+
 ## The pieces' joints in the world, for the skinned body (SkinnedBody.follow_joints).
 func body_pose() -> Dictionary:
 	var pose := {
@@ -254,7 +259,7 @@ func body_pose() -> Dictionary:
 		"shoulders_at": (_arm_meshes[0].global_position + _arm_meshes[1].global_position) / 2.0,
 	}
 	for i in 2:
-		var side: String = "l" if (lead if i == 0 else -lead) < 0.0 else "r"
+		var side: String = arm_letter(i)
 		pose["shoulder_" + side] = _arm_meshes[i].global_position
 		pose["elbow_" + side] = _upper_arms[i].global_transform * Vector3(0, -1, 0)
 		pose["wrist_" + side] = _gloves[i].global_position

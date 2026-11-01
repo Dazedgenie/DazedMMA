@@ -320,6 +320,60 @@ Tests: `tests/game/test_fight_body.gd` (the fight draws the body and hides the p
 shoulders sit where the pieces' do, the hands go where the gloves do in guard, the jab, the hook and the clinch
 within 4 cm, standing feet are under the pieces' feet with the toes on the mat).
 
+## The clinch from the rig, a pose for each grip (D286)
+
+The second step of Kyle's route (D285: copy today's figures first, then the rig position by position): the
+standing clinch is posed by the rig (D283) from what the fight says each man holds, and the Tripo bodies follow
+it. Kyle picked a pose for each grip (2026-10-31) over one body lock for every clinch.
+
+**The poses** (`game/rig/clinch_pair.gd`, `ClinchPair`). `ClinchPair.build(grips, red_sides, collar, held)`
+reads the sim's grips (who has the inside on each side, D261), the collar tie (D129) and who is held on the
+fence (D220) and returns a pair pose like `RigPairs`:
+
+- **Body** by the kind of clinch: *tied up* (chest to chest, heads on each other's shoulder, hips back), *body
+  lock* (the man with both underhooks a little lower, hips in, the other taller over him), *collar tie* (the
+  holder stands tall, the other is bent over with his head pulled down) and *held on the fence* (the held man
+  upright with his back to it, the other driving in low with his head in his chest). The collar tie comes
+  first, then the fence, then the body lock. Heads go to the side of the driving man's underhook; the pose is
+  mirrored for the other side.
+- **Hands** by each man's grip on each side: *under* round his back to the shoulder blade, *over* clamping his
+  arm above the elbow, *lock* both hands locked at the small of his back, *collar* behind his head, *frame* (the
+  man in the collar tie) on the holder's chest, and with no grip on that side *hand fighting* on his biceps.
+- The pose is written for the man driving it (collar holder, the man holding him on the fence, the body lock,
+  else red); when that is blue, the men's roles are swapped and the frame turned half round (`ClinchPair.swap`,
+  `ClinchPair.pose`).
+
+**In the fight** (`ArenaView._pose_clinch`). With bodies, the view keeps two hidden rigs fitted to them. In the
+clinch (not in a submission hold) while each man is holding or fighting for grips (`CLINCH_POSE_MOVES`: no move,
+the pummel, the strip, the collar tie) or striking from it (`CLINCH_STRIKES`: the knee, the short hook and
+uppercut, the elbow), the pair is posed from the grips in a frame between the two men, its +Z toward red, and
+the bodies follow the rigs. A strike moves only the striking arm or leg, from today's figure; the rest holds the
+grip. Any other move (driving him to the fence, turning him, spinning off, breaking away, a takedown or throw) is
+drawn from today's figures as in D285. Going into or out of the rig's clinch, a new grip, or a strike starting
+or ending eases over `CLINCH_EASE` (0.25 s) instead of jumping (`SkinnedBody.ease_over` and `settle`: each bone
+part way from last frame's pose to the new one). In five fights each of the Wrestler against the Boxer and the
+Muay Thai fighter against the Boxer, the rig poses 63% and 78% of the clinch; the rest is takedowns, fence
+drives and breaks.
+
+**To change:** the poses in `ClinchPair.body` and `ClinchPair.hand` (root, lean, bend, head and feet as in
+`RigPairs`; hand points and offsets as `FighterRig.POINTS`); which moves keep the pose in
+`ArenaView.CLINCH_POSE_MOVES` and `CLINCH_STRIKES`; the easing in `ArenaView.CLINCH_EASE`.
+
+**Limits:** the drive to the fence, turning him, spinning off and the clinch takedowns still use today's figures,
+so their arms go wide again for a moment; the man at the fence is posed from where today's figures stand, not
+pressed flat on the mesh; the overhooks and underhooks don't move while a pummel is under way (the pose changes,
+easing, when the grip changes hands).
+
+Preview: `tools/rig_preview.gd --clinch --body` (one picture per example in `ClinchPair.examples`); a real clinch
+fight: `tools/motion_preview.gd --red=muay_thai --blue=wrestler --seed=35013`.
+
+Tests: `tests/game/test_clinch_pair.gd` (every hand and foot reaches its place within 5 cm on rigs fitted to the
+body, the bodies press together without passing through, each grip's hands are where it holds, the man on the
+fence has his back to it with the other lower, the pose is the same whichever corner drives it, mirroring twice
+changes nothing) and `tests/game/test_clinch_view.gd` (a body lock in the fight is drawn from the rig with the
+hands round his back, each grip changes the pose, a knee keeps the hold and lifts only the knee, a takedown goes
+back to today's figures and eases out, standing and on the ground the rig doesn't pose them).
+
 ## Review and verification
 
 Open `project.godot` in Godot 4.7.2 and run the game normally. Start a fight and check striking,
