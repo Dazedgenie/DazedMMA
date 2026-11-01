@@ -5,12 +5,16 @@ extends PanelContainer
 ## it"). Several due at once queue up, one after another. The Coach's Notebook (a button on the hub) lists every tip
 ## he's seen, to read again.
 ##
-## Main owns one, over every screen: show_tips() for the tips due (Tutorial.due), show_notebook() for the Notebook.
+## Main owns one, over every screen: show_tips() for the tips due (Tutorial.due), show_notebook() for the Notebook,
+## show_page() for any other list to read (his division, D352).
 
 signal closed
 
 const SHADE := Color(0.0, 0.0, 0.0, 0.62)
 const ACCENT := Color("#fcc419")
+## The card's width, and a list's height; show_page() can make it wider.
+const CARD_WIDTH: float = 620.0
+const LIST_HEIGHT: float = 460.0
 
 var _queue: Array[Dictionary] = []
 var _title: Label
@@ -19,6 +23,7 @@ var _list: RichTextLabel
 var _list_scroll: ScrollContainer
 var _counter: Label
 var _ok: Button
+var _card: PanelContainer
 
 
 func _init() -> void:
@@ -34,8 +39,9 @@ func _init() -> void:
 	style.set_border_width_all(2)
 	style.set_content_margin_all(28)
 	card.add_theme_stylebox_override("panel", style)
-	card.custom_minimum_size = Vector2(620.0, 0.0)
+	card.custom_minimum_size = Vector2(CARD_WIDTH, 0.0)
 	centre.add_child(card)
+	_card = card
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 14)
 	card.add_child(box)
@@ -53,7 +59,7 @@ func _init() -> void:
 	_text.custom_minimum_size.x = 560.0
 	box.add_child(_text)
 	_list_scroll = ScrollContainer.new()
-	_list_scroll.custom_minimum_size = Vector2(560.0, 460.0)
+	_list_scroll.custom_minimum_size = Vector2(CARD_WIDTH - 60.0, LIST_HEIGHT)
 	_list_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	box.add_child(_list_scroll)
 	_list = RichTextLabel.new()
@@ -76,15 +82,24 @@ func show_tips(tips: Array[Dictionary]) -> void:
 
 ## The Coach's Notebook: every tip in `tips`, to read again.
 func show_notebook(tips: Array[Dictionary]) -> void:
-	_queue.clear()
-	_counter.text = "COACH'S NOTEBOOK"
-	_title.text = "What you've learned"
-	_text.visible = false
-	_list_scroll.visible = true
 	var lines: Array[String] = []
 	for t: Dictionary in tips:
 		lines.append("[b][color=#%s]%s[/color][/b]\n%s" % [ACCENT.to_html(false), String(t.get("title", "")), String(t.get("text", ""))])
-	_list.text = "\n\n".join(lines) if not lines.is_empty() else "[color=#8a8f98]No tips yet.[/color]"
+	show_page("COACH'S NOTEBOOK", "What you've learned", "\n\n".join(lines) if not lines.is_empty() else "[color=#8a8f98]No tips yet.[/color]")
+
+
+## A page to read and close: a small heading, a title and a scrolling list (BBCode), `width` wide (the card's own
+## width when 0) and `height` tall (LIST_HEIGHT when 0).
+func show_page(counter: String, title: String, bbcode: String, width: float = 0.0, height: float = 0.0) -> void:
+	_queue.clear()
+	var w: float = width if width > 0.0 else CARD_WIDTH
+	_card.custom_minimum_size.x = w
+	_list_scroll.custom_minimum_size = Vector2(w - 60.0, height if height > 0.0 else LIST_HEIGHT)
+	_counter.text = counter
+	_title.text = title
+	_text.visible = false
+	_list_scroll.visible = true
+	_list.text = bbcode
 	_ok.text = "Close"
 	visible = true
 	_list_scroll.scroll_vertical = 0
@@ -97,6 +112,7 @@ func _next() -> void:
 		closed.emit()
 		return
 	var t: Dictionary = _queue.pop_front()
+	_card.custom_minimum_size.x = CARD_WIDTH
 	_counter.text = "COACH'S TIP" + (" · %d more" % _queue.size() if not _queue.is_empty() else "")
 	_title.text = String(t.get("title", ""))
 	_text.text = String(t.get("text", ""))

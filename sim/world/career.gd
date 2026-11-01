@@ -115,6 +115,9 @@ var medals: Array = []
 ## His division once he's turned pro (Weight, D351): picked at the debut from his natural one or one either side, and
 ## kept. "" before: an amateur fights at whatever his weight that year makes (division_now()).
 var division: String = ""
+## The world's fighters (World, D352), made the first time they're needed and kept in the save.
+var _world: World
+var _world_data: Dictionary = {}
 
 var _dice := RandomNumberGenerator.new()
 var _library: TrainingLibrary
@@ -369,10 +372,24 @@ func _check_offers(events: Array) -> void:
 		offers[0] = matchmaker().make_lesson(self, rng, lesson_number, offers)
 	if not pro and week >= next_tournament_week and not offers.is_empty():
 		# Every few months one of the offers is a one-day tournament instead (D315).
-		offers[-1] = matchmaker().make_tournament(self, rng, 0, offers.size() - 1)
+		offers[-1] = matchmaker().make_tournament(self, rng, 0, offers.size() - 1, offers.slice(0, -1))
 		next_tournament_week = week + rng.randi_range(Tournament.GAP_MIN, Tournament.GAP_MAX)
 	next_offers_week = week + Matchmaker.OPEN_WEEKS + rng.randi_range(Matchmaker.GAP_MIN, Matchmaker.GAP_MAX)
 	events.append({ "kind": OFFERS, "count": offers.size() })
+
+
+## The world's fighters (World, D352): made from the career's seed and his home the first time they're needed (a
+## career saved before D352 makes them when it next needs them), or back from the save.
+func world() -> World:
+	if _world == null:
+		var m: Matchmaker = matchmaker()
+		if not _world_data.is_empty():
+			_world = World.from_dict(_world_data, m.styles, m.names, m.roster)
+		else:
+			_world = World.make(hash([career_seed, "world"]), m.names.country_id_of(String(about.get("country", ""))),
+				String(about.get("hometown", "")), week, m.styles, m.names, m.roster)
+		_world_data = {}
+	return _world
 
 
 ## Who makes his offers: the shipped data's unless set (tests set their own).
@@ -467,6 +484,9 @@ func finish_fight(entry: Dictionary) -> int:
 	e.erase("hurt")
 	e.opponent = String(booked.get("opponent", ""))
 	e.ruleset = String(booked.get("ruleset", ""))
+	if not world().man(e.opponent).is_empty():
+		# Onto the man's own record too, and no rematch for a while (D352).
+		world().record_fight(e.opponent, String(e.result), week, World.is_close(String(e.result), String(e.get("method", ""))))
 	if booked.get("card") is Dictionary and not (booked.card as Dictionary).is_empty():
 		e.card = (booked.card as Dictionary).duplicate()  # The local card it was on (D314).
 	var purse: Dictionary = booked.get("purse", {})
@@ -710,6 +730,7 @@ func to_dict() -> Dictionary:
 		"next_tournament_week": next_tournament_week, "medals": medals.duplicate(true), "division": division,
 		"tutorial": tutorial, "tips_seen": tips_seen.duplicate(),
 		"fights": fights.duplicate(true), "opponents": opponents.duplicate(true),
+		"world": _world.to_dict() if _world != null else _world_data.duplicate(true),
 		"booked": booked.duplicate(true), "offers": offers.duplicate(true),
 		"summary": summary(),
 	}
@@ -762,6 +783,7 @@ static func from_dict(data: Dictionary, library: TrainingLibrary = null) -> Care
 			m.size = int(m.get("size", 0))
 	c.fights = d.get("fights", []).duplicate(true)
 	c.opponents = d.get("opponents", {}).duplicate(true)
+	c._world_data = d.get("world", {}).duplicate(true) if d.get("world") is Dictionary else {}
 	c.booked = d.get("booked", {}).duplicate(true)
 	if c.booked.get("tournament") is Dictionary:
 		for key: String in ["size", "stage", "suspension"]:

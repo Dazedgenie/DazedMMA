@@ -1034,6 +1034,20 @@ func test_tips_are_two_sentences_at_a_known_place_and_each_lesson_has_one() -> v
 	_report(problems)
 
 
+func test_each_country_says_how_much_of_a_hotbed_it_is_and_its_styles() -> void:
+	var problems: Array[String] = []
+	var styles: Dictionary = _items("styles")
+	for id: String in _items("names"):
+		var c: Dictionary = _items("names")[id]
+		var where := "data/names/%s.json" % id
+		if c.has("hotbed") and (typeof(c.hotbed) != TYPE_FLOAT or float(c.hotbed) <= 0.0):
+			problems.append("%s: hotbed is a number above 0 (how often the world's best come from here, D352)" % where)
+		for style_id: Variant in c.get("styles", []):
+			if not styles.has(String(style_id)):
+				problems.append("%s: styles names '%s', which is not in data/styles" % [where, style_id])
+	_report(problems)
+
+
 func test_the_six_divisions_run_light_to_heavy_with_matching_pounds() -> void:
 	var problems: Array[String] = []
 	var divisions: Dictionary = _items("divisions")

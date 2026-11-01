@@ -2,6 +2,11 @@
 	"schema": "names@1",
 	"id": "netherlands",
 	"country": "Netherlands",
+	"hotbed": 2,
+	"styles": [
+		"kicker",
+		"leg_kicker"
+	],
 	"cities": [
 		"Amsterdam",
 		"Rotterdam",

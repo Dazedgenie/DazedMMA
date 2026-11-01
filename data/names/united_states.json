@@ -2,6 +2,12 @@
 	"schema": "names@1",
 	"id": "united_states",
 	"country": "United States",
+	"hotbed": 5,
+	"styles": [
+		"wrestler",
+		"gnp_wrestler",
+		"pressure_wrestler"
+	],
 	"cities": [
 		"Albuquerque",
 		"Philadelphia",

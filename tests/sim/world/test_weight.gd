@@ -75,8 +75,8 @@ func test_his_offers_are_men_of_his_division() -> void:
 	assert_false(c.offers.is_empty())
 	for o: Dictionary in c.offers:
 		assert_eq(String(o.division), c.division_now())
-		var walk: float = Weight.walk_kg(o.profile.frame, float(o.profile.age) + 0.5)
-		assert_eq(Weight.division_for(walk), c.division_now(), "%s walks around at %.1f kg" % [o.profile.name, walk])
+		var man: Dictionary = c.world().man(String(o.profile.id))
+		assert_eq(World.division_of(man, c.week), c.division_now(), "%s, one of the world's men, is in his division" % o.profile.name)
 		assert_string_contains(CareerHub.offer_text(c, o), "bout")
 
 

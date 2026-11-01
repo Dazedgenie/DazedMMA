@@ -20,6 +20,8 @@ signal decline_pressed(offer_id: String)
 signal turn_pro_pressed
 ## The Coach's Notebook button (D316): every tip he's seen, to read again.
 signal notebook_pressed
+## The division list (D352): the men in his division this week.
+signal division_pressed
 
 const BACKGROUND := Color(0.06, 0.07, 0.09)
 const CARD := Color("#1b1f26")
@@ -75,6 +77,7 @@ var _fights_text: RichTextLabel
 var _calendar: HBoxContainer
 var _scrolls: Array[ScrollContainer] = []
 var _notebook: Button
+var _division: Button
 var _groups: Dictionary = {}
 var _gift_names: Dictionary = {}
 var _flaw_names: Dictionary = {}
@@ -111,6 +114,14 @@ func _init() -> void:
 	notebook.pressed.connect(func() -> void: notebook_pressed.emit())
 	top.add_child(notebook)
 	_notebook = notebook
+	var division := Button.new()
+	division.text = "His division"
+	division.tooltip_text = "The men in his division this week"
+	division.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	division.add_theme_font_size_override("font_size", 18)
+	division.pressed.connect(func() -> void: division_pressed.emit())
+	top.add_child(division)
+	_division = division
 	_date = Label.new()
 	DisplayFont.apply(_date, 34)
 	_date.add_theme_color_override("font_color", TEXT)
@@ -365,7 +376,9 @@ static func offer_text(c: Career, o: Dictionary, groups: Dictionary = {}) -> Str
 	if int(o.get("lesson", 0)) > 0:
 		lines.append("[color=%s][b]Coach's pick[/b][/color] · %s" % [GOOD.to_html(false), LESSON_TEXT[clampi(int(o.lesson) - 1, 0, LESSON_TEXT.size() - 1)]])
 	var nick: String = String(about.get("nickname", ""))
-	lines.append("[b]%s[/b]%s" % [String(p.get("name", "")), (" '%s'" % nick) if nick != "" else ""])
+	var record: String = String(about.get("record", ""))
+	lines.append("[b]%s[/b]%s%s" % [String(p.get("name", "")), (" '%s'" % nick) if nick != "" else "",
+		(" · %s %s" % [record, "pro" if bool(o.get("pro", false)) else "amateur"]) if record != "" else ""])
 	lines.append("[color=%s]%s · %s[/color]" % [WARN.to_html(false), String(style.get("name", style_id)), DIFFICULTY_TEXT.get(String(o.get("difficulty", "")), "")])
 	var card: String = Matchmaker.card_text(o.get("card", {}) if o.get("card") is Dictionary else {})
 	if card != "":
@@ -462,6 +475,55 @@ func offer_ids() -> Array[String]:
 ## For tests: presses an offer's Take the fight, Turn it down, Go to camp or Turn pro, as a click would.
 func press_notebook() -> void:
 	_notebook.pressed.emit()
+
+
+func press_division() -> void:
+	_division.pressed.emit()
+
+
+## The division list's title (D352): "Lightweight · 103 men".
+static func division_title(c: Career) -> String:
+	var id: String = c.division_now()
+	return "%s · %d men" % [Weight.name_of(id), c.world().in_division(id, c.week).size()]
+
+
+## The division list (D352): every man in his division this week, the ones he can be offered (amateurs while he's
+## one, pros once he's pro) first, each part best first by what the scouts make of him, one line each: name and
+## nickname, age, where he's from, his level, record and style, and how it went if he's fought him.
+static func division_text(c: Career) -> String:
+	var w: World = c.world()
+	var men: Array[Dictionary] = w.in_division(c.division_now(), c.week)
+	men.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		var x: float = w.average(a)
+		var y: float = w.average(b)
+		return x > y if x != y else String(a.name) < String(b.name))
+	var met: Dictionary = {}
+	for f: Dictionary in c.fights:
+		met[String(f.get("opponent", ""))] = String(f.get("result", ""))
+	var parts: Array[String] = []
+	for pros: bool in ([true, false] if c.pro else [false, true]):
+		var lines: Array[String] = []
+		for m: Dictionary in men:
+			if bool(m.pro) == pros:
+				lines.append(_division_line(c, w, m, met))
+		if not lines.is_empty():
+			parts.append("[color=%s][b]%s (%d)[/b][/color]\n%s" % [WARN.to_html(false), "PROS" if pros else "AMATEURS", lines.size(), "\n".join(lines)])
+	return "\n\n".join(parts) if not parts.is_empty() else "[color=%s]Nobody yet.[/color]" % DIM.to_html(false)
+
+
+static func _division_line(c: Career, w: World, m: Dictionary, met: Dictionary) -> String:
+	var style_id: String = String(m.style)
+	var style_name: String = String(StyleLibrary.shared().get_style(style_id).get("name", style_id)) if StyleLibrary.shared().has(style_id) else style_id
+	var nick: String = String(m.get("nickname", ""))
+	var line: String = "[b]%s[/b]%s · %d · %s, %s" % [String(m.name), (" '%s'" % nick) if nick != "" else "",
+		int(floor(World.age_of(m, c.week))), String(m.hometown), String(m.country)]
+	line += "\n[color=%s]%s · %s · %s · grade %s[/color]" % [DIM.to_html(false), World.level_name(m), World.record_text(m), style_name,
+		TrainingCamp.grade(w.average(m))]
+	if met.has(String(m.id)):
+		var result: String = String(met[String(m.id)])
+		line += " · [color=%s]you %s[/color]" % [(GOOD if result == "win" else BAD if result == "loss" else WARN).to_html(false),
+			{ "win": "beat him", "loss": "lost to him", "draw": "drew with him" }.get(result, "fought him")]
+	return line
 
 
 func press_accept(offer_id: String) -> void:

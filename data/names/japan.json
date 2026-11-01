@@ -2,6 +2,11 @@
 	"schema": "names@1",
 	"id": "japan",
 	"country": "Japan",
+	"hotbed": 2,
+	"styles": [
+		"judoka",
+		"karate"
+	],
 	"cities": [
 		"Tokyo",
 		"Osaka",

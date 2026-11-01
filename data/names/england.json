@@ -2,6 +2,11 @@
 	"schema": "names@1",
 	"id": "england",
 	"country": "England",
+	"hotbed": 2,
+	"styles": [
+		"boxer",
+		"counter_striker"
+	],
 	"cities": [
 		"Leeds",
 		"Manchester",

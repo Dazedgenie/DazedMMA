@@ -541,3 +541,8 @@ func test_a_new_career_teaches_the_game_with_tips_and_a_first_fight_of_three_cal
 		assert_string_contains(_main.tips.text(), title, "the Coach's Notebook keeps it")
 	_main.tips.press_ok()
 	assert_false(_main.tips.visible)
+	_main.hub.press_division()
+	assert_string_contains(_main.tips.text(), "HIS DIVISION")
+	assert_string_contains(_main.tips.text(), "you lost to him", "the man who beat him is in the list (D352)")
+	_main.tips.press_ok()
+	assert_false(_main.tips.visible)

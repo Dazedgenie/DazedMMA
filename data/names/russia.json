@@ -2,6 +2,11 @@
 	"schema": "names@1",
 	"id": "russia",
 	"country": "Russia",
+	"hotbed": 4,
+	"styles": [
+		"sambo",
+		"wrestler"
+	],
 	"cities": [
 		"Makhachkala",
 		"Khasavyurt",

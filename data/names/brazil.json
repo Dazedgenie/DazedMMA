@@ -2,6 +2,11 @@
 	"schema": "names@1",
 	"id": "brazil",
 	"country": "Brazil",
+	"hotbed": 4,
+	"styles": [
+		"bjj",
+		"muay_thai"
+	],
 	"cities": [
 		"Rio de Janeiro",
 		"São Paulo",

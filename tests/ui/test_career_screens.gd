@@ -286,6 +286,26 @@ func test_a_career_camp_shows_his_school_mornings_and_the_card() -> void:
 	assert_string_contains(planner._days_note.text, String(c.booked.card.name))
 
 
+func test_the_hub_lists_the_men_in_his_division() -> void:
+	var c: Career = _career()
+	var hub: CareerHub = add_child_autofree(CareerHub.new())
+	hub.show_career(c)
+	var pressed: Array = []
+	hub.division_pressed.connect(func() -> void: pressed.append(true))
+	hub.press_division()
+	assert_eq(pressed.size(), 1, "the His division button")
+	var men: Array[Dictionary] = c.world().in_division(c.division_now(), c.week)
+	assert_string_contains(CareerHub.division_title(c), "%s · %d men" % [Weight.name_of(c.division_now()), men.size()])
+	var text: String = CareerHub.division_text(c)
+	for m: Dictionary in men.slice(0, 5):
+		assert_string_contains(text, String(m.name))
+		assert_string_contains(text, World.record_text(m))
+	var man: Dictionary = men[0]
+	c.add_opponent(c.world().profile(String(man.id), c.week))
+	c.add_fight({ "result": "win", "opponent": String(man.id) })
+	assert_string_contains(CareerHub.division_text(c), "you beat him")
+
+
 func test_the_hub_shows_his_weight_and_picks_his_division_at_the_pro_debut() -> void:
 	var c: Career = _career()
 	var hub: CareerHub = add_child_autofree(CareerHub.new())
