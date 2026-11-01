@@ -161,6 +161,7 @@ func profile(id: String, week: int) -> Dictionary:
 			p.frame[key] = m.frame[key]
 	for key: String in ["height_cm", "reach_cm"]:
 		p.frame[key] = int(p.frame[key])
+	p.home = _names.country_id_of(String(m.get("country", "")))  # His look comes from where he's from (D364).
 	return p
 
 

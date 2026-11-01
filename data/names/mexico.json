@@ -52,5 +52,21 @@
 		"Vargas",
 		"Castillo",
 		"Ortiz"
-	]
+	],
+	"looks": {
+		"skin": [
+			0.5,
+			1.5,
+			3,
+			4,
+			2,
+			0.5,
+			0.1
+		],
+		"hair": {
+			"black": 5,
+			"dark_brown": 3,
+			"brown": 1
+		}
+	}
 }

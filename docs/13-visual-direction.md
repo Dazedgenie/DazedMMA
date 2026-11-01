@@ -661,6 +661,73 @@ and in than a landed shot, a missed jab hardly at all and an overhand well past,
 through and back, drive from Power over Speed, a heavy hitter driving through and a quick man snapping back, a
 rear kick's standing foot turning out, nothing in the clinch).
 
+## Fighters who look different (D364, D365)
+
+Kyle picked fighters who look different as the slice after strike follow-through. Before, both men were the same
+body at the same size, and only the shorts changed colour. On the cards he picked: "You pick for your own
+fighter" (the look of the career's own man is chosen on the new-career screen; everyone else's comes from where
+he's from), "Corner colours, as now" for the shorts, "True to the numbers" for size, and "Colours, shaved and
+beards" for how far hair and faces go.
+
+**A look** (`FighterLook`, `sim/world/fighter_look.gd`) is `{skin, hair, hair_style, beard}`: one of seven skin
+tones, light to dark (`SKIN_TONES`); a hair colour (`HAIR_COLOURS`: black, dark brown, brown, light brown, blonde,
+red, grey); `short` (the body's own hair), `buzzed` or `shaved` (`HAIR_STYLES`, 45%, 30%, 25%); and `none`,
+`stubble` or `beard` (`BEARDS`, 45%, 35%, 20%). Everyone but the career's own man has his look rolled for where he's
+from: each country file says how often each tone and hair colour turns up there (`docs/09` names@1 `looks`), so a man
+from Lagos is nearly always dark-skinned and a Japanese man mostly has black hair, but any country has a mix. A man
+`DARK_HAIR_FROM` (tone 5 of 7) or darker has black or dark brown hair. The dice are his id and name, so the same man
+looks the same in every fight. The world's men carry their country into the fight (`home`); the test fighters have one
+each in their files (the BJJ man from Brazil, the Judoka from Japan, the Muay Thai man from Thailand, and so on).
+
+**Your fighter's look** (D365): the new-career screen has a row of skin-tone swatches and three drop-downs (hair colour,
+hair, beard) under Stance. *Roll everything* rolls them for his hometown's country, last, so the rest of a roll is as it
+was. The pick is saved with the career (`docs/09` career@1 `about.look`) and he's drawn with it in every fight; a career
+saved before has none and gets one rolled for where he's from.
+
+**The body's regions.** The body has one painted texture, so `tools/body_regions.py` finds which texels are which from
+where they sit on the body and what colour they are, and bakes `game/bodies/tripo_fighter_regions.png`: red the hair on
+his head, green where a beard grows (the jaw, chin and upper lip, not the lips), blue his eyebrows, alpha his shorts.
+The body's shader (`SkinnedBody.set_look`) then gives skin his tone, each texel shaded as the body's own skin is there,
+keeping `SKIN_DETAIL` (65%) of the texture's own colour (its lips, blush and shadows); dyes the hair and eyebrows his
+hair colour; for a buzzed head keeps `BUZZED_HAIR` (55%) of the hair over a scalp the colour of his skin, and sinks the
+hair's shell in toward the scalp (`HAIR_SINK`: 1.4 cm buzzed, 2.2 cm shaved, so a shaved head isn't a hairstyle in
+skin colour); and darkens the beard's zone toward his hair colour (`FighterLook.BEARD_SHADE`: stubble 40%, a beard
+95%). The shorts' light grey still takes the corner's red or blue (now only on the shorts, so eye whites no longer
+pick it up); gloves, eyes and the shorts' dark panels stay as they are.
+
+**His size, true to the numbers** (`FighterLook.sizes`, from fighter@1 `frame`):
+- *Height:* the whole figure (the posing pieces and the body on them) is scaled by his height over
+  `DRAWN_HEIGHT_CM` (180 cm), so a 190 cm man stands 190 cm next to a 172 cm one. The clinch and ground poses are fitted
+  to each man's own body, so two men of different sizes still hold each other.
+- *Build:* his trunk is thickened across (not lengthened) by his body-mass index, from what he walks around at this age
+  and his height: `GIRTH_PER_BMI` (3.5%) a point over or under `DRAWN_BMI` (25), between `GIRTH_RANGE` (88% to 125%;
+  a stocky man about 105%, a lean one about 95%, a heavyweight as thick as it goes, a 16-year-old not yet filled out).
+  His arms and legs take `LIMB_GIRTH_SHARE` (80%) of it, his neck `SkinnedBody.NECK_GIRTH_SHARE` (70%).
+- *Reach:* each arm is longer by half his reach over his height, on an arm `ARM_SHARE_OF_HEIGHT` (33%) of his height
+  long (a 180 cm man with a 192 cm reach has arms 10% longer). The rig the clinch and ground poses use is fitted to the
+  longer arms too.
+
+**What to edit:** the tones, colours and shares at the top of `sim/world/fighter_look.gd`; a country's mix in its
+`data/names/` file (`looks`); the shading in `SkinnedBody._tint_shader` and the D364 constants above it; the regions'
+limits in `tools/body_regions.py` (run it again if the body file changes: `python3 tools/body_regions.py`, which needs
+numpy and Pillow).
+
+**Limits:** one body and one face for everyone (a face's shape, a nose or ears that differ are for the faces and
+damage slice); no new hair shapes (Kyle kept hairstyles out of this slice); a shaved head keeps the hair's outline, a
+little sunk; the 16-year-old's height is his grown height (the frame has no growing height); the strikes' reach in the
+fight is the sim's, so a long-armed man's arm only looks longer.
+
+Preview: `tools/look_preview.gd` draws the test fighters five to a picture, each with his height, reach, build and look
+written over him (`--men=` picks them, `--plain` draws them all as before); `tools/visual_preview.gd` now takes
+`--red=` and `--blue=`. Pictures: `/mnt/project-files/screenshots/looks-d364/`.
+
+Tests: `tests/sim/world/test_fighter_look.gd` (the same man the same look, a man mostly looking like where he's from, dark
+skin with dark hair, a given look kept, size from height, reach and weight, your fighter's look kept through a save and an
+old save getting one, the world's men carrying their country), `tests/game/test_fighter_looks.gd` (a taller man taller,
+long arms long and the rig fitted to them, a stocky man thicker, the body coloured as his look with the corner's shorts,
+no profile drawn as before), the new-career screen's look in `tests/ui/test_career_screens.gd`, and the data checks on
+`home`, `look` and each country's `looks`.
+
 ## Review and verification
 
 Open `project.godot` in Godot 4.7.2 and run the game normally. Start a fight and check striking,
@@ -702,7 +769,7 @@ fixed bone lengths (including degenerate solver inputs), and strike extension/re
 
 This is a foundation for iteration, not a match to the concept. The current procedural fighters
 still use the prototype pose system. A shared production rig, authored foot pivots, paired grappling
-animations, better faces, persistent body variations and authored clothing are the next major
+animations, better faces and authored clothing are the next major
 character work. The wider menus and training spaces need their own visual pass. Tripo can help
 provide starting meshes, but anatomy, topology and rigging must be checked before replacing these
 working figures. Validate the first complete character and its striking/grappling poses before

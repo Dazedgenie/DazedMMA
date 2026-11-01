@@ -4,6 +4,7 @@
 	"name": "Wrestler",
 	"template": null,
 	"frame": { "height_cm": 178, "reach_cm": 180, "build": "stocky" },
+	"home": "united_states",
 	"stance": "orthodox",
 	"stats": { "takedowns": 70, "takedown_defense": 65, "strength": 65, "cardio": 65, "top_control": 60, "clinch_control": 65, "scrambles": 60, "boxing": 45, "power": 55, "chin": 60, "submissions": 45, "submission_defense": 65, "cage_cutting": 60 },
 	"personality": { "ego": 0, "discipline": 20, "coachable": 0, "loyal": 0 },

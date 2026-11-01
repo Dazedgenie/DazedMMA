@@ -4,6 +4,7 @@
 	"name": "Sprawl-and-brawl",
 	"template": null,
 	"frame": { "height_cm": 178, "reach_cm": 181, "build": "stocky" },
+	"home": "australia",
 	"stance": "orthodox",
 	"stats": { "boxing": 60, "power": 65, "takedown_defense": 75, "scrambles": 60, "strength": 60, "chin": 60, "striking_defense": 50, "footwork": 50, "cardio": 55, "takedowns": 40, "submissions": 40, "submission_defense": 50, "cage_cutting": 60 },
 	"personality": { "ego": 0, "discipline": 0, "coachable": 0, "loyal": 0 },

@@ -4,6 +4,7 @@
 	"name": "Boxer",
 	"template": null,
 	"frame": { "height_cm": 175, "reach_cm": 178, "build": "stocky" },
+	"home": "mexico",
 	"stance": "orthodox",
 	"stats": { "boxing": 65, "power": 60, "chin": 55, "footwork": 50, "striking_defense": 50, "submissions": 35, "submission_defense": 40, "cage_cutting": 65 },
 	"personality": { "ego": 0, "discipline": 0, "coachable": 0, "loyal": 0 },

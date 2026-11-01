@@ -4,6 +4,7 @@
 	"name": "Muay Thai",
 	"template": null,
 	"frame": { "height_cm": 178, "reach_cm": 183, "build": "lean" },
+	"home": "thailand",
 	"stance": "orthodox",
 	"stats": { "clinch_striking": 75, "clinch_control": 70, "kicking": 50, "strength": 60, "power": 55, "boxing": 50, "striking_defense": 55, "footwork": 50, "cardio": 55, "chin": 60, "takedown_defense": 55, "cage_cutting": 55 },
 	"personality": { "ego": 0, "discipline": 20, "coachable": 0, "loyal": 0 },

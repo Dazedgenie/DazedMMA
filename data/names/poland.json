@@ -52,5 +52,24 @@
 		"Krawczyk",
 		"Piotrowski",
 		"Grabowski"
-	]
+	],
+	"looks": {
+		"skin": [
+			5,
+			4,
+			1,
+			0.3,
+			0.1,
+			0.1,
+			0
+		],
+		"hair": {
+			"dark_brown": 2,
+			"brown": 3,
+			"light_brown": 3,
+			"blonde": 2,
+			"black": 0.8,
+			"red": 0.3
+		}
+	}
 }

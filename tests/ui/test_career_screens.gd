@@ -328,3 +328,14 @@ func test_the_hub_shows_his_weight_and_picks_his_division_at_the_pro_debut() -> 
 	assert_true(c.turn_pro(hub.pro_division()))
 	hub.show_career(c)
 	assert_string_contains(hub.text(), "fights at Welterweight (77.1 kg, 170 lb) since his pro debut")
+
+
+func test_you_pick_your_fighters_look_and_roll_makes_one_like_where_hes_from() -> void:
+	var screen: NewCareerScreen = add_child_autofree(NewCareerScreen.new())
+	screen.roll(4)
+	assert_eq(FighterLook.check(screen.choices().look), "", "Roll picks a whole look (D365)")
+	var look: Dictionary = { "skin": 0, "hair": "red", "hair_style": "buzzed", "beard": "beard" }
+	screen.set_look(look)
+	assert_eq(screen.choices().look, look, "what you pick is what he gets")
+	screen.pick_skin(6)
+	assert_eq(int(screen.look().skin), 6)
