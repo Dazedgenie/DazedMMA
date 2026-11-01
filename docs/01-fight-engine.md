@@ -90,7 +90,7 @@ pinned on purpose, and the PR then shows the old and new numbers side by side.
 | Fight | Covers |
 |---|---|
 | Kicker vs Boxer, no corners (seed 35005; 35003 until D235 and 35002 until D253, each time it became a decision) | The striking engine and judges on their own: a KO for the Kicker in round 1 (since D236; a KO for the Boxer in round 2 after D235) |
-| Wrestler vs Kicker, ideal corner vs AI corner, Wrestler drilled on catch-kick-and-shoot at 80% (seed 35006) | Calls, a drilled rule firing, takedowns, ground and pound, feints (D131): a decision for the Wrestler (since D257's corner; a TKO in round 3 after the ground grips, D263–D264; a decision since D236 with D255 and the ground-and-pound variety; a TKO in round 1 with D236 alone; a decision after D233; a TKO for the Wrestler in round 2 after D131) |
+| Wrestler vs Kicker, ideal corner vs AI corner, Wrestler drilled on catch-kick-and-shoot at 80% (seed 35006) | Calls, a drilled rule firing, takedowns, ground and pound, feints (D131): a submission for the Wrestler in round 1 (since D259's Pressure! for grapplers; a decision after D257's corner; a TKO in round 3 after the ground grips, D263–D264; a decision since D236 with D255 and the ground-and-pound variety; a TKO in round 1 with D236 alone; a decision after D233; a TKO for the Wrestler in round 2 after D131) |
 | Wrestler vs Boxer, AI corner for the Boxer, Boxer drilled on sprawl-on-the-shot at 80% (seed 35011; 35007 until D130, when it became a decision) | Sprawls, the opponent's corner and rules, passes, side control and the back (D130), blind shots (D131): a submission for the Wrestler in round 2 (since D236 with D255 and the ground-and-pound variety; a TKO in round 3 with D236 alone; a submission in round 2 after D253; a decision after D131, a TKO in round 3 after D130) |
 | The check fighters, amateur adult rules (seed 35001) | A ruleset other than pro: 3 × 3:00, a split decision |
 
@@ -1515,12 +1515,46 @@ the same fights without calls; paired 95% ranges are about ±12 on each line):
 **What it says.** Good coaching is unchanged, and mashing loses its clearest win (Muay Thai against the Boxer, +13 → +2); the
 Counter-striker's goes from +7 to +3. BJJ against Muay Thai is still +25 mashed, more than the ideal corner's +11: his gain
 isn't the repeats, it's pressing whenever he's standing, which closes the distance and gets him to the ground. That is good
-advice for him rather than abuse; a later step could have the ideal corner call Pressure! for a grappler who wants the ground.
+advice for him rather than abuse, so the ideal corner now does it for him once a minute (§22.12, D259).
 
 **To change it.** Make repeats wear off faster or slower with `REPEAT_WEAR` (1.0 turns it off) and `REPEAT_TICKS`; turn the
 stamina cost on with `REPEAT_STAMINA` (a heavy punch costs about 6); make the read stronger with `PRESS_READ` or start it
 sooner with `PRESS_READ_FROM`. Tests: `tests/sim/fight/test_pressure_read.gd`. Compare with
 `tools/balance.gd -- --fights=100 --seed=101 --pairs=muay_thai:bjj,pressure_wrestler:counter_striker,muay_thai:boxer,boxer:kicker,wrestler:kicker,brawler:karate --corners=none,ideal,mash:pressure`.
+
+### 22.12 Pressure! for a grappler who wants the ground (D259)
+§22.11 found that BJJ mashing Pressure! against Muay Thai beat good coaching by 14 points, because pressing walks a grappler
+onto his shots. Kyle: "You can do that now" (2026-11-01). Two new moments (`Corner.MOMENTS`), tried side by side:
+
+| Moment | When | In a plain corner? |
+|---|---|---|
+| `close_in` | This fighter shoots and the opponent doesn't, they're standing apart (not in the clinch) and no other focus is on: Pressure!, again as soon as the last one ends | No |
+| `close_in_fresh` | The same, but only once a minute (`LiveCalls.REPEAT_TICKS` since the corner last called Pressure!), so it's always fresh (§22.11) and he isn't pressing long enough for the other man to read it | Yes |
+
+**Measured** (seeds 101–200, 100 fights a pairing per corner, the nine D257 pairings, change in the coached fighter's wins
+against the same fights without calls; paired 95% ranges about ±12 on each line). Only the lines where the coached fighter
+shoots and the opponent doesn't change; the other 13 are the same to the fight:
+
+| Coached vs opponent | Ideal before | With `close_in` | With `close_in_fresh` |
+|---|---|---|---|
+| Wrestler vs Kicker | +24 | +27 | +25 |
+| Wrestler vs Boxer | +4 | +0 | +8 |
+| BJJ vs Muay Thai | +7 | +18 | +16 |
+| Pressure wrestler vs Counter-striker | +3 | −5 | −6 |
+| Sambo vs Sprawl-and-brawl | −3 | −19 | +3 |
+| **Average of these five** | **+7.0** | **+4.2** | **+9.2** |
+| **Average of all 18 lines** | **+7.3** | **+6.5** | **+7.9** |
+
+**What it says.** Pressing every 15 s pays for BJJ but costs the Sambo fighter 16 points; once a minute keeps most of BJJ's
+gain (+7 → +16) without the cost, so that's the one a plain corner uses (and the AI corner, noticing half the moments). The
+Pressure wrestler does a little worse with either (+3 → −6, inside the dice): he already walks forward by style, so the call
+adds little but the read. Pressure! taken on these calls also crowds out Cut the cage! (a new focus doesn't replace it).
+
+**To change it.** Leave it out of a plain corner by taking `close_in_fresh` out of `Corner.DEFAULT_MOMENTS`; try the faster one
+with `--corners=ideal:fire_back+get_up+collar_tie+cut_the_cage+follow_down+keep_pressing+close_in`. How long it waits is
+`LiveCalls.REPEAT_TICKS`. Tests: `test_close_in_has_a_grappler_press_a_striker_to_get_to_his_shots` and
+`test_close_in_fresh_waits_until_pressure_would_be_fresh_again` in `tests/sim/fight/test_corner.gd`. The golden fight with the
+ideal corner was re-pinned (Wrestler vs Kicker: now a first-round submission).
 
 ## 23. Drilled rules in the engine (#17, D82, D116)
 How §6.0's second layer works in the code (`sim/fight/drilled_rules.gd`, one per fighter, third in the §19 stack: under live
