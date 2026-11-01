@@ -41,12 +41,13 @@ const FOREARM: float = 0.32
 ## far to step in. across: metres the contact sits toward the striking limb's side (a hook lands on the
 ## side of the head, a round kick on the ribs). bend: which way the elbow or knee points ("down" for a
 ## straight punch, "out" for a hook, "under" for an uppercut, "round" for a round kick, "up" for a teep).
+## drop (if set): metres below the point it lands (the uppercut comes up under the chin, D360; was 0.8 contact).
 const AIMS := {
 	"jab": { "limb": "lead_arm", "point": "head", "contact": 1.0, "across": 0.0, "bend": "down" },
 	"cross": { "limb": "rear_arm", "point": "head", "contact": 1.0, "across": 0.0, "bend": "down" },
 	"hook": { "limb": "lead_arm", "point": "head", "contact": 0.85, "across": 0.1, "bend": "out" },
 	"overhand": { "limb": "rear_arm", "point": "head", "contact": 0.95, "across": 0.06, "bend": "out" },
-	"uppercut": { "limb": "rear_arm", "point": "head", "contact": 0.8, "across": 0.0, "bend": "under" },
+	"uppercut": { "limb": "rear_arm", "point": "head", "contact": 0.72, "across": 0.0, "bend": "under", "drop": 0.14 },
 	"body_hook": { "limb": "lead_arm", "point": "body", "contact": 0.8, "across": 0.12, "bend": "out" },
 	"short_hook": { "limb": "lead_arm", "point": "head", "contact": 0.7, "across": 0.1, "bend": "out" },
 	"short_uppercut": { "limb": "rear_arm", "point": "head", "contact": 0.7, "across": 0.0, "bend": "under" },
@@ -102,6 +103,36 @@ const SMOOTH_MOVES: Array[String] = ["pummel", "strip_grip", "collar_tie", "fenc
 	"kneebar", "heel_hook", "bridge", "escape_back", "recover_guard", "sweep", "guard_pass", "take_mount", "take_back",
 	"scramble", "follow_down", "foot_sweep", "hip_throw", "outside_trip", "guard_pull", "wrist_control", "dig_underhook",
 	"posture_up", "crossface", "frame", "flatten", "take_crucifix", "escape_crucifix", "two_on_one", "strip_hands"]
+## Wind-ups that read (D360). Standing, a strike's telegraph shows a tell and its wind-up travels out over its
+## whole length instead of snapping out at the end. TELLS: each strike's tell at full size, pose keys added to
+## today's pose (radians and metres; a punch's twist loads against the way it turns him when thrown, a kick's
+## opens the hips the way it goes). Its size is the telegraph the sim gave him over the move's own (quicker men, kickers and the second
+## shot of a combination show less), between TELL_SIZE_MIN and TELL_SIZE_MAX.
+const TELLS := {
+	"jab": { "twist": -0.08, "hip_y": -0.02, "lean": -0.06, "arm_lead": -0.15 },
+	"cross": { "twist": 0.2, "hip_y": -0.03, "arm_rear": -0.1 },
+	"overhand": { "twist": 0.28, "hip_y": -0.05, "arm_rear": 0.35, "lean": 0.08 },
+	"hook": { "twist": -0.22, "hip_y": -0.03, "arm_lead": -0.2 },
+	"uppercut": { "twist": -0.12, "hip_y": -0.09, "lean": -0.12, "arm_rear": -0.75, "reach_rear": -0.2 },
+	"body_hook": { "twist": -0.18, "hip_y": -0.08, "arm_lead": -0.25 },
+	"body_kick": { "twist": 0.22, "lean": 0.06, "arm_rear": -0.3 },
+	"head_kick": { "twist": 0.26, "lean": 0.1, "arm_rear": -0.3 },
+	"leg_kick": { "twist": 0.18, "arm_rear": -0.2 },
+	"calf_kick": { "twist": 0.12, "arm_rear": -0.15 },
+	"teep": { "lean": 0.1, "hip_y": -0.02 },
+}
+const TELL_SIZE_MIN: float = 0.35
+const TELL_SIZE_MAX: float = 1.25
+## Kicks chamber (D360): the knee comes up with the shin folded before the leg goes out, and back through it on
+## the way down. How high the knee comes up (radians forward of hanging), and the share of the wind-up spent
+## chambering before the leg starts out (KICK_CHAMBER_SHARE) and lifting the knee (KICK_LIFT_SHARE).
+const KICK_CHAMBER := { "body_kick": 1.3, "head_kick": 1.6, "leg_kick": 0.95, "calf_kick": 0.75, "teep": 1.45 }
+const KICK_CHAMBER_SHARE: float = 0.35
+const KICK_LIFT_SHARE: float = 0.45
+## How much of the chamber the leg comes back through in the recovery.
+const KICK_RECHAMBER: float = 0.7
+## The kicking side's arm swings down and back as the kick goes out (radians off its guard at full extension).
+const KICK_ARM_SWING: float = -1.1
 ## How tall he kneels when he postures up out of the guard for the bomb (D282): hip height, metres.
 const POSTURE_HIP: float = 0.68
 ## How quickly a gripping hand follows a grip changing (per second).
@@ -435,6 +466,10 @@ func pose_for(sim: FightSim, i: int, fractional_tick: float = 0.0) -> Dictionary
 	var action: Dictionary = sim.actions.get_action(f.action_id)
 	if action.category == "strike" or SMOOTH_MOVES.has(f.action_id):
 		reach = move_reach(sim, f, fractional_tick)
+	var shape: Dictionary = {}
+	if TELLS.has(f.action_id) and sim.situation.is_standing():
+		shape = strike_shape(sim, f, fractional_tick)
+		reach = float(shape.reach)
 	match f.action_id:
 		"jab":
 			p.twist = 0.12 * reach
@@ -450,10 +485,11 @@ func pose_for(sim: FightSim, i: int, fractional_tick: float = 0.0) -> Dictionary
 			p.arm_lead = lerpf(p.arm_lead, 1.7, reach)
 			p.reach_lead = lerpf(1.0, 1.2, reach)
 			p.twist = lerpf(0.0, 0.5, reach)
-		"uppercut":  # Dips, then drives the rear hand up the middle.
+		"uppercut":  # Dips (its tell, D360), then drives up off the legs with the rear hand up the middle.
 			p.arm_rear = lerpf(p.arm_rear, 1.3, reach)
 			p.reach_rear = lerpf(1.0, 1.2, reach)
-			p.hip_y = lerpf(p.hip_y, HIP_HEIGHT - 0.08, reach)
+			p.hip_y = lerpf(p.hip_y, HIP_HEIGHT - 0.03, reach)
+			p.lean = lerpf(p.lean, 0.04, reach)
 			p.twist = lerpf(0.0, 0.3, reach)
 		"overhand":  # The rear hand loops over the top, leaning in behind it.
 			p.arm_rear = lerpf(p.arm_rear, 2.0, reach)
@@ -722,9 +758,61 @@ func pose_for(sim: FightSim, i: int, fractional_tick: float = 0.0) -> Dictionary
 		_:
 			if action.category == "strike":
 				p.arm_lead = lerpf(p.arm_lead, 1.57, reach)
+	if not shape.is_empty():
+		_tell_and_chamber(p, f.action_id, shape)
 	if AIMS.has(f.action_id):
 		p.aim = reach
 	return p
+
+
+## A standing strike's shape right now (D360): {tell, chamber, reach}. tell: how much of its tell shows (0 to
+## TELL_SIZE_MAX), up through the telegraph and gone as it goes out. chamber: a kick's knee up and shin folded
+## (0 to 1). reach: how far out it is, over the whole wind-up (a kick's after its chamber), held through the
+## active part and back over the recovery.
+static func strike_shape(sim: FightSim, f: FighterState, fractional_tick: float = 0.0) -> Dictionary:
+	var id: String = f.action_id
+	var total: float = maxf(1.0, sim.phase_ticks(f, id, f.phase))
+	var t: float = clampf((total - f.phase_ticks_left + fractional_tick) / total, 0.0, 1.0)
+	var own: float = maxf(1.0, sim.actions.phase_ticks(id, "telegraph"))
+	var size: float = clampf(sim.phase_ticks(f, id, "telegraph") / own, TELL_SIZE_MIN, TELL_SIZE_MAX)
+	var kick: bool = KICK_CHAMBER.has(id)
+	var out := { "tell": 0.0, "chamber": 0.0, "reach": 0.0 }
+	match f.phase:
+		"telegraph":
+			out.tell = size * smoothstep(0.0, 1.0, t)
+			out.reach = 0.05 * t
+		"windup":
+			out.tell = size * (1.0 - smoothstep(0.1, 0.7, t))
+			if kick:
+				var going: float = smoothstep(KICK_CHAMBER_SHARE, 1.0, t)
+				out.chamber = smoothstep(0.0, KICK_LIFT_SHARE, t) * (1.0 - going)
+				out.reach = lerpf(0.05, 1.0, going)
+			else:
+				out.reach = lerpf(0.05, 1.0, smoothstep(0.0, 1.0, t))
+		"active":
+			out.reach = 1.0
+		"recovery":
+			out.reach = 1.0 - smoothstep(0.0, 1.0, t)
+			if kick:
+				out.chamber = KICK_RECHAMBER * sin(PI * t)
+	return out
+
+
+## Adds a standing strike's tell and a kick's chamber and arm swing to pose `p` (D360; strike_shape).
+static func _tell_and_chamber(p: Dictionary, id: String, shape: Dictionary) -> void:
+	var tell: Dictionary = TELLS[id]
+	for key: String in tell:
+		p[key] = float(p[key]) + float(tell[key]) * float(shape.tell)
+	if not KICK_CHAMBER.has(id):
+		return
+	var chamber: float = float(shape.chamber)
+	if String(AIMS[id].limb) == "lead_leg":
+		p.leg_lead = maxf(float(p.leg_lead), float(KICK_CHAMBER[id]) * chamber)
+		p.check = maxf(float(p.check), chamber)
+	else:
+		p.leg_rear = maxf(float(p.leg_rear), float(KICK_CHAMBER[id]) * chamber)
+		p.knee_short = maxf(float(p.knee_short), chamber)
+		p.arm_rear = float(p.arm_rear) + KICK_ARM_SWING * float(shape.reach)
 
 
 ## How far through his move he is, as a share of full extension, moving smoothly through its phases:
@@ -1057,6 +1145,7 @@ func aim_point(action_id: String, root: Vector3) -> Vector3:
 	var aim: Dictionary = AIMS[action_id]
 	var side: Vector3 = _limb_side(String(aim.limb))
 	var point: Vector3 = opponent.strike_point(String(aim.point)) + side * float(aim.across)
+	point.y -= float(aim.get("drop", 0.0))
 	var approach: Vector3 = point - root
 	approach.y *= 0.3  # Stop short of him mostly along the ground, not down through his head.
 	var toward: Vector3 = approach.normalized() if approach.length() > 0.01 else -global_basis.z

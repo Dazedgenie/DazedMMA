@@ -77,7 +77,7 @@ func test_a_punch_extends_through_windup_and_returns_to_guard_during_recovery() 
 	f.phase_ticks_left = 0
 	var extended: Dictionary = figure.pose_for(sim, 0)
 	assert_gt(extended.reach_rear, loaded.reach_rear + 0.3)
-	assert_gt(absf(extended.twist), absf(loaded.twist) + 0.2, "the hips turn with the rear hand")
+	assert_lt(extended.twist, loaded.twist - 0.2, "the hips turn with the rear hand (out of its load, D360)")
 	f.phase = "recovery"
 	f.phase_ticks_left = sim.phase_ticks(f, "cross", "recovery")
 	assert_almost_eq(float(figure.pose_for(sim, 0).reach_rear), float(extended.reach_rear), 0.001, "no jump at recovery start")

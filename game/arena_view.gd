@@ -108,7 +108,8 @@ const DRAWN_SHARE: float = 0.45
 const DRAWN_UNTIL: float = 3.0
 ## A strike thrown out of range (the sim says "out of range") steps in this much less than it would need.
 const SHORT_BY: float = 0.3
-## The most a strike steps in (metres), and the closest two stepping strikers get (D281).
+## The most a strike steps in (metres), and the closest two stepping strikers get (D281); one man stepping in
+## alone gets as close as his strike's contact if that is closer (D360).
 const LUNGE_MAX: float = 0.75
 const LUNGE_CLOSEST: float = 0.85
 
@@ -823,6 +824,8 @@ static func strike_spots(sim: FightSim, spots: Array[Vector2], knock: Array[floa
 	var closest: float = LUNGE_CLOSEST
 	if lunge[0] > 0.0 and lunge[1] > 0.0:
 		closest = maxf(closest, minf(_contact(sim, 0), _contact(sim, 1)))
+	elif lunge[0] > 0.0 or lunge[1] > 0.0:  # One man in: a short shot (the uppercut, D360) gets in to its contact.
+		closest = minf(closest, _contact(sim, 0 if lunge[0] > 0.0 else 1))
 	var room: float = maxf(0.0, gap - closest)
 	if lunge[0] + lunge[1] > room:
 		var scale: float = room / (lunge[0] + lunge[1])
