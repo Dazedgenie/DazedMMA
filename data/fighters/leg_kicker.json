@@ -4,6 +4,7 @@
 	"name": "Leg-kick specialist",
 	"template": null,
 	"frame": { "height_cm": 180, "reach_cm": 183, "build": "average" },
+	"home": "netherlands",
 	"stance": "orthodox",
 	"stats": { "kicking": 72, "boxing": 62, "power": 60, "chin": 62, "cardio": 62, "strength": 55, "striking_defense": 55, "footwork": 55, "takedown_defense": 55, "takedowns": 35, "submissions": 35, "submission_defense": 45, "cage_cutting": 50 },
 	"personality": { "ego": 0, "discipline": 0, "coachable": 0, "loyal": 0 },

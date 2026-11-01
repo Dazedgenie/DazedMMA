@@ -52,5 +52,20 @@
 		"Inoue",
 		"Kimura",
 		"Hayashi"
-	]
+	],
+	"looks": {
+		"skin": [
+			1,
+			4,
+			3,
+			1,
+			0.1,
+			0,
+			0
+		],
+		"hair": {
+			"black": 6,
+			"dark_brown": 1.5
+		}
+	}
 }

@@ -555,6 +555,10 @@ func test_fighter_profiles_are_complete_and_in_range() -> void:
 		var frame: Dictionary = f.get("frame", {}) if f.get("frame") is Dictionary else {}
 		if frame.has("build") and frame.build not in BUILDS:
 			problems.append("%s: build '%s' is not one of %s" % [where, frame.build, BUILDS])
+		if f.has("home") and not _by_folder.get("names", {}).has(String(f.home)):
+			problems.append("%s: home '%s' is not a country in data/names" % [where, f.home])
+		if f.has("look") and (not f.look is Dictionary or FighterLook.check(f.look, true) != ""):
+			problems.append("%s: look %s: %s (docs/09 fighter@1 look)" % [where, f.look, FighterLook.check(f.look if f.look is Dictionary else {}, true)])
 		_expect_numbers(problems, where, "stats", f.get("stats", {}), stats.keys(), 0, 100)
 		_expect_numbers(problems, where, "style", f.get("style", {}), StyleLeanings.LEANINGS, -100, 100)
 		_expect_numbers(problems, where, "personality", f.get("personality", {}), PERSONALITY_AXES, -100, 100)
@@ -1036,6 +1040,34 @@ func test_tips_are_two_sentences_at_a_known_place_and_each_lesson_has_one() -> v
 		if int(lessons.get(n, 0)) != 1:
 			problems.append("lesson %d needs exactly one fight tip, has %d" % [n, int(lessons.get(n, 0))])
 	_report(problems)
+
+
+func test_each_country_says_how_often_each_skin_tone_and_hair_colour_turns_up() -> void:
+	var problems: Array[String] = []
+	for id: String in _by_folder.get("names", {}):
+		var looks: Variant = _by_folder.names[id].get("looks")
+		var where: String = "names '%s'" % id
+		if not looks is Dictionary:
+			problems.append("%s: no looks (skin and hair mixes, D364)" % where)
+			continue
+		var skin: Variant = looks.get("skin")
+		if not skin is Array or (skin as Array).size() != FighterLook.SKIN_TONES.size():
+			problems.append("%s: looks.skin needs a weight for each of the %d tones" % [where, FighterLook.SKIN_TONES.size()])
+		else:
+			var total: float = 0.0
+			for w: Variant in skin:
+				if not (w is float or w is int) or float(w) < 0.0:
+					problems.append("%s: looks.skin weights must be numbers of 0 or more" % where)
+				else:
+					total += float(w)
+			if total <= 0.0:
+				problems.append("%s: looks.skin weights add up to nothing" % where)
+		var hair: Variant = looks.get("hair")
+		if not hair is Dictionary or (hair as Dictionary).is_empty():
+			problems.append("%s: looks.hair needs at least one hair colour" % where)
+		else:
+			_expect_numbers(problems, where, "looks.hair", hair, FighterLook.HAIR_COLOURS.keys(), 0, 100)
+	assert_eq(problems, [] as Array[String], "\n".join(problems))
 
 
 func test_each_country_says_how_much_of_a_hotbed_it_is_and_its_styles() -> void:

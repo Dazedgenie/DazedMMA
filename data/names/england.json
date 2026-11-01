@@ -52,5 +52,24 @@
 		"Ward",
 		"Baker",
 		"Shaw"
-	]
+	],
+	"looks": {
+		"skin": [
+			3,
+			4,
+			2,
+			1,
+			1,
+			1,
+			0.5
+		],
+		"hair": {
+			"dark_brown": 3,
+			"brown": 3,
+			"light_brown": 2,
+			"blonde": 1.5,
+			"black": 1.5,
+			"red": 0.6
+		}
+	}
 }

@@ -52,5 +52,24 @@
 		"Farrell",
 		"Nolan",
 		"Gallagher"
-	]
+	],
+	"looks": {
+		"skin": [
+			5,
+			4,
+			1,
+			0.3,
+			0.3,
+			0.3,
+			0.1
+		],
+		"hair": {
+			"dark_brown": 3,
+			"brown": 3,
+			"light_brown": 1.5,
+			"blonde": 0.8,
+			"black": 1,
+			"red": 1.5
+		}
+	}
 }

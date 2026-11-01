@@ -56,6 +56,13 @@ func country_name(id: String) -> String:
 	return String(_countries.get(id, {}).get("country", ""))
 
 
+## How often each skin tone and hair colour turns up in this country (names@1 `looks`, D364; FighterLook): { skin: [a
+## weight for each FighterLook.SKIN_TONES tone], hair: { colour: weight } }, or {} when the file has none.
+func looks(id: String) -> Dictionary:
+	var out: Variant = _countries.get(id, {}).get("looks", {})
+	return out if out is Dictionary else {}
+
+
 ## The id of the country with this name ("" when there's none).
 func country_id_of(country: String) -> String:
 	for id: String in _countries:

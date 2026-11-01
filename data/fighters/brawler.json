@@ -4,6 +4,7 @@
 	"name": "Brawler",
 	"template": null,
 	"frame": { "height_cm": 177, "reach_cm": 179, "build": "stocky" },
+	"home": "england",
 	"stance": "orthodox",
 	"stats": { "power": 70, "chin": 65, "heart": 70, "boxing": 55, "strength": 60, "striking_defense": 40, "footwork": 40, "fight_iq": 40, "cardio": 45, "composure": 50, "takedowns": 35, "submissions": 35, "submission_defense": 40, "cage_cutting": 65 },
 	"personality": { "ego": 30, "discipline": -20, "coachable": 0, "loyal": 0 },

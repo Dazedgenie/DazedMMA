@@ -146,6 +146,8 @@ generated world fighters. Loaded by `FighterLibrary` (`sim/fight/fighter_library
 | `template` | fighter id or null | Fill in anything this file leaves out from that fighter. `frame`, `stats`, `personality`, `style` and `tendencies` merge key by key; other fields replace. One level only (a template has no template) |
 | `frame` | `{height_cm, reach_cm, build, adult_kg?}` | Body (`docs/11` §2.3). `build`: `lean` · `average` · `stocky`. `adult_kg` (optional, D351): what he walks around at once grown (21); a career's fighter and generated opponents have one, and without it it comes from height and build (`Weight.adult_kg`). Fights don't read it |
 | `stance` | `orthodox` · `southpaw` · `switch` | |
+| `home` (optional) | a `data/names/` country id | Where he's from (D364): his look is rolled for that country's mix. The world's men get theirs from their country, the career's fighter from his hometown's; left out, his look is rolled from everywhere. Fights don't read it |
+| `look` (optional) | `{skin?, hair?, hair_style?, beard?}` | How he's drawn (D364, `docs/13` §Fighters who look different, `FighterLook`): `skin` 0–6 (light to dark), `hair` `black` · `dark_brown` · `brown` · `light_brown` · `blonde` · `red` · `grey`, `hair_style` `short` · `buzzed` · `shaved`, `beard` `none` · `stubble` · `beard`. Anything left out is rolled for `home`, fixed for the man by his id and name. The career's fighter carries the look picked for him (D365). Fights don't read it |
 | `stats` | `{stat: 0–100}` | Attributes from `enums/stats`; unlisted stats are 50 |
 | `personality` | `{ego, discipline, coachable, loyal}` −100–100 | `docs/11` §4.1: + is Ego / Disciplined / Coachable / Loyal, − is Humble / Party animal / Stubborn / Mercenary |
 | `style` | `{pace, range, base, risk}` −100–100 | Style leanings (`docs/11` §4.2); ±60 earns the named trait |
@@ -241,7 +243,9 @@ Fight cards (D314, `docs/03` §11.4). `local` names the amateur shows his offers
 ### names@1 (examples: `england.json`, `brazil.json`)
 A country (D302, D57): `country` (its name), `cities` (the hometowns offered, in order), `first` and `last` (common names).
 Optional (D352, `docs/03` §12.2): `hotbed` (a number above 0, 1 when left out: how often the world's best men come from
-here) and `styles` (data/styles ids its fighters have more often).
+here) and `styles` (data/styles ids its fighters have more often). `looks` (D364, `docs/13` §Fighters who look different):
+`{skin: [a weight for each of the 7 skin tones, light to dark], hair: {hair colour: weight}}`, how often each turns up
+among men from here (`FighterLook`); every country has one.
 Loaded by `NameLibrary` (`sim/world/name_library.gd`); a rolled person's name comes from his hometown's country.
 
 ### tip@1 (examples: `hub.json`, `first_fight.json`)
@@ -346,7 +350,7 @@ each with a `.backup.json` of the save before it). Written by `CareerSaves` (`ga
 | `seed`, `dice` | The career's seed and where its dice are, as text (64-bit numbers don't survive a JSON number) |
 | `coach` | `{name, background?, specialty?}`: the head coach, the player. `background` is a `data/enums/coach_backgrounds` id and `specialty` one of `striking`, `wrestling`, `bjj`, `motivator`, `tactician` (D311, `docs/03` §11.1); a career saved before D311 has neither and loads with none |
 | `fighter` | The fighter@1 profile he started with (id `career_fighter`); what changes with training is in `trainee`. A career made on the new-career screen adds `background`, `age` and `potential` (D302) |
-| `about` | `nickname`, `hometown`, `country`, `background`: shown on screens, not used by fights |
+| `about` | `nickname`, `hometown`, `country`, `background`: shown on screens, not used by fights. `look` (D365): his look as picked on the new-career screen (fighter@1 `look`, every field), drawn in his fights; missing in a career saved before, when it's rolled for his hometown's country |
 | `gym` | Your gym, where he trains (D313, `docs/03` §11.3): `{kind (a data/gyms id), culture (a gym_cultures id), name, owner_name, owner, fee}`. Optional: `{}` (or missing) for a career before D313 |
 | `gym_owed` | Dollars of gym fee he couldn't pay, worked off in Saturday shifts (D313; optional, 0 when missing) |
 | `childhood` | His childhood scenes (D312, `docs/03` §11.2): `{picks: [{scene, choice}], second (the runner-up background), people: [{role, name, about, age}]}`. Optional: `{}` (or missing) when his background was picked from the list or the career predates D312 |

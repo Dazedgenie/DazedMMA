@@ -52,5 +52,20 @@
 		"Nwachukwu",
 		"Bello",
 		"Usman"
-	]
+	],
+	"looks": {
+		"skin": [
+			0,
+			0,
+			0,
+			0.2,
+			1,
+			4,
+			4
+		],
+		"hair": {
+			"black": 6,
+			"dark_brown": 1
+		}
+	}
 }

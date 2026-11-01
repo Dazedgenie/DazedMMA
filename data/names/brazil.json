@@ -52,5 +52,23 @@
 		"Araújo",
 		"Nunes",
 		"Moraes"
-	]
+	],
+	"looks": {
+		"skin": [
+			1,
+			2,
+			3,
+			3,
+			2.5,
+			2,
+			1
+		],
+		"hair": {
+			"black": 4,
+			"dark_brown": 3,
+			"brown": 2,
+			"light_brown": 0.6,
+			"blonde": 0.3
+		}
+	}
 }

@@ -233,7 +233,7 @@ func watch(p_driver: FightDriver) -> void:
 		var figure := FighterFigure.new(FIGHTER_COLOURS[i], southpaw, i)
 		add_child(figure)
 		if BODY != "":
-			figure.use_body(BODY)
+			figure.use_body(BODY, driver.sim.fighters[i].profile)  # Drawn as that man (D364).
 		figures.append(figure)
 	for i in figures.size():
 		figures[i].opponent = figures[1 - i]  # Strikes aim at the other man (D281).

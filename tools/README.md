@@ -30,6 +30,21 @@ miss carry him past and a round kick turn through. `--only=` keeps some cases (s
 
     godot --script res://tools/strike_preview.gd -- --out=res://build/strikes --only=cross:landed,hook:landed --red=brawler
 
+`look_preview.gd` lines up the test fighters drawn as themselves (D364, `docs/13` §Fighters who look different), five to
+a picture, each with his height, reach, build and look written over him: skin tone, hair, buzzed or shaved, beard.
+`--men=` picks them; `--plain` draws them all as the body was before. `visual_preview.gd` takes `--red=` and `--blue=`
+to see two men of different sizes and looks in the real fight screen (the Pressure wrestler against the
+Counter-striker shows the most):
+
+    godot --path . --rendering-driver opengl3 --script res://tools/look_preview.gd -- --out=res://build/looks
+    godot --script res://tools/visual_preview.gd -- --out=res://build/visual --red=pressure_wrestler --blue=counter_striker
+
+`body_regions.py` (Python 3 with numpy and Pillow, not Godot) bakes `game/bodies/tripo_fighter_regions.png`, the mask
+that tells the body's shader which texels are hair, beard, eyebrows and shorts (D364). Run it again only if the body
+file changes; its heights and limits are this body's:
+
+    python3 tools/body_regions.py
+
 `grapple_preview.gd` arranges the clinch grips (hand fighting, an underhook, the body lock), each grip and clinch move,
 ground and pound, covering up and turning away, the sweeps, passes and throws, and every submission going on and held,
 side on to the camera, at 24 frames a fight second (D282, `docs/13`). `--only=` takes move or position ids:

@@ -52,5 +52,24 @@
 		"Morozov",
 		"Lebedev",
 		"Zakharov"
-	]
+	],
+	"looks": {
+		"skin": [
+			4,
+			4,
+			2,
+			0.8,
+			0.2,
+			0.1,
+			0
+		],
+		"hair": {
+			"dark_brown": 3,
+			"brown": 3,
+			"light_brown": 2,
+			"blonde": 1.5,
+			"black": 1.5,
+			"red": 0.3
+		}
+	}
 }

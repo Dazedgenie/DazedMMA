@@ -2,7 +2,8 @@ class_name NewCareerScreen
 extends PanelContainer
 ## New career (docs/03 §10.2, D302): you, his head coach (your name, your background and your specialty: Coach, D311,
 ## §11.1), then the fighter's name, nickname, hometown (real cities,
-## data/names; the country follows the city), stance and one of the 12 backgrounds (data/backgrounds, docs/02 §1.2).
+## data/names; the country follows the city), stance, his look (D364: skin tone, hair colour, hair and beard; FighterLook)
+## and one of the 12 backgrounds (data/backgrounds, docs/02 §1.2).
 ## Roll fills it all at random; the screen opens rolled, so Start career works straight away. With *Play his
 ## childhood* ticked (the default, D312, §11.2) three short scenes pick the background instead of the list: Start
 ## career opens them (ChildhoodScreen); untick it to pick from the list and start straight away.
@@ -41,6 +42,12 @@ var _name: LineEdit
 var _nickname: LineEdit
 var _hometown: OptionButton
 var _stance: OptionButton
+## His look (D364, Kyle: "You pick for your own fighter"): a swatch for each skin tone, and his hair colour, hair and beard.
+var _skin: Array[Button] = []
+var _skin_picked: int = 2
+var _hair: OptionButton
+var _hair_style: OptionButton
+var _beard: OptionButton
 var _list: ItemList
 var _childhood: CheckBox
 ## I know the game (D316): no tips, and every call open from his first fight.
@@ -119,6 +126,33 @@ func _init(p_names: NameLibrary = null, p_backgrounds: BackgroundLibrary = null)
 	for entry: Array in STANCES:
 		_stance.add_item(entry[0])
 	who_box.add_child(_stance)
+	_caption(who_box, "His look")
+	var skins := HBoxContainer.new()
+	skins.add_theme_constant_override("separation", 6)
+	who_box.add_child(skins)
+	for tone in FighterLook.SKIN_TONES.size():
+		var swatch := Button.new()
+		swatch.custom_minimum_size = Vector2(34.0, 30.0)
+		swatch.toggle_mode = true
+		swatch.tooltip_text = "Skin tone %d of %d" % [tone + 1, FighterLook.SKIN_TONES.size()]
+		for state: String in ["normal", "hover", "pressed", "hover_pressed", "focus"]:
+			var box := StyleBoxFlat.new()
+			box.bg_color = Color(FighterLook.SKIN_TONES[tone])
+			box.set_corner_radius_all(4)
+			if state.contains("pressed") or state == "focus":
+				box.border_color = TEXT if state.contains("pressed") else DIM
+				box.set_border_width_all(3)
+				box.draw_center = true
+			swatch.add_theme_stylebox_override(state, box)
+		swatch.pressed.connect(func() -> void: pick_skin(tone))
+		skins.add_child(swatch)
+		_skin.append(swatch)
+	var hair_row := HBoxContainer.new()
+	hair_row.add_theme_constant_override("separation", 8)
+	who_box.add_child(hair_row)
+	_hair = _look_option(hair_row, FighterLook.HAIR_COLOURS.keys())
+	_hair_style = _look_option(hair_row, FighterLook.HAIR_STYLES.keys())
+	_beard = _look_option(hair_row, FighterLook.BEARDS.keys())
 
 	var bg_card := _card(Vector2(0.0, 0.0))
 	bg_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -169,7 +203,8 @@ func _init(p_names: NameLibrary = null, p_backgrounds: BackgroundLibrary = null)
 	_refresh()
 
 
-## Fills every choice at random from this seed: a name from his hometown's country, a nickname, a background, a stance.
+## Fills every choice at random from this seed: a name from his hometown's country, a nickname, a background, a stance
+## and a look like where he's from (D364).
 func roll(roll_seed: int) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = roll_seed
@@ -184,6 +219,7 @@ func roll(roll_seed: int) -> void:
 	_stance.select(1 if rng.randf() < SOUTHPAW_CHANCE else 0)
 	_coach_background.select(rng.randi_range(0, _coach_background_ids.size() - 1))
 	_coach_specialty.select(rng.randi_range(0, _specialty_ids.size() - 1))
+	set_look(FighterLook.roll(rng.randi(), String(person.country_id), {}, _names))  # Looks like where he's from.
 	_refresh()
 
 
@@ -196,7 +232,31 @@ func choices() -> Dictionary:
 		"hometown": town.city, "country": town.country, "country_id": String(town.get("country_id", "")),
 		"background": background_id(), "stance": String(STANCES[maxi(_stance.selected, 0)][1]),
 		"play_childhood": play_childhood(), "tutorial": not _know_the_game.button_pressed,
+		"look": look(),
 	}
+
+
+## His look as picked (FighterLook).
+func look() -> Dictionary:
+	return {
+		"skin": _skin_picked, "hair": String(FighterLook.HAIR_COLOURS.keys()[maxi(_hair.selected, 0)]),
+		"hair_style": String(FighterLook.HAIR_STYLES.keys()[maxi(_hair_style.selected, 0)]),
+		"beard": String(FighterLook.BEARDS.keys()[maxi(_beard.selected, 0)]),
+	}
+
+
+## Shows `look_in` as picked (Roll, and tests).
+func set_look(look_in: Dictionary) -> void:
+	pick_skin(int(look_in.get("skin", 2)))
+	_hair.select(maxi(FighterLook.HAIR_COLOURS.keys().find(String(look_in.get("hair", ""))), 0))
+	_hair_style.select(maxi(FighterLook.HAIR_STYLES.keys().find(String(look_in.get("hair_style", ""))), 0))
+	_beard.select(maxi(FighterLook.BEARDS.keys().find(String(look_in.get("beard", ""))), 0))
+
+
+func pick_skin(tone: int) -> void:
+	_skin_picked = clampi(tone, 0, FighterLook.SKIN_TONES.size() - 1)
+	for i in _skin.size():
+		_skin[i].set_pressed_no_signal(i == _skin_picked)
 
 
 ## Whether Start career plays his childhood first (the background comes from it, not the list).
@@ -336,6 +396,16 @@ func _caption(parent: Control, label_text: String) -> void:
 	var label := FightNightCard._label(16, DIM)
 	label.text = label_text
 	parent.add_child(label)
+
+
+## A drop-down of a look's choices ("dark_brown" shows as "Dark brown").
+func _look_option(parent: Control, ids: Array) -> OptionButton:
+	var option := OptionButton.new()
+	for id: Variant in ids:
+		option.add_item(String(id).replace("_", " ").capitalize())
+	option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	parent.add_child(option)
+	return option
 
 
 func _field(parent: Control, label_text: String) -> LineEdit:

@@ -52,5 +52,24 @@
 		"Hendriks",
 		"Dekker",
 		"Brouwer"
-	]
+	],
+	"looks": {
+		"skin": [
+			4,
+			4,
+			1.5,
+			1,
+			0.7,
+			0.5,
+			0.3
+		],
+		"hair": {
+			"dark_brown": 2,
+			"brown": 3,
+			"light_brown": 3,
+			"blonde": 2.5,
+			"black": 1,
+			"red": 0.4
+		}
+	}
 }
