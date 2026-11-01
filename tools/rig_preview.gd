@@ -5,7 +5,8 @@ extends SceneTree
 ##   godot --path . --script res://tools/rig_preview.gd -- --out=res://build/rig [--stills] [--angle=40]
 ##   ffmpeg -framerate 24 -i build/rig/frame-%04d.png -c:v libx264 -pix_fmt yuv420p build/rig.mp4
 ## --stills saves one frame per pose (rig-<name>.png) instead of the clips; --angle turns the camera round the
-## pair (degrees). --body puts the skinned Tripo body on the rigs (D284; --body=<file.glb> another Mixamo-rigged
+## pair (degrees). --clinch saves the clinch poses built from grips (D286, clinch-<name>.png). --body puts the
+## skinned Tripo body on the rigs (D284; --body=<file.glb> another Mixamo-rigged
 ## body). Nothing in the fight or the fight screen changes.
 
 const FPS: int = 24
@@ -22,6 +23,8 @@ const TODAY := {
 
 var _out := "res://build/rig"
 var _stills: bool = false
+## --clinch: stills of the clinch poses built from grips (D286, ClinchPair.examples) instead of RigPairs.
+var _clinch: bool = false
 var _angle: float = 0.0
 var _main: Node3D
 var _frame: int = 0
@@ -39,6 +42,8 @@ func _initialize() -> void:
 			_out = arg.trim_prefix("--out=")
 		elif arg == "--stills":
 			_stills = true
+		elif arg == "--clinch":
+			_clinch = true
 		elif arg == "--body":
 			_body_path = SkinnedBody.TRIPO_BODY
 		elif arg.begins_with("--body="):
@@ -81,7 +86,17 @@ func _capture() -> void:
 			rig.fit(body.measure())
 			body.set_colour(colour)
 			_bodies.append(body)
-	if _stills:
+	if _clinch:
+		var examples: Dictionary = ClinchPair.examples()
+		for example_name: String in examples:
+			var e: Array = examples[example_name]
+			_title.text = _prefix() + example_name.replace("_", " ")
+			ClinchPair.pose(_rigs[0], _rigs[1], ClinchPair.build(e[0], e[1], e[2], e[3]), _pair_frame)
+			for i in _bodies.size():
+				_bodies[i].follow(_rigs[i])
+			_show_rigs(true)
+			await _frames(1, "clinch-%s.png" % example_name)
+	elif _stills:
 		var poses: Dictionary = RigPairs.all()
 		for pose_name: String in poses:
 			_title.text = _prefix() + pose_name

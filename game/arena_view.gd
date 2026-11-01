@@ -50,6 +50,15 @@ const LAYOUT_SPEED: float = 6.0
 ## Space for the two leaning torsos in the clinch; affects only their drawn positions. Chest to chest, close
 ## enough for an underhook to reach round his back (D282, was 0.82).
 const CLINCH_BODY_GAP: float = 0.68
+## The clinch from the rig (D286): with skinned bodies, a clinch where both men are holding or fighting for
+## grips is posed by ClinchPair on two hidden rigs, and the bodies follow those. Any other move in the clinch
+## (fence drives, turns, breaks, takedowns) is drawn from today's figures; a strike (CLINCH_STRIKES) keeps the
+## pose with only the striking limb from today's figure. The change either way, and from one
+## grip to the next, eases over CLINCH_EASE seconds.
+const CLINCH_POSE_MOVES: Array[String] = ["pummel", "strip_grip", "collar_tie"]
+## Strikes in the clinch thrown from the rig's pose: only the striking arm or leg follows today's figure.
+const CLINCH_STRIKES: Array[String] = ["knee", "short_hook", "short_uppercut", "elbow"]
+const CLINCH_EASE: float = 0.25
 ## The tag grows this much when the range or position changes, then settles (docs/06 §2).
 const TAG_BUMP: float = 1.7
 ## Standing, the sim's ranges are wider than a person's reach (pocket up to 1.5 m, long range 3 m apart), so
@@ -67,6 +76,9 @@ const LUNGE_CLOSEST: float = 0.85
 var driver: FightDriver
 var camera: Camera3D
 var figures: Array[FighterFigure] = []
+## The two hidden rigs that pose the clinch for the bodies (D286), and the clinch pose shown ("" none).
+var _clinch_rigs: Array[FighterRig] = []
+var _clinch_shown: String = ""
 ## Light up scouted tells (D51): a toggle so the playtest can compare cue on and off.
 var tell_cues: bool = true
 var debug_marks: bool = false:
@@ -111,6 +123,10 @@ func watch(p_driver: FightDriver) -> void:
 	for f in figures:
 		f.queue_free()
 	figures.clear()
+	for rig in _clinch_rigs:
+		rig.queue_free()
+	_clinch_rigs.clear()
+	_clinch_shown = ""
 	_tell_limb = ["", ""]
 	_tell_until = [-1, -1]
 	_offset = [Vector2.ZERO, Vector2.ZERO]
@@ -128,6 +144,13 @@ func watch(p_driver: FightDriver) -> void:
 		figures.append(figure)
 	for i in figures.size():
 		figures[i].opponent = figures[1 - i]  # Strikes aim at the other man (D281).
+	if figures.size() == 2 and figures[0].body != null and figures[1].body != null:
+		for figure in figures:
+			var rig := FighterRig.new(figure.colour)
+			add_child(rig)
+			rig.visible = false  # Only the bodies show it.
+			rig.fit(figure.body.measure())
+			_clinch_rigs.append(rig)
 	driver.sim.event_emitted.connect(_on_event)
 	_focus = Vector3.ZERO
 	_zoom = ZOOM_STANDING
@@ -160,6 +183,7 @@ func _process(delta: float) -> void:
 		figures[i].label_scale = zoom_share()
 		figures[i].show_state(sim, i, at, at + Vector2.from_angle(_facing[i]), delta, delta * driver.rate())
 		figures[i].show_tell(_tell_limb[i] if tell_cues and sim.now <= _tell_until[i] else "")
+	_pose_clinch(sim, delta)
 	_facing_set = true
 	var middle: Vector2 = (spots[0] + spots[1]) / 2.0
 	if _venue != null:
@@ -173,6 +197,64 @@ func _process(delta: float) -> void:
 			var o: Vector2 = spots[1 - i]
 			_want_rings[i].position = Vector3(o.x, 0.03, o.y)
 			_want_rings[i].scale = Vector3(want, 1.0, want)
+
+
+## Poses the bodies from the rig in the clinch (D286; CLINCH_POSE_MOVES), easing in and out.
+func _pose_clinch(sim: FightSim, delta: float) -> void:
+	if _clinch_rigs.is_empty():
+		return
+	var built: Dictionary = {}
+	if rig_clinch(sim):
+		var collar: int = -1
+		var held: int = -1
+		for i in 2:
+			if sim.fighters[1 - i].tied_up_ticks > 0:
+				collar = i
+			if sim.held_on_fence(i):
+				held = i
+		built = ClinchPair.build(sim.grips(), [figures[0].arm_letter(0), figures[0].arm_letter(1)], collar, held)
+	var strikes: Array = [[], []]  # The limbs thrown from the pose, each man's, as follow_joints names them.
+	if not built.is_empty():
+		for i in 2:
+			var action: String = sim.fighters[i].action_id
+			if CLINCH_STRIKES.has(action):
+				var limb: String = FighterFigure.limb_for(action)
+				var letter: String = figures[i].arm_letter(0 if limb.begins_with("lead") else 1)
+				strikes[i] = [("leg_" if limb.ends_with("leg") else "arm_") + letter]
+	var shown: String = "" if built.is_empty() else str(built.pair) + str(strikes)
+	if shown != _clinch_shown:  # Into or out of the rig's clinch, or a new grip: ease to it.
+		for figure in figures:
+			figure.body.ease_over(CLINCH_EASE)
+		_clinch_shown = shown
+	if not built.is_empty():
+		ClinchPair.pose(_clinch_rigs[0], _clinch_rigs[1], built, clinch_frame())
+		for i in 2:
+			figures[i].body.follow(_clinch_rigs[i])
+			if not (strikes[i] as Array).is_empty():
+				var only: Array[String] = []
+				only.assign(strikes[i])
+				figures[i].body.follow_joints(figures[i].body_pose(), only)
+	for figure in figures:
+		figure.body.settle(delta)
+
+
+## True when the clinch is drawn from the rig (D286): both tied up in the clinch (not in a hold), each holding
+## or fighting for grips or striking from there.
+func rig_clinch(sim: FightSim) -> bool:
+	if _clinch_rigs.is_empty() or sim.situation.position != PositionLibrary.CLINCH or not sim.hold().is_empty():
+		return false
+	for f: FighterState in sim.fighters:
+		if f.action_id != "" and not CLINCH_POSE_MOVES.has(f.action_id) and not CLINCH_STRIKES.has(f.action_id):
+			return false
+	return true
+
+
+## The clinch pair's frame (D286): on the canvas between the two men, its +Z toward red.
+func clinch_frame() -> Transform3D:
+	var red: Vector3 = figures[0].global_position
+	var blue: Vector3 = figures[1].global_position
+	var z := Vector3(red.x - blue.x, 0.0, red.z - blue.z).normalized()
+	return Transform3D(Basis(Vector3.UP.cross(z), Vector3.UP, z), Vector3((red.x + blue.x) / 2.0, 0.0, (red.z + blue.z) / 2.0))
 
 
 ## The camera's zoom against standing (1 standing, under 1 moved in), for sizing labels.
