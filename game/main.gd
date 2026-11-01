@@ -52,6 +52,8 @@ var load_screen: LoadScreen
 var hub: CareerHub
 ## The career being played (null on Quick fight) and its save slot.
 var career: Career
+## Tip cards and the Coach's Notebook (D316), over every screen.
+var tips: TipCard
 var career_slot: int = -1
 ## Where careers are saved (tests use their own folder).
 var save_dir: String = CareerSaves.DIR
@@ -137,10 +139,13 @@ func _ready() -> void:
 	hub.decline_pressed.connect(decline_offer)
 	hub.turn_pro_pressed.connect(turn_pro)
 	hub.camp_pressed.connect(open_career_camp)
+	hub.notebook_pressed.connect(open_notebook)
 	ui.add_child(hub)
 	result = FightResultCard.new()
 	result.visible = false
 	ui.add_child(result)
+	tips = TipCard.new()
+	ui.add_child(tips)
 	ui.move_child($UI/Version, -1)  # Over the full-screen setup.
 	_console = $UI/DebugConsole
 	ui.move_child(_console, -1)
@@ -275,6 +280,36 @@ func show_hub(reports: Array = []) -> void:
 	hub.visible = true
 	state = CAREER
 	hub.focus_first()
+	var places: Array[String] = ["hub"]
+	if not career.offers.is_empty():
+		places.append("offers")
+	if career.offers.any(func(o: Dictionary) -> bool: return o.get("tournament") is Dictionary):
+		places.append("tournament")
+	if career.suspended_days > 0:
+		places.append("suspended")
+	if career.gym_owed > 0:
+		places.append("gym_shifts")
+	show_career_tips(places)
+
+
+## The tips due at these places (Tutorial.due, D316) on a card each, waiting for Got it; marked seen and saved.
+func show_career_tips(places: Array) -> void:
+	if career == null:
+		return
+	var due: Array[Dictionary] = []
+	for where: Variant in places:
+		for t: Dictionary in Tutorial.due(career, String(where)):
+			career.see_tip(String(t.id))
+			due.append(t)
+	if not due.is_empty():
+		save_career()
+		tips.show_tips(due)
+
+
+## The Coach's Notebook (D316): every tip he's seen.
+func open_notebook() -> void:
+	if career != null:
+		tips.show_notebook(Tutorial.notebook(career))
 
 
 ## Run this week on the hub: a week between fights, then an autosave (docs/03 §10.1).
@@ -327,17 +362,23 @@ func open_career_camp() -> void:
 	planner.fight_pressed.connect(_career_fight)
 	planner.sim_pressed.connect(sim_career_fight)
 	planner.back_pressed.connect(_career_camp_back)
+	# The gameplan opens with his third fight (D316).
+	planner.night_card.gameplan.visible = Tutorial.plan_open(Tutorial.lesson(career))
 	$UI.add_child(planner)
 	$UI.move_child(_console, -1)
+	$UI.move_child(tips, -1)
 	state = CAREER
 	planner.focus_run()
+	show_career_tips(["fight_night"] if planner.done() else ["camp", "mitt_work"])
 
 
 func _career_camp_week(report: Dictionary) -> void:
 	if bool(report.get("fight_week", false)):
 		career.booked.fight_week_report = report.duplicate(true)  # Fight night waits for the fight, even over a reload.
-	else:
-		career.end_week()
+		save_career()
+		show_career_tips(["fight_night"])
+		return
+	career.end_week()
 	save_career()
 
 
@@ -363,7 +404,7 @@ func _career_fight(profile: Dictionary) -> void:
 ## Sim the fight (D305): the same fight, played out at once with no sound, straight to the result. The fighters' own AI
 ## fights it (the AI corner calls nothing for him: the player isn't watching).
 func sim_career_fight(profile: Dictionary) -> void:
-	var s: Dictionary = _career_settings(profile)
+	var s: Dictionary = _career_settings(profile, true)
 	s.sim = true
 	s.sound_volume = 0.0
 	save_career()
@@ -374,14 +415,16 @@ func sim_career_fight(profile: Dictionary) -> void:
 
 ## In a tournament's later rounds (D315) he goes in as the last fight left him (Career.tournament_condition), not as the
 ## camp did, and fighting hurt was the first round's worry (its injury roll is done).
-func _career_settings(profile: Dictionary) -> Dictionary:
+## The tutorial (D316): a lesson fight opens only its calls, the tell cue from lesson 2, rules and the gameplan from
+## lesson 3, and starts on its tip card (not when simmed: nobody's watching).
+func _career_settings(profile: Dictionary, simmed: bool = false) -> Dictionary:
 	var opponent: Dictionary = career.booked_opponent()
 	_roster.add(opponent)
 	var camp: Dictionary = planner.summary() if planner != null else {}
 	if career.tournament_stage() > 0:
 		profile = career.round_profile()
 		camp = {}
-	return {
+	var s: Dictionary = {
 		"career": true,
 		"label": "%s vs %s" % [career.fighter_name(), String(opponent.get("name", ""))],
 		"red": String(profile.id), "red_profile": profile, "blue": String(opponent.id),
@@ -392,6 +435,23 @@ func _career_settings(profile: Dictionary) -> Dictionary:
 		"gameplan": planner.night_card.gameplan.picked() if planner != null else Dictionary(settings.get("gameplan", {})),
 		"camp": camp,
 	}
+	var lesson: int = Tutorial.lesson(career)
+	if lesson > 0:
+		s.lesson = lesson
+		s.calls = Tutorial.calls(lesson)
+		s.tell_cues = Tutorial.tell_cue(lesson)
+		if not Tutorial.plan_open(lesson):
+			s.gameplan = {}
+	if not simmed:
+		for t: Dictionary in Tutorial.due(career, "fight"):
+			career.see_tip(String(t.id))
+			s.tip = String(t.text)
+			s.tip_title = String(t.title)
+	return s
+
+
+## The round break's last line, about changing rules and the gameplan.
+const BREAK_CHANGE_LINE := "[color=#adb5bd]Change your drilled rules and gameplan for the next round if you like.[/color]"
 
 
 ## A career fight is over (D304): onto his record (Career.finish_fight), any injury fighting hurt made worse, saved.
@@ -568,7 +628,7 @@ func start_fight(p_settings: Dictionary) -> void:
 	last_record_path = ""
 	if String(settings.get("tip", "")) != "":
 		driver.held = true
-		hud.show_dialog(String(settings.get("label", "")), String(settings.tip), [["Fight!", _start_after_tip]])
+		hud.show_dialog(String(settings.get("tip_title", settings.get("label", ""))), String(settings.tip), [["Fight!", _start_after_tip]])
 	else:
 		hud.show_banner("Round 1")
 
@@ -699,15 +759,27 @@ func _close_menu() -> void:
 func _on_round_over(event: FightEvent) -> void:
 	state = ROUND_BREAK
 	var sim: FightSim = driver.sim
-	_break_rules = RuleSlots.new(sim.fighters[driver.player].profile, _actions)
-	_break_rules.show_rules(_current_rules())
-	_break_plan = GameplanPicker.new("Gameplan for the next round")
-	_break_plan.show_plan(_current_plan())
-	var extra := VBoxContainer.new()
-	extra.add_child(_break_rules)
-	extra.add_child(_break_plan)
 	var next: int = event.round_number + 1  # The clock may not have moved on yet when the bell rings.
-	hud.show_dialog("End of round %d" % event.round_number, round_summary(sim, event),
+	var summary: String = round_summary(sim, event)
+	var extra: VBoxContainer = null
+	_break_rules = null
+	_break_plan = null
+	if Tutorial.plan_open(int(settings.get("lesson", 0))):
+		_break_rules = RuleSlots.new(sim.fighters[driver.player].profile, _actions)
+		_break_rules.show_rules(_current_rules())
+		_break_plan = GameplanPicker.new("Gameplan for the next round")
+		_break_plan.show_plan(_current_plan())
+		extra = VBoxContainer.new()
+		extra.add_child(_break_rules)
+		extra.add_child(_break_plan)
+	else:
+		# Before his third fight the break is just the cards (D316): rules and the gameplan open with lesson 3.
+		summary = summary.replace("\n\n" + BREAK_CHANGE_LINE, "")
+	if bool(settings.get("career", false)) and career != null:
+		for t: Dictionary in Tutorial.due(career, "round_break"):
+			career.see_tip(String(t.id))
+			summary = "[color=#fcc419][b]Coach's tip: %s.[/b][/color] %s\n\n%s" % [String(t.title), String(t.text), summary]
+	hud.show_dialog("End of round %d" % event.round_number, summary,
 		[["Start round %d" % next, _start_next_round]], extra)
 
 
@@ -730,18 +802,18 @@ static func round_summary(sim: FightSim, event: FightEvent) -> String:
 		lines.append("%s: stamina %d/%d, landed %d of %d, damage taken head %d · body %d · legs %d" % [f.name,
 			roundi(f.stamina), roundi(f.max_stamina()), f.strikes_landed, f.strikes_thrown, f.damage.head, f.damage.body, f.damage.legs])
 	lines.append("")
-	lines.append("[color=#adb5bd]Change your drilled rules and gameplan for the next round if you like.[/color]")
+	lines.append(BREAK_CHANGE_LINE)
 	return "\n".join(lines)
 
 
 func _start_next_round() -> void:
 	var now: Array = _current_rules()
-	for entry: Array in _break_rules.picked():
+	for entry: Array in (_break_rules.picked() if _break_rules != null else []):
 		var slot: int = int(entry[0]) - 1
 		var same: bool = slot < now.size() and now[slot][1] == entry[1] and (entry[1] == "" or is_equal_approx(float(now[slot][2]), float(entry[2])))
 		if not same:
 			driver.set_rule(int(entry[0]), String(entry[1]), float(entry[2]))
-	if _break_plan.picked() != _current_plan():
+	if _break_plan != null and _break_plan.picked() != _current_plan():
 		driver.set_gameplan(_break_plan.picked())
 	hud.hide_dialog()
 	state = FIGHT
@@ -788,6 +860,8 @@ func _on_fight_over(_event: FightEvent) -> void:
 				[["On to the %s" % stage.to_lower(), next_tournament_fight], ["Pull out", withdraw_from_tournament]])
 		else:
 			result.show_result(sim, driver.player, record.stats, notes, [["Back to the hub", _career_after_fight]])
+		if not career.fights.is_empty() and String(career.fights[-1].get("result", "")) == "loss":
+			show_career_tips(["loss"])  # His first loss, while he's learning (D316).
 		return
 	notes.append("Seed %d (type it in the setup to replay this fight's start)" % sim.fight_seed)
 	if last_record_path != "":

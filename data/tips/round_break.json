@@ -1,0 +1,8 @@
+{
+	"schema": "tip@1",
+	"id": "round_break",
+	"title": "Between rounds",
+	"text": "The judges' cards and how both men are after the round. Press Start round when he's ready.",
+	"where": "round_break",
+	"order": 70
+}

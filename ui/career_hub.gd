@@ -18,6 +18,8 @@ signal camp_pressed
 signal accept_pressed(offer_id: String)
 signal decline_pressed(offer_id: String)
 signal turn_pro_pressed
+## The Coach's Notebook button (D316): every tip he's seen, to read again.
+signal notebook_pressed
 
 const BACKGROUND := Color(0.06, 0.07, 0.09)
 const CARD := Color("#1b1f26")
@@ -38,6 +40,12 @@ const FIGHTS_SHOWN: int = 12
 ## How an offer's kind reads (Matchmaker.DIFFICULTIES).
 const DIFFICULTY_TEXT := { "easier": "a bit easier", "even": "about even", "harder": "a bit harder",
 	"tournament": "his first round" }
+## Why the Coach's pick is the one to take, by lesson (D316, Tutorial.LESSONS).
+const LESSON_TEXT: Array[String] = [
+	"a good first fight: a bit easier than him, to learn the calls on",
+	"a kicker: the fight to learn Catch the kick! on",
+	"a man about his level, with every call open",
+]
 ## Medal colours on his card and fights list (D315).
 const MEDAL_COLOURS := { "gold": Color("#ffd43b"), "silver": Color("#ced4da"), "bronze": Color("#e8a26a") }
 ## The attribute groups an offer's scouting grades show.
@@ -63,6 +71,7 @@ var _offer_ids: Array[String] = []
 var _fights_text: RichTextLabel
 var _calendar: HBoxContainer
 var _scrolls: Array[ScrollContainer] = []
+var _notebook: Button
 var _groups: Dictionary = {}
 var _gift_names: Dictionary = {}
 var _flaw_names: Dictionary = {}
@@ -91,6 +100,14 @@ func _init() -> void:
 	names.add_child(_who)
 	_line = FightNightCard._label(18, DIM)
 	names.add_child(_line)
+	var notebook := Button.new()
+	notebook.text = "Coach's Notebook"
+	notebook.tooltip_text = "Every tip you've seen, to read again"
+	notebook.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	notebook.add_theme_font_size_override("font_size", 18)
+	notebook.pressed.connect(func() -> void: notebook_pressed.emit())
+	top.add_child(notebook)
+	_notebook = notebook
 	_date = Label.new()
 	DisplayFont.apply(_date, 34)
 	_date.add_theme_color_override("font_color", TEXT)
@@ -328,6 +345,8 @@ static func offer_text(c: Career, o: Dictionary, groups: Dictionary = {}) -> Str
 		lines.append("[color=%s][b]One-day tournament: %d men[/b][/color], up to %d fights on the day, a medal for the top %d." % [
 			GOOD.to_html(false), size, Tournament.rounds(size), 4 if size > Tournament.SIZES[0] else 2])
 		lines.append("First up, in the %s:" % Tournament.stage_name(size, 0).to_lower())
+	if int(o.get("lesson", 0)) > 0:
+		lines.append("[color=%s][b]Coach's pick[/b][/color] · %s" % [GOOD.to_html(false), LESSON_TEXT[clampi(int(o.lesson) - 1, 0, LESSON_TEXT.size() - 1)]])
 	var nick: String = String(about.get("nickname", ""))
 	lines.append("[b]%s[/b]%s" % [String(p.get("name", "")), (" '%s'" % nick) if nick != "" else ""])
 	lines.append("[color=%s]%s · %s[/color]" % [WARN.to_html(false), String(style.get("name", style_id)), DIFFICULTY_TEXT.get(String(o.get("difficulty", "")), "")])
@@ -422,6 +441,10 @@ func offer_ids() -> Array[String]:
 
 
 ## For tests: presses an offer's Take the fight, Turn it down, Go to camp or Turn pro, as a click would.
+func press_notebook() -> void:
+	_notebook.pressed.emit()
+
+
 func press_accept(offer_id: String) -> void:
 	if offer_id in _offer_ids:
 		accept_pressed.emit(offer_id)

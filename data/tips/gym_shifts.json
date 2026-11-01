@@ -1,0 +1,8 @@
+{
+	"schema": "tip@1",
+	"id": "gym_shifts",
+	"title": "Working at the gym",
+	"text": "He couldn't pay the whole gym fee, so he works it off on Saturdays at the gym. His Saturday goes to the gym instead of training until it's paid.",
+	"where": "gym_shifts",
+	"order": 130
+}

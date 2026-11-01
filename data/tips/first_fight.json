@@ -1,0 +1,9 @@
+{
+	"schema": "tip@1",
+	"id": "first_fight",
+	"title": "Your first calls",
+	"text": "He fights on his own and you shout from the corner: 4 for Takedown!, 1 for Pressure!, 2 for Circle out!, and 1 or 2 again once he's on top. Every call costs voice, so pick your moments.",
+	"where": "fight",
+	"order": 60,
+	"lesson": 1
+}

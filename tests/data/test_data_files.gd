@@ -104,6 +104,9 @@ const SCHEMAS := {
 		"name": TYPE_STRING, "about": TYPE_STRING, "names": TYPE_ARRAY, "venues": TYPE_ARRAY, "home_share": TYPE_FLOAT,
 		"every_weeks": TYPE_FLOAT,
 	} },
+	"tip@1": { "folder": "tips", "fields": {
+		"title": TYPE_STRING, "text": TYPE_STRING, "where": TYPE_STRING, "order": TYPE_FLOAT,
+	} },
 	"names@1": { "folder": "names", "fields": {
 		"country": TYPE_STRING, "cities": TYPE_ARRAY, "first": TYPE_ARRAY, "last": TYPE_ARRAY,
 	} },
@@ -995,4 +998,34 @@ func test_local_cards_and_tournaments_name_a_city_and_a_venue() -> void:
 		var school: Dictionary = _items("sessions").get(id, {})
 		if school.is_empty() or not bool(school.get("career_only", false)) or float(school.get("xp", 1.0)) != 0.0:
 			problems.append("data/sessions/%s.json: a career-only session with no XP (D314)" % id)
+	_report(problems)
+
+
+func test_tips_are_two_sentences_at_a_known_place_and_each_lesson_has_one() -> void:
+	var problems: Array[String] = []
+	var lessons: Dictionary = {}
+	var orders: Dictionary = {}
+	var tips: Dictionary = _items("tips")
+	if tips.is_empty():
+		problems.append("data/tips/ is empty: the tutorial's tip cards live there (D316)")
+	for id: String in tips:
+		var t: Dictionary = tips[id]
+		var where := "tip '%s'" % id
+		if not String(t.get("where", "")) in Tutorial.PLACES:
+			problems.append("%s: where '%s' is not one of %s" % [where, t.get("where"), Tutorial.PLACES])
+		var text: String = String(t.get("text", ""))
+		var sentences: int = RegEx.create_from_string("[.!?](\\s|$)").search_all(text.strip_edges()).size()
+		if sentences < 1 or sentences > 2:
+			problems.append("%s: a tip is one or two sentences (docs/07 §2), this has %d" % [where, sentences])
+		if t.has("lesson"):
+			if not t.lesson is float or int(t.lesson) < 1 or int(t.lesson) > Tutorial.LESSON_FIGHTS:
+				problems.append("%s: lesson is 1 to %d" % [where, Tutorial.LESSON_FIGHTS])
+			elif String(t.get("where", "")) == "fight":
+				lessons[int(t.lesson)] = int(lessons.get(int(t.lesson), 0)) + 1
+		if orders.has(int(t.get("order", 0))):
+			problems.append("%s: order %d is taken by '%s'" % [where, int(t.get("order", 0)), orders[int(t.get("order", 0))]])
+		orders[int(t.get("order", 0))] = id
+	for n in range(1, Tutorial.LESSON_FIGHTS + 1):
+		if int(lessons.get(n, 0)) != 1:
+			problems.append("lesson %d needs exactly one fight tip, has %d" % [n, int(lessons.get(n, 0))])
 	_report(problems)

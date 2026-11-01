@@ -1,0 +1,8 @@
+{
+	"schema": "tip@1",
+	"id": "offers",
+	"title": "Fight offers",
+	"text": "Take the fight to book it, or let an offer go: they stay open two weeks. While he's learning, the Coach's pick is the fight I'd take.",
+	"where": "offers",
+	"order": 20
+}

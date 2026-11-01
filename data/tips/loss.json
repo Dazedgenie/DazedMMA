@@ -1,0 +1,8 @@
+{
+	"schema": "tip@1",
+	"id": "loss",
+	"title": "A loss",
+	"text": "Every fighter loses: the fight sheet shows where it went, and the feed said why at each turn. His record moves on and new offers come in a few weeks.",
+	"where": "loss",
+	"order": 100
+}

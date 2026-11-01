@@ -1,0 +1,8 @@
+{
+	"schema": "tip@1",
+	"id": "fight_night",
+	"title": "Fight night",
+	"text": "The card shows how he comes in: his gas tank, anything still hurting and what the camp added. Press Fight to watch and coach it, or Sim the fight to see the result at once.",
+	"where": "fight_night",
+	"order": 50
+}

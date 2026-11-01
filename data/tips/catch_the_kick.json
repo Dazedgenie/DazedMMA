@@ -1,0 +1,9 @@
+{
+	"schema": "tip@1",
+	"id": "catch_the_kick",
+	"title": "Catch the kick!",
+	"text": "This man kicks, and his leg glows just before a kick comes. Press Q (Catch the kick!) as it comes and your man catches the leg; Space slows the fight if you need time.",
+	"where": "fight",
+	"order": 80,
+	"lesson": 2
+}

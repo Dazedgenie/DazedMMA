@@ -57,4 +57,5 @@ The career and world simulation (D100), starting with training (`docs/02` §3.5,
 | `gym.gd` | Your gym (docs/03 §11.3, D313): the kinds in data/gyms and the cultures, the three gyms a new career offers, and what a gym does to training |
 | `school.gd` | School weeks (docs/03 §11.4, D314): until 18, term time takes his weekday mornings; the summer holidays and when he leaves |
 | `tournament.gd` | The one-day amateur tournament (docs/03 §11.5, D315): the sizes, the rounds' names, the medals and what carries from one fight to the next |
+| `tutorial.gd` | The story as the tutorial (docs/03 §11.6, D316): the three lesson fights and what each opens, and the tips in data/tips (when each is due, the Coach's Notebook) |
 | `aftermath.gd` | What a fight does to him afterwards (docs/03 §10.5, D305): the medical suspension and the Chin a knockout takes |
