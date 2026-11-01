@@ -69,6 +69,9 @@ var opponent_name: String = "":
 		if _days_note != null:
 			_refresh()
 
+## The card the fight is on, for the countdown ("Leeds Fight Night 4", D314); empty says nothing.
+var card_name: String = ""
+
 var _start: Dictionary  # The fighter@1 profile as the camp found them.
 var _library: TrainingLibrary
 var _camp_seed: int
@@ -200,6 +203,7 @@ func use_career(c: Career) -> void:
 		reports.append(c.booked.fight_week_report)  # Fight week ran before a reload: straight to fight night.
 	pulled_out = false
 	_night_open = true
+	card_name = String(c.booked.card.get("name", "")) if c.booked.get("card") is Dictionary else ""
 	opponent_name = String(c.booked_opponent().get("name", ""))
 	_weeks_picker.get_parent().visible = false
 	var heading: Node = _weeks_picker.get_parent().get_parent().get_child(_weeks_picker.get_parent().get_index() - 1)
@@ -802,8 +806,8 @@ func _refresh() -> void:
 	_run_rest.disabled = done()
 	_fight.disabled = not can_fight()
 	_pull_out.disabled = not done() or pulled_out
-	for tile in _slots:
-		tile.disabled = done()
+	for i in _slots.size():
+		_slots[i].disabled = done() or camp.taken.has(i)  # A school morning isn't his to plan (D314).
 	_slots[-1].disabled = fight_week() or done()
 	_refresh_play()
 	var forecast: Dictionary = {} if done() else camp.forecast(week_plan(), fight_week())
@@ -853,6 +857,8 @@ func _refresh_top() -> void:
 		_days.text = "%d days" % days
 	_days.add_theme_color_override("font_color", Color(DIM) if off else (RED_CORNER if done() or fight_week() else Color("#e9ecef")))
 	var against: String = "vs %s · " % opponent_name if opponent_name != "" else ""
+	if card_name != "":
+		against += card_name + " · "
 	_days_note.text = "%sSaturday evening, week %d" % [against, weeks]
 
 
@@ -865,8 +871,12 @@ func _refresh_tiles(week: Dictionary) -> void:
 			tile.show_session({ "name": "The fight", "kind": "" }, "Sat evening")
 			tile.tooltip_text = "Fight week: Saturday evening is the fight"
 			continue
-		var session: Dictionary = _library.session(_slot_ids[i])
+		var session: Dictionary = _library.session(String(camp.taken.get(i, _slot_ids[i])))
 		var note: String = ""
+		if camp.taken.has(i) and not done():
+			tile.show_session(session, "school week")
+			tile.tooltip_text = "School: weekday mornings are at school until the summer holidays (D314)"
+			continue
 		if i < slots.size():
 			note = "fatigue %d" % roundi(slots[i].fatigue)
 			match String(slots[i].result):

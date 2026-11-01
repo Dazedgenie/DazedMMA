@@ -167,6 +167,7 @@ func test_he_can_turn_pro_at_18_after_four_amateur_fights_and_gets_paid() -> voi
 	assert_false(c.offers.is_empty(), "pro offers the week after")
 	var o: Dictionary = c.offers[0]
 	assert_eq(String(o.ruleset), Matchmaker.PRO_RULES)
+	assert_true((o.card as Dictionary).is_empty(), "local cards are for amateurs (D314)")
 	var money: int = c.money
 	c.accept(String(o.id))
 	assert_eq(c.finish_fight({ "result": "win", "method": "KO", "round": 1 }), Matchmaker.PURSE_SHOW + Matchmaker.PURSE_WIN, "show and win")
@@ -204,3 +205,69 @@ func test_the_same_career_gets_the_same_offers() -> void:
 	a.run_week("time_off")
 	b.run_week("time_off")
 	assert_eq(JSON.stringify(a.offers), JSON.stringify(b.offers))
+
+
+func test_amateur_offers_are_on_named_local_cards_against_local_lads() -> void:
+	var c: Career = _career()
+	c.run_week("time_off")
+	assert_false(c.offers.is_empty())
+	var england: Array = NameLibrary.shared().cities("england")
+	for o: Dictionary in c.offers:
+		var card: Dictionary = o.card
+		assert_ne(String(card.name), "", "every amateur offer is on a card")
+		assert_false(String(card.name).contains("{"), "the name's filled in")
+		assert_true(String(card.city) in england, "a card in his country")
+		assert_string_contains(String(card.name), String(card.city))
+		assert_ne(String(card.venue), "")
+		assert_eq(String(o.about.country), "England", "a local lad")
+		assert_string_contains(CareerHub.offer_text(c, o), "On %s · the %s, %s" % [card.name, card.venue, card.city])
+	var o: Dictionary = c.offers[0]
+	assert_true(c.accept(String(o.id)))
+	assert_string_contains(CareerHub.week_text(c), "on " + String(o.card.name))
+	c.finish_fight({ "result": "win", "method": "KO", "round": 1 })
+	assert_eq(String(c.fights[-1].card.name), String(o.card.name), "the fight keeps the card it was on")
+	assert_string_contains(CareerHub.fights_text(c), String(o.card.name))
+	var back: Career = Career.from_dict(JSON.parse_string(JSON.stringify(c.to_dict())))
+	assert_eq(String(back.fights[-1].card.name), String(o.card.name), "saved")
+
+
+func test_a_card_series_keeps_its_venue_and_counts_up() -> void:
+	var c: Career = _career()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 11
+	var first: Dictionary = c.matchmaker().local_card(c, rng, "england")
+	c.week = 16
+	rng.seed = 11
+	var later: Dictionary = c.matchmaker().local_card(c, rng, "england")
+	assert_eq(later.city, first.city)
+	assert_eq(later.venue, first.venue, "the same series is at the same place")
+	var number := func(card: Dictionary) -> int: return String(card.name).get_slice(" ", String(card.name).get_slice_count(" ") - 1).to_int()
+	assert_eq(number.call(later), number.call(first) + 2, "one more every 8 weeks")
+	assert_eq(Matchmaker.card_text({ "name": "Leeds Fight Night 4", "venue": "Sports Centre", "city": "Leeds" }),
+		"Leeds Fight Night 4 · the Sports Centre, Leeds")
+	assert_eq(Matchmaker.card_text({}), "")
+
+
+func test_at_18_the_hub_says_whether_turning_pro_looks_wise() -> void:
+	var c: Career = _career()
+	assert_true(Matchmaker.pro_advice(c).is_empty(), "nothing to say at 16")
+	c.trainee.age = 18
+	c.trainee.age_years = 18.0
+	assert_eq(String(Matchmaker.pro_advice(c).word), Matchmaker.PRO_NOT_YET)
+	assert_string_contains(String(Matchmaker.pro_advice(c).text), "after 4 more amateur fights")
+	c.add_opponent({ "id": "opp_1", "name": "First Man" })
+	for result: String in ["win", "win", "loss", "win"]:
+		c.add_fight({ "result": result, "opponent": "opp_1" })
+	assert_eq(String(Matchmaker.pro_advice(c).word), Matchmaker.PRO_RISKY, "3-1, but a 16-year-old's skills")
+	assert_string_contains(String(Matchmaker.pro_advice(c).text), "skills")
+	for id: String in StyleLibrary.stat_ids():
+		c.trainee.stats[id] = 45.0
+	assert_eq(String(Matchmaker.pro_advice(c).word), Matchmaker.PRO_WISE)
+	assert_string_contains(CareerHub.week_text(c), "Turning pro looks wise: 3-1-0 as an amateur")
+	c.trainee.age = Matchmaker.PRO_LATE_AGE
+	assert_eq(String(Matchmaker.pro_advice(c).word), Matchmaker.PRO_LATE, "waiting costs him prime years")
+	for i in 3:
+		c.add_fight({ "result": "loss", "opponent": "opp_1" })
+	assert_eq(String(Matchmaker.pro_advice(c).word), Matchmaker.PRO_RISKY, "3-4: a few more wins first")
+	assert_true(c.turn_pro(), "advice only: the choice is yours")
+	assert_true(Matchmaker.pro_advice(c).is_empty())

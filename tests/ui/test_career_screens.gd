@@ -250,3 +250,17 @@ func test_where_you_coach_offers_three_gyms_then_the_walk_in() -> void:
 	screen.pick(2)
 	screen.press_start()
 	assert_signal_emitted_with_parameters(screen, "finished", [screen.gyms[2]])
+
+
+func test_a_career_camp_shows_his_school_mornings_and_the_card() -> void:
+	var c: Career = _career()
+	c.run_week("time_off")
+	assert_true(c.accept(String(c.offers[0].id)))
+	var planner: CampPlanner = add_child_autofree(CampPlanner.new(c.profile(), 1))
+	planner.use_career(c)
+	for i: int in School.SLOTS:
+		assert_string_contains(planner.tile_text(i), "School", "slot %d is at school (D314)" % i)
+		assert_true(planner._slots[i].disabled, "and can't be changed")
+	assert_false(planner.tile_text(1).contains("School"), "Monday evening is his")
+	assert_false(planner._slots[1].disabled)
+	assert_string_contains(planner._days_note.text, String(c.booked.card.name))

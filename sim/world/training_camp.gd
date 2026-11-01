@@ -139,6 +139,10 @@ var _profile: Dictionary
 var coach_specialty: String = ""
 ## His gym (Gym, D313): { kind, culture, ... }; {} = no gym (the camp planner on its own, a career before D313).
 var gym: Dictionary = {}
+## This week's slots that aren't his to train (School, D314: weekday mornings in term time): slot index (0 = Monday
+## morning … 11 = Saturday evening) → the session that runs there instead. A career sets it as each week begins; {}
+## trains every slot as planned.
+var taken: Dictionary = {}
 var _library: TrainingLibrary
 var _rng := RandomNumberGenerator.new()
 var _camp_gains: Dictionary = {}  # stat id → points gained this camp
@@ -192,7 +196,8 @@ func run_week(plan_id: String, played: Dictionary = {}) -> Dictionary:
 ## The report also gives `injury_odds` (the chance the week had of at least one injury), `skips_expected`
 ## and whether it got the `variety` bonus. In `fight_week` the fight is on Saturday evening (D135): the week
 ## stops after Saturday morning, with no night's sleep or Sunday to recover from it.
-func run_plan(plan: Dictionary, played: Dictionary = {}, fight_week: bool = false) -> Dictionary:
+func run_plan(plan_in: Dictionary, played: Dictionary = {}, fight_week: bool = false) -> Dictionary:
+	var plan: Dictionary = with_taken(plan_in)
 	var week := {
 		"plan": String(plan.get("id", "")), "slots": [], "gains": {}, "leanings": {}, "injuries": [],
 		"done": 0, "skipped": 0, "injured": 0, "chin_wear": 0.0,
@@ -234,6 +239,7 @@ func forecast(plan: Dictionary, fight_week: bool = false) -> Dictionary:
 	var copy := TrainingCamp.new(profile(), 0, _library)
 	copy.coach_specialty = coach_specialty
 	copy.gym = gym
+	copy.taken = taken
 	copy.stats = stats.duplicate()
 	copy.fatigue = fatigue
 	copy.injured_days = injured_days
@@ -490,6 +496,19 @@ func _push(leaning: String, amount: float, week: Dictionary) -> void:
 
 
 ## How many attribute groups (Physical, Striking …) the plan's sessions train.
+## The plan as this week will run it: a copy with the `taken` slots' sessions put in (the plan itself when none are).
+func with_taken(plan: Dictionary) -> Dictionary:
+	if taken.is_empty():
+		return plan
+	var out: Dictionary = plan.duplicate(true)
+	var days: Array = out.get("days", [])
+	for index: Variant in taken:
+		var day: int = int(index) / SLOTS_PER_DAY
+		if day < days.size():
+			days[day][int(index) % SLOTS_PER_DAY] = String(taken[index])
+	return out
+
+
 func _groups_trained(plan: Dictionary) -> int:
 	var groups: Dictionary = {}
 	for day: Array in plan.days:

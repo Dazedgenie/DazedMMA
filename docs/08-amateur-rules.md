@@ -48,6 +48,8 @@ rules. `data/rulesets/pride.json`:
 - **Tournament format** (optional events): a one-day bracket of 2–3 short fights, with damage carrying over between them. Great for stories and minigame variety.
 - **Turning pro**: possible from 18. The game recommends it based on record + skills, but the timing is your choice
   (too early = risky, too late = lost prime years).
+- **Built so far** (D314, `03` §11.4): school takes his weekday mornings until 18 (full weeks in July and August), amateur
+  offers are on named local cards, and from 18 the hub says whether turning pro looks wise, risky or overdue.
 - **Weight class emerges (D35)**: amateur weigh-ins use walk-around weight. The pro division is chosen when you turn pro.
 
 ## 3. Pro variants
