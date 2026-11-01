@@ -51,14 +51,30 @@ const LAYOUT_SPEED: float = 6.0
 ## enough for an underhook to reach round his back (D282, was 0.82).
 const CLINCH_BODY_GAP: float = 0.68
 ## The clinch from the rig (D286): with skinned bodies, a clinch where both men are holding or fighting for
-## grips is posed by ClinchPair on two hidden rigs, and the bodies follow those. Any other move in the clinch
-## (fence drives, turns, breaks, takedowns) is drawn from today's figures; a strike (CLINCH_STRIKES) keeps the
-## pose with only the striking limb from today's figure. The change either way, and from one
-## grip to the next, eases over CLINCH_EASE seconds.
-const CLINCH_POSE_MOVES: Array[String] = ["pummel", "strip_grip", "collar_tie"]
+## grips is posed by ClinchPair on two hidden rigs, and the bodies follow those. The fence's moves are posed
+## there too (D287): the drive, being held flat on it and working off it, the break, and the turns (played
+## over TURN_SECONDS). Any other move in the clinch (the takedowns) is drawn from today's figures; a strike
+## (CLINCH_STRIKES) keeps the pose with only the striking limb from today's figure. The change either way,
+## and from one grip to the next, eases over CLINCH_EASE seconds.
+const CLINCH_POSE_MOVES: Array[String] = ["pummel", "strip_grip", "collar_tie", "fence_drive", "turn_him", "spin_off",
+	"clinch_break"]
 ## Strikes in the clinch thrown from the rig's pose: only the striking arm or leg follows today's figure.
 const CLINCH_STRIKES: Array[String] = ["knee", "short_hook", "short_uppercut", "elbow"]
 const CLINCH_EASE: float = 0.25
+## A turn on the fence or a spin-off (D287): the two go round each other over this many seconds.
+const TURN_SECONDS: float = 0.45
+## The fence giving where a man is held on it (D287): it bows PRESS_DEPTH metres while he is pressed there; a
+## slam into it (a drive or a turn ending with him pinned) bows it up to SLAM_DEPTH more (times how hard),
+## springing back at SLAM_HZ with SLAM_DAMPING (0 rings for ever, 1 no bounce). He sinks in with it.
+const PRESS_DEPTH: float = 0.03
+const SLAM_DEPTH: float = 0.09
+const SLAM_HZ: float = 6.0
+const SLAM_DAMPING: float = 0.3
+## How hard a slam is: a drive's from DRIVE_SLAM_MIN (barely moved) to 1 (driven SLAM_FULL_AFTER metres or
+## more), a turn's TURN_SLAM.
+const DRIVE_SLAM_MIN: float = 0.5
+const SLAM_FULL_AFTER: float = 1.0
+const TURN_SLAM: float = 0.7
 ## The tag grows this much when the range or position changes, then settles (docs/06 §2).
 const TAG_BUMP: float = 1.7
 ## Standing, the sim's ranges are wider than a person's reach (pocket up to 1.5 m, long range 3 m apart), so
@@ -73,12 +89,25 @@ const SHORT_BY: float = 0.3
 const LUNGE_MAX: float = 0.75
 const LUNGE_CLOSEST: float = 0.85
 
+## A man was slammed into the fence (D287), `strength` 0–1: the fence rattles (StrikeSounds.play_rattle).
+signal fence_slammed(strength: float)
+
 var driver: FightDriver
 var camera: Camera3D
 var figures: Array[FighterFigure] = []
 ## The two hidden rigs that pose the clinch for the bodies (D286), and the clinch pose shown ("" none).
 var _clinch_rigs: Array[FighterRig] = []
 var _clinch_shown: String = ""
+## The fence (D287): the last clinch pose shown ([pair, frame] from ClinchPair.effective, or empty); a turn under
+## way ({from, left, slam}); who was held on the fence last frame; a drive under way last frame and how far it
+## has gone; the fence's bow {at, depth, speed}.
+var _clinch_last: Array = []
+var _turn: Dictionary = {}
+var _held_was: int = -1
+var _drive_was: bool = false
+var _drive_travel: float = 0.0
+var _drive_from := Vector2.ZERO
+var _bow := {"at": Vector3.ZERO, "depth": 0.0, "speed": 0.0}
 ## Light up scouted tells (D51): a toggle so the playtest can compare cue on and off.
 var tell_cues: bool = true
 var debug_marks: bool = false:
@@ -127,6 +156,11 @@ func watch(p_driver: FightDriver) -> void:
 		rig.queue_free()
 	_clinch_rigs.clear()
 	_clinch_shown = ""
+	_clinch_last = []
+	_turn = {}
+	_held_was = -1
+	_drive_was = false
+	_bow = {"at": Vector3.ZERO, "depth": 0.0, "speed": 0.0}
 	_tell_limb = ["", ""]
 	_tell_until = [-1, -1]
 	_offset = [Vector2.ZERO, Vector2.ZERO]
@@ -199,20 +233,34 @@ func _process(delta: float) -> void:
 			_want_rings[i].scale = Vector3(want, 1.0, want)
 
 
-## Poses the bodies from the rig in the clinch (D286; CLINCH_POSE_MOVES), easing in and out.
+## Poses the bodies from the rig in the clinch (D286, D287; CLINCH_POSE_MOVES), easing in and out, playing the
+## turns on the fence and bowing the fence where a man is held on it.
 func _pose_clinch(sim: FightSim, delta: float) -> void:
 	if _clinch_rigs.is_empty():
 		return
+	var held: int = held_now(sim)
+	_track_drive(sim, held)
 	var built: Dictionary = {}
+	var frame := Transform3D.IDENTITY
 	if rig_clinch(sim):
 		var collar: int = -1
-		var held: int = -1
 		for i in 2:
 			if sim.fighters[1 - i].tied_up_ticks > 0:
 				collar = i
-			if sim.held_on_fence(i):
-				held = i
-		built = ClinchPair.build(sim.grips(), [figures[0].arm_letter(0), figures[0].arm_letter(1)], collar, held)
+		built = ClinchPair.build(sim.grips(), [figures[0].arm_letter(0), figures[0].arm_letter(1)], collar, held,
+			clinch_motion(sim, held))
+		frame = fence_frame(held) if built.kind == "fence" else clinch_frame()
+	if not _turn.is_empty():
+		_pose_turn(sim, built, frame, delta)
+	else:
+		_pose_built(sim, built, frame)
+	for figure in figures:
+		figure.body.settle(delta)
+	_bow_fence(held, delta)
+
+
+## Poses `built` (empty: today's figures) in `frame`, with any strike's limb from today's figure.
+func _pose_built(sim: FightSim, built: Dictionary, frame: Transform3D) -> void:
 	var strikes: Array = [[], []]  # The limbs thrown from the pose, each man's, as follow_joints names them.
 	if not built.is_empty():
 		for i in 2:
@@ -226,20 +274,111 @@ func _pose_clinch(sim: FightSim, delta: float) -> void:
 		for figure in figures:
 			figure.body.ease_over(CLINCH_EASE)
 		_clinch_shown = shown
-	if not built.is_empty():
-		ClinchPair.pose(_clinch_rigs[0], _clinch_rigs[1], built, clinch_frame())
-		for i in 2:
-			figures[i].body.follow(_clinch_rigs[i])
-			if not (strikes[i] as Array).is_empty():
-				var only: Array[String] = []
-				only.assign(strikes[i])
-				figures[i].body.follow_joints(figures[i].body_pose(), only)
-	for figure in figures:
-		figure.body.settle(delta)
+	_clinch_last = []
+	if built.is_empty():
+		return
+	ClinchPair.pose(_clinch_rigs[0], _clinch_rigs[1], built, frame)
+	_clinch_last = ClinchPair.effective(built, frame)
+	for i in 2:
+		figures[i].body.follow(_clinch_rigs[i])
+		if not (strikes[i] as Array).is_empty():
+			var only: Array[String] = []
+			only.assign(strikes[i])
+			figures[i].body.follow_joints(figures[i].body_pose(), only)
+
+
+## A turn under way (D287): the two go round each other from the pose before it to the one now (`built` in
+## `frame`; after a spin-off, standing apart), then the fence rattles if it put a man on it.
+func _pose_turn(sim: FightSim, built: Dictionary, frame: Transform3D, delta: float) -> void:
+	var to: Array = []
+	if built.is_empty():  # Spun off: standing apart where they were, the other way round.
+		to = [ClinchPair.apart(), Transform3D(_turn.from[1]) * Transform3D(Basis(Vector3.UP, PI), Vector3.ZERO)]
+	else:
+		to = ClinchPair.effective(built, frame)
+	_turn.left = float(_turn.left) - delta
+	var t: float = clampf(1.0 - float(_turn.left) / TURN_SECONDS, 0.0, 1.0)
+	ClinchPair.turning(_clinch_rigs[0], _clinch_rigs[1], _turn.from, to, t)
+	for i in 2:
+		figures[i].body.follow(_clinch_rigs[i])
+	if t >= 1.0:
+		if bool(_turn.slam) and held_now(sim) >= 0:
+			_slam(TURN_SLAM)
+		_turn = {}
+		_clinch_last = to
+		_clinch_shown = "turned"  # Whatever comes next eases from here.
+
+
+## Who is held on the fence in the clinch (D220), or -1.
+func held_now(sim: FightSim) -> int:
+	if sim.situation.position != PositionLibrary.CLINCH or not sim.hold().is_empty():
+		return -1
+	for i in 2:
+		if sim.held_on_fence(i):
+			return i
+	return -1
+
+
+## What the fence's moves are doing to the clinch pose (D287, ClinchPair.build's motion): a drive under way or
+## being set up, the held man working off the fence, or a man breaking away.
+func clinch_motion(sim: FightSim, held: int) -> Dictionary:
+	var drive: Dictionary = sim.drive()
+	if not drive.is_empty():
+		return {"move": "drive", "by": int(drive.by), "step": _drive_travel}
+	for i in 2:
+		var f: FighterState = sim.fighters[i]
+		if f.action_id == FightSim.FENCE_DRIVE and f.phase == "windup" and held != 1 - i:
+			return {"move": "drive", "by": i, "step": 0.0}
+		if i == held and ClinchPair.WORK_MOVES.has(f.action_id):
+			return {"move": "work", "by": i, "action": f.action_id}
+		if f.action_id == "clinch_break" and held < 0:
+			return {"move": "break", "by": i}
+	return {}
+
+
+## How far a drive has gone (for the steps), and the slam when it pins him on the fence.
+func _track_drive(sim: FightSim, held: int) -> void:
+	var driving: bool = not sim.drive().is_empty()
+	var middle: Vector2 = (driver.shown_pos(0) + driver.shown_pos(1)) / 2.0
+	if driving and not _drive_was:
+		_drive_travel = 0.0
+	elif driving:
+		_drive_travel += middle.distance_to(_drive_from)
+	_drive_from = middle
+	if held >= 0 and held != _held_was and _drive_was:
+		_slam(lerpf(DRIVE_SLAM_MIN, 1.0, clampf(_drive_travel / SLAM_FULL_AFTER, 0.0, 1.0)))
+	_drive_was = driving
+	_held_was = held
+
+
+## A man slammed into the fence: it bows out and rattles.
+func _slam(strength: float) -> void:
+	_bow.speed = float(_bow.speed) + SLAM_DEPTH * strength * TAU * SLAM_HZ
+	fence_slammed.emit(strength)
+
+
+## The fence bowing where the held man's back is on it, springing back once he is off it.
+func _bow_fence(held: int, delta: float) -> void:
+	if held >= 0 and not _clinch_last.is_empty():
+		_bow.at = _clinch_rigs[held].point("back")
+	var want: float = PRESS_DEPTH if held >= 0 and not _clinch_last.is_empty() else 0.0
+	var w: float = TAU * SLAM_HZ
+	var left: float = delta
+	while left > 0.0:  # Small steps, so a long frame doesn't throw the spring.
+		var dt: float = minf(left, 1.0 / 120.0)
+		_bow.speed = float(_bow.speed) + (-w * w * (float(_bow.depth) - want) - 2.0 * SLAM_DAMPING * w * float(_bow.speed)) * dt
+		_bow.depth = float(_bow.depth) + float(_bow.speed) * dt
+		left -= dt
+	if _venue != null:
+		_venue.bow_fence(_bow.at, maxf(float(_bow.depth), 0.0))
+
+
+## How far the fence is bowed out where he is held now (metres).
+func fence_bow() -> float:
+	return maxf(float(_bow.depth), 0.0)
 
 
 ## True when the clinch is drawn from the rig (D286): both tied up in the clinch (not in a hold), each holding
-## or fighting for grips or striking from there.
+## or fighting for grips, on the fence or getting off it (D287), or striking from there.
 func rig_clinch(sim: FightSim) -> bool:
 	if _clinch_rigs.is_empty() or sim.situation.position != PositionLibrary.CLINCH or not sim.hold().is_empty():
 		return false
@@ -255,6 +394,21 @@ func clinch_frame() -> Transform3D:
 	var blue: Vector3 = figures[1].global_position
 	var z := Vector3(red.x - blue.x, 0.0, red.z - blue.z).normalized()
 	return Transform3D(Basis(Vector3.UP.cross(z), Vector3.UP, z), Vector3((red.x + blue.x) / 2.0, 0.0, (red.z + blue.z) / 2.0))
+
+
+## The clinch pair's frame with fighter `held` on the fence (D287): squared to the fence panel behind him, its
+## origin ClinchPair.FENCE_Z in from the fence's face (out by as far as it is bowed), +Z toward red.
+func fence_frame(held: int) -> Transform3D:
+	var spot: Vector2 = driver.shown_pos(held)
+	var n: Vector2 = Octagon.NORMALS[0]
+	for normal: Vector2 in Octagon.NORMALS:
+		if spot.dot(normal) > spot.dot(n):
+			n = normal
+	var middle: Vector2 = (driver.shown_pos(0) + driver.shown_pos(1)) / 2.0
+	var at: Vector2 = middle - n * middle.dot(n) + n * (Octagon.APOTHEM + fence_bow() - ClinchPair.FENCE_Z)
+	var toward_red: Vector2 = n if held == 0 else -n
+	var z := Vector3(toward_red.x, 0.0, toward_red.y)
+	return Transform3D(Basis(Vector3.UP.cross(z), Vector3.UP, z), Vector3(at.x, 0.0, at.y))
 
 
 ## The camera's zoom against standing (1 standing, under 1 moved in), for sizing labels.
@@ -449,6 +603,8 @@ func _on_event(event: FightEvent) -> void:
 		return
 	if event.actor in [0, 1] and figures.size() == 2:
 		_show_strike(event)
+	if event.type == FightEvent.GRAPPLE_WON and event.data.get("result", "") == "turned" and not _clinch_last.is_empty():
+		_turn = {"from": _clinch_last, "left": TURN_SECONDS, "slam": event.data.action_id == "turn_him"}
 	var sim: FightSim = driver.sim
 	var triggers: TriggerLibrary = TriggerLibrary.shared()
 	for i in sim.fighters.size():

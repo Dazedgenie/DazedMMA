@@ -29,7 +29,8 @@ side on to the camera, at 24 frames a fight second (D282, `docs/13`). `--only=` 
 the double leg, the full guard, the sprawl and getting up, blended from one to the next, with today's figures first for
 the clinch and the guard. `--stills` writes one picture per pose; `--angle=` turns the camera; `--body` puts Kyle's
 skinned Tripo body (`game/bodies/tripo_fighter.glb`, D284; the fight screen draws it too, D285) on the rigs;
-`--clinch` writes the clinch poses built from grips instead (D286, `clinch-<name>.png`):
+`--clinch` writes the clinch poses built from grips instead (D286, `clinch-<name>.png`), the fence's too (D287: the
+drive, spinning off, turning him, breaking):
 
     godot --script res://tools/rig_preview.gd -- --out=res://build/rig --stills
     godot --script res://tools/rig_preview.gd -- --out=res://build/clinch --clinch --body
@@ -114,7 +115,8 @@ only when a change is meant to change fights, commit the file and say why in the
     godot --headless --script res://tools/golden.gd -- --update
 
 `strike_sounds.gd` writes every strike's sounds (D190, `docs/06` §6.8) to `build/strike_sounds/` as WAV files: one per
-strike (connected, missed, blocked with a pause between) and `all_strikes.wav` with every strike in turn. `--only` picks
+strike (connected, missed, blocked with a pause between), `all_strikes.wav` with every strike in turn, and
+`fence_rattle.wav` with the fence's rattle when a man is slammed into it (D287). `--only` picks
 some:
 
     godot --headless --script res://tools/strike_sounds.gd
