@@ -63,6 +63,38 @@ func test_young_men_get_better_and_old_men_slow_down() -> void:
 	assert_lt(WorldWeeks.change_a_week(w, man, 36.0), WorldWeeks.change_a_week(w, man, 32.0), "and faster later")
 
 
+func test_wins_build_a_man_up_and_knockouts_wear_him_down() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4
+	var m := { "record": { "win": 0, "loss": 0, "draw": 0 }, "lv": 5.0, "potential": 70.0, "history": [] }
+	WorldWeeks.note_fight(m, "x", "win", "decision", 10, rng)
+	assert_almost_eq(float(m.lv), 5.0 + WorldWeeks.WIN_GAIN, 0.001, "a win builds him up")
+	assert_almost_eq(float(m.potential), 70.0 + WorldWeeks.WIN_GAIN, 0.01)
+	WorldWeeks.note_fight(m, "y", "loss", "decision", 30, rng)
+	assert_almost_eq(float(m.lv), 5.0 + WorldWeeks.WIN_GAIN, 0.001, "a decision loss leaves him as he was")
+	var before: float = float(m.lv)
+	WorldWeeks.note_fight(m, "z", "loss", "KO (punches)", 50, rng)
+	assert_almost_eq(float(m.lv), before - WorldWeeks.KO_WEAR, 0.001, "a knockout wears him down")
+	before = float(m.lv)
+	WorldWeeks.note_fight(m, "q", "loss", "ko", 70, rng)
+	assert_almost_eq(float(m.lv), before - WorldWeeks.KO_WEAR - WorldWeeks.KO_WEAR_MORE, 0.001, "and more the second time")
+
+
+func test_men_retire_only_when_theyre_too_old() -> void:
+	var c: Career = _career()
+	var w: World = c.world()
+	var man := { "style": "boxer", "lv": 10.0, "best": 0.0, "history": [] }
+	man.best = w.average(man)
+	assert_eq(WorldWeeks.retire_chance(w, man, 28.0), 0.0, "not before %d, however it's going" % int(WorldWeeks.RETIRE_FROM))
+	man.history = [[1, "a", "l", "ko"], [2, "b", "l", "ko"], [3, "c", "l", "ko"], [4, "d", "l", "ko"]]
+	assert_eq(WorldWeeks.retire_chance(w, man, 30.0), 0.0)
+	man.history = [[1, "a", "w", "ko"], [2, "b", "w", "decision"]]
+	assert_eq(WorldWeeks.retire_chance(w, man, 40.0), 0.0, "still at his best and winning at 40: he keeps going")
+	man.best = w.average(man) + 6.0
+	assert_gt(WorldWeeks.retire_chance(w, man, 40.0), 0.4, "age has taken 6 points off him")
+	assert_eq(WorldWeeks.retire_chance(w, man, WorldWeeks.RETIRE_BY), 1.0)
+
+
 func test_good_amateurs_turn_pro_and_men_retire() -> void:
 	var c: Career = _career()
 	var w: World = c.world()

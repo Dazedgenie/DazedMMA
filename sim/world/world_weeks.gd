@@ -2,10 +2,11 @@ class_name WorldWeeks
 extends RefCounted
 ## The world's weeks (docs/03 §12.3, D353): every week the world's men (World, D352) who are due a fight are matched
 ## with a man of their division and kind near their level and fight on Saturday, decided by the quick result model
-## (ResultModel, D350). They get better while they're young and slow down from 31, the best amateurs turn pro, men
+## (ResultModel, D350). They get better while they're young and slow down from 31, wins build them up and knockouts
+## wear them down, the best amateurs turn pro, men
 ## retire, new pros join each month and new lads each January, so every division keeps about World.PER_DIVISION men.
 ##
-## Built on the recommended answer to each of Kyle's D353 cards; the decisions log (D353) says which ones he took.
+## Kyle's D353 picks are in the decisions log (D353).
 ##
 ## Pure and seeded (D100): the world's seed and the week make the same fights.
 
@@ -40,6 +41,13 @@ const PEAK_AGE: float = 28.0
 const HEADROOM: Array[float] = [0.3, 3.6]
 const HEADROOM_SKEW: float = 1.8
 const POTENTIAL_MAX: float = 84.0
+## What a fight does to him for good (Kyle, 2026-11-01: "Wins and losses change them too"): a win adds WIN_GAIN to
+## his average stat and his potential (confidence and rounds in the bank); being knocked out takes KO_WEAR off both
+## (the wear a knockout leaves), more for every knockout loss in his last fights (KO_WEAR_MORE each). Other losses
+## leave him as he was.
+const WIN_GAIN: float = 0.4
+const KO_WEAR: float = 0.8
+const KO_WEAR_MORE: float = 0.4
 ## Turning pro: an amateur from PRO_FROM with PRO_AFTER fights, a PRO_WIN_SHARE winning record and PRO_READY average
 ## turns pro within about PRO_WEEKS weeks; at PRO_LATE he turns pro if he's PRO_LATE_READY, else gives it up.
 const PRO_FROM: float = 18.0
@@ -49,21 +57,20 @@ const PRO_READY: float = 38.0
 const PRO_WEEKS: float = 26.0
 const PRO_LATE: float = 23.0
 const PRO_LATE_READY: float = 34.0
-## Retiring: a pro's yearly chance is RETIRE_BASE at RETIRE_FROM, RETIRE_PER_YEAR more each year older, plus BAD_RUN
-## after losing BAD_RUN_LOSSES of his last BAD_RUN_FIGHTS from BAD_RUN_FROM, plus KO_RUN after KO_RUN_KOS knockout
-## losses in his last BAD_RUN_FIGHTS. An amateur with a losing record of AMATEUR_QUIT_FIGHTS fights or more quits at
-## AMATEUR_QUIT a year, from 19.
-const RETIRE_FROM: float = 33.0
-const RETIRE_BASE: float = 0.12
-const RETIRE_PER_YEAR: float = 0.15
+## Retiring only when he's too old (Kyle, 2026-11-01: "Only when they're too old"): nobody retires before RETIRE_FROM.
+## From then a pro's yearly chance is TOO_OLD for every point his average stat has fallen from his best past
+## FALLEN_FREE, plus BAD_RUN when he's lost BAD_RUN_LOSSES of his last BAD_RUN_FIGHTS and KO_RUN after KO_RUN_KOS
+## knockout losses in them (a man still winning keeps going); at RETIRE_BY he's done. An amateur only gives it up at
+## PRO_LATE (above).
+const RETIRE_FROM: float = 32.0
+const FALLEN_FREE: float = 1.0
+const TOO_OLD: float = 0.1
 const BAD_RUN_FIGHTS: int = 4
 const BAD_RUN_LOSSES: int = 3
-const BAD_RUN_FROM: float = 28.0
-const BAD_RUN: float = 0.3
+const BAD_RUN: float = 0.4
 const KO_RUN_KOS: int = 2
-const KO_RUN: float = 0.3
-const AMATEUR_QUIT_FIGHTS: int = 6
-const AMATEUR_QUIT: float = 0.25
+const KO_RUN: float = 0.25
+const RETIRE_BY: float = 45.0
 ## Each January every division is topped up to each level's count (World.LEVELS): amateurs as NEW_AMATEUR_AGES lads
 ## from home, pros as men new to the division.
 const NEW_AMATEUR_AGES: Array[float] = [14.0, 16.0]
@@ -71,7 +78,7 @@ const NEW_AMATEUR_AGES: Array[float] = [14.0, 16.0]
 const HISTORY: int = 6
 const RESULTS_WEEKS: int = 8
 ## What a retired man no longer needs.
-const RETIRED_DROPS: Array[String] = ["frame", "seed", "potential", "lv", "history", "next_week", "out_until", "met_close"]
+const RETIRED_DROPS: Array[String] = ["frame", "seed", "potential", "lv", "history", "next_week", "out_until", "met_close", "best"]
 
 
 ## What the weeks need on a man that doesn't have it yet (one made before D353, or new): his potential, his level to a
@@ -79,6 +86,8 @@ const RETIRED_DROPS: Array[String] = ["frame", "seed", "potential", "lv", "histo
 static func set_up(w: World, m: Dictionary, rng: RandomNumberGenerator, week: int) -> void:
 	if not m.has("lv"):
 		m.lv = float(m.get("level", 0))
+	if not m.has("best"):
+		m.best = snappedf(w.average(m), 0.1)
 	if not m.has("potential"):
 		var age: float = World.age_of(m, week)
 		var per_year: float = lerpf(HEADROOM[0], HEADROOM[1], pow(rng.randf(), HEADROOM_SKEW))
@@ -182,6 +191,12 @@ static func note_fight(m: Dictionary, opponent_id: String, result: String, metho
 	if result in ["win", "loss", "draw"]:
 		m.record[result] = int(m.record.get(result, 0)) + 1
 	var how: String = _method(method)
+	var change: float = form_change(m, result, how)
+	if change != 0.0 and m.has("lv"):
+		m.lv = snappedf(float(m.lv) + change, 0.001)
+		m.level = roundi(float(m.lv))
+		if m.has("potential"):
+			m.potential = snappedf(minf(POTENTIAL_MAX, float(m.potential) + change), 0.1)
 	(m.history as Array).append([week, opponent_id, result.substr(0, 1), how])
 	while (m.history as Array).size() > HISTORY:
 		(m.history as Array).pop_front()
@@ -192,6 +207,18 @@ static func note_fight(m: Dictionary, opponent_id: String, result: String, metho
 		out = SUB_OUT_WEEKS
 	m.next_week = week + GAP_WEEKS + rng.randi_range(-GAP_SPREAD, GAP_SPREAD) + out
 	m.out_until = week + out
+
+
+## What a result does to his average stat for good (before it goes on his history): WIN_GAIN for a win, KO_WEAR off
+## (and KO_WEAR_MORE for each knockout loss already in his last BAD_RUN_FIGHTS) for being knocked out.
+static func form_change(m: Dictionary, result: String, how: String) -> float:
+	if result == "win":
+		return WIN_GAIN
+	if result != "loss" or how != "ko":
+		return 0.0
+	var h: Array = m.get("history", [])
+	var earlier: int = h.slice(maxi(0, h.size() - BAD_RUN_FIGHTS)).filter(func(x: Array) -> bool: return String(x[2]) == "l" and String(x[3]) == "ko").size()
+	return -(KO_WEAR + KO_WEAR_MORE * float(earlier))
 
 
 ## His form and rust as a nudge to the result model's logit: + for wins in his last FORM_FIGHTS, - for losses, -RUST
@@ -206,8 +233,10 @@ static func nudge_for(m: Dictionary, week: int) -> float:
 	return n
 
 
-## The first week of a month: each division's pro levels topped back up to World.LEVELS' counts with men new to the
-## division; in January (`lads`) its amateurs too, with lads of NEW_AMATEUR_AGES from home.
+## The first week of a month: each division's regional, national-level and world-class pros topped back up to
+## World.LEVELS' counts with men new to the division, and its local pros too while it has fewer pros in all than the
+## pyramid's (amateurs turning pro fill the bottom, and men only retire when they're too old, D353); in January
+## (`lads`) its amateurs too, with lads of NEW_AMATEUR_AGES from home.
 static func new_men(w: World, week: int, lads: bool = true) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash([w.seed_value, "new year", week])
@@ -216,15 +245,19 @@ static func new_men(w: World, week: int, lads: bool = true) -> void:
 		for m: Dictionary in w.in_division(division_id, week):
 			var tier: String = String(m.get("tier", "amateur")) if not bool(m.pro) else tier_for(w.average(m))
 			counts[tier] = int(counts.get(tier, 0)) + 1
+		var pros_short: int = 0
 		for level: Dictionary in World.LEVELS:
-			if not bool(level.pro) and not lads:
+			if bool(level.pro):
+				pros_short += int(level.count) - int(counts.get(String(level.id), 0))
+			elif lads:
+				for i in maxi(0, int(level.count) - int(counts.get(String(level.id), 0))):
+					var lad: Dictionary = w._make_man(rng, division_id, level, week, { "age": rng.randf_range(NEW_AMATEUR_AGES[0], NEW_AMATEUR_AGES[1]) })
+					lad.joined = week
+		for level: Dictionary in World.LEVELS:
+			if not bool(level.pro) or (String(level.id) == "local" and pros_short <= 0):
 				continue
-			var missing: int = int(level.count) - int(counts.get(String(level.id), 0))
-			for i in maxi(0, missing):
-				var fixed: Dictionary = {}
-				if not bool(level.pro):
-					fixed.age = rng.randf_range(NEW_AMATEUR_AGES[0], NEW_AMATEUR_AGES[1])
-				var m: Dictionary = w._make_man(rng, division_id, level, week, fixed)
+			for i in maxi(0, int(level.count) - int(counts.get(String(level.id), 0))):
+				var m: Dictionary = w._make_man(rng, division_id, level, week, {})
 				m.joined = week
 
 
@@ -264,9 +297,10 @@ static func _age_a_week(w: World, m: Dictionary, week: int, rng: RandomNumberGen
 	var change: float = change_a_week(w, m, age)
 	m.lv = snappedf(clampf(float(m.lv) + change, -float(StyleLibrary.MAX_LEVEL), float(StyleLibrary.MAX_LEVEL)), 0.001)
 	m.level = roundi(float(m.lv))
+	m.best = maxf(float(m.get("best", 0.0)), snappedf(w.average(m), 0.1))
 	if bool(m.pro):
 		m.tier = tier_for(w.average(m))
-		if rng.randf() < _weekly(_retire_year(m, age)):
+		if rng.randf() < _weekly(retire_chance(w, m, age)):
 			_retire(w, m, week)
 		return
 	var fights: int = int(m.record.win) + int(m.record.loss) + int(m.record.draw)
@@ -282,8 +316,6 @@ static func _age_a_week(w: World, m: Dictionary, week: int, rng: RandomNumberGen
 		turn_pro(m, week)
 		w.results.append({ "kind": "pro", "week": week, "id": String(m.id), "division": String(m.division) })
 		return
-	if age >= 19.0 and fights >= AMATEUR_QUIT_FIGHTS and int(m.record.win) < int(m.record.loss) and rng.randf() < _weekly(AMATEUR_QUIT):
-		_retire(w, m, week)
 
 
 ## An amateur turns pro: his amateur record is kept (`amateur_record`), his pro record starts, and his division is
@@ -316,15 +348,18 @@ static func let_go(w: World, week: int) -> void:
 			w.men.erase(id)
 
 
-static func _retire_year(m: Dictionary, age: float) -> float:
-	var p: float = 0.0
-	if age >= RETIRE_FROM:
-		p = RETIRE_BASE + RETIRE_PER_YEAR * (age - RETIRE_FROM)
+## A pro's yearly chance of retiring at this age (see RETIRE_FROM).
+static func retire_chance(w: World, m: Dictionary, age: float) -> float:
+	if age < RETIRE_FROM:
+		return 0.0
+	if age >= RETIRE_BY:
+		return 1.0
+	var p: float = TOO_OLD * maxf(0.0, float(m.get("best", w.average(m))) - w.average(m) - FALLEN_FREE)
 	var h: Array = m.get("history", [])
 	var recent: Array = h.slice(maxi(0, h.size() - BAD_RUN_FIGHTS))
 	var losses: int = recent.filter(func(x: Array) -> bool: return String(x[2]) == "l").size()
 	var kos: int = recent.filter(func(x: Array) -> bool: return String(x[2]) == "l" and String(x[3]) == "ko").size()
-	if age >= BAD_RUN_FROM and losses >= BAD_RUN_LOSSES:
+	if losses >= BAD_RUN_LOSSES:
 		p += BAD_RUN
 	if kos >= KO_RUN_KOS:
 		p += KO_RUN
