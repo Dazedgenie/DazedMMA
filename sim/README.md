@@ -51,8 +51,9 @@ The career and world simulation (D100), starting with training (`docs/02` §3.5,
 | `training_library.gd` | Loads `data/sessions/*.json` and `data/week_plans/*.json` |
 | `training_camp.gd` | A fighter in training: runs week plans of sessions into attribute points, fatigue, style pushes, chin wear and camp injuries; `profile()` is the trained fighter@1 profile. Run by `tools/camp.gd` |
 | `career.gd` | One fighter's career (docs/03 §10, D301–D304): the calendar, his record, money, offers and the booked fight, saved as career@1 |
-| `matchmaker.gd` | Fight offers (docs/03 §10.4, D304): who's offered from the style sheets, how hard, when, under which rules and for what purse |
+| `matchmaker.gd` | Fight offers (docs/03 §10.4, D304): who's offered from the style sheets, how hard, when, under which rules and for what purse; local amateur cards and the word on turning pro (§11.4, D314) |
 | `coach.gd` | The head coach (docs/03 §11.1, D311): his background and specialty, and what the specialty does to training and to calls |
 | `childhood.gd` | His childhood (docs/03 §11.2, D312): the scenes in data/vignettes, the one per age a career draws, and what his choices make of him (background, flavour, stats, personality, height, people, money) |
 | `gym.gd` | Your gym (docs/03 §11.3, D313): the kinds in data/gyms and the cultures, the three gyms a new career offers, and what a gym does to training |
+| `school.gd` | School weeks (docs/03 §11.4, D314): until 18, term time takes his weekday mornings; the summer holidays and when he leaves |
 | `aftermath.gd` | What a fight does to him afterwards (docs/03 §10.5, D305): the medical suspension and the Chin a knockout takes |

@@ -56,6 +56,19 @@ func country_name(id: String) -> String:
 	return String(_countries.get(id, {}).get("country", ""))
 
 
+## The id of the country with this name ("" when there's none).
+func country_id_of(country: String) -> String:
+	for id: String in _countries:
+		if country_name(id) == country:
+			return id
+	return ""
+
+
+## A country's cities, in the file's order ([] for an unknown id).
+func cities(country_id: String) -> Array:
+	return (_countries.get(country_id, {}).get("cities", []) as Array).duplicate()
+
+
 ## Every hometown as { city, country (its name), country_id }, by country then in the file's order.
 func hometowns() -> Array:
 	var out: Array = []
@@ -81,6 +94,15 @@ func roll(rng: RandomNumberGenerator) -> Dictionary:
 	var town: Dictionary = _pick(rng, hometowns())
 	return { "name": random_name(rng, town.country_id), "nickname": String(_pick(rng, _nicknames)),
 		"hometown": town.city, "country": town.country, "country_id": town.country_id }
+
+
+## As roll(), from one of this country's cities (local amateur cards, D314). Any country when the id is unknown.
+func roll_in(rng: RandomNumberGenerator, country_id: String) -> Dictionary:
+	if not _countries.has(country_id):
+		return roll(rng)
+	var city: String = String(_pick(rng, _countries[country_id].cities))
+	return { "name": random_name(rng, country_id), "nickname": String(_pick(rng, _nicknames)),
+		"hometown": city, "country": country_name(country_id), "country_id": country_id }
 
 
 static func _pick(rng: RandomNumberGenerator, items: Array) -> Variant:

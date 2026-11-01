@@ -156,7 +156,7 @@ func _init() -> void:
 	_week = CampPlanner._button(week_box, "Run this week", func() -> void: week_pressed.emit())
 	CampPlanner.style_fight_button(_week, 30)
 	_advance = CampPlanner._button(week_box, "Advance until something happens", func() -> void: advance_pressed.emit())
-	_advance.tooltip_text = "Runs weeks on his plan until he's hurt or healed, cleared to fight, worn down, has a birthday or offers come in (up to %d weeks)" % Career.ADVANCE_MAX_WEEKS
+	_advance.tooltip_text = "Runs weeks on his plan until he's hurt or healed, cleared to fight, worn down, has a birthday, school breaks up or starts again, or offers come in (up to %d weeks)" % Career.ADVANCE_MAX_WEEKS
 	_pro = CampPlanner._button(week_box, "Turn pro", func() -> void: turn_pro_pressed.emit())
 	_pro.tooltip_text = "From now his fights count on his pro record, under pro rules, for a purse"
 	var title: Button = CampPlanner._button(week_box, "Save and go to the title", func() -> void: title_pressed.emit())
@@ -311,6 +311,9 @@ static func offer_text(c: Career, o: Dictionary, groups: Dictionary = {}) -> Str
 	var nick: String = String(about.get("nickname", ""))
 	lines.append("[b]%s[/b]%s" % [String(p.get("name", "")), (" '%s'" % nick) if nick != "" else ""])
 	lines.append("[color=%s]%s · %s[/color]" % [WARN.to_html(false), String(style.get("name", style_id)), DIFFICULTY_TEXT.get(String(o.get("difficulty", "")), "")])
+	var card: String = Matchmaker.card_text(o.get("card", {}) if o.get("card") is Dictionary else {})
+	if card != "":
+		lines.append("On %s" % card)
 	var frame: Dictionary = p.get("frame", {})
 	lines.append("From %s, %s · age %d · %d cm · %s" % [String(about.get("hometown", "")), String(about.get("country", "")), int(p.get("age", 0)),
 		int(frame.get("height_cm", 0)), String(p.get("stance", "orthodox"))])
@@ -426,8 +429,10 @@ static func week_text(c: Career, reports: Array = []) -> String:
 		lines.append("[color=%s]%d fight offer%s waiting: take one, or let them go.[/color]" % [WARN.to_html(false), c.offers.size(), "" if c.offers.size() == 1 else "s"])
 	if not c.booked.is_empty():
 		var who: Dictionary = c.booked_opponent()
-		lines.append("[color=%s]Booked:[/color] vs %s, %s (%s). His camp runs from Go to camp." % [RED_CORNER.to_html(false),
-			String(who.get("name", "")), c.date_text(5, int(c.booked.get("week", c.week))), rules_name(String(c.booked.get("ruleset", "")))])
+		var on: String = String(c.booked.get("card", {}).get("name", "")) if c.booked.get("card") is Dictionary else ""
+		lines.append("[color=%s]Booked:[/color] vs %s, %s%s (%s). His camp runs from Go to camp." % [RED_CORNER.to_html(false),
+			String(who.get("name", "")), c.date_text(5, int(c.booked.get("week", c.week))), (" on " + on) if on != "" else "",
+			rules_name(String(c.booked.get("ruleset", "")))])
 	if c.trainee.injured_days > 0:
 		lines.append("[color=%s]Hurt (%s): %d days to heal.[/color]" % [BAD.to_html(false), c.trainee.injury_area, c.trainee.injured_days])
 	if c.suspended_days > 0:
@@ -436,8 +441,13 @@ static func week_text(c: Career, reports: Array = []) -> String:
 		lines.append("Free to fight: offers come in every few weeks.")
 	if c.booked.is_empty():
 		lines.append("This week: the %s plan." % String(TrainingLibrary.shared().plan(c.week_plan).get("name", c.week_plan)).to_lower())
-	if Matchmaker.can_turn_pro(c):
-		lines.append("[color=%s]He can turn pro: he's %d with %d amateur fights.[/color]" % [GOOD.to_html(false), c.age(), Matchmaker.amateur_fights(c)])
+	var school: String = School.week_line(c)
+	if school != "":
+		lines.append(school)
+	var advice: Dictionary = Matchmaker.pro_advice(c)
+	if not advice.is_empty():
+		var colour: Color = GOOD if String(advice.word) in [Matchmaker.PRO_WISE, Matchmaker.PRO_LATE] else (WARN if String(advice.word) == Matchmaker.PRO_RISKY else DIM)
+		lines.append("[color=%s]%s[/color]" % [colour.to_html(false), String(advice.text)])
 	if c.gym_owed > 0:
 		lines.append("[color=%s]Owes the gym $%d: he works Saturdays there ($%d a week) until it's paid.[/color]" % [WARN.to_html(false), c.gym_owed, Gym.shift_week_pay()])
 	lines.append("Savings: $%d" % c.money + (" · the gym is $%d a month" % int(c.gym.get("fee", 0)) if not c.gym.is_empty() else ""))
@@ -501,7 +511,9 @@ static func fights_text(c: Career) -> String:
 		if f.has("round"):
 			how += (", " if how != "" else "") + "R%d" % int(f.round)
 		lines.append("[color=%s][b]%s[/b][/color] vs %s%s" % [(mark[1] as Color).to_html(false), mark[0], opponent, (" · " + how) if how != "" else ""])
-		lines.append("[color=%s]%s · %s[/color]" % [DIM.to_html(false), c.date_text(5, int(f.get("week", 0))), "pro" if bool(f.get("pro", false)) else "amateur"])
+		var on: String = String(f.get("card", {}).get("name", "")) if f.get("card") is Dictionary else ""
+		lines.append("[color=%s]%s · %s%s[/color]" % [DIM.to_html(false), c.date_text(5, int(f.get("week", 0))), "pro" if bool(f.get("pro", false)) else "amateur",
+			(" · " + on) if on != "" else ""])
 	return "\n".join(lines)
 
 

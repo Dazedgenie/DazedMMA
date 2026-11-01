@@ -36,6 +36,7 @@ Rules:
 | `data/backgrounds/` | `background@1` | Where a career's fighter comes from: the 12 backgrounds of `docs/02` §1.2 and the 16-year-old each makes (D302, `docs/03` §10.2) |
 | `data/names/` | `names@1` | One country each: its cities (hometowns) and common first and last names, for new careers and generated fighters (D302, D57) |
 | `data/gyms/` | `gym@1` | The five kinds of gym you can coach at: what each trains better and worse, its fee, names and owners (D313, `docs/03` §11.3) |
+| `data/cards/` | `cards@1` | Fight cards' names and venues: `local`, the amateur shows his offers are on (D314, `docs/03` §11.4) |
 | `data/vignettes/` | `vignette@1` | His childhood scenes: one scene at age 8, 12 or 15, with three choices that make him who he is at 16 (D312, `docs/03` §11.2) |
 | `data/combos/` | `combo@1` | Combinations: a named run of strikes a fighter has drilled, the 1-2, a jab into a low kick (D133, `docs/01` §31) |
 
@@ -83,10 +84,10 @@ Versions: position@2 added `transitions`; action@2 moved a takedown's `on_succes
 tried straight after the first move is over, the first that would work; *Feint!* feints, then shoots or ties up off it, D131, `docs/01` §29.3a).
 A now call is one of two kinds (`docs/01` §22.2):
 - an **attempt**: `actions` lists the moves to try, in order (the first that would work right now is used), and no `focus`;
-- a **focus**: `actions` is empty and `focus: {duration_ms, leanings, weights, read_bonus, sprawl_bonus, cover_bonus, struggle, struggle_stamina, hunt, cut}` says how the fighter
+- a **focus**: `actions` is empty and `focus: {duration_ms, leanings, weights, read_bonus, sprawl_bonus, cover_bonus, struggle, struggle_stamina, hunt, cut, grip_bonus}` says how the fighter
   fights for that long: `leanings` adds points to Pace/Range/Base/Risk (−100 to 100), `weights` multiplies the AI's weight for
   an action id or category (0–10), `read_bonus` adds to the chance to read the opponent's moves of a category (0–1),
-  `sprawl_bonus` to the chance to sprawl on a shot (0–1), `cover_bonus` to a rocked fighter's chance to cover up (0–1: Survive!'s 1 makes him, D180), `struggle` to their side's chance to win each beat of a submission (0–0.5: Finish it! for the attacker, Defend the sub! for the defender, D126) `struggle_stamina` the extra stamina each beat costs them, and `hunt: {rate}` sends the fighter on top after a hold for that long (*Go for the finish!*, D200, `docs/01` §25.7): `rate` is his chance a free tick (above 0, up to 1) to go for it or for a position that has one; only for a call with `roles: ["top"]`. `cut` (0–1, *Cut the cage!*, D230) has them cut the cage off at least that hard, from anywhere in the cage, without circling (`01` §20.5). All optional except `duration_ms`.
+  `sprawl_bonus` to the chance to sprawl on a shot (0–1), `cover_bonus` to a rocked fighter's chance to cover up (0–1: Survive!'s 1 makes him, D180), `struggle` to their side's chance to win each beat of a submission (0–0.5: Finish it! for the attacker, Defend the sub! for the defender, D126) `struggle_stamina` the extra stamina each beat costs them, and `hunt: {rate}` sends the fighter on top after a hold for that long (*Go for the finish!*, D200, `docs/01` §25.7): `rate` is his chance a free tick (above 0, up to 1) to go for it or for a position that has one; only for a call with `roles: ["top"]`. `cut` (0–1, *Cut the cage!*, D230) has them cut the cage off at least that hard, from anywhere in the cage, without circling (`01` §20.5). `grip_bonus` (0–0.5, *Hand fight!*, D265, `01` §40.13): added to the odds of every grip move he goes for (a move whose `clinch` or `ground` block has a `grip`). All optional except `duration_ms`.
 
 A read call has `actions` (what the fighter reacts with) and `read: {trigger, duration_ms, attention_cost}`: primed for
 `duration_ms`, it reacts to the trigger once; while primed, Striking and Takedown defense drop by `attention_cost` (0–0.5).
@@ -215,6 +216,17 @@ the most weight over his three choices is his background. `stats` nudges stats (
 family?, named?}`: someone who goes on his card; `family` gives them his surname, `named: false` leaves them called by the role
 alone. Every background must be reachable from every age's scenes (the validator checks).
 
+### cards@1 (example: `local.json`)
+Fight cards (D314, `docs/03` §11.4). `local` names the amateur shows his offers are on; `Matchmaker.local_card` reads it.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `name`, `about` | strings | What these cards are |
+| `names` | strings | A card's name, each with `{city}`; the game adds the card's number ("Leeds Fight Night 4") |
+| `venues` | strings | Where a card is held ("Sports Centre"); a series keeps the same one |
+| `home_share` | 0–1 | The share of cards in his hometown; the rest are in another city of his country |
+| `every_weeks` | 1 or more | A series' number goes up one every this many weeks |
+
 ### names@1 (examples: `england.json`, `brazil.json`)
 A country (D302, D57): `country` (its name), `cities` (the hometowns offered, in order), `first` and `last` (common names).
 Loaded by `NameLibrary` (`sim/world/name_library.gd`); a rolled person's name comes from his hometown's country.
@@ -249,7 +261,7 @@ One kind of training session (`docs/02` §3.5, D125). Loaded by `TrainingLibrary
 | `leanings` | `{leaning: −1–1}` | Style push per session (`docs/11` §4.2) |
 | `chin_wear` | 0–1 | Chin points lost per session (hard sparring) |
 | `minigame` | minigame id or null | The minigame that will play it (D38; only `mitt_work` is built so far, D137): `mitt_work`, `heavy_bag`, `thai_pads`, `wrestling_chain`, `sprawl_reflex`, `rolling_puzzle`, `roadwork`, `film_study`, `hard_sparring`, `meditation` |
-| `career_only` (optional) | bool | Put in by the career, never planned: the camp planner doesn't offer it (the gym shift, D313) |
+| `career_only` (optional) | bool | Put in by the career, never planned: the camp planner doesn't offer it (the gym shift, D313; school and homework, D314) |
 
 ### week_plan@1 (examples: `balanced.json`, `wrestler.json`, `taper.json`)
 A training week (`docs/02` §3.5). Loaded by `TrainingLibrary`.
@@ -296,9 +308,9 @@ each with a `.backup.json` of the save before it). Written by `CareerSaves` (`ga
 | `calendar` | `first_monday` (days since 1 Jan 1970 of week 0's Monday) and `week` (weeks since) |
 | `suspended_days`, `money`, `pro`, `week_plan`, `worn_last_week` | Days of medical suspension left; money; turned pro; the data/week_plans id run between fights; whether training wore him down last week, so *Advance* stops only on the first such week (D303; optional, false when missing) |
 | `next_offers_week` | The first week the next set of fight offers can come in (D304; optional, next week when missing) |
-| `fights` | One entry per fight, oldest first: `result` (`win`, `loss`, `draw`, `no_contest`), `opponent` (an id in `opponents`), `week`, `pro`, and what the fight screen adds (`method`, `round`, `time`, `ruleset`, `purse`, `seed`, `simmed`, and the aftermath: `suspension_days`, `suspension_why`, `chin_lost`, D305) |
+| `fights` | One entry per fight, oldest first: `result` (`win`, `loss`, `draw`, `no_contest`), `opponent` (an id in `opponents`), `week`, `pro`, and what the fight screen adds (`method`, `round`, `time`, `ruleset`, `purse`, `seed`, `simmed`, and the aftermath: `suspension_days`, `suspension_why`, `chin_lost`, D305), and `card` (the local card it was on, as the offer had it, D314; amateur fights only) |
 | `opponents` | `{id: fighter@1 profile}` for everyone he's fought or is booked to fight |
-| `booked`, `offers` | The offers on the table (D304, `docs/03` §10.4): each `{id, profile (the opponent, fighter@1, with `age`), about {nickname, hometown, country}, style (a style sheet id), difficulty (`easier`, `even`, `harder`), week (fight week), expires (its last open week), ruleset, pro, purse ({show, win} in dollars, or {} for an amateur)}`. `booked` is the offer taken, without `profile` (that goes into `opponents`), plus `opponent` (his id), `camp_weeks`, and `fight_week_report` once fight week has run ({} when not booked) |
+| `booked`, `offers` | The offers on the table (D304, `docs/03` §10.4): each `{id, profile (the opponent, fighter@1, with `age`), about {nickname, hometown, country}, style (a style sheet id), difficulty (`easier`, `even`, `harder`), week (fight week), expires (its last open week), ruleset, pro, purse ({show, win} in dollars, or {} for an amateur), card ({name, venue, city}: the local card an amateur offer is on, {} for a pro one, D314)}`. `booked` is the offer taken, without `profile` (that goes into `opponents`), plus `opponent` (his id), `camp_weeks`, and `fight_week_report` once fight week has run ({} when not booked) |
 | `summary` | What the load screen shows without loading the career: `name`, `nickname`, `coach`, `coach_specialty`, `hometown`, `country`, `background`, `age`, `date`, `week`, `pro`, `amateur_record`, `pro_record` |
 | `saved_at`, `saved_unix`, `game` | Added by `CareerSaves`: when (UTC, and Unix seconds for *Continue*), and the game name and Godot version |
 
@@ -308,7 +320,8 @@ action timings are whole ticks · values come from the allowed lists · every re
 flags, stats, sessions, gameplans) points to something that exists · a session's shares add up to 1 · a week plan has 6 days
 of 2 sessions · a background builds on a real fighter with real stats, gifts and flaws · a country has cities and names · a childhood
 scene has three choices leaning toward real backgrounds, and every background can come out of every age · a gym trains real
-session kinds and every background has a gym that suits him.
+session kinds and every background has a gym that suits him · a local card's names say where with `{city}`, and the
+school session is career-only with no XP.
 
 ## 5. Not yet defined (comes with the issue that needs it)
 Technique proficiency and the `techniques` link to `requires_technique` (D6), state/threshold trigger fields (#16), techniques and promotions (Alpha).

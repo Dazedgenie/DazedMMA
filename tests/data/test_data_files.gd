@@ -27,7 +27,7 @@ const ROLES: Array[String] = ["neutral", "top", "bottom", "attacker", "defender"
 ## Letters the fight screen already uses (game/main.gd): reads on Q and E, fast, pause, towel, sounds.
 const LETTER_KEYS_TAKEN: Array[String] = ["Q", "E", "F", "P", "T", "M"]
 ## What a focus call (docs/09 call@2) may hold.
-const FOCUS_KEYS: Array[String] = ["duration_ms", "leanings", "weights", "read_bonus", "sprawl_bonus", "struggle", "struggle_stamina", "cover_bonus", "hunt", "cut"]
+const FOCUS_KEYS: Array[String] = ["duration_ms", "leanings", "weights", "read_bonus", "sprawl_bonus", "struggle", "struggle_stamina", "cover_bonus", "hunt", "cut", "grip_bonus"]
 ## Where a submission (docs/09 action@2 `submission.escape_to`, D126) leaves the fight when the defender gets out.
 const ESCAPES: Array[String] = ["back", "scramble"]
 ## The minigames a session can be played as (D38, docs/02 §3.2).
@@ -98,6 +98,10 @@ const SCHEMAS := {
 	"gym@1": { "folder": "gyms", "fields": {
 		"name": TYPE_STRING, "about": TYPE_STRING, "xp": TYPE_DICTIONARY, "fee": TYPE_ARRAY, "names": TYPE_ARRAY,
 		"owners": TYPE_ARRAY, "backgrounds": TYPE_ARRAY,
+	} },
+	"cards@1": { "folder": "cards", "fields": {
+		"name": TYPE_STRING, "about": TYPE_STRING, "names": TYPE_ARRAY, "venues": TYPE_ARRAY, "home_share": TYPE_FLOAT,
+		"every_weeks": TYPE_FLOAT,
 	} },
 	"names@1": { "folder": "names", "fields": {
 		"country": TYPE_STRING, "cities": TYPE_ARRAY, "first": TYPE_ARRAY, "last": TYPE_ARRAY,
@@ -415,6 +419,9 @@ func test_calls_are_an_attempt_a_focus_or_a_read() -> void:
 			var struggle_stamina: Variant = focus.get("struggle_stamina", 0.0)
 			if not struggle_stamina is float or struggle_stamina < 0.0:
 				problems.append("%s: focus.struggle_stamina is stamina a beat, 0 or more" % where)
+			var grip_bonus: Variant = focus.get("grip_bonus", 0.0)
+			if not grip_bonus is float or grip_bonus < 0.0 or grip_bonus > 0.5:
+				problems.append("%s: focus.grip_bonus is a chance from 0 to 0.5 on every grip move (D265)" % where)
 			if focus.has("hunt"):
 				var hunt: Variant = focus.hunt
 				if not hunt is Dictionary or hunt.keys() != ["rate"] or not hunt.rate is float or hunt.rate <= 0.0 or hunt.rate > 1.0:
@@ -919,4 +926,30 @@ func test_gyms_train_real_session_kinds_and_every_background_has_one_that_suits_
 		for field: String in ["skips", "injury", "sparring_xp"]:
 			if not c.get(field) is float or float(c[field]) < 0.25 or float(c[field]) > 2.0:
 				problems.append("gym culture '%s': %s must be a number from 0.25 to 2" % [id, field])
+	_report(problems)
+
+
+func test_local_cards_name_a_city_and_a_venue() -> void:
+	var problems: Array[String] = []
+	var cards: Dictionary = _items("cards")
+	if not cards.has("local"):
+		problems.append("data/cards/local.json is missing: amateur offers are on local cards (D314)")
+	for id: String in cards:
+		var c: Dictionary = cards[id]
+		var where := "cards '%s'" % id
+		for field: String in ["names", "venues"]:
+			var lines: Variant = c.get(field, [])
+			if not lines is Array or (lines as Array).is_empty() or (lines as Array).any(func(l: Variant) -> bool: return not l is String or String(l).is_empty()):
+				problems.append("%s: %s must be a list of lines" % [where, field])
+		for line: Variant in c.get("names", []):
+			if line is String and not String(line).contains("{city}"):
+				problems.append("%s: the name '%s' says where with {city}" % [where, line])
+		if c.get("home_share") is float and (float(c.home_share) < 0.0 or float(c.home_share) > 1.0):
+			problems.append("%s: home_share is a share from 0 to 1" % where)
+		if c.get("every_weeks") is float and float(c.every_weeks) < 1.0:
+			problems.append("%s: every_weeks is 1 or more" % where)
+	for id: String in [School.SESSION, School.HOMEWORK]:
+		var school: Dictionary = _items("sessions").get(id, {})
+		if school.is_empty() or not bool(school.get("career_only", false)) or float(school.get("xp", 1.0)) != 0.0:
+			problems.append("data/sessions/%s.json: a career-only session with no XP (D314)" % id)
 	_report(problems)

@@ -48,6 +48,11 @@ const WORN_DOWN := "worn_down"
 const OFFERS := "offers"
 ## He couldn't pay the gym fee in full, so the owner gave him Saturday shifts to work it off (D313): { kind, owed }.
 const GYM_SHIFTS := "gym_shifts"
+## School (D314, School): the summer holidays start (every session is his until September), school starts again, and
+## he's left school for good (LEAVES_AT): { kind }.
+const SCHOOL_OUT := "school_out"
+const BACK_TO_SCHOOL := "back_to_school"
+const LEFT_SCHOOL := "left_school"
 ## Days from fight night (Saturday) to the Monday after it.
 const FIGHT_TO_MONDAY: int = 2
 ## How many weeks a year has for a birthday: TrainingCamp ages him 1/52 of a year a week (docs/02 §3.8).
@@ -125,6 +130,7 @@ static func create(profile_in: Dictionary, new_seed: int, extra: Dictionary = {}
 	if extra.get("gym") is Dictionary:
 		c.gym = (extra.gym as Dictionary).duplicate(true)
 	c.trainee.gym = c.gym
+	c._school_week()
 	return c
 
 
@@ -187,7 +193,8 @@ func run_week(plan: Variant = null, played: Dictionary = {}) -> Dictionary:
 		plan_data = plan
 	else:
 		plan_data = _library.plan(week_plan if plan == null else String(plan))
-	var before := { "injured_days": trainee.injured_days, "suspended_days": suspended_days, "age": age() }
+	var before := { "injured_days": trainee.injured_days, "suspended_days": suspended_days, "age": age(),
+		"at_school": School.at_school(self), "holiday": School.on_holiday(self) }
 	var worked: int = 0
 	if gym_owed > 0:
 		plan_data = Gym.with_shifts(plan_data)  # Saturday at the gym, working off what he owes.
@@ -236,6 +243,13 @@ func calendar(weeks: int = CALENDAR_WEEKS) -> Array[Dictionary]:
 	_add_ahead(ahead, to_birthday, { "kind": BIRTHDAY, "age": age() + 1 })
 	if not booked.is_empty() and booked.has("week"):
 		_add_ahead(ahead, int(booked.week) - week, { "kind": FIGHT_NIGHT, "opponent": String(booked.get("opponent", "")) })
+	for i in range(1, weeks):  # School (D314): the week before each change, as run_week() reports it.
+		if not School.at_school(self, week + i - 1):
+			break
+		if not School.at_school(self, week + i):
+			_add_ahead(ahead, i - 1, { "kind": LEFT_SCHOOL })
+		elif School.on_holiday(self, week + i) != School.on_holiday(self, week + i - 1):
+			_add_ahead(ahead, i - 1, { "kind": SCHOOL_OUT if School.on_holiday(self, week + i) else BACK_TO_SCHOOL })
 	var out: Array[Dictionary] = []
 	for i in weeks:
 		out.append({ "week": week + i, "date": short_date(week + i), "events": ahead.get(i, []) })
@@ -263,6 +277,13 @@ func _events_since(before: Dictionary) -> Array:
 		out.append({ "kind": BIRTHDAY, "age": age() })
 	if not booked.is_empty() and int(booked.get("week", -1)) == week:
 		out.append({ "kind": FIGHT_NIGHT, "opponent": String(booked.get("opponent", "")) })
+	if bool(before.get("at_school", false)):
+		if not School.at_school(self):
+			out.append({ "kind": LEFT_SCHOOL })
+		elif School.on_holiday(self) and not bool(before.holiday):
+			out.append({ "kind": SCHOOL_OUT })
+		elif bool(before.holiday) and not School.on_holiday(self):
+			out.append({ "kind": BACK_TO_SCHOOL })
 	return out
 
 
@@ -285,6 +306,12 @@ static func event_text(event: Dictionary) -> String:
 			return "Fight night"
 		GYM_SHIFTS:
 			return "Short on the gym fee: working Saturdays at the gym ($%d)" % int(event.get("owed", 0))
+		SCHOOL_OUT:
+			return "School's out for the summer: every session is his until September"
+		BACK_TO_SCHOOL:
+			return "Back to school: weekday mornings are at school again"
+		LEFT_SCHOOL:
+			return "Done with school: every session is his now"
 	return String(event.kind)
 
 
@@ -371,6 +398,8 @@ func finish_fight(entry: Dictionary) -> int:
 	e.erase("hard")
 	e.opponent = String(booked.get("opponent", ""))
 	e.ruleset = String(booked.get("ruleset", ""))
+	if booked.get("card") is Dictionary and not (booked.card as Dictionary).is_empty():
+		e.card = (booked.card as Dictionary).duplicate()  # The local card it was on (D314).
 	var purse: Dictionary = booked.get("purse", {})
 	var paid: int = int(purse.get("show", 0)) + (int(purse.get("win", 0)) if String(e.result) == "win" else 0)
 	if paid > 0:
@@ -409,12 +438,19 @@ func _after_booking() -> void:
 func end_week() -> int:
 	week += 1
 	suspended_days = maxi(0, suspended_days - DAYS_PER_WEEK)
+	_school_week()
 	if gym.is_empty() or int(date(0, week).month) == int(date(0, week - 1).month):
 		return 0
 	var paid: int = mini(int(gym.get("fee", 0)), money)
 	money -= paid
 	gym_owed += int(gym.get("fee", 0)) - paid
 	return paid
+
+
+## Hands the new week's school slots (School.taken, D314) to his TrainingCamp, so the hub's weeks and a fight camp's
+## both lose them.
+func _school_week() -> void:
+	trainee.taken = School.taken(self)
 
 
 ## Dice for something outside the career's own dice, such as a fight: the same career always hands out the same seeds.
@@ -551,6 +587,7 @@ static func from_dict(data: Dictionary, library: TrainingLibrary = null) -> Care
 	c.trainee.coach_specialty = c.coach_specialty
 	c.trainee.gym = c.gym
 	c.trainee.restore(d.trainee)
+	c._school_week()
 	return c
 
 

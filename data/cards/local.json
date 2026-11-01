@@ -1,0 +1,27 @@
+{
+	"schema": "cards@1",
+	"id": "local",
+	"name": "Local amateur cards",
+	"about": "Amateur shows in his hometown and the cities near it: a few hundred people, a cage hired for the night.",
+	"names": [
+		"{city} Fight Night",
+		"{city} Amateur MMA",
+		"Cage Clash {city}",
+		"Rising Stars {city}",
+		"{city} Fight Series",
+		"Young Guns {city}",
+		"{city} Open Cage"
+	],
+	"venues": [
+		"Sports Centre",
+		"Leisure Centre",
+		"Civic Hall",
+		"Community Centre",
+		"Town Hall",
+		"Social Club",
+		"Exhibition Hall",
+		"Rugby Club"
+	],
+	"home_share": 0.6,
+	"every_weeks": 8
+}

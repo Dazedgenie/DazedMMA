@@ -44,6 +44,8 @@ extends RefCounted
 ##   - follow_down: the opponent is knocked down and this fighter is a grappler: Takedown! (D142)
 ##   - keep_pressing: he isn't an outside fighter (Range 0 or more), he's winning the exchanges on the
 ##     feet (PRESSING_LEAD more damage in the last PRESSING_TICKS) and no other focus is on: Pressure!
+##   - hand_fight: the opponent wins a grip in the clinch or on the ground (D265), with voice to spare
+##     (SPARE_VOICE): Hand fight!
 ## A focus call never replaces a more urgent one still running (Survive!, Pressure!, Ground and
 ## pound!, the struggle calls), and no moment is called again while its last call is still on.
 
@@ -56,7 +58,7 @@ const STYLES: Array[String] = [NONE, IDEAL, AI, SPAM, MASH]
 ## The moments the ideal and AI corners have called since D257. A style written `ideal:fire_back+pass`
 ## (the harness's --corners) uses only these of them, `ideal:` none, to weigh each one on its own.
 const MOMENTS: Array[String] = ["fire_back", "defend_the_shot", "feint", "get_up", "pass",
-	"go_for_the_finish", "collar_tie", "cut_the_cage", "circle_out", "follow_down", "keep_pressing"]
+	"go_for_the_finish", "collar_tie", "cut_the_cage", "circle_out", "follow_down", "keep_pressing", "hand_fight"]
 ## The moments a plain `ideal` or `ai` corner uses: the ones that won fights when tried one by one
 ## (docs/01 §22.10). The others cost wins at these moments and stay for the harness to try again.
 const DEFAULT_MOMENTS: Array[String] = ["fire_back", "get_up", "collar_tie", "cut_the_cage", "follow_down", "keep_pressing"]
@@ -80,6 +82,9 @@ const AI_NOTICE: float = 0.5
 const SPAM_EVERY: int = 15
 ## The ideal and AI corners don't call with less voice than this (it would be garbled).
 const SAVE_VOICE: float = LiveCalls.GARBLED_BELOW
+## Hand fight! (D265) only goes out with at least this much voice: it's called often, and the
+## calls that win fights (Ground and pound!, Survive!, the reads) need the voice more.
+const SPARE_VOICE: float = 90.0
 
 var style: String
 ## The style with its moments or mashed call, as written (`ideal:fire_back`, `mash:takedown`): the harness's label.
@@ -171,6 +176,8 @@ func due(view: FightView, voice: float) -> Array[String]:
 	_watch(view)
 	while not _queue.is_empty() and _queue[0].at <= view.now:
 		var id: String = _queue.pop_front().call_id
+		if id == "hand_fight" and voice < SPARE_VOICE:
+			continue  # Not worth the voice the bigger calls need (D265).
 		var call: Dictionary = _calls.get_call(id)
 		if voice >= SAVE_VOICE + float(call.voice_cost) or voice >= LiveCalls.VOICE_MAX:
 			out.append(id)
@@ -215,6 +222,9 @@ func on_event(view: FightView, event: FightEvent) -> void:
 			_was_top = false  # Every round starts standing.
 			_focus_until = -1
 			_recent.clear()
+		FightEvent.GRAPPLE_WON:
+			if event.actor != me and _is_grip(view, String(event.data.get("action_id", ""))):
+				_moment(view, event.tick, "hand_fight")  # He's won a grip: fight the hands (D265).
 		FightEvent.ACTION_PHASE:
 			if event.actor != me:
 				if event.data.phase == "telegraph":
@@ -246,6 +256,14 @@ func on_event(view: FightView, event: FightEvent) -> void:
 			for read_id: String in _reads:
 				if _reads[read_id].has(tell.action):
 					_decide(event.tick, read_id)
+
+
+## A grip move in the clinch or on the ground (D261, D263, D264): its `clinch` or `ground` block has a `grip`.
+static func _is_grip(view: FightView, action_id: String) -> bool:
+	if not view.actions.has(action_id):
+		return false
+	var action: Dictionary = view.actions.get_action(action_id)
+	return action.get("clinch", {}).has("grip") or action.get("ground", {}).has("grip")
 
 
 ## The moments read off the fight as it stands, not from one event (D257): who's circling, who's cutting.

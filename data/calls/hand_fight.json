@@ -1,0 +1,25 @@
+{
+	"schema": "call@2",
+	"id": "hand_fight",
+	"name": "Hand fight!",
+	"kind": "now",
+	"tier": "intent",
+	"parent": null,
+	"hotkey": "H",
+	"voice_cost": 15,
+	"positions": [
+		"clinch",
+		"full_guard",
+		"half_guard",
+		"side_control",
+		"mount",
+		"back_control",
+		"crucifix"
+	],
+	"actions": [],
+	"focus": {
+		"duration_ms": 10000,
+		"grip_bonus": 0.15
+	},
+	"requires_technique": null
+}
