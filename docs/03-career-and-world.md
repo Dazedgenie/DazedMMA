@@ -321,8 +321,8 @@ coach, the date and the week), his card (background, hometown, stance, height an
 his scouted potential, the background's hook), every stat as a bar and a grade, and *This week*: any injury or suspension,
 the week plan, his savings, *Run this week* (a week between fights, then an autosave) and *Save and go to the title*.
 
-**Not yet:** offers and fights from the hub (D304), the calendar and the rest of the hub (D303), the head coach's look and
-specialty and the childhood scenes (phase 2).
+**Not yet:** offers and fights from the hub (D304), the calendar and the rest of the hub (D303), the head coach's look, and
+the childhood scenes (phase 2; his background and specialty came in §11.1).
 
 **What to change:** a background's strengths, weaknesses, leanings, frame, gift and flaw odds, money and hook in its file in
 `data/backgrounds/`; how high or low a new fighter starts, potential and the gift and flaw odds (`STAT_LOW`, `STAT_HIGH`,
@@ -451,3 +451,52 @@ suspension, and the AI corner coaching a simmed fight for him (D113).
 `tests/sim/world/test_aftermath.gd`, `tests/game/test_main_scene.gd`. Fights don't change (no golden re-pin). Then update
 this section and D305.
 
+
+## 11. The front door (D310–D316)
+
+Phase 2 of the plan (§10, D300): the first half hour of a new career, which is also the tutorial (`07`). Kyle (2026-10-31):
+"Start now". The plan and its 14 questions are in the phase 2 plan doc (my picks are built until Kyle answers). Six pieces, in
+this order (D310), each playable when it lands:
+
+| Piece | Decision | Status |
+|---|---|---|
+| The head coach | D311 | Built (§11.1) |
+| The childhood scenes at 8, 12 and 15, replacing the background list | D312 | Next |
+| The gym walk-in at 16 | D313 | |
+| School weeks and local cards | D314 | |
+| The one-day tournament | D315 | |
+| The story as the tutorial (the first three amateur fights, tip cards, the Coach's Notebook) | D316 | |
+
+### 11.1 The head coach (D311)
+
+You're his head coach (D15). A new career now asks three things about you (D63, D71): your name, who you were before him
+(one of five coach backgrounds in `data/enums/coach_backgrounds.json`: former fighter, wrestling coach, boxing trainer, BJJ
+black belt, PE teacher, each with a line about you) and your starting specialty, which does something small but real
+(`sim/world/coach.gd`):
+
+| Specialty | What it does |
+|---|---|
+| Striking | His Striking stats (`data/enums/stats`) learn 15% faster, from any session |
+| Wrestling | His Wrestling stats learn 15% faster |
+| BJJ | His Grappling stats learn 15% faster |
+| Motivator | Training tires him 10% less, and a party animal skips half as many sessions |
+| Tactician | Your calls reach him a quarter sooner (0.6 s → 0.45 s for a fresh fighter) |
+
+The specialty lives on the career's `TrainingCamp` (`coach_specialty`), so it works between fights and in the camp alike. A
+Tactician's call delay goes into the fight profile's `condition` (`call_delay`, `docs/09`), which `FighterState` reads, so a
+fight still replays from its profiles. Fights without a career coach don't change (no golden re-pin). The hub's top bar says
+who coaches him and the specialty ("coached by Sam Reed (Tactician)"), and his card says what it does. *Roll everything*
+rolls a background and a specialty too. A career saved before D311 loads with a coach who has neither (the save stays
+career@1: the new fields are optional).
+
+Kyle's question on the plan was whether these numbers are right (Q8); they're my picks until he answers. The coach's own
+levels (Clarity, Reading, Corner work, Motivation, Network, `02` §5) and the coach's look come later (phase 4, and with the
+visual work).
+
+**What to change:** the specialties' numbers and words in `sim/world/coach.gd` (`GROUP_XP`, `MOTIVATOR_FATIGUE`,
+`MOTIVATOR_SKIPS`, `TACTICIAN_DELAY`, `SPECIALTIES`, `SPECIALTY_GROUPS`); the coach backgrounds in
+`data/enums/coach_backgrounds.json`; where training reads them in `sim/world/training_camp.gd` (`learning`, `skip_chance`,
+`_add_fatigue`, `fight_profile`); the call delay in `sim/fight/live_calls.gd` (`delay_ticks`); the screen in
+`ui/new_career_screen.gd`, the hub in `ui/career_hub.gd` (`coach_text`, `fighter_card_text`). Tests:
+`tests/sim/world/test_coach.gd`, `tests/sim/fight/test_live_calls.gd`, `tests/ui/test_career_screens.gd`,
+`tests/data/test_data_files.gd`. Then update this section and D311.

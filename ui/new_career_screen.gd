@@ -1,6 +1,7 @@
 class_name NewCareerScreen
 extends PanelContainer
-## New career (docs/03 §10.2, D302): your name as his coach, then the fighter's name, nickname, hometown (real cities,
+## New career (docs/03 §10.2, D302): you, his head coach (your name, your background and your specialty: Coach, D311,
+## §10.6), then the fighter's name, nickname, hometown (real cities,
 ## data/names; the country follows the city), stance and one of the 12 backgrounds (data/backgrounds, docs/02 §1.2).
 ## Roll fills it all at random; the screen opens rolled, so Start career works straight away. Phase 2's childhood
 ## scenes will pick the background instead of the list.
@@ -30,6 +31,11 @@ var _towns: Array = []
 var _background_ids: Array = []
 
 var _coach: LineEdit
+var _coach_background: OptionButton
+var _coach_specialty: OptionButton
+var _coach_about: Label
+var _coach_background_ids: Array = []
+var _specialty_ids: Array = []
 var _name: LineEdit
 var _nickname: LineEdit
 var _hometown: OptionButton
@@ -73,6 +79,24 @@ func _init(p_names: NameLibrary = null, p_backgrounds: BackgroundLibrary = null)
 	var who_box: VBoxContainer = who.get_child(0)
 	who_box.add_child(_heading("You"))
 	_coach = _field(who_box, "Your name (his coach)")
+	_caption(who_box, "Before him, you were a")
+	_coach_background = OptionButton.new()
+	_coach_background_ids = Coach.backgrounds().keys()
+	for id: String in _coach_background_ids:
+		_coach_background.add_item(Coach.background_name(id))
+	_coach_background.item_selected.connect(func(_i: int) -> void: _refresh())
+	who_box.add_child(_coach_background)
+	_caption(who_box, "Your specialty")
+	_coach_specialty = OptionButton.new()
+	_specialty_ids = Coach.specialty_ids()
+	for id: String in _specialty_ids:
+		_coach_specialty.add_item(Coach.specialty_name(id))
+	_coach_specialty.item_selected.connect(func(_i: int) -> void: _refresh())
+	who_box.add_child(_coach_specialty)
+	_coach_about = FightNightCard._label(15, DIM)
+	_coach_about.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_coach_about.custom_minimum_size.x = 400.0
+	who_box.add_child(_coach_about)
 	who_box.add_child(_heading("Your fighter"))
 	_name = _field(who_box, "His name")
 	_nickname = _field(who_box, "Nickname (can be blank)")
@@ -144,6 +168,8 @@ func roll(roll_seed: int) -> void:
 	_coach.text = _names.random_name(rng)
 	_list.select(rng.randi_range(0, _background_ids.size() - 1))
 	_stance.select(1 if rng.randf() < SOUTHPAW_CHANCE else 0)
+	_coach_background.select(rng.randi_range(0, _coach_background_ids.size() - 1))
+	_coach_specialty.select(rng.randi_range(0, _specialty_ids.size() - 1))
 	_refresh()
 
 
@@ -151,10 +177,25 @@ func roll(roll_seed: int) -> void:
 func choices() -> Dictionary:
 	var town: Dictionary = _towns[maxi(_hometown.selected, 0)]
 	return {
-		"coach": _coach.text.strip_edges(), "name": _name.text.strip_edges(), "nickname": _nickname.text.strip_edges(),
+		"coach": _coach.text.strip_edges(), "coach_background": coach_background_id(), "coach_specialty": coach_specialty_id(),
+		"name": _name.text.strip_edges(), "nickname": _nickname.text.strip_edges(),
 		"hometown": town.city, "country": town.country, "background": background_id(),
 		"stance": String(STANCES[maxi(_stance.selected, 0)][1]),
 	}
+
+
+func coach_background_id() -> String:
+	return String(_coach_background_ids[maxi(_coach_background.selected, 0)]) if not _coach_background_ids.is_empty() else ""
+
+
+func coach_specialty_id() -> String:
+	return String(_specialty_ids[maxi(_coach_specialty.selected, 0)])
+
+
+func pick_coach(background: String, specialty: String) -> void:
+	_coach_background.select(maxi(_coach_background_ids.find(background), 0))
+	_coach_specialty.select(maxi(_specialty_ids.find(specialty), 0))
+	_refresh()
 
 
 func background_id() -> String:
@@ -188,7 +229,7 @@ func focus_start() -> void:
 
 
 func text() -> String:
-	return "%s\n%s\n%s" % [JSON.stringify(choices()), _about.get_parsed_text(), _problem.text]
+	return "%s\n%s\n%s\n%s" % [JSON.stringify(choices()), _coach_about.text, _about.get_parsed_text(), _problem.text]
 
 
 ## Sets a field by name, as typing would (for tests): coach, name or nickname.
@@ -199,6 +240,7 @@ func set_field(field: String, value: String) -> void:
 
 
 func _refresh() -> void:
+	_coach_about.text = "%s %s" % [Coach.background_about(coach_background_id()), Coach.specialty_does(coach_specialty_id())]
 	var bg: Dictionary = _backgrounds.get_background(background_id())
 	var lines: Array[String] = []
 	lines.append("[font_size=30][b]%s[/b][/font_size]" % bg.name)

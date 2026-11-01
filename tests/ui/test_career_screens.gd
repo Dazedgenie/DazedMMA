@@ -50,7 +50,7 @@ func test_a_new_career_opens_rolled_and_ready_to_start() -> void:
 	var screen: NewCareerScreen = add_child_autofree(NewCareerScreen.new())
 	screen.roll(4)
 	var picked: Dictionary = screen.choices()
-	for key: String in ["coach", "name", "nickname", "hometown", "country", "background", "stance"]:
+	for key: String in ["coach", "coach_background", "coach_specialty", "name", "nickname", "hometown", "country", "background", "stance"]:
 		assert_ne(String(picked[key]), "", key)
 	assert_eq(screen.problem(), "")
 	watch_signals(screen)
@@ -83,6 +83,22 @@ func test_picking_a_background_shows_what_it_gives_him() -> void:
 	assert_string_contains(screen.text(), "Boxing gym kid")
 	assert_string_contains(screen.text(), "Strong: Boxing")
 	assert_string_contains(screen.text(), "old boxing coach")
+
+
+func test_picking_your_specialty_says_what_it_does_and_the_hub_shows_it() -> void:
+	var screen: NewCareerScreen = add_child_autofree(NewCareerScreen.new())
+	screen.roll(2)
+	screen.pick_coach("pe_teacher", Coach.TACTICIAN)
+	assert_eq(screen.choices().coach_background, "pe_teacher")
+	assert_eq(screen.choices().coach_specialty, Coach.TACTICIAN)
+	assert_string_contains(screen.text(), "taught PE at his school")
+	assert_string_contains(screen.text(), Coach.specialty_does(Coach.TACTICIAN))
+	var choices: Dictionary = screen.choices()
+	var c: Career = Career.start(choices, 3, FighterLibrary.load_dir())
+	var hub: CareerHub = add_child_autofree(CareerHub.new())
+	hub.show_career(c)
+	assert_string_contains(hub.text(), "coached by %s (Tactician)" % choices.coach)
+	assert_string_contains(hub.text(), "Your specialty: Tactician.")
 
 
 func test_the_load_screen_shows_each_slot_and_deletes_only_on_the_second_press() -> void:

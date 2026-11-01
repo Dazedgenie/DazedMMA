@@ -1,0 +1,26 @@
+{
+	"schema": "enum@1",
+	"id": "coach_backgrounds",
+	"values": {
+		"former_fighter": {
+			"name": "Former fighter",
+			"about": "You fought on regional cards for ten years. You know what the cage feels like from the inside."
+		},
+		"wrestling_coach": {
+			"name": "Wrestling coach",
+			"about": "You ran the high school wrestling room for years before MMA came to town."
+		},
+		"boxing_trainer": {
+			"name": "Boxing trainer",
+			"about": "You've held pads for amateur boxers half your life."
+		},
+		"bjj_black_belt": {
+			"name": "BJJ black belt",
+			"about": "You teach jiu-jitsu six nights a week to anyone who walks in."
+		},
+		"pe_teacher": {
+			"name": "PE teacher",
+			"about": "You taught PE at his school and saw something in him nobody else did."
+		}
+	}
+}
