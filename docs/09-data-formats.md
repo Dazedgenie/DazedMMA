@@ -36,7 +36,7 @@ Rules:
 | `data/backgrounds/` | `background@1` | Where a career's fighter comes from: the 12 backgrounds of `docs/02` §1.2 and the 16-year-old each makes (D302, `docs/03` §10.2) |
 | `data/names/` | `names@1` | One country each: its cities (hometowns) and common first and last names, for new careers and generated fighters (D302, D57) |
 | `data/gyms/` | `gym@1` | The five kinds of gym you can coach at: what each trains better and worse, its fee, names and owners (D313, `docs/03` §11.3) |
-| `data/cards/` | `cards@1` | Fight cards' names and venues: `local`, the amateur shows his offers are on (D314, `docs/03` §11.4) |
+| `data/cards/` | `cards@1` | Fight cards' names and venues: `local`, the amateur shows his offers are on (D314, `docs/03` §11.4); `open` and `championship`, the one-day tournaments (D315, §11.5) |
 | `data/vignettes/` | `vignette@1` | His childhood scenes: one scene at age 8, 12 or 15, with three choices that make him who he is at 16 (D312, `docs/03` §11.2) |
 | `data/combos/` | `combo@1` | Combinations: a named run of strikes a fighter has drilled, the 1-2, a jab into a low kick (D133, `docs/01` §31) |
 
@@ -218,6 +218,7 @@ alone. Every background must be reachable from every age's scenes (the validator
 
 ### cards@1 (example: `local.json`)
 Fight cards (D314, `docs/03` §11.4). `local` names the amateur shows his offers are on; `Matchmaker.local_card` reads it.
+`open` and `championship` name the one-day tournaments (D315, §11.5; `Tournament.cards`), named by year instead of numbered.
 
 | Field | Type | Meaning |
 |---|---|---|
@@ -226,6 +227,7 @@ Fight cards (D314, `docs/03` §11.4). `local` names the amateur shows his offers
 | `venues` | strings | Where a card is held ("Sports Centre"); a series keeps the same one |
 | `home_share` | 0–1 | The share of cards in his hometown; the rest are in another city of his country |
 | `every_weeks` | 1 or more | A series' number goes up one every this many weeks |
+| `size` | 4 or 8 | Tournaments only: how many men (`Tournament.SIZES`; `open` is 4, `championship` 8) |
 
 ### names@1 (examples: `england.json`, `brazil.json`)
 A country (D302, D57): `country` (its name), `cities` (the hometowns offered, in order), `first` and `last` (common names).
@@ -308,9 +310,11 @@ each with a `.backup.json` of the save before it). Written by `CareerSaves` (`ga
 | `calendar` | `first_monday` (days since 1 Jan 1970 of week 0's Monday) and `week` (weeks since) |
 | `suspended_days`, `money`, `pro`, `week_plan`, `worn_last_week` | Days of medical suspension left; money; turned pro; the data/week_plans id run between fights; whether training wore him down last week, so *Advance* stops only on the first such week (D303; optional, false when missing) |
 | `next_offers_week` | The first week the next set of fight offers can come in (D304; optional, next week when missing) |
-| `fights` | One entry per fight, oldest first: `result` (`win`, `loss`, `draw`, `no_contest`), `opponent` (an id in `opponents`), `week`, `pro`, and what the fight screen adds (`method`, `round`, `time`, `ruleset`, `purse`, `seed`, `simmed`, and the aftermath: `suspension_days`, `suspension_why`, `chin_lost`, D305), and `card` (the local card it was on, as the offer had it, D314; amateur fights only) |
+| `next_tournament_week` | The first week a one-day tournament can be one of his offers (D315; optional, 12 weeks on when missing) |
+| `medals` | His tournament medals, oldest first: `{medal (gold, silver, bronze), name, week, size}` (D315; optional, none when missing) |
+| `fights` | One entry per fight, oldest first: `result` (`win`, `loss`, `draw`, `no_contest`), `opponent` (an id in `opponents`), `week`, `pro`, and what the fight screen adds (`method`, `round`, `time`, `ruleset`, `purse`, `seed`, `simmed`, and the aftermath: `suspension_days`, `suspension_why`, `chin_lost`, D305), and `card` (the local card it was on, as the offer had it, D314; amateur fights only); a tournament fight adds `tournament` `{name, size, stage (0 = his first round)}`, the day's last adds `medal` when he won one and `withdrew` when he pulled out after it (D315) |
 | `opponents` | `{id: fighter@1 profile}` for everyone he's fought or is booked to fight |
-| `booked`, `offers` | The offers on the table (D304, `docs/03` §10.4): each `{id, profile (the opponent, fighter@1, with `age`), about {nickname, hometown, country}, style (a style sheet id), difficulty (`easier`, `even`, `harder`), week (fight week), expires (its last open week), ruleset, pro, purse ({show, win} in dollars, or {} for an amateur), card ({name, venue, city}: the local card an amateur offer is on, {} for a pro one, D314)}`. `booked` is the offer taken, without `profile` (that goes into `opponents`), plus `opponent` (his id), `camp_weeks`, and `fight_week_report` once fight week has run ({} when not booked) |
+| `booked`, `offers` | The offers on the table (D304, `docs/03` §10.4): each `{id, profile (the opponent, fighter@1, with `age`), about {nickname, hometown, country}, style (a style sheet id), difficulty (`easier`, `even`, `harder`), week (fight week), expires (its last open week), ruleset, pro, purse ({show, win} in dollars, or {} for an amateur), card ({name, venue, city}: the local card an amateur offer is on, {} for a pro one, D314)}`. A tournament offer (D315) has difficulty `tournament`, its first-round man as `profile`, and `tournament` `{size, rest: [{profile, about, style}]}` (the later rounds' men). `booked` is the offer taken, without `profile` (that goes into `opponents`), plus `opponent` (his id), `camp_weeks`, and `fight_week_report` once fight week has run ({} when not booked). A booked tournament has `tournament` `{size, stage (the round he fights next), men: [{id, about, style}], carry (fighter@1 `condition` he takes into the next round), suspension, suspension_why (the day's worst so far)}` in place of `rest`, and `opponent`, `about` and `style` are the next round's man |
 | `summary` | What the load screen shows without loading the career: `name`, `nickname`, `coach`, `coach_specialty`, `hometown`, `country`, `background`, `age`, `date`, `week`, `pro`, `amateur_record`, `pro_record` |
 | `saved_at`, `saved_unix`, `game` | Added by `CareerSaves`: when (UTC, and Unix seconds for *Continue*), and the game name and Godot version |
 

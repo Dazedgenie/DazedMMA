@@ -91,7 +91,7 @@ func _capture() -> void:
 		for example_name: String in examples:
 			var e: Array = examples[example_name]
 			_title.text = _prefix() + example_name.replace("_", " ")
-			ClinchPair.pose(_rigs[0], _rigs[1], ClinchPair.build(e[0], e[1], e[2], e[3]), _pair_frame)
+			ClinchPair.pose(_rigs[0], _rigs[1], ClinchPair.build(e[0], e[1], e[2], e[3], e[4]), _pair_frame)
 			for i in _bodies.size():
 				_bodies[i].follow(_rigs[i])
 			_show_rigs(true)

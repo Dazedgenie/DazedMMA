@@ -946,7 +946,7 @@ func test_gyms_train_real_session_kinds_and_every_background_has_one_that_suits_
 	_report(problems)
 
 
-func test_local_cards_name_a_city_and_a_venue() -> void:
+func test_local_cards_and_tournaments_name_a_city_and_a_venue() -> void:
 	var problems: Array[String] = []
 	var cards: Dictionary = _items("cards")
 	if not cards.has("local"):
@@ -965,6 +965,14 @@ func test_local_cards_name_a_city_and_a_venue() -> void:
 			problems.append("%s: home_share is a share from 0 to 1" % where)
 		if c.get("every_weeks") is float and float(c.every_weeks) < 1.0:
 			problems.append("%s: every_weeks is 1 or more" % where)
+		if c.has("size") and (not c.size is float or not int(c.size) in Tournament.SIZES):
+			problems.append("%s: a tournament's size is one of %s (D315)" % [where, Tournament.SIZES])
+	for path: String in [Tournament.CARDS_SMALL, Tournament.CARDS_BIG]:
+		var t: Dictionary = cards.get(path.get_file().get_basename(), {})
+		if t.is_empty():
+			problems.append("%s is missing: tournaments are named from it (D315)" % path)
+		elif int(t.get("size", 0)) != (Tournament.SIZES[0] if path == Tournament.CARDS_SMALL else Tournament.SIZES[1]):
+			problems.append("%s: size %s should be %d" % [path, t.get("size"), Tournament.SIZES[0] if path == Tournament.CARDS_SMALL else Tournament.SIZES[1]])
 	for id: String in [School.SESSION, School.HOMEWORK]:
 		var school: Dictionary = _items("sessions").get(id, {})
 		if school.is_empty() or not bool(school.get("career_only", false)) or float(school.get("xp", 1.0)) != 0.0:
