@@ -27,6 +27,9 @@ const LIMBS := [
 ]
 
 var skeleton: Skeleton3D
+## The bones' poses shown last frame and the easing time left (ease_over, settle).
+var _shown: Array[Transform3D] = []
+var _ease_left: float = 0.0
 ## The body's scale (the file's units to metres) and the bones' rests in the world when the body stands as the
 ## rig does at rest (facing -Z at the origin).
 var body_scale: float = 1.0
@@ -189,11 +192,13 @@ func follow(rig: FighterRig) -> void:
 ## positions `shoulder_l`, `elbow_l`, `wrist_l`, `hip_l`, `knee_l`, `ankle_l` and the right side's; and,
 ## optionally, `ankle_up`, the driver's ankle height over the sole (the body's ankle sits higher or lower, so
 ## its ankles are moved along the feet to keep the soles where the driver's are). Any skeleton (the rig,
-## today's figures) can drive the body through this.
-func follow_joints(pose: Dictionary) -> void:
+## today's figures) can drive the body through this. `only` ("arm_l", "leg_r", ...) re-poses just those limbs
+## and leaves the rest as it is (D286: a strike thrown from the clinch pose).
+func follow_joints(pose: Dictionary, only: Array[String] = []) -> void:
 	var to_skeleton: Transform3D = skeleton.global_transform.affine_inverse()
-	_follow_trunk(pose, Vector3(pose.pelvis_at), to_skeleton)
-	if pose.has("shoulders_at"):
+	if only.is_empty():
+		_follow_trunk(pose, Vector3(pose.pelvis_at), to_skeleton)
+	if only.is_empty() and pose.has("shoulders_at"):
 		# A driver with a longer trunk than the body's (the faceted pieces): the body's hips move along so its
 		# shoulders are where the driver's are and the arms start from the right place. Its legs take up the gap.
 		var shoulders: Vector3 = (_world_at("LeftArm") + _world_at("RightArm")) / 2.0
@@ -202,6 +207,8 @@ func follow_joints(pose: Dictionary) -> void:
 	for limb: Array in LIMBS:
 		var side: String = limb[3]
 		var arm: bool = limb[4] == "arm"
+		if not only.is_empty() and not only.has(String(limb[4]) + "_" + side):
+			continue
 		var upper: String = limb[0]
 		var lower: String = limb[1]
 		var end: String = limb[2]
@@ -280,6 +287,26 @@ func _reach_with_shoulder(bone: String, root: Vector3, target: Vector3, short: f
 	var now: Basis = (skeleton.global_transform.basis * skeleton.get_bone_global_pose(_ids[bone]).basis).orthonormalized()
 	_set_world(bone, Transform3D(turn * now, pivot), to_skeleton)
 	return pivot + turn * out
+
+
+## Shows the next poses easing in over `seconds` from the pose shown now, instead of jumping to them (D286: from
+## today's figures into the clinch from the rig and back, or from one grip to the next). Run settle after each pose.
+func ease_over(seconds: float) -> void:
+	_ease_left = seconds
+
+
+## Call once a frame after posing the body: while easing (ease_over), each bone is shown part of the way from
+## last frame's pose to the new one, arriving when the time is up.
+func settle(delta: float) -> void:
+	var count: int = skeleton.get_bone_count()
+	if _ease_left > 0.0 and _shown.size() == count:
+		var t: float = clampf(delta / _ease_left, 0.0, 1.0)
+		for id in count:
+			skeleton.set_bone_pose(id, _shown[id].interpolate_with(skeleton.get_bone_pose(id), t))
+		_ease_left -= delta
+	_shown.resize(count)
+	for id in count:
+		_shown[id] = skeleton.get_bone_pose(id)
 
 
 ## Where `bone` is in the world as posed now.

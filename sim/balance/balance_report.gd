@@ -229,11 +229,16 @@ func coaching_checks() -> Array[Dictionary]:
 	for key: String in coached:
 		var ids: PackedStringArray = key.split(":")
 		var who: String = "%s coached against the %s" % [ids[0].capitalize(), ids[1].capitalize()]
-		for style: String in [Corner.IDEAL, Corner.SPAM, Corner.AI]:
+		var others: Array = coached[key].keys().filter(func(style: String) -> bool: return style.contains(":"))
+		others.sort()
+		for style: String in [Corner.IDEAL, Corner.SPAM, Corner.AI] + others:
 			if not coached[key].has(style):
 				continue
 			var change: Dictionary = _change(coached[key][style], plain, ids)
 			if change.is_empty():
+				continue
+			if style.contains(":"):
+				out.append(_info("%s: the %s bot" % [who, style], "D257", change.text))
 				continue
 			match style:
 				Corner.IDEAL:
@@ -376,6 +381,24 @@ static func _csv_cell(value: Variant) -> String:
 	return text
 
 
+## What one side's calls did over these fights (CallOutcomes, D257): for each call, how many a
+## fight were heard and taken, and how many of the exchanges they were for were won, most heard first.
+static func call_line(of_rows: Array[Dictionary], side: String) -> String:
+	var total: Dictionary = {}
+	for row in of_rows:
+		CallOutcomes.add(total, CallOutcomes.from_text(str(row.get("call_outcomes_" + side, ""))))
+	var ids: Array = total.keys()
+	ids.sort_custom(func(a: String, b: String) -> bool: return total[a][0] > total[b][0] or (total[a][0] == total[b][0] and a < b))
+	var parts: PackedStringArray = []
+	var library: CallLibrary = CallLibrary.shared()
+	for id: String in ids:
+		var n: Array = total[id]
+		var name: String = library.get_call(id).name if library.has(id) else id
+		var won: String = "won %d of %d (%s)" % [n[3], n[2], _pct(float(n[3]) / n[2])] if n[2] > 0 else "no exchange came"
+		parts.append("%s %.1f heard, %.1f taken, %s" % [name, float(n[0]) / of_rows.size(), float(n[1]) / of_rows.size(), won])
+	return " · ".join(parts)
+
+
 ## The readable report: one block per pairing, then the targets.
 ## `names` maps fighter id → display name (ids are used when missing). `run` is what the
 ## run was made from (D250): { commit, data, godot, and order when blue stepped first (D252) }, shown first when given.
@@ -403,6 +426,9 @@ func _pair_lines(of_rows: Array[Dictionary], names: Dictionary) -> PackedStringA
 	for side: String in FightSummary.SIDES:
 		if corner(first, side) != Corner.NONE:
 			lines.append("  Corner     %s's corner: %s caller, %.1f calls a fight" % [red if side == "red" else blue, corner(first, side), average(of_rows, "calls_" + side)])
+			var calls: String = call_line(of_rows, side)
+			if calls != "":
+				lines.append("  Calls      %s (D257): %s" % [red if side == "red" else blue, calls])
 		if drilled(first, side) != "":
 			lines.append("  Rules      %s drilled %s, fired %.1f times a fight" % [red if side == "red" else blue, drilled(first, side), average(of_rows, "fired_" + side)])
 	lines.append("  Wins       %s %s · %s %s · draw %s (95%% ranges, D250)" % [red, _share_text(of_rows, win_share(of_rows, "red")),

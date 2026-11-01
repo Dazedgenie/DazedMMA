@@ -1,0 +1,52 @@
+{
+	"schema": "vignette@1",
+	"id": "age8_walk_home",
+	"age": 8,
+	"title": "The walk home",
+	"text": "Two older boys stop him on the walk home from school and want his bag. Nobody else is on the street.",
+	"choices": [
+		{
+			"id": "swing",
+			"text": "He swings at the bigger one.",
+			"outcome": "He gets a black eye and keeps the bag. The older boys leave him alone after that.",
+			"backgrounds": {
+				"street_kid": 3
+			},
+			"stats": {
+				"chin": 4,
+				"heart": 3
+			},
+			"personality": {
+				"ego": 15
+			}
+		},
+		{
+			"id": "run",
+			"text": "He runs, all the way home, faster than he knew he could.",
+			"outcome": "They never catch him. He starts running everywhere after that, just because he can.",
+			"backgrounds": {
+				"track_star": 3
+			},
+			"stats": {
+				"speed": 4,
+				"cardio": 3
+			}
+		},
+		{
+			"id": "hand_over",
+			"text": "He hands the bag over and says nothing at home.",
+			"outcome": "It happens again the next week, and the week after. He gets very good at being quiet.",
+			"backgrounds": {
+				"bullied_underdog": 3
+			},
+			"stats": {
+				"composure": 4,
+				"heart": 2
+			},
+			"personality": {
+				"coachable": 15,
+				"ego": -15
+			}
+		}
+	]
+}

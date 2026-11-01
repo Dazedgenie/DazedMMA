@@ -22,6 +22,7 @@ extends Node3D
 const MIN_WINDOW_SIZE := Vector2i(960, 540)
 const TITLE := "title"
 const NEW_CAREER := "new_career"
+const CHILDHOOD := "childhood"
 const LOAD := "load"
 const CAREER := "career"
 const SETUP := "setup"
@@ -42,6 +43,8 @@ var state: String = TITLE
 ## The title screen and the career's screens (D302).
 var title: TitleScreen
 var new_career: NewCareerScreen
+## His childhood scenes (D312), between the new-career screen and the hub.
+var childhood: ChildhoodScreen
 var load_screen: LoadScreen
 var hub: CareerHub
 ## The career being played (null on Quick fight) and its save slot.
@@ -55,6 +58,8 @@ var record_dir: String = FightRecord.DIR
 ## The last fight's saved record ("" when it wasn't saved).
 var last_record_path: String = ""
 
+var _childhood_choices: Dictionary = {}
+var _childhood_seed: int = 0
 var _actions: ActionLibrary
 var _roster: FighterLibrary
 var _console: DebugConsole
@@ -100,6 +105,11 @@ func _ready() -> void:
 	new_career.start_pressed.connect(start_career)
 	new_career.back_pressed.connect(show_title)
 	ui.add_child(new_career)
+	childhood = ChildhoodScreen.new()
+	childhood.visible = false
+	childhood.finished.connect(_childhood_done)
+	childhood.back_pressed.connect(open_new_career.bind(false))
+	ui.add_child(childhood)
 	load_screen = LoadScreen.new()
 	load_screen.visible = false
 	load_screen.load_pressed.connect(load_career)
@@ -147,21 +157,49 @@ func quick_fight() -> void:
 	setup.focus_start()
 
 
-func open_new_career() -> void:
+## The new-career screen, rolled afresh (`reroll`), or as it was when coming back from his childhood.
+func open_new_career(reroll: bool = true) -> void:
 	_hide_screens()
 	new_career.slot_free = CareerSaves.free_slot(save_dir) >= 0
-	new_career.roll(randi())
+	if reroll:
+		new_career.roll(randi())
 	new_career.visible = true
 	state = NEW_CAREER
 	new_career.focus_start()
 
 
-## Starts a career from the new-career screen's choices in the first free slot, saves it and opens the hub.
+## Starts a career from the new-career screen's choices in the first free slot, saves it and opens the hub. With
+## Play his childhood ticked, his childhood scenes come first (open_childhood) and start the career when they're done.
 func start_career(choices: Dictionary) -> void:
+	if CareerSaves.free_slot(save_dir) < 0:
+		return
+	if bool(choices.get("play_childhood", false)) and not choices.has("childhood"):
+		open_childhood(choices, randi())
+		return
+	_start_career(choices, randi())
+
+
+## His childhood scenes (D312) for these new-career choices, drawn from the seed the career will start with.
+func open_childhood(choices: Dictionary, career_seed: int) -> void:
+	_hide_screens()
+	_childhood_choices = choices
+	_childhood_seed = career_seed
+	childhood.begin(career_seed, choices, _roster)
+	childhood.visible = true
+	state = CHILDHOOD
+
+
+func _childhood_done(picks: Array) -> void:
+	var choices: Dictionary = _childhood_choices.duplicate(true)
+	choices.childhood = picks
+	_start_career(choices, _childhood_seed)
+
+
+func _start_career(choices: Dictionary, career_seed: int) -> void:
 	var slot: int = CareerSaves.free_slot(save_dir)
 	if slot < 0:
 		return
-	career = Career.start(choices, randi(), _roster)
+	career = Career.start(choices, career_seed, _roster)
 	career_slot = slot
 	save_career()
 	show_hub()
@@ -373,7 +411,7 @@ func _hub_to_title() -> void:
 
 func _hide_screens() -> void:
 	_close_camp()
-	for screen: Control in [title, new_career, load_screen, hub, setup, result, hud]:
+	for screen: Control in [title, new_career, childhood, load_screen, hub, setup, result, hud]:
 		screen.visible = false
 	if hud.dialog_open():
 		hud.hide_dialog()
@@ -456,6 +494,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if key == KEY_F3:
 		overlay.visible = not overlay.visible
 		arena.debug_marks = overlay.visible
+		get_viewport().set_input_as_handled()
+		return
+	if key == KEY_ESCAPE and state == CHILDHOOD:
+		open_new_career(false)
 		get_viewport().set_input_as_handled()
 		return
 	if key == KEY_ESCAPE and state in [SETUP, NEW_CAREER, LOAD]:

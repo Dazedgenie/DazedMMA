@@ -6,7 +6,8 @@ checks the smaller desktop window. `character_preview.gd` captures the actual fi
 from the front, three-quarter and back under neutral lighting. Neither writes a saved fight.
 `motion_preview.gd` captures a real seeded Boxer–Kicker fight at 1× speed, with the HUD hidden,
 as 960×540 PNG frames at 24 fps. It also leaves saved fights untouched. Use a fresh output folder
-when changing the duration so old trailing frames do not enter the encoded video.
+when changing the duration so old trailing frames do not enter the encoded video. `--red=`, `--blue=` and `--seed=`
+record another fight (the Muay Thai fighter against the Wrestler on seed 35013 spends most of a minute in the clinch).
 
     godot --script res://tools/visual_preview.gd -- --out=res://build/visual --720p
     godot --script res://tools/character_preview.gd -- --out=res://build/characters
@@ -27,9 +28,11 @@ side on to the camera, at 24 frames a fight second (D282, `docs/13`). `--only=` 
 `rig_preview.gd` shows the rig prototype (D283, `docs/13`): two code skeletons posed against each other in the clinch,
 the double leg, the full guard, the sprawl and getting up, blended from one to the next, with today's figures first for
 the clinch and the guard. `--stills` writes one picture per pose; `--angle=` turns the camera; `--body` puts Kyle's
-skinned Tripo body (`game/bodies/tripo_fighter.glb`, D284; the fight screen draws it too, D285) on the rigs:
+skinned Tripo body (`game/bodies/tripo_fighter.glb`, D284; the fight screen draws it too, D285) on the rigs;
+`--clinch` writes the clinch poses built from grips instead (D286, `clinch-<name>.png`):
 
     godot --script res://tools/rig_preview.gd -- --out=res://build/rig --stills
+    godot --script res://tools/rig_preview.gd -- --out=res://build/clinch --clinch --body
 
 Headless runners and utilities. `run_sim.gd` runs one placeholder fight (a kicker against a boxer) with no scene tree
 and prints a summary; `--fights=N` runs N seeds and counts how they ended:
@@ -48,8 +51,11 @@ and prints a summary; `--fights=N` runs N seeds and counts how they ended:
 
 Coaching bots (D12, `docs/01` §22.7): `--corners` runs every pair again with a bot in a corner, `--coach` says whose
 (`red`, `blue`, or `both`, the default, one after the other). `none` is the engine on its own, `ideal` a good coach,
-`spam` a random call every 1.5 s, `ai` the opponent's AI corner (D68). The summary then checks good coaching is worth
-+10–20% wins and spam less than nothing, pooled over both corners. Wrestler vs Kicker, about 25 minutes:
+`spam` a random call every 1.5 s, `ai` the opponent's AI corner (D68), `mash:pressure` one call repeated as soon as it's
+over (D257). `ideal:fire_back+pass` is the good coach with only those of its D257 moments (`ideal:` the corner from before
+D257; the moments are `Corner.MOMENTS`). The summary then checks good coaching is worth +10–20% wins and spam less than
+nothing, pooled over both corners, and each pairing's **Calls** line says what each call did (heard, taken, won the
+exchange it was called for; `docs/01` §22.10). Wrestler vs Kicker, about 25 minutes:
 
     godot --headless --script res://tools/balance.gd -- --fights=100 --pairs=wrestler:kicker,kicker:wrestler --corners=none,ideal,spam,ai --coach=both
 
@@ -60,7 +66,7 @@ they did to that fighter's wins, next to the same fights without rules.
 The CSV columns are listed in `sim/balance/fight_summary.gd` (`FightSummary.COLUMNS`). The movement columns (D107,
 `docs/01` §20.2) are shares of standing time: `fence_*` near the fence or pinned, `pinned_*` pinned, `centre_*` nearer the
 centre than the opponent, and `chase` one fighter stepping back while the other steps in. `corner_red`/`corner_blue` name the bot in each corner
-and `calls_red`/`calls_blue` count the calls it made; `rules_red`/`rules_blue` name each fighter's drilled rules and
+and `calls_red`/`calls_blue` count the calls it made, `call_outcomes_red`/`_blue` what each did (D257); `rules_red`/`rules_blue` name each fighter's drilled rules and
 `fired_red`/`fired_blue` count how often they fired.
 
 Each run also writes `run.json`: the arguments, the commit, a hash of `data/`, the Godot version, the time taken and the

@@ -2,7 +2,7 @@ extends GutTest
 ## *Hand fight!* (D265, docs/01 §40.13): key H in the clinch and on the ground. For 10 s every grip
 ## the fighter goes for (an underhook in the clinch; a wrist, the collar tie, the half-guard underhook,
 ## a frame or two hands on the choking arm underneath; posturing up, the crossface, flattening the
-## frame or stripping the hands on top) is 15% likelier to work. The AI corner calls it when the
+## frame or stripping the hands on top) is 15% likelier to work. The AI corner's hand_fight moment (D257) calls it when the
 ## other man wins a grip, with voice to spare, and the HUD says who holds what.
 
 const SEED: int = 20261031
@@ -100,22 +100,24 @@ func test_standing_the_call_is_refused_as_impossible() -> void:
 
 
 func test_the_ai_corner_calls_it_when_the_other_man_wins_a_grip() -> void:
-	var sim: FightSim = _fight("clinch", SEED)
-	var corner := Corner.new(Corner.IDEAL, 1)
-	var view: FightView = sim.views[0]
-	view.now = 10
-	corner.on_event(view, FightEvent.new(10, 1, FightEvent.GRAPPLE_WON, 1, { "action_id": "pummel", "result": "underhook" }))
-	view.now += Corner.IDEAL_REACTION
-	assert_eq(corner.due(view, LiveCalls.VOICE_MAX), ["hand_fight"] as Array[String])
-	corner.on_event(view, FightEvent.new(20, 1, FightEvent.GRAPPLE_WON, 0, { "action_id": "pummel", "result": "underhook" }))
-	view.now += Corner.IDEAL_REACTION
-	assert_eq(corner.due(view, LiveCalls.VOICE_MAX), [] as Array[String], "not for his own grip")
-	corner.on_event(view, FightEvent.new(30, 1, FightEvent.GRAPPLE_WON, 1, { "action_id": "double_leg", "result": "success" }))
-	view.now += Corner.IDEAL_REACTION
-	assert_eq(corner.due(view, LiveCalls.VOICE_MAX), [] as Array[String], "not for a takedown")
-	corner.on_event(view, FightEvent.new(40, 1, FightEvent.GRAPPLE_WON, 1, { "action_id": "wrist_control", "result": "wrist" }))
-	view.now += Corner.IDEAL_REACTION
-	assert_eq(corner.due(view, Corner.SPARE_VOICE - 1.0), [] as Array[String], "not without voice to spare for the bigger calls")
+	# The hand_fight moment on its own (D257's `ideal:<moments>`), one corner a case, so the moment's
+	# "not again while it's on" doesn't hide the case being tested.
+	var cases: Array = [
+		[1, "pummel", LiveCalls.VOICE_MAX, ["hand_fight"], "the other man's underhook"],
+		[0, "pummel", LiveCalls.VOICE_MAX, [], "not for his own grip"],
+		[1, "double_leg", LiveCalls.VOICE_MAX, [], "not for a takedown"],
+		[1, "wrist_control", Corner.SPARE_VOICE - 1.0, [], "not without voice to spare for the bigger calls"],
+	]
+	for case: Array in cases:
+		var sim: FightSim = _fight("clinch", SEED)
+		var corner := Corner.new("ideal:hand_fight", 1)
+		var view: FightView = sim.views[0]
+		view.now = 10
+		corner.on_event(view, FightEvent.new(10, 1, FightEvent.GRAPPLE_WON, case[0], { "action_id": case[1], "result": "won" }))
+		view.now += Corner.IDEAL_REACTION
+		var want: Array[String] = []
+		want.assign(case[3])
+		assert_eq(corner.due(view, case[2]), want, case[4])
 
 
 func test_the_hud_says_who_holds_what() -> void:

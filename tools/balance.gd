@@ -6,7 +6,8 @@ extends MainLoop
 ## Usage:
 ##   godot --headless --script res://tools/balance.gd [-- --fights=100 --seed=1 --pairs=kicker:boxer,check_red:check_blue --ruleset=pro --out=build/balance --corners=none,ideal,spam]
 ##
-## --corners runs every pair once per coaching bot (Corner styles: none, ideal, ai, spam),
+## --corners runs every pair once per coaching bot (Corner styles: none, ideal, ai, spam, mash:<call>;
+## ideal:fire_back+pass for the ideal bot with only those of its D257 moments),
 ## on the same seeds, with the bot in red's corner, then in blue's (--coach=red or blue for
 ## one side only; the other corner makes no calls), so the report can check what good
 ## coaching and spam do to the coached fighter's wins (D12).
@@ -85,8 +86,8 @@ func _initialize() -> void:
 			printerr("A pair is two fighter ids joined by a colon, e.g. kicker:boxer (got '%s')" % pair)
 			return
 	for style in corners:
-		if style not in Corner.STYLES:
-			printerr("No coaching bot '%s' (have: %s)" % [style, ", ".join(Corner.STYLES)])
+		if not Corner.valid(style):
+			printerr("No coaching bot '%s' (have: %s; ideal:a+b or ai:a+b for only some of its moments, %s; mash:<call id>)" % [style, ", ".join(Corner.STYLES), "+".join(Corner.MOMENTS)])
 			return
 	var rules: Ruleset = Ruleset.load_id(ruleset_id)
 	var jobs: Array[Dictionary] = HarnessJobs.plan(pairs, fights, first_seed, corners, coach_sides, drilled)

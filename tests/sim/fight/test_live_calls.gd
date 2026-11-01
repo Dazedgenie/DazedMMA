@@ -140,6 +140,13 @@ func test_the_call_delay_is_6_ticks_shorter_with_fight_iq_and_trust_and_longer_w
 	assert_eq(calls.delay_ticks(view), 7)
 
 
+func test_a_tactician_head_coach_takes_a_quarter_off_the_call_delay() -> void:
+	var sim: FightSim = _sim()
+	var f: FighterState = sim.fighters[0]
+	f.call_delay = Coach.TACTICIAN_DELAY
+	assert_eq(_calls(sim).delay_ticks(sim.views[0]), 5, "6 × 0.75 = 4.5, rounded to 5 (D311)")
+
+
 func test_ego_stubbornness_distrust_and_panic_make_a_fighter_ignore_calls_more() -> void:
 	var sim: FightSim = _sim()
 	var calls: LiveCalls = _calls(sim)

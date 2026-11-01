@@ -31,7 +31,8 @@ const DELAY_PER_IQ: float = 0.25
 const DELAY_PER_TRUST: float = 0.2
 ## Being tired adds its stat penalty (up to 30%), a hurt head up to another 30%.
 const DELAY_PER_HEAD_HURT: float = 0.3
-## Crowd noise and the coach's level (D15) arrive with venues and careers; 1.0 = no effect.
+## Crowd noise and the coach's level (D15) arrive with venues and careers; 1.0 = no effect. A Tactician head coach
+## (D311) already takes a quarter off through the fighter's call_delay (his profile's condition).
 const CROWD_NOISE: float = 1.0
 const COACH_LEVEL: float = 1.0
 
@@ -170,7 +171,7 @@ func delay_ticks(view: FightView, garbled: bool = false) -> int:
 	ticks *= 1.0 - DELAY_PER_IQ * (f.effective_stat("fight_iq") - FighterState.DEFAULT_STAT) / 50.0
 	ticks *= 1.0 - DELAY_PER_TRUST * (trust - TRUST_START) / 50.0
 	ticks *= 1.0 + f.tired() + DELAY_PER_HEAD_HURT * f.hurt("head")
-	ticks *= CROWD_NOISE * COACH_LEVEL
+	ticks *= CROWD_NOISE * COACH_LEVEL * f.call_delay
 	if garbled:
 		ticks *= GARBLED_DELAY
 	return maxi(f.reaction_ticks(), roundi(ticks))

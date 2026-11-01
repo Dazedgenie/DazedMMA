@@ -1,10 +1,12 @@
 extends SceneTree
 ## Fixed-frame capture of a real seeded fight. Needs a display; never saves a fight.
+## --red=, --blue= and --seed= pick another fight (default the Boxer against the Kicker, seed 35003).
 ## Encode with ffmpeg -framerate 24 -i build/motion/frame-%04d.png -c:v libx264 -pix_fmt yuv420p build/motion.mp4
 
 const FPS: int = 24
 var _out := "res://build/motion"
 var _seconds: float = 12.0
+var _setup := {"red": "boxer", "blue": "kicker", "seed": 35003, "sound_volume": 0.0, "easy": true}
 
 
 func _initialize() -> void:
@@ -13,6 +15,10 @@ func _initialize() -> void:
 			_out = arg.trim_prefix("--out=")
 		if arg.begins_with("--seconds="):
 			_seconds = float(arg.trim_prefix("--seconds="))
+		for key: String in ["red", "blue", "seed"]:
+			if arg.begins_with("--%s=" % key):
+				var value: String = arg.trim_prefix("--%s=" % key)
+				_setup[key] = int(value) if key == "seed" else value
 	_capture.call_deferred()
 
 
@@ -21,7 +27,7 @@ func _capture() -> void:
 	var main: Node3D = load("res://game/main.tscn").instantiate()
 	root.add_child(main)
 	main.record_dir = ""
-	main.start_fight({"red": "boxer", "blue": "kicker", "seed": 35003, "sound_volume": 0.0, "easy": true})
+	main.start_fight(_setup)
 	main.set_process(false)
 	main.arena.set_process(false)
 	main.hud.visible = false

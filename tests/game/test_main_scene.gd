@@ -218,6 +218,7 @@ func test_a_new_career_is_saved_and_opens_on_the_hub() -> void:
 	_main.title.press("New career")
 	assert_true(_main.new_career.visible)
 	_main.new_career.set_field("name", "Danny Hill")
+	_main.new_career.set_play_childhood(false)
 	_main.new_career.press_start()
 	assert_true(_main.hub.visible)
 	assert_false(_main.new_career.visible)
@@ -227,8 +228,33 @@ func test_a_new_career_is_saved_and_opens_on_the_hub() -> void:
 	assert_eq(CareerSaves.info(0, SAVE_DIR).name, "Danny Hill", "saved as soon as it starts")
 
 
+func test_a_new_career_plays_his_childhood_first_and_back_keeps_the_choices() -> void:
+	_main.open_new_career()
+	_main.new_career.set_field("name", "Danny Hill")
+	_main.new_career.press_start()
+	assert_true(_main.childhood.visible, "Play his childhood is on by default")
+	assert_false(_main.hub.visible)
+	_main.childhood.back_pressed.emit()
+	assert_true(_main.new_career.visible)
+	assert_eq(_main.new_career.choices().name, "Danny Hill", "back keeps what he'd filled in")
+	_main.new_career.press_start()
+	for i in 3:
+		_main.childhood.press_choice(1)
+		_main.childhood.press_next()
+	_main.childhood.press_start()
+	assert_true(_main.hub.visible)
+	assert_eq(_main.career.fighter_name(), "Danny Hill")
+	assert_eq(_main.career.childhood.picks.size(), 3)
+	var shown: Dictionary = _main.childhood.he_became()
+	assert_eq(_main.career.fighter.frame, shown.frame, "Who he became showed the man he is")
+	assert_eq(_main.career.fighter.gifts, shown.gifts)
+	assert_eq(_main.career.about.background, String(Childhood.shared().tally(_main.career.childhood.picks).background))
+	assert_eq(CareerSaves.load_slot(0, SAVE_DIR).childhood.picks, _main.career.childhood.picks, "saved with him")
+
+
 func test_run_this_week_moves_the_career_on_and_saves_it() -> void:
 	_main.open_new_career()
+	_main.new_career.set_play_childhood(false)
 	_main.new_career.press_start()
 	_main.hub.press_week()
 	assert_eq(_main.career.week, 1)
@@ -239,6 +265,7 @@ func test_run_this_week_moves_the_career_on_and_saves_it() -> void:
 func test_continue_picks_the_career_back_up_where_it_was() -> void:
 	_main.open_new_career()
 	_main.new_career.set_field("name", "Danny Hill")
+	_main.new_career.set_play_childhood(false)
 	_main.new_career.press_start()
 	_main.hub.press_week()
 	_main.hub.title_pressed.emit()
@@ -254,9 +281,11 @@ func test_continue_picks_the_career_back_up_where_it_was() -> void:
 func test_load_career_lists_the_slots_and_loads_one() -> void:
 	_main.open_new_career()
 	_main.new_career.set_field("name", "First Man")
+	_main.new_career.set_play_childhood(false)
 	_main.new_career.press_start()
 	_main.open_new_career()
 	_main.new_career.set_field("name", "Second Man")
+	_main.new_career.set_play_childhood(false)
 	_main.new_career.press_start()
 	assert_eq(_main.career_slot, 1, "a second career takes the next slot")
 	_main.show_title()
@@ -271,6 +300,7 @@ func test_load_career_lists_the_slots_and_loads_one() -> void:
 
 func test_advance_runs_weeks_until_something_happens_and_saves() -> void:
 	_main.open_new_career()
+	_main.new_career.set_play_childhood(false)
 	_main.new_career.press_start()
 	_main.career.week_plan = "time_off"
 	_main.career.next_offers_week = 1000  # No offers coming (D304).
@@ -283,6 +313,7 @@ func test_advance_runs_weeks_until_something_happens_and_saves() -> void:
 
 func test_a_career_fight_goes_from_the_offer_through_the_camp_to_his_record() -> void:
 	_main.open_new_career()
+	_main.new_career.set_play_childhood(false)
 	_main.new_career.press_start()
 	_main.career.week_plan = "time_off"
 	_main.hub.press_week()
@@ -325,6 +356,7 @@ func test_a_career_fight_goes_from_the_offer_through_the_camp_to_his_record() ->
 
 func test_simming_a_career_fight_goes_straight_to_the_result() -> void:
 	_main.open_new_career()
+	_main.new_career.set_play_childhood(false)
 	_main.new_career.press_start()
 	_main.career.week_plan = "time_off"
 	_main.hub.press_week()
