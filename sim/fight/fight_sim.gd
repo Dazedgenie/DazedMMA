@@ -320,6 +320,8 @@ const SOLD_CUT_TICKS: int = 5
 ## least this much of it goes round the opponent (an outside fighter's everyday drift
 ## sideways, 0.25 × how far outside they lean, doesn't count).
 const CIRCLING_FROM: float = 0.4
+## How far back the other man remembers a fighter pressing on a call (D258), in seconds.
+const PRESS_SECONDS: int = 60
 ## Walking pace and the footwork contest are worked out again every this many ticks.
 const FEET_EVERY: int = 5
 
@@ -555,6 +557,7 @@ func is_over() -> bool:
 func tick() -> void:
 	if _fight_over:
 		return
+	_count_pressing()
 	var first: int = first_at(now)
 	step_order[0] = first
 	step_order[1] = 1 - first
@@ -624,6 +627,30 @@ func band() -> String:
 	if not situation.is_standing():
 		return Octagon.BAND_CLINCH
 	return Octagon.band(distance())
+
+
+## Each fighter's pressing on a call (D258) over the last PRESS_SECONDS, a second at a time: [red, blue],
+## each a ring of ticks pressed in each second.
+var _pressed: Array[PackedInt32Array] = [PackedInt32Array(), PackedInt32Array()]
+
+
+func _count_pressing() -> void:
+	var second: int = (now / FightClock.TICKS_PER_SECOND) % PRESS_SECONDS
+	for i in 2:
+		if _pressed[i].is_empty():
+			_pressed[i].resize(PRESS_SECONDS)
+		if now % FightClock.TICKS_PER_SECOND == 0:
+			_pressed[i][second] = 0
+		if decisions[i].calls.pressing():
+			_pressed[i][second] += 1
+
+
+## The share of the last PRESS_SECONDS fighter i spent pressing on a call (D258), 0–1.
+func pressed_share(i: int) -> float:
+	var ticks: int = 0
+	for n in _pressed[i]:
+		ticks += n
+	return float(ticks) / float(PRESS_SECONDS * FightClock.TICKS_PER_SECOND)
 
 
 ## "centre", "near" or "pinned" for fighter i.

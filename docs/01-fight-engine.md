@@ -1476,7 +1476,49 @@ wins, as did Collar tie! against a grappler (−13 to 0).
 **What it says.** The corner is a better upper bound now: +8 points on average, against +3 before, and no line clearly worse.
 Calls that keep the fight where a fighter wants it (Cut the cage!, Pressure!, Fire back!) are where coaching pays; calls that
 change what he does on the ground mostly cost him. Only 4 of the 18 lines are in D12's +10–20% band. And mashing Pressure!
-beats good coaching for several fighters (BJJ +17, Muay Thai +14, the Counter-striker +13), so repeating it has no cost yet.
+beats good coaching for several fighters (BJJ +17, Muay Thai +14, the Counter-striker +13), so repeating it had no cost: §22.11 (D258) makes repeats wear off.
+
+### 22.11 Calling Pressure! again and again (D258)
+The key masher (§22.10) showed that shouting Pressure! the moment the last one ends beat good coaching for several fighters.
+Kyle picked "Opponent reads it" (2026-10-31): a man who keeps coming the same way gets timed. The read alone barely changed
+it, so Kyle then picked "Add repeats wearing off" (2026-11-01): each Pressure! called soon after the last one tilts him less.
+
+**What changed.**
+
+| Part | Rule | Number (`sim/fight/`) |
+|---|---|---|
+| **Repeats wear off** | A focus call taken again pushes his leanings less for each time the same call started in the last minute: the second in a minute pushes 70% as hard, the third 49%. A minute after the last one it's fresh. Every focus call works this way, not just Pressure!; the fighter says so when he answers (*"for 15 s, 70% as hard: called again"*) | `LiveCalls.REPEAT_TICKS` 600 (60 s), `REPEAT_WEAR` 0.7 |
+| **A repeat costs stamina** | Built, switched off: each repeat would cost this much stamina as it starts. At 2 it cost good coaching as much as mashing (Pressure wrestler vs Counter-striker +6 → −14, Muay Thai vs Boxer +3 → −7) | `LiveCalls.REPEAT_STAMINA` 0 |
+| **He reads the pressure** | A fighter is *pressing* while a focus call pushes his Range up at least 30 (Pressure!, Cut the cage!). Once he has pressed more than half of the last minute, the other man reads his moves better and meets him on the way in more often: up to +30% to both, all of it once he's pressed the whole minute. His own style's leaning in never counts, only a call's | `LiveCalls.PRESSING_RANGE` 30, `FightSim.PRESS_SECONDS` 60, `FighterAI.PRESS_READ_FROM` 0.5, `PRESS_READ` 0.3 |
+
+**Measured** (seeds 101–200, 100 fights a pairing per corner, both corners pooled, change in the coached fighter's wins against
+the same fights without calls; paired 95% ranges are about ±12 on each line):
+
+| Coached vs opponent | Ideal before | Ideal after | `mash:pressure` before | `mash:pressure` after |
+|---|---|---|---|---|
+| Muay Thai vs BJJ | −1 | +1 | +3 | −1 |
+| BJJ vs Muay Thai | +16 | +11 | +25 | +25 |
+| Pressure wrestler vs Counter-striker | +6 | +4 | −1 | +8 |
+| Counter-striker vs Pressure wrestler | +1 | +2 | +7 | +3 |
+| Muay Thai vs Boxer | +3 | +3 | **+13** | **+2** |
+| Boxer vs Muay Thai | +14 | +17 | +9 | +7 |
+| Boxer vs Kicker | +32 | +36 | +27 | +25 |
+| Kicker vs Boxer | +4 | −1 | −34 | −27 |
+| Wrestler vs Kicker | +24 | +26 | +20 | +19 |
+| Kicker vs Wrestler | −1 | −6 | −14 | −13 |
+| Brawler vs Karate | +16 | +17 | −1 | +8 |
+| Karate vs Brawler | +2 | +3 | −13 | −23 |
+| **Average** | **+9.7** | **+9.4** | **+3.4** | **+2.8** |
+
+**What it says.** Good coaching is unchanged, and mashing loses its clearest win (Muay Thai against the Boxer, +13 → +2); the
+Counter-striker's goes from +7 to +3. BJJ against Muay Thai is still +25 mashed, more than the ideal corner's +11: his gain
+isn't the repeats, it's pressing whenever he's standing, which closes the distance and gets him to the ground. That is good
+advice for him rather than abuse; a later step could have the ideal corner call Pressure! for a grappler who wants the ground.
+
+**To change it.** Make repeats wear off faster or slower with `REPEAT_WEAR` (1.0 turns it off) and `REPEAT_TICKS`; turn the
+stamina cost on with `REPEAT_STAMINA` (a heavy punch costs about 6); make the read stronger with `PRESS_READ` or start it
+sooner with `PRESS_READ_FROM`. Tests: `tests/sim/fight/test_pressure_read.gd`. Compare with
+`tools/balance.gd -- --fights=100 --seed=101 --pairs=muay_thai:bjj,pressure_wrestler:counter_striker,muay_thai:boxer,boxer:kicker,wrestler:kicker,brawler:karate --corners=none,ideal,mash:pressure`.
 
 ## 23. Drilled rules in the engine (#17, D82, D116)
 How §6.0's second layer works in the code (`sim/fight/drilled_rules.gd`, one per fighter, third in the §19 stack: under live
