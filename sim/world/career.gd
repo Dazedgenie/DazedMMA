@@ -103,6 +103,11 @@ var offers: Array = []
 var next_offers_week: int = 1
 ## The week plan run between fights: a data/week_plans id.
 var week_plan: String = BETWEEN_PLAN
+## The first week a one-day tournament (Tournament, D315) can be offered: one of the next set of offers is a
+## tournament from this week on, while he's amateur.
+var next_tournament_week: int = Tournament.FIRST_WEEK
+## His tournament medals, oldest first: { medal (Tournament.GOLD, SILVER or BRONZE), name, week, size }.
+var medals: Array = []
 
 var _dice := RandomNumberGenerator.new()
 var _library: TrainingLibrary
@@ -324,6 +329,10 @@ func _check_offers(events: Array) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = ("offers:%d:%d" % [career_seed, week]).hash()
 	offers = matchmaker().make_offers(self, rng)
+	if not pro and week >= next_tournament_week and not offers.is_empty():
+		# Every few months one of the offers is a one-day tournament instead (D315).
+		offers[-1] = matchmaker().make_tournament(self, rng, 0, offers.size() - 1)
+		next_tournament_week = week + rng.randi_range(Tournament.GAP_MIN, Tournament.GAP_MAX)
 	next_offers_week = week + Matchmaker.OPEN_WEEKS + rng.randi_range(Matchmaker.GAP_MIN, Matchmaker.GAP_MAX)
 	events.append({ "kind": OFFERS, "count": offers.size() })
 
@@ -357,6 +366,13 @@ func accept(id: String) -> bool:
 	booked.opponent = String(o.profile.id)
 	booked.camp_weeks = int(o.week) - week + 1
 	add_opponent(o.profile)
+	if o.get("tournament") is Dictionary:
+		# A tournament (D315): every man he'd meet is known now, one a round; the first is booked.opponent.
+		var men: Array = [{ "id": String(o.profile.id), "about": o.get("about", {}), "style": String(o.get("style", "")) }]
+		for m: Dictionary in o.tournament.get("rest", []):
+			add_opponent(m.profile)
+			men.append({ "id": String(m.profile.id), "about": m.get("about", {}), "style": String(m.get("style", "")) })
+		booked.tournament = { "size": int(o.tournament.size), "stage": 0, "men": men, "carry": {}, "suspension": 0 }
 	offers.clear()
 	trainee.start_camp()
 	return true
@@ -392,10 +408,19 @@ func booked_opponent() -> Dictionary:
 ## takes it, without `opponent` (the booked one), and `hard` (Aftermath.is_hard) when it was a hard fight for him.
 ## Then the aftermath (D305, Aftermath.of): a medical suspension counted from fight night, and the Chin a knockout
 ## takes for good; the fight's entry keeps them (`suspension_days`, `suspension_why`, `chin_lost`). Returns what he was paid.
+##
+## In a tournament (D315) `entry` may also give `tank` (the gas tank he went in with) and `hurt` (his damage at the end,
+## area → 0–1): a win before the final keeps him booked for the next round, carrying that (Tournament.carry_over),
+## and the week isn't over; a loss, a draw or the final ends his day with any medal (`medals`, and the fight's
+## entry's `medal`). The suspension is the day's worst, from the end of it.
 func finish_fight(entry: Dictionary) -> int:
 	var e: Dictionary = entry.duplicate(true)
 	var hard: bool = bool(e.get("hard", false))
 	e.erase("hard")
+	var tank_in: float = float(e.get("tank", 1.0))
+	var hurt_out: Dictionary = e.get("hurt", {}) if e.get("hurt") is Dictionary else {}
+	e.erase("tank")
+	e.erase("hurt")
 	e.opponent = String(booked.get("opponent", ""))
 	e.ruleset = String(booked.get("ruleset", ""))
 	if booked.get("card") is Dictionary and not (booked.card as Dictionary).is_empty():
@@ -408,20 +433,113 @@ func finish_fight(entry: Dictionary) -> int:
 	e.suspension_days = int(after.days)
 	e.chin_lost = float(after.chin)
 	e.suspension_why = String(after.why)
+	var t: Dictionary = booked.get("tournament", {}) if booked.get("tournament") is Dictionary else {}
+	var days: int = int(after.days)
+	if not t.is_empty():
+		var stage: int = int(t.stage)
+		var won: bool = String(e.result) == "win"
+		e.tournament = { "name": tournament_name(), "size": int(t.size), "stage": stage }
+		if won and stage < Tournament.rounds(int(t.size)) - 1:
+			add_fight(e)
+			money += paid
+			trainee.stats["chin"] = maxf(0.0, trainee.stat("chin") - float(after.chin))
+			t.stage = stage + 1
+			t.carry = Tournament.carry_over(tank_in, hurt_out)
+			if days > int(t.get("suspension", 0)):
+				t.suspension = days  # The day's worst so far, given when his day's over.
+				t.suspension_why = String(after.why)
+			var next: Dictionary = t.men[stage + 1]
+			booked.opponent = String(next.id)
+			booked.about = next.get("about", {})
+			booked.style = String(next.get("style", ""))
+			return paid  # Through to the next round: the same day, so the week isn't over.
+		if int(t.get("suspension", 0)) > days:
+			days = int(t.suspension)
+			e.suspension_days = days
+			e.suspension_why = "%s earlier in the day" % String(t.get("suspension_why", "a hard fight"))
+		e.medal = Tournament.medal(int(t.size), stage, won)
+		if String(e.medal) != "":
+			medals.append({ "medal": String(e.medal), "name": tournament_name(), "week": week, "size": int(t.size) })
+		for id: String in _unmet().slice(1):
+			opponents.erase(id)  # The men after this round he never met.
 	add_fight(e)
 	money += paid
 	trainee.stats["chin"] = maxf(0.0, trainee.stat("chin") - float(after.chin))
 	_after_booking()
 	# The suspension runs from fight night (Saturday): by Monday two of its days are gone.
-	suspended_days = maxi(suspended_days, int(after.days) - FIGHT_TO_MONDAY)
+	suspended_days = maxi(suspended_days, days - FIGHT_TO_MONDAY)
 	return paid
 
 
 ## The booked fight is off (pulled out, or the doctor wouldn't clear him, D135): the camp's wasted, the fight week's
 ## done and the man he'd have fought goes from `opponents`.
+##
+## In a tournament the men he hasn't met yet go. Pulling out between rounds (withdraw()) is the tournament's own way out.
 func cancel_fight() -> void:
-	opponents.erase(String(booked.get("opponent", "")))
+	for id: String in _unmet():
+		opponents.erase(id)
 	_after_booking()
+
+
+## Pulls out of a tournament between rounds (D315: too hurt to go on): he's out at the round he'd have fought next,
+## with the medal that round's loser gets (withdrawing from the final is silver, from a semi-final bronze). The men he
+## didn't meet go from `opponents`. Returns the medal ("" for none), or "" with nothing done when not between rounds.
+func withdraw() -> String:
+	var t: Dictionary = booked.get("tournament", {}) if booked.get("tournament") is Dictionary else {}
+	if t.is_empty() or int(t.stage) == 0:
+		return ""
+	var m: String = Tournament.medal(int(t.size), int(t.stage), false)
+	if m != "":
+		medals.append({ "medal": m, "name": tournament_name(), "week": week, "size": int(t.size) })
+		fights[-1].medal = m
+	fights[-1].withdrew = true
+	var days: int = int(t.get("suspension", 0))
+	if days > int(fights[-1].get("suspension_days", 0)):
+		fights[-1].suspension_days = days
+		fights[-1].suspension_why = "%s earlier in the day" % String(t.get("suspension_why", "a hard fight"))
+	for id: String in _unmet():
+		opponents.erase(id)
+	_after_booking()
+	suspended_days = maxi(suspended_days, days - FIGHT_TO_MONDAY)
+	return m
+
+
+## The booked tournament's round he fights next (0 for the first), or -1 when the booked fight isn't a tournament.
+func tournament_stage() -> int:
+	return int(booked.tournament.stage) if booked.get("tournament") is Dictionary else -1
+
+
+## The booked tournament's name ("" when it isn't one).
+func tournament_name() -> String:
+	return String(booked.get("card", {}).get("name", "")) if booked.get("card") is Dictionary else ""
+
+
+## What he carries into the tournament's next round (fighter@1 `condition`: { tank, hurt }), {} before the first.
+func tournament_condition() -> Dictionary:
+	if tournament_stage() <= 0:
+		return {}
+	return (booked.tournament.get("carry", {}) as Dictionary).duplicate(true)
+
+
+## His profile for a tournament's next round: as he is, going in as the last fight left him (tournament_condition),
+## and a Tactician's calls still reaching him sooner (D311).
+func round_profile() -> Dictionary:
+	var out: Dictionary = profile()
+	out.condition = tournament_condition()
+	if Coach.call_delay(coach_specialty) != 1.0:
+		out.condition.call_delay = Coach.call_delay(coach_specialty)
+	return out
+
+
+## The booked men he hasn't fought: the booked opponent, and in a tournament the ones after him.
+func _unmet() -> Array[String]:
+	var out: Array[String] = []
+	if booked.get("tournament") is Dictionary:
+		for i in range(int(booked.tournament.stage), (booked.tournament.men as Array).size()):
+			out.append(String(booked.tournament.men[i].id))
+	elif String(booked.get("opponent", "")) != "":
+		out.append(String(booked.opponent))
+	return out
 
 
 func _after_booking() -> void:
@@ -536,6 +654,7 @@ func to_dict() -> Dictionary:
 		"calendar": { "first_monday": first_monday, "week": week },
 		"suspended_days": suspended_days, "money": money, "pro": pro, "week_plan": week_plan,
 		"worn_last_week": worn_last_week, "next_offers_week": next_offers_week,
+		"next_tournament_week": next_tournament_week, "medals": medals.duplicate(true),
 		"fights": fights.duplicate(true), "opponents": opponents.duplicate(true),
 		"booked": booked.duplicate(true), "offers": offers.duplicate(true),
 		"summary": summary(),
@@ -575,9 +694,18 @@ static func from_dict(data: Dictionary, library: TrainingLibrary = null) -> Care
 	c.week_plan = String(d.get("week_plan", BETWEEN_PLAN))
 	c.worn_last_week = bool(d.get("worn_last_week", false))
 	c.next_offers_week = int(d.get("next_offers_week", c.week + 1))
+	c.next_tournament_week = int(d.get("next_tournament_week", c.week + Tournament.FIRST_WEEK))
+	c.medals = d.get("medals", []).duplicate(true) if d.get("medals") is Array else []
+	for m: Variant in c.medals:
+		if m is Dictionary:
+			m.week = int(m.get("week", 0))
+			m.size = int(m.get("size", 0))
 	c.fights = d.get("fights", []).duplicate(true)
 	c.opponents = d.get("opponents", {}).duplicate(true)
 	c.booked = d.get("booked", {}).duplicate(true)
+	if c.booked.get("tournament") is Dictionary:
+		for key: String in ["size", "stage", "suspension"]:
+			c.booked.tournament[key] = int(c.booked.tournament.get(key, 0))
 	c.offers = d.get("offers", []).duplicate(true)
 	c.gym = d.get("gym", {}).duplicate(true) if d.get("gym") is Dictionary else {}
 	if c.gym.has("fee"):

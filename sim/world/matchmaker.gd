@@ -129,8 +129,8 @@ static func local_cards() -> Dictionary:
 ## The local amateur card an offer is on (D314): { name, venue, city }, e.g. "Leeds Fight Night 4" at the Sports
 ## Centre in Leeds. Mostly in his hometown (`home_share`), otherwise another city in his country. A series keeps its
 ## venue, and its number goes up one every `every_weeks` weeks.
-func local_card(c: Career, rng: RandomNumberGenerator, country_id: String) -> Dictionary:
-	var data: Dictionary = local_cards()
+func local_card(c: Career, rng: RandomNumberGenerator, country_id: String, cards: Dictionary = {}) -> Dictionary:
+	var data: Dictionary = cards if not cards.is_empty() else local_cards()
 	var city: String = String(c.about.get("hometown", ""))
 	var others: Array = names.cities(country_id).filter(func(x: Variant) -> bool: return String(x) != city)
 	if (city == "" or rng.randf() >= float(data.get("home_share", 1.0))) and not others.is_empty():
@@ -145,6 +145,39 @@ func local_card(c: Career, rng: RandomNumberGenerator, country_id: String) -> Di
 		"venue": String(venues[absi(("venue:" + series).hash()) % venues.size()]) if not venues.is_empty() else "",
 		"city": city,
 	}
+
+
+## A one-day tournament offer (Tournament, D315): as make_offer's, its `profile` the man he'd meet in the first round,
+## plus `tournament`: { size, rest (the men he'd meet in the later rounds, each { profile, about, style }, harder and
+## more tired) }, and its `card` the tournament's name ("Leeds Amateur Open 2027") and venue. `size` 0 rolls the size
+## (Tournament.BIG_CHANCE of the bigger one). `index` keeps its men's ids apart from the other offers'.
+func make_tournament(c: Career, rng: RandomNumberGenerator, size: int = 0, index: int = 0) -> Dictionary:
+	if size <= 0:
+		size = Tournament.SIZES[1] if rng.randf() < Tournament.BIG_CHANCE else Tournament.SIZES[0]
+	var n: int = Tournament.rounds(size)
+	var style_ids: Array = styles.ids().duplicate()
+	style_ids.sort()
+	var men: Array = []
+	for stage in n:
+		var difficulty: String = Tournament.DIFFICULTIES[mini(stage + Tournament.DIFFICULTIES.size() - n, Tournament.DIFFICULTIES.size() - 1)]
+		var style_id: String = String(style_ids.pop_at(rng.randi_range(0, style_ids.size() - 1)))
+		var o: Dictionary = make_offer(c, style_id, difficulty, rng, index * 10 + stage)
+		if stage > 0:
+			o.profile.condition = { "tank": Tournament.OPPONENT_TANK[mini(stage, Tournament.OPPONENT_TANK.size() - 1)] }
+		o.profile.id = "opp_w%d_t%d" % [c.week, stage]
+		men.append(o)
+	var out: Dictionary = men[0]
+	var country_id: String = names.country_id_of(String(c.about.get("country", "")))
+	out.id = "tournament_w%d" % c.week
+	out.difficulty = "tournament"
+	out.card = local_card(c, rng, country_id, Tournament.cards(size))
+	var series_name: String = String(out.card.name)
+	out.card.name = "%s %d" % [series_name.substr(0, series_name.rfind(" ")), int(c.date(5, int(out.week)).year)]  # Named by year.
+	var rest: Array = []
+	for i in range(1, men.size()):
+		rest.append({ "profile": men[i].profile, "about": men[i].about, "style": men[i].style })
+	out.tournament = { "size": size, "rest": rest }
+	return out
 
 
 ## "Leeds Fight Night 4 · the Sports Centre, Leeds" ("" when the offer isn't on a card).
