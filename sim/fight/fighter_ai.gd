@@ -80,6 +80,30 @@ const FOLLOW_DOWN_VALUE: float = 10.0
 ## Whether he follows this knockdown down at all, decided once as the man drops: this × his
 ## tendency for it × (1 + Base / 100), so a grappler (Base 70) about 85%, a striker (0) half the time.
 const FOLLOW_DOWN_CHANCE: float = 0.5
+## Standing up from the top (D330, D334, docs/01 §42). On top, a chance a free tick of STAND_RATE ×
+## work rate × how much he wants out × (the odds / 50%)², at most 1. How much he wants out: how much
+## he'd rather be on his feet, STAND_FEET_FROM − Base / 100 (a striker at Base 0, 0.4; a grappler,
+## none), once he's been in this position STAND_AFTER_TICKS, × STAND_DOMINANT in side control, the
+## mount, the back and the crucifix, where his punches are better; plus, in the full or half guard
+## of a man with a hold from there, the danger: (his Submissions − this man's Submission defense) /
+## STAND_DANGER_SPAN, once he's been there STAND_DANGER_TICKS. Not while either man is rocked, nor
+## while he's hunting a hold (D200).
+const STAND_RATE: float = 1.0
+const STAND_FEET_FROM: float = 0.4
+const STAND_AFTER_TICKS: int = 100
+const STAND_DOMINANT: float = 0.25
+const STAND_DANGER_SPAN: float = 25.0
+const STAND_DANGER_TICKS: int = 30
+const GUARDS: Array[String] = ["full_guard", "half_guard"]
+## Underneath as he stands up (STANDING_UP, D333): one look per stand-up for what it gives. The
+## up-kick on a chance of UP_KICK_CHANCE × (0.5 + Kicking / 100) × (the odds / 50%)², a leg lock
+## (Sambo, BJJ) on STAND_LEG_GRAB × how much they like submissions × (the odds / 50%)².
+const UP_KICK_CHANCE: float = 0.35
+const STAND_LEG_GRAB: float = 0.25
+## Stood up out of it (D332): whether he dives back down on the man on his back, decided once a
+## stand-up: STOOD_FOLLOW × his follow_down tendency × Base / 100, so grapplers only (the Wrestler
+## about 28%); a striker stood up to stay standing.
+const STOOD_FOLLOW: float = 0.4
 
 ## Reading a move: (0.15 + 0.5 × Fight IQ / 100) × telegraph factor, where a 2-tick
 ## telegraph is normal and each tick longer or shorter is ±20% (docs/11 §3.3: a shorter
@@ -543,6 +567,14 @@ var _choice_ready: bool = false
 ## and what he decided.
 var _follow_decided_at: int = 0
 var _follows: bool = false
+## His own stand-up count when he last decided whether to follow the man back down (D332), the tick
+## the fight last changed position (how long he's been on top here, D334), the danger in the guard
+## he's in (worked out once a position, -1 until then), and whether he's looked at the stand-up the
+## man on top is making (D333).
+var _stood_decided_at: int = 0
+var _spot_since: int = 0
+var _guard_danger: float = -1.0
+var _stand_looked: bool = false
 ## Rolled each time this fighter is rocked (D180): he covers up while it's under the cover chance.
 var _cover_roll: float = -1.0
 ## Submissions (D126): the tick of this fighter's last try, and whether they've already
@@ -693,6 +725,10 @@ func _downed(view: FightView, layer: DecisionLayer) -> Decision:
 		_follow_decided_at = view.opponent.knockdowns
 		_follows = view.roll() < FOLLOW_DOWN_CHANCE * float(view.me.tendencies.get("follow_down", 1.0)) \
 			* maxf(0.0, 1.0 + _lean(view, layer, StyleLeanings.BASE) / 100.0)
+	elif view.me.stand_ups != _stood_decided_at:
+		_stood_decided_at = view.me.stand_ups  # He stood up out of it (D332): back down on him, or not?
+		var keen: float = STOOD_FOLLOW * float(view.me.tendencies.get("follow_down", 1.0)) * _lean(view, layer, StyleLeanings.BASE) / 100.0
+		_follows = keen > 0.0 and view.roll() < keen
 	var best: String = ""
 	var best_value: float = 0.0
 	for id in _all_moves(view):
@@ -1051,6 +1087,8 @@ func _tied(view: FightView, layer: DecisionLayer) -> Decision:
 	var d: Decision = _defend(view, layer)
 	if d == null:
 		d = _guillotine(view, layer)
+	if d == null and view.my_role() == PositionLibrary.BOTTOM:
+		d = _punish_stand(view, layer)
 	if d != null:
 		return d
 	var position: String = view.position()
@@ -1235,6 +1273,8 @@ func _pound(view: FightView, layer: DecisionLayer) -> Decision:
 	var f: FighterState = view.me
 	var d: Decision = _punish_escape(view, layer)
 	if d == null:
+		d = _stand_up(view, layer)
+	if d == null:
 		d = _work_position(view, layer)  # Posturing up out of his grips is one of these (D263).
 	if d != null:
 		return d
@@ -1287,8 +1327,8 @@ func _work_position(view: FightView, layer: DecisionLayer) -> Decision:
 	var holds: bool = false
 	for id in _all_moves(view):
 		var action: Dictionary = view.actions.get_action(id)
-		if (action.category != GROUND and action.category != SUBMISSION) or not _usable(view, action):
-			continue
+		if (action.category != GROUND and action.category != SUBMISSION) or id == FightSim.STAND_UP or not _usable(view, action):
+			continue  # Standing up isn't a better position: it's its own choice (_stand_up, D334).
 		var b: OddsBreakdown = _odds(view, id)
 		var w: float = 0.0
 		if action.category == SUBMISSION and hunting:
@@ -1371,6 +1411,92 @@ func _punish_escape(view: FightView, layer: DecisionLayer) -> Decision:
 			if action.category == SUBMISSION:
 				_sub_at = view.now
 			return Decision.new(id, DecisionLayer.AI, "catches the escape: %s" % String(action.name).to_lower())
+	return null
+
+
+## On top (D330, D334): now and then he stands up out of it, by how much he'd rather be on his feet
+## and how dangerous the guard he's in is (STAND_RATE and the rest).
+func _stand_up(view: FightView, layer: DecisionLayer) -> Decision:
+	var f: FighterState = view.me
+	if f.is_rocked() or view.opponent.is_rocked():
+		return null
+	var position: String = view.position()
+	var guard: bool = GUARDS.has(position)
+	var since: int = view.now - _spot_since
+	var feet: float = 0.0
+	if since >= STAND_AFTER_TICKS:
+		feet = maxf(0.0, STAND_FEET_FROM - _lean(view, layer, StyleLeanings.BASE) / 100.0) * (1.0 if guard else STAND_DOMINANT)
+	var danger: float = guard_danger(view) if guard and since >= STAND_DANGER_TICKS else 0.0
+	if feet + danger <= 0.0:
+		return null  # No roll: a grappler happy on top plays as before.
+	if view.roll() >= STAND_RATE * f.work_rate * (feet + danger) or _hunting(view, layer):
+		return null
+	var action: Dictionary = view.actions.get_action(FightSim.STAND_UP)
+	if not _usable(view, action) or f.stamina < float(action.stamina_cost):
+		return null
+	var b: OddsBreakdown = _odds(view, FightSim.STAND_UP)
+	if view.roll() >= minf(1.0, pow(b.chance / 0.5, 2.0)):
+		return null  # A long shot out of a good guard is worth waiting on.
+	var why: String = "gets out of a dangerous guard" if danger > feet else ("stands up out of the guard" if guard else "lets him up: wants it on the feet")
+	return Decision.new(FightSim.STAND_UP, DecisionLayer.AI, why)
+
+
+## How dangerous the guard he's in is (D334): (the man underneath's Submissions − this man's
+## Submission defense) / STAND_DANGER_SPAN, when he has a hold from there; 0 otherwise. Worked out
+## once a position.
+func guard_danger(view: FightView) -> float:
+	if _guard_danger >= 0.0:
+		return _guard_danger
+	_guard_danger = 0.0
+	var o: FighterState = view.opponent
+	var gap: float = o.effective_stat("submissions") - view.me.effective_stat("submission_defense")
+	if gap <= 0.0:
+		return _guard_danger
+	var moves: Array = o.repertoire.duplicate()
+	moves.append_array(view.actions.basic_ids())
+	for id: String in moves:
+		if not view.actions.has(id):
+			continue
+		var action: Dictionary = view.actions.get_action(id)
+		if action.category == SUBMISSION and action.positions.has(view.position()) and ActionLibrary.allows_role(action, PositionLibrary.BOTTOM) \
+				and view.ruleset.allows_action(action):
+			_guard_danger = gap / STAND_DANGER_SPAN
+			break
+	return _guard_danger
+
+
+## Underneath, the man on top stands up (STANDING_UP, D333): one look per stand-up for what it gives,
+## the up-kick or a leg lock as the leg comes past (UP_KICK_CHANCE, STAND_LEG_GRAB). The look waits
+## until one of them would land while he's still getting up.
+func _punish_stand(view: FightView, layer: DecisionLayer) -> Decision:
+	var o: FighterState = view.opponent
+	if o.is_free() or o.action_id != FightSim.STAND_UP:
+		_stand_looked = false
+		return null
+	if _stand_looked or view.me.is_rocked():
+		return null
+	for id in _all_moves(view):
+		var action: Dictionary = view.actions.get_action(id)
+		if (action.category != STRIKE and action.category != SUBMISSION) or not _usable(view, action):
+			continue
+		if not action.opportunities.any(func(opp: Dictionary) -> bool: return opp.get("opponent_flag", "") == FightSim.STANDING_UP):
+			continue
+		if action.category == SUBMISSION and view.now < _sub_at + SUB_RETRY_TICKS:
+			continue
+		var b: OddsBreakdown = view.odds_ahead(id, _ticks_to_land(view, id))
+		if not _has_bonus(b, FightSim.STANDING_UP):
+			continue  # Too early or too late to land while he's getting up.
+		_stand_looked = true
+		var take: float = pow(b.chance / 0.5, 2.0)
+		if action.category == STRIKE:
+			take *= UP_KICK_CHANCE * (0.5 + view.me.effective_stat("kicking") / 100.0)
+		else:
+			take *= STAND_LEG_GRAB * sub_liking(view, layer)
+		if view.roll() < take:
+			if action.category == SUBMISSION:
+				_sub_at = view.now
+				return Decision.new(id, DecisionLayer.AI, "grabs the leg as he stands: %s" % String(action.name).to_lower())
+			return Decision.new(id, DecisionLayer.AI, "kicks up at him as he stands")
 	return null
 
 
@@ -2090,6 +2216,8 @@ func on_event(view: FightView, event: FightEvent, layer: DecisionLayer) -> void:
 			_new_round()
 		FightEvent.POSITION_CHANGED:
 			_moved_position()
+			_spot_since = event.tick
+			_guard_danger = -1.0
 			if event.actor >= 0 and event.data.roles[event.actor] == PositionLibrary.TOP:
 				if event.actor == me:
 					_round_dealt += Judging.TAKEDOWN_POINTS

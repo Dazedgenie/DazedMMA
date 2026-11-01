@@ -1,0 +1,30 @@
+{
+	"schema": "action@2",
+	"id": "stand_up",
+	"name": "Stand up",
+	"category": "ground",
+	"basic": true,
+	"positions": ["full_guard", "half_guard", "side_control", "mount", "back_control", "crucifix"],
+	"roles": ["top"],
+	"ranges": ["clinch"],
+	"phases_ms": { "telegraph": 200, "windup": 400, "active": 400, "recovery": 300 },
+	"stamina_cost": 4,
+	"flags_self": [
+		{ "flag": "STANDING_UP", "from": "windup", "to": "active" }
+	],
+	"ground": {
+		"base_success": 0.45,
+		"leaves_down_ms": 1000,
+		"position_bonus": { "half_guard": 0.0, "side_control": 0.35, "mount": 0.30, "back_control": 0.35, "crucifix": 0.40 }
+	},
+	"stats": { "offense": ["top_control", "strength"], "defense": ["guard"] },
+	"opportunities": [
+		{ "own_flag": "POSTURE_BROKEN", "success_bonus": -0.15 },
+		{ "own_flag": "WRIST_HELD", "success_bonus": -0.05 },
+		{ "own_flag": "WRISTS_HELD", "success_bonus": -0.10 },
+		{ "opponent_flag": "UNDERHOOK", "success_bonus": -0.10 },
+		{ "own_flag": "UNDERHOOK", "success_bonus": 0.05 },
+		{ "opponent_flag": "HANDS_LOW", "success_bonus": 0.10 }
+	],
+	"requires_technique": null
+}

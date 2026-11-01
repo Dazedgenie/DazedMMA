@@ -293,7 +293,7 @@ func test_a_fighter_who_knows_no_takedown_cannot_take_the_takedown_call() -> voi
 	assert_eq(_answers(sim)[0].reason, "doesn't know how")
 
 
-func test_get_up_is_only_for_the_fighter_underneath() -> void:
+func test_get_up_gets_him_up_from_underneath_and_stands_him_up_on_top() -> void:
 	var sim: FightSim = _sim()
 	sim.submit(FightCommand.live_call(0, 0, "get_up"))
 	_run(sim, 10)
@@ -303,7 +303,8 @@ func test_get_up_is_only_for_the_fighter_underneath() -> void:
 	sim.submit(FightCommand.live_call(0, 0, "get_up"))
 	sim.submit(FightCommand.live_call(0, 1, "get_up"))
 	_run(sim, 10)
-	assert_eq(_answers(sim, 0)[0].reason, "not possible from the top")
+	assert_eq(_answers(sim, 0)[0].outcome, LiveCalls.ACCEPTED, "on top, Get up! stands him up out of it (Kyle, D335)")
+	assert_eq(_answers(sim, 0)[0].action_id, "stand_up")
 	assert_eq(_answers(sim, 1)[0].outcome, LiveCalls.ACCEPTED, "get up is basic: everyone knows it")
 	assert_eq(_answers(sim, 1)[0].action_id, "get_up")
 

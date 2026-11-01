@@ -538,6 +538,15 @@ func pose_for(sim: FightSim, i: int, fractional_tick: float = 0.0) -> Dictionary
 		"get_up":
 			p.lie = lerpf(p.lie, 0.0, reach)
 			p.hip_y = lerpf(p.hip_y, HIP_HEIGHT, reach)
+		"stand_up":  # Off his knees and up out of it, weight back off the man underneath (D330).
+			_ease(p, "kneel", 0.0, reach)
+			_ease(p, "lie", 0.0, reach)
+			_ease(p, "hip_y", HIP_HEIGHT - 0.1, reach)
+			_ease(p, "lean", 0.15, reach)
+		"up_kick":  # Flat on his back, the lead heel driven up at the man standing over him (D333).
+			_ease(p, "leg_lead", 2.3, reach)
+			_ease(p, "leg_rear", 0.6, reach)
+			_ease(p, "hip_y", p.hip_y + 0.08, reach)
 		"ground_punch":  # Postures up, then drives the rear hand down (D121).
 			p.lean = lerpf(p.lean, -0.4, reach)
 			p.arm_rear = lerpf(p.arm_rear, 0.5, reach)
@@ -808,7 +817,7 @@ static func limb_for(action_id: String) -> String:
 		"cross", "uppercut", "short_uppercut", "overhand", "elbow", "ground_punch", "ground_elbow", "hammerfist", \
 				"ground_body_punch", "posture_bomb":
 			return "rear_arm"
-		"teep", "stomp":
+		"teep", "stomp", "up_kick":
 			return "lead_leg"
 		"leg_kick", "calf_kick", "soccer_kick", "ground_knee", "body_kick", "head_kick", "knee":
 			return "rear_leg"

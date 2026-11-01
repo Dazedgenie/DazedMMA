@@ -57,6 +57,8 @@ const COLUMNS: Array[String] = [
 	"checks_blue", "checked_blue", "slips_blue", "slipped_blue", "covered_hits_blue",
 	"gnp_landed_red", "gnp_hammer_red", "gnp_body_red", "gnp_bomb_red", "gnp_covered_red", "ground_covers_red", "turned_away_red",
 	"gnp_landed_blue", "gnp_hammer_blue", "gnp_body_blue", "gnp_bomb_blue", "gnp_covered_blue", "ground_covers_blue", "turned_away_blue",
+	"stand_ups_tried_red", "stand_ups_red", "up_kicks_red", "stand_leg_grabs_red",
+	"stand_ups_tried_blue", "stand_ups_blue", "up_kicks_blue", "stand_leg_grabs_blue",
 	"calls_red", "calls_blue", "fired_red", "fired_blue", "call_outcomes_red", "call_outcomes_blue",
 	"chosen_ai_red", "chosen_call_red", "chosen_rule_red", "chosen_command_red",
 	"chosen_ai_blue", "chosen_call_blue", "chosen_rule_blue", "chosen_command_blue",
@@ -286,6 +288,10 @@ static func of(sim: FightSim, lows: Array[float] = [], moves: Dictionary = {}) -
 		row["combo_landed_" + side] = f.combo_landed
 		row["ground_covers_" + side] = f.ground_covers
 		row["turned_away_" + side] = f.turned_away
+		row["stand_ups_tried_" + side] = f.stand_ups_tried
+		row["stand_ups_" + side] = f.stand_ups
+		row["up_kicks_" + side] = f.up_kicks_landed
+		row["stand_leg_grabs_" + side] = f.stand_leg_grabs
 		for key: String in GNP_COUNTS:
 			row["%s_%s" % [key, side]] = 0
 		for layer: String in CHOOSERS:

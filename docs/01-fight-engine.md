@@ -2060,6 +2060,7 @@ tie-ups don't move the fight, so this changes nothing for them, and nothing that
   *Takedown!*, which is only standing and in the clinch (`data/calls/pass.json`). The AI corner doesn't call it yet.
 - *Get up!* (key 7) now works from under every position and calls the way out from there: up from full guard or half guard,
   back to guard from side control, the bridge from mount, turning out of the back.
+  On top it stands him up out of it (D335, §42), and in the crucifix it frees the arm.
 - *Ground and pound!* and *Survive!* work in every ground position.
 - *Go for the finish!* (D200, key 2, §25.7) sends the top fighter after a hold for 10 s, passing to get to one.
 
@@ -3788,3 +3789,136 @@ the bomb's posture, the body punch dropping the hands, amateur rules, covering u
 counting, what covering up opens, turning away and when it can't happen, the AI's mix on top and covering up underneath, the feed
 lines), `tests/game/test_strike_sounds.gd` (every strike has a sound) and `tests/data/test_data_files.gd` (`through_cover`,
 `hands_down_ms`).
+
+## 42. Standing up from the top (D330–D335)
+Kyle (2026-11-01): "needs a way to disengage and stand back up when on top in grappling". Until now only the man underneath
+could get back to his feet (*Get up*, §21.1): a striker who ended up on top, after a sweep, a scramble or following a knockdown
+down, was stuck grappling until the other man escaped, and nobody could get out of a dangerous guard. Kyle answered five
+questions on cards; each answer is a decision below.
+
+### 42.1 The move (D330, D331)
+**Stand up** (`data/actions/stand_up.json`): everyone knows it (`basic`), on top of the full guard, half guard, side control,
+the mount, the back and the crucifix, back to standing. 0.2 · 0.4 · 0.4 · 0.3 s, 4 stamina. While he's getting up (wind-up to
+the end of the active phase) he carries `STANDING_UP`: weight coming off the man underneath, a foot planted.
+
+Odds: 45% + (Top control, Strength) − the man underneath's Guard, and how hard depends on where he is (Kyle picked *Depends on
+the position*, D331), from the move's `position_bonus`:
+
+| From | Bonus | Average fighters |
+|---|---|---|
+| Full guard | none | 45%: his legs are wrapped round you |
+| Half guard | none | 45%: a leg trapped |
+| Side control | +35% | 80% |
+| Mount | +30% | 75% |
+| The back | +35% | 80% |
+| The crucifix | +40% | 85% |
+
+His grips from underneath hold him down (D333): his head tied with the collar tie −15%, a wrist held −5% and both −10% more, his
+underhook in half guard −10%. The man on top's own crossface underhook +5%, the man underneath's hands low (tired or hurt) +10%.
+A stand-up that doesn't work leaves him where he was.
+
+### 42.2 After he's up (D332)
+Kyle picked *The other man is down a moment*: the man underneath is left on his back (`DOWN`) for 1 s (`leaves_down_ms`) as the
+other stands over him, a standing gap away. It isn't a knockdown (no count, no judges' points, not one of the three in a round),
+and he isn't hurt. In that second the man standing can:
+- **dive back down on him**: *Follow him down* (§34) works on any man who's down, with the same odds and landings (half guard
+  on top, full guard if it's scrappy, nothing if he scrambles up). Whether the AI does is decided once a stand-up:
+  40% × his `follow_down` tendency × Base / 100 (`STOOD_FOLLOW`), so grapplers only, the Wrestler about 28%: a striker stood up
+  to stay standing;
+- **kick him** under PRIDE rules (soccer kicks and stomps, §33), weighed as after a knockdown;
+- **let him up**: under unified rules nothing else reaches him. After the second he gets up (the feed says *gets back up off
+  his back*, not that he beat a count) and the fight goes on standing.
+
+### 42.3 What the man underneath can do (D333)
+Kyle picked *That, plus an up-kick*:
+- **Hold him**: the grips in §42.1.
+- **The up-kick** (`up_kick.json`, everyone's): flat on his back from the full or half guard, the lead heel driven up at the man
+  standing up. Only on `STANDING_UP` (required), so only while he's getting up: 0 · 0.2 · 0.1 · 0.4 s, 5 stamina, 50% + 10% +
+  (Kicking, Speed) − Striking defense, 8 damage to the head (× 2.5 on the opening, so the bottom's ×0.4 for strikes from
+  underneath doesn't shrink it: it lands like a standing kick). It **stops the stand-up** (like a knee into a shot), so he's
+  still on top, hurt; a big one can rock him. Under amateur rules it goes to the body (no head strikes on the ground, D121).
+- **Grab a leg**: the ankle lock, the heel hook and the kneebar are +15% on `STANDING_UP` as the leg comes past, for the fighters
+  who know them (the Sambo man, the BJJ man). If the hold locks in before he's up, it's a submission; if it misses, it costs the
+  usual position (§30).
+- **Let him go**, and get up himself once he can.
+
+The fighter AI underneath takes one look a stand-up, once one of these would land while he's still getting up
+(`_punish_stand`): the up-kick on 35% × (0.5 + Kicking / 100) × (its odds / 50%)² (`UP_KICK_CHANCE`), a leg lock on 25% × how
+much he likes submissions × (its odds / 50%)² (`STAND_LEG_GRAB`).
+
+### 42.4 Who stands up on his own (D334)
+Kyle picked *Strikers, and anyone in danger*. On top, before working position, a chance a free tick of 1.0 (`STAND_RATE`) ×
+work rate × how much he wants out × (the stand-up's odds / 50%)², at most 1:
+- **He'd rather be on his feet**: 0.4 − Base / 100 (`STAND_FEET_FROM`; the Boxer and the Kicker 0.4, the Karate man 0.7, the
+  Sprawl-and-brawl man 1.1, the Muay Thai man 0.1, the grapplers none), once he's been in this position 10 s
+  (`STAND_AFTER_TICKS`), × 0.25 in side control, the mount, the back and the crucifix (`STAND_DOMINANT`), where his punches are
+  better and he'd mostly rather stay and pound.
+- **The guard is dangerous**: in the full or half guard of a man with a hold from there, (his Submissions − this man's
+  Submission defense) / 25 (`STAND_DANGER_SPAN`), once he's been there 3 s (`STAND_DANGER_TICKS`). The Boxer on top of the BJJ
+  man: 1.0 more; the Judoka on top of him: 0.4; the Wrestler: none (his defence matches the BJJ man's attack).
+
+Never while either man is rocked (he pounds a hurt man, and a hurt man on top holds on), nor while he's hunting a hold on *Go
+for the finish!* (D200). Standing up isn't one of the "better positions" he works for (§28.4).
+
+### 42.5 The call (D335)
+Kyle picked *Get up! does it on top too*: *Get up!* (key 7) on top stands him up out of any ground position, the same key that
+gets him up from underneath (`stand_up` is last in `data/calls/get_up.json`'s `actions`, and the call's `roles` now include
+`top`). It also frees the arm in the crucifix now (`escape_crucifix`). The AI corner still calls it only for the man underneath
+when the man on top is rocked (§22.7): it doesn't call it on top yet.
+
+### 42.6 On screen and in the harness
+The man on top comes off his knees and up (`game/fighter_figure.gd`), the up-kick drives the lead heel up from his back, with a
+sound of its own (`game/strike_sounds.gd`). The feed: *"Kicker STANDS UP out of it and leaves him on his back → Standing"*, and
+the reason the AI picked it (*"stands up out of the guard"*, *"gets out of a dangerous guard"*, *"lets him up: wants it on the
+feet"*). The harness's **Stand-ups** line gives each side's stand-ups and tries a fight, and the up-kicks and leg grabs the
+other man answered them with (CSV `stand_ups_*`, `stand_ups_tried_*`, `up_kicks_*`, `stand_leg_grabs_*`).
+
+### 42.7 Balance
+Harness, no calls, pro rules, 150 fights a pairing from seed 1, main (#119) → now, matched seed by seed with
+`tools/balance_compare.gd` (the pairings with a submission guard after the last tuning pass below):
+
+| Pairing | Red wins | Finishes | Stand-ups a fight (tries) · answered with up-kicks, leg grabs |
+|---|---|---|---|
+| Kicker vs Boxer | 38.7 → 39.3% | 26.7 → 26.7% | almost never on top |
+| Wrestler vs Boxer | 74.7 → 76.7% | 46.7 → 46.0% | Boxer 0.04 (0.19) · 0.05, 0 |
+| Wrestler vs Kicker | 70.0 → 71.3% | 34.0 → 30.7% | Kicker 0.04 (0.16) · 0.05, 0 |
+| BJJ vs Boxer | 78.7 → 84.0% | 67.3 → 76.0% | Boxer 0.09 (0.97) · 0.18, 0.39 |
+| BJJ vs Kicker | 8.0 → 11.3% | 9.3 → 13.3% | Kicker 0.01 (0.12) · 0.03, 0.05 |
+| Sambo vs Boxer | 84.0 → 84.0% | 79.3 → 69.3% | Boxer 0.13 (1.03) · 0.33, 0.23 |
+| Judoka vs Boxer | 63.3 → 65.3% | 54.7 → 48.0% | Boxer 0.07 (0.35) · 0.17, 0 |
+| Muay Thai vs Wrestler | 51.3 → 54.7% | 42.7 → 39.3% | Muay Thai 0.03 (0.08) · 0.04, 0 |
+| BJJ vs Wrestler | 48.0 → 48.7% | 38.7 → 40.7% | Wrestler 0.01 (0.21) · 0.08, 0.05 |
+| Sprawl-and-brawl vs Wrestler | 70.0 → 68.0% | 32.7 → 30.7% | Sprawl-and-brawl 0.10 (0.33) · 0.13, 0 |
+| Counter-striker vs BJJ | 88.7 → 89.3% | 14.7 → 14.0% | Counter-striker 0 (0.07) · 0, 0.04 |
+| Karate vs Sambo | 88.7 → 84.0% | 22.0 → 22.7% | Karate 0.13 (0.50) · 0.10, 0.08 |
+| Brawler vs GnP wrestler | 14.0 → 12.0% | 73.3 → 73.3% | Brawler 0.01 (0.17) · 0.11, 0 |
+| Leg-kick specialist vs Pressure wrestler | 66.7 → 68.7% | 38.0 → 44.7% | Leg-kick specialist 0.12 (0.33) · 0.06, 0 |
+
+Every win share is inside its 95% range of no change. Strikers rarely end up on top, so outside the submission guards a
+stand-up comes in one fight in five or fewer. Out of a good guard it mostly fails: the Boxer's 50 Top control and Strength against the BJJ man's 75 Guard is 20%, and
+the up-kick and the leg grab punish the tries, so out of the BJJ and Sambo guards he's no better off for it (the Sambo man
+finishes him less, wins as often on points). Off the mount and side control it nearly always works.
+
+The first pass had the AI try in proportion to its odds and the leg grab on 50% × liking: the Boxer tried 1.8 times a fight
+in the BJJ man's guard, had his leg grabbed on 1.1 of them and lost 8% more (78.7 → 86.7%). Now he weighs the odds squared (a
+20% stand-up 0.16 as often, `_stand_up`) and the leg grab is 25% × liking. The golden fights: *Wrestler vs Kicker, coached*
+plays differently (the Kicker ends up on top once and stands up; still the Wrestler on points), re-pinned; the other three are
+unchanged.
+
+### 42.8 To change it, and the tests
+- How hard: `ground.base_success` and `position_bonus` in `data/actions/stand_up.json`; the grips' bonuses in its
+  `opportunities`; where it goes: the `stand_up` transition in each position file.
+- How long he's down after: `ground.leaves_down_ms`; whether the AI dives back on him: `STOOD_FOLLOW` in `sim/fight/fighter_ai.gd`.
+- The up-kick: `data/actions/up_kick.json` (its `STANDING_UP` opening's bonus and `damage_multiplier`); the leg grab: the
+  `STANDING_UP` opportunity on `ankle_lock.json`, `heel_hook.json`, `kneebar.json`.
+- Who stands up on his own: `STAND_RATE`, `STAND_FEET_FROM`, `STAND_AFTER_TICKS`, `STAND_DOMINANT`, `STAND_DANGER_SPAN`,
+  `STAND_DANGER_TICKS` (`FighterAI._stand_up`, `guard_danger`); his answers underneath: `UP_KICK_CHANCE`, `STAND_LEG_GRAB`
+  (`_punish_stand`).
+- The call: `data/calls/get_up.json`.
+
+Tested in `tests/sim/fight/test_stand_up.gd` (only the man on top, from every position, the odds by position and the grips,
+the man left down a second and not knocked down, followed back down, PRIDE kicks, the feed, the up-kick needing him to be getting
+up, stopping it, its damage and amateur rules, the leg grab's bonus, the Boxer standing up after a while and the Wrestler not, a
+grappler getting out of a dangerous guard, nobody standing off a rocked man, the Sambo man up-kicking and grabbing a leg, who
+dives back down, *Get up!* on top), `tests/sim/fight/test_live_calls.gd`, `tests/game/test_grapple_poses.gd` (both moves posed),
+`tests/game/test_strike_sounds.gd` (the up-kick's sound) and `tests/data/test_data_files.gd` (`position_bonus`, `leaves_down_ms`).
