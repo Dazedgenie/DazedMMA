@@ -154,6 +154,23 @@ func test_the_hub_shows_what_is_next_his_fights_and_the_calendar() -> void:
 	assert_string_contains(hub.text(), "Healed", "the calendar says when")
 
 
+func test_a_long_career_still_fits_the_hub_on_one_screen_and_its_long_parts_scroll() -> void:
+	var c: Career = _career()
+	for i in 14:
+		c.add_opponent({ "id": "opp_%d" % i, "name": "Opponent Number %d" % i })
+		c.add_fight({ "result": "win", "opponent": "opp_%d" % i, "method": "Decision (unanimous)", "round": 3 })
+	var reports: Array = c.advance()
+	var hub: CareerHub = add_child_autofree(CareerHub.new())
+	hub.show_career(c, reports)
+	assert_lte(hub.get_combined_minimum_size().y, 1080.0, "the buttons and the calendar stay on a 1080-high screen (D340)")
+	assert_eq(hub.scrolls().size(), 4, "the fighter, his stats, this week with the offers, his fights")
+	for scroll in hub.scrolls():
+		assert_eq(scroll.horizontal_scroll_mode, ScrollContainer.SCROLL_MODE_DISABLED)
+	hub.scrolls()[3].scroll_vertical = 200
+	hub.show_career(c)
+	assert_eq(hub.scrolls()[3].scroll_vertical, 0, "a refresh starts each list at the top")
+
+
 func test_picking_a_week_plan_on_the_hub_changes_his_weeks() -> void:
 	var c: Career = _career()
 	var hub: CareerHub = add_child_autofree(CareerHub.new())
