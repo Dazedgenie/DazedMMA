@@ -53,20 +53,20 @@
 				"result": "unanimous decision",
 				"end_round": 3,
 				"end_second": 300,
-				"events": 3045,
+				"events": 3011,
 				"knockdowns_red": 0,
 				"knockdowns_blue": 0,
-				"thrown_red": 117,
-				"landed_red": 71,
+				"thrown_red": 137,
+				"landed_red": 70,
 				"thrown_blue": 50,
-				"landed_blue": 33,
+				"landed_blue": 29,
 				"takedowns_red": 6,
 				"takedowns_blue": 0,
-				"calls_red": 58,
-				"calls_blue": 5,
-				"fired_red": 5,
+				"calls_red": 65,
+				"calls_blue": 4,
+				"fired_red": 8,
 				"fired_blue": 0,
-				"event_hash": "8940213aee3a2f7489ef26bfa5588e51"
+				"event_hash": "109db21610aaa572968b9a4f5aabbf8d"
 			}
 		},
 		{
