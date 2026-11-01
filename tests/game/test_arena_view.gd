@@ -264,8 +264,9 @@ func test_the_closer_camera_keeps_heads_and_feet_clear_of_the_top_and_bottom_hud
 	]:
 		for i in 2:
 			sim.fighters[i].pos = pair[i]
+		var shown: Array[Vector2] = [pair[0], pair[1]]
 		for frame in 30:
-			view._place_camera(0.2, (pair[0] + pair[1]) / 2.0, sim)
+			view._place_camera(0.2, (pair[0] + pair[1]) / 2.0, sim, shown)  # Turned and raised as it would be (D361).
 		for at: Vector2 in pair:
 			for height: float in [0.0, 2.0]:
 				var point := Vector3(at.x, height, at.y)
