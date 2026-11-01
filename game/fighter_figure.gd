@@ -133,6 +133,22 @@ const KICK_LIFT_SHARE: float = 0.45
 const KICK_RECHAMBER: float = 0.7
 ## The kicking side's arm swings down and back as the kick goes out (radians off its guard at full extension).
 const KICK_ARM_SWING: float = -1.1
+## Stances by style (D362): standing, each man's stance comes from how he fights (his leanings) and what he
+## throws (Boxing against Kicking), so any fighter, made or generated, stands like himself. Each STANCE_PULLS
+## entry is what all the way along that line adds to today's stance: "grappler" (Base +100: low, hands low
+## and out, wide), "boxer" (Boxing 30 or more over Kicking: bladed, a tight high guard, knees bent),
+## "kicker" (Kicking 30 or more over Boxing: square and upright, weight back), "outside" (Range −100: a long
+## stance leaning back) and "aggressive" (Pace +100: leaning in). width and length move the feet (metres from
+## STANCE_WIDTH and STANCE_LENGTH, each foot from the middle); the rest are pose keys.
+const STANCE_WIDTH: float = 0.19
+const STANCE_LENGTH: float = 0.22
+const STANCE_PULLS := {
+	"grappler": { "hip_y": -0.07, "lean": -0.24, "arm_lead": -0.35, "arm_rear": -0.3, "reach_lead": 0.08, "reach_rear": 0.0, "width": 0.06, "length": 0.02 },
+	"boxer": { "hip_y": -0.025, "lean": -0.06, "twist": 0.28, "arm_lead": 0.08, "arm_rear": 0.12, "reach_lead": -0.08, "width": -0.03 },
+	"kicker": { "hip_y": 0.015, "lean": 0.03, "twist": -0.18, "arm_lead": 0.12, "reach_lead": 0.12, "width": 0.02, "length": -0.02 },
+	"outside": { "lean": 0.05, "length": 0.06 },
+	"aggressive": { "lean": -0.07, "hip_y": -0.01 },
+}
 ## How tall he kneels when he postures up out of the guard for the bomb (D282): hip height, metres.
 const POSTURE_HIP: float = 0.68
 ## How quickly a gripping hand follows a grip changing (per second).
@@ -147,6 +163,8 @@ var colour: Color
 var label_scale: float = 1.0
 ## Lead side: -1 (left, orthodox) or +1 (southpaw), along the figure's own x.
 var lead: float = -1.0
+## His stance standing (D362; stance_for), set each frame; empty off his feet.
+var _stance: Dictionary = {}
 
 var _hips: Node3D
 var _torso: MeshInstance3D
@@ -245,6 +263,7 @@ func show_state(sim: FightSim, i: int, at: Vector2, toward: Vector2, delta: floa
 	var facing: Vector2 = toward - at
 	if facing.length() > 0.01:
 		rotation.y = atan2(-facing.x, -facing.y)
+	_stance = stance_for(f) if sim.situation.is_standing() and not f.is_down() else {}
 	var target: Dictionary = pose_for(sim, i, _tick_fraction)
 	var response: float = 45.0 if f.phase == "active" or f.phase == "windup" else POSE_SPEED
 	var k: float = 1.0 - exp(-response * delta)
@@ -306,9 +325,38 @@ func body_pose() -> Dictionary:
 ## arm_lead/arm_rear and leg_lead/leg_rear (radians forward from hanging down),
 ## reach_lead/reach_rear (arm stretch, 1 = normal), spread (legs apart, radians each way),
 ## kneel (0 to 1: knees on the mat, shins folded behind).
+## How far along each STANCE_PULLS line fighter `f` is (0 to 1 each; D362).
+static func stance_shares(f: FighterState) -> Dictionary:
+	var hands: float = f.effective_stat("boxing") - f.effective_stat("kicking")
+	return {
+		"grappler": clampf(f.style.value(StyleLeanings.BASE) / 100.0, 0.0, 1.0),
+		"boxer": clampf(hands / 30.0, 0.0, 1.0),
+		"kicker": clampf(-hands / 30.0, 0.0, 1.0),
+		"outside": clampf(-f.style.value(StyleLeanings.RANGE) / 100.0, 0.0, 1.0),
+		"aggressive": clampf(f.style.value(StyleLeanings.PACE) / 100.0, 0.0, 1.0),
+	}
+
+
+## Fighter `f`'s stance (D362): what it adds to today's standing pose, by pose key, plus width and length (metres
+## added to STANCE_WIDTH and STANCE_LENGTH).
+static func stance_for(f: FighterState) -> Dictionary:
+	var out := { "width": 0.0, "length": 0.0 }
+	var shares: Dictionary = stance_shares(f)
+	for line: String in STANCE_PULLS:
+		var pull: Dictionary = STANCE_PULLS[line]
+		for key: String in pull:
+			out[key] = float(out.get(key, 0.0)) + float(pull[key]) * float(shares[line])
+	return out
+
+
 func pose_for(sim: FightSim, i: int, fractional_tick: float = 0.0) -> Dictionary:
 	var f: FighterState = sim.fighters[i]
 	var p: Dictionary = _rest_pose()
+	if sim.situation.is_standing() and not f.is_down():
+		var stance: Dictionary = stance_for(f)
+		for key: String in stance:
+			if p.has(key):
+				p[key] = float(p[key]) + float(stance[key])
 	var role: String = sim.situation.role(i)
 	var where: String = sim.situation.position
 	var hold: Dictionary = sim.hold()
@@ -436,8 +484,8 @@ func pose_for(sim: FightSim, i: int, fractional_tick: float = 0.0) -> Dictionary
 			p.arm_lead = 2.1
 			p.arm_rear = 2.1
 	elif sim.situation.is_standing() and f.bit_ticks > 0:  # Bit on a feint (D131): hands up, weight back.
-		p.arm_lead = 2.4
-		p.arm_rear = 2.4
+		p.arm_lead = maxf(2.4, float(p.arm_lead) + 0.35)  # Up from his own guard (D362).
+		p.arm_rear = maxf(2.4, float(p.arm_rear) + 0.35)
 		p.lean = 0.25
 	if not hold.is_empty() and ActionLibrary.is_leg_lock(sim.actions.get_action(hold.action_id)):
 		# A leg lock (D132): the attacker lies back with the leg clamped, the defender's leg out straight.
@@ -472,54 +520,54 @@ func pose_for(sim: FightSim, i: int, fractional_tick: float = 0.0) -> Dictionary
 		reach = float(shape.reach)
 	match f.action_id:
 		"jab":
-			p.twist = 0.12 * reach
+			p.twist += 0.12 * reach
 			p.lean = lerpf(p.lean, -0.14, reach)
 			p.arm_lead = lerpf(p.arm_lead, 1.57, reach)
 			p.reach_lead = lerpf(1.0, 1.45, reach)
 		"cross":
-			p.twist = -0.32 * reach
+			p.twist = lerpf(p.twist, -0.32, reach)
 			p.arm_rear = lerpf(p.arm_rear, 1.57, reach)
 			p.reach_rear = lerpf(1.0, 1.5, reach)
 			p.lean = lerpf(p.lean, -0.2, reach)
 		"hook":
 			p.arm_lead = lerpf(p.arm_lead, 1.7, reach)
 			p.reach_lead = lerpf(1.0, 1.2, reach)
-			p.twist = lerpf(0.0, 0.5, reach)
+			p.twist = lerpf(p.twist, 0.5, reach)
 		"uppercut":  # Dips (its tell, D360), then drives up off the legs with the rear hand up the middle.
 			p.arm_rear = lerpf(p.arm_rear, 1.3, reach)
 			p.reach_rear = lerpf(1.0, 1.2, reach)
 			p.hip_y = lerpf(p.hip_y, HIP_HEIGHT - 0.03, reach)
 			p.lean = lerpf(p.lean, 0.04, reach)
-			p.twist = lerpf(0.0, 0.3, reach)
+			p.twist = lerpf(p.twist, 0.3, reach)
 		"overhand":  # The rear hand loops over the top, leaning in behind it.
 			p.arm_rear = lerpf(p.arm_rear, 2.0, reach)
 			p.reach_rear = lerpf(1.0, 1.45, reach)
 			p.lean = lerpf(p.lean, 0.3, reach)
-			p.twist = lerpf(0.0, 0.4, reach)
+			p.twist = lerpf(p.twist, 0.4, reach)
 		"body_hook":  # The lead hook, dropped to the ribs.
 			p.arm_lead = lerpf(p.arm_lead, 1.4, reach)
 			p.reach_lead = lerpf(1.0, 1.15, reach)
 			p.hip_y = lerpf(p.hip_y, HIP_HEIGHT - 0.12, reach)
-			p.twist = lerpf(0.0, 0.5, reach)
+			p.twist = lerpf(p.twist, 0.5, reach)
 		"short_uppercut":  # Up the middle from chest to chest.
 			p.arm_rear = lerpf(p.arm_rear, 1.1, reach)
 			p.reach_rear = lerpf(1.0, 0.9, reach)
-			p.twist = lerpf(0.0, 0.25, reach)
+			p.twist = lerpf(p.twist, 0.25, reach)
 		"short_hook":
 			p.arm_lead = lerpf(p.arm_lead, 1.6, reach)
 			p.reach_lead = lerpf(1.0, 0.9, reach)
-			p.twist = lerpf(0.0, 0.4, reach)
+			p.twist = lerpf(p.twist, 0.4, reach)
 		"elbow":
 			p.arm_rear = lerpf(p.arm_rear, 1.8, reach)
 			p.reach_rear = lerpf(1.0, 0.9, reach)
-			p.twist = lerpf(0.0, 0.5, reach)
+			p.twist = lerpf(p.twist, 0.5, reach)
 		"leg_kick":
 			p.leg_rear = lerpf(0.0, 0.9, reach)
-			p.twist = lerpf(0.0, 0.7, reach)
+			p.twist = lerpf(p.twist, 0.7, reach)
 		"soccer_kick":  # A punt at the head of a man on the floor (PRIDE, D141).
 			p.leg_rear = lerpf(0.0, 1.1, reach)
 			p.lean = lerpf(p.lean, 0.35, reach)
-			p.twist = lerpf(0.0, 0.2, reach)
+			p.twist = lerpf(p.twist, 0.2, reach)
 		"stomp":  # The knee comes up, then the heel drives down.
 			p.leg_lead = lerpf(0.0, 1.2 if f.phase == "telegraph" or f.phase == "windup" else 0.4, reach)
 			p.knee_short = reach
@@ -528,14 +576,14 @@ func pose_for(sim: FightSim, i: int, fractional_tick: float = 0.0) -> Dictionary
 			p.knee_short = reach
 		"calf_kick":  # Lower and shorter than the leg kick.
 			p.leg_rear = lerpf(0.0, 0.6, reach)
-			p.twist = lerpf(0.0, 0.3, reach)
+			p.twist = lerpf(p.twist, 0.3, reach)
 		"body_kick":
 			p.leg_rear = lerpf(0.0, 1.45, reach)
-			p.twist = lerpf(0.0, 1.0, reach)
+			p.twist = lerpf(p.twist, 1.0, reach)
 			p.lean = lerpf(p.lean, 0.25, reach)
 		"head_kick":
 			p.leg_rear = lerpf(0.0, 2.1, reach)
-			p.twist = lerpf(0.0, 1.1, reach)
+			p.twist = lerpf(p.twist, 1.1, reach)
 			p.lean = lerpf(p.lean, 0.4, reach)
 		"teep":
 			p.leg_lead = lerpf(0.0, 1.5, reach)
@@ -1180,7 +1228,9 @@ func _pose_legs() -> void:
 	var support: Array[bool] = []
 	for i in 2:
 		var lateral: float = lead if i == 0 else -lead
-		goals.append(global_position + global_basis * Vector3(lateral * 0.19, 0.032, -0.22 if i == 0 else 0.22))
+		var wide: float = STANCE_WIDTH + float(_stance.get("width", 0.0))
+		var long: float = STANCE_LENGTH + float(_stance.get("length", 0.0))
+		goals.append(global_position + global_basis * Vector3(lateral * wide, 0.032, -long if i == 0 else long))
 		var tucked: float = float(_pose.knee_short) if i == 1 else float(_pose.check)
 		support.append(upright and absf(_legs[i].rotation.x) < 0.5 and tucked < 0.1)
 	motion.update(goals, support, _motion_delta)
