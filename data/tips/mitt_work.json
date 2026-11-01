@@ -1,0 +1,8 @@
+{
+	"schema": "tip@1",
+	"id": "mitt_work",
+	"title": "Mitt work",
+	"text": "Tick Play on a mitt work session to hold the pads yourself: hit the coach's calls on time and the session teaches more. Leave it unticked and he runs it on his own.",
+	"where": "mitt_work",
+	"order": 40
+}

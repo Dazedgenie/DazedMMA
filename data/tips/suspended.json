@@ -1,0 +1,8 @@
+{
+	"schema": "tip@1",
+	"id": "suspended",
+	"title": "Suspended",
+	"text": "After a hard fight or a knockout the doctor keeps him out for a while. He still trains, and offers come once he's cleared.",
+	"where": "suspended",
+	"order": 110
+}

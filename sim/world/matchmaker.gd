@@ -117,6 +117,23 @@ func make_offer(c: Career, style_id: String, difficulty: String, rng: RandomNumb
 	}
 
 
+## A lesson fight (Tutorial.LESSONS, D316): an offer like make_offer's, taking the place of the first in a set, with
+## `lesson` (1 to 3). The man is the lesson's kind: lesson 2 a kicker; lessons 1 and 3 any style but a kicker's and
+## none another offer in the set has.
+func make_lesson(c: Career, rng: RandomNumberGenerator, lesson_number: int, others: Array = []) -> Dictionary:
+	var spec: Dictionary = Tutorial.LESSONS[clampi(lesson_number - 1, 0, Tutorial.LESSONS.size() - 1)]
+	var style_id: String = String(spec.style)
+	if style_id == "" or not styles.has(style_id):
+		var taken: Array = others.slice(1).map(func(o: Dictionary) -> String: return String(o.get("style", "")))
+		var pool: Array = styles.ids().filter(func(id: Variant) -> bool:
+			return not String(id) in Tutorial.KICKER_STYLES and not String(id) in taken)
+		pool.sort()
+		style_id = String(pool[rng.randi_range(0, pool.size() - 1)])
+	var out: Dictionary = make_offer(c, style_id, String(spec.difficulty), rng, 0)
+	out.lesson = lesson_number
+	return out
+
+
 ## The shipped local cards (data/cards/local.json), loaded once.
 static func local_cards() -> Dictionary:
 	if _cards.is_empty():

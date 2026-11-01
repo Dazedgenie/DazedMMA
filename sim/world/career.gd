@@ -106,6 +106,10 @@ var week_plan: String = BETWEEN_PLAN
 ## The first week a one-day tournament (Tournament, D315) can be offered: one of the next set of offers is a
 ## tournament from this week on, while he's amateur.
 var next_tournament_week: int = Tournament.FIRST_WEEK
+## The story as the tutorial (Tutorial, D316): on for a new career unless the player said *I know the game*; off for
+## a career saved before D316. And the tips he's seen (tip ids, in the order he saw them: the Coach's Notebook).
+var tutorial: bool = false
+var tips_seen: Array[String] = []
 ## His tournament medals, oldest first: { medal (Tournament.GOLD, SILVER or BRONZE), name, week, size }.
 var medals: Array = []
 
@@ -135,6 +139,7 @@ static func create(profile_in: Dictionary, new_seed: int, extra: Dictionary = {}
 	if extra.get("gym") is Dictionary:
 		c.gym = (extra.gym as Dictionary).duplicate(true)
 	c.trainee.gym = c.gym
+	c.tutorial = bool(extra.get("tutorial", false))
 	c._school_week()
 	return c
 
@@ -329,6 +334,10 @@ func _check_offers(events: Array) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = ("offers:%d:%d" % [career_seed, week]).hash()
 	offers = matchmaker().make_offers(self, rng)
+	var lesson_number: int = Tutorial.lesson(self)
+	if lesson_number > 0 and not pro and not offers.is_empty():
+		# His first three sets of offers each have a lesson fight, the Coach's pick (D316).
+		offers[0] = matchmaker().make_lesson(self, rng, lesson_number, offers)
 	if not pro and week >= next_tournament_week and not offers.is_empty():
 		# Every few months one of the offers is a one-day tournament instead (D315).
 		offers[-1] = matchmaker().make_tournament(self, rng, 0, offers.size() - 1)
@@ -504,6 +513,15 @@ func withdraw() -> String:
 	return m
 
 
+## Marks a tip (data/tips, D316) seen, so it doesn't show again and goes in the Coach's Notebook. Returns whether it's
+## new.
+func see_tip(id: String) -> bool:
+	if id in tips_seen:
+		return false
+	tips_seen.append(id)
+	return true
+
+
 ## The booked tournament's round he fights next (0 for the first), or -1 when the booked fight isn't a tournament.
 func tournament_stage() -> int:
 	return int(booked.tournament.stage) if booked.get("tournament") is Dictionary else -1
@@ -655,6 +673,7 @@ func to_dict() -> Dictionary:
 		"suspended_days": suspended_days, "money": money, "pro": pro, "week_plan": week_plan,
 		"worn_last_week": worn_last_week, "next_offers_week": next_offers_week,
 		"next_tournament_week": next_tournament_week, "medals": medals.duplicate(true),
+		"tutorial": tutorial, "tips_seen": tips_seen.duplicate(),
 		"fights": fights.duplicate(true), "opponents": opponents.duplicate(true),
 		"booked": booked.duplicate(true), "offers": offers.duplicate(true),
 		"summary": summary(),
@@ -695,6 +714,9 @@ static func from_dict(data: Dictionary, library: TrainingLibrary = null) -> Care
 	c.worn_last_week = bool(d.get("worn_last_week", false))
 	c.next_offers_week = int(d.get("next_offers_week", c.week + 1))
 	c.next_tournament_week = int(d.get("next_tournament_week", c.week + Tournament.FIRST_WEEK))
+	c.tutorial = bool(d.get("tutorial", false))
+	for id: Variant in d.get("tips_seen", []):
+		c.tips_seen.append(String(id))
 	c.medals = d.get("medals", []).duplicate(true) if d.get("medals") is Array else []
 	for m: Variant in c.medals:
 		if m is Dictionary:

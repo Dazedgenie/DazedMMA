@@ -1,0 +1,8 @@
+{
+	"schema": "tip@1",
+	"id": "tournament",
+	"title": "A tournament",
+	"text": "A one-day tournament is two or three fights on one night, each man harder, with the last fight's damage carried into the next. Win it for gold; the top finishers get medals too.",
+	"where": "tournament",
+	"order": 120
+}

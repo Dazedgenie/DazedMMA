@@ -473,7 +473,7 @@ this order (D310), each playable when it lands:
 | The gym walk-in at 16 | D313 | Built (§11.3) |
 | School weeks and local cards | D314 | Built (§11.4) |
 | The one-day tournament | D315 | Built (§11.5) |
-| The story as the tutorial (the first three amateur fights, tip cards, the Coach's Notebook) | D316 | Next |
+| The story as the tutorial (the first three amateur fights, tip cards, the Coach's Notebook) | D316 | Built (§11.6) |
 
 ### 11.1 The head coach (D311)
 
@@ -716,3 +716,47 @@ buttons and lines in `game/main.gd` (`_finish_career_fight`, `tournament_text`, 
 `withdraw_from_tournament`); the hub in `ui/career_hub.gd` (`offer_text`, `week_text`, `fights_text`, `medals_text`). Tests:
 `tests/sim/world/test_tournament.gd`, `tests/game/test_main_scene.gd`, `tests/data/test_data_files.gd`. Fights don't change
 (no golden re-pin). Then update this section and D315.
+
+### 11.6 The story as the tutorial (D316)
+
+`07`'s rule: the story is the tutorial, one idea at a time. Kyle (2026-11-01) answered the three questions that shape it:
+"Fight things only", "One lesson fight per offer set" and "A card that waits for Got it".
+
+**The three lesson fights.** A new career's first three fights are its lessons (`sim/world/tutorial.gd`), counted by fights
+he's had, whoever they were against:
+
+| Lesson | Calls open | Also |
+|---|---|---|
+| 1 | Pressure! (1), Circle out! (2), Takedown! (4), and on the same keys Ground and pound! and Go for the finish! on top, Finish it! and Defend the sub! in a hold (as the first Playtest fight, `07` §3) | No tell cue; the round break is just the cards |
+| 2 | + Catch the kick! (Q) | The tell cue (his leg glows before a kick) |
+| 3 | Every call | Drilled rules and the gameplan open, on the fight night card and at the round break |
+
+Only fight things are held back: the hub, the camp, the week plans and mitt work are open from the start, each with a tip.
+
+**The Coach's pick.** Each of his first three sets of offers has a lesson fight in first place, marked *Coach's pick* with
+why: a man a bit easier than him to learn the calls on, then a kicker (the Catch the kick! fight), then a man about his
+level. The other offers are rolled as usual, so he can take someone else; the lessons still go by fight count.
+
+**Tip cards.** The first time each part of the game comes up a card of one or two sentences shows over it, and the screen
+waits until *Got it*: his week on the hub, the first offers, a tournament offer, the camp and mitt work, fight night, each
+lesson fight (its card opens the fight, the clock held, as the Playtest tips do), the first round break, his first loss,
+his first suspension and the first time he works at the gym. A simmed fight skips its card (nobody's watching) and keeps it
+for the next. Several due at once come one after another. The tips are in `data/tips/` (`09` tip@1), so their words can be
+changed without code. Every tip he's seen goes in the **Coach's Notebook**, a button on the hub's top bar, to read again.
+
+**I know the game**, a tick box under your specialty on the new-career screen, turns it all off: every call from his first
+fight, no tips and no lesson fights, and every tip in the Notebook. A career saved before D316 loads with it off.
+
+**Not yet:** a gentle review of a loss from the feed (`07` §2), film study and the first tell in training (step 6), the
+corner screen's water and motivation (step 5), Easy's suggested call, a weight-cut and contracts lesson after fight 3
+(phase 3), and tips for submissions, cuts and fouls the first time they happen in a fight.
+
+**What to change:** which calls each lesson opens, the tell cue and when rules and the gameplan open in
+`sim/world/tutorial.gd` (`FIRST_CALLS`, `SECOND_CALLS`, `tell_cue`, `plan_open`), the lesson fights there too (`LESSONS`,
+`KICKER_STYLES`) and how they're made in `sim/world/matchmaker.gd` (`make_lesson`) and placed in `sim/world/career.gd`
+(`_check_offers`); the tips' words, places and order in `data/tips/`, the places in `Tutorial.PLACES`, where they're shown
+in `game/main.gd` (`show_hub`, `open_career_camp`, `_career_camp_week`, `_career_settings`, `_on_round_over`,
+`_on_fight_over`, `show_career_tips`) and the card in `ui/tip_card.gd`; the Coach's pick's words in `ui/career_hub.gd`
+(`LESSON_TEXT`); the tick box in `ui/new_career_screen.gd`. Tests: `tests/sim/world/test_tutorial.gd`,
+`tests/game/test_main_scene.gd`, `tests/data/test_data_files.gd`. Fights don't change (no golden re-pin). Then update this
+section and D316.

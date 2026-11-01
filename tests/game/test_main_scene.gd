@@ -244,6 +244,7 @@ func test_a_new_career_is_saved_and_opens_on_the_hub() -> void:
 	assert_true(_main.new_career.visible)
 	_main.new_career.set_field("name", "Danny Hill")
 	_main.new_career.set_play_childhood(false)
+	_main.new_career.set_know_the_game(true)  # Not the tutorial (D316): its own test below.
 	_main.new_career.press_start()
 	_main.gym_screen.pick(0)
 	_main.gym_screen.press_start()
@@ -287,6 +288,7 @@ func test_a_new_career_plays_his_childhood_first_and_back_keeps_the_choices() ->
 func test_run_this_week_moves_the_career_on_and_saves_it() -> void:
 	_main.open_new_career()
 	_main.new_career.set_play_childhood(false)
+	_main.new_career.set_know_the_game(true)  # Not the tutorial (D316): its own test below.
 	_main.new_career.press_start()
 	_main.gym_screen.pick(0)
 	_main.gym_screen.press_start()
@@ -300,6 +302,7 @@ func test_continue_picks_the_career_back_up_where_it_was() -> void:
 	_main.open_new_career()
 	_main.new_career.set_field("name", "Danny Hill")
 	_main.new_career.set_play_childhood(false)
+	_main.new_career.set_know_the_game(true)  # Not the tutorial (D316): its own test below.
 	_main.new_career.press_start()
 	_main.gym_screen.pick(0)
 	_main.gym_screen.press_start()
@@ -318,12 +321,14 @@ func test_load_career_lists_the_slots_and_loads_one() -> void:
 	_main.open_new_career()
 	_main.new_career.set_field("name", "First Man")
 	_main.new_career.set_play_childhood(false)
+	_main.new_career.set_know_the_game(true)  # Not the tutorial (D316): its own test below.
 	_main.new_career.press_start()
 	_main.gym_screen.pick(0)
 	_main.gym_screen.press_start()
 	_main.open_new_career()
 	_main.new_career.set_field("name", "Second Man")
 	_main.new_career.set_play_childhood(false)
+	_main.new_career.set_know_the_game(true)  # Not the tutorial (D316): its own test below.
 	_main.new_career.press_start()
 	_main.gym_screen.pick(0)
 	_main.gym_screen.press_start()
@@ -341,6 +346,7 @@ func test_load_career_lists_the_slots_and_loads_one() -> void:
 func test_advance_runs_weeks_until_something_happens_and_saves() -> void:
 	_main.open_new_career()
 	_main.new_career.set_play_childhood(false)
+	_main.new_career.set_know_the_game(true)  # Not the tutorial (D316): its own test below.
 	_main.new_career.press_start()
 	_main.gym_screen.pick(0)
 	_main.gym_screen.press_start()
@@ -357,6 +363,7 @@ func test_advance_runs_weeks_until_something_happens_and_saves() -> void:
 func test_a_career_fight_goes_from_the_offer_through_the_camp_to_his_record() -> void:
 	_main.open_new_career()
 	_main.new_career.set_play_childhood(false)
+	_main.new_career.set_know_the_game(true)  # Not the tutorial (D316): its own test below.
 	_main.new_career.press_start()
 	_main.gym_screen.pick(0)
 	_main.gym_screen.press_start()
@@ -405,6 +412,7 @@ func test_a_career_fight_goes_from_the_offer_through_the_camp_to_his_record() ->
 func test_simming_a_career_fight_goes_straight_to_the_result() -> void:
 	_main.open_new_career()
 	_main.new_career.set_play_childhood(false)
+	_main.new_career.set_know_the_game(true)  # Not the tutorial (D316): its own test below.
 	_main.new_career.press_start()
 	_main.gym_screen.pick(0)
 	_main.gym_screen.press_start()
@@ -430,6 +438,7 @@ func test_simming_a_career_fight_goes_straight_to_the_result() -> void:
 func test_a_tournament_goes_on_round_by_round_and_ends_with_a_medal() -> void:
 	_main.open_new_career()
 	_main.new_career.set_play_childhood(false)
+	_main.new_career.set_know_the_game(true)  # Not the tutorial (D316): its own test below.
 	_main.new_career.press_start()
 	_main.gym_screen.pick(0)
 	_main.gym_screen.press_start()
@@ -474,3 +483,61 @@ func test_a_tournament_goes_on_round_by_round_and_ends_with_a_medal() -> void:
 	assert_eq(str(_main.result.button_labels()), str(["Back to the hub"]))
 	_main._career_after_fight()
 	assert_string_contains(_main.hub.text(), "Medals: silver")
+
+
+func test_a_new_career_teaches_the_game_with_tips_and_a_first_fight_of_three_calls() -> void:
+	_main.open_new_career()
+	_main.new_career.set_play_childhood(false)
+	assert_true(bool(_main.new_career.choices().tutorial), "the tutorial is on unless you know the game (D316)")
+	_main.new_career.press_start()
+	_main.gym_screen.pick(0)
+	_main.gym_screen.press_start()
+	assert_true(_main.tips.visible, "a tip card over the hub")
+	assert_string_contains(_main.tips.text(), "His week")
+	_main.tips.press_ok()
+	assert_false(_main.tips.visible, "Got it")
+	assert_true("hub" in _main.career.tips_seen)
+	assert_true("hub" in CareerSaves.load_slot(0, SAVE_DIR).tips_seen, "saved")
+	_main.career.week_plan = "time_off"
+	_main.hub.press_week()
+	assert_string_contains(_main.tips.text(), "Fight offers", "the offers' tip once they come")
+	_main.tips.press_ok()
+	var offer_id: String = _main.hub.offer_ids()[0]
+	assert_eq(int(_main.career.offer(offer_id).lesson), 1)
+	assert_string_contains(_main.hub.text(), "Coach's pick")
+	_main.hub.press_accept(offer_id)
+	_main.hub.press_camp()
+	assert_string_contains(_main.tips.text(), "His camp")
+	assert_eq(_main.tips.waiting(), 2, "and mitt work after it")
+	_main.tips.press_ok()
+	_main.tips.press_ok()
+	var planner: CampPlanner = _main.planner
+	assert_false(planner.night_card.gameplan.visible, "the gameplan opens with his third fight")
+	planner.pick_preset("time_off")
+	planner.run_rest()
+	assert_string_contains(_main.tips.text(), "Fight night")
+	_main.tips.press_ok()
+	planner.fight_pressed.emit(planner.trained_profile())
+	assert_eq(_main.state, _main.FIGHT)
+	assert_eq(int(_main.settings.lesson), 1)
+	assert_eq(_main.settings.calls, Tutorial.FIRST_CALLS)
+	assert_false(bool(_main.settings.tell_cues))
+	assert_true((_main.settings.gameplan as Dictionary).is_empty())
+	assert_eq(_main.hud.dialog_title(), "Your first calls", "the fight waits on its tip")
+	assert_true(_main.hud.is_allowed("takedown"))
+	assert_false(_main.hud.is_allowed("catch_the_kick"), "Catch the kick! comes in fight 2")
+	_main.driver.throw_towel()
+	var frames: int = 0
+	while _main.state != _main.OVER and frames < 100:
+		frames += 1
+		_main._process(FRAME)
+	assert_eq(String(_main.career.fights[-1].result), "loss")
+	assert_string_contains(_main.tips.text(), "A loss", "his first loss gets a word")
+	_main.tips.press_ok()
+	_main._career_after_fight()
+	_main.tips.press_ok()  # Suspended: the towel's a TKO.
+	_main.open_notebook()
+	for title: String in ["His week", "Fight offers", "His camp", "Your first calls", "A loss"]:
+		assert_string_contains(_main.tips.text(), title, "the Coach's Notebook keeps it")
+	_main.tips.press_ok()
+	assert_false(_main.tips.visible)

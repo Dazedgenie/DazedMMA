@@ -30,6 +30,7 @@ Rules:
 | `data/rulesets/` | `ruleset@1` | Amateur/pro rules (`docs/08`) |
 | `data/fighters/` | `fighter@1` | Fighter profiles: authored fighters, archetype templates and (later) generated fighters (D94) |
 | `data/playtest/` | `playtest@1` | The playtest's fights in order (D118, `docs/playtests/`) |
+| `data/tips/` | `tip@1` | The tutorial's tip cards, one per file (D316, `docs/03` §11.6) |
 | `data/sessions/` | `session@1` | Training sessions: drills, sparring, conditioning, rest (`docs/02` §3.5, D125) |
 | `data/week_plans/` | `week_plan@1` | Week plans: a session in each of the 12 slots of a training week (`docs/02` §3.5) |
 | `data/styles/` | `style@1` | Opponent style sheets: the recipe the world makes opponents of one style from, and the style's scouting card (D160, `docs/03` §7.1) |
@@ -239,6 +240,17 @@ Fight cards (D314, `docs/03` §11.4). `local` names the amateur shows his offers
 A country (D302, D57): `country` (its name), `cities` (the hometowns offered, in order), `first` and `last` (common names).
 Loaded by `NameLibrary` (`sim/world/name_library.gd`); a rolled person's name comes from his hometown's country.
 
+### tip@1 (examples: `hub.json`, `first_fight.json`)
+A tip card (D316, `docs/03` §11.6, `docs/07` §2), shown once in a career the first time its place comes up and kept in the
+Coach's Notebook. Loaded by `Tutorial` (`sim/world/tutorial.gd`).
+
+| Field | Type | Meaning |
+|---|---|---|
+| `title`, `text` | strings | The card: `text` is one or two sentences (the validator counts them) |
+| `where` | string | When it shows (`Tutorial.PLACES`): `hub`, `offers`, `tournament` (a tournament offer), `camp`, `mitt_work` (with the camp), `fight_night`, `fight` (a lesson fight's opening card), `round_break`, `loss`, `suspended`, `gym_shifts` |
+| `order` | number | Its place in the Notebook and when several are due at once |
+| `lesson` | 1–3 | Optional: only before that lesson fight (each lesson has one `fight` tip) |
+
 ### playtest@1 (examples: `fight_1_first_calls.json`, `fight_2_catch_the_kick.json`)
 One fight of the playtest (D118), picked from the setup screen's **Playtest** list. Loaded by `Playtest` (`game/playtest.gd`).
 
@@ -318,9 +330,10 @@ each with a `.backup.json` of the save before it). Written by `CareerSaves` (`ga
 | `next_offers_week` | The first week the next set of fight offers can come in (D304; optional, next week when missing) |
 | `next_tournament_week` | The first week a one-day tournament can be one of his offers (D315; optional, 12 weeks on when missing) |
 | `medals` | His tournament medals, oldest first: `{medal (gold, silver, bronze), name, week, size}` (D315; optional, none when missing) |
+| `tutorial`, `tips_seen` | Whether the story teaches the game (D316: false after *I know the game*, and when missing: a career saved before it), and the tips he's seen, in order (tip ids) |
 | `fights` | One entry per fight, oldest first: `result` (`win`, `loss`, `draw`, `no_contest`), `opponent` (an id in `opponents`), `week`, `pro`, and what the fight screen adds (`method`, `round`, `time`, `ruleset`, `purse`, `seed`, `simmed`, and the aftermath: `suspension_days`, `suspension_why`, `chin_lost`, D305), and `card` (the local card it was on, as the offer had it, D314; amateur fights only); a tournament fight adds `tournament` `{name, size, stage (0 = his first round)}`, the day's last adds `medal` when he won one and `withdrew` when he pulled out after it (D315) |
 | `opponents` | `{id: fighter@1 profile}` for everyone he's fought or is booked to fight |
-| `booked`, `offers` | The offers on the table (D304, `docs/03` §10.4): each `{id, profile (the opponent, fighter@1, with `age`), about {nickname, hometown, country}, style (a style sheet id), difficulty (`easier`, `even`, `harder`), week (fight week), expires (its last open week), ruleset, pro, purse ({show, win} in dollars, or {} for an amateur), card ({name, venue, city}: the local card an amateur offer is on, {} for a pro one, D314)}`. A tournament offer (D315) has difficulty `tournament`, its first-round man as `profile`, and `tournament` `{size, rest: [{profile, about, style}]}` (the later rounds' men). `booked` is the offer taken, without `profile` (that goes into `opponents`), plus `opponent` (his id), `camp_weeks`, and `fight_week_report` once fight week has run ({} when not booked). A booked tournament has `tournament` `{size, stage (the round he fights next), men: [{id, about, style}], carry (fighter@1 `condition` he takes into the next round), suspension, suspension_why (the day's worst so far)}` in place of `rest`, and `opponent`, `about` and `style` are the next round's man |
+| `booked`, `offers` | The offers on the table (D304, `docs/03` §10.4): each `{id, profile (the opponent, fighter@1, with `age`), about {nickname, hometown, country}, style (a style sheet id), difficulty (`easier`, `even`, `harder`), week (fight week), expires (its last open week), ruleset, pro, purse ({show, win} in dollars, or {} for an amateur), card ({name, venue, city}: the local card an amateur offer is on, {} for a pro one, D314)}`. A lesson fight (D316) has `lesson` (1 to 3). A tournament offer (D315) has difficulty `tournament`, its first-round man as `profile`, and `tournament` `{size, rest: [{profile, about, style}]}` (the later rounds' men). `booked` is the offer taken, without `profile` (that goes into `opponents`), plus `opponent` (his id), `camp_weeks`, and `fight_week_report` once fight week has run ({} when not booked). A booked tournament has `tournament` `{size, stage (the round he fights next), men: [{id, about, style}], carry (fighter@1 `condition` he takes into the next round), suspension, suspension_why (the day's worst so far)}` in place of `rest`, and `opponent`, `about` and `style` are the next round's man |
 | `summary` | What the load screen shows without loading the career: `name`, `nickname`, `coach`, `coach_specialty`, `hometown`, `country`, `background`, `age`, `date`, `week`, `pro`, `amateur_record`, `pro_record` |
 | `saved_at`, `saved_unix`, `game` | Added by `CareerSaves`: when (UTC, and Unix seconds for *Continue*), and the game name and Godot version |
 

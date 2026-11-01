@@ -48,3 +48,9 @@ The corner screen (step 5) is the between-rounds panel with the rule slots; ther
 shown by the cue from fight 2. Ground and pound! (D121) came after step 4 was written; it's open from fight 1 because it
 shares key 1 with Pressure! (standing vs on top), so the first fight still has three keys to learn. The same goes for the submission calls (D126, D127): Finish it! shares key 1
 and Defend the sub! key 6, and both only light up when a hold is locked in, so they're open from fight 1 too. The host's script: `docs/playtests/script.md`. To change a fight, edit its JSON file.
+
+## 4. In the career (D316)
+A new career now teaches the same way: its first three fights are the lessons above (the calls of Playtest fights 1, 2
+and 3, with the tell cue from fight 2 and drilled rules and the gameplan from fight 3), each of his first three offer sets
+has a lesson fight marked *Coach's pick*, and a tip card waits for *Got it* the first time each part of the game comes up,
+kept in the Coach's Notebook. *I know the game* turns it off. What's built and what isn't yet: `03` §11.6.

@@ -43,6 +43,8 @@ var _hometown: OptionButton
 var _stance: OptionButton
 var _list: ItemList
 var _childhood: CheckBox
+## I know the game (D316): no tips, and every call open from his first fight.
+var _know_the_game: CheckBox
 var _about: RichTextLabel
 var _problem: Label
 var _start: Button
@@ -99,6 +101,10 @@ func _init(p_names: NameLibrary = null, p_backgrounds: BackgroundLibrary = null)
 	_coach_about.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_coach_about.custom_minimum_size.x = 400.0
 	who_box.add_child(_coach_about)
+	_know_the_game = CheckBox.new()
+	_know_the_game.text = "I know the game: skip the tips and open every call from his first fight"
+	_know_the_game.add_theme_font_size_override("font_size", 16)
+	who_box.add_child(_know_the_game)
 	who_box.add_child(_heading("Your fighter"))
 	_name = _field(who_box, "His name")
 	_nickname = _field(who_box, "Nickname (can be blank)")
@@ -189,13 +195,18 @@ func choices() -> Dictionary:
 		"name": _name.text.strip_edges(), "nickname": _nickname.text.strip_edges(),
 		"hometown": town.city, "country": town.country, "country_id": String(town.get("country_id", "")),
 		"background": background_id(), "stance": String(STANCES[maxi(_stance.selected, 0)][1]),
-		"play_childhood": play_childhood(),
+		"play_childhood": play_childhood(), "tutorial": not _know_the_game.button_pressed,
 	}
 
 
 ## Whether Start career plays his childhood first (the background comes from it, not the list).
 func play_childhood() -> bool:
 	return _childhood.button_pressed
+
+
+## For tests and quick starts: ticks or unticks I know the game.
+func set_know_the_game(on: bool) -> void:
+	_know_the_game.button_pressed = on
 
 
 func set_play_childhood(on: bool) -> void:
