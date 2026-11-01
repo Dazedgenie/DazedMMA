@@ -1,0 +1,9 @@
+{
+	"schema": "division@1",
+	"id": "middleweight",
+	"name": "Middleweight",
+	"short": "Middle",
+	"limit_kg": 83.9,
+	"limit_lb": 185,
+	"order": 5
+}

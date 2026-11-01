@@ -180,7 +180,9 @@ func _show_summary() -> void:
 	lines.append("Strong: %s." % NewCareerScreen._stat_list(bg.get("strengths", [])))
 	var him: Dictionary = he_became()
 	var frame: Dictionary = him.get("frame", {})
-	lines.append("%d cm, reach %d cm." % [int(frame.get("height_cm", 0)), int(frame.get("reach_cm", 0))])
+	lines.append("%d cm, reach %d cm, %s at 16: growing into %s by %d." % [int(frame.get("height_cm", 0)), int(frame.get("reach_cm", 0)),
+		Weight.kg_text(Weight.walk_kg(frame, float(him.get("age", BackgroundLibrary.START_AGE)))), Weight.name_of(Weight.natural(frame)).to_lower(),
+		int(Weight.GROWN_AT)])
 	var gift_names: Dictionary = CareerHub._enum("gifts")
 	var flaw_names: Dictionary = CareerHub._enum("flaws")
 	var gifts: Array[String] = []
@@ -215,7 +217,9 @@ func he_became() -> Dictionary:
 		return {}
 	var extra: Dictionary = _choices.duplicate(true)
 	extra.background = bg
-	return _childhood.apply(_backgrounds.make_fighter(bg, _seed, _roster, extra), picks, _backgrounds)
+	var him: Dictionary = _childhood.apply(_backgrounds.make_fighter(bg, _seed, _roster, extra), picks, _backgrounds)
+	Career.give_weight(him, _seed)
+	return him
 
 
 func _choice_buttons() -> Array[Button]:

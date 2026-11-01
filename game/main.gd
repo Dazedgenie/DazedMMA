@@ -345,7 +345,7 @@ func decline_offer(offer_id: String) -> void:
 
 
 func turn_pro() -> void:
-	if career != null and career.turn_pro():
+	if career != null and career.turn_pro(hub.pro_division()):
 		save_career()
 		show_hub()
 

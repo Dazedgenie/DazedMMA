@@ -1,0 +1,9 @@
+{
+	"schema": "division@1",
+	"id": "featherweight",
+	"name": "Featherweight",
+	"short": "Feather",
+	"limit_kg": 65.8,
+	"limit_lb": 145,
+	"order": 2
+}

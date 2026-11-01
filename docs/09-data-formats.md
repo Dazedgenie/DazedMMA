@@ -31,6 +31,7 @@ Rules:
 | `data/fighters/` | `fighter@1` | Fighter profiles: authored fighters, archetype templates and (later) generated fighters (D94) |
 | `data/playtest/` | `playtest@1` | The playtest's fights in order (D118, `docs/playtests/`) |
 | `data/tips/` | `tip@1` | The tutorial's tip cards, one per file (D316, `docs/03` §11.6) |
+| `data/divisions/` | `division@1` | The six men's weight divisions, one per file (D56, D351, `docs/03` §12.1) |
 | `data/sessions/` | `session@1` | Training sessions: drills, sparring, conditioning, rest (`docs/02` §3.5, D125) |
 | `data/week_plans/` | `week_plan@1` | Week plans: a session in each of the 12 slots of a training week (`docs/02` §3.5) |
 | `data/styles/` | `style@1` | Opponent style sheets: the recipe the world makes opponents of one style from, and the style's scouting card (D160, `docs/03` §7.1) |
@@ -142,7 +143,7 @@ generated world fighters. Loaded by `FighterLibrary` (`sim/fight/fighter_library
 |---|---|---|
 | `name` | string | Display name (required) |
 | `template` | fighter id or null | Fill in anything this file leaves out from that fighter. `frame`, `stats`, `personality`, `style` and `tendencies` merge key by key; other fields replace. One level only (a template has no template) |
-| `frame` | `{height_cm, reach_cm, build}` | Body (`docs/11` §2.3). `build`: `lean` · `average` · `stocky` |
+| `frame` | `{height_cm, reach_cm, build, adult_kg?}` | Body (`docs/11` §2.3). `build`: `lean` · `average` · `stocky`. `adult_kg` (optional, D351): what he walks around at once grown (21); a career's fighter and generated opponents have one, and without it it comes from height and build (`Weight.adult_kg`). Fights don't read it |
 | `stance` | `orthodox` · `southpaw` · `switch` | |
 | `stats` | `{stat: 0–100}` | Attributes from `enums/stats`; unlisted stats are 50 |
 | `personality` | `{ego, discipline, coachable, loyal}` −100–100 | `docs/11` §4.1: + is Ego / Disciplined / Coachable / Loyal, − is Humble / Party animal / Stubborn / Mercenary |
@@ -309,6 +310,15 @@ What a fight on the fight screen leaves behind, one file per fight in the player
 | `replay` | `FightSim.record()` plus `ticks`: the fight replays from it to the same ending |
 | `profiles` | `{id: fighter@1 profile}` for any fighter not in `data/fighters/` (the camp planner's `<id>_camp`, D134); `PlaytestReport.replays` adds them to the roster before replaying. Empty otherwise |
 
+### division@1 (examples: `lightweight.json`, `bantamweight.json`)
+A weight division (D56, D351, `docs/03` §12.1). Loaded by `Weight` (`sim/world/weight.gd`).
+
+| Field | Type | Meaning |
+|---|---|---|
+| `name`, `short` | strings | "Lightweight", "Light" |
+| `limit_kg`, `limit_lb` | numbers | The weigh-in limit (the validator checks the two agree to within 1 lb) |
+| `order` | number | 1 for the lightest, up by one to the heaviest |
+
 ### career@1 (saved by the game, not in `data/`)
 One career (D301, `docs/03` §10.1): a slot's file in the player's `user://saves/` folder (`slot_0.json` … `slot_2.json`,
 each with a `.backup.json` of the save before it). Written by `CareerSaves` (`game/career_saves.gd`) from `Career.to_dict()`
@@ -330,10 +340,11 @@ each with a `.backup.json` of the save before it). Written by `CareerSaves` (`ga
 | `next_offers_week` | The first week the next set of fight offers can come in (D304; optional, next week when missing) |
 | `next_tournament_week` | The first week a one-day tournament can be one of his offers (D315; optional, 12 weeks on when missing) |
 | `medals` | His tournament medals, oldest first: `{medal (gold, silver, bronze), name, week, size}` (D315; optional, none when missing) |
+| `division` | The division he turned pro in (a data/divisions id, D351): `""` for an amateur, who fights at what his weight makes. Optional: a pro saved before D351 gets his natural division |
 | `tutorial`, `tips_seen` | Whether the story teaches the game (D316: false after *I know the game*, and when missing: a career saved before it), and the tips he's seen, in order (tip ids) |
 | `fights` | One entry per fight, oldest first: `result` (`win`, `loss`, `draw`, `no_contest`), `opponent` (an id in `opponents`), `week`, `pro`, and what the fight screen adds (`method`, `round`, `time`, `ruleset`, `purse`, `seed`, `simmed`, and the aftermath: `suspension_days`, `suspension_why`, `chin_lost`, D305), and `card` (the local card it was on, as the offer had it, D314; amateur fights only); a tournament fight adds `tournament` `{name, size, stage (0 = his first round)}`, the day's last adds `medal` when he won one and `withdrew` when he pulled out after it (D315) |
 | `opponents` | `{id: fighter@1 profile}` for everyone he's fought or is booked to fight |
-| `booked`, `offers` | The offers on the table (D304, `docs/03` §10.4): each `{id, profile (the opponent, fighter@1, with `age`), about {nickname, hometown, country}, style (a style sheet id), difficulty (`easier`, `even`, `harder`), week (fight week), expires (its last open week), ruleset, pro, purse ({show, win} in dollars, or {} for an amateur), card ({name, venue, city}: the local card an amateur offer is on, {} for a pro one, D314)}`. A lesson fight (D316) has `lesson` (1 to 3). A tournament offer (D315) has difficulty `tournament`, its first-round man as `profile`, and `tournament` `{size, rest: [{profile, about, style}]}` (the later rounds' men). `booked` is the offer taken, without `profile` (that goes into `opponents`), plus `opponent` (his id), `camp_weeks`, and `fight_week_report` once fight week has run ({} when not booked). A booked tournament has `tournament` `{size, stage (the round he fights next), men: [{id, about, style}], carry (fighter@1 `condition` he takes into the next round), suspension, suspension_why (the day's worst so far)}` in place of `rest`, and `opponent`, `about` and `style` are the next round's man |
+| `booked`, `offers` | The offers on the table (D304, `docs/03` §10.4): each `{id, profile (the opponent, fighter@1, with `age`), about {nickname, hometown, country}, style (a style sheet id), difficulty (`easier`, `even`, `harder`), division (D351: his division then; the opponent is made to fit it), week (fight week), expires (its last open week), ruleset, pro, purse ({show, win} in dollars, or {} for an amateur), card ({name, venue, city}: the local card an amateur offer is on, {} for a pro one, D314)}`. A lesson fight (D316) has `lesson` (1 to 3). A tournament offer (D315) has difficulty `tournament`, its first-round man as `profile`, and `tournament` `{size, rest: [{profile, about, style}]}` (the later rounds' men). `booked` is the offer taken, without `profile` (that goes into `opponents`), plus `opponent` (his id), `camp_weeks`, and `fight_week_report` once fight week has run ({} when not booked). A booked tournament has `tournament` `{size, stage (the round he fights next), men: [{id, about, style}], carry (fighter@1 `condition` he takes into the next round), suspension, suspension_why (the day's worst so far)}` in place of `rest`, and `opponent`, `about` and `style` are the next round's man |
 | `summary` | What the load screen shows without loading the career: `name`, `nickname`, `coach`, `coach_specialty`, `hometown`, `country`, `background`, `age`, `date`, `week`, `pro`, `amateur_record`, `pro_record` |
 | `saved_at`, `saved_unix`, `game` | Added by `CareerSaves`: when (UTC, and Unix seconds for *Continue*), and the game name and Godot version |
 

@@ -45,6 +45,9 @@ func show_fighters(red: Dictionary, blue: Dictionary) -> void:
 		var r: int = int(rf.get(fact[1], 0))
 		var b: int = int(bf.get(fact[1], 0))
 		rows.append({ "label": fact[0], "red": "%d cm" % r, "blue": "%d cm" % b, "edge": signi(b - r) })
+	if rf.has("adult_kg") and bf.has("adult_kg"):  # A career fight (D351): what each walks around at.
+		rows.append({ "label": "WEIGHT", "red": Weight.kg_text(Weight.walk_kg(rf, float(red.get("age", 0)) + 0.5)),
+			"blue": Weight.kg_text(Weight.walk_kg(bf, float(blue.get("age", 0)) + 0.5)), "edge": 0 })
 	rows.append({ "label": "STANCE", "red": String(red.get("stance", "")).capitalize(), "blue": String(blue.get("stance", "")).capitalize(), "edge": 0 })
 	rows.append({ "label": "BUILD", "red": String(rf.get("build", "")).capitalize(), "blue": String(bf.get("build", "")).capitalize(), "edge": 0 })
 	rows.append({ "divider": true })
