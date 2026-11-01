@@ -54,6 +54,8 @@ var _banner: Label
 var _danger_panel: PanelContainer
 var _position_panel: PanelContainer
 var _position_label: Label
+## Who holds what under the position caption (D265).
+var _grips_label: Label
 var _diagram: PositionDiagram
 var _danger_label: Label
 var _danger: ProgressBar
@@ -168,6 +170,51 @@ static func position_text(sim: FightSim) -> String:
 	if top < 0:
 		return name
 	return "%s · %s %s" % [name, sim.fighters[top].name.to_upper(), sim.positions.top_label(where).to_upper()]
+
+
+## The grips readout under the position (D265): who holds what in the clinch or on the ground, e.g.
+## "WRESTLER: BODY LOCK · BOXER: OVERHOOK" or "BOXER FRAMES · HOLDS A WRIST"; "" when nobody holds anything.
+static func grips_text(sim: FightSim) -> String:
+	var parts: Array[String] = []
+	if sim.situation.position == PositionLibrary.CLINCH:
+		for i in 2:
+			var mine: int = sim.underhooks(i)
+			var what: String = ""
+			if mine == 2:
+				what = "BODY LOCK"
+			elif mine == 1:
+				what = "UNDERHOOK"
+			elif sim.underhooks(1 - i) > 0:
+				what = "OVERHOOK"
+			if sim.fighters[1 - i].tied_up_ticks > 0:
+				what = "COLLAR TIE" if what == "" else what + ", COLLAR TIE"
+			if what != "":
+				parts.append("%s: %s" % [sim.fighters[i].name.to_upper(), what])
+		return " · ".join(parts)
+	if sim.situation.is_standing() or not sim.hold().is_empty():
+		return ""
+	var bottom: int = sim.situation.roles.find(PositionLibrary.BOTTOM)
+	if bottom < 0:
+		return ""
+	var g: Dictionary = sim.ground_grips()
+	var held: Array[String] = []
+	if g.collar:
+		held.append("TIES UP THE HEAD")
+	if int(g.wrists) > 0:
+		held.append("HOLDS BOTH WRISTS" if int(g.wrists) >= 2 else "HOLDS A WRIST")
+	if g.frame:
+		held.append("FRAMES")
+	if g.two_on_one:
+		held.append("TWO HANDS ON THE ARM")
+	if int(g.half_inside) == bottom:
+		held.append("HAS THE UNDERHOOK")
+	if sim.situation.position == FightSim.CRUCIFIX:
+		parts.append("%s'S ARMS TRAPPED" % sim.fighters[bottom].name.to_upper())
+	if not held.is_empty():
+		parts.append("%s %s" % [sim.fighters[bottom].name.to_upper(), ", ".join(held)])
+	if int(g.half_inside) == 1 - bottom:
+		parts.append("%s HAS THE UNDERHOOK" % sim.fighters[1 - bottom].name.to_upper())
+	return " · ".join(parts)
 
 
 static func area_text(f: FighterState, area: String) -> String:
@@ -309,9 +356,13 @@ func _refresh(delta: float) -> void:
 		_danger.value = clampf(float(hold.danger), 0.0, FightSim.SUB_TAP)
 		_danger_label.text = danger_text(sim)
 	_diagram.show_fight(sim, FIGHTER_COLOURS)
-	_position_panel.visible = _diagram.where != ""
+	var clinch: bool = sim.situation.position == PositionLibrary.CLINCH and sim.hold().is_empty()
+	_diagram.visible = _diagram.where != ""
+	_position_panel.visible = _diagram.where != "" or clinch
 	if _position_panel.visible:
-		_position_label.text = position_text(sim)
+		_position_label.text = "CLINCH" if clinch else position_text(sim)
+		_grips_label.text = grips_text(sim)
+		_grips_label.visible = _grips_label.text != ""
 	_speed_buttons.slow.button_pressed = driver.speed == FightDriver.SLOW
 	_speed_buttons.fast.button_pressed = driver.speed == FightDriver.FAST
 	_speed_buttons.pause.button_pressed = driver.paused
@@ -499,6 +550,13 @@ func _build() -> void:
 	_position_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	DisplayFont.apply(_position_label, 24)
 	position_column.add_child(_position_label)
+	_grips_label = Label.new()
+	_grips_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_grips_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_grips_label.add_theme_font_size_override("font_size", 16)
+	_grips_label.add_theme_color_override("font_color", Color("#ffd43b"))
+	_grips_label.visible = false
+	position_column.add_child(_grips_label)
 	_diagram = PositionDiagram.new()
 	_diagram.custom_minimum_size = Vector2(0.0, DIAGRAM_HEIGHT)
 	_diagram.size_flags_vertical = Control.SIZE_EXPAND_FILL

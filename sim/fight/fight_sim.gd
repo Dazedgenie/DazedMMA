@@ -1686,6 +1686,10 @@ func odds_breakdown(i: int, id: String, ahead: int = 0) -> OddsBreakdown:
 			b.missing = opp.opponent_flag
 	if action.category == "ground" and b.missing == "" and action.ground.has("grip"):
 		b.missing = _ground_grip_missing(i, String(action.ground.grip))
+	if action.get("clinch", {}).has("grip") or action.get("ground", {}).has("grip"):
+		var hands: float = decisions[i].calls.grip_bonus() if i < decisions.size() and decisions[i] != null else 0.0
+		if hands > 0.0:
+			b.add_bonus("hand fight", hands)  # *Hand fight!* (D265): his mind's on the hands.
 	if action.category == "defense" and action.defense.has("hidden_by") and b.defense > FighterState.DEFAULT_STAT:
 		# A good kicker hides his kicks (D180): his skill above average counts again against the check.
 		b.add_bonus("hidden", -float(action.defense.hidden_by) * (b.defense - FighterState.DEFAULT_STAT) / 100.0)

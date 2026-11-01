@@ -59,7 +59,7 @@ func _order(id: String) -> int:
 	if key == null:
 		return 100
 	if key is String:
-		return 50  # A letter key (Cut the cage! on R, D230).
+		return 50  # A letter key (Cut the cage! on R, D230; Hand fight! on H, D265), then by id.
 	return 10 if int(key) == 0 else int(key)
 
 
