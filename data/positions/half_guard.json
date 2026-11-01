@@ -8,6 +8,7 @@
 	"control_score": { "top": 1.2, "bottom": 0.1 },
 	"strike_damage_multiplier": { "top": 0.9, "bottom": 0.4 },
 	"transitions": [
+		{ "action": "stand_up", "from_role": "top", "to": "standing", "roles": { "actor": "neutral", "opponent": "neutral" } },
 		{ "action": "guard_pass", "from_role": "top", "to": "side_control", "roles": { "actor": "top", "opponent": "bottom" } },
 		{ "action": "get_up", "from_role": "bottom", "to": "standing", "roles": { "actor": "neutral", "opponent": "neutral" } },
 		{ "action": "get_up", "from_role": "bottom", "result": "partial", "to": "scramble", "roles": { "actor": "neutral", "opponent": "neutral" } },

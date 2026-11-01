@@ -69,6 +69,7 @@ const RECIPES := {
 	"head_kick": { "thump": 80.0, "decay": 0.11, "snap": 1.00, "bright": 0.70, "swish": 0.36, "tone": 0.30, "gain": 1.15 },
 	"soccer_kick": { "thump": 70.0, "decay": 0.10, "snap": 0.75, "bright": 0.50, "swish": 0.30, "tone": 0.30, "gain": 1.10 },
 	"stomp": { "thump": 55.0, "decay": 0.14, "snap": 0.40, "bright": 0.30, "swish": 0.20, "tone": 0.25, "gain": 1.05 },
+	"up_kick": { "thump": 72.0, "decay": 0.11, "snap": 0.70, "bright": 0.45, "swish": 0.26, "tone": 0.30, "gain": 1.00 },
 }
 
 ## Each version's loudness against connected, in dB.

@@ -157,6 +157,8 @@ static func _describe(event: FightEvent, sim: FightSim) -> String:
 				return "[b]They come apart → %s[/b]" % _position_name(event.data.position, sim)
 			if event.data.action_id == FightSim.TURN_AWAY:
 				return "[b]%s TURNS AWAY from the punches and GIVES UP HIS BACK → %s[/b]%s" % [who, _position_name(event.data.position, sim), _roles(event, sim)]
+			if event.data.action_id == FightSim.STAND_UP:
+				return "[b]%s STANDS UP out of it and leaves him on his back → %s[/b]" % [who, _position_name(event.data.position, sim)]
 			if event.data.get("failed", false):
 				return "[b]%s's %s misses and costs the position → %s[/b]%s" % [who, _action_name(event.data.action_id, sim).to_lower(), _position_name(event.data.position, sim), _roles(event, sim)]
 			return "[b]%s's %s → %s[/b]%s" % [who, _action_name(event.data.action_id, sim), _position_name(event.data.position, sim), _roles(event, sim)]
@@ -190,6 +192,8 @@ static func _describe(event: FightEvent, sim: FightSim) -> String:
 		FightEvent.LIVER_SHOT:
 			return "[b]%s freezes: that one found the LIVER[/b]" % who
 		FightEvent.GOT_UP:
+			if event.data.get("left_down", false):
+				return "%s gets back up off his back" % who
 			return "%s beats the count and gets back up" % who
 		FightEvent.RECOVERED:
 			return "[color=%s]%s has shaken it off[/color]" % [DIM_COLOUR, who]
