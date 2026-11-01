@@ -58,4 +58,5 @@ The career and world simulation (D100), starting with training (`docs/02` §3.5,
 | `school.gd` | School weeks (docs/03 §11.4, D314): until 18, term time takes his weekday mornings; the summer holidays and when he leaves |
 | `tournament.gd` | The one-day amateur tournament (docs/03 §11.5, D315): the sizes, the rounds' names, the medals and what carries from one fight to the next |
 | `tutorial.gd` | The story as the tutorial (docs/03 §11.6, D316): the three lesson fights and what each opens, and the tips in data/tips (when each is due, the Coach's Notebook) |
+| `weight.gd` | Weight divisions (docs/03 §12.1, D351): the six divisions in data/divisions, a fighter's grown weight from his height and build, growing into it by 21, his division from his weight with a normal cut, the choices at his pro debut, and fitting a made-up opponent to a division |
 | `aftermath.gd` | What a fight does to him afterwards (docs/03 §10.5, D305): the medical suspension and the Chin a knockout takes |

@@ -104,6 +104,9 @@ const SCHEMAS := {
 		"name": TYPE_STRING, "about": TYPE_STRING, "names": TYPE_ARRAY, "venues": TYPE_ARRAY, "home_share": TYPE_FLOAT,
 		"every_weeks": TYPE_FLOAT,
 	} },
+	"division@1": { "folder": "divisions", "fields": {
+		"name": TYPE_STRING, "short": TYPE_STRING, "limit_kg": TYPE_FLOAT, "limit_lb": TYPE_FLOAT, "order": TYPE_FLOAT,
+	} },
 	"tip@1": { "folder": "tips", "fields": {
 		"title": TYPE_STRING, "text": TYPE_STRING, "where": TYPE_STRING, "order": TYPE_FLOAT,
 	} },
@@ -1028,4 +1031,25 @@ func test_tips_are_two_sentences_at_a_known_place_and_each_lesson_has_one() -> v
 	for n in range(1, Tutorial.LESSON_FIGHTS + 1):
 		if int(lessons.get(n, 0)) != 1:
 			problems.append("lesson %d needs exactly one fight tip, has %d" % [n, int(lessons.get(n, 0))])
+	_report(problems)
+
+
+func test_the_six_divisions_run_light_to_heavy_with_matching_pounds() -> void:
+	var problems: Array[String] = []
+	var divisions: Dictionary = _items("divisions")
+	if divisions.size() != 6:
+		problems.append("data/divisions/ has %d divisions: the game has 6 men's divisions (D56, D351)" % divisions.size())
+	var by_order: Array = divisions.values()
+	by_order.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a.get("order", 0)) < int(b.get("order", 0)))
+	var last: float = 0.0
+	for i in by_order.size():
+		var d: Dictionary = by_order[i]
+		var where := "division '%s'" % String(d.get("id", ""))
+		if int(d.get("order", 0)) != i + 1:
+			problems.append("%s: orders run 1 to %d with none missing (got %d)" % [where, by_order.size(), int(d.get("order", 0))])
+		if float(d.get("limit_kg", 0)) <= last:
+			problems.append("%s: each limit is heavier than the one before" % where)
+		last = float(d.get("limit_kg", 0))
+		if absf(float(d.get("limit_kg", 0)) * Weight.LB_PER_KG - float(d.get("limit_lb", 0))) > 1.0:
+			problems.append("%s: %s kg is not %s lb" % [where, d.get("limit_kg"), d.get("limit_lb")])
 	_report(problems)

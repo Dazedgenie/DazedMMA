@@ -1,0 +1,9 @@
+{
+	"schema": "division@1",
+	"id": "bantamweight",
+	"name": "Bantamweight",
+	"short": "Bantam",
+	"limit_kg": 61.2,
+	"limit_lb": 135,
+	"order": 1
+}
