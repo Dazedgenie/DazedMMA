@@ -238,6 +238,8 @@ static func fighter_card_text(c: Career, gift_names: Dictionary = {}, flaw_names
 	var town: String = ", ".join([c.about.get("hometown", ""), c.about.get("country", "")].filter(func(s: String) -> bool: return s != ""))
 	if town != "":
 		lines.append("From %s" % town)
+	if not c.gym.is_empty():
+		lines.append("Trains at %s (%s)" % [String(c.gym.get("name", "")), Gym.kind_line(c.gym)])
 	var frame: Dictionary = p.get("frame", {})
 	lines.append("%s · %d cm, reach %d cm · %s build" % [String(p.get("stance", "orthodox")).capitalize(), int(frame.get("height_cm", 0)),
 		int(frame.get("reach_cm", 0)), String(frame.get("build", "average"))])
@@ -436,7 +438,9 @@ static func week_text(c: Career, reports: Array = []) -> String:
 		lines.append("This week: the %s plan." % String(TrainingLibrary.shared().plan(c.week_plan).get("name", c.week_plan)).to_lower())
 	if Matchmaker.can_turn_pro(c):
 		lines.append("[color=%s]He can turn pro: he's %d with %d amateur fights.[/color]" % [GOOD.to_html(false), c.age(), Matchmaker.amateur_fights(c)])
-	lines.append("Savings: $%d" % c.money)
+	if c.gym_owed > 0:
+		lines.append("[color=%s]Owes the gym $%d: he works Saturdays there ($%d a week) until it's paid.[/color]" % [WARN.to_html(false), c.gym_owed, Gym.shift_week_pay()])
+	lines.append("Savings: $%d" % c.money + (" · the gym is $%d a month" % int(c.gym.get("fee", 0)) if not c.gym.is_empty() else ""))
 	if not reports.is_empty():
 		lines.append("")
 		lines.append(last_text(c, reports))
@@ -454,6 +458,16 @@ static func last_text(c: Career, reports: Array) -> String:
 			events.append("%s (%s)" % [Career.event_text(event), c.short_date(int(report.get("week", 0)))])
 	var head: String = "Last week" if reports.size() == 1 else "The last %d weeks" % reports.size()
 	var out: String = "[color=%s]%s:[/color] %s" % [DIM.to_html(false), head, _gains_line(gains)]
+	var fees: int = 0
+	for report: Dictionary in reports:
+		fees += int(report.get("gym_fee", 0))
+	var worked: int = 0
+	for report: Dictionary in reports:
+		worked += int(report.get("gym_worked", 0))
+	if fees > 0:
+		out += ("" if out.ends_with(".") else ".") + " Paid the gym $%d." % fees
+	if worked > 0:
+		out += ("" if out.ends_with(".") else ".") + " Worked $%d off at the gym." % worked
 	if not events.is_empty():
 		out += "\n[color=%s]%s.[/color]" % [WARN.to_html(false), ". ".join(events)]
 	return out

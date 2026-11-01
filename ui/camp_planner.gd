@@ -127,7 +127,10 @@ func _init(profile: Dictionary, camp_seed: int = 1, library: TrainingLibrary = n
 	_library = library if library != null else TrainingLibrary.shared()
 	_camp_seed = camp_seed
 	_plan_ids = _library.plan_ids()
-	_session_ids = _library.session_ids()
+	_session_ids = []
+	for id: String in _library.session_ids():
+		if not bool(_library.session(id).get("career_only", false)):  # Gym shifts aren't a camp's to plan (D313).
+			_session_ids.append(id)
 	_slot_ids.resize(TrainingCamp.DAYS * TrainingCamp.SLOTS_PER_DAY)
 	_slot_ids.fill(_session_ids[0])
 	var enum_data: Variant = JSON.parse_string(FileAccess.get_file_as_string(TrainingCamp.STATS_PATH))

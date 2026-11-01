@@ -1,0 +1,31 @@
+{
+	"schema": "gym@1",
+	"id": "mma_gym",
+	"name": "MMA gym",
+	"about": "A cage in the corner, a mat area and a bag room. A bit of everything, and the fighters who do it all.",
+	"xp": {
+		"sparring": 1.1,
+		"mind": 1.05
+	},
+	"fee": [
+		70,
+		110
+	],
+	"names": [
+		"{city} Fight Team",
+		"{city} MMA",
+		"{surname} Combat Club",
+		"The Cage {city}",
+		"Team {surname}"
+	],
+	"owners": [
+		"A former regional champion who opened the place with his fight purses.",
+		"Runs it like a business: contracts, a website and a smoothie bar.",
+		"Has had three fighters on TV and talks about them every day."
+	],
+	"backgrounds": [
+		"late_starter",
+		"college_football",
+		"street_kid"
+	]
+}
