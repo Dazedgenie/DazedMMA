@@ -46,6 +46,8 @@ const FIGHT_NIGHT := "fight_night"
 const WORN_DOWN := "worn_down"
 ## Fight offers came in (D304): { kind, count }.
 const OFFERS := "offers"
+## Days from fight night (Saturday) to the Monday after it.
+const FIGHT_TO_MONDAY: int = 2
 ## How many weeks a year has for a birthday: TrainingCamp ages him 1/52 of a year a week (docs/02 §3.8).
 const WEEKS_PER_YEAR: float = 52.0
 
@@ -53,13 +55,19 @@ const WEEKS_PER_YEAR: float = 52.0
 static var load_error: String = ""
 
 var career_seed: int = 0
-## The head coach: the player (D15).
+## The head coach: the player (D15), with a background and a specialty (Coach, D311). A career saved before D311 has
+## neither ("").
 var coach_name: String = ""
+var coach_background: String = ""
+var coach_specialty: String = ""
 ## The fighter@1 profile he started with: name, frame, stance, personality, gifts, flaws and moves. What changes
 ## with training (stats, style, age, condition) is in `trainee`; profile() puts the two together.
 var fighter: Dictionary = {}
 ## nickname, hometown, country, background (ABOUT_KEYS).
 var about: Dictionary = {}
+## His childhood (Childhood, D312): { picks: [{scene, choice}], second: the runner-up background, people: [{role, name,
+## about, age}] }. {} when the player picked his background from the list instead (or the career predates D312).
+var childhood: Dictionary = {}
 var trainee: TrainingCamp
 ## The day (days since 1 Jan 1970) of the Monday that starts week 0, and the week it is now.
 var first_monday: int = 0
@@ -89,8 +97,8 @@ var _library: TrainingLibrary
 var _matchmaker: Matchmaker
 
 
-## A new career for this fighter (a fighter@1 profile) on week 0. `extra` may give `coach` (the player's name) and
-## ABOUT_KEYS.
+## A new career for this fighter (a fighter@1 profile) on week 0. `extra` may give `coach` (the player's name),
+## `coach_background` and `coach_specialty` (Coach, D311) and ABOUT_KEYS.
 static func create(profile_in: Dictionary, new_seed: int, extra: Dictionary = {}, library: TrainingLibrary = null) -> Career:
 	var c := Career.new()
 	c._library = library if library != null else TrainingLibrary.shared()
@@ -100,22 +108,47 @@ static func create(profile_in: Dictionary, new_seed: int, extra: Dictionary = {}
 	c.fighter.id = FIGHTER_ID
 	c.fighter.erase("condition")
 	c.coach_name = String(extra.get("coach", ""))
+	c.coach_background = String(extra.get("coach_background", ""))
+	c.coach_specialty = String(extra.get("coach_specialty", ""))
 	for key in ABOUT_KEYS:
 		c.about[key] = String(extra.get(key, ""))
 	c.first_monday = days_from_civil(START_DATE[0], START_DATE[1], START_DATE[2])
 	c.trainee = TrainingCamp.new(c.fighter, c._dice.randi(), c._library)
+	c.trainee.coach_specialty = c.coach_specialty
 	return c
 
 
 ## A new career from the new-career screen (docs/03 §10.2, D302): a 16-year-old made from his background
 ## (BackgroundLibrary.make_fighter) and the player's `choices`: coach, name, nickname, hometown, country, background (an
 ## id in data/backgrounds) and stance. He starts with his background's money.
-static func start(choices: Dictionary, new_seed: int, roster: FighterLibrary, backgrounds: BackgroundLibrary = null, library: TrainingLibrary = null) -> Career:
+##
+## With `childhood` (the picks from his childhood scenes, [{scene, choice}]: Childhood, D312, §11.2) his background is
+## the one those choices add up to instead of `background`, and the choices change him on top (Childhood.apply), add
+## to his money and bring in people (named from `country_id`). `new_seed` must be the seed the scenes were drawn with.
+static func start(choices: Dictionary, new_seed: int, roster: FighterLibrary, backgrounds: BackgroundLibrary = null,
+		library: TrainingLibrary = null, scenes: Childhood = null) -> Career:
 	var bgs: BackgroundLibrary = backgrounds if backgrounds != null else BackgroundLibrary.shared()
-	var background: String = String(choices.background)
-	var profile_in: Dictionary = bgs.make_fighter(background, new_seed, roster, choices)
-	var c: Career = create(profile_in, new_seed, choices, library)
+	var picks: Array = choices.get("childhood", [])
+	var kid: Childhood = null
+	var tally: Dictionary = {}
+	if not picks.is_empty():
+		kid = scenes if scenes != null else Childhood.shared()
+		tally = kid.tally(picks)
+	var extra: Dictionary = choices.duplicate(true)
+	if String(tally.get("background", "")) != "" and bgs.has(String(tally.background)):
+		extra.background = String(tally.background)
+	var background: String = String(extra.get("background", ""))
+	var profile_in: Dictionary = bgs.make_fighter(background, new_seed, roster, extra)
+	if not tally.is_empty():
+		profile_in = kid.apply(profile_in, picks, bgs)
+	var c: Career = create(profile_in, new_seed, extra, library)
 	c.money = int(bgs.get_background(background).get("money", 0))
+	if not tally.is_empty():
+		c.money += kid.money(picks)
+		c.childhood = {
+			"picks": picks.duplicate(true), "second": String(tally.second),
+			"people": kid.people(picks, String(profile_in.get("name", "")), String(choices.get("country_id", "")), new_seed),
+		}
 	return c
 
 
@@ -308,18 +341,29 @@ func booked_opponent() -> Dictionary:
 
 
 ## The booked fight is over (D304): onto his record, his purse paid, the fight week done. `entry` is as add_fight()
-## takes it, without `opponent` (the booked one). Returns what he was paid.
+## takes it, without `opponent` (the booked one), and `hard` (Aftermath.is_hard) when it was a hard fight for him.
+## Then the aftermath (D305, Aftermath.of): a medical suspension counted from fight night, and the Chin a knockout
+## takes for good; the fight's entry keeps them (`suspension_days`, `suspension_why`, `chin_lost`). Returns what he was paid.
 func finish_fight(entry: Dictionary) -> int:
 	var e: Dictionary = entry.duplicate(true)
+	var hard: bool = bool(e.get("hard", false))
+	e.erase("hard")
 	e.opponent = String(booked.get("opponent", ""))
 	e.ruleset = String(booked.get("ruleset", ""))
 	var purse: Dictionary = booked.get("purse", {})
 	var paid: int = int(purse.get("show", 0)) + (int(purse.get("win", 0)) if String(e.result) == "win" else 0)
 	if paid > 0:
 		e.purse = paid
+	var after: Dictionary = Aftermath.of(String(e.result), String(e.get("method", "")), hard)
+	e.suspension_days = int(after.days)
+	e.chin_lost = float(after.chin)
+	e.suspension_why = String(after.why)
 	add_fight(e)
 	money += paid
+	trainee.stats["chin"] = maxf(0.0, trainee.stat("chin") - float(after.chin))
 	_after_booking()
+	# The suspension runs from fight night (Saturday): by Monday two of its days are gone.
+	suspended_days = maxi(suspended_days, int(after.days) - FIGHT_TO_MONDAY)
 	return paid
 
 
@@ -406,6 +450,7 @@ func record_text(pro_fights: bool) -> String:
 func summary() -> Dictionary:
 	return {
 		"name": fighter_name(), "nickname": String(about.get("nickname", "")), "coach": coach_name,
+		"coach_specialty": coach_specialty,
 		"hometown": String(about.get("hometown", "")), "country": String(about.get("country", "")),
 		"background": String(about.get("background", "")),
 		"age": age(), "date": date_text(), "week": week, "pro": pro,
@@ -419,8 +464,8 @@ func to_dict() -> Dictionary:
 	return {
 		"schema": SCHEMA, "version": VERSION,
 		"seed": str(career_seed), "dice": str(_dice.state),
-		"coach": { "name": coach_name },
-		"fighter": fighter.duplicate(true), "about": about.duplicate(true),
+		"coach": { "name": coach_name, "background": coach_background, "specialty": coach_specialty },
+		"fighter": fighter.duplicate(true), "about": about.duplicate(true), "childhood": childhood.duplicate(true),
 		"trainee": trainee.snapshot(),
 		"calendar": { "first_monday": first_monday, "week": week },
 		"suspended_days": suspended_days, "money": money, "pro": pro, "week_plan": week_plan,
@@ -447,9 +492,15 @@ static func from_dict(data: Dictionary, library: TrainingLibrary = null) -> Care
 	c._dice.seed = c.career_seed
 	c._dice.state = String(d.get("dice", "0")).to_int()
 	c.coach_name = String(d.get("coach", {}).get("name", ""))
+	c.coach_background = String(d.get("coach", {}).get("background", ""))
+	c.coach_specialty = String(d.get("coach", {}).get("specialty", ""))
 	c.fighter = d.fighter.duplicate(true)
 	for key in ABOUT_KEYS:
 		c.about[key] = String(d.get("about", {}).get(key, ""))
+	c.childhood = d.get("childhood", {}).duplicate(true) if d.get("childhood") is Dictionary else {}
+	for person: Variant in c.childhood.get("people", []):
+		if person is Dictionary:
+			person.age = int(person.get("age", 0))
 	c.first_monday = int(d.calendar.get("first_monday", 0))
 	c.week = int(d.calendar.get("week", 0))
 	c.suspended_days = int(d.get("suspended_days", 0))
@@ -463,6 +514,7 @@ static func from_dict(data: Dictionary, library: TrainingLibrary = null) -> Care
 	c.booked = d.get("booked", {}).duplicate(true)
 	c.offers = d.get("offers", []).duplicate(true)
 	c.trainee = TrainingCamp.new(c.fighter, 0, c._library)
+	c.trainee.coach_specialty = c.coach_specialty
 	c.trainee.restore(d.trainee)
 	return c
 

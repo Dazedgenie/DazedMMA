@@ -1,6 +1,6 @@
 # 03 — Career, World & Life
 
-> Related decisions: D7, D16–D19, D21, D22, D25, D41–D45, D160, D300–D305. Status: **design draft**; §7.1 and §10.1–§10.4 are built.
+> Related decisions: D7, D16–D19, D21, D22, D25, D41–D45, D160, D300–D305. Status: **design draft**; §7.1 and §10.1–§10.5 are built.
 
 ---
 
@@ -233,7 +233,7 @@ Phase 1 joins what's built into a career that goes on from fight to fight and sa
 | The title screen and a new career | D302 | Built (§10.2) |
 | The career hub and the calendar | D303 | Built (§10.3) |
 | Fight offers and matchmaking | D304 | Built (§10.4) |
-| The aftermath, and skipping a fight | D305 | Next |
+| The aftermath, and skipping a fight | D305 | Built (§10.5) |
 
 ### 10.1 The career and its save file (D301)
 
@@ -299,7 +299,7 @@ the cage (D170): CHIN CHECK in the display font, Lampsmoke Games under it (D242)
 
 **A new career** (`ui/new_career_screen.gd`) asks your name (you're his coach, D15), then his name, nickname, hometown, stance
 and where he comes from: one of the 12 backgrounds of `docs/02` §1.2 (Q4 in the plan: picked from a list until phase 2's
-childhood scenes pick it instead). The screen opens already rolled, so *Start career* works straight away; *Roll everything*
+childhood scenes picked it instead: now they do, unless you untick *Play his childhood*, §11.2). The screen opens already rolled, so *Start career* works straight away; *Roll everything*
 rolls again. Hometowns are real cities in 12 countries (`data/names/`), and a rolled name comes from his hometown's country.
 Each background shows what it's strong and weak at, the style he'll grow into, the money he starts with (in dollars, Kyle's
 call) and its story hook.
@@ -321,8 +321,8 @@ coach, the date and the week), his card (background, hometown, stance, height an
 his scouted potential, the background's hook), every stat as a bar and a grade, and *This week*: any injury or suspension,
 the week plan, his savings, *Run this week* (a week between fights, then an autosave) and *Save and go to the title*.
 
-**Not yet:** offers and fights from the hub (D304), the calendar and the rest of the hub (D303), the head coach's look and
-specialty and the childhood scenes (phase 2).
+**Not yet:** offers and fights from the hub (D304), the calendar and the rest of the hub (D303), and the head coach's look
+(his background and specialty came in §11.1, the childhood scenes in §11.2).
 
 **What to change:** a background's strengths, weaknesses, leanings, frame, gift and flaw odds, money and hook in its file in
 `data/backgrounds/`; how high or low a new fighter starts, potential and the gift and flaw odds (`STAT_LOW`, `STAT_HIGH`,
@@ -416,8 +416,7 @@ from the career's dice. A career fight can't be restarted from the pause menu. W
 carries on, the fight week ends and the career saves. The result screen says what it did to his record and his money, and
 *Back to the hub* goes home.
 
-**Not yet:** what a fight does to him afterwards (damage, suspensions, time off: D305), simming a fight instead of watching
-it (D305), short-notice offers, a rematch, an opponent's own record and camp, and reputation for turning fights down.
+**Not yet:** short-notice offers, a rematch, an opponent's own record and camp, and reputation for turning fights down.
 
 **What to change:** every number above is a constant at the top of `sim/world/matchmaker.gd`; when offers come and how a
 fight is recorded are in `sim/world/career.gd` (`_check_offers`, `accept`, `finish_fight`); the offer cards in
@@ -426,3 +425,129 @@ fight is recorded are in `sim/world/career.gd` (`_check_offers`, `accept`, `fini
 `tests/ui/test_career_screens.gd`, `tests/game/test_main_scene.gd`. Fights themselves don't change (no golden re-pin).
 Then update this section and D304.
 
+### 10.5 The aftermath, and simming a fight (D305)
+
+The last piece of the career spine. The picks put to Kyle; Kyle (2026-10-31): "Sounds good for now".
+
+**The medical suspension.** After every fight the commission sits him out (`sim/world/aftermath.gd`): a KO loss 60 days and
+1 point of Chin gone for good; a TKO loss (the referee, the doctor or the towel) 30 days and half a point of Chin; a hard
+fight, won or lost, 21 days; any other fight 7 days. A hard fight is one where he was knocked down, or finished at least half
+hurt to the head or 60% hurt to the body (`Aftermath.is_hard`, from `FighterState.hurt`). The suspension counts from fight
+night, so by the Monday after two of its days are gone (`Career.FIGHT_TO_MONDAY`). While suspended no offers come (§10.4), the
+hub says how long is left and the calendar shows the week he's cleared. Each fight's line on his record keeps its suspension,
+why and the Chin lost. Chin already wears a little with hard sparring (`docs/02` §3.5); this is the knockout's own toll on
+top, and it doesn't heal.
+
+**Simming a fight.** The fight night card in a career has **Sim the fight** beside *Fight!*: the same fight (the booked man,
+the rules, a seed from the career's dice, the camp's condition), played out at once with the sound off and no calls (the
+fighters' own AI fights it), straight to the result screen, which says it was simmed. It counts exactly as a watched fight.
+
+**Not yet:** damage that carries over as named injuries, a doctor's check that can lengthen a
+suspension, and the AI corner coaching a simmed fight for him (D113).
+
+**What to change:** the days and the Chin in `sim/world/aftermath.gd` (`KO_DAYS`, `KO_CHIN`, `TKO_DAYS`, `TKO_CHIN`,
+`HARD_DAYS`, `HARD_HEAD`, `HARD_BODY`, `OTHER_DAYS`); where it's applied in `Career.finish_fight`; Sim the fight in
+`ui/fight_night_card.gd` and `game/main.gd` (`sim_career_fight`); the result line in `game/main.gd` (`aftermath_text`). Tests:
+`tests/sim/world/test_aftermath.gd`, `tests/game/test_main_scene.gd`. Fights don't change (no golden re-pin). Then update
+this section and D305.
+
+
+## 11. The front door (D310–D316)
+
+Phase 2 of the plan (§10, D300): the first half hour of a new career, which is also the tutorial (`07`). Kyle (2026-10-31):
+"Start now". The plan and its 14 questions are in the phase 2 plan doc (my picks are built until Kyle answers). Six pieces, in
+this order (D310), each playable when it lands:
+
+| Piece | Decision | Status |
+|---|---|---|
+| The head coach | D311 | Built (§11.1) |
+| The childhood scenes at 8, 12 and 15, replacing the background list | D312 | Built (§11.2) |
+| The gym walk-in at 16 | D313 | Next |
+| School weeks and local cards | D314 | |
+| The one-day tournament | D315 | |
+| The story as the tutorial (the first three amateur fights, tip cards, the Coach's Notebook) | D316 | |
+
+### 11.1 The head coach (D311)
+
+You're his head coach (D15). A new career now asks three things about you (D63, D71): your name, who you were before him
+(one of five coach backgrounds in `data/enums/coach_backgrounds.json`: former fighter, wrestling coach, boxing trainer, BJJ
+black belt, PE teacher, each with a line about you) and your starting specialty, which does something small but real
+(`sim/world/coach.gd`):
+
+| Specialty | What it does |
+|---|---|
+| Striking | His Striking stats (`data/enums/stats`) learn 15% faster, from any session |
+| Wrestling | His Wrestling stats learn 15% faster |
+| BJJ | His Grappling stats learn 15% faster |
+| Motivator | Training tires him 10% less, and a party animal skips half as many sessions |
+| Tactician | Your calls reach him a quarter sooner (0.6 s → 0.45 s for a fresh fighter) |
+
+The specialty lives on the career's `TrainingCamp` (`coach_specialty`), so it works between fights and in the camp alike. A
+Tactician's call delay goes into the fight profile's `condition` (`call_delay`, `docs/09`), which `FighterState` reads, so a
+fight still replays from its profiles. Fights without a career coach don't change (no golden re-pin). The hub's top bar says
+who coaches him and the specialty ("coached by Sam Reed (Tactician)"), and his card says what it does. *Roll everything*
+rolls a background and a specialty too. A career saved before D311 loads with a coach who has neither (the save stays
+career@1: the new fields are optional).
+
+Kyle's question on the plan was whether these numbers are right (Q8); they're my picks until he answers. The coach's own
+levels (Clarity, Reading, Corner work, Motivation, Network, `02` §5) and the coach's look come later (phase 4, and with the
+visual work).
+
+**What to change:** the specialties' numbers and words in `sim/world/coach.gd` (`GROUP_XP`, `MOTIVATOR_FATIGUE`,
+`MOTIVATOR_SKIPS`, `TACTICIAN_DELAY`, `SPECIALTIES`, `SPECIALTY_GROUPS`); the coach backgrounds in
+`data/enums/coach_backgrounds.json`; where training reads them in `sim/world/training_camp.gd` (`learning`, `skip_chance`,
+`_add_fatigue`, `fight_profile`); the call delay in `sim/fight/live_calls.gd` (`delay_ticks`); the screen in
+`ui/new_career_screen.gd`, the hub in `ui/career_hub.gd` (`coach_text`, `fighter_card_text`). Tests:
+`tests/sim/world/test_coach.gd`, `tests/sim/fight/test_live_calls.gd`, `tests/ui/test_career_screens.gd`,
+`tests/data/test_data_files.gd`. Then update this section and D311.
+
+### 11.2 His childhood (D312)
+
+Before he's 16 he's a boy (D8, D83, `02` §1.1). A new career now plays three short scenes from his childhood, at about 8, 12
+and 15, and what he chose in them makes him. *Play his childhood* on the new-career screen is ticked by default; *Start
+career* becomes *Play his childhood* and opens the scenes (`ui/childhood_screen.gd`). Untick it to pick his background from
+the list and start straight away, as before (plan Q2, Q4).
+
+**The scenes** are text on a corner-board card (Q5), in `data/vignettes/` (`docs/09` vignette@1), four written for each age
+(12 in all), so a career draws one per age from its seed (`Childhood.draw`) and two careers seldom grow up the same (Q3).
+Each has three choices; pick one and a line says what came of it, then *Next*. Back goes to the new-career screen with what
+you'd filled in kept; Esc does too.
+
+| Age | The scenes |
+|---|---|
+| 8 | The flyer on the fridge, The walk home, Saturday mornings, The long summer |
+| 12 | Tryouts, The older kids, Summer money, The test |
+| 15 | The fight on TV, The party, The injury, The trip |
+
+**What a choice does** (`sim/world/childhood.gd`):
+
+- **Background.** Each choice leans 3 toward one of the 12 backgrounds (`data/backgrounds/`). The one with the most weight is
+  his background; a tie goes to the one chosen later. So three different choices make him what he chose at 15, and two
+  choices the same way make him that whatever the third was. Every background can come out of every age's scenes.
+- **A bit of the runner-up.** The second background adds half a strength bonus (6 points) to its first two strengths (a
+  mixed childhood feels mixed): "Street kid, with a bit of track star".
+- **Stats and personality.** Each choice nudges two stats by 2 to 4 points and can nudge a personality axis by up to 15
+  (on top of the background's own lean). Stats stay 5 to 100, personality −100 to 100.
+- **His height.** A choice can lean his height (`height` −1 or +1: 4 cm, reach with it). None of the 12 scenes uses it yet.
+- **People.** Some choices bring someone into his life: his dad who wrestled in college, the old trainer at the corner gym,
+  the best friend he stood up for (Q13). Family share his surname, everyone's first name is from his country, and they go on
+  his card on the hub ("Dad (Gary Hill): Wrestled in college and still talks about it."). A grandma goes by Grandma (the name
+  lists are men's first names). They're only on his card for now; they come back in the story later (D316 and phase 3).
+- **Money.** Summer jobs and the like add $150 to $400 to what his background starts him with.
+
+After the third scene, **Who he became** shows his background and the flavour, the background's line and strengths, his
+height and reach, the gifts and flaws that show, the people, the money he starts with and the hook, then *Start career*.
+That's exactly the fighter the career starts with (`Career.start` with the scenes' picks and the same seed).
+
+The career saves his childhood (`childhood`: the picks, the runner-up and the people, `docs/09` career@1; optional, so older
+saves load with none). Fights don't change (no golden re-pin).
+
+**Not yet:** a drawn header for each scene, gifts and flaws a choice can make likelier, and the people turning up again.
+
+**What to change:** the scenes, their choices and what each does in `data/vignettes/` (a new file at age 8, 12 or 15 joins
+that age's pool); the flavour, the height lean and the ages in `sim/world/childhood.gd` (`SECOND_SHARE`, `SECOND_STRENGTHS`,
+`HEIGHT_PER_LEAN`, `AGES`); how a career starts from it in `sim/world/career.gd` (`start`); the screen in
+`ui/childhood_screen.gd`, the toggle in `ui/new_career_screen.gd`, the flow in `game/main.gd` (`start_career`,
+`open_childhood`), his card in `ui/career_hub.gd` (`fighter_card_text`). Tests: `tests/sim/world/test_childhood.gd`,
+`tests/ui/test_career_screens.gd`, `tests/game/test_main_scene.gd`, `tests/data/test_data_files.gd`. Then update this
+section and D312.

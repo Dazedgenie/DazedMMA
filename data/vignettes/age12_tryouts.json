@@ -1,0 +1,59 @@
+{
+	"schema": "vignette@1",
+	"id": "age12_tryouts",
+	"age": 12,
+	"title": "Tryouts",
+	"text": "Middle school tryouts are all on the same afternoon. The wrestling coach wants him, the football coach wants him, and the track coach saw him run the bleep test.",
+	"choices": [
+		{
+			"id": "wrestling",
+			"text": "The wrestling room.",
+			"outcome": "He makes the team and spends the winter learning to hate and love the same mat.",
+			"backgrounds": {
+				"wrestling_family": 3
+			},
+			"stats": {
+				"takedowns": 4,
+				"scrambles": 2
+			},
+			"personality": {
+				"discipline": 10
+			}
+		},
+		{
+			"id": "football",
+			"text": "The football team.",
+			"outcome": "He starts as a freshman and the coach starts talking about colleges.",
+			"backgrounds": {
+				"college_football": 3
+			},
+			"stats": {
+				"strength": 4,
+				"power": 2
+			},
+			"personality": {
+				"ego": 10
+			},
+			"person": {
+				"role": "Football coach",
+				"about": "Thinks the boy could play on Saturdays if he sticks with it."
+			}
+		},
+		{
+			"id": "track",
+			"text": "The track team.",
+			"outcome": "He wins the 800 metres at county and doesn't look tired.",
+			"backgrounds": {
+				"track_star": 3
+			},
+			"stats": {
+				"cardio": 4,
+				"speed": 2
+			},
+			"person": {
+				"role": "Track coach",
+				"about": "Already has a scholarship in mind for him."
+			}
+		}
+	]
+}

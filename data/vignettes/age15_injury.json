@@ -1,0 +1,51 @@
+{
+	"schema": "vignette@1",
+	"id": "age15_injury",
+	"age": 15,
+	"title": "The injury",
+	"text": "Something gives out at the worst time. His knee on the football field, his hand on the heavy bag, or his back lifting bales on the farm. He has three months to think.",
+	"choices": [
+		{
+			"id": "knee",
+			"text": "The knee, on the football field.",
+			"outcome": "The scouts stop calling. He spends rehab watching fights and decides he's done with football.",
+			"backgrounds": {
+				"college_football": 3
+			},
+			"stats": {
+				"heart": 3,
+				"strength": 3
+			},
+			"personality": {
+				"coachable": 10
+			}
+		},
+		{
+			"id": "hand",
+			"text": "The hand, on the heavy bag.",
+			"outcome": "His old trainer makes him do footwork for three months with one hand behind his back. It works.",
+			"backgrounds": {
+				"boxing_gym_kid": 3
+			},
+			"stats": {
+				"footwork": 4,
+				"striking_defense": 2
+			},
+			"personality": {
+				"discipline": 10
+			}
+		},
+		{
+			"id": "back",
+			"text": "The back, lifting bales.",
+			"outcome": "He learns to move heavy things the right way, and learns he's harder to break than he thought.",
+			"backgrounds": {
+				"farm_kid": 3
+			},
+			"stats": {
+				"durability": 4,
+				"recovery": 2
+			}
+		}
+	]
+}

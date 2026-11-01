@@ -1,0 +1,69 @@
+{
+	"schema": "vignette@1",
+	"id": "age8_flyer",
+	"age": 8,
+	"title": "The flyer on the fridge",
+	"text": "Three flyers are stuck to the fridge: a kids' wrestling tournament his dad drove past, a karate class at the community centre, and the judo club where grandma still helps out on Saturdays. He can pick one.",
+	"choices": [
+		{
+			"id": "wrestling",
+			"text": "The wrestling tournament with his dad.",
+			"outcome": "He loses his first match, cries in the car, and asks to go back the next week.",
+			"backgrounds": {
+				"wrestling_family": 3
+			},
+			"stats": {
+				"takedowns": 4,
+				"cardio": 2
+			},
+			"personality": {
+				"discipline": 10
+			},
+			"person": {
+				"role": "Dad",
+				"family": true,
+				"about": "Wrestled in college and still talks about it."
+			}
+		},
+		{
+			"id": "karate",
+			"text": "The karate class at the community centre.",
+			"outcome": "He comes home in a white gi two sizes too big and kicks every door frame in the house.",
+			"backgrounds": {
+				"traditional_martial_arts": 3
+			},
+			"stats": {
+				"kicking": 4,
+				"footwork": 2
+			},
+			"personality": {
+				"discipline": 15
+			},
+			"person": {
+				"role": "Sensei",
+				"about": "Runs the community centre class and never raises his voice."
+			}
+		},
+		{
+			"id": "judo",
+			"text": "Judo with grandma on Saturdays.",
+			"outcome": "Grandma throws him on the first day, gently, and he laughs so hard he can't get up.",
+			"backgrounds": {
+				"judo_sambo_household": 3
+			},
+			"stats": {
+				"clinch_control": 4,
+				"strength": 2
+			},
+			"personality": {
+				"loyal": 10
+			},
+			"person": {
+				"role": "Grandma",
+				"family": true,
+				"named": false,
+				"about": "Competed in judo and sambo back home and keeps the medals in a biscuit tin."
+			}
+		}
+	]
+}

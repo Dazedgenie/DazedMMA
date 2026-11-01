@@ -217,6 +217,8 @@ var queued_combo: String = ""
 var attention: float = 0.0
 ## How much of the gas tank a camp left them (docs/02 §3.7, D135): 1 fresh, less when they come in tired.
 var tank_share: float = 1.0
+## The corner's calls take this share of their usual delay to reach him: a Tactician head coach's 0.75 (D311), else 1.
+var call_delay: float = 1.0
 
 
 func _init(p_name: String, p_stats: Dictionary = {}, p_repertoire: Array[String] = ["jab"], p_work_rate: float = DEFAULT_WORK_RATE, p_style: StyleLeanings = null) -> void:
@@ -249,9 +251,11 @@ static func from_profile(p: Dictionary) -> FighterState:
 
 
 ## How a training camp sends the fighter in (fighter@1 `condition`, docs/02 §3.7, D135): `tank` is the share of
-## the gas tank they have all fight (a tired camp shrinks it), `hurt` how hurt an area already is (0–1, as hurt() reads it).
+## the gas tank they have all fight (a tired camp shrinks it), `hurt` how hurt an area already is (0–1, as hurt() reads it),
+## `call_delay` the share of the usual call delay his corner's calls take (his head coach, D311).
 func start_condition(condition: Dictionary) -> void:
 	tank_share = clampf(float(condition.get("tank", 1.0)), 0.0, 1.0)
+	call_delay = clampf(float(condition.get("call_delay", 1.0)), 0.1, 2.0)
 	var start_hurt: Dictionary = condition.get("hurt", {})
 	for area: String in start_hurt:
 		var toughness: float = int(stats.get("chin" if area == "head" else "durability", DEFAULT_STAT))
