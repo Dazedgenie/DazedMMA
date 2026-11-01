@@ -33,11 +33,13 @@ the clinch and the guard. `--stills` writes one picture per pose; `--angle=` tur
 skinned Tripo body (`game/bodies/tripo_fighter.glb`, D284; the fight screen draws it too, D285) on the rigs;
 `--clinch` writes the clinch poses built from grips instead (D286, `clinch-<name>.png`), the fence's too (D287: the
 drive, spinning off, turning him, breaking); `--takedowns` writes the clinch takedowns from the clinch to the canvas
-(D288, `takedown-<move>-<n>.png`, with the scramble and the sprawl):
+(D288, `takedown-<move>-<n>.png`, with the scramble and the sprawl); `--ground` writes the ground positions with their
+grips (D289, `ground-<name>.png`) and a sweep rolling them over in steps (`ground-sweep-<n>.png`):
 
     godot --script res://tools/rig_preview.gd -- --out=res://build/rig --stills
     godot --script res://tools/rig_preview.gd -- --out=res://build/clinch --clinch --body
     godot --script res://tools/rig_preview.gd -- --out=res://build/takedowns --takedowns --body
+    godot --script res://tools/rig_preview.gd -- --out=res://build/ground --ground --body
 
 Headless runners and utilities. `run_sim.gd` runs one placeholder fight (a kicker against a boxer) with no scene tree
 and prints a summary; `--fights=N` runs N seeds and counts how they ended:

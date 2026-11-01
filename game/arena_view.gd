@@ -87,6 +87,17 @@ const LAND_EASE: float = 0.45
 const FENCE_GAP: float = 0.06
 const FENCE_SPOTS: Array[String] = ["head", "back_of_head", "chin", "back", "lower_back", "seat", "chest", "belly"]
 const TAKEDOWN_ENDED := "takedown ended"
+## The ground positions from the rig (D289): full guard, half guard, side control, mount, the back and the
+## crucifix are posed by GroundPair on the hidden rigs, laid out as today's figures lay them out (lay_out), with
+## the grips held and ground and pound thrown from the pose. A new position eases in over GROUND_EASE, a grip
+## over CLINCH_EASE. Standing up, getting up and a submission locked in go back to today's figures.
+const GROUND_EASE: float = 0.4
+## Moves on the ground the rig doesn't pose: today's figures draw them.
+const GROUND_UNPOSED: Array[String] = ["stand_up", "get_up"]
+## A sweep, a bridge or getting out from under the back (GroundPair.ROLLS) rolls them over in this many seconds.
+const ROLL_SECONDS: float = 0.6
+## A ground strike is cocked over this share of its telegraph and wind-up and thrown over the rest (D289).
+const COCK_SHARE: float = 0.65
 ## The tag grows this much when the range or position changes, then settles (docs/06 §2).
 const TAG_BUMP: float = 1.7
 ## Standing, the sim's ranges are wider than a person's reach (pocket up to 1.5 m, long range 3 m apart), so
@@ -128,6 +139,15 @@ var _takedown: Dictionary = {}
 ## Where the view draws the ground position away from the sim's spots after a takedown landed somewhere else
 ## (D288: a hip throw puts him on the far side), until they are back on their feet.
 var _ground_shift := Vector2.ZERO
+## The ground from the rig (D289): the position it is posing ("" none: where + who is on top), its frame and
+## the side of him the top man is on, kept while the position lasts so the pose doesn't swing round when the sim
+## nudges their spots.
+var _ground_key: String = ""
+var _ground_frame := Transform3D.IDENTITY
+var _ground_far: float = -1.0
+## The last ground pose shown, [pair, frame, the man on top], and a roll under way ({from: that, left}).
+var _ground_last: Array = []
+var _roll: Dictionary = {}
 ## Light up scouted tells (D51): a toggle so the playtest can compare cue on and off.
 var tell_cues: bool = true
 var debug_marks: bool = false:
@@ -183,6 +203,9 @@ func watch(p_driver: FightDriver) -> void:
 	_bow = {"at": Vector3.ZERO, "depth": 0.0, "speed": 0.0}
 	_takedown = {}
 	_ground_shift = Vector2.ZERO
+	_ground_key = ""
+	_ground_last = []
+	_roll = {}
 	_tell_limb = ["", ""]
 	_tell_until = [-1, -1]
 	_offset = [Vector2.ZERO, Vector2.ZERO]
@@ -272,6 +295,11 @@ func _pose_clinch(sim: FightSim, delta: float) -> void:
 			figure.body.settle(delta)
 		_bow_fence(-1, delta)  # Off the fence: it springs back.
 		return
+	if _pose_ground(sim, delta):
+		for figure in figures:
+			figure.body.settle(delta)
+		_bow_fence(-1, delta)
+		return
 	var built: Dictionary = {}
 	var frame := Transform3D.IDENTITY
 	if rig_clinch(sim):
@@ -318,6 +346,136 @@ func _pose_built(sim: FightSim, built: Dictionary, frame: Transform3D) -> void:
 			var only: Array[String] = []
 			only.assign(strikes[i])
 			figures[i].body.follow_joints(figures[i].body_pose(), only)
+
+
+## The ground positions from the rig (D289): poses the position the two are in (GroundPair) with its grips and
+## any ground strike thrown from it. Returns false when the rig doesn't pose the ground now (rig_ground).
+func _pose_ground(sim: FightSim, delta: float) -> bool:
+	if not rig_ground(sim):
+		_ground_key = ""
+		_ground_last = []
+		_roll = {}
+		return false
+	var where: String = sim.situation.position
+	var top: int = sim.situation.roles.find(PositionLibrary.TOP)
+	var key: String = "%s %d" % [where, top]
+	var new_position: bool = key != _ground_key
+	if new_position:
+		var laid: Array = ground_frame(sim, top)
+		_ground_frame = laid[0]
+		_ground_far = laid[1]
+		_ground_key = key
+	var f: FighterState = sim.fighters[top]
+	var posture: bool = f.action_id == "posture_up" or (f.action_id == "posture_bomb" and f.phase in ["telegraph", "windup"])
+	var built: Dictionary = GroundPair.build(where, ground_grips_now(sim, top), posture, _ground_far)
+	var shown: String = str(built.pair)
+	if not _roll.is_empty() and new_position:
+		_roll.top = top
+	if not _roll.is_empty() and _roll.has("top"):
+		if _pose_roll(built.pair, top, delta):
+			_clinch_shown = shown
+			return true
+	if shown != _clinch_shown:
+		if _clinch_shown != TAKEDOWN_ENDED:  # Landing from a takedown eases at its own pace (_end_takedown).
+			for figure in figures:
+				figure.body.ease_over(GROUND_EASE if new_position else CLINCH_EASE)
+		_clinch_shown = shown
+	_clinch_last = []
+	var pair: Dictionary = built.pair
+	var to: Dictionary = {}
+	var t: float = 0.0
+	if GroundPair.STRIKES.has(f.action_id) and not posture:
+		var letter: String = figures[top].arm_letter(0 if FighterFigure.limb_for(f.action_id).begins_with("lead") else 1)
+		var keys: Array = GroundPair.strike(pair, f.action_id, letter)
+		var thrown: Array = strike_blend(sim, f, driver.alpha())
+		if not thrown.is_empty():
+			var stage: Array = [pair, keys[0], keys[1], pair]
+			pair = stage[int(thrown[0])]
+			to = stage[int(thrown[0]) + 1]
+			t = float(thrown[1])
+	FighterRig.pose_pair(_clinch_rigs[top], _clinch_rigs[1 - top], pair, _ground_frame, to, t)
+	for i in 2:
+		figures[i].body.follow(_clinch_rigs[i])
+	_ground_last = [built.pair, _ground_frame, top]
+	return true
+
+
+## A roll under way (D289): from the pose before it over onto their sides to `now` (the new position, fighter
+## `top` on top). False once it is over.
+func _pose_roll(now: Dictionary, top: int, delta: float) -> bool:
+	var from: Array = _roll.from
+	var was_top: int = int(from[2])
+	if not _roll.has("path"):
+		var to: Dictionary = ClinchPair.swap(now) if top != was_top else now
+		_roll.path = GroundPair.roll_path(from[0], from[1], to, _ground_frame)
+	_roll.left = float(_roll.left) - delta
+	var t: float = clampf(1.0 - float(_roll.left) / ROLL_SECONDS, 0.0, 1.0)
+	TakedownPair.pose_along(_clinch_rigs[was_top], _clinch_rigs[1 - was_top], _roll.path, smoothstep(0.0, 1.0, t) * 2.0)
+	for i in 2:
+		figures[i].body.follow(_clinch_rigs[i])
+	if t >= 1.0:
+		_roll = {}
+		_ground_last = [now, _ground_frame, top]
+	return true
+
+
+## How far a ground strike is (D289), [stage, share]: stage 0 cocking it (the first COCK_SHARE of its telegraph and
+## wind-up), 1 throwing it (the rest of the wind-up; landed through its active part, which can be a tick long),
+## 2 bringing it back (recovery); empty when he isn't striking.
+static func strike_blend(sim: FightSim, f: FighterState, fraction: float = 0.0) -> Array:
+	var total: float = maxf(1.0, sim.phase_ticks(f, f.action_id, f.phase))
+	var done: float = clampf((total - f.phase_ticks_left + fraction) / total, 0.0, 1.0)
+	match f.phase:
+		"telegraph", "windup":
+			var telegraph: float = sim.phase_ticks(f, f.action_id, "telegraph")
+			var windup: float = sim.phase_ticks(f, f.action_id, "windup")
+			var so_far: float = done * total + (telegraph if f.phase == "windup" else 0.0)
+			var p: float = clampf(so_far / maxf(1.0, telegraph + windup), 0.0, 1.0)
+			if p < COCK_SHARE:
+				return [0, smoothstep(0.0, 1.0, p / COCK_SHARE)]
+			return [1, smoothstep(0.0, 1.0, (p - COCK_SHARE) / (1.0 - COCK_SHARE))]
+		"active":
+			return [1, 1.0]
+		"recovery":
+			return [2, smoothstep(0.0, 1.0, done)]
+	return []
+
+
+## True when the ground is drawn from the rig (D289): in a GroundPair position, no submission locked in, no
+## one standing up or getting up.
+func rig_ground(sim: FightSim) -> bool:
+	if _clinch_rigs.is_empty() or not GroundPair.POSITIONS.has(sim.situation.position) or not sim.hold().is_empty():
+		return false
+	if sim.situation.roles.find(PositionLibrary.TOP) < 0:
+		return false
+	for f: FighterState in sim.fighters:
+		if GROUND_UNPOSED.has(f.action_id):
+			return false
+	return true
+
+
+## The ground grips as GroundPair.build takes them (D263, D264), with fighter `top` on top.
+static func ground_grips_now(sim: FightSim, top: int) -> Dictionary:
+	var g: Dictionary = sim.ground_grips()
+	var bottom: int = 1 - top
+	return {"wrists": int(g.wrists), "collar": bool(g.collar), "underhook": int(g.half_inside) == bottom,
+		"crossface": int(g.half_inside) == top, "frame": bool(g.frame), "two_on_one": bool(g.two_on_one),
+		"cover": sim.active_flags(bottom).has(FightSim.COVERED) or sim.fighters[bottom].action_id == FightSim.GROUND_COVER}
+
+
+## The ground frame for the position the two are in with fighter `top` on top, laid out as today's figures lay
+## it out (lay_out): [its origin under the bottom man's hips and its +Z toward his feet, the side of him the top man
+## is on along its +X, +1 (the side away from the camera, where lay_out puts him) or -1].
+func ground_frame(sim: FightSim, top: int) -> Array:
+	var spots: Array[Vector2] = [driver.shown_pos(0), driver.shown_pos(1)]
+	var laid: Array[Dictionary] = lay_out(sim.situation.position, top, spots)
+	var bottom: int = 1 - top
+	var feet: Vector2 = Vector2.from_angle(float(laid[bottom].facing))
+	var z := Vector3(feet.x, 0.0, feet.y)
+	var basis := Basis(Vector3.UP.cross(z), Vector3.UP, z)
+	var at: Vector2 = Vector2(laid[bottom].at) + _ground_shift
+	var away := -Vector3(CAMERA_FROM.x, 0.0, CAMERA_FROM.z)
+	return [Transform3D(basis, Vector3(at.x, 0.0, at.y)), 1.0 if away.dot(basis.x) > 0.0 else -1.0]
 
 
 ## A turn under way (D287): the two go round each other from the pose before it to the one now (`built` in
@@ -790,6 +948,9 @@ func _on_event(event: FightEvent) -> void:
 		return
 	if event.actor in [0, 1] and figures.size() == 2:
 		_show_strike(event)
+	if event.type == FightEvent.GRAPPLE_WON and event.data.get("result", "") == PositionLibrary.SUCCESS \
+			and GroundPair.ROLLS.has(String(event.data.get("action_id", ""))) and not _ground_last.is_empty():
+		_roll = {"from": _ground_last, "left": ROLL_SECONDS}  # Rolled over (D289): the pose plays the roll.
 	if event.type == FightEvent.GRAPPLE_WON and event.data.get("result", "") == "turned" and not _clinch_last.is_empty():
 		_turn = {"from": _clinch_last, "left": TURN_SECONDS, "slam": event.data.action_id == "turn_him"}
 	if not _takedown.is_empty() and event.actor == int(_takedown.by) and String(_takedown.state) == "attempt" \

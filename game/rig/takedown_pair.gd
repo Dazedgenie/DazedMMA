@@ -53,7 +53,7 @@ static func keys(action: String) -> Array[Dictionary]:
 static func landing(action: String, far: float = -1.0) -> Dictionary:
 	match action:
 		"hip_throw":
-			var pair: Dictionary = _side_control()
+			var pair: Dictionary = GroundPair.side_control()
 			return pair if far < 0.0 else ClinchPair.mirror(pair)
 		"guard_pull":  # The puller underneath: the full guard with the men the other way round.
 			return _at_hips(ClinchPair.half_turn(ClinchPair.swap(RigPairs.full_guard())), "a")
@@ -315,28 +315,6 @@ static func _pull_sit() -> Dictionary:
 			"hand_r": {"to": "a.chest", "off": [-0.12, 0.0, -0.04], "pole": [0.6, -0.4, 0.6]},
 			"foot_l": {"at": [0.18, ANKLE, -0.36]},
 			"foot_r": {"at": [-0.2, ANKLE, -0.62]},
-		},
-	}
-
-
-## Landed from the hip throw: blue flat on his back (his feet toward +Z, hips at the origin), red down in side
-## control on his -X side, chest across blue's chest, one arm round his head and the other at his far hip.
-static func _side_control() -> Dictionary:
-	var kneel := {"pole": [0, -0.3, -1], "flat": 0.0}
-	return {
-		"a": {
-			"root": [-0.34, 0.42, -0.34], "turn": 270, "lean": 70, "bend": [14, 0, 0], "head": [-10, 30],
-			"hand_l": {"to": "b.neck", "off": [0.0, 0.0, 0.0], "pole": [-0.6, -0.6, -0.4]},
-			"hand_r": {"to": "b.waist_l", "off": [0.0, 0.0, 0.04], "pole": [0.6, -0.6, -0.2]},
-			"foot_l": _with(kneel, {"at": [-0.84, ANKLE, -0.48]}),
-			"foot_r": _with(kneel, {"at": [-0.86, ANKLE, 0.02]}),
-		},
-		"b": {
-			"root": [0.0, 0.13, 0.0], "turn": 180, "lean": 270, "bend": [-4, 0, 0], "head": [10, 20],
-			"hand_l": {"at": [0.4, 0.06, -0.2], "pole": [1, 0, 0.3]},
-			"hand_r": {"to": "a.hip_r", "off": [0.0, 0.0, 0.0], "pole": [-1, 0, 0.3]},
-			"foot_l": {"at": [0.2, ANKLE, 0.66]},
-			"foot_r": {"at": [-0.14, ANKLE, 0.72]},
 		},
 	}
 
