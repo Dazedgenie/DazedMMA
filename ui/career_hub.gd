@@ -438,6 +438,8 @@ static func week_text(c: Career, reports: Array = []) -> String:
 		lines.append("This week: the %s plan." % String(TrainingLibrary.shared().plan(c.week_plan).get("name", c.week_plan)).to_lower())
 	if Matchmaker.can_turn_pro(c):
 		lines.append("[color=%s]He can turn pro: he's %d with %d amateur fights.[/color]" % [GOOD.to_html(false), c.age(), Matchmaker.amateur_fights(c)])
+	if c.gym_owed > 0:
+		lines.append("[color=%s]Owes the gym $%d: he works Saturdays there ($%d a week) until it's paid.[/color]" % [WARN.to_html(false), c.gym_owed, Gym.shift_week_pay()])
 	lines.append("Savings: $%d" % c.money + (" · the gym is $%d a month" % int(c.gym.get("fee", 0)) if not c.gym.is_empty() else ""))
 	if not reports.is_empty():
 		lines.append("")
@@ -459,8 +461,13 @@ static func last_text(c: Career, reports: Array) -> String:
 	var fees: int = 0
 	for report: Dictionary in reports:
 		fees += int(report.get("gym_fee", 0))
+	var worked: int = 0
+	for report: Dictionary in reports:
+		worked += int(report.get("gym_worked", 0))
 	if fees > 0:
 		out += ("" if out.ends_with(".") else ".") + " Paid the gym $%d." % fees
+	if worked > 0:
+		out += ("" if out.ends_with(".") else ".") + " Worked $%d off at the gym." % worked
 	if not events.is_empty():
 		out += "\n[color=%s]%s.[/color]" % [WARN.to_html(false), ". ".join(events)]
 	return out

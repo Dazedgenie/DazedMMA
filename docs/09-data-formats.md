@@ -249,6 +249,7 @@ One kind of training session (`docs/02` §3.5, D125). Loaded by `TrainingLibrary
 | `leanings` | `{leaning: −1–1}` | Style push per session (`docs/11` §4.2) |
 | `chin_wear` | 0–1 | Chin points lost per session (hard sparring) |
 | `minigame` | minigame id or null | The minigame that will play it (D38; only `mitt_work` is built so far, D137): `mitt_work`, `heavy_bag`, `thai_pads`, `wrestling_chain`, `sprawl_reflex`, `rolling_puzzle`, `roadwork`, `film_study`, `hard_sparring`, `meditation` |
+| `career_only` (optional) | bool | Put in by the career, never planned: the camp planner doesn't offer it (the gym shift, D313) |
 
 ### week_plan@1 (examples: `balanced.json`, `wrestler.json`, `taper.json`)
 A training week (`docs/02` §3.5). Loaded by `TrainingLibrary`.
@@ -289,6 +290,7 @@ each with a `.backup.json` of the save before it). Written by `CareerSaves` (`ga
 | `fighter` | The fighter@1 profile he started with (id `career_fighter`); what changes with training is in `trainee`. A career made on the new-career screen adds `background`, `age` and `potential` (D302) |
 | `about` | `nickname`, `hometown`, `country`, `background`: shown on screens, not used by fights |
 | `gym` | Your gym, where he trains (D313, `docs/03` §11.3): `{kind (a data/gyms id), culture (a gym_cultures id), name, owner_name, owner, fee}`. Optional: `{}` (or missing) for a career before D313 |
+| `gym_owed` | Dollars of gym fee he couldn't pay, worked off in Saturday shifts (D313; optional, 0 when missing) |
 | `childhood` | His childhood scenes (D312, `docs/03` §11.2): `{picks: [{scene, choice}], second (the runner-up background), people: [{role, name, about, age}]}`. Optional: `{}` (or missing) when his background was picked from the list or the career predates D312 |
 | `trainee` | `TrainingCamp.snapshot()`: `stats` (with fractions), `style`, `fatigue`, `injured_days`, `injury_area`, `age_years`, `potential`, `camp_gains` (this camp's, for the soft cap) and `dice` |
 | `calendar` | `first_monday` (days since 1 Jan 1970 of week 0's Monday) and `week` (weeks since) |

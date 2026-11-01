@@ -321,6 +321,7 @@ func test_advance_runs_weeks_until_something_happens_and_saves() -> void:
 	_main.gym_screen.press_start()
 	_main.career.week_plan = "time_off"
 	_main.career.next_offers_week = 1000  # No offers coming (D304).
+	_main.career.money = 100000  # Never short on the gym fee, so no shifts to stop on (D313).
 	_main.hub.press_advance()
 	assert_eq(_main.career.week, Career.ADVANCE_MAX_WEEKS, "nothing happens to a fresh 16-year-old resting for 8 weeks")
 	assert_eq(int(CareerSaves.info(0, SAVE_DIR).week), Career.ADVANCE_MAX_WEEKS)

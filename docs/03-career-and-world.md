@@ -582,20 +582,29 @@ of session (`data/sessions` `kind`; missing = no change):
 
 Each gym also has one of three cultures (`data/enums/gym_cultures.json`): a **family gym** (a party animal skips a quarter
 less), **hard sparring** (sparring XP ×1.2, injuries ×1.5) or a **party gym** (skips ×1.5). The fee comes out of his savings
-on the first Monday of every month, as much of it as he has (never below $0; for now nothing happens when he can't pay).
-The hub says where he trains, the fee beside his savings, and what he paid in *Last week*.
+on the first Monday of every month, as much of it as he has (never below $0).
+
+**Working it off** (Kyle, 2026-11-01: "chances to work at the gym for his monthly pay"). What he can't pay he owes, and the
+owner gives him shifts: from the next week his Saturday (both sessions) is a *Gym shift* (cleaning the mats, the front desk;
+no XP, a little fatigue, done even when he's hurt) at $15 a shift, until it's paid. The week it starts is news (*Advance*
+stops on it). Camp weeks don't have shifts: what he owes waits until the camp's over.
+
+The hub says where he trains, the fee beside his savings, what he owes and that he's working Saturdays, and what he paid or
+worked off in *Last week*.
 
 The gym lives on the career (`gym`, `docs/09` career@1; optional, so a career saved before D313 loads with no gym, which
 trains as before and pays nothing) and on its `TrainingCamp` (`gym`), so it counts between fights and in the camp alike.
 Fights and the camp planner outside a career don't change (no golden re-pin).
 
-**Not yet:** changing gyms, the gym's other fighters as sparring partners and rivals, what happens when he can't pay, and a
-fee that grows with the gym (phase 4, `02` §5). Amateurs earn nothing yet, so the fee only runs his savings down.
+**Not yet:** changing gyms, the gym's other fighters as sparring partners and rivals, shifts for money when he doesn't owe
+anything, and a fee that grows with the gym (phase 4, `02` §5). Amateurs earn nothing yet, so most fighters end up working
+Saturdays within a few months.
 
 **What to change:** the kinds, their XP, fees, names, owners and the backgrounds they suit in `data/gyms/`; the cultures
 in `data/enums/gym_cultures.json`; how many gyms are offered (`OFFERS`) and how they're rolled in `sim/world/gym.gd`; where
 training reads them in `sim/world/training_camp.gd` (`_run_slot`, `skip_chance`, `injury_chance`); the fee in
-`sim/world/career.gd` (`end_week`); the screen and the walk-in's words in `ui/gym_screen.gd` (`gym_text`, `walk_in_text`);
+`sim/world/career.gd` (`end_week`) and the shifts in `run_week`, their pay and day in `sim/world/gym.gd` (`SHIFT_PAY`,
+`SHIFT_DAY`, `with_shifts`) and the shift itself in `data/sessions/gym_shift.json`; the screen and the walk-in's words in `ui/gym_screen.gd` (`gym_text`, `walk_in_text`);
 the flow in `game/main.gd` (`start_career`, `open_gym`); the hub in `ui/career_hub.gd`. Tests: `tests/sim/world/test_gym.gd`,
 `tests/ui/test_career_screens.gd`, `tests/game/test_main_scene.gd`, `tests/data/test_data_files.gd`. Then update this
 section and D313.

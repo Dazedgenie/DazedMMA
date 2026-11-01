@@ -7,7 +7,8 @@ extends RefCounted
 ##   kind     each session kind's XP × the kind's `xp` (a boxing gym's striking 1.2, its grappling 0.7; missing = 1)
 ##   culture  skips × `skips` (a family gym 0.75, a party gym 1.5), injury odds × `injury` and sparring XP × `sparring_xp`
 ##            (hard sparring 1.5 and 1.2)
-##   fee      comes out of his savings on the first Monday of every month (Career.end_week)
+##   fee      comes out of his savings on the first Monday of every month (Career.end_week); what he can't pay he
+##            works off: the owner gives him Saturday shifts (SHIFT_SESSION, both slots) at SHIFT_PAY each (Kyle's idea)
 ##
 ## A gym is plain data on the career ({kind, culture, name, owner_name, owner, fee}), so it saves as it is. Pure and
 ## seeded: the same career seed offers the same three gyms.
@@ -16,6 +17,10 @@ const DEFAULT_DIR := "res://data/gyms/"
 const CULTURES_PATH := "res://data/enums/gym_cultures.json"
 ## How many gyms a new career offers. The first always suits where he comes from (a kind whose `backgrounds` has his).
 const OFFERS: int = 3
+## Working off what he owes (D313): the session a shift is (data/sessions), the day it takes (Saturday) and its pay.
+const SHIFT_SESSION := "gym_shift"
+const SHIFT_DAY: int = 5
+const SHIFT_PAY: int = 15
 
 static var _kinds: Dictionary = {}  # id → gym@1
 static var _kind_ids: Array = []
@@ -88,6 +93,20 @@ static func offers(city: String, country_id: String, background: String, career_
 			"fee": rng.randi_range(int(fee[0]), int(fee[1])),
 		})
 	return out
+
+
+## This week plan with Saturday given to gym shifts (both slots): the week he works off what he owes. A copy.
+static func with_shifts(plan: Dictionary) -> Dictionary:
+	var out: Dictionary = plan.duplicate(true)
+	var days: Array = out.get("days", [])
+	if days.size() > SHIFT_DAY:
+		days[SHIFT_DAY] = [SHIFT_SESSION, SHIFT_SESSION]
+	return out
+
+
+## What a week of shifts pays: both of Saturday's slots.
+static func shift_week_pay() -> int:
+	return SHIFT_PAY * TrainingCamp.SLOTS_PER_DAY
 
 
 ## Session XP × this for a session of this kind (data/sessions `kind`) at this gym (1 with no gym).

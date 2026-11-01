@@ -9,6 +9,7 @@ func _career(gym: Dictionary = {}, money: int = 500) -> Career:
 	p.potential = 80
 	var c: Career = Career.create(p, 3, { "coach": "Sam", "gym": gym })
 	c.money = money
+	c.next_offers_week = 1000  # No fight offers to get in the way.
 	return c
 
 
@@ -62,10 +63,32 @@ func test_the_fee_comes_out_of_his_savings_on_the_first_monday_of_each_month() -
 	# Week 0 is Mon 4 Jan 2027; Mon 1 Feb is week 4 and Mon 1 Mar week 8.
 	assert_eq(paid, [0, 0, 0, 50, 0, 0, 0, 50, 0])
 	assert_eq(c.money, 20)
+	var april: Dictionary = {}
 	for i in 4:
-		c.run_week("time_off")
+		april = c.run_week("time_off")
 	assert_eq(c.money, 0, "as much as he has, never below nothing")
+	assert_eq(c.gym_owed, 30, "the rest he owes")
+	assert_eq(april.events.map(func(e: Dictionary) -> String: return String(e.kind)), [Career.GYM_SHIFTS], "the owner offers him shifts")
+	var shifts: Dictionary = c.run_week("time_off")
+	assert_eq(int(shifts.gym_worked), 30, "a Saturday's shifts pay it off")
+	assert_eq(c.gym_owed, 0)
 	assert_eq(_career({}, 120).end_week(), 0, "no gym, no fee")
+
+
+func test_working_off_the_fee_takes_his_saturday() -> void:
+	var plan: Dictionary = TrainingLibrary.shared().plan("striker")
+	var shifts: Dictionary = Gym.with_shifts(plan)
+	assert_eq(shifts.days[Gym.SHIFT_DAY], [Gym.SHIFT_SESSION, Gym.SHIFT_SESSION])
+	assert_ne(plan.days[Gym.SHIFT_DAY], shifts.days[Gym.SHIFT_DAY], "a copy: the plan itself doesn't change")
+	assert_eq(Gym.shift_week_pay(), Gym.SHIFT_PAY * 2)
+	var c: Career = _career(_gym("boxing_gym", "family", 50), 0)
+	c.gym_owed = 100
+	assert_string_contains(CareerHub.week_text(c), "Owes the gym $100")
+	var report: Dictionary = c.run_week("striker")
+	assert_eq(int(report.gym_worked), Gym.shift_week_pay())
+	assert_eq(c.gym_owed, 100 - Gym.shift_week_pay())
+	assert_string_contains(CareerHub.last_text(c, [report]), "Worked $%d off at the gym." % Gym.shift_week_pay())
+	assert_eq(Career.from_dict(JSON.parse_string(JSON.stringify(c.to_dict()))).gym_owed, c.gym_owed, "saved")
 
 
 func test_the_gym_saves_with_the_career() -> void:

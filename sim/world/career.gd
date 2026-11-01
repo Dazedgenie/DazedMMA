@@ -46,6 +46,8 @@ const FIGHT_NIGHT := "fight_night"
 const WORN_DOWN := "worn_down"
 ## Fight offers came in (D304): { kind, count }.
 const OFFERS := "offers"
+## He couldn't pay the gym fee in full, so the owner gave him Saturday shifts to work it off (D313): { kind, owed }.
+const GYM_SHIFTS := "gym_shifts"
 ## Days from fight night (Saturday) to the Monday after it.
 const FIGHT_TO_MONDAY: int = 2
 ## How many weeks a year has for a birthday: TrainingCamp ages him 1/52 of a year a week (docs/02 §3.8).
@@ -71,6 +73,8 @@ var childhood: Dictionary = {}
 ## Your gym, where he trains (Gym, D313): { kind, culture, name, owner_name, owner, fee }. {} for a career before D313 (no
 ## gym: training as before, no fee).
 var gym: Dictionary = {}
+## What he owes the gym (D313): a fee he couldn't pay in full. He works it off in Saturday shifts (Gym.with_shifts).
+var gym_owed: int = 0
 var trainee: TrainingCamp
 ## The day (days since 1 Jan 1970) of the Monday that starts week 0, and the week it is now.
 var first_monday: int = 0
@@ -184,10 +188,19 @@ func run_week(plan: Variant = null, played: Dictionary = {}) -> Dictionary:
 	else:
 		plan_data = _library.plan(week_plan if plan == null else String(plan))
 	var before := { "injured_days": trainee.injured_days, "suspended_days": suspended_days, "age": age() }
+	var worked: int = 0
+	if gym_owed > 0:
+		plan_data = Gym.with_shifts(plan_data)  # Saturday at the gym, working off what he owes.
+		worked = mini(gym_owed, Gym.shift_week_pay())
 	var report: Dictionary = trainee.run_plan(plan_data, played)
+	gym_owed -= worked
+	report.gym_worked = worked
+	var owed_before: int = gym_owed
 	report.gym_fee = end_week()
 	report.week = week - 1
 	report.events = _events_since(before)
+	if owed_before == 0 and gym_owed > 0:
+		report.events.append({ "kind": GYM_SHIFTS, "owed": gym_owed })
 	var worn: bool = float(report.get("fatigue_peak", 0.0)) >= TrainingCamp.FATIGUE_FREE
 	if worn and not worn_last_week:
 		report.events.append({ "kind": WORN_DOWN })
@@ -270,6 +283,8 @@ static func event_text(event: Dictionary) -> String:
 			return "Turns %d" % int(event.get("age", 0))
 		FIGHT_NIGHT:
 			return "Fight night"
+		GYM_SHIFTS:
+			return "Short on the gym fee: working Saturdays at the gym ($%d)" % int(event.get("owed", 0))
 	return String(event.kind)
 
 
@@ -390,7 +405,7 @@ func _after_booking() -> void:
 
 ## Moves the calendar on to next Monday. run_week() calls it; a camp week run on `trainee` by the planner calls it too.
 ## Returns the gym fee he paid as the week turned ($, 0 when none was due): his gym's `fee` comes out of his savings on
-## the first Monday of each month (D313), as much of it as he has.
+## the first Monday of each month (D313), as much of it as he has; the rest he owes (gym_owed) and works off.
 func end_week() -> int:
 	week += 1
 	suspended_days = maxi(0, suspended_days - DAYS_PER_WEEK)
@@ -398,6 +413,7 @@ func end_week() -> int:
 		return 0
 	var paid: int = mini(int(gym.get("fee", 0)), money)
 	money -= paid
+	gym_owed += int(gym.get("fee", 0)) - paid
 	return paid
 
 
@@ -479,7 +495,7 @@ func to_dict() -> Dictionary:
 		"seed": str(career_seed), "dice": str(_dice.state),
 		"coach": { "name": coach_name, "background": coach_background, "specialty": coach_specialty },
 		"fighter": fighter.duplicate(true), "about": about.duplicate(true), "childhood": childhood.duplicate(true),
-		"gym": gym.duplicate(true),
+		"gym": gym.duplicate(true), "gym_owed": gym_owed,
 		"trainee": trainee.snapshot(),
 		"calendar": { "first_monday": first_monday, "week": week },
 		"suspended_days": suspended_days, "money": money, "pro": pro, "week_plan": week_plan,
@@ -530,6 +546,7 @@ static func from_dict(data: Dictionary, library: TrainingLibrary = null) -> Care
 	c.gym = d.get("gym", {}).duplicate(true) if d.get("gym") is Dictionary else {}
 	if c.gym.has("fee"):
 		c.gym.fee = int(c.gym.fee)
+	c.gym_owed = int(d.get("gym_owed", 0))
 	c.trainee = TrainingCamp.new(c.fighter, 0, c._library)
 	c.trainee.coach_specialty = c.coach_specialty
 	c.trainee.gym = c.gym
