@@ -780,7 +780,7 @@ are built until Kyle answers. Nine pieces, in this order (D350), each playable w
 | A history before day one: the world played 5 years before his career starts | D358 | Planned |
 | The 30-year check: a tool and a test that the world stays healthy (A10) | D359 | Planned |
 
-**The world's other fights** are decided by a quick result model, not the fight engine (this changes A9's middle tier). The
+**The world's other fights** are decided by a quick result model, not the fight engine (Kyle, 2026-11-01: "A quick result model"; this changes A9's middle tier). The
 engine takes about 0.6 s a fight (94 µs a tick, 2026-11-01), so 600 men fighting 3 times a year would cost about 9 minutes a
 career year. The model takes each man's level, the style matchup edge from the balance harness (every style against every
 style, saved as data), and small nudges for age, form, damage and ring rust; how a fight ends and in which round come from
