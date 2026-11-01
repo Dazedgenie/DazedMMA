@@ -78,6 +78,16 @@ const LEADS_HELD_TICKS: int = 100
 const HEARD_ATTENTION: float = 0.2
 const HEARD_TICKS: int = 5
 
+## The same focus call taken again (D258): each one of it started in the last REPEAT_TICKS makes its
+## tilt of his leanings this much weaker (Pressure! a third time in a minute pushes 49% as hard).
+const REPEAT_TICKS: int = 600
+const REPEAT_WEAR: float = 0.7
+## And each of those costs him this much stamina as the focus starts (a heavy punch costs about 6). Off: at
+## 2 it cost good coaching as much as mashing (Pressure wrestler vs Counter-striker +6 → −14), docs/01 §22.11.
+const REPEAT_STAMINA: float = 0.0
+## A focus that pushes Range up at least this far has the fighter pressing (D258).
+const PRESSING_RANGE: float = 30.0
+
 const ATTEMPT := "attempt"
 const FOCUS := "focus"
 const READ := "read"
@@ -99,6 +109,8 @@ var pending: Array[Dictionary] = []
 var attempt: Dictionary = {}
 ## The focus the fighter is fighting to: {call, until}, or empty.
 var focus: Dictionary = {}
+## Call id → when each of its focuses started lately, for REPEAT_WEAR (D258).
+var _focus_starts: Dictionary = {}
 ## Primed reads, oldest first: [{call, until, notice, move}]. notice ≥ 0 once the trigger came.
 var reads: Array[Dictionary] = []
 ## How much the primed reads cost the fighter's other defense (0–1), for the sim to apply.
@@ -309,7 +321,7 @@ func adjust_lead_rate(view: FightView, rate: float) -> float:
 func adjust_leaning(_view: FightView, which: String, value: float) -> float:
 	if focus.is_empty():
 		return value
-	return value + float(focus.call.focus.get("leanings", {}).get(which, 0.0))
+	return value + float(focus.call.focus.get("leanings", {}).get(which, 0.0)) * float(focus.get("scale", 1.0))
 
 
 func adjust_weight(view: FightView, action: Dictionary, weight: float) -> float:
@@ -345,6 +357,12 @@ func struggle_bonus() -> float:
 	if focus.is_empty():
 		return 0.0
 	return float(focus.call.focus.get("struggle", 0.0))
+
+
+## Whether a focus call has him pressing (D258): its Range push is at least PRESSING_RANGE
+## (Pressure!, Cut the cage!). The other man sees it, and reads him better the longer it goes on.
+func pressing() -> bool:
+	return not focus.is_empty() and float(focus.call.focus.get("leanings", {}).get("range", 0.0)) >= PRESSING_RANGE
 
 
 ## How hard Cut the cage! has the fighter cut off the cage (D230): its focus's `cut` (0–1),
@@ -474,9 +492,16 @@ func _process(view: FightView, heard: Dictionary) -> void:
 		FOCUS:
 			if not focus.is_empty():
 				_answer(focus.call, REPLACED, "now %s" % call.name)
-			focus = { "call": call, "since": view.now, "until": view.now + int(call.focus.duration_ms) / FightClock.TICK_MS }
+			var starts: Array = _focus_starts.get_or_add(call.id, [])
+			while not starts.is_empty() and starts[0] < view.now - REPEAT_TICKS:
+				starts.pop_front()
+			var scale: float = pow(REPEAT_WEAR, starts.size())  # Called again and again, it does less (D258)
+			if REPEAT_STAMINA > 0.0:
+				view.me.spend_stamina(REPEAT_STAMINA * starts.size())  # and wears him out a little more each time.
+			starts.append(view.now)
+			focus = { "call": call, "since": view.now, "until": view.now + int(call.focus.duration_ms) / FightClock.TICK_MS, "scale": scale }
 			retilt = true
-			_answer(call, ACCEPTED, "for %d s" % roundi(float(call.focus.duration_ms) / 1000.0))
+			_answer(call, ACCEPTED, "for %d s" % roundi(float(call.focus.duration_ms) / 1000.0) + ("" if scale >= 1.0 else ", %d%% as hard: called again" % roundi(scale * 100.0)))
 		_:
 			attempt = { "call": call, "heard": heard.heard, "until": view.now + ATTEMPT_TICKS, "why": "" }
 	_settle()

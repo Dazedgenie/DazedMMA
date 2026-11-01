@@ -90,7 +90,7 @@ pinned on purpose, and the PR then shows the old and new numbers side by side.
 | Fight | Covers |
 |---|---|
 | Kicker vs Boxer, no corners (seed 35005; 35003 until D235 and 35002 until D253, each time it became a decision) | The striking engine and judges on their own: a KO for the Kicker in round 1 (since D236; a KO for the Boxer in round 2 after D235) |
-| Wrestler vs Kicker, ideal corner vs AI corner, Wrestler drilled on catch-kick-and-shoot at 80% (seed 35006) | Calls, a drilled rule firing, takedowns, ground and pound, feints (D131): a decision for the Wrestler (since D236 with D255 and the ground-and-pound variety; a TKO in round 1 with D236 alone; a decision after D233; a TKO for the Wrestler in round 2 after D131) |
+| Wrestler vs Kicker, ideal corner vs AI corner, Wrestler drilled on catch-kick-and-shoot at 80% (seed 35006) | Calls, a drilled rule firing, takedowns, ground and pound, feints (D131): a decision for the Wrestler (since D257's corner; a TKO in round 3 after the ground grips, D263–D264; a decision since D236 with D255 and the ground-and-pound variety; a TKO in round 1 with D236 alone; a decision after D233; a TKO for the Wrestler in round 2 after D131) |
 | Wrestler vs Boxer, AI corner for the Boxer, Boxer drilled on sprawl-on-the-shot at 80% (seed 35011; 35007 until D130, when it became a decision) | Sprawls, the opponent's corner and rules, passes, side control and the back (D130), blind shots (D131): a submission for the Wrestler in round 2 (since D236 with D255 and the ground-and-pound variety; a TKO in round 3 with D236 alone; a submission in round 2 after D253; a decision after D131, a TKO in round 3 after D130) |
 | The check fighters, amateur adult rules (seed 35001) | A ruleset other than pro: 3 × 3:00, a split decision |
 
@@ -1291,23 +1291,27 @@ calls leaves the fight as it was.
 | `ideal` | The "good coaching" bot (D12): a good player | Sees every moment, calls 0.3 s after it, never on a spent voice (it waits rather than garble) |
 | `ai` | The opponent's corner (D68) | The same calls, 0.5 s after the moment, and it notices half of them (its coaching level, later D15) |
 | `spam` | The "spam" bot (D12) | A random call every 1.5 s, whatever is happening, whatever voice is left |
+| `mash:<call>` | The key masher (D257) | One call (`mash:pressure`), again the moment it's over, wherever it can be done, never on a spent voice |
 
 What the ideal and AI corners call (only calls their fighter can act on: a known move or a learned technique):
 - the opponent starts a move one of the fighter's read calls is for (a kick, for Catch the kick!): **Takedown!** at once, so it
   lands while the leg is up (§22.2);
 - the opponent's scouted tell fires (the Kicker's jab gets blocked: a body kick is coming): the read call for that move,
   **Catch the kick!**, so the fighter is primed before the kick;
-- their fighter rocked: **Survive!**; the opponent rocked: **Pressure!**
+- their fighter rocked: **Survive!**; the opponent rocked: **Pressure!** (**Ground and pound!** on top);
+- since D257, a moment for most of the other calls: Fire back!, Cut the cage!, Get up!, Collar tie!, following a knocked-down
+  man down and keeping up the pressure while winning on the feet (§22.10).
 
-They don't call Get up! (the fighter works to get up on their own) or Defend the shot! on the Wrestler's stance shift (the
-shot follows within a second, before the call lands; the fighter reads repeated shots better on their own, §21.8).
+They don't call Defend the shot! on the Wrestler's stance shift (the shot follows within a second, before the call lands; the
+fighter reads repeated shots better on their own, §21.8). Five calls have a moment written for them that lost fights when
+tried (Circle out!, Defend the shot!, Pass!, Feint!, Go for the finish!), so a plain corner leaves them out (§22.10).
 
 **In the game:** the fight screen puts the AI corner in blue's corner; its calls show in a speech bubble and in the feed
 (*"Kicker's corner: Survive!"*), and the F3 overlay shows its voice and trust (`06` §6.2).
 
 **In the harness:** `--corners=none,ideal,spam,ai` runs every pair once per bot, with the bot in red's corner and then in
 blue's (`--coach=red|blue|both`). The CSV says who was in each corner and how many calls they made (`corner_red`,
-`calls_red`…). The summary checks, for each coached fighter and opponent, pooled over both corners and both orders: good
+`calls_red`…) and what each call did (`call_outcomes_red`…, §22.10). The summary checks, for each coached fighter and opponent, pooled over both corners and both orders: good
 coaching adds +10–20% wins over the same fights without calls, and spam wins less than no calls (D12); the AI corner is
 reported (INFO). The engine checks (draws, 10-10s, Kicker vs Boxer) only read the fights without calls.
 
@@ -1364,19 +1368,157 @@ top. Worth watching if testers find mashing the keys works.
 - What a call costs (§22.5): `SPENT_TICKS`, `HEARD_ATTENTION`, `HEARD_TICKS`, `IGNORE_GARBLED`, `IGNORE_PER_DISTRUST` in
   `sim/fight/live_calls.gd`; the no-voice rule in `FightSim._reject_reason`.
 - The corners (§22.7): `IDEAL_REACTION` (3 ticks), `AI_REACTION` (5), `AI_NOTICE` (0.5), `SPAM_EVERY` (15), `SAVE_VOICE` and
-  what each one watches for (`on_event`) at the top of `sim/fight/corner.gd`; the D12 band in `BalanceReport.COACHING_GAIN_MIN`
+  what each one watches for (`on_event`, and `_watch` for the moments read off the fight as it stands) at the top of
+  `sim/fight/corner.gd`; which D257 moments a plain corner uses (`DEFAULT_MOMENTS`), `URGENT`, `FINISH_FROM`, `STUFFED`,
+  `PRESSING_LEAD` and `PRESSING_TICKS` (§22.10); what each call's exchange is and what winning it means:
+  `sim/balance/call_outcomes.gd` (`ATTEMPT_WINDOW`, `READ_WINDOW`); the D12 band in `BalanceReport.COACHING_GAIN_MIN`
   and `COACHING_GAIN_MAX` (`sim/balance/balance_report.gd`).
 
 Tested in `tests/sim/fight/test_live_calls.gd` (voice and garbling, spam and trust, the delay modifiers, compliance, every
 kind of call and outcome, the catch-kick from a Takedown! call in and out of the kick, the read with slow and quick fighters,
 attention, two reads at most, replays, and what a call costs), `tests/sim/fight/test_corner.gd` (what each corner calls and
-when, the voice it saves, replays without it), `tests/sim/balance/` (the corner columns and the coaching checks),
+when, every D257 moment, the focus it won't cut short, the key masher, the voice it saves, replays without it),
+`tests/sim/balance/test_call_outcomes.gd` (what counts as winning each kind of call's exchange), `tests/sim/balance/` (the corner columns and the coaching checks),
 `tests/sim/fight/test_decision_layer.gd`, `tests/data/test_data_files.gd` (call@2,
 gameplan@1) and `tests/ui/` (the log lines, the call bar).
 
 After changing any of it, run the harness with the bots on the Wrestler both ways round and read the **Coaching** lines:
 `--fights=100 --pairs=wrestler:kicker,kicker:wrestler --corners=none,ideal,spam,ai`. Coaching is noisy: 100 fights a side is
 about ±5% on each corner, so pool both corners and a second seed (`--seed=101`) before moving a number.
+
+### 22.10 A corner that uses every call (D257)
+The outside review of the AI (§20.4): *"stop treating the current ideal corner as an upper bound. It omits Fire back, Defend
+the shot, Get up, Pass, Feint, and Collar tie"*, and random calls every 1.5 s don't show that repeating the strongest call
+can't beat good coaching. Kyle: "you can start the corner now" (2026-10-31), and the opponent's AI corner gets the same calls
+("Yes, the same calls"): slower and noticing half of them, as before.
+
+**The moments** (`Corner.MOMENTS`). Each is a moment a good corner would call, written once and tried on its own:
+
+| Moment | When | The call | In a plain corner? |
+|---|---|---|---|
+| `fire_back` | The opponent's strike runs on into a combination (its second move starts); not for a fighter who shoots, since a fired Fire back! holds his own leads, his shots too, for 10 s (`LEADS_HELD_TICKS`) | Fire back! | Yes |
+| `cut_the_cage` | Standing, the opponent circles away and this fighter leans further in (higher Range) and isn't cutting already | Cut the cage! | Yes |
+| `keep_pressing` | Standing, he isn't an outside fighter (Range 0 or more), he's landed 10 more damage than he's taken in the last 20 s (`PRESSING_LEAD`, `PRESSING_TICKS`) and no other focus is on | Pressure! | Yes |
+| `get_up` | Underneath, the man on top is rocked (it used to shout Pressure!, which can't be done there) | Get up! | Yes |
+| `collar_tie` | The clinch starts, he knows the collar tie (D129) and the opponent doesn't shoot (tied up with a grappler, he trips or takes him down) | Collar tie! | Yes |
+| `follow_down` | The opponent is knocked down and this fighter knows a takedown of his own (D142) | Takedown! | Yes |
+| `defend_the_shot` | The opponent starts a takedown | Defend the shot! | No |
+| `feint` | His own shot is stuffed (defended, sprawled on or stopped) | Feint! | No |
+| `pass` | On top, the man underneath covers up (D270) | Pass! | No |
+| `go_for_the_finish` | On top in side control, mount or on the back with a hold he knows there (the rear-naked choke is everyone's) | Go for the finish! | No |
+| `circle_out` | An outside fighter (Range below 0) off the centre with the opponent cutting him off | Circle out! | No |
+
+No moment is called again while its last call is still on (its focus, read or the attempt's 2 s, never under the 3 s that
+makes it spam), and a focus call never replaces a more urgent one still running (Survive!, Pressure!, Ground and pound!,
+Finish it!, Defend the sub!, `URGENT`). The moments that lost fights stay written: the harness tries any of them with
+`--corners=ideal:pass+feint` (only those D257 moments, with the old ones always on) and `ideal:` is the corner as it was.
+
+**The key masher** (`mash:<call id>`): the review's "repeating the strongest call at its optimal interval". It shouts one call
+the moment its last one is over, wherever the call can be done, and never on a spent voice.
+
+**What each call did** (`CallOutcomes`, Kyle's D251 answer): for every call, heard, taken, and whether the exchange it was called
+for was won. A move (Takedown!, Get up!, Collar tie!...) wins when the move started on the call works within 4 s; a read when it
+goes off and its move works (Fire back!: he lands more than he takes in the 2 s after); a focus over its time: Survive! not
+knocked down or stopped, Defend the shot! no takedown landed (counted only if he shoots), Finish it! the tap, Defend the sub!
+out, Go for the finish! a hold locked, Cut the cage! the man pinned on the fence, Circle out! back to the centre, and the rest
+(Pressure!, Ground and pound!...) landing more than he takes. Each pairing's block in the summary has a **Calls** line per
+coached side; the CSV has `call_outcomes_red` and `_blue` (`id:heard/taken/judged/won;...`). The D12 band check still runs
+next to it; it isn't replaced yet.
+
+**Measured** (on main at #101, before the ground grips D263–D264; 100 fights a pairing per corner, both corners pooled, change in the coached fighter's wins against the same
+fights without calls; paired 95% ranges are about ±10 on each line):
+
+| Coached vs opponent | Old ideal (seeds 101–200) | New ideal (seeds 101–200) | New ideal (seeds 1–100) | New AI corner (101–200) | `mash:pressure` (101–200) |
+|---|---|---|---|---|---|
+| Wrestler vs Kicker | +20 | +23 | +32 | +19 | +21 |
+| Kicker vs Wrestler | +8 | +8 | −15 | −4 | −9 |
+| Wrestler vs Boxer | −3 | +2 | +2 | +5 | −3 |
+| Boxer vs Wrestler | −4 | −1 | −5 | −8 | −4 |
+| Kicker vs Boxer | −5 | +4 | −20 | +1 | −28 |
+| Boxer vs Kicker | +3 | **+34** | +31 | +28 | +21 |
+| Muay Thai vs BJJ | +1 | +5 | +11 | +1 | +14 |
+| BJJ vs Muay Thai | +9 | +5 | +8 | −3 | +17 |
+| Pressure wrestler vs Counter-striker | −3 | **+18** | +2 | +6 | +4 |
+| Counter-striker vs Pressure wrestler | +1 | +1 | +16 | +0 | +13 |
+| Dirty boxer vs Leg-kick specialist | +15 | +11 | −2 | +3 | +0 |
+| Leg-kick specialist vs Dirty boxer | +9 | +9 | +4 | +3 | −8 |
+| Muay Thai vs Boxer | +1 | +4 | +4 | −3 | +14 |
+| Boxer vs Muay Thai | +8 | **+18** | +3 | +4 | +7 |
+| Karate vs Brawler | +2 | +3 | −8 | +10 | −5 |
+| Brawler vs Karate | −4 | **+16** | +25 | +3 | −9 |
+| Sambo vs Sprawl-and-brawl | −7 | −11 | −25 | +0 | −24 |
+| Sprawl-and-brawl vs Sambo | +8 | +0 | +0 | +3 | −17 |
+| **Average** | **+3.3** | **+8.3** | | | |
+
+(The seeds 1–100 column is the run before `keep_pressing` was kept off outside fighters: the Kicker's −15 and −20 came from it.)
+
+Pooled over every coached side in the second run, a fight with the new ideal corner hears about 26 calls; what they did:
+
+| Call | Heard a fight | Won its exchange |
+|---|---|---|
+| Pressure! | 6.9 | 62% |
+| Cut the cage! | 5.9 | 22% (the man pinned on the fence) |
+| Ground and pound! | 5.1 | 77% |
+| Fire back! | 2.2 | 66% of the 8% that went off |
+| Survive! | 2.2 | 94% |
+| Takedown! | 1.2 | 26% |
+| Collar tie! | 1.2 | 72% |
+| Defend the sub! / Finish it! | 0.4 / 0.3 | 90% / 27% |
+
+**Trying each one on its own** (seeds 1–100, leaving one moment out of all ten): Cut the cage! is the big one (Boxer vs Kicker
++33 with it, +6 without); Fire back! carries the Leg-kick specialist (+15 with, +3 without) but cost the Wrestler against the
+Boxer until it was kept off fighters who shoot (−20 with, −4 without); Circle out! cost the Kicker against the Boxer 26 points
+(it was called 45 times a fight; he got off the fence 85% of the time and lost anyway); Pass! (−20 to −3 for the Wrestler
+against the Boxer: passing instead of punching a man covering up), Feint! (−20 to −9, and it spends his own shots for 45 s,
+D115), Defend the shot! (Muay Thai against BJJ −13 to +2) and Go for the finish! (a few points worse everywhere) all lost
+wins, as did Collar tie! against a grappler (−13 to 0).
+
+**What it says.** The corner is a better upper bound now: +8 points on average, against +3 before, and no line clearly worse.
+Calls that keep the fight where a fighter wants it (Cut the cage!, Pressure!, Fire back!) are where coaching pays; calls that
+change what he does on the ground mostly cost him. Only 4 of the 18 lines are in D12's +10–20% band. And mashing Pressure!
+beats good coaching for several fighters (BJJ +17, Muay Thai +14, the Counter-striker +13), so repeating it had no cost: §22.11 (D258) makes repeats wear off.
+
+### 22.11 Calling Pressure! again and again (D258)
+The key masher (§22.10) showed that shouting Pressure! the moment the last one ends beat good coaching for several fighters.
+Kyle picked "Opponent reads it" (2026-10-31): a man who keeps coming the same way gets timed. The read alone barely changed
+it, so Kyle then picked "Add repeats wearing off" (2026-11-01): each Pressure! called soon after the last one tilts him less.
+
+**What changed.**
+
+| Part | Rule | Number (`sim/fight/`) |
+|---|---|---|
+| **Repeats wear off** | A focus call taken again pushes his leanings less for each time the same call started in the last minute: the second in a minute pushes 70% as hard, the third 49%. A minute after the last one it's fresh. Every focus call works this way, not just Pressure!; the fighter says so when he answers (*"for 15 s, 70% as hard: called again"*) | `LiveCalls.REPEAT_TICKS` 600 (60 s), `REPEAT_WEAR` 0.7 |
+| **A repeat costs stamina** | Built, switched off: each repeat would cost this much stamina as it starts. At 2 it cost good coaching as much as mashing (Pressure wrestler vs Counter-striker +6 → −14, Muay Thai vs Boxer +3 → −7) | `LiveCalls.REPEAT_STAMINA` 0 |
+| **He reads the pressure** | A fighter is *pressing* while a focus call pushes his Range up at least 30 (Pressure!, Cut the cage!). Once he has pressed more than half of the last minute, the other man reads his moves better and meets him on the way in more often: up to +30% to both, all of it once he's pressed the whole minute. His own style's leaning in never counts, only a call's | `LiveCalls.PRESSING_RANGE` 30, `FightSim.PRESS_SECONDS` 60, `FighterAI.PRESS_READ_FROM` 0.5, `PRESS_READ` 0.3 |
+
+**Measured** (seeds 101–200, 100 fights a pairing per corner, both corners pooled, change in the coached fighter's wins against
+the same fights without calls; paired 95% ranges are about ±12 on each line):
+
+| Coached vs opponent | Ideal before | Ideal after | `mash:pressure` before | `mash:pressure` after |
+|---|---|---|---|---|
+| Muay Thai vs BJJ | −1 | +1 | +3 | −1 |
+| BJJ vs Muay Thai | +16 | +11 | +25 | +25 |
+| Pressure wrestler vs Counter-striker | +6 | +4 | −1 | +8 |
+| Counter-striker vs Pressure wrestler | +1 | +2 | +7 | +3 |
+| Muay Thai vs Boxer | +3 | +3 | **+13** | **+2** |
+| Boxer vs Muay Thai | +14 | +17 | +9 | +7 |
+| Boxer vs Kicker | +32 | +36 | +27 | +25 |
+| Kicker vs Boxer | +4 | −1 | −34 | −27 |
+| Wrestler vs Kicker | +24 | +26 | +20 | +19 |
+| Kicker vs Wrestler | −1 | −6 | −14 | −13 |
+| Brawler vs Karate | +16 | +17 | −1 | +8 |
+| Karate vs Brawler | +2 | +3 | −13 | −23 |
+| **Average** | **+9.7** | **+9.4** | **+3.4** | **+2.8** |
+
+**What it says.** Good coaching is unchanged, and mashing loses its clearest win (Muay Thai against the Boxer, +13 → +2); the
+Counter-striker's goes from +7 to +3. BJJ against Muay Thai is still +25 mashed, more than the ideal corner's +11: his gain
+isn't the repeats, it's pressing whenever he's standing, which closes the distance and gets him to the ground. That is good
+advice for him rather than abuse; a later step could have the ideal corner call Pressure! for a grappler who wants the ground.
+
+**To change it.** Make repeats wear off faster or slower with `REPEAT_WEAR` (1.0 turns it off) and `REPEAT_TICKS`; turn the
+stamina cost on with `REPEAT_STAMINA` (a heavy punch costs about 6); make the read stronger with `PRESS_READ` or start it
+sooner with `PRESS_READ_FROM`. Tests: `tests/sim/fight/test_pressure_read.gd`. Compare with
+`tools/balance.gd -- --fights=100 --seed=101 --pairs=muay_thai:bjj,pressure_wrestler:counter_striker,muay_thai:boxer,boxer:kicker,wrestler:kicker,brawler:karate --corners=none,ideal,mash:pressure`.
 
 ## 23. Drilled rules in the engine (#17, D82, D116)
 How §6.0's second layer works in the code (`sim/fight/drilled_rules.gd`, one per fighter, third in the §19 stack: under live

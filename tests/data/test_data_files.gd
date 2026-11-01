@@ -95,6 +95,10 @@ const SCHEMAS := {
 	"vignette@1": { "folder": "vignettes", "fields": {
 		"title": TYPE_STRING, "age": TYPE_FLOAT, "text": TYPE_STRING, "choices": TYPE_ARRAY,
 	} },
+	"gym@1": { "folder": "gyms", "fields": {
+		"name": TYPE_STRING, "about": TYPE_STRING, "xp": TYPE_DICTIONARY, "fee": TYPE_ARRAY, "names": TYPE_ARRAY,
+		"owners": TYPE_ARRAY, "backgrounds": TYPE_ARRAY,
+	} },
 	"names@1": { "folder": "names", "fields": {
 		"country": TYPE_STRING, "cities": TYPE_ARRAY, "first": TYPE_ARRAY, "last": TYPE_ARRAY,
 	} },
@@ -875,4 +879,44 @@ func test_childhood_scenes_have_three_choices_that_lean_toward_real_backgrounds(
 		for bg: String in backgrounds:
 			if not covered[age].has(bg):
 				problems.append("no scene at age %d leans toward '%s': every background must be reachable at every age" % [age, bg])
+	_report(problems)
+
+
+func test_gyms_train_real_session_kinds_and_every_background_has_one_that_suits_him() -> void:
+	var problems: Array[String] = []
+	var kinds: Array = []
+	for id: String in _items("sessions"):
+		if not String(_items("sessions")[id].get("kind", "")) in kinds:
+			kinds.append(String(_items("sessions")[id].kind))
+	var backgrounds: Dictionary = _items("backgrounds")
+	var suited: Dictionary = {}
+	for id: String in _items("gyms"):
+		var g: Dictionary = _items("gyms")[id]
+		var where := "gym '%s'" % id
+		_expect_numbers(problems, where, "xp", g.get("xp", {}), kinds, 0.5, 1.5)
+		var fee: Variant = g.get("fee")
+		if not (fee is Array and fee.size() == 2 and float(fee[0]) >= 0.0 and float(fee[0]) <= float(fee[1])):
+			problems.append("%s: fee must be [low, high] dollars a month" % where)
+		for field: String in ["names", "owners"]:
+			var lines: Variant = g.get(field, [])
+			if not lines is Array or (lines as Array).is_empty() or (lines as Array).any(func(l: Variant) -> bool: return not l is String or String(l).is_empty()):
+				problems.append("%s: %s must be a list of lines" % [where, field])
+		for bg: Variant in g.get("backgrounds", []):
+			if not backgrounds.has(bg):
+				problems.append("%s: unknown background '%s'" % [where, bg])
+			suited[bg] = true
+	for bg: String in backgrounds:
+		if not suited.has(bg):
+			problems.append("no gym suits background '%s': the first gym on offer always suits him (D313)" % bg)
+	var cultures: Dictionary = _items("enums").get("gym_cultures", {}).get("values", {})
+	if cultures.is_empty():
+		problems.append("data/enums/gym_cultures.json is missing or empty (D313)")
+	for id: String in cultures:
+		var c: Variant = cultures[id]
+		if not c is Dictionary or not c.get("name") is String or not c.get("about") is String:
+			problems.append("gym culture '%s': needs a name and an about line (D313)" % id)
+			continue
+		for field: String in ["skips", "injury", "sparring_xp"]:
+			if not c.get(field) is float or float(c[field]) < 0.25 or float(c[field]) > 2.0:
+				problems.append("gym culture '%s': %s must be a number from 0.25 to 2" % [id, field])
 	_report(problems)

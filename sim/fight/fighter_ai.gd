@@ -207,6 +207,12 @@ const INTERCEPT_OUTSIDE: float = 0.5
 ## Plant and counter (D230): being cut off (the opponent cutting from the inside), the chance
 ## to meet him as he steps in goes up by this much: the check hook as the door shuts.
 const INTERCEPT_CUT_OFF: float = 0.2
+## Reading the pressure (D258, Kyle's pick: "Opponent reads it"): an opponent who has spent more than
+## PRESS_READ_FROM of the last minute pressing on a call (Pressure!, Cut the cage!) is coming the same
+## way again and again. Over that, up to PRESS_READ is added to reading his moves and meeting his
+## walk-in: all of it once he's pressed the whole minute.
+const PRESS_READ_FROM: float = 0.5
+const PRESS_READ: float = 0.3
 ## Herding with a feint (D230): cutting the cage off, with the opponent circling within
 ## HERD_FENCE of the fence, a cutter feints on a chance of HERD_RATE × Cage cutting / 100 a free
 ## tick. If it bites, he plants for a beat (FightSim.BIT_FEET) and the cut closes the door.
@@ -936,6 +942,7 @@ func _meet_advance(view: FightView, layer: DecisionLayer) -> Decision:
 	_met_advance = true
 	var outside: float = clampf(-_lean(view, layer, StyleLeanings.RANGE) / 100.0, 0.0, 1.0)
 	var chance: float = (INTERCEPT_BASE + INTERCEPT_OUTSIDE * outside) * (0.5 + view.me.effective_stat("fight_iq") / 100.0)
+	chance += press_read(view)
 	if view.opponent_cutting() and view.opponent.pos.length_squared() < view.me.pos.length_squared():
 		chance += INTERCEPT_CUT_OFF  # Cut off: plant and counter.
 		if view.shut_in() and shut_in_answer(view, layer) == ANSWER_PLANT:
@@ -2109,6 +2116,7 @@ func _saw_start(view: FightView, event: FightEvent, layer: DecisionLayer) -> voi
 	if action.category == TAKEDOWN or action.category == CLINCH:
 		chance += wise_bonus(event.tick)
 		_grapples_seen.append(event.tick)
+	chance += press_read(view)
 	if view.opponent.blind_shot:
 		chance += BLIND_READ  # Nothing to hide it (D131).
 	if view.opponent.combo_step > 0:
@@ -2144,6 +2152,11 @@ func _timed_on_me(view: FightView, event: FightEvent) -> bool:
 
 
 ## The extra chance to read a grappling move started at `tick`, from the ones seen before it.
+## How much better he reads an opponent who keeps pressing on a call (D258).
+static func press_read(view: FightView) -> float:
+	return PRESS_READ * clampf((view.opponent_pressed_share() - PRESS_READ_FROM) / (1.0 - PRESS_READ_FROM), 0.0, 1.0)
+
+
 func wise_bonus(tick: int) -> float:
 	while not _grapples_seen.is_empty() and _grapples_seen[0] < tick - WISE_TICKS:
 		_grapples_seen.pop_front()

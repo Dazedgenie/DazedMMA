@@ -23,6 +23,7 @@ const MIN_WINDOW_SIZE := Vector2i(960, 540)
 const TITLE := "title"
 const NEW_CAREER := "new_career"
 const CHILDHOOD := "childhood"
+const GYM := "gym"
 const LOAD := "load"
 const CAREER := "career"
 const SETUP := "setup"
@@ -45,6 +46,8 @@ var title: TitleScreen
 var new_career: NewCareerScreen
 ## His childhood scenes (D312), between the new-career screen and the hub.
 var childhood: ChildhoodScreen
+## Your gym and the walk-in (D313), the last step before the hub.
+var gym_screen: GymScreen
 var load_screen: LoadScreen
 var hub: CareerHub
 ## The career being played (null on Quick fight) and its save slot.
@@ -58,8 +61,9 @@ var record_dir: String = FightRecord.DIR
 ## The last fight's saved record ("" when it wasn't saved).
 var last_record_path: String = ""
 
-var _childhood_choices: Dictionary = {}
-var _childhood_seed: int = 0
+## A new career on its way through his childhood and the gym: the choices so far and its seed.
+var _pending_choices: Dictionary = {}
+var _pending_seed: int = 0
 var _actions: ActionLibrary
 var _roster: FighterLibrary
 var _console: DebugConsole
@@ -111,6 +115,11 @@ func _ready() -> void:
 	childhood.finished.connect(_childhood_done)
 	childhood.back_pressed.connect(open_new_career.bind(false))
 	ui.add_child(childhood)
+	gym_screen = GymScreen.new()
+	gym_screen.visible = false
+	gym_screen.finished.connect(_gym_done)
+	gym_screen.back_pressed.connect(open_new_career.bind(false))
+	ui.add_child(gym_screen)
 	load_screen = LoadScreen.new()
 	load_screen.visible = false
 	load_screen.load_pressed.connect(load_career)
@@ -169,31 +178,60 @@ func open_new_career(reroll: bool = true) -> void:
 	new_career.focus_start()
 
 
-## Starts a career from the new-career screen's choices in the first free slot, saves it and opens the hub. With
-## Play his childhood ticked, his childhood scenes come first (open_childhood) and start the career when they're done.
+## Starts a career from the new-career screen's choices in the first free slot, saves it and opens the hub. First come
+## his childhood scenes (D312, with Play his childhood ticked), then your gym and the walk-in (D313), each adding to the
+## choices; the whole new career uses one seed.
 func start_career(choices: Dictionary) -> void:
 	if CareerSaves.free_slot(save_dir) < 0:
 		return
-	if bool(choices.get("play_childhood", false)) and not choices.has("childhood"):
-		open_childhood(choices, randi())
-		return
-	_start_career(choices, randi())
+	_pending_choices = choices.duplicate(true)
+	_pending_seed = randi()
+	_next_new_career_step()
+
+
+func _next_new_career_step() -> void:
+	if bool(_pending_choices.get("play_childhood", false)) and not _pending_choices.has("childhood"):
+		open_childhood(_pending_choices, _pending_seed)
+	elif not _pending_choices.has("gym"):
+		open_gym(_pending_choices, _pending_seed)
+	else:
+		_start_career(_pending_choices, _pending_seed)
 
 
 ## His childhood scenes (D312) for these new-career choices, drawn from the seed the career will start with.
 func open_childhood(choices: Dictionary, career_seed: int) -> void:
 	_hide_screens()
-	_childhood_choices = choices
-	_childhood_seed = career_seed
+	_pending_choices = choices
+	_pending_seed = career_seed
 	childhood.begin(career_seed, choices, _roster)
 	childhood.visible = true
 	state = CHILDHOOD
 
 
 func _childhood_done(picks: Array) -> void:
-	var choices: Dictionary = _childhood_choices.duplicate(true)
-	choices.childhood = picks
-	_start_career(choices, _childhood_seed)
+	_pending_choices.childhood = picks
+	var kid: Childhood = Childhood.shared()
+	var background: String = String(kid.tally(picks).background)
+	if background != "":
+		_pending_choices.background = background  # What Career.start will make of it, for the gyms and the walk-in.
+	_pending_choices.people = kid.people(picks, String(_pending_choices.get("name", "")),
+		String(_pending_choices.get("country_id", "")), _pending_seed)
+	_next_new_career_step()
+
+
+## Your gym and the walk-in (D313): three gyms in his hometown, then the morning he walks in.
+func open_gym(choices: Dictionary, career_seed: int) -> void:
+	_hide_screens()
+	_pending_choices = choices
+	_pending_seed = career_seed
+	gym_screen.begin(choices, career_seed)
+	gym_screen.visible = true
+	state = GYM
+
+
+func _gym_done(gym: Dictionary) -> void:
+	_pending_choices.gym = gym
+	_next_new_career_step()
 
 
 func _start_career(choices: Dictionary, career_seed: int) -> void:
@@ -412,7 +450,7 @@ func _hub_to_title() -> void:
 
 func _hide_screens() -> void:
 	_close_camp()
-	for screen: Control in [title, new_career, childhood, load_screen, hub, setup, result, hud]:
+	for screen: Control in [title, new_career, childhood, gym_screen, load_screen, hub, setup, result, hud]:
 		screen.visible = false
 	if hud.dialog_open():
 		hud.hide_dialog()
@@ -497,7 +535,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		arena.debug_marks = overlay.visible
 		get_viewport().set_input_as_handled()
 		return
-	if key == KEY_ESCAPE and state == CHILDHOOD:
+	if key == KEY_ESCAPE and state in [CHILDHOOD, GYM]:
 		open_new_career(false)
 		get_viewport().set_input_as_handled()
 		return

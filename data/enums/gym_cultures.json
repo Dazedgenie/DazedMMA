@@ -1,0 +1,27 @@
+{
+	"schema": "enum@1",
+	"id": "gym_cultures",
+	"values": {
+		"family": {
+			"name": "Family gym",
+			"about": "Everyone knows everyone. The older fighters keep the kids in line, and nobody skips without someone asking why.",
+			"skips": 0.75,
+			"injury": 1.0,
+			"sparring_xp": 1.0
+		},
+		"hard_sparring": {
+			"name": "Hard sparring",
+			"about": "Thursday sparring is a war. You learn fast here, or you get hurt.",
+			"skips": 1.0,
+			"injury": 1.5,
+			"sparring_xp": 1.2
+		},
+		"party": {
+			"name": "Party gym",
+			"about": "Great people, loud music and a bar across the road. Training's good when everyone turns up.",
+			"skips": 1.5,
+			"injury": 1.0,
+			"sparring_xp": 1.0
+		}
+	}
+}

@@ -137,6 +137,8 @@ var potential: float
 var _profile: Dictionary
 ## The head coach's specialty (Coach, D311): a career sets it; "" trains as before.
 var coach_specialty: String = ""
+## His gym (Gym, D313): { kind, culture, ... }; {} = no gym (the camp planner on its own, a career before D313).
+var gym: Dictionary = {}
 var _library: TrainingLibrary
 var _rng := RandomNumberGenerator.new()
 var _camp_gains: Dictionary = {}  # stat id → points gained this camp
@@ -231,6 +233,7 @@ func run_plan(plan: Dictionary, played: Dictionary = {}, fight_week: bool = fals
 func forecast(plan: Dictionary, fight_week: bool = false) -> Dictionary:
 	var copy := TrainingCamp.new(profile(), 0, _library)
 	copy.coach_specialty = coach_specialty
+	copy.gym = gym
 	copy.stats = stats.duplicate()
 	copy.fatigue = fatigue
 	copy.injured_days = injured_days
@@ -407,11 +410,11 @@ static func freshness(value: float) -> String:
 ## The chance this session injures the fighter, at the fatigue they're doing it at.
 func injury_chance(session: Dictionary) -> float:
 	var tired: float = fatigue / INJURY_FATIGUE
-	return float(session.injury_risk) * (1.0 + tired * tired) * (INJURY_DURABILITY_BASE - stat("durability") / 100.0)
+	return float(session.injury_risk) * (1.0 + tired * tired) * (INJURY_DURABILITY_BASE - stat("durability") / 100.0) * Gym.injury_share(gym)
 
 
 func skip_chance() -> float:
-	return maxf(0.0, -float(_profile.get("personality", {}).get("discipline", 0.0))) * SKIP_PER_PARTY_POINT * Coach.skip_share(coach_specialty)
+	return maxf(0.0, -float(_profile.get("personality", {}).get("discipline", 0.0))) * SKIP_PER_PARTY_POINT * Coach.skip_share(coach_specialty) * Gym.skip_share(gym)
 
 
 func _run_slot(id: String, day: int, quality: float, variety: float, instruction: Dictionary, week: Dictionary) -> String:
@@ -443,7 +446,7 @@ func _run_slot(id: String, day: int, quality: float, variety: float, instruction
 			injury_area = area
 		injured_days = maxi(injured_days, days)
 		week.injuries.append({ "day": day, "session": id, "days_out": days, "area": area })
-	var mult: float = clampf(quality, PLAYED_MIN, PLAYED_MAX) * fatigue_factor() * variety
+	var mult: float = clampf(quality, PLAYED_MIN, PLAYED_MAX) * fatigue_factor() * variety * Gym.xp_share(gym, String(session.get("kind", "")))
 	for stat_id: String in session.trains:
 		var points: float = float(session.xp) * float(session.trains[stat_id]) * mult * learning(stat_id) / xp_per_point(stat_id)
 		if _camp_gains.get(stat_id, 0.0) >= CAMP_SOFT_CAP:

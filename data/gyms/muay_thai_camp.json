@@ -1,0 +1,32 @@
+{
+	"schema": "gym@1",
+	"id": "muay_thai_camp",
+	"name": "Muay Thai camp",
+	"about": "Pads, shin guards, a radio playing Thai music and the smell of liniment. Kicks, knees and the clinch every day.",
+	"xp": {
+		"striking": 1.2,
+		"conditioning": 1.1,
+		"wrestling": 0.8,
+		"grappling": 0.7
+	},
+	"fee": [
+		45,
+		70
+	],
+	"names": [
+		"{city} Muay Thai",
+		"{surname} Thai Boxing",
+		"Eight Limbs {city}",
+		"{city} Nak Muay Camp"
+	],
+	"owners": [
+		"Fought eighty times in Bangkok and kicks the heavy bag like it owes him money.",
+		"Holds pads for an hour without a break and expects the same from you.",
+		"Runs the camp with his brother, who does the cooking."
+	],
+	"backgrounds": [
+		"muay_thai_abroad",
+		"traditional_martial_arts",
+		"track_star"
+	]
+}

@@ -62,6 +62,11 @@ func step() -> float:
 	return _sim_ref.get_ref().step_length(index)
 
 
+## The share of the last minute the opponent spent pressing on a call (D258).
+func opponent_pressed_share() -> float:
+	return _sim_ref.get_ref().pressed_share(1 - index)
+
+
 ## Whether the opponent's feet are cutting the cage off on this fighter right now (D230): their
 ## cut was working on their last step.
 func opponent_cutting() -> bool:
