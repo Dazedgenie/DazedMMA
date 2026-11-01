@@ -149,6 +149,35 @@ const STANCE_PULLS := {
 	"outside": { "lean": 0.05, "length": 0.06 },
 	"aggressive": { "lean": -0.07, "hip_y": -0.01 },
 }
+## Follow-through (D363). Standing, a strike's weight goes through his feet and the shot carries on past where
+## it lands. SHIFT: how far (metres) his hips go forward over the front foot at full extension, whatever becomes of
+## it (rear-hand punches the most; the teep pushes off him, back). CARRY: how committed each strike is (0 to 1),
+## which is how far a miss carries him: past and round by MISS_TURN of the strike's own hip turn more (a round kick
+## turns through), a punch leaning MISS_LEAN further in and MISS_SHIFT metres further over his front foot, and he
+## resets over the recovery. A shot that lands carries on by his drive (drive_for: Power over Speed, either side of
+## DRIVE_SPREAD points): a heavy hitter's LAND_CARRY of the way a miss would, the glove or shin DRIVE_THROUGH metres
+## through the target; a quick man's punch snaps back to guard in SNAP_RETURN of the recovery.
+const SHIFT := { "jab": 0.03, "cross": 0.07, "hook": 0.03, "overhand": 0.09, "uppercut": 0.04, "body_hook": 0.04,
+	"body_kick": 0.03, "head_kick": 0.02, "leg_kick": 0.03, "calf_kick": 0.02, "teep": -0.03 }
+const CARRY := { "jab": 0.15, "cross": 0.6, "hook": 0.8, "overhand": 1.0, "uppercut": 0.5, "body_hook": 0.6,
+	"body_kick": 0.8, "head_kick": 1.0, "leg_kick": 0.6, "calf_kick": 0.4, "teep": 0.3 }
+const MISS_TURN: float = 0.8
+## A round kick turns through further than a punch (its hips are already most of the way round).
+const KICK_MISS_TURN: float = 1.1
+const MISS_LEAN: float = 0.22
+const MISS_SHIFT: float = 0.1
+const LAND_CARRY: float = 0.4
+const DRIVE_THROUGH: float = 0.07
+## A miss's limb carries on past him at full carry: a punch MISS_REACH metres further through, a round kick
+## MISS_SWEEP metres further across in front of him, the way his hips are turning.
+const MISS_REACH: float = 0.15
+const MISS_SWEEP: float = 0.45
+const DRIVE_SPREAD: float = 40.0
+const SNAP_RETURN: float = 0.55
+## A rear-leg kick turns the standing foot out on its ball (this share of the hip turn, not FOOT_PIVOT's) and
+## lifts its heel (radians at full extension).
+const KICK_PIVOT: float = 0.9
+const KICK_HEEL: float = 0.3
 ## How tall he kneels when he postures up out of the guard for the bomb (D282): hip height, metres.
 const POSTURE_HIP: float = 0.68
 ## How quickly a gripping hand follows a grip changing (per second).
@@ -516,8 +545,67 @@ func pose_for(sim: FightSim, i: int, fractional_tick: float = 0.0) -> Dictionary
 		reach = move_reach(sim, f, fractional_tick)
 	var shape: Dictionary = {}
 	if TELLS.has(f.action_id) and sim.situation.is_standing():
-		shape = strike_shape(sim, f, fractional_tick)
+		shape = strike_shape(sim, f, fractional_tick, _snap(f))
 		reach = float(shape.reach)
+	var before: Dictionary = p.duplicate() if CARRY.has(f.action_id) and not shape.is_empty() else {}
+	_move_pose(p, f, action, reach)
+	if not before.is_empty():
+		_follow_through(p, before, f, action, shape)
+	if not shape.is_empty():
+		_tell_and_chamber(p, f.action_id, shape)
+	if AIMS.has(f.action_id):
+		p.aim = reach
+	return p
+
+
+## How hard he drives his shots through (D363): 0 (all Speed, snaps them back) to 1 (all Power, sits down on them),
+## half for a man as quick as he is strong.
+static func drive_for(f: FighterState) -> float:
+	var power: float = float(f.stats.get("power", FighterState.DEFAULT_STAT))
+	var speed: float = float(f.stats.get("speed", FighterState.DEFAULT_STAT))
+	return clampf(0.5 + (power - speed) / DRIVE_SPREAD, 0.0, 1.0)
+
+
+## What became of the strike he's throwing now, from the fight's events (show_outcome), or "" not known yet.
+func outcome_of(action_id: String) -> String:
+	return _outcome if _outcome_action == action_id else ""
+
+
+## The share of the recovery his punch takes to get back to guard (D363): a quick man's that landed or hit the
+## guard snaps back sooner; everything else takes the whole recovery.
+func _snap(f: FighterState) -> float:
+	var outcome: String = outcome_of(f.action_id)
+	if not AIMS.has(f.action_id) or String(AIMS[f.action_id].limb).ends_with("_leg") or not outcome in ["landed", "covered"]:
+		return 1.0
+	return lerpf(SNAP_RETURN, 1.0, drive_for(f))
+
+
+## A standing strike's weight and follow-through (D363) added to pose `p`; `before` is his pose before the
+## strike was added, so the strike's own hip turn is known.
+func _follow_through(p: Dictionary, before: Dictionary, f: FighterState, action: Dictionary, shape: Dictionary) -> void:
+	var id: String = f.action_id
+	var full: Dictionary = before.duplicate()
+	_move_pose(full, f, action, 1.0)
+	var size: float = 0.0
+	match outcome_of(id):
+		"missed":
+			size = float(CARRY[id])
+		"landed":
+			size = float(CARRY[id]) * LAND_CARRY * drive_for(f)
+	var carry: float = float(shape.carry) * size
+	var punch: bool = String(AIMS[id].limb).ends_with("_arm")
+	p.twist = float(p.twist) + (float(full.twist) - float(before.twist)) * (MISS_TURN if punch else KICK_MISS_TURN) * carry
+	p.shift = float(SHIFT[id]) * maxf(float(shape.reach), float(shape.carry)) + (MISS_SHIFT * carry if punch else 0.0)
+	if punch:
+		p.lean = float(p.lean) - MISS_LEAN * carry
+	if outcome_of(id) == "landed":
+		p.through = drive_for(f) * float(shape.carry)
+	elif outcome_of(id) == "missed":
+		p.through = carry
+
+
+## Poses move `f.action_id` (a strike, a grip, a hold going on …) into pose `p`, `reach` of the way through it.
+func _move_pose(p: Dictionary, f: FighterState, action: Dictionary, reach: float) -> void:
 	match f.action_id:
 		"jab":
 			p.twist += 0.12 * reach
@@ -806,25 +894,21 @@ func pose_for(sim: FightSim, i: int, fractional_tick: float = 0.0) -> Dictionary
 		_:
 			if action.category == "strike":
 				p.arm_lead = lerpf(p.arm_lead, 1.57, reach)
-	if not shape.is_empty():
-		_tell_and_chamber(p, f.action_id, shape)
-	if AIMS.has(f.action_id):
-		p.aim = reach
-	return p
 
 
 ## A standing strike's shape right now (D360): {tell, chamber, reach}. tell: how much of its tell shows (0 to
 ## TELL_SIZE_MAX), up through the telegraph and gone as it goes out. chamber: a kick's knee up and shin folded
 ## (0 to 1). reach: how far out it is, over the whole wind-up (a kick's after its chamber), held through the
-## active part and back over the recovery.
-static func strike_shape(sim: FightSim, f: FighterState, fractional_tick: float = 0.0) -> Dictionary:
+## active part and back over the recovery (in `snap` of it, D363). carry: how far into its follow-through it is
+## (D363): up through the active part, on to its peak early in the recovery, and back by its end.
+static func strike_shape(sim: FightSim, f: FighterState, fractional_tick: float = 0.0, snap: float = 1.0) -> Dictionary:
 	var id: String = f.action_id
 	var total: float = maxf(1.0, sim.phase_ticks(f, id, f.phase))
 	var t: float = clampf((total - f.phase_ticks_left + fractional_tick) / total, 0.0, 1.0)
 	var own: float = maxf(1.0, sim.actions.phase_ticks(id, "telegraph"))
 	var size: float = clampf(sim.phase_ticks(f, id, "telegraph") / own, TELL_SIZE_MIN, TELL_SIZE_MAX)
 	var kick: bool = KICK_CHAMBER.has(id)
-	var out := { "tell": 0.0, "chamber": 0.0, "reach": 0.0 }
+	var out := { "tell": 0.0, "chamber": 0.0, "reach": 0.0, "carry": 0.0 }
 	match f.phase:
 		"telegraph":
 			out.tell = size * smoothstep(0.0, 1.0, t)
@@ -839,8 +923,10 @@ static func strike_shape(sim: FightSim, f: FighterState, fractional_tick: float 
 				out.reach = lerpf(0.05, 1.0, smoothstep(0.0, 1.0, t))
 		"active":
 			out.reach = 1.0
+			out.carry = 0.6 * smoothstep(0.0, 1.0, t)
 		"recovery":
-			out.reach = 1.0 - smoothstep(0.0, 1.0, t)
+			out.reach = 1.0 - smoothstep(0.0, clampf(snap, 0.1, 1.0), t)
+			out.carry = 0.6 + 0.4 * smoothstep(0.0, 0.3, t) if t < 0.3 else 1.0 - smoothstep(0.3, 1.0, t)
 			if kick:
 				out.chamber = KICK_RECHAMBER * sin(PI * t)
 	return out
@@ -1038,6 +1124,7 @@ func _apply_pose(f: FighterState) -> void:
 	if f.is_rocked() and not f.is_down():
 		sway = 0.18 * sin(_time * 7.0)
 	sway -= lead * 0.5 * float(_pose.slip)
+	_hips.position.z = -float(_pose.shift)  # His weight over the front foot (D363).
 	var lean: float = float(_pose.lean) + 0.1 * float(_hit.head) - HIT_BODY_FOLD * float(_hit.body)
 	_hips.rotation = Vector3(lerpf(lean, PI / 2.0, lie), _pose.twist * lead, sway)
 	if absf(float(_pose.roll)) > 0.001:  # Rolling about his own spine (turning away underneath, D282).
@@ -1204,7 +1291,16 @@ func aim_point(action_id: String, root: Vector3) -> Vector3:
 		point -= toward * 0.06
 	elif _outcome == "checked":
 		point = opponent.strike_point("legs") - toward * 0.08  # Into the raised shin.
-	return point + (-side * MISS_PAST + toward * MISS_THROUGH + Vector3.UP * 0.08) * _miss  # Over his shoulder.
+	elif _outcome == "landed":  # On through him, as far as he drives it (D363).
+		point += toward * DRIVE_THROUGH * float(_pose.get("through", 0.0))
+	var past: float = MISS_PAST
+	var through: float = MISS_THROUGH
+	if _outcome == "missed":  # Carried on past him (D363): a round kick sweeps across, a punch reaches on through.
+		if String(aim.bend) == "round":
+			past += MISS_SWEEP * float(_pose.get("through", 0.0))
+		else:
+			through += MISS_REACH * float(_pose.get("through", 0.0))
+	return point + (-side * past + toward * through + Vector3.UP * 0.08) * _miss  # Over his shoulder.
 
 
 ## Labels, the delay ring, the stars and the tell's "!" ride a set height over his head, standing or
@@ -1259,7 +1355,12 @@ func _pose_legs() -> void:
 			if support[i]:
 				# The foot turns on its ball with the hips, and the rear heel comes up (D281).
 				var lift: float = HEEL_LIFT * absf(turn) if i == 1 else 0.0
-				foot_basis = Basis(Vector3.UP, turn * FOOT_PIVOT[i]) * global_basis * Basis(Vector3.RIGHT, -minf(lift, 0.45))
+				var share: float = FOOT_PIVOT[i]
+				if i == 0 and kick != "" and String(AIMS[kick].limb) == "rear_leg":
+					# Standing on the lead foot for a rear kick (D363): it turns out and comes up on its ball.
+					share = lerpf(share, KICK_PIVOT, float(_pose.aim))
+					lift = KICK_HEEL * float(_pose.aim)
+				foot_basis = Basis(Vector3.UP, turn * share) * global_basis * Basis(Vector3.RIGHT, -minf(lift, 0.45))
 				var ball: Vector3 = motion.feet[i] + global_basis * Vector3(0, 0, -FOOT_BALL)
 				ankle = ball - foot_basis * Vector3(0, 0, -FOOT_BALL) + foot_basis * Vector3(0, 0.065, 0.035)
 			else:
@@ -1356,7 +1457,8 @@ static func _segment(mesh: MeshInstance3D, start: Vector3, end: Vector3) -> void
 static func _rest_pose() -> Dictionary:
 	return { "hip_y": HIP_HEIGHT - 0.07, "lean": -0.08, "lie": 0.0, "twist": 0.0, "arm_lead": 2.0, "arm_rear": 1.85,
 		"leg_lead": 0.22, "leg_rear": -0.25, "reach_lead": 1.0, "reach_rear": 1.0, "knee_short": 0.0,
-		"spread": 0.08, "kneel": 0.0, "aim": 0.0, "check": 0.0, "slip": 0.0, "cover": 0.0, "roll": 0.0 }
+		"spread": 0.08, "kneel": 0.0, "aim": 0.0, "check": 0.0, "slip": 0.0, "cover": 0.0, "roll": 0.0,
+		"shift": 0.0, "through": 0.0 }
 
 
 func _build() -> void:

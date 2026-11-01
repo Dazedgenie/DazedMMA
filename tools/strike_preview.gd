@@ -15,9 +15,15 @@ const CASES := [
 	["body_kick", "landed", "", "long"], ["body_kick", "covered", "cover_up", "mid"],
 	["leg_kick", "landed", "", "mid"], ["leg_kick", "checked", "check_kick", "mid"],
 	["head_kick", "landed", "", "mid"], ["teep", "landed", "", "long"], ["calf_kick", "landed", "", "pocket"],
+	# Follow-through (D363): the committed shots missing, carrying him past and back into his stance.
+	["cross", "missed", "slip", "mid"], ["hook", "missed", "slip", "pocket"], ["overhand", "missed", "slip", "mid"],
+	["body_kick", "missed", "", "mid"], ["head_kick", "missed", "", "mid"],
 ]
 
 var _out := "res://build/strikes"
+## --only=cross,head_kick:missed keeps the cases for those strikes (or strike:outcome pairs); --red= throws them.
+var _only: Array[String] = []
+var _red := "boxer"
 var _main: Node3D
 var _frame: int = 0
 var _title: Label
@@ -27,6 +33,10 @@ func _initialize() -> void:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--out="):
 			_out = arg.trim_prefix("--out=")
+		elif arg.begins_with("--only="):
+			_only.assign(arg.trim_prefix("--only=").split(",", false))
+		elif arg.begins_with("--red="):
+			_red = arg.trim_prefix("--red=")
 	_capture.call_deferred()
 
 
@@ -45,7 +55,8 @@ func _capture() -> void:
 	_title.add_theme_constant_override("outline_size", 8)
 	layer.add_child(_title)
 	for case: Array in CASES:
-		await _case(case)
+		if _only.is_empty() or _only.has(String(case[0])) or _only.has("%s:%s" % [case[0], case[1]]):
+			await _case(case)
 	print("Strike preview: %d frames in %s" % [_frame, _out])
 	_main.queue_free()
 	await process_frame
@@ -56,7 +67,7 @@ func _case(case: Array) -> void:
 	var strike: String = case[0]
 	var outcome: String = case[1]
 	var defence: String = case[2]
-	_main.start_fight({"red": "boxer", "blue": "kicker", "seed": 35003, "sound_volume": 0.0, "easy": true})
+	_main.start_fight({"red": _red, "blue": "kicker", "seed": 35003, "sound_volume": 0.0, "easy": true})
 	_main.set_process(false)
 	_main.arena.set_process(false)
 	_main.hud.visible = false

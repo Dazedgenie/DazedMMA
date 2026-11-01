@@ -601,8 +601,7 @@ puts his hands up from his own guard.
 `CAMERA_TURN_SPEED` and `CAMERA_RISE_*` at the top of `game/arena_view.gd`.
 
 **Limits:** the clinch and ground keep their own poses (no stance or tell there); the camera can't swing past
-40° because the fence is only cut down on one side; strikes still have no follow-through past the target or
-weight transfer through the feet; the faceted pieces carry the same changes but aren't drawn.
+40° because the fence is only cut down on one side; follow-through and weight transfer came next (D363); the faceted pieces carry the same changes but aren't drawn.
 
 Preview: `tools/strike_preview.gd` (each strike thrown and landing, blocked, missed or checked, with its tell
 and chamber) and a real fight, `tools/motion_preview.gd --seconds=20` (the Boxer against the Kicker, seed 35003).
@@ -613,6 +612,54 @@ swing, the uppercut under the chin, nothing in the clinch), `tests/game/test_fig
 side-on, turning to see them side-on but no further than its limit, climbing where it can't, back to
 `CAMERA_FROM` off their feet, easing rather than cutting) and `tests/game/test_stances.gd` (the Boxer bladed and
 the Kicker square, a wrestler low with his hands lower, every fighter's stance in bounds, none in the clinch).
+
+## Strike follow-through (D363)
+
+Kyle picked strike follow-through as the slice after the striking polish, and on the cards: a miss carries him
+"By the shot", a missed round kick will "Turn through, back to stance", and a landed punch finishes "By power".
+Before, a strike went out and came straight back the same way whatever happened: a miss looked like a hit, and
+nobody's weight moved over his feet.
+
+**Weight through the feet.** Standing, as a strike goes out his hips move forward over his front foot (`SHIFT`, in
+metres at full extension: 7 cm behind a cross, 9 behind an overhand, 3 behind a jab or hook; the teep pushes him
+3 cm back off the man) and come back over the recovery, whatever becomes of it. A rear-leg kick's standing foot
+turns out on its ball with the hips (`KICK_PIVOT` of the hip turn, not the 35% a stepping foot turns) and its heel
+comes up (`KICK_HEEL`).
+
+**Misses, by the shot.** Each strike has a commitment (`CARRY`, 0 to 1): the jab 0.15, the teep 0.3, the calf
+kick 0.4, the uppercut 0.5, the cross, body hook and leg kick 0.6, the hook and body kick 0.8, the overhand and
+head kick 1. A miss carries him by it: his hips carry on round `MISS_TURN` (80%) of the strike's own turn again,
+a punch leans `MISS_LEAN` further in, goes `MISS_SHIFT` (10 cm) further over his front foot and reaches on
+`MISS_REACH` (15 cm) past the side of the head. The carry builds through the active part, peaks a third of the
+way into the recovery and is gone by its end, so he is back in his stance when the sim lets him act again.
+
+**A missed round kick turns through.** A round kick's hips are already most of the way round, so a miss carries
+them `KICK_MISS_TURN` (110%) of its turn again, and the leg sweeps `MISS_SWEEP` (45 cm) further across in front of
+him, then he turns back into his stance. It never spins him all the way round: the fight gives nothing for a
+missed kick's back, so the view doesn't show one.
+
+**Landed shots, by power.** A man's drive is his Power over his Speed (`drive_for`: half, plus the difference over
+`DRIVE_SPREAD` 40 points; the Brawler 1, the Boxer 0.75, the Kicker 0.38, the Karate man 0). A heavy hitter's
+landed shot carries on `LAND_CARRY` (40%) of the way a miss would, and the glove or shin goes on `DRIVE_THROUGH`
+(7 cm, at full drive) through the target. A quick man's punch that lands or hits the guard snaps back to guard in
+`SNAP_RETURN` (55%) of the recovery instead of all of it. Kicks come back through their chamber either way.
+
+**What to edit:** the constants above, at the top of `game/fighter_figure.gd` with the D363 comment;
+`strike_shape` (the `carry` curve and the `snap` share), `_follow_through` and `_snap`.
+
+**Limits:** the clinch and ground strikes have no follow-through (they keep their own poses); he doesn't take a
+step to catch a miss (his feet stay where the sim has them, so the carry is in his hips, shoulders and the
+striking limb); a missed kick's leg doesn't land in front of him.
+
+Preview: `tools/strike_preview.gd` now also throws the cross, hook and overhand being slipped and the body and
+head kick missing; `--only=` keeps some cases (`cross`, or `head_kick:missed`) and `--red=` picks the man throwing
+them (`--red=brawler` against `--red=karate` for driving through and snapping back). Before and after sheets and
+clips: `/mnt/project-files/screenshots/followthrough-d363/`.
+
+Tests: `tests/game/test_follow_through.gd` (the weight over the front foot and back, a miss carrying further round
+and in than a landed shot, a missed jab hardly at all and an overhand well past, a missed round kick turning
+through and back, drive from Power over Speed, a heavy hitter driving through and a quick man snapping back, a
+rear kick's standing foot turning out, nothing in the clinch).
 
 ## Review and verification
 
