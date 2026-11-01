@@ -59,6 +59,7 @@ var _offers: VBoxContainer
 var _offer_ids: Array[String] = []
 var _fights_text: RichTextLabel
 var _calendar: HBoxContainer
+var _scrolls: Array[ScrollContainer] = []
 var _groups: Dictionary = {}
 var _gift_names: Dictionary = {}
 var _flaw_names: Dictionary = {}
@@ -104,8 +105,7 @@ func _init() -> void:
 	fighter_box.add_child(_heading("The fighter"))
 	var fighter_row := HBoxContainer.new()
 	fighter_row.add_theme_constant_override("separation", 12)
-	fighter_row.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	fighter_box.add_child(fighter_row)
+	fighter_box.add_child(_scroll(fighter_row))
 	_figure = BodyDamageFigure.new()
 	_figure.custom_minimum_size = Vector2(110.0, 200.0)
 	_figure.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
@@ -119,29 +119,23 @@ func _init() -> void:
 	body.add_child(stats_card)
 	var stats_box: VBoxContainer = stats_card.get_child(0)
 	stats_box.add_child(_heading("His stats"))
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	stats_box.add_child(scroll)
 	_bars = StatBars.new()
-	_bars.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(_bars)
+	stats_box.add_child(_scroll(_bars))
 
 	var week_card := _card(Vector2(0.0, 0.0))
 	week_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	body.add_child(week_card)
 	var week_box: VBoxContainer = week_card.get_child(0)
 	week_box.add_child(_heading("This week"))
+	# The week's news and the offers scroll together above the buttons, which stay put (D340).
+	var news := VBoxContainer.new()
+	news.add_theme_constant_override("separation", 12)
 	_week_text = _rich()
-	week_box.add_child(_week_text)
+	news.add_child(_week_text)
 	_offers = VBoxContainer.new()
 	_offers.add_theme_constant_override("separation", 8)
-	_offers.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var offers_scroll := ScrollContainer.new()
-	offers_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	offers_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	offers_scroll.add_child(_offers)
-	week_box.add_child(offers_scroll)
+	news.add_child(_offers)
+	week_box.add_child(_scroll(news))
 	_camp = CampPlanner._button(week_box, "Go to camp", func() -> void: camp_pressed.emit())
 	CampPlanner.style_fight_button(_camp, 30)
 	var plan_label := FightNightCard._label(16, DIM)
@@ -167,7 +161,7 @@ func _init() -> void:
 	var fights_box: VBoxContainer = fights_card.get_child(0)
 	fights_box.add_child(_heading("His fights"))
 	_fights_text = _rich()
-	fights_box.add_child(_fights_text)
+	fights_box.add_child(_scroll(_fights_text))
 
 	column.add_child(_heading("The calendar"))
 	_calendar = HBoxContainer.new()
@@ -207,6 +201,8 @@ func show_career(p_career: Career, reports: Array = []) -> void:
 	_show_offers()
 	_fights_text.text = fights_text(career)
 	_show_calendar(career.calendar())
+	for scroll in _scrolls:
+		scroll.scroll_vertical = 0
 
 
 ## Sets the week plan he runs between fights (a data/week_plans id).
@@ -560,6 +556,12 @@ func text() -> String:
 		"\n".join(offer_cards), _camp.text if _camp.visible else "", _fights_text.get_parsed_text(), " | ".join(tiles)]
 
 
+## For tests: the scrolling parts, top to bottom of each card left to right (the fighter, his stats, this week's news
+## and offers, his fights; D340).
+func scrolls() -> Array[ScrollContainer]:
+	return _scrolls.duplicate()
+
+
 func focus_first() -> void:
 	FightHud.focus_later(_camp if _camp.visible else _week)
 
@@ -576,10 +578,23 @@ func _rich() -> RichTextLabel:
 	var label := RichTextLabel.new()
 	label.bbcode_enabled = true
 	label.fit_content = true
-	label.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	label.scroll_active = false
+	label.mouse_filter = Control.MOUSE_FILTER_PASS
 	label.add_theme_font_size_override("normal_font_size", 18)
 	label.add_theme_color_override("default_color", TEXT)
 	return label
+
+
+## Wraps a card's long part so it scrolls inside the card (mouse wheel or drag) instead of pushing the hub past the bottom
+## of the screen (D340). The card's buttons and headings sit outside it and stay put.
+func _scroll(content: Control) -> ScrollContainer:
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(content)
+	_scrolls.append(scroll)
+	return scroll
 
 
 func _card(min_size: Vector2) -> PanelContainer:
