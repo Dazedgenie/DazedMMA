@@ -770,7 +770,7 @@ are built until Kyle answers. Nine pieces, in this order (D350), each playable w
 
 | Piece | Decision | Status |
 |---|---|---|
-| Weight divisions: a walk-around weight, growing into his natural division by about 21 | D351 | Planned |
+| Weight divisions: a walk-around weight, growing into his natural division by about 21, moved one up or down at his pro debut if you like (Kyle, 2026-11-01: "Grows into it, move at debut"; refines D35) | D351 | Planned |
 | The world's fighters: about 100 named men a division, from local amateurs to world class; offers come from them | D352 | Planned |
 | The world's weeks: the other men fight about 3 times a year, age, retire, and new prospects join each January | D353 | Planned |
 | Promotions and their cards: 3 or 4 regional pro promotions and 2 international organisations, made up each career (D57) | D354 | Planned |
