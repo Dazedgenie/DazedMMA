@@ -18,6 +18,8 @@ const GAP_SPREAD: int = 5
 ## are within MATCH_GAP (+ MATCH_WIDEN a week the first has waited), who haven't met in REMATCH_WEEKS.
 const MATCH_GAP: float = 5.0
 const MATCH_WIDEN: float = 1.0
+## Ranked men are matched by places in their table (pair_gap): a place counts as this much of MATCH_GAP's level.
+const PLACE_GAP: float = 2.0
 ## Hurt: a man knocked out sits out KO_OUT_WEEKS more weeks than the gap; one stopped another way SUB_OUT_WEEKS.
 const KO_OUT_WEEKS: int = 8
 const SUB_OUT_WEEKS: int = 2
@@ -78,7 +80,7 @@ const NEW_AMATEUR_AGES: Array[float] = [14.0, 16.0]
 const HISTORY: int = 6
 const RESULTS_WEEKS: int = 8
 ## What a retired man no longer needs.
-const RETIRED_DROPS: Array[String] = ["frame", "seed", "potential", "lv", "history", "next_week", "out_until", "met_close", "best"]
+const RETIRED_DROPS: Array[String] = ["frame", "seed", "potential", "lv", "history", "next_week", "out_until", "met_close", "best", "points"]
 
 
 ## What the weeks need on a man that doesn't have it yet (one made before D353, or new): his potential, his level to a
@@ -163,7 +165,7 @@ static func play_week(w: World, week: int, busy: Dictionary) -> Array:
 			for o: Dictionary in due:
 				if String(o.id) == String(m.id) or taken.has(String(o.id)) or _met_lately(m, String(o.id), week):
 					continue
-				var gap: float = absf(w.average(m) - w.average(o))
+				var gap: float = pair_gap(w, m, o)
 				if gap <= best_gap:
 					best_gap = gap
 					best = o
@@ -174,7 +176,20 @@ static func play_week(w: World, week: int, busy: Dictionary) -> Array:
 			w.results.append(fight(w, m, best, week, rng))
 			Promotions.after_fight(w, m, week)
 			Promotions.after_fight(w, best, week)
+	Rankings.update(w, week)
 	return w.results.slice(first)
+
+
+## How far apart two men due a fight are, for matching them (against MATCH_GAP): two unranked men by level (their
+## average stats); a ranked man by places in his table (D355, Kyle: "Ranked men fight near their rank"), PLACE_GAP a
+## place, an unranked man counting as just under the table's end.
+static func pair_gap(w: World, a: Dictionary, b: Dictionary) -> float:
+	var ra: int = Rankings.rank_of(w, String(a.id))
+	var rb: int = Rankings.rank_of(w, String(b.id))
+	if ra == 0 and rb == 0:
+		return absf(w.average(a) - w.average(b))
+	var n: int = Rankings.size_for(Promotions.of(w, a))
+	return absf(float(ra if ra > 0 else n + 1) - float(rb if rb > 0 else n + 1)) * PLACE_GAP
 
 
 ## Two of the world's men fight (ResultModel.decide, with form and rust): onto both records and histories, and they're
@@ -186,10 +201,15 @@ static func fight(w: World, a: Dictionary, b: Dictionary, week: int, rng: Random
 	var r: Dictionary = ResultModel.decide(String(a.style), w.average(a), String(b.style), w.average(b), rng, 3, nudge)
 	var result_a: String = { "a": "win", "b": "loss" }.get(String(r.winner), "draw")
 	var result_b: String = { "a": "loss", "b": "win" }.get(String(r.winner), "draw")
+	var ranks: Array = [Rankings.rank_of(w, String(a.id)), Rankings.rank_of(w, String(b.id))]
 	note_fight(a, String(b.id), result_a, String(r.method), week, rng)
 	note_fight(b, String(a.id), result_b, String(r.method), week, rng)
+	Rankings.note(w, a, String(b.id), result_a.substr(0, 1), _method(String(r.method)), week)
+	Rankings.note(w, b, String(a.id), result_b.substr(0, 1), _method(String(r.method)), week)
 	var out: Dictionary = { "kind": "fight", "week": week, "division": World.division_of(a, week), "a": String(a.id), "b": String(b.id),
 		"winner": String(r.winner), "method": String(r.method), "round": int(r.round), "chance": snappedf(chance, 0.01), "pro": bool(a.pro) }
+	if ranks != [0, 0]:
+		out.ranks = ranks
 	var p: Dictionary = Promotions.of(w, a)
 	if bool(a.pro) and not p.is_empty():
 		out.card = String(Promotions.card(w, p, week).short)

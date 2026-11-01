@@ -23,11 +23,15 @@ signal notebook_pressed
 ## The division list (D352): the men in his division this week.
 signal division_pressed
 signal promotions_pressed
+## The rankings page (D355): each promotion's table in his division and its last moves.
+signal rankings_pressed
 
 ## Around his division (D353, news_text): at most NEWS_MAX lines; a winner who had under UPSET_CHANCE is an upset; a man
 ## averaging NEWS_BEST or more is one of the best.
 const NEWS_MAX: int = 4
 const UPSET_CHANCE: float = 0.35
+## A fight between two ranked men, one of them in his table's top NEWS_TOP_RANK, is a bit more news (D355).
+const NEWS_TOP_RANK: int = 5
 const NEWS_BEST: float = 58.0
 
 const BACKGROUND := Color(0.06, 0.07, 0.09)
@@ -86,6 +90,7 @@ var _scrolls: Array[ScrollContainer] = []
 var _notebook: Button
 var _division: Button
 var _promotions: Button
+var _rankings: Button
 var _groups: Dictionary = {}
 var _gift_names: Dictionary = {}
 var _flaw_names: Dictionary = {}
@@ -138,6 +143,14 @@ func _init() -> void:
 	promotions.pressed.connect(func() -> void: promotions_pressed.emit())
 	top.add_child(promotions)
 	_promotions = promotions
+	var rankings := Button.new()
+	rankings.text = "Rankings"
+	rankings.tooltip_text = "Each promotion's rankings in his division, and who moved and why"
+	rankings.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	rankings.add_theme_font_size_override("font_size", 18)
+	rankings.pressed.connect(func() -> void: rankings_pressed.emit())
+	top.add_child(rankings)
+	_rankings = rankings
 	_date = Label.new()
 	DisplayFont.apply(_date, 34)
 	_date.add_theme_color_override("font_color", TEXT)
@@ -306,6 +319,9 @@ static func fighter_card_text(c: Career, gift_names: Dictionary = {}, flaw_names
 	lines.append("%s · %d cm, reach %d cm · %s build" % [String(p.get("stance", "orthodox")).capitalize(), int(frame.get("height_cm", 0)),
 		int(frame.get("reach_cm", 0)), String(frame.get("build", "average"))])
 	lines.append(weight_text(c))
+	var ranked: String = his_rank_text(c)
+	if ranked != "":
+		lines.append(ranked)
 	lines.append("")
 	lines.append("[color=%s]Feels:[/color] %s" % [DIM.to_html(false), feel_text(c.trainee)])
 	lines.append("[color=%s]Style:[/color] %s" % [DIM.to_html(false), style_text(c.trainee.style)])
@@ -396,6 +412,9 @@ static func offer_text(c: Career, o: Dictionary, groups: Dictionary = {}) -> Str
 	lines.append("[b]%s[/b]%s%s" % [String(p.get("name", "")), (" '%s'" % nick) if nick != "" else "",
 		(" · %s %s" % [record, "pro" if bool(o.get("pro", false)) else "amateur"]) if record != "" else ""])
 	lines.append("[color=%s]%s · %s[/color]" % [WARN.to_html(false), String(style.get("name", style_id)), DIFFICULTY_TEXT.get(String(o.get("difficulty", "")), "")])
+	var ranked: String = opponent_rank_text(c, String(p.get("id", "")))
+	if ranked != "":
+		lines.append(ranked)
 	var card: String = Matchmaker.card_text(o.get("card", {}) if o.get("card") is Dictionary else {})
 	if card != "":
 		lines.append("On %s" % card)
@@ -419,6 +438,20 @@ static func offer_text(c: Career, o: Dictionary, groups: Dictionary = {}) -> Str
 	if int(o.get("expires", c.week)) == c.week:
 		lines.append("[color=%s]Last week to answer.[/color]" % BAD.to_html(false))
 	return "\n".join(lines)
+
+
+## The offer's man in the rankings (D355): "Ranked #4 in the ICF's lightweight rankings" ("" when he isn't).
+static func opponent_rank_text(c: Career, id: String) -> String:
+	if not c.pro or id == "":
+		return ""
+	var w: World = c.world()
+	var r: int = Rankings.rank_of(w, id)
+	var m: Dictionary = w.man(id)
+	var p: Dictionary = Promotions.of(w, m)
+	if r <= 0 or p.is_empty():
+		return ""
+	return "[color=%s]Ranked #%d[/color] in the %s's %s rankings" % [GOOD.to_html(false), r, String(p.short),
+		Weight.name_of(String(m.get("division", ""))).to_lower()]
 
 
 ## Grades by attribute group for a profile's stats, e.g. "Striking B · Wrestling C · Grappling D · Physical C".
@@ -499,6 +532,93 @@ func press_division() -> void:
 
 func press_promotions() -> void:
 	_promotions.pressed.emit()
+
+
+func press_rankings() -> void:
+	_rankings.pressed.emit()
+
+
+## His place in the rankings for his card (D355): "Ranked #4 in the ICF's lightweight rankings", or that he isn't yet
+## ("" while he's an amateur).
+static func his_rank_text(c: Career) -> String:
+	if not c.pro:
+		return ""
+	var w: World = c.world()
+	var r: int = Rankings.rank_of(w, Career.FIGHTER_ID)
+	var p: Dictionary = Promotions.by_id(w, String(w.him.get("promotion", "")))
+	if r > 0 and not p.is_empty():
+		return "[color=%s]Ranked #%d[/color] in the %s's %s rankings" % [GOOD.to_html(false), r, String(p.short),
+			Weight.name_of(String(w.him.division)).to_lower()]
+	return "[color=%s]Not ranked yet: a fight on a promotion's card puts him in its rankings[/color]" % DIM.to_html(false)
+
+
+## The rankings page's title (D355): "Lightweight rankings".
+static func rankings_title(c: Career) -> String:
+	return "%s rankings" % Weight.name_of(c.division_now())
+
+
+## The rankings page (D355): each promotion's table in his division, biggest promotion first (#1 first: name, record,
+## where he's from, him picked out), then its last moves and why: the men who fought, came on or went off (the shuffles
+## on others' results counted, not listed).
+static func rankings_text(c: Career) -> String:
+	var w: World = c.world()
+	var division: String = c.division_now()
+	var ordered: Array = w.promotions.duplicate()
+	ordered.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return int(a.rank) < int(b.rank) if int(a.rank) != int(b.rank) else String(a.id) < String(b.id))
+	var parts: Array[String] = []
+	var his: String = his_rank_text(c)
+	if his != "":
+		parts.append(his)
+	for p: Dictionary in ordered:
+		var ids: Array = Rankings.table(w, String(p.id), division)
+		var lines: Array[String] = ["[color=%s][b]%s[/b] (%s) · top %d[/color]" % [WARN.to_html(false), String(p.name), String(p.short),
+			Rankings.size_for(p)]]
+		if ids.is_empty():
+			lines.append("[color=%s]Nobody ranked yet.[/color]" % DIM.to_html(false))
+		for i in ids.size():
+			var id: String = String(ids[i])
+			if id == Career.FIGHTER_ID:
+				lines.append("[color=%s][b]%d. %s[/b] (%s) · you[/color]" % [GOOD.to_html(false), i + 1, c.fighter_name(), c.record_text(true)])
+				continue
+			var m: Dictionary = w.man(id)
+			lines.append("%d. %s (%s) · %s" % [i + 1, String(m.get("name", "")), World.record_text(m), String(m.get("country", ""))])
+		var note: Dictionary = w.ranking_moves.get(Rankings.key(String(p.id), division), {})
+		if not (note.get("moves", []) as Array).is_empty():
+			var week: int = int(note.week)
+			var when: String = c.short_date(week, 5)
+			if Promotions.has_card(p, week):
+				when = "%s, %s" % [String(Promotions.card(w, p, week).short), when]
+			var said: Array[String] = []
+			var shuffled: int = 0
+			for mv: Dictionary in note.moves:
+				if String(mv.why).begins_with("others'"):
+					shuffled += 1
+					continue
+				said.append(move_text(w, mv, c))
+			if shuffled > 0:
+				said.append("%d more moved on others' results" % shuffled)
+			lines.append("[color=%s]Moves after %s:[/color]\n%s" % [DIM.to_html(false), when, "\n".join(said)])
+		parts.append("\n".join(lines))
+	return "\n\n".join(parts)
+
+
+## One ranking move: "Up 4 to #3, Obinna Eze: beat #6 Ryan Baker on the cards", "Into the top 15 at #7", "Out (was
+## #15)".
+static func move_text(w: World, mv: Dictionary, c: Career = null) -> String:
+	var name: String = c.fighter_name() if c != null and String(mv.id) == Career.FIGHTER_ID else Rankings.name_of(w, String(mv.id))
+	var from: int = int(mv.from)
+	var to: int = int(mv.to)
+	var what: String
+	if to == 0:
+		what = "[color=%s]Out[/color] (was #%d)" % [BAD.to_html(false), from]
+	elif from == 0:
+		what = "[color=%s]In at #%d[/color]" % [GOOD.to_html(false), to]
+	elif to < from:
+		what = "[color=%s]Up %d to #%d[/color]" % [GOOD.to_html(false), from - to, to]
+	else:
+		what = "[color=%s]Down %d to #%d[/color]" % [BAD.to_html(false), to - from, to]
+	return "%s, %s: %s" % [what, name, String(mv.why)]
 
 
 ## The promotions page (D354): each promotion, biggest first: its name, kind, home city and venue, what it pays, its
@@ -607,7 +727,8 @@ static func _division_line(c: Career, w: World, m: Dictionary, met: Dictionary) 
 		int(floor(World.age_of(m, c.week))), String(m.hometown), String(m.country)]
 	var promotion: Dictionary = Promotions.of(w, m)
 	line += "\n[color=%s]%s%s · %s · %s · grade %s[/color]" % [DIM.to_html(false), World.level_name(m),
-		(" · " + String(promotion.short)) if not promotion.is_empty() else "", World.record_text(m), style_name, TrainingCamp.grade(w.average(m))]
+		(" · %s%s" % [(Rankings.rank_text(w, String(m.id)) + " ") if Rankings.rank_of(w, String(m.id)) > 0 else "", String(promotion.short)])
+			if not promotion.is_empty() else "", World.record_text(m), style_name, TrainingCamp.grade(w.average(m))]
 	if met.has(String(m.id)):
 		var result: String = String(met[String(m.id)])
 		line += " · [color=%s]you %s[/color]" % [(GOOD if result == "win" else BAD if result == "loss" else WARN).to_html(false),
@@ -730,6 +851,11 @@ static func news_text(c: Career, weeks: int = 1) -> String:
 	for f: Dictionary in c.fights:
 		met[String(f.get("opponent", ""))] = String(f.get("result", ""))
 	var scored: Array = []
+	var new_top: Dictionary = {}  # A man a fight made a table's #1 (D355): said on that fight's line.
+	for r: Dictionary in w.results:
+		if String(r.get("kind", "")) == "ranked" and int(r.get("to", 0)) == 1 and String(r.get("why", "")).begins_with("beat ") \
+				and String(r.id) != Career.FIGHTER_ID and int(r.get("week", -1)) >= c.week - weeks:
+			new_top[String(r.id)] = int(r.week)
 	for r: Dictionary in w.results:
 		if int(r.get("week", -1)) < c.week - weeks or String(r.get("division", "")) != division:
 			continue
@@ -744,6 +870,13 @@ static func news_text(c: Career, weeks: int = 1) -> String:
 					else "has been let go to the %s" % String(to.name)
 				scored.append([moved_score, "%s%s %s." % [String(mm.get("name", "")),
 					(", " + _met_words(String(met[String(r.id)])) + ",") if met.has(String(r.id)) else "", said_move]])
+			continue
+		if kind == "ranked":
+			if new_top.get(String(r.id), -1) == int(r.week):
+				continue
+			var ranked: Array = _ranked_news(c, w, r, met)
+			if not ranked.is_empty():
+				scored.append(ranked)
 			continue
 		if kind != "fight":
 			if met.has(String(r.id)):
@@ -766,16 +899,27 @@ static func news_text(c: Career, weeks: int = 1) -> String:
 			score += 1.0
 		if maxf(w.average(a), w.average(b)) >= NEWS_BEST:
 			score += 1.0
+		var ranks: Array = r.get("ranks", [0, 0]) if r.get("ranks") is Array else [0, 0]
+		if int(ranks[0]) > 0 and int(ranks[1]) > 0 and mini(int(ranks[0]), int(ranks[1])) <= NEWS_TOP_RANK:
+			score += 1.0
 		if bool(r.get("pro", false)) == c.pro:
 			score += 1.0
+		var top: bool = String(r.winner) != "draw" and new_top.get(String(winner.id), -1) == int(r.week)
+		if top:
+			score += 2.0
 		if score < 2.0:
 			continue
+		var named: Dictionary = {}
+		for i in 2:
+			var m: Dictionary = [a, b][i]
+			named[String(m.id)] = ("#%d " % int(ranks[i]) if int(ranks[i]) > 0 else "") + String(m.name)
 		var line: String
 		if String(r.winner) == "draw":
-			line = "%s and %s fought to a draw." % [String(a.name), String(b.name)]
+			line = "%s and %s fought to a draw." % [named[String(a.id)], named[String(b.id)]]
 		else:
-			line = "%s beat %s %s%s%s." % [String(winner.name), String(loser.name), _how(String(r.method), int(r.round)),
-				(" at " + String(r.card)) if String(r.get("card", "")) != "" else "", " (an upset)" if upset else ""]
+			line = "%s beat %s %s%s%s%s." % [named[String(winner.id)], named[String(loser.id)], _how(String(r.method), int(r.round)),
+				(" at " + String(r.card)) if String(r.get("card", "")) != "" else "", " (an upset)" if upset else "",
+				(" and is the %s's new #1" % String(Promotions.by_id(w, String(r.get("promotion", ""))).get("short", ""))) if top else ""]
 		for m: Dictionary in [a, b]:
 			if met.has(String(m.id)):
 				line += " %s %s." % [String(m.name).get_slice(" ", 0), _met_words(String(met[String(m.id)]), true)]
@@ -787,6 +931,32 @@ static func news_text(c: Career, weeks: int = 1) -> String:
 	for i in mini(NEWS_MAX, scored.size()):
 		out.append(String(scored[i][1]))
 	return "\n".join(out)
+
+
+## A ranking move as news (D355): his own moves always ([score, line]); a new #1, more so in a bigger promotion or when
+## he's fought the man. [] when it's not worth saying.
+static func _ranked_news(c: Career, w: World, r: Dictionary, met: Dictionary) -> Array:
+	var p: Dictionary = Promotions.by_id(w, String(r.get("promotion", "")))
+	if p.is_empty():
+		return []
+	var id: String = String(r.id)
+	var from: int = int(r.get("from", 0))
+	var to: int = int(r.get("to", 0))
+	if id == Career.FIGHTER_ID:
+		var said: String
+		if to == 0:
+			said = "is out of the %s's rankings" % String(p.short)
+		elif from == 0:
+			said = "is into the %s's rankings at #%d" % [String(p.short), to]
+		else:
+			said = "is %s to #%d in the %s's rankings" % ["up" if to < from else "down", to, String(p.short)]
+		return [6.0, "%s %s: %s." % [c.fighter_name(), said, String(r.why)]]
+	if to != 1:
+		return []
+	var score: float = 2.0 + (1.0 if int(p.rank) == Promotions.MAJOR else 0.0) + (4.0 if met.has(id) else 0.0) + (1.0 if c.pro else 0.0)
+	var m: Dictionary = w.man(id)
+	return [score, "%s%s is the new #1 in the %s: %s." % [String(m.get("name", "")),
+		(", " + _met_words(String(met[id])) + ",") if met.has(id) else "", String(p.name), String(r.why)]]
 
 
 static func _how(method: String, round_number: int) -> String:

@@ -778,7 +778,7 @@ hotbeds at the top, each organisation's own top 15, about 3 fights a year (champ
 | The world's fighters: about 100 named men a division, from local amateurs to world class; offers come from them, and the local lads he meets as an amateur are real men who can turn pro alongside him (Kyle, 2026-11-01: "Yes, amateurs in the roster") | D352 | Built (§12.2) |
 | The world's weeks: the other men fight about 3 times a year, age, retire, and new prospects join each January | D353 | Built (§12.3) |
 | Promotions and their cards: 3 or 4 regional pro promotions and 2 international organisations, made up each career (D57) | D354 | Built (§12.4) |
-| Rankings: each organisation's top 15, updated weekly, each move with its reason (A10) | D355 | Planned |
+| Rankings: each organisation's top 15, updated weekly, each move with its reason (A10) | D355 | Built (§12.5) |
 | Titles: belts, 5-round title fights, defences, vacating | D356 | Planned |
 | Climbing the ladder: call-ups to the bigger promotion, title eliminators, and asking for a step up from the hub at a risk of a tougher fight or a no (Kyle, 2026-11-01: "Call-ups plus asking for it"); fight-by-fight deals until phase 5 | D357 | Planned |
 | A history before day one: the world played 10 years before his career starts, so there are long records and some retired legends (Kyle, 2026-11-01: "10 years") | D358 | Planned |
@@ -998,3 +998,52 @@ goes where and the call-ups in `sim/world/promotions.gd` (`MAJOR_MEN`, `SECOND_M
 (`pro_cards`, `HOME_OFFER_SHARE`, `purse_for`); the page in `CareerHub.promotions_text` and `game/main.gd`
 (`open_promotions`). Tests: `tests/sim/world/test_promotions.gd`, `tests/sim/world/test_matchmaker.gd`,
 `tests/data/test_data_files.gd`. Then update this section and D354.
+
+### 12.5 Rankings (D355)
+
+Every promotion now ranks its men in each division. Kyle (2026-11-01) picked "All of them", "Points from recent results",
+"Slide after 6 months, out at 12", "Ranked men fight near their rank" and "Rankings page, numbers everywhere" (my pick on all
+five). This is A10's explainable rankings (§9).
+
+- **Every promotion's own tables.** The two organisations rank a top 15 in each division and each regional promotion a top
+  10 (as far as its men go). The tables are worked out each Saturday after the world's fights: a promotion's afresh on
+  its card weeks, and between cards only the men who've gone (retired, moved, a year out) come off, the men below move up
+  and the next best fills the end.
+- **Points from recent results.** Each pro fight gets points when it happens, kept with the man:
+  - a win 10, plus up to 12 for beating a ranked man (all 12 for the table's #1, less down the table), times 1.3 for a
+    knockout or submission;
+  - a draw 4;
+  - a loss 5 off, less for losing to a ranked man (1.5 off for losing to the #1), times 1.3 for being finished.
+
+  His score is those points fading to nothing over 2 years. Points won in a smaller promotion count 0.4 in the next one
+  up (0.16 two up), so a man called up starts low in the bigger table and climbs by beating its men. The best score is #1.
+- **Out of action.** After 6 months without a fight his score shrinks 2% a week; after a year he's off the table until
+  he fights again.
+- **Day one** (until D358's 10-year history): each table is filled by level, the best man given 24 points as one recent
+  win, the worst 4.
+- **Ranked men fight near their rank.** When the world's men are matched (§12.3), two unranked men still go by level, but
+  a ranked man goes by places in his table (2 points of average stat a place, an unranked man counting as just under
+  the end), so the top 5 fight each other and #1 meets #2. About nine in ten fights between ranked men are within 3 places.
+- **Every move has a reason.** Each table's last moves are kept ("Up 4 to #3, Obinna Eze: beat #6 Ryan Baker on the
+  cards"; "Out (was #15), Dmitry Khamzatov: pushed out on others' results"; "out of action 7 months"; "called up to the
+  Ascent Combat League"; "retired").
+- **Him.** A pro fight of his on a promotion's card goes onto his points (the man he fought gets his too), and he's in
+  that promotion's tables, in his division, from that Saturday.
+- **On the hub.** A *Rankings* button on the top bar opens a page: his place (or that he isn't ranked yet), then each
+  promotion's table in his division, biggest first (him picked out), and its last moves with their reasons (the
+  shuffles on others' results counted, not listed). His card on the hub says where he's ranked. *His division* shows
+  "#3 ACL"; offers say where the man is ranked; the news puts the numbers by names ("#2 Felipe Nunes beat #4 Bas
+  Dekker"), says when a table has a new #1 and says every move of his.
+
+**How healthy it is** (10 years from a fresh career, 2026-11-01): about 590 world fights a year have a ranked man in
+them, and nearly nine in ten fights between two ranked men are within 3 places; most tables are full (25 to 36 of the 36,
+the rest regional promotions short of 10 men in a division); the world organisation has a new #1 about 3 times a year in
+each division (titles, D356, will steady the top); its top men are better on average than the men further down; a
+year still takes about 0.75 s and fights a man a year stay about 2.5.
+
+**To change it:** the points, fading, sliding and table lengths in `sim/world/rankings.gd` (`TOP_ORGANISATION`,
+`TOP_REGIONAL`, `WIN_POINTS`, `RANKED_BONUS`, `DRAW_POINTS`, `LOSS_POINTS`, `LOSS_TO_RANKED_SHARE`, `FINISH_SHARE`,
+`FADE_WEEKS`, `LOWER_SHARE`, `SLIDE_WEEKS`, `SLIDE_PER_WEEK`, `OUT_WEEKS`, `SEED_*`); matching by rank in `WorldWeeks`
+(`pair_gap`, `PLACE_GAP`); the page and the numbers by names in `CareerHub` (`rankings_text`, `move_text`,
+`his_rank_text`, `opponent_rank_text`, `_ranked_news`, `NEWS_TOP_RANK`) and `game/main.gd` (`open_rankings`). Tests:
+`tests/sim/world/test_rankings.gd`. Then update this section and D355.

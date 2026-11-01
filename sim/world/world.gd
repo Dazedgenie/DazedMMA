@@ -68,6 +68,13 @@ var played: int = -1
 var results: Array = []
 ## Its promotions (Promotions, D354): the two organisations, then the regional ones.
 var promotions: Array = []
+## The rankings (Rankings, D355): each table's ids by its key ("org_0:lightweight"), #1 first; each table's last moves
+## ({ week, moves }); and the career's fighter as the rankings know him ({ id, name, pro, promotion, division, points },
+## {} until his first pro fight on a promotion's card). rank_cache (not saved) is each ranked id's [key, place].
+var rankings: Dictionary = {}
+var ranking_moves: Dictionary = {}
+var him: Dictionary = {}
+var rank_cache: Dictionary = {}
 
 var _styles: StyleLibrary
 var _names: NameLibrary
@@ -100,6 +107,7 @@ static func make(world_seed: int, home_country_id: String, home_town: String, we
 				w._make_man(rng, division_id, level, week)
 	w.promotions = Promotions.make(w, week)
 	Promotions.place_all(w, week)
+	Rankings.seed(w, week)
 	return w
 
 
@@ -206,6 +214,7 @@ func record_fight(id: String, result: String, week: int, close: bool, method: St
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash([seed_value, id, week, "his fight"])
 	WorldWeeks.note_fight(m, Career.FIGHTER_ID, theirs, method if method != "" else "decision", week, rng)
+	Rankings.note(self, m, Career.FIGHTER_ID, theirs.substr(0, 1), WorldWeeks._method(method if method != "" else "decision"), week)
 	m.met_week = week
 	m.met_close = close
 	Promotions.after_fight(self, m, week)
@@ -346,7 +355,8 @@ func _name_taken(full_name: String) -> bool:
 func to_dict() -> Dictionary:
 	return { "version": VERSION, "seed": str(seed_value), "country_id": country_id, "hometown": hometown,
 		"men": men.values().map(func(m: Dictionary) -> Dictionary: return m.duplicate(true)), "next_number": next_number.duplicate(),
-		"played": played, "results": results.duplicate(true), "promotions": promotions.duplicate(true) }
+		"played": played, "results": results.duplicate(true), "promotions": promotions.duplicate(true),
+		"rankings": rankings.duplicate(true), "ranking_moves": ranking_moves.duplicate(true), "him": him.duplicate(true) }
 
 
 ## A world back from to_dict() (after a trip through JSON, so whole numbers may come back as floats).
@@ -369,6 +379,7 @@ static func from_dict(data: Dictionary, p_styles: StyleLibrary = null, p_names: 
 		for entry: Variant in m.get("history", []):
 			if entry is Array and not (entry as Array).is_empty():
 				entry[0] = int(entry[0])
+		_int_points(m)
 		for key: String in ["win", "loss", "draw"]:
 			m.record[key] = int(m.get("record", {}).get(key, 0))
 			if m.get("amateur_record") is Dictionary:
@@ -390,6 +401,11 @@ static func from_dict(data: Dictionary, p_styles: StyleLibrary = null, p_names: 
 			for key: String in ["week", "round"]:
 				if r.has(key):
 					r[key] = int(r[key])
+			if r.get("ranks") is Array:
+				r.ranks = (r.ranks as Array).map(func(x: Variant) -> int: return int(x))
+			if String(r.get("kind", "")) == "ranked":
+				r.from = int(r.get("from", 0))
+				r.to = int(r.get("to", 0))
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash([w.seed_value, "set up"])
 	for m: Dictionary in w.men.values():
@@ -404,4 +420,28 @@ static func from_dict(data: Dictionary, p_styles: StyleLibrary = null, p_names: 
 	if w.promotions.is_empty():  # A world saved before D354: its promotions now, its pros signed by level.
 		w.promotions = Promotions.make(w, maxi(0, w.played + 1))
 		Promotions.place_all(w, maxi(0, w.played + 1))
+	if data.get("him") is Dictionary:
+		w.him = (data.him as Dictionary).duplicate(true)
+		_int_points(w.him)
+	if data.get("rankings") is Dictionary:
+		for k: Variant in data.rankings:
+			w.rankings[String(k)] = (data.rankings[k] as Array).map(func(x: Variant) -> String: return String(x))
+		for k: Variant in data.get("ranking_moves", {}):
+			var note: Dictionary = (data.ranking_moves[k] as Dictionary).duplicate(true)
+			note.week = int(note.get("week", 0))
+			for mv: Dictionary in note.get("moves", []):
+				mv.from = int(mv.get("from", 0))
+				mv.to = int(mv.get("to", 0))
+			w.ranking_moves[String(k)] = note
+	else:  # A world saved before D355: its rankings now.
+		Rankings.seed(w, maxi(0, w.played))
 	return w
+
+
+## A man's ranking points back from JSON: the week, the promotion's rank and the man's rank as whole numbers.
+static func _int_points(m: Dictionary) -> void:
+	for e: Variant in m.get("points", []):
+		if e is Array and (e as Array).size() >= 4:
+			e[0] = int(e[0])
+			e[2] = int(e[2])
+			e[3] = int(e[3])
