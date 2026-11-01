@@ -290,14 +290,13 @@ static func half_turn(pair: Dictionary) -> Dictionary:
 			var value: Variant = spec[key]
 			if key == "root":
 				m[key] = [-float(value[0]), value[1], -float(value[2])]
-			elif key == "turn":
-				m[key] = wrapf(float(value) + 180.0, -180.0, 180.0)
 			elif value is Dictionary and (value as Dictionary).has("at"):
 				var want: Dictionary = (value as Dictionary).duplicate()
 				want.at = [-float(want.at[0]), want.at[1], -float(want.at[2])]
 				m[key] = want
 			else:
 				m[key] = value
+		m.turn = wrapf(float(spec.get("turn", 0.0)) + 180.0, -180.0, 180.0)  # Facing the same way, written or not.
 		out[man] = m
 	return out
 

@@ -23,6 +23,8 @@ extends Node
 signal played(action_id: String, outcome: String, heard: bool)
 ## The fence rattled (D287), `strength` 0–1 (or would have, when muted: `heard` false).
 signal rattled(strength: float, heard: bool)
+## A takedown thudded onto the canvas (D288), `strength` 0–1 (`heard` false when muted).
+signal thudded(strength: float, heard: bool)
 
 const CONNECTED := "connected"
 const MISSED := "missed"
@@ -101,6 +103,19 @@ const RATTLE_HZ: float = 3800.0
 ## The posts' ring: its pitches (Hz) and how long it hangs (s).
 const RING_HZ: Array[float] = [1180.0, 1730.0, 2650.0]
 const RING_DECAY: float = 0.25
+## A takedown landing on the canvas (D288, ArenaView.takedown_landed; Kyle: a thud, bigger for the throws): a
+## low thump of a body on the mat under the slap of the canvas, THUD_SECONDS long, THUD_KINDS versions. The
+## hardest (a hip throw) plays THUD_DB against a connected strike, the lightest (a guard pull) THUD_LIGHT_DB
+## quieter and a little higher. The thump starts at THUD_HZ and drops toward THUD_LOW_HZ; the slap is noise
+## dying in THUD_SLAP_DECAY seconds.
+const THUD_SECONDS: float = 0.5
+const THUD_KINDS: int = 3
+const THUD_DB: float = 0.0
+const THUD_LIGHT_DB: float = -10.0
+const THUD_HZ: float = 95.0
+const THUD_LOW_HZ: float = 52.0
+const THUD_DECAY: float = 0.11
+const THUD_SLAP_DECAY: float = 0.025
 
 ## The player's volume, 0–1 (the setup's Sound slider, D190). 0 is silent.
 var volume: float = 1.0
@@ -110,6 +125,7 @@ var muted: bool = false
 ## Made once for the whole game (shared by every StrikeSounds): action id -> { outcome: AudioStreamWAV }.
 static var _sounds := {}
 static var _rattles: Array[AudioStreamWAV] = []
+static var _thuds: Array[AudioStreamWAV] = []
 static var _build_task: int = -1
 var _players: Array[AudioStreamPlayer] = []
 var _next: int = 0
@@ -207,6 +223,53 @@ func play_rattle(strength: float) -> void:
 	player.pitch_scale = lerpf(1.1, 0.95, hard) * (1.0 + _rng.randf_range(-PITCH_JITTER, PITCH_JITTER))
 	if player.is_inside_tree():
 		player.play()
+
+
+## A takedown landing (D288), `strength` 0–1: the thud, louder and deeper the harder he lands.
+func play_thud(strength: float) -> void:
+	var heard: bool = not muted and volume > 0.0
+	thudded.emit(strength, heard)
+	if not heard:
+		return
+	if _thuds.is_empty():
+		for k in THUD_KINDS:
+			_thuds.append(to_wav(render_thud(k + 1)))
+	var player: AudioStreamPlayer = _players[_next]
+	_next = (_next + 1) % _players.size()
+	player.stream = _thuds[_rng.randi() % _thuds.size()]
+	var hard: float = clampf(strength, 0.0, 1.0)
+	player.volume_db = BASE_DB + lerpf(THUD_DB + THUD_LIGHT_DB, THUD_DB, hard) + linear_to_db(volume)
+	player.pitch_scale = lerpf(1.15, 0.92, hard) * (1.0 + _rng.randf_range(-PITCH_JITTER, PITCH_JITTER))
+	if player.is_inside_tree():
+		player.play()
+
+
+## The takedown's thud as samples (-1–1) at RATE (D288): the same seed gives the same sound.
+static func render_thud(sound_seed: int) -> PackedFloat32Array:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = sound_seed
+	var count: int = int(RATE * THUD_SECONDS)
+	var out := PackedFloat32Array()
+	out.resize(count)
+	var dt: float = 1.0 / RATE
+	var phase: float = 0.0
+	var low: float = 0.0
+	var bounce: float = rng.randf_range(0.06, 0.09)  # A second, smaller thump as he settles.
+	var peak: float = 0.0
+	for n in count:
+		var t: float = n * dt
+		var hz: float = lerpf(THUD_LOW_HZ, THUD_HZ, exp(-t / 0.05))
+		phase += TAU * hz * dt
+		var body: float = sin(phase) * (exp(-t / THUD_DECAY) + (0.35 * exp(-(t - bounce) / 0.05) if t > bounce else 0.0))
+		low += 0.35 * (rng.randf_range(-1.0, 1.0) - low)  # Dull noise: the canvas, not a strike's snap.
+		var slap: float = low * exp(-t / THUD_SLAP_DECAY) * 0.8
+		var sample: float = body + slap * minf(1.0, t / 0.002)
+		out[n] = sample
+		peak = maxf(peak, absf(sample))
+	if peak > 0.0:
+		for n in count:
+			out[n] *= 0.9 / peak
+	return out
 
 
 ## The fence's rattle as samples (-1–1) at RATE (D287): the same seed gives the same sound.

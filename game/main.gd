@@ -88,6 +88,7 @@ func _ready() -> void:
 	add_child(sounds)
 	sounds.build_in_background()
 	arena.fence_slammed.connect(sounds.play_rattle)  # The fence rattles (D287).
+	arena.takedown_landed.connect(sounds.play_thud)  # A takedown thuds onto the canvas (D288).
 	var ui: CanvasLayer = $UI
 	hud = FightHud.new()
 	hud.visible = false

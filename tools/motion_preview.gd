@@ -1,11 +1,14 @@
 extends SceneTree
 ## Fixed-frame capture of a real seeded fight. Needs a display; never saves a fight.
-## --red=, --blue= and --seed= pick another fight (default the Boxer against the Kicker, seed 35003).
+## --red=, --blue= and --seed= pick another fight (default the Boxer against the Kicker, seed 35003). --from=
+## plays the fight's first seconds without saving frames (D288: to get to a moment quickly); --seconds= how long
+## to save after that.
 ## Encode with ffmpeg -framerate 24 -i build/motion/frame-%04d.png -c:v libx264 -pix_fmt yuv420p build/motion.mp4
 
 const FPS: int = 24
 var _out := "res://build/motion"
 var _seconds: float = 12.0
+var _from: float = 0.0
 var _setup := {"red": "boxer", "blue": "kicker", "seed": 35003, "sound_volume": 0.0, "easy": true}
 
 
@@ -15,6 +18,8 @@ func _initialize() -> void:
 			_out = arg.trim_prefix("--out=")
 		if arg.begins_with("--seconds="):
 			_seconds = float(arg.trim_prefix("--seconds="))
+		if arg.begins_with("--from="):
+			_from = float(arg.trim_prefix("--from="))
 		for key: String in ["red", "blue", "seed"]:
 			if arg.begins_with("--%s=" % key):
 				var value: String = arg.trim_prefix("--%s=" % key)
@@ -35,6 +40,9 @@ func _capture() -> void:
 	main.driver.auto_slow = false
 	main.driver.flourishes = false
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(_out))
+	for frame in roundi(_from * FPS):  # Played, not saved.
+		main.driver.advance(1.0 / FPS)
+		main.arena._process(1.0 / FPS)
 	for frame in roundi(_seconds * FPS):
 		main.driver.advance(1.0 / FPS)
 		main.arena._process(1.0 / FPS)
