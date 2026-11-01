@@ -2,6 +2,10 @@
 	"schema": "names@1",
 	"id": "thailand",
 	"country": "Thailand",
+	"hotbed": 2,
+	"styles": [
+		"muay_thai"
+	],
 	"cities": [
 		"Bangkok",
 		"Chiang Mai",

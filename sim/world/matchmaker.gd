@@ -1,10 +1,10 @@
 class_name Matchmaker
 extends RefCounted
 ## Fight offers for a career (docs/03 §10.4, D304). While he's free (not booked, hurt or suspended), a set of
-## OFFERS_MIN–OFFERS_MAX offers comes in every few weeks and stays open OPEN_WEEKS weeks. Each is a new man made from
-## one of the 15 style sheets (StyleLibrary.generate, D160) with a name and hometown (NameLibrary), set a bit easier,
-## about even or a bit harder than him, on a date CAMP_WEEKS_MIN–CAMP_WEEKS_MAX weeks away (the camp's length), under
-## the rules his age and record call for, for a purse once he's pro.
+## OFFERS_MIN–OFFERS_MAX offers comes in every few weeks and stays open OPEN_WEEKS weeks. Each is one of the world's
+## men in his division (World, D352: pick_man), a bit easier, about even or a bit harder than him, on a date
+## CAMP_WEEKS_MIN–CAMP_WEEKS_MAX weeks away (the camp's length), under the rules his age and record call for, for a
+## purse once he's pro.
 ##
 ## Pure and seeded (D100): the same dice make the same offers.
 
@@ -41,6 +41,12 @@ const PURSE_STEP: int = 250
 const AGE_YOUNGER: int = 3
 const AGE_OLDER: int = 4
 const OLDEST: int = 40
+## Picking the world's man for an offer (pick_man, D352): points of average stat a year he's outside that age gap
+## counts as; any man within PICK_WITHIN of the offer's level may be picked, else the closest within NEWCOMER_PAST,
+## else a new man joins the world.
+const AGE_PENALTY: float = 1.0
+const PICK_WITHIN: float = 2.5
+const NEWCOMER_PAST: float = 4.0
 ## Local amateur cards (docs/03 §11.4, D314): where the names and venues come from (docs/09 cards@1).
 const CARDS_PATH := "res://data/cards/local.json"
 ## A card's number in its series: 1 + up to SERIES_START (seeded by the career and the series) + one every `every_weeks`.
@@ -79,47 +85,95 @@ static func shared() -> Matchmaker:
 	return _shared
 
 
-## A set of offers for this career this week: OFFERS_MIN–OFFERS_MAX, each a different style. Two offers are one about
-## even and one easier or harder; three are one of each.
+## A set of offers for this career this week: OFFERS_MIN–OFFERS_MAX, each a different man of a different style. Two
+## offers are one about even and one easier or harder; three are one of each.
 func make_offers(c: Career, rng: RandomNumberGenerator) -> Array:
 	var count: int = rng.randi_range(OFFERS_MIN, OFFERS_MAX)
 	var kinds: Array[String] = DIFFICULTIES.duplicate()
 	if count < kinds.size():
 		kinds = ["even", "easier" if rng.randf() < 0.5 else "harder"]
 		kinds.sort_custom(func(a: String, b: String) -> bool: return DIFFICULTIES.find(a) < DIFFICULTIES.find(b))
-	var style_ids: Array = styles.ids().duplicate()
-	style_ids.sort()
 	var out: Array = []
 	for i in count:
-		var style_id: String = String(style_ids.pop_at(rng.randi_range(0, style_ids.size() - 1)))
-		out.append(make_offer(c, style_id, kinds[i], rng, i))
+		out.append(make_offer(c, "", kinds[i], rng, i, out))
 	return out
 
 
-## One offer: { id, profile (the opponent, fighter@1, made to fit his division: Weight.fit), about (nickname, hometown,
-## country), style, difficulty, division (D351),
-## week (fight night is that week's Saturday), expires (the last week it's open), ruleset, pro, purse ({show, win} or {}) }.
-func make_offer(c: Career, style_id: String, difficulty: String, rng: RandomNumberGenerator, index: int = 0) -> Dictionary:
+## One offer: { id, profile (the opponent, fighter@1: a man of the world, World.profile), about (nickname, hometown,
+## country, record), style, difficulty, division (D351), week (fight night is that week's Saturday), expires (the last
+## week it's open), ruleset, pro, purse ({show, win} or {}), card }.
+##
+## The man (D352) is one of the world's men in his division this week (World), an amateur while he is one and a pro
+## once he's pro, a teenager while he's one, as good as the offer's kind (pick_man), and of `style_id` (any style none
+## of the offers in `taken` has when ""). Nobody he's fought lately (World.can_rematch) or in `taken`. When nobody in
+## the world fits, a new man joins it (World.add_newcomer).
+func make_offer(c: Career, style_id: String, difficulty: String, rng: RandomNumberGenerator, index: int = 0, taken: Array = []) -> Dictionary:
 	var country_id: String = names.country_id_of(String(c.about.get("country", "")))
-	var person: Dictionary = names.roll(rng) if c.pro or country_id == "" else names.roll_in(rng, country_id)
-	var id: String = "opp_w%d_%d" % [c.week, index]
-	var level: int = level_against(c.profile().stats, style_id) + int(DIFFICULTY_LEVELS.get(difficulty, 0)) \
-		+ rng.randi_range(-LEVEL_SPREAD, LEVEL_SPREAD)
-	var p: Dictionary = styles.generate(style_id, rng.randi(), level, roster, id, String(person.name))
-	p.age = opponent_age(c.age(), rng)
+	var target: float = average_stat(c.profile().get("stats", {})) + float(DIFFICULTY_LEVELS.get(difficulty, 0)) \
+		+ float(rng.randi_range(-LEVEL_SPREAD, LEVEL_SPREAD))
 	var division: String = c.division_now()
-	var body := RandomNumberGenerator.new()
-	body.seed = hash([c.career_seed, id, "weight"])  # Its own dice, so the rest of the offer rolls as before.
-	Weight.fit(p, division, float(p.age) + 0.5, body)  # A man of his division (D351).
+	var w: World = c.world()
+	var id: String = pick_man(c, w, division, target, style_id, taken, rng)
+	if id == "":
+		var used: Array = taken.map(func(o: Dictionary) -> String: return String(o.get("style", "")))
+		var style_ids: Array = styles.ids().filter(func(x: Variant) -> bool: return not String(x) in used)
+		style_ids.sort()
+		var new_style: String = style_id if style_id != "" else String(style_ids[rng.randi_range(0, style_ids.size() - 1)])
+		id = w.add_newcomer(rng, division, c.pro, new_style, target, newcomer_age(c, rng), c.week)
+	var m: Dictionary = w.man(id)
+	var p: Dictionary = w.profile(id, c.week)
 	var camp: int = rng.randi_range(CAMP_WEEKS_MIN + OPEN_WEEKS - 1, CAMP_WEEKS_MAX)
 	return {
-		"id": id, "profile": p,
-		"about": { "nickname": String(person.nickname), "hometown": String(person.hometown), "country": String(person.country) },
-		"style": style_id, "difficulty": difficulty, "division": division,
+		"id": "offer_w%d_%d" % [c.week, index], "profile": p, "about": World.about(m),
+		"style": String(m.style), "difficulty": difficulty, "division": division,
 		"week": c.week + camp - 1, "expires": c.week + OPEN_WEEKS - 1,
 		"ruleset": rules_for(c), "pro": c.pro, "purse": purse_for(c),
 		"card": {} if c.pro else local_card(c, rng, country_id),
 	}
+
+
+## The world's man for an offer (D352): of his division this week, an amateur or a pro as he is, 16 or 17 while he's
+## under ADULT_AGE (18 or over once he isn't), not in `taken` (offers already made) or fought lately, of `style_id`
+## (or of a style none of `taken` has). Each is scored by how far his average stat is off `target`, plus AGE_PENALTY a
+## year he's outside AGE_YOUNGER–AGE_OLDER of the career's fighter; one of those within PICK_WITHIN, or the closest
+## within NEWCOMER_PAST. "" when nobody is that close.
+func pick_man(c: Career, w: World, division: String, target: float, style_id: String, taken: Array, rng: RandomNumberGenerator) -> String:
+	var taken_ids: Array = taken.map(func(o: Dictionary) -> String: return String(o.get("profile", {}).get("id", "")))
+	for o: Dictionary in taken:
+		if o.get("tournament") is Dictionary:
+			for r: Dictionary in o.tournament.get("rest", []):
+				taken_ids.append(String(r.profile.id))
+	var taken_styles: Array = taken.map(func(o: Dictionary) -> String: return String(o.get("style", "")))
+	var his_age: float = c.trainee.age_years
+	var teen: bool = c.age() < ADULT_AGE
+	var close: Array[String] = []
+	var best: String = ""
+	var best_score: float = INF
+	for m: Dictionary in w.in_division(division, c.week):
+		if bool(m.pro) != c.pro or String(m.id) in taken_ids or not World.can_rematch(m, c.week):
+			continue
+		if (style_id != "" and String(m.style) != style_id) or (style_id == "" and String(m.style) in taken_styles):
+			continue
+		var age: float = World.age_of(m, c.week)
+		if age < float(BackgroundLibrary.START_AGE) or (teen and age >= float(ADULT_AGE)) or (not teen and age < float(ADULT_AGE)):
+			continue
+		var score: float = absf(w.average(m) - target) \
+			+ AGE_PENALTY * maxf(0.0, maxf(his_age - AGE_YOUNGER - age, age - his_age - AGE_OLDER))
+		if score <= PICK_WITHIN:
+			close.append(String(m.id))
+		if score < best_score:
+			best_score = score
+			best = String(m.id)
+	if not close.is_empty():
+		return close[rng.randi_range(0, close.size() - 1)]
+	return best if best_score <= NEWCOMER_PAST else ""
+
+
+## A newcomer's age (World.add_newcomer): 16 or 17 for a teenager, else about his.
+static func newcomer_age(c: Career, rng: RandomNumberGenerator) -> float:
+	if c.age() < ADULT_AGE:
+		return rng.randf_range(float(BackgroundLibrary.START_AGE), float(ADULT_AGE) - 0.3)
+	return float(opponent_age(c.age(), rng)) + rng.randf_range(0.0, 0.9)
 
 
 ## A lesson fight (Tutorial.LESSONS, D316): an offer like make_offer's, taking the place of the first in a set, with
@@ -134,7 +188,7 @@ func make_lesson(c: Career, rng: RandomNumberGenerator, lesson_number: int, othe
 			return not String(id) in Tutorial.KICKER_STYLES and not String(id) in taken)
 		pool.sort()
 		style_id = String(pool[rng.randi_range(0, pool.size() - 1)])
-	var out: Dictionary = make_offer(c, style_id, String(spec.difficulty), rng, 0)
+	var out: Dictionary = make_offer(c, style_id, String(spec.difficulty), rng, 0, others.slice(1))
 	out.lesson = lesson_number
 	return out
 
@@ -173,20 +227,16 @@ func local_card(c: Career, rng: RandomNumberGenerator, country_id: String, cards
 ## plus `tournament`: { size, rest (the men he'd meet in the later rounds, each { profile, about, style }, harder and
 ## more tired) }, and its `card` the tournament's name ("Leeds Amateur Open 2027") and venue. `size` 0 rolls the size
 ## (Tournament.BIG_CHANCE of the bigger one). `index` keeps its men's ids apart from the other offers'.
-func make_tournament(c: Career, rng: RandomNumberGenerator, size: int = 0, index: int = 0) -> Dictionary:
+func make_tournament(c: Career, rng: RandomNumberGenerator, size: int = 0, index: int = 0, others: Array = []) -> Dictionary:
 	if size <= 0:
 		size = Tournament.SIZES[1] if rng.randf() < Tournament.BIG_CHANCE else Tournament.SIZES[0]
 	var n: int = Tournament.rounds(size)
-	var style_ids: Array = styles.ids().duplicate()
-	style_ids.sort()
 	var men: Array = []
 	for stage in n:
 		var difficulty: String = Tournament.DIFFICULTIES[mini(stage + Tournament.DIFFICULTIES.size() - n, Tournament.DIFFICULTIES.size() - 1)]
-		var style_id: String = String(style_ids.pop_at(rng.randi_range(0, style_ids.size() - 1)))
-		var o: Dictionary = make_offer(c, style_id, difficulty, rng, index * 10 + stage)
+		var o: Dictionary = make_offer(c, "", difficulty, rng, index * 10 + stage, others + men)
 		if stage > 0:
 			o.profile.condition = { "tank": Tournament.OPPONENT_TANK[mini(stage, Tournament.OPPONENT_TANK.size() - 1)] }
-		o.profile.id = "opp_w%d_t%d" % [c.week, stage]
 		men.append(o)
 	var out: Dictionary = men[0]
 	var country_id: String = names.country_id_of(String(c.about.get("country", "")))

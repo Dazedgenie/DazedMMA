@@ -2,6 +2,11 @@
 	"schema": "names@1",
 	"id": "nigeria",
 	"country": "Nigeria",
+	"hotbed": 2,
+	"styles": [
+		"wrestler",
+		"kicker"
+	],
 	"cities": [
 		"Lagos",
 		"Abuja",

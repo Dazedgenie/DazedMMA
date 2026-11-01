@@ -2,6 +2,11 @@
 	"schema": "names@1",
 	"id": "australia",
 	"country": "Australia",
+	"hotbed": 2,
+	"styles": [
+		"sprawl_brawl",
+		"brawler"
+	],
 	"cities": [
 		"Sydney",
 		"Melbourne",

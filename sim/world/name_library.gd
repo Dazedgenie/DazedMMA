@@ -64,6 +64,16 @@ func country_id_of(country: String) -> String:
 	return ""
 
 
+## How much more often the world's best men come from this country (its `hotbed`, 1 when it has none; D352).
+func hotbed(country_id: String) -> float:
+	return float(_countries.get(country_id, {}).get("hotbed", 1.0))
+
+
+## The styles more of this country's fighters have (its `styles`, D352), [] when it has none.
+func home_styles(country_id: String) -> Array:
+	return (_countries.get(country_id, {}).get("styles", []) as Array).duplicate()
+
+
 ## A country's cities, in the file's order ([] for an unknown id).
 func cities(country_id: String) -> Array:
 	return (_countries.get(country_id, {}).get("cities", []) as Array).duplicate()
@@ -97,10 +107,13 @@ func roll(rng: RandomNumberGenerator) -> Dictionary:
 
 
 ## As roll(), from one of this country's cities (local amateur cards, D314). Any country when the id is unknown.
-func roll_in(rng: RandomNumberGenerator, country_id: String) -> Dictionary:
+## `city`, when given, is his hometown instead.
+func roll_in(rng: RandomNumberGenerator, country_id: String, city_in: String = "") -> Dictionary:
 	if not _countries.has(country_id):
 		return roll(rng)
 	var city: String = String(_pick(rng, _countries[country_id].cities))
+	if city_in != "":
+		city = city_in
 	return { "name": random_name(rng, country_id), "nickname": String(_pick(rng, _nicknames)),
 		"hometown": city, "country": country_name(country_id), "country_id": country_id }
 

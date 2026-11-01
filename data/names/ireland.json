@@ -2,6 +2,11 @@
 	"schema": "names@1",
 	"id": "ireland",
 	"country": "Ireland",
+	"hotbed": 2,
+	"styles": [
+		"boxer",
+		"brawler"
+	],
 	"cities": [
 		"Dublin",
 		"Cork",

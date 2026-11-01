@@ -2,6 +2,11 @@
 	"schema": "names@1",
 	"id": "poland",
 	"country": "Poland",
+	"hotbed": 2,
+	"styles": [
+		"brawler",
+		"wrestler"
+	],
 	"cities": [
 		"Warsaw",
 		"Kraków",

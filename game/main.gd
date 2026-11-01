@@ -20,6 +20,9 @@ extends Node3D
 
 ## Smallest window the UI still fits in (the game opens windowed and resizable).
 const MIN_WINDOW_SIZE := Vector2i(960, 540)
+## The division list's page (D352, TipCard.show_page): wide enough for a man a line.
+const DIVISION_WIDTH: float = 900.0
+const DIVISION_HEIGHT: float = 460.0
 const TITLE := "title"
 const NEW_CAREER := "new_career"
 const CHILDHOOD := "childhood"
@@ -140,6 +143,7 @@ func _ready() -> void:
 	hub.turn_pro_pressed.connect(turn_pro)
 	hub.camp_pressed.connect(open_career_camp)
 	hub.notebook_pressed.connect(open_notebook)
+	hub.division_pressed.connect(open_division)
 	ui.add_child(hub)
 	result = FightResultCard.new()
 	result.visible = false
@@ -310,6 +314,13 @@ func show_career_tips(places: Array) -> void:
 func open_notebook() -> void:
 	if career != null:
 		tips.show_notebook(Tutorial.notebook(career))
+
+
+## His division (D352): the men in it this week, to read.
+func open_division() -> void:
+	if career != null:
+		tips.show_page("HIS DIVISION", CareerHub.division_title(career), CareerHub.division_text(career), DIVISION_WIDTH, DIVISION_HEIGHT)
+		save_career()  # A career saved before D352 has just made its world.
 
 
 ## Run this week on the hub: a week between fights, then an autosave (docs/03 §10.1).

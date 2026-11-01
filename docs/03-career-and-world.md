@@ -772,7 +772,7 @@ hotbeds at the top, each organisation's own top 15, about 3 fights a year (champ
 | Piece | Decision | Status |
 |---|---|---|
 | Weight divisions: a walk-around weight, growing into his natural division by about 21, moved one up or down at his pro debut if you like (Kyle, 2026-11-01: "Grows into it, move at debut"; refines D35) | D351 | Built (§12.1) |
-| The world's fighters: about 100 named men a division, from local amateurs to world class; offers come from them, and the local lads he meets as an amateur are real men who can turn pro alongside him (Kyle, 2026-11-01: "Yes, amateurs in the roster") | D352 | Planned |
+| The world's fighters: about 100 named men a division, from local amateurs to world class; offers come from them, and the local lads he meets as an amateur are real men who can turn pro alongside him (Kyle, 2026-11-01: "Yes, amateurs in the roster") | D352 | Built (§12.2) |
 | The world's weeks: the other men fight about 3 times a year, age, retire, and new prospects join each January | D353 | Planned |
 | Promotions and their cards: 3 or 4 regional pro promotions and 2 international organisations, made up each career (D57) | D354 | Planned |
 | Rankings: each organisation's top 15, updated weekly, each move with its reason (A10) | D355 | Planned |
@@ -819,3 +819,49 @@ Fights don't read weight, so no fight changes (no golden re-pin); generated oppo
 in `Career.turn_pro` and `CareerHub` (`_pro_division`, `weight_text`); opponents in `Matchmaker.make_offer`. Tests:
 `tests/sim/world/test_weight.gd`, `tests/ui/test_career_screens.gd`, `tests/data/test_data_files.gd`. Then update this
 section and D351.
+
+### 12.2 The world's fighters (D352)
+
+The men he meets are now the world's men, not made for one offer and gone. Kyle (2026-11-01) picked a pyramid of levels
+("A pyramid"), rematches after a while ("Rematches after a while") and a list of his division on the hub ("A division list
+on the hub"), and earlier the local lads among them ("Yes, amateurs in the roster") and local men at home with the hotbeds
+at the top ("Home locally, hotbeds at top").
+
+- **About 100 men a division**, 600 in all, made the first time the career needs them from its seed and his home, and
+  kept in the save (a career saved before D352 makes its world when it next needs it). The same career makes the same men.
+- **The pyramid**, in each division: 25 amateurs, 20 local pros, 30 regional pros, 18 national-level pros and 7
+  world-class pros. A pro's average stat is 38–50 local, 46–58 regional, 55–67 national-level and 64–80 world class; an
+  amateur's comes from his age, about 28 at 16 and 2.5 more a year (give or take 6). Amateurs are 14 to 24 and lean
+  young; pros are 20 to 35, the best a little older.
+- **Where they're from.** Every amateur is from his country, half of them his hometown. Of the pros, 75% of the local
+  ones are from his country, 45% of the regional ones, 25% of the national-level ones and 10% of the world-class ones;
+  the rest come from anywhere, the hotbeds most. Each country (`data/names`, names@1) has a `hotbed` weight (the United
+  States 5, Brazil and Russia 4, the rest 2) and the `styles` it's known for, two and a half times as common there
+  (Brazil's jiu-jitsu and Muay Thai, Russia's sambo and wrestlers, the Netherlands' kickers).
+- **Each man** is a style, his own seed and a level (StyleLibrary.generate), a name nobody else in the world has, an age, a
+  body made to fit his division (Weight.fit) and a record. Most haven't a nickname: a fifth of amateurs, rising to three
+  quarters of the world-class men. His division is whatever his weight makes at his age, so a growing lad moves up.
+- **Records** are a stand-in until the world's history (D358): about 3 fights a year since 16 for an amateur and 2.5 a
+  year since about 21 for a pro, won at his level's rate (35–65% for a local pro up to 78–95% world class).
+- **His offers are these men.** Each offer looks in his division for a man of his kind (an amateur while he is one, a pro
+  once he's pro; 16 or 17 while he's a teenager), as good as the offer says (his average stat, 5 less for an easier
+  fight and 5 more for a harder one, give or take 2), not in another offer and of a style none of them has. A year he's
+  outside 3 younger to 4 older counts as a point off. Any man within 2.5 points can be picked; else the closest within
+  4; else a new man joins the world (a newcomer, at the level the offer needs). Lessons and tournaments pick the same way.
+  The offer shows his record.
+- **His fights go on their records**, the other way round, and he can't be offered again for a year, or 16 weeks after
+  a close fight (a draw, or a split or majority decision).
+- **His division** is a button on the hub's top bar: the men in his division this week, the ones he can be offered
+  first (amateurs while he's one), best first by the scouts' grade, each with his age, hometown, level, record, style
+  and how it went if he's fought him.
+
+Nobody else fights yet (the world's weeks, D353), so the men don't age into new divisions, turn pro or improve except by
+the calendar. Fights don't change (no golden re-pin).
+
+**To change it:** the pyramid, ages, levels, home shares, records and nicknames in `World.LEVELS` and the numbers at the
+top of `sim/world/world.gd` (`PER_DIVISION`, `AMATEUR_AVG_*`, `HOMETOWN_SHARE`, `HOME_STYLE_WEIGHT`, `REMATCH_WEEKS`,
+`CLOSE_REMATCH_WEEKS`); each country's `hotbed` and `styles` in `data/names/`; how a man is picked for an offer in
+`Matchmaker.pick_man` (`AGE_PENALTY`, `PICK_WITHIN`, `NEWCOMER_PAST`); the list in `CareerHub.division_text` and its page
+in `game/main.gd` (`open_division`, `DIVISION_WIDTH`). Tests: `tests/sim/world/test_world.gd`,
+`tests/ui/test_career_screens.gd`, `tests/game/test_main_scene.gd`, `tests/data/test_data_files.gd`. Then update this
+section and D352.

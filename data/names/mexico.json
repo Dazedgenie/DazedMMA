@@ -2,6 +2,11 @@
 	"schema": "names@1",
 	"id": "mexico",
 	"country": "Mexico",
+	"hotbed": 2,
+	"styles": [
+		"boxer",
+		"dirty_boxer"
+	],
 	"cities": [
 		"Guadalajara",
 		"Tijuana",
