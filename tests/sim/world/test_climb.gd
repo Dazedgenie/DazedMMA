@@ -79,7 +79,7 @@ func test_a_champion_is_offered_his_call_up_after_one_defence_and_his_belt_goes_
 	w.titles[k].defences = Titles.CALL_UP_DEFENCES
 	w.him.fights = int(w.him.fights) + 1
 	assert_true(Climb.call_up_due(w), "after a defence")
-	assert_string_contains(Climb.ladder_text(c), "after a title defence")
+	assert_string_contains(Climb.ladder_text(c), "after a title defence", "his last one to go")
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 2
 	var offers: Array = c.matchmaker().make_offers(c, rng)

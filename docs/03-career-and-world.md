@@ -1068,13 +1068,13 @@ pick on all six).
   Beating the champion scores in the rankings as beating a #1. A champion only fights for his belt, and isn't called up
   or let go by the usual three-in-a-row.
 - **Losing a belt without losing.** It goes vacant when the champion retires, leaves the promotion or division, or goes
-  a year (52 weeks) without a title fight (stripped); and a regional or international champion who's defended it once is
-  called up a rank (while there's room) and leaves it vacant. Each belt keeps its last 8 reigns.
+  a year (52 weeks) without a title fight (stripped); and a regional or international champion who's defended it twice (once
+  until D359, §12.9) is called up a rank (while there's room) and leaves it vacant. Each belt keeps its last 8 reigns.
 - **His title fights.** Ranked #1 or #2 in the promotion of his last pro fight, when its champion is due to defend (or
   the belt's vacant), the first of his offers is the title fight: on the promotion's first card far enough off for a camp,
   against the champion (or the best other ranked man for a vacant belt), 5 rounds, paying double. Win it and he's the
   champion; as champion his only offer is his defence when it's due (22 weeks on), against the best ranked man who's
-  free. A year without a defence strips him too. His call-up after a defence and the title eliminators: §12.7.
+  free. A year without a defence strips him too. His call-up after two defences and the title eliminators: §12.7.
 - **On the hub.** The rankings page puts each table's champion above it (since when, defences; vacant when it is), his
   card says when he's champion, *His division* says "champion, ACL", offers say when the man is a champion and a title
   fight says so ("Title shot: the IML lightweight title, 5 rounds, double pay"), his fights list marks title fights, and
@@ -1100,7 +1100,7 @@ his card, ask on This week" (my pick on all seven).
 
 - **Where he is.** He starts on the regional cards (D354's offers, mostly at home). Once he's signed by an
   organisation his offers are on its cards, against its men, at its pay; the world organisation is the top.
-- **Called up like everyone else.** Three wins in a row since his last move, or a title defence as a champion, and the
+- **Called up like everyone else.** Three wins in a row since his last move, or two title defences as a champion (one until D359), and the
   promotion a step up offers to sign him: one of his offers is a *Call-up* on their card, against one of their men about
   his level. Take it and he's theirs from that moment (a belt he holds goes vacant); turn it down, or let it go, and he
   stays, asked again after his next fight if he still qualifies.
@@ -1193,8 +1193,10 @@ because a lad was fitted to his division at the weight he is now and grew out of
   the man who's been five rounds before and knows the belt): against an even man he wins about 75%.
 - Together, over four seeds with the stand-in: world organisation champions average 2.5 to 3.6 defences (the median 1
   or 2: about a third still lose the first one), 5 to 7 reigns of 10 or more defences in 30 years across every belt, the
-  longest 15 to 25. Regional and international champions average under 1, because they're called up after one defence
-  (D356).
+  longest 15 to 25.
+- **The smaller belts' champions defend twice before a call-up.** Regional and international champions were called up
+  after one defence (D356), so they averaged under 1. Kyle (2026-11-02) picked "Called up after 2 defences"
+  (`Titles.CALL_UP_DEFENCES` 2; his own call-up as a champion too, §12.7).
 - **Retired men remembered when notable.** Each January a retired pro who never fought him and never held a belt is
   forgotten 5 years after he retires (`WorldWeeks.FORGET_PROS_WEEKS`); champions (so every legend) and men he fought are
   kept for good. The save is about 1.1 MB after 30 years with his own career in it, a year about 0.8 s.
