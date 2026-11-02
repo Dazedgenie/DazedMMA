@@ -120,6 +120,24 @@ func test_scrambling_for_the_top_drives_over_him_and_lands_in_his_guard() -> voi
 	assert_gt(_pelvis(view, 1).y, _pelvis(view, 0).y + 0.15, "blue on top")
 
 
+func test_getting_up_out_of_the_scramble_pushes_off_and_stands() -> void:
+	var setup: Array = _watched("scramble")
+	var sim: FightSim = setup[0]
+	var view: ArenaView = setup[1]
+	_doing(sim, 1, "get_up", "active", 0.9)
+	_frames(view, 1)
+	assert_eq(String(view._takedown.get("move", "")), "scramble_up")
+	assert_gt(_pelvis(view, 1).y, 0.55, "up onto a foot")
+	_won(view, sim, 1, "get_up", PositionLibrary.SUCCESS)
+	var highest: float = 0.0
+	for n in 20:
+		_frames(view, 1)
+		if not view._takedown.is_empty():
+			highest = maxf(highest, _head(view, 1).y)
+	assert_gt(highest, 1.4, "on his feet")
+	assert_eq(sim.situation.position, PositionLibrary.STANDING)
+
+
 func test_getting_up_from_underneath_sits_out_and_stands_up() -> void:
 	var setup: Array = _watched("full_guard")
 	var sim: FightSim = setup[0]

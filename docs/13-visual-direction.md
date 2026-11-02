@@ -852,8 +852,8 @@ fence); a real fight from a move: `tools/motion_preview.gd --red=wrestler --blue
 Tests: `tests/game/test_scramble_pair.gd` (every move's keys, every hand and foot in place, bodies not passing through
 each other, no one under the canvas, the fence walk leaning on the fence but not through it, the ways up ending on their
 feet and standing up leaving him down, the level change out at range) and `tests/game/test_scramble_view.gd` (the
-scramble on their knees, a half-worked shot carrying on into it, the scramble for the top landing in the guard, the
-technical stand-up, the fence walk, a stopped get-up back in the guard, standing up leaving him down, the double leg
+scramble on their knees, a half-worked shot carrying on into it, the scramble for the top landing in the guard, getting
+up out of it, the technical stand-up, the fence walk, a stopped get-up back in the guard, standing up leaving him down, the double leg
 from range, a sprawl on it, the catch-kick holding the leg he kicked with, following him down into half guard).
 
 ## Review and verification
