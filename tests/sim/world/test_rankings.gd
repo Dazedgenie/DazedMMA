@@ -50,8 +50,10 @@ func test_day_one_ranks_every_promotions_men_by_level() -> void:
 				assert_eq(String(w.man(id).promotion), String(p.id))
 				assert_eq(Rankings.rank_of(w, id), ids.find(id) + 1)
 	assert_eq(Rankings.table(w, "org_0", "lightweight").size(), Rankings.TOP_ORGANISATION, "the world organisation's top 15 is full")
+	assert_false(Rankings.table(w, "org_0", "lightweight").has(Titles.champion(w, "org_0", "lightweight")), "the champion sits above it")
 	var home: Dictionary = Promotions.home(w)
-	assert_eq(Rankings.table(w, String(home.id), "lightweight").size(), mini(Rankings.TOP_REGIONAL, Rankings._men_of(w, String(home.id), "lightweight").size()),
+	var champ: int = 1 if Titles.champion(w, String(home.id), "lightweight") != "" else 0
+	assert_eq(Rankings.table(w, String(home.id), "lightweight").size(), mini(Rankings.TOP_REGIONAL, Rankings._men_of(w, String(home.id), "lightweight").size() - champ),
 		"a regional top 10, as far as its men go")
 
 

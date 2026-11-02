@@ -507,6 +507,10 @@ func finish_fight(entry: Dictionary) -> int:
 	if pro and on != "" and not booked.get("tournament") is Dictionary:
 		# Onto his ranking points, in the promotion whose card it was (D355).
 		Rankings.his_fight(world(), fighter_name(), on, division_now(), e.opponent, String(e.result), String(e.get("method", "")), week)
+	if String(booked.get("title", "")) != "":
+		# A title fight (D356): the belt goes with whoever won.
+		e.title = String(booked.title)
+		Titles.his_title_fight(world(), String(booked.title), e.opponent, String(e.result), week)
 	if not world().man(e.opponent).is_empty():
 		# Onto the man's own record too, and no rematch for a while (D352).
 		world().record_fight(e.opponent, String(e.result), week, World.is_close(String(e.result), String(e.get("method", ""))),

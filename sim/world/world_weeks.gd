@@ -134,10 +134,17 @@ static func play_week(w: World, week: int, busy: Dictionary) -> Array:
 	for m: Dictionary in w.men.values():
 		if World.active(m):
 			_age_a_week(w, m, week, rng)
+	# Title fights first (D356), on their promotions' card weeks.
+	for r: Dictionary in Titles.play_week(w, week, busy, rng):
+		w.results.append(r)
+		Promotions.after_fight(w, w.man(String(r.a)), week)
+		Promotions.after_fight(w, w.man(String(r.b)), week)
 	var pools: Dictionary = {}
 	for m: Dictionary in w.men.values():
 		if not World.active(m) or busy.has(String(m.id)) or int(m.next_week) > week or int(m.out_until) > week:
 			continue
+		if Titles.held_by(w, String(m.id)) != "":
+			continue  # A champion only fights for his belt.
 		var age: float = World.age_of(m, week)
 		if age < float(BackgroundLibrary.START_AGE):
 			continue
@@ -195,10 +202,10 @@ static func pair_gap(w: World, a: Dictionary, b: Dictionary) -> float:
 ## Two of the world's men fight (ResultModel.decide, with form and rust): onto both records and histories, and they're
 ## due again in about GAP_WEEKS (longer when hurt). Returns the result: { week, division, a, b, winner ("a", "b" or
 ## "draw"), method, round, chance (a's chance beforehand), pro }.
-static func fight(w: World, a: Dictionary, b: Dictionary, week: int, rng: RandomNumberGenerator) -> Dictionary:
+static func fight(w: World, a: Dictionary, b: Dictionary, week: int, rng: RandomNumberGenerator, rounds: int = 3) -> Dictionary:
 	var nudge: float = nudge_for(a, week) - nudge_for(b, week)
 	var chance: float = ResultModel.win_chance(String(a.style), w.average(a), String(b.style), w.average(b), nudge)
-	var r: Dictionary = ResultModel.decide(String(a.style), w.average(a), String(b.style), w.average(b), rng, 3, nudge)
+	var r: Dictionary = ResultModel.decide(String(a.style), w.average(a), String(b.style), w.average(b), rng, rounds, nudge)
 	var result_a: String = { "a": "win", "b": "loss" }.get(String(r.winner), "draw")
 	var result_b: String = { "a": "loss", "b": "win" }.get(String(r.winner), "draw")
 	var ranks: Array = [Rankings.rank_of(w, String(a.id)), Rankings.rank_of(w, String(b.id))]
