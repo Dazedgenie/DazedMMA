@@ -445,7 +445,7 @@ func follow_joints(pose: Dictionary, only: Array[String] = []) -> void:
 	if only.is_empty() and pose.has("shoulders_at"):
 		# A driver with a longer trunk than the body's (the faceted pieces): the body's hips move along so its
 		# shoulders are where the driver's are and the arms start from the right place. Its legs take up the gap.
-		var shoulders: Vector3 = (_world_at("LeftArm") + _world_at("RightArm")) / 2.0
+		var shoulders: Vector3 = (_anchored("LeftArm") + _anchored("RightArm")) / 2.0
 		_follow_trunk(pose, Vector3(pose.pelvis_at) + Vector3(pose.shoulders_at) - shoulders, to_skeleton)
 	# The limbs, in the body's own lengths, to the driver's wrists and ankles.
 	for limb: Array in LIMBS:
@@ -456,7 +456,7 @@ func follow_joints(pose: Dictionary, only: Array[String] = []) -> void:
 		var upper: String = limb[0]
 		var lower: String = limb[1]
 		var end: String = limb[2]
-		var root: Vector3 = (skeleton.global_transform * skeleton.get_bone_global_pose(_ids[upper])).origin
+		var root: Vector3 = _anchored(upper)
 		var middle_at: Vector3 = pose[("elbow_" if arm else "knee_") + side]
 		var end_at: Vector3 = pose[("wrist_" if arm else "ankle_") + side]
 		if not arm and pose.has("ankle_up"):
@@ -506,11 +506,11 @@ func _follow_trunk(pose: Dictionary, pelvis_at: Vector3, to_skeleton: Transform3
 		if bone == "Hips":
 			world.origin = pelvis_at + turn * (rest.origin - _pelvis_rest)
 		else:
-			world.origin = _world_at(bone)
+			world.origin = _anchored(bone)
 		_set_world(bone, world, to_skeleton)
 		if bone == "Spine2":
 			for shoulder: String in ["LeftShoulder", "RightShoulder"]:
-				_set_world(shoulder, Transform3D(turn * Transform3D(_rest_world[shoulder]).basis, _world_at(shoulder)), to_skeleton)
+				_set_world(shoulder, Transform3D(turn * Transform3D(_rest_world[shoulder]).basis, _anchored(shoulder)), to_skeleton)
 
 
 ## How far a shoulder blade may turn to carry a hand that's out of reach (radians): a punch throws the shoulder.
@@ -559,6 +559,17 @@ func settle(delta: float) -> void:
 ## Where `bone` is in the world as posed now.
 func _world_at(bone: String) -> Vector3:
 	return (skeleton.global_transform * skeleton.get_bone_global_pose(_ids[bone])).origin
+
+
+## Where `bone` belongs in the world: its rest place on its parent as the parent is posed now. Posing a bone from
+## where it already was let a stale reading carry it a little further each frame, until an arm hung metres from
+## its shoulder by the end of a long fight; starting each bone from its parent keeps it joined on.
+func _anchored(bone: String) -> Vector3:
+	var id: int = _ids[bone]
+	var parent: int = skeleton.get_bone_parent(id)
+	if parent < 0:
+		return _world_at(bone)
+	return (skeleton.global_transform * skeleton.get_bone_global_pose(parent) * skeleton.get_bone_rest(id)).origin
 
 
 ## Turns `bone` (whose child is `child`) so it runs from `from` to `to`, bent toward `bend`.

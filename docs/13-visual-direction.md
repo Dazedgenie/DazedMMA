@@ -302,6 +302,11 @@ body at once. The rig's paired poses (D283) take over the clinch and ground posi
   (`STRAIGHT_FROM`) the hand starts reaching for the glove itself and from 96% (`STRAIGHT_AT`) goes all the way.
   When the glove is then out of reach the shoulder blade turns toward it (up to `SHOULDER_REACH`, 0.5 rad) to
   make up the gap, as a man does when he extends a punch; a landed jab touches the face.
+- **Each bone starts from its parent** (`SkinnedBody._anchored`, D379). The trunk's bones, the shoulder blades and
+  the start of each arm and leg are placed at their rest spot on their parent bone as it's posed now, never read
+  back from where they were last frame. Reading them back let a stale position carry a bone a little further each
+  frame: by the end of a long fight an arm could hang metres from its shoulder, drawn as a long tube across the
+  cage, and the hips were dragged half way after it (found filming D375 in Dirty boxer v Muay Thai, seed 35001).
 - **Fists.** The fingers curl into a gloved fist when the body loads (`FIST_CURL` 1.35 rad a joint, the thumb
   about half as far). Mixamo's left-hand finger bones are mirrored, so they bend the other way round; each
   thumb folds about its own axis (`THUMB_AXIS`, found by search).
@@ -318,7 +323,8 @@ one face for both corners; smooth-shaded, not faceted.
 
 Tests: `tests/game/test_fight_body.gd` (the fight draws the body and hides the pieces but not the tell, the
 shoulders sit where the pieces' do, the hands go where the gloves do in guard, the jab, the hook and the clinch
-within 4 cm, standing feet are under the pieces' feet with the toes on the mat).
+within 4 cm, standing feet are under the pieces' feet with the toes on the mat, an arm knocked off its shoulder
+put back on the next pose without dragging the hips).
 
 ## The clinch from the rig, a pose for each grip (D286)
 
