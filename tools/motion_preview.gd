@@ -2,13 +2,22 @@ extends SceneTree
 ## Fixed-frame capture of a real seeded fight. Needs a display; never saves a fight.
 ## --red=, --blue= and --seed= pick another fight (default the Boxer against the Kicker, seed 35003). --from=
 ## plays the fight's first seconds without saving frames (D288: to get to a moment quickly); --seconds= how long
-## to save after that.
+## to save after that. --hold=n plays on (unsaved, after --from) until the fight's nth submission is locked in
+## (D366: to see a hold from the rig), then saves --seconds from there; the frames keep going after the fight ends.
+## --move=<move>[:n] does the same for the nth time the fight screen starts posing that move from the rig (D368,
+## D369: scramble, scramble_up, get_up, get_up_fence, stand_up, double_leg, catch_kick_single, follow_down, or a
+## clinch takedown by its move's name).
 ## Encode with ffmpeg -framerate 24 -i build/motion/frame-%04d.png -c:v libx264 -pix_fmt yuv420p build/motion.mp4
 
 const FPS: int = 24
 var _out := "res://build/motion"
 var _seconds: float = 12.0
 var _from: float = 0.0
+## --hold=n: start saving at the nth submission locked in (0: don't wait for one).
+var _hold: int = 0
+## --move=<move>[:n]: start saving the nth time that move is posed from the rig ("" don't wait for one).
+var _move: String = ""
+var _move_n: int = 1
 var _setup := {"red": "boxer", "blue": "kicker", "seed": 35003, "sound_volume": 0.0, "easy": true}
 
 
@@ -20,6 +29,12 @@ func _initialize() -> void:
 			_seconds = float(arg.trim_prefix("--seconds="))
 		if arg.begins_with("--from="):
 			_from = float(arg.trim_prefix("--from="))
+		if arg.begins_with("--hold="):
+			_hold = int(arg.trim_prefix("--hold="))
+		if arg.begins_with("--move="):
+			var parts: PackedStringArray = arg.trim_prefix("--move=").split(":")
+			_move = parts[0]
+			_move_n = int(parts[1]) if parts.size() > 1 else 1
 		for key: String in ["red", "blue", "seed"]:
 			if arg.begins_with("--%s=" % key):
 				var value: String = arg.trim_prefix("--%s=" % key)
@@ -43,6 +58,25 @@ func _capture() -> void:
 	for frame in roundi(_from * FPS):  # Played, not saved.
 		main.driver.advance(1.0 / FPS)
 		main.arena._process(1.0 / FPS)
+	var locked: Array[int] = [0]
+	main.driver.sim.event_emitted.connect(func(event: FightEvent) -> void:
+		if event.type == FightEvent.SUBMISSION_LOCKED:
+			locked[0] += 1)
+	while locked[0] < _hold and not main.driver.sim.is_over():
+		main.driver.advance(1.0 / FPS)
+		main.arena._process(1.0 / FPS)
+	if _hold > 0:
+		print("Motion preview: hold %d at %.1f s" % [locked[0], main.driver.sim.now * FightClock.TICK_MS / 1000.0])
+	var seen: int = 0
+	while _move != "" and seen < _move_n and not main.driver.sim.is_over():
+		var was: bool = not main.arena._takedown.is_empty()
+		main.driver.advance(1.0 / FPS)
+		main.arena._process(1.0 / FPS)
+		var now: Dictionary = main.arena._takedown
+		if not was and not now.is_empty() and String(now.get("move", now.get("action", ""))) == _move:
+			seen += 1
+	if _move != "":
+		print("Motion preview: %s %d at %.1f s" % [_move, seen, main.driver.sim.now * FightClock.TICK_MS / 1000.0])
 	for frame in roundi(_seconds * FPS):
 		main.driver.advance(1.0 / FPS)
 		main.arena._process(1.0 / FPS)

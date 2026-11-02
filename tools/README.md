@@ -9,7 +9,12 @@ as 960×540 PNG frames at 24 fps. It also leaves saved fights untouched. Use a f
 when changing the duration so old trailing frames do not enter the encoded video. `--red=`, `--blue=` and `--seed=`
 record another fight (the Muay Thai fighter against the Wrestler on seed 35013 spends most of a minute in the clinch).
 `--from=` plays the fight's first seconds without saving frames, to get to a moment quickly (D288: the Judoka against
-the Wrestler on seed 35000 from 11.5 s throws him with a hip throw).
+the Wrestler on seed 35000 from 11.5 s throws him with a hip throw). `--hold=n` plays on unsaved until the fight's nth
+submission is locked in, then saves `--seconds` from there, carrying on past the end of the fight to see the tap (D366:
+`--red=bjj --blue=boxer --seed=35002 --hold=1 --seconds=8` is a triangle to the tap)). `--move=<move>[:n]` does the same from the nth time the fight screen starts posing a move from the rig
+(D368, D369: `scramble`, `scramble_up`, `get_up`, `get_up_fence`, `stand_up`, `double_leg`, `catch_kick_single`,
+`follow_down`, or a clinch takedown's name; `--red=wrestler --blue=bjj --seed=35003 --move=double_leg --seconds=3` is a
+double leg shot from range).
 
     godot --script res://tools/visual_preview.gd -- --out=res://build/visual --720p
     godot --script res://tools/character_preview.gd -- --out=res://build/characters
@@ -58,12 +63,18 @@ skinned Tripo body (`game/bodies/tripo_fighter.glb`, D284; the fight screen draw
 `--clinch` writes the clinch poses built from grips instead (D286, `clinch-<name>.png`), the fence's too (D287: the
 drive, spinning off, turning him, breaking); `--takedowns` writes the clinch takedowns from the clinch to the canvas
 (D288, `takedown-<move>-<n>.png`, with the scramble and the sprawl); `--ground` writes the ground positions with their
-grips (D289, `ground-<name>.png`) and a sweep rolling them over in steps (`ground-sweep-<n>.png`):
+grips (D289, `ground-<name>.png`) and a sweep rolling them over in steps (`ground-sweep-<n>.png`); `--subs` writes each
+submission loose and tight and the man in it tapping (D366, `sub-<hold>_loose.png`, `sub-<hold>_tight.png`,
+`sub-<hold>-tap.png`); `--moves` writes the scrambles, the ways up and standing up (D368) and the shots from range
+and following him down (D369) key by key from the pose each starts in (`move-<move>-<x>.png`, the fence walk against
+the fence):
 
     godot --script res://tools/rig_preview.gd -- --out=res://build/rig --stills
     godot --script res://tools/rig_preview.gd -- --out=res://build/clinch --clinch --body
     godot --script res://tools/rig_preview.gd -- --out=res://build/takedowns --takedowns --body
     godot --script res://tools/rig_preview.gd -- --out=res://build/ground --ground --body
+    godot --script res://tools/rig_preview.gd -- --out=res://build/subs --subs --body
+    godot --script res://tools/rig_preview.gd -- --out=res://build/moves --moves --body
 
 Headless runners and utilities. `run_sim.gd` runs one placeholder fight (a kicker against a boxer) with no scene tree
 and prints a summary; `--fights=N` runs N seeds and counts how they ended:

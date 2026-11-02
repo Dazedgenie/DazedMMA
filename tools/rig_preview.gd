@@ -9,7 +9,10 @@ extends SceneTree
 ## skinned Tripo body on the rigs (D284; --body=<file.glb> another Mixamo-rigged
 ## body). --takedowns saves the clinch takedowns' keys from the clinch to the landing (D288, takedown-<move>-<n>.png,
 ## n 0 the clinch) and the scramble and sprawl. --ground saves the ground positions with their grips (D289,
-## ground-<name>.png, GroundPair.examples). Nothing in the fight or the fight screen changes.
+## ground-<name>.png, GroundPair.examples). --subs saves each submission loose and tight and the defender tapping (D366,
+## sub-<name>.png, SubmissionPair.examples). --moves saves the scrambles, getting up and standing up (D368, ScramblePair)
+## and the shots from range and following him down (D369, ShotPair) key by key from the pose each starts in
+## (move-<move>-<n>.png, the fence walk against the fence). Nothing in the fight or the fight screen changes.
 
 const FPS: int = 24
 const BLEND_FRAMES: int = 24
@@ -31,6 +34,12 @@ var _clinch: bool = false
 var _takedowns: bool = false
 ## --ground: stills of the ground positions and their grips (D289, GroundPair).
 var _ground: bool = false
+## --subs: stills of the submissions loose and tight, and tapping (D366, SubmissionPair).
+var _subs: bool = false
+## --moves: stills along the scrambles, the ways up and the shots from range (D368, D369).
+var _moves: bool = false
+## Where the camera looks (the pair's middle; the fence walk is posed against the fence).
+var _look := Vector3(0, 0.7, 0)
 var _angle: float = 0.0
 var _main: Node3D
 var _frame: int = 0
@@ -54,6 +63,10 @@ func _initialize() -> void:
 			_takedowns = true
 		elif arg == "--ground":
 			_ground = true
+		elif arg == "--subs":
+			_subs = true
+		elif arg == "--moves":
+			_moves = true
 		elif arg == "--body":
 			_body_path = SkinnedBody.TRIPO_BODY
 		elif arg.begins_with("--body="):
@@ -96,7 +109,23 @@ func _capture() -> void:
 			rig.fit(body.measure())
 			body.set_colour(colour)
 			_bodies.append(body)
-	if _ground:
+	if _moves:
+		await _move_stills()
+	elif _subs:
+		var examples: Dictionary = SubmissionPair.examples()
+		for example_name: String in examples:
+			var e: Array = examples[example_name]
+			var built: Dictionary = SubmissionPair.build(e[0], e[1], e[2], e[3])
+			var at: Array = SubmissionPair.at_danger(built, e[4])
+			_title.text = _prefix() + example_name.replace("_", " ")
+			_pose(at[0], at[1], at[2])
+			_show_rigs(true)
+			await _frames(1, "sub-%s.png" % example_name)
+			if String(example_name).ends_with("_tight"):
+				_title.text = _prefix() + example_name.trim_suffix("_tight").replace("_", " ") + " tapping"
+				_pose(SubmissionPair.tapping(built, 0.5 / SubmissionPair.TAP_HZ))
+				await _frames(1, "sub-%s-tap.png" % example_name.trim_suffix("_tight"))
+	elif _ground:
 		var examples: Dictionary = GroundPair.examples()
 		for example_name: String in examples:
 			var e: Array = examples[example_name]
@@ -161,6 +190,45 @@ func _capture() -> void:
 	_main.queue_free()
 	await process_frame
 	quit()
+
+
+## The scrambles, the ways up (D368) and the shots from range (D369), key by key and half way between.
+func _move_stills() -> void:
+	for move: String in ScramblePair.MOVES:
+		var start: Dictionary = ScramblePair.kneeling() if move.begins_with("scramble") else GroundPair.build("full_guard").pair
+		var frame: Transform3D = _pair_frame
+		if move == "get_up_fence":  # Against the fence on the side of the picture.
+			var across := Vector2(ArenaView.CAMERA_FROM.z, -ArenaView.CAMERA_FROM.x).normalized()
+			var n: Vector2 = Octagon.NORMALS[0]
+			for normal: Vector2 in Octagon.NORMALS:
+				if normal.dot(across) > n.dot(across):
+					n = normal
+			var z := Vector3(-n.x, 0.0, -n.y)
+			var at: Vector2 = n * (Octagon.APOTHEM - ScramblePair.FENCE_BACK)
+			frame = Transform3D(Basis(Vector3.UP.cross(z), Vector3.UP, z), Vector3(at.x, 0.0, at.y))
+		var keys_in: Array = [[start, frame]]
+		for pair: Dictionary in ScramblePair.keys(move):
+			keys_in.append([pair, frame])
+		if ScramblePair.lands(move):
+			keys_in.append([TakedownPair.landing("double_leg"), frame * Transform3D(Basis.IDENTITY, Vector3(0, 0, -0.45))])
+		await _path_stills(move, TakedownPair.chain(keys_in), frame.origin)
+	for move: String in ShotPair.MOVES:
+		var keys_in: Array = [[ShotPair.start(move, 1.2), _pair_frame]]
+		for pair: Dictionary in ShotPair.keys(move, 1.2):
+			keys_in.append([pair, _pair_frame])
+		var at: Vector2 = ShotPair.TIMING[move].at
+		keys_in.append([ShotPair.landing(move), _pair_frame * Transform3D(Basis.IDENTITY, Vector3(at.x, 0, at.y))])
+		await _path_stills(move, TakedownPair.chain(keys_in), _pair_frame.origin)
+	_look = Vector3(0, 0.7, 0)
+
+
+func _path_stills(move: String, path: Array, middle: Vector3) -> void:
+	_look = middle + Vector3(0, 0.7, 0)
+	for n in path.size() * 2 - 1:
+		var x: float = n / 2.0
+		_title.text = "%s%s %s" % [_prefix(), move.replace("_", " "), str(x)]
+		_takedown_pose(path, x)
+		await _frames(1, "move-%s-%s.png" % [move, str(x).replace(".", "_")])
 
 
 ## A throwaway fight to stand the venue up, with today's figures in `where`, side on, a clinch apart.
@@ -239,8 +307,8 @@ func _frames(count: int, still: String = "") -> void:
 		# Closer than the fight camera, on the middle of the pair, and without the range tag.
 		var arena: ArenaView = _main.arena
 		arena._tag.visible = false
-		arena.camera.position = Vector3(0, 0.7, 0) + (ArenaView.CAMERA_FROM.normalized() * CAMERA_DISTANCE).rotated(Vector3.UP, deg_to_rad(_angle))
-		arena.camera.look_at(Vector3(0, 0.7, 0), Vector3.UP)
+		arena.camera.position = _look + (ArenaView.CAMERA_FROM.normalized() * CAMERA_DISTANCE).rotated(Vector3.UP, deg_to_rad(_angle))
+		arena.camera.look_at(_look, Vector3.UP)
 		if _rigs[0].visible or (not _bodies.is_empty() and _bodies[0].visible):
 			for figure: FighterFigure in _main.arena.figures:
 				figure.visible = false

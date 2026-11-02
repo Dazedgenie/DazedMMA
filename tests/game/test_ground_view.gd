@@ -1,7 +1,7 @@
 extends GutTest
 ## The ground positions from the rig on the fight screen (D289): each position posed by GroundPair where
 ## today's figures lay it out, the grips the sim holds, ground and pound thrown from the pose, a sweep rolling
-## them over, and today's figures again for standing up and the scramble. Presentation only.
+## them over; standing up, getting up and the scramble are posed on their own (D368). Presentation only.
 
 var _actions: ActionLibrary
 var _roster: FighterLibrary
@@ -132,13 +132,15 @@ func test_a_sweep_rolls_them_over_and_the_sweeper_ends_up_on_top() -> void:
 	assert_gt(view._clinch_rigs[1].point("chest").y, view._clinch_rigs[0].point("chest").y, "blue on top")
 
 
-func test_standing_up_and_the_scramble_go_back_to_today_s_figures() -> void:
+func test_standing_up_and_the_scramble_are_not_posed_as_a_ground_position() -> void:
 	var setup: Array = _ground("half_guard")
 	var sim: FightSim = setup[0]
 	var view: ArenaView = setup[1]
 	_doing(sim, 0, "stand_up", "windup", 0.5)
-	assert_false(view.rig_ground(sim), "standing up")
+	assert_false(view.rig_ground(sim), "standing up is a move of its own (D368)")
+	_doing(sim, 0, "stand_up", "recovery", 0.5)
+	assert_true(view.rig_ground(sim), "stopped: back in the position")
 	sim.fighters[0].clear_action()
 	assert_true(view.rig_ground(sim))
 	_put(sim, "scramble", 0)
-	assert_false(view.rig_ground(sim), "the scramble is today's figures")
+	assert_false(view.rig_ground(sim), "the scramble is posed on its own (D368)")
