@@ -106,6 +106,13 @@ const TAKEDOWN_ENDED := "takedown ended"
 ## over CLINCH_EASE. Standing up and getting up are posed as moves of their own (D368, below); a submission locked
 ## in by SubmissionPair (D366).
 const GROUND_EASE: float = 0.4
+## A man knocked down (D370, D371) is posed from the rig (KnockdownPose): into the fall over DOWN_EASE_IN and back to
+## today's figure, on his feet, over DOWN_EASE_OUT.
+const DOWN_EASE_IN: float = 0.1
+const DOWN_EASE_OUT: float = 0.3
+## With no room behind him for the way the shot sends him, the fall turns this far (radians) either way to find room;
+## with none there either he goes down the fence (KnockdownPose "fence").
+const KNOCKDOWN_ROOM_TURNS: Array[float] = [0.0, 0.6, -0.6]
 ## Moves on the ground posed as moves of their own (D368, ScramblePair), not as the position, until they're over.
 const GROUND_UNPOSED: Array[String] = ["stand_up", "get_up"]
 ## Scrambles, getting up and standing up from the rig (D368): the scramble is posed as both men on their knees
@@ -186,6 +193,12 @@ var _tap_time: float = -1.0
 ## The scramble from the rig (D368): the pose shown, [pair, frame, the man posed as "a"], kept while it lasts so
 ## the pose doesn't swing round when the sim nudges their spots.
 var _scramble_last: Array = []
+## Each man's knockdown being posed from the rig (D370): {data (the KNOCKDOWN event's), tick, ground (true: he was
+## dropped on the ground), and once it's laid out kind, down (the fall's [spec, frame] keys), up (getting up's),
+## seconds (his time down), after (seconds shown since the fight ended)}; empty while he's on his feet.
+var _downed: Array[Dictionary] = [{}, {}]
+## Which way the last shot that landed on each man turned his head (+1, -1, 0 for a straight shot), for the fall.
+var _last_hit_turn: Array[float] = [0.0, 0.0]
 ## Light up scouted tells (D51): a toggle so the playtest can compare cue on and off.
 var tell_cues: bool = true
 var debug_marks: bool = false:
@@ -247,6 +260,8 @@ func watch(p_driver: FightDriver) -> void:
 	_hold_pose = {}
 	_tap_time = -1.0
 	_scramble_last = []
+	_downed = [{}, {}]
+	_last_hit_turn = [0.0, 0.0]
 	_tell_limb = ["", ""]
 	_tell_until = [-1, -1]
 	_offset = [Vector2.ZERO, Vector2.ZERO]
@@ -364,6 +379,7 @@ func _pose_clinch(sim: FightSim, delta: float) -> void:
 		_pose_turn(sim, built, frame, delta)
 	else:
 		_pose_built(sim, built, frame)
+	_pose_downed(sim, delta)
 	for figure in figures:
 		figure.body.settle(delta)
 	_bow_fence(held, delta)
@@ -759,6 +775,8 @@ func _move_for(sim: FightSim, by: int) -> Dictionary:
 		move = action
 		var mine: Vector3 = figures[by].global_position
 		var his: Vector3 = figures[other].global_position
+		if action == "follow_down" and _downed[other].has("down"):  # Where the fall laid him (D370), not his feet.
+			his = _clinch_rigs[other].bones.pelvis.global_position
 		var z := Vector3(mine.x - his.x, 0.0, mine.z - his.z)
 		var gap: float = z.length()
 		z = z.normalized() if gap > 0.01 else Vector3.BACK
@@ -785,6 +803,106 @@ func _move_for(sim: FightSim, by: int) -> Dictionary:
 	return {"by": by, "a": a, "action": action, "move": move, "path": TakedownPair.chain(keys_in), "x": 0.0,
 		"state": "attempt", "thud": float(timing.thud), "timing": timing, "where": where,
 		"ends": "ground" if not landing.is_empty() else "standing"}
+
+
+## A man knocked down standing (D370, D371): posed from the rig falling the way the shot that dropped him sends him
+## (KnockdownPose), lying there and getting up through a knee by the end of his time down, then eased back to today's
+## figure. A knockout leaves him down. The other man is still today's figure.
+func _pose_downed(sim: FightSim, delta: float) -> void:
+	for i in _downed.size():
+		var down: Dictionary = _downed[i]
+		if down.is_empty() or i >= figures.size() or _clinch_rigs.size() < 2:
+			continue
+		var f: FighterState = sim.fighters[i]
+		if not sim.situation.is_standing() or not (f.is_down() or sim.is_over()):
+			if down.has("down") and sim.situation.is_standing():
+				figures[i].body.ease_over(DOWN_EASE_OUT)  # Up: back to today's figure.
+			_downed[i] = {}
+			continue
+		if not down.has("down"):
+			_lay_out_knockdown(sim, i)
+			figures[i].body.ease_over(DOWN_EASE_IN)
+		var kind: String = String(down.kind)
+		var seconds: float = (sim.now - int(down.tick) + driver.alpha()) / float(FightClock.TICKS_PER_SECOND)
+		if sim.is_over():  # A knockout: the fall plays on from where it was and he stays down.
+			if not down.has("ended"):
+				down.ended = seconds
+				down.after = 0.0
+			down.after = float(down.after) + delta
+			seconds = float(down.ended) + float(down.after)
+		var rise_at: float = float(down.seconds) - float(KnockdownPose.TIMING[kind].rise)
+		var path: Array = down.down
+		var x: float = float(path.size() - 1)
+		if bool(down.ground):
+			pass  # Dropped on the ground: already down.
+		elif seconds < rise_at or sim.is_over():
+			x = KnockdownPose.fall_x(path.size(), seconds, kind)
+		if seconds >= rise_at and not sim.is_over():
+			path = down.up
+			x = KnockdownPose.rise_x(path.size(), seconds - rise_at, kind)
+		KnockdownPose.pose_along(_clinch_rigs[i], _clinch_rigs[1 - i], path, x)
+		figures[i].body.follow(_clinch_rigs[i])
+
+
+## Lays out fighter `i`'s knockdown (D370): which way down (KnockdownPose.KINDS) by what dropped him, the frames,
+## the fall's keys and getting up's, and his time down.
+func _lay_out_knockdown(sim: FightSim, i: int) -> void:
+	var down: Dictionary = _downed[i]
+	var data: Dictionary = down.data
+	var kind: String = "crumple"
+	var ticks: int = FightSim.DOWN_TICKS
+	if bool(data.get("liver", false)):
+		kind = "liver"
+		ticks = FightSim.LIVER_DOWN_TICKS
+	elif data.has("leg"):
+		kind = "leg"
+		ticks = FightSim.LEG_DOWN_TICKS
+	elif bool(data.get("flash", false)):
+		kind = "stiff"
+	var spot: Vector3 = figures[i].global_position
+	spot.y = 0.0
+	var facing: Vector2 = Vector2.from_angle(_facing[i])
+	var twist: float = deg_to_rad(float(KnockdownPose.TIMING[kind].twist)) * _last_hit_turn[i]
+	var own: Transform3D = knockdown_frame(Vector2(spot.x, spot.z), facing, 0.0)
+	var fell: Transform3D = own
+	if kind in ["stiff", "crumple"] and not bool(down.ground):
+		var room: float = -1.0
+		for extra: float in KNOCKDOWN_ROOM_TURNS:  # The way the shot sends him, or near it where there is room.
+			var frame: Transform3D = knockdown_frame(Vector2(spot.x, spot.z), facing, twist + extra)
+			var head: Vector3 = frame * Vector3(0.0, 0.0, KnockdownPose.LYING_LENGTH)
+			if Octagon.distance_to_fence(Vector2(head.x, head.z)) > KnockdownPose.FENCE_ROOM:
+				fell = frame
+				room = 1.0
+				break
+		if room < 0.0:
+			kind = "fence"
+			fell = wall_frame(i) * Transform3D(Basis(Vector3.UP, PI), Vector3.ZERO)
+	# A southpaw, or his right leg gone: the poses the other way round.
+	var mirror: bool = int(data.leg) == FighterState.RIGHT_LEG if kind == "leg" else figures[i].arm_letter(0) == "r"
+	var downs: Array = []
+	var keys: Array[Dictionary] = KnockdownPose.falls(kind)
+	for k in keys.size():
+		downs.append([_mirrored(keys[k], mirror), own if k == 0 else fell])
+	var ups: Array = []
+	keys = KnockdownPose.rises(kind)
+	for k in keys.size():
+		ups.append([_mirrored(keys[k], mirror), own if k == keys.size() - 1 and kind != "fence" else fell])
+	down.kind = kind
+	down.down = downs
+	down.up = ups
+	down.seconds = float(ticks) / FightClock.TICKS_PER_SECOND
+
+
+## A man's own frame for a knockdown (D370): the origin at `spot` on the canvas, facing `facing` (-Z), turned `twist`
+## radians round (+Z behind him: the way he falls).
+static func knockdown_frame(spot: Vector2, facing: Vector2, twist: float) -> Transform3D:
+	var z := Vector3(-facing.x, 0.0, -facing.y).rotated(Vector3.UP, twist)
+	z = z.normalized() if z.length() > 0.01 else Vector3.BACK
+	return Transform3D(Basis(Vector3.UP.cross(z), Vector3.UP, z), Vector3(spot.x, 0.0, spot.y))
+
+
+static func _mirrored(spec: Dictionary, mirror: bool) -> Dictionary:
+	return ClinchPair.mirror({"a": spec}).a if mirror else spec
 
 
 ## The leg fighter `i` is kicking with (D369, the catch-kick single): "l" or "r", his rear leg when it can't tell.
@@ -1296,6 +1414,8 @@ func _on_event(event: FightEvent) -> void:
 		return
 	if event.actor in [0, 1] and figures.size() == 2:
 		_show_strike(event)
+	if event.type == FightEvent.KNOCKDOWN and event.actor in [0, 1]:
+		_downed[event.actor] = {"data": event.data, "tick": event.tick, "ground": not driver.sim.situation.is_standing()}
 	if event.type == FightEvent.GRAPPLE_WON and event.data.get("result", "") == PositionLibrary.SUCCESS \
 			and GroundPair.ROLLS.has(String(event.data.get("action_id", ""))) and not _ground_last.is_empty():
 		_roll = {"from": _ground_last, "left": ROLL_SECONDS}  # Rolled over (D289): the pose plays the roll.
@@ -1339,6 +1459,8 @@ func _show_strike(event: FightEvent) -> void:
 			if hook:  # A hook or round kick turns his head away from the side it came from.
 				turn = 1.0 if String(FighterFigure.AIMS[action].limb).begins_with("lead") == (figures[a].lead < 0.0) else -1.0
 			figures[1 - a].show_hit(String(event.data.target), float(event.data.damage), covered, turn)
+			if not covered:
+				_last_hit_turn[1 - a] = turn
 		FightEvent.STRIKE_MISSED:
 			var reason: String = String(event.data.get("reason", ""))
 			var outcome: String = "missed"

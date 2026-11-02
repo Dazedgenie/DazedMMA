@@ -14,7 +14,9 @@ submission is locked in, then saves `--seconds` from there, carrying on past the
 `--red=bjj --blue=boxer --seed=35002 --hold=1 --seconds=8` is a triangle to the tap)). `--move=<move>[:n]` does the same from the nth time the fight screen starts posing a move from the rig
 (D368, D369: `scramble`, `scramble_up`, `get_up`, `get_up_fence`, `stand_up`, `double_leg`, `catch_kick_single`,
 `follow_down`, or a clinch takedown's name; `--red=wrestler --blue=bjj --seed=35003 --move=double_leg --seconds=3` is a
-double leg shot from range).
+double leg shot from range). `--knockdown=n` starts saving a second before the fight's nth knockdown (D370: it plays the
+fight once to find it, then again; `--red=brawler --blue=boxer --seed=35004 --knockdown=1 --seconds=5` is a man dropped,
+down and back up). Every pass plays on through the round breaks.
 
     godot --script res://tools/visual_preview.gd -- --out=res://build/visual --720p
     godot --script res://tools/character_preview.gd -- --out=res://build/characters
@@ -67,7 +69,8 @@ grips (D289, `ground-<name>.png`) and a sweep rolling them over in steps (`groun
 submission loose and tight and the man in it tapping (D366, `sub-<hold>_loose.png`, `sub-<hold>_tight.png`,
 `sub-<hold>-tap.png`); `--moves` writes the scrambles, the ways up and standing up (D368) and the shots from range
 and following him down (D369) key by key from the pose each starts in (`move-<move>-<x>.png`, the fence walk against
-the fence):
+the fence); `--knockdowns` writes one man's falls and getting up (D370, D371: stiff, crumple, liver, leg and down the
+fence) key by key and half way between (`knockdown-<kind>-<down|up>-<x>.png`):
 
     godot --script res://tools/rig_preview.gd -- --out=res://build/rig --stills
     godot --script res://tools/rig_preview.gd -- --out=res://build/clinch --clinch --body
@@ -75,6 +78,7 @@ the fence):
     godot --script res://tools/rig_preview.gd -- --out=res://build/ground --ground --body
     godot --script res://tools/rig_preview.gd -- --out=res://build/subs --subs --body
     godot --script res://tools/rig_preview.gd -- --out=res://build/moves --moves --body
+    godot --script res://tools/rig_preview.gd -- --out=res://build/knockdowns --knockdowns --body
 
 Headless runners and utilities. `run_sim.gd` runs one placeholder fight (a kicker against a boxer) with no scene tree
 and prints a summary; `--fights=N` runs N seeds and counts how they ended:
