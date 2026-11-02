@@ -1103,6 +1103,76 @@ draw raising both; the winner's arms up after a finish; a beaten man down sittin
 click skipping each one; a whole fight played with them unchanged; the setup's option; the round panel down the side).
 `tests/game/test_referee.gd` checks the referee still walks the same on `Walker`.
 
+## Limbs that stay put (D395, D396)
+
+Kyle asked for an hour on the animations (2026-11-02 19:10: "limbs sometimes go all over the place") and picked
+"Stand-up striking" as where he sees it most. Presentation only: fights are unchanged (golden fights not re-pinned).
+
+**Finding them** (`tools/limb_check.gd`). Plays real seeded fights through the fight screen without drawing them and
+checks both skinned bodies every frame (24 a second) while they're on their feet and drawn from the pieces (not the
+clinch, a takedown or a man down): an elbow or knee whose bend turns more than 75° round the limb in one frame, a joint
+moving more than 45 cm in a frame against his hips, a knee bent backwards, a leg locked straight with its foot on the
+canvas, a foot more than 4 cm from where the pieces put it, anything through the canvas. It prints each by what the
+fighter was doing and the worst frames with the seconds to film them from (`tools/motion_preview.gd --from=`).
+
+**What it found** (four striking fights, about 30 minutes of standing, both men). The body is moved so its shoulders
+are where the pieces' are (D285), and its trunk is shorter, so its hips were lifted: in 17.6% of frames a leg was locked
+straight and in 6.5% a foot couldn't reach the canvas, hanging or sliding as he stepped. Knees swinging round, elbows
+flipping and joints jumping were rare (kicks snapping out from the chamber the most, 0.3% of frames).
+
+**The fix** (`SkinnedBody._sink_to_feet`). After the trunk is placed, his hips come down until each foot lower than
+20 cm off the canvas is within 98.5% of his leg's length, by at most 20 cm; a kicking foot doesn't pull him down, and a
+foot too far out to the side for any height is left. A bent arm comes down with him (a punch still reaches for the
+glove), so his guard stays where it is on him. A nearly straight leg barely says which way its knee bends, and sinking
+bends his legs more than the pieces', so the knee now leans 8 cm toward his front: knees bend forward unless the pieces'
+knee clearly points somewhere else (a round kick). After: legs locked straight 0.03% of frames, feet that can't reach
+2.0% (mostly easing out of the clinch and the first frames of a round), knee flips unchanged at 2 in 85,000.
+
+Numbers: `PLANTED_BELOW` 0.2 m, `LEG_REACH` 0.985, `SINK_MAX` 0.2 m, `KNEE_FORWARD` 0.08 m, all at the top of
+`game/rig/skinned_body.gd`. The checker's limits are at the top of `tools/limb_check.gd`.
+
+Pictures: `/mnt/project-files/screenshots/limbs-d395/` (the same moments before and after, side by side).
+
+**The rest of the animations (D396).** Kyle then asked for the same for everything else (2026-11-02 20:08). With
+`--all` the checker counts every frame, says what drew it (the feet, the clinch, a move such as a takedown or getting
+up, the ground, a man down), and also counts a hand, foot, elbow, knee or head inside the other man (within 9 cm of the
+line from his hips to his chest). Four grappling fights (Wrestler v BJJ, Judoka v Sambo, Muay Thai v Dirty boxer, GnP
+wrestler v Boxer; about 48 minutes, both men):
+
+- *Knees through the canvas*: 4.5% of frames, nearly all in mount and the crucifix (the top man's knees bent down
+  into it with his shins flat behind him) and the man underneath. `FighterRig.above_canvas` now turns a knee or elbow
+  round the line from hip to ankle (shoulder to wrist) the least way that lifts it to 5 cm (`JOINT_FLOOR`), keeping
+  the bones' lengths. After: 0.01%.
+- *Joints snapping between moves*: a joint jumping more than 45 cm in a frame against his hips, 0.4% of frames, worst
+  where one move hands over to another (a sprawl starting, a guard pull meeting a double leg so the pair turns round,
+  a scramble, getting up). `SkinnedBody.settle` now eases in any new pose that would move a hand, foot, elbow, knee or
+  the head faster than 20 m/s against his hips (`POP_SPEED`; the quickest kicks are about 15), at 5 m/s
+  (`EASE_SPEED`, at most 0.4 s), and lengthens an ease that was too short for how far the pose moves. After (with the flips eased
+  too): elbows 153 frames to 10, wrists 170 to 18, knees 155 to 59, ankles 85 to 5, the head 18 to none; strikes on
+  the feet unchanged.
+- *Feet and hands through the canvas*: once the knees were out, a foot or wrist still went under it (0.3% of
+  frames): a foot hooked on a man lying there, a hand posted on the mat, and while easing between two poses (out of a
+  hold into a scramble). The rig now puts no wrist lower than 4 cm (`HAND_FLOOR`) and no ankle lower than 70% of its
+  height standing (`FOOT_FLOOR`), and while the body is easing, if any joint dips under 3 cm (`CANVAS_FLOOR` in
+  `skinned_body.gd`) the whole body is lifted until it doesn't. After: none in 48 minutes.
+- *Elbows flipping*: an elbow or knee whose bend swings right round in a frame, 0.45% of frames, mostly ground
+  punches from back control and the guard, clinch uppercuts and scrambles: a strike's phases (or one hold handing
+  over to the next) turning the arm from one way of bending to another in a frame. The skinned body now eases in,
+  over 0.12 s (`FLIP_EASE`), any pose that would turn a bent elbow or knee (at least 6 cm off straight, `FLIP_BENT`)
+  more than 60° round its limb in a frame (`FLIP_TURN`). On the feet, a bent arm drawn from the pieces also leans its
+  elbow 4 cm down and out (`ELBOW_DOWN`). After: elbows 2 frames (from 312), knees none (from 17).
+- *Inside the other man*: 3.9% at first, but most of it was the checker counting a hand on his neck. Measured to his
+  chest instead, 0.7% of frames, spread thinly (back control's seat belt, the full guard, double legs): left for the
+  final grappling pass Kyle has planned.
+
+Pictures: `ground-knees-before-left-after-right.png`, `guard-pull-before-after-half-speed.mp4` and
+`sprawl-before-after-half-speed.mp4` in the same folder.
+
+Tests: `tests/game/test_limbs.gd` (lifted hips sinking until both feet on the canvas reach; feet off the canvas not
+pulling him down; a nearly straight leg's knee bending forward; a knee bent into the canvas turning up out of it with
+its bones' lengths kept; a pose that jumps eased in; a quick strike not slowed; an elbow turned right round its arm in a
+frame eased round).
+
 ## Review and verification
 
 Open `project.godot` in Godot 4.7.2 and run the game normally. Start a fight and check striking,

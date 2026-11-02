@@ -134,6 +134,8 @@ func set_limbs(spec: Dictionary, frame: Transform3D, other: FighterRig, blend_to
 			if not blend_to.is_empty():
 				target = target.lerp(target_for(blend_to.get(key, {}), key, frame, other), t)
 				pole = pole.lerp(_pole(blend_to, key), t)
+			# Nothing reaches through the canvas (D396): a foot hooked on a man lying there, a hand on the mat.
+			target.y = maxf(target.y, ankle_up * FOOT_FLOOR if limb == "foot" else HAND_FLOOR)
 			if limb == "hand":
 				_solve_arm(side, target, pole)
 			else:
@@ -233,7 +235,7 @@ func _solve_arm(side: String, target: Vector3, pole: Vector3) -> void:
 	var chest: Node3D = bones.waist
 	var joint: Vector3 = chest.global_transform * Vector3(shoulder.x * (-1.0 if side == "l" else 1.0), shoulder.y, shoulder.z)
 	var chain: Array[Vector3] = FighterMotion.solve_bones(Vector3.ZERO, target - joint, pole, upper_arm, forearm)
-	var elbow: Vector3 = joint + chain[0]
+	var elbow: Vector3 = above_canvas(joint, joint + chain[0], joint + chain[1])
 	var wrist: Vector3 = joint + chain[1]
 	_lay(bones["upper_" + side], joint, elbow, pole, upper_arm)
 	_lay(bones["fore_" + side], elbow, wrist, pole, forearm)
@@ -248,7 +250,7 @@ func _solve_leg(side: String, target: Vector3, pole: Vector3, planted: float) ->
 	var pelvis: Node3D = bones.pelvis
 	var hip: Vector3 = pelvis.global_transform * Vector3(hip_x * (-1.0 if side == "l" else 1.0), 0, 0)
 	var chain: Array[Vector3] = FighterMotion.solve_bones(Vector3.ZERO, target - hip, pole, thigh, shin)
-	var knee: Vector3 = hip + chain[0]
+	var knee: Vector3 = above_canvas(hip, hip + chain[0], hip + chain[1])
 	var ankle: Vector3 = hip + chain[1]
 	_lay(bones["thigh_" + side], hip, knee, pole, thigh)
 	_lay(bones["shin_" + side], knee, ankle, pole, shin)
@@ -263,6 +265,38 @@ func _solve_leg(side: String, target: Vector3, pole: Vector3, planted: float) ->
 	joints["hip_" + side] = hip
 	joints["knee_" + side] = knee
 	joints["ankle_" + side] = ankle
+
+
+## The lowest a knee or elbow's middle may sit (metres above the canvas; the canvas is at 0): a joint resting on it.
+const JOINT_FLOOR: float = 0.05
+## The lowest a hand's wrist and a foot's ankle (a share of its height standing) may be put (D396).
+const HAND_FLOOR: float = 0.04
+const FOOT_FLOOR: float = 0.7
+## How far round its limb a knee or elbow is turned at a time looking for room above the canvas (radians).
+const FLOOR_STEP: float = PI / 36.0
+
+
+## A knee or elbow at `middle`, between `root` and `end`, kept out of the canvas (D396): a pose whose pole bends the
+## joint down into the canvas (a mount's knees with his shins flat behind him, the crucifix) has it turned round the
+## line from `root` to `end`, the least way that lifts it to JOINT_FLOOR. If no turn does (the limb's ends are both
+## on the canvas), the highest it can go.
+static func above_canvas(root: Vector3, middle: Vector3, end: Vector3) -> Vector3:
+	if middle.y >= JOINT_FLOOR:
+		return middle
+	var axis: Vector3 = end - root
+	if axis.length() < 0.001:
+		return Vector3(middle.x, JOINT_FLOOR, middle.z)
+	axis = axis.normalized()
+	var arm: Vector3 = middle - root
+	var best: Vector3 = middle
+	for step in range(1, 37):
+		for sign: float in [1.0, -1.0]:
+			var turned: Vector3 = root + arm.rotated(axis, sign * step * FLOOR_STEP)
+			if turned.y >= JOINT_FLOOR:
+				return turned
+			if turned.y > best.y:
+				best = turned
+	return best
 
 
 ## Lays a limb segment from `from` to `to` (its mesh runs down its -Y, `length` long at rest), turned so
