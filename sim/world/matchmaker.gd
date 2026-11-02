@@ -93,18 +93,28 @@ static func shared() -> Matchmaker:
 ## offers are one about even and one easier or harder; three are one of each.
 func make_offers(c: Career, rng: RandomNumberGenerator) -> Array:
 	var title: Dictionary = title_offer(c, rng) if c.pro else {}
+	var climb: Dictionary = {}
+	if c.pro and Climb.call_up_due(c.world()):
+		climb = step_up_offer(c, rng, Climb.CALL_UP, 1 if not title.is_empty() else 0)  # D357: a call-up he can turn down.
+		if not climb.is_empty():
+			Climb.offered(c.world())
 	if c.pro and Titles.held_by(c.world(), Career.FIGHTER_ID) != "":
-		return [title] if not title.is_empty() else []  # A champion only fights for his belt (D356).
+		# A champion only fights for his belt (D356), or takes his call-up (D357).
+		return ([title] if not title.is_empty() else []) + ([climb] if not climb.is_empty() else [])
+	if title.is_empty() and c.pro:
+		title = eliminator_offer(c, rng)  # At #3 to #5, a fight for the next title shot (D357).
 	var count: int = rng.randi_range(OFFERS_MIN, OFFERS_MAX)
 	var kinds: Array[String] = DIFFICULTIES.duplicate()
 	if count < kinds.size():
 		kinds = ["even", "easier" if rng.randf() < 0.5 else "harder"]
 		kinds.sort_custom(func(a: String, b: String) -> bool: return DIFFICULTIES.find(a) < DIFFICULTIES.find(b))
 	var out: Array = []
-	if not title.is_empty():
-		out.append(title)
-		count -= 1
-	for i in count:
+	for o: Dictionary in [title, climb]:
+		if not o.is_empty():
+			o.id = "offer_w%d_%d" % [c.week, out.size()]
+			out.append(o)
+			count -= 1
+	for i in maxi(1, count):
 		out.append(make_offer(c, "", kinds[i], rng, out.size(), out))
 	return out
 
@@ -124,8 +134,8 @@ func make_offer(c: Career, style_id: String, difficulty: String, rng: RandomNumb
 	var division: String = c.division_now()
 	var w: World = c.world()
 	var cards: Dictionary = pro_cards(c, w, rng) if c.pro else {}
-	var regional_ids: Array = Promotions.regionals(w).map(func(x: Dictionary) -> String: return String(x.id)) if c.pro else []
-	var id: String = pick_man(c, w, division, target, style_id, taken, rng, regional_ids)
+	var promotion_ids: Array = Climb.promotion_ids(w) if c.pro else []
+	var id: String = pick_man(c, w, division, target, style_id, taken, rng, promotion_ids)
 	var fresh: bool = id == ""
 	if fresh:
 		var used: Array = taken.map(func(o: Dictionary) -> String: return String(o.get("style", "")))
@@ -187,8 +197,9 @@ func title_offer(c: Career, rng: RandomNumberGenerator) -> Dictionary:
 	var holder: String = String(b.champion)
 	var mine: bool = holder == Career.FIGHTER_ID
 	var rank: int = Rankings.rank_of(w, Career.FIGHTER_ID)
-	if not mine and (rank <= 0 or rank > Titles.OFFER_FROM):
-		return {}
+	var next: String = String(b.get("next", ""))
+	if not mine and next != Career.FIGHTER_ID and (rank <= 0 or rank > Titles.OFFER_FROM or next != ""):
+		return {}  # His shot at #1 or #2, or once he's won an eliminator; another man next in line goes first (D357).
 	var earliest: int = c.week + CAMP_WEEKS_MIN + OPEN_WEEKS - 2
 	if holder != "":
 		earliest = maxi(earliest, int(b.last) + Titles.DEFENCE_WEEKS)
@@ -203,7 +214,10 @@ func title_offer(c: Career, rng: RandomNumberGenerator) -> Dictionary:
 			return {}
 		id = holder
 	else:
-		for other: Variant in w.rankings.get(k, []):
+		var order: Array = w.rankings.get(k, []).duplicate()
+		if mine and next != "":
+			order.push_front(next)  # The man who won the eliminator first (D357).
+		for other: Variant in order:
 			var m: Dictionary = w.man(String(other))
 			if m.is_empty() or not World.active(m) or int(m.get("out_until", -1)) > week or WorldWeeks._met_lately(m, Career.FIGHTER_ID, c.week):
 				continue
@@ -231,6 +245,9 @@ func title_offer(c: Career, rng: RandomNumberGenerator) -> Dictionary:
 static func pro_cards(c: Career, w: World, rng: RandomNumberGenerator) -> Dictionary:
 	var lo: int = c.week + CAMP_WEEKS_MIN + OPEN_WEEKS - 2
 	var hi: int = c.week + CAMP_WEEKS_MAX - 1
+	var signed: Dictionary = Climb.organisation(w, Climb.rung(w))
+	if not signed.is_empty():
+		return _cards_of(signed, lo, hi)  # Called up (D357): his organisation's cards.
 	var home: Dictionary = Promotions.home(w)
 	var others: Array = Promotions.regionals(w).filter(func(p: Dictionary) -> bool: return String(p.id) != String(home.get("id", "")))
 	if not home.is_empty() and (others.is_empty() or rng.randf() < HOME_OFFER_SHARE):
@@ -249,6 +266,85 @@ static func pro_cards(c: Career, w: World, rng: RandomNumberGenerator) -> Dictio
 				soonest_week = next[0]
 				soonest = { String(p.id): [next[0]] }
 	return out if not out.is_empty() else soonest
+
+
+## A promotion's cards from `lo` to `hi`, as pro_cards gives them (its next one after `lo` when none is).
+static func _cards_of(p: Dictionary, lo: int, hi: int) -> Dictionary:
+	var weeks: Array[int] = Promotions.card_weeks(p, lo, hi)
+	if weeks.is_empty():
+		weeks = Promotions.card_weeks(p, lo, lo + 52).slice(0, 1)
+	return { String(p.id): weeks } if not weeks.is_empty() else {}
+
+
+## A fight on the card of the promotion a step up (D357), {} when there's none: a call-up (Climb.CALL_UP: taking it
+## signs him there, Kyle 2026-11-02: "An offer he can turn down") or a tryout (Climb.TRYOUT, when he asked and they said
+## yes: winning it signs him, "A tryout fight on their card"). Against one of their men about as good as him (a call-up)
+## or a bit better (a tryout), at their pay. With `step` and `to` (the promotion's id).
+func step_up_offer(c: Career, rng: RandomNumberGenerator, step: String, index: int = 0) -> Dictionary:
+	var w: World = c.world()
+	var to: Dictionary = Climb.up(w)
+	if to.is_empty():
+		return {}
+	var cards: Dictionary = _cards_of(to, c.week + CAMP_WEEKS_MIN + OPEN_WEEKS - 2, c.week + CAMP_WEEKS_MAX - 1)
+	if cards.is_empty():
+		return {}
+	var difficulty: String = "harder" if step == Climb.TRYOUT else "even"
+	var target: float = average_stat(c.profile().get("stats", {})) + float(DIFFICULTY_LEVELS[difficulty])
+	var division: String = c.division_now()
+	var id: String = pick_man(c, w, division, target, "", [], rng, [String(to.id)])
+	if id == "":
+		var style_ids: Array = styles.ids()
+		style_ids.sort()
+		id = w.add_newcomer(rng, division, true, String(style_ids[rng.randi_range(0, style_ids.size() - 1)]), target,
+			newcomer_age(c, rng), c.week)
+		w.man(id).promotion = String(to.id)  # A newcomer signs where the card is.
+	var weeks: Array = cards[String(to.id)]
+	var week: int = int(weeks[rng.randi_range(0, weeks.size() - 1)])
+	var card: Dictionary = Promotions.card(w, to, week)
+	card.kind = String(to.kind)
+	var o: Dictionary = _offer(c, w, id, difficulty, week, card, purse_for(c, to), index)
+	o.step = step
+	o.to = String(to.id)
+	return o
+
+
+## A title eliminator (D357; Kyle, 2026-11-02: "#3 v #4, winner next in line"), {} when there's none: ranked #3 to
+## Titles.HIS_ELIMINATOR_TO in his promotion while it has a champion and nobody's next in line, against the best other
+## man of #3 to Titles.ELIMINATOR_TO who's free, on its next card far enough away for a camp. Winning puts him next in
+## line for the title (Titles.his_eliminator). With `eliminator` (the belt's key).
+func eliminator_offer(c: Career, rng: RandomNumberGenerator) -> Dictionary:
+	var w: World = c.world()
+	var pid: String = String(w.him.get("promotion", ""))
+	var p: Dictionary = Promotions.by_id(w, pid)
+	if p.is_empty() or String(w.him.get("division", "")) != c.division_now():
+		return {}
+	var k: String = Rankings.key(pid, c.division_now())
+	var b: Dictionary = Titles.belt(w, k)
+	var rank: int = Rankings.rank_of(w, Career.FIGHTER_ID)
+	if b.is_empty() or String(b.champion) == "" or String(b.get("next", "")) != "" \
+			or rank < Titles.ELIMINATOR_FROM or rank > Titles.HIS_ELIMINATOR_TO:
+		return {}
+	var cards: Dictionary = _cards_of(p, c.week + CAMP_WEEKS_MIN + OPEN_WEEKS - 2, c.week + CAMP_WEEKS_MAX - 1)
+	if cards.is_empty():
+		return {}
+	var week: int = int(cards[pid][0])
+	var id: String = ""
+	var ids: Array = w.rankings.get(k, [])
+	for i in range(Titles.ELIMINATOR_FROM - 1, mini(Titles.ELIMINATOR_TO, ids.size())):
+		var m: Dictionary = w.man(String(ids[i]))
+		if m.is_empty() or not World.active(m) or int(m.get("out_until", -1)) > week or WorldWeeks._met_lately(m, Career.FIGHTER_ID, c.week):
+			continue
+		id = String(m.id)
+		break
+	if id == "":
+		return {}
+	var gap: float = w.average(w.man(id)) - average_stat(c.profile().get("stats", {}))
+	var difficulty: String = "harder" if gap > TITLE_EVEN else ("easier" if gap < -TITLE_EVEN else "even")
+	var card: Dictionary = Promotions.card(w, p, week)
+	card.kind = String(p.kind)
+	var o: Dictionary = _offer(c, w, id, difficulty, week, card, purse_for(c, p), 0)
+	o.eliminator = k
+	return o
 
 
 ## The world's man for an offer (D352): of his division this week, an amateur or a pro as he is, 16 or 17 while he's

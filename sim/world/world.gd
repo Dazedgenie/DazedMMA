@@ -70,7 +70,8 @@ var results: Array = []
 var promotions: Array = []
 ## The rankings (Rankings, D355): each table's ids by its key ("org_0:lightweight"), #1 first; each table's last moves
 ## ({ week, moves }); and the career's fighter as the rankings know him ({ id, name, pro, promotion, division, points },
-## {} until his first pro fight on a promotion's card). rank_cache (not saved) is each ranked id's [key, place].
+## {} until his first pro fight on a promotion's card), with his climb (Climb, D357: rung, run, moved, fights, offered,
+## asked, answer). rank_cache (not saved) is each ranked id's [key, place].
 var rankings: Dictionary = {}
 var ranking_moves: Dictionary = {}
 var him: Dictionary = {}
@@ -79,6 +80,10 @@ var rank_cache: Dictionary = {}
 ## champion's belt key.
 var titles: Dictionary = {}
 var champion_cache: Dictionary = {}
+## Every belt reign that's ended, kept for good by the man's id (History, D358): [[belt key, won, lost, defences, how]].
+var reigns: Dictionary = {}
+## The men next in line for a title shot (Titles.waiting, D357), worked out when needed; not saved.
+var next_cache: Dictionary = {}
 
 var _styles: StyleLibrary
 var _names: NameLibrary
@@ -213,8 +218,8 @@ static func can_rematch(m: Dictionary, week: int) -> bool:
 ## split or majority decision.
 func record_fight(id: String, result: String, week: int, close: bool, method: String = "") -> void:
 	var m: Dictionary = man(id)
-	if m.is_empty():
-		return
+	if m.is_empty() or not active(m):
+		return  # Gone (retired) before fight night: nothing to note.
 	var theirs: String = { "win": "loss", "loss": "win" }.get(result, result)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash([seed_value, id, week, "his fight"])
@@ -361,7 +366,7 @@ func to_dict() -> Dictionary:
 	return { "version": VERSION, "seed": str(seed_value), "country_id": country_id, "hometown": hometown,
 		"men": men.values().map(func(m: Dictionary) -> Dictionary: return m.duplicate(true)), "next_number": next_number.duplicate(),
 		"played": played, "results": results.duplicate(true), "promotions": promotions.duplicate(true),
-		"rankings": rankings.duplicate(true), "ranking_moves": ranking_moves.duplicate(true), "him": him.duplicate(true),
+		"rankings": rankings.duplicate(true), "ranking_moves": ranking_moves.duplicate(true), "him": him.duplicate(true), "reigns": reigns.duplicate(true),
 		"titles": titles.duplicate(true) }
 
 
@@ -429,11 +434,25 @@ static func from_dict(data: Dictionary, p_styles: StyleLibrary = null, p_names: 
 	if data.get("him") is Dictionary:
 		w.him = (data.him as Dictionary).duplicate(true)
 		_int_points(w.him)
+		for key: String in ["rung", "run", "moved", "fights", "offered", "asked"]:  # His climb (D357).
+			if w.him.has(key):
+				w.him[key] = int(w.him[key])
+		if w.him.get("answer") is Dictionary:
+			w.him.answer.week = int(w.him.answer.get("week", 0))
+	if data.get("reigns") is Dictionary:
+		for id: Variant in data.reigns:
+			var list: Array = []
+			for r: Variant in data.reigns[id]:
+				if r is Array and (r as Array).size() >= 5:
+					list.append([String(r[0]), int(r[1]), int(r[2]), int(r[3]), String(r[4])])
+			w.reigns[String(id)] = list
 	if data.get("titles") is Dictionary:
 		for k: Variant in data.titles:
 			var b: Dictionary = (data.titles[k] as Dictionary).duplicate(true)
 			for key: String in ["won", "defences", "last"]:
 				b[key] = int(b.get(key, 0))
+			if b.has("next_week"):
+				b.next_week = int(b.next_week)
 			b.champion = String(b.get("champion", ""))
 			for e: Variant in b.get("past", []):
 				if e is Array and (e as Array).size() >= 4:

@@ -1,6 +1,7 @@
 {
 	"dirs": ["res://tests/"],
 	"include_subdirs": true,
+	"pre_run_script": "res://tests/pre_run.gd",
 	"prefix": "test_",
 	"suffix": ".gd",
 	"should_exit": true,
