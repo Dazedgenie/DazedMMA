@@ -11,7 +11,7 @@
 	"style": { "pace": -20, "range": -80, "base": -30, "risk": -10 },
 	"gifts": [],
 	"flaws": [],
-	"techniques": ["jab", "cross", "teep", "body_kick", "head_kick", "lean_back"],
+	"techniques": ["jab", "cross", "teep", "body_kick", "head_kick", "knee", "lean_back"],
 	"combos": ["one_two", "teep_head_kick", "body_kick_head_kick"],
 	"tendencies": { "work_rate": 0.012, "actions": { "jab": 1.0, "cross": 1.2, "teep": 0.6, "body_kick": 0.8, "head_kick": 1.2, "feint": 1.2 } },
 	"tells": [

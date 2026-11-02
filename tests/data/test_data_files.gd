@@ -221,6 +221,8 @@ func test_values_come_from_the_allowed_lists() -> void:
 		var push: Variant = action.get("strike", {}).get("push_m", 0.0) if action.get("strike") is Dictionary else 0.0
 		if not (push is float) or push < 0.0:
 			problems.append("action '%s': strike.push_m is metres pushed back, 0 or more" % id)
+		if action.get("strike") is Dictionary and action.strike.has("into_shots") and (not action.strike.into_shots is bool or not action.ranges.has("pocket")):
+			problems.append("action '%s': strike.into_shots (true or false, D182) is for a close strike that meets a shot from mid range" % id)
 		if action.get("strike") is Dictionary and action.strike.has("through_cover"):
 			var through: Variant = action.strike.through_cover
 			if not through is float or through <= 0.0 or through > 1.0:

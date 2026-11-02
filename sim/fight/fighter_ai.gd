@@ -126,6 +126,9 @@ const OPENING_SHARPNESS: float = 2.0
 ## Sprawling on a shot it read: 60% + 30% × Takedown defense / 100.
 const SPRAWL_BASE: float = 0.6
 const SPRAWL_PER_TDD: float = 0.3
+## Kneeing a shot it read (D182, _knee_the_shot), ahead of the sprawl: (20% + 40% × Fight IQ / 100) × outside (-Range / 100).
+const KNEE_SHOT_BASE: float = 0.2
+const KNEE_SHOT_PER_IQ: float = 0.4
 ## Checking, slipping, rolling, leaning back from or blocking a strike it read (D180, D181), when the defence will be up as it lands:
 ## 60% + 30% × Striking defense / 100. Then the defence's own roll decides it (FightSim).
 const GUARD_BASE: float = 0.6
@@ -803,7 +806,7 @@ func lead_rate(view: FightView, layer: DecisionLayer) -> float:
 	return minf(layer.lead_rate(view, rate), LEAD_RATE_CAP * f.work_rate)
 
 
-## Danger first (A2): a shot it read gets sprawled on. When the sprawl roll fails
+## Danger first (A2): a shot it read gets kneed (D182, by a fighter with the knee) or sprawled on. When that roll fails
 ## (or there's no sprawl), the shot is treated like any other move it read: a knee into
 ## the lowered head, or backing off.
 func _defend(view: FightView, layer: DecisionLayer) -> Decision:
@@ -812,6 +815,9 @@ func _defend(view: FightView, layer: DecisionLayer) -> Decision:
 	if ActionLibrary.is_throw(view.actions.get_action(_opp.id)):
 		return null  # Nothing to sprawl on (D128): it's read like any other move.
 	_opp.sprawl_rolled = true
+	var knee: Decision = _knee_the_shot(view)
+	if knee != null:
+		return knee
 	for id in _all_moves(view):
 		var action: Dictionary = view.actions.get_action(id)
 		if action.category == DEFENSE and action.defense.get("against_categories", []).has(TAKEDOWN) and _usable(view, action):
@@ -820,6 +826,33 @@ func _defend(view: FightView, layer: DecisionLayer) -> Decision:
 				_opp.decided = true
 				return Decision.new(id, DecisionLayer.AI, "sprawls on the shot")
 			return null
+	return null
+
+
+## A shot it read, met with a knee (D182): a fighter who knows a strike that meets shots
+## (`strike.into_shots`: the knee) throws it ahead of the sprawl when it will land while the shooter is
+## coming in or his head is low: (KNEE_SHOT_BASE + KNEE_SHOT_PER_IQ × Fight IQ / 100) × how much of an outside
+## fighter he is (his Range leaning under 0, −100 = all of it), so the Kicker and the Karate fighter do it and the
+## Muay Thai fighter, who wants the clinch, still sprawls first. From
+## mid range too: the shooter brings his head to it (FightSim.meets_shot).
+func _knee_the_shot(view: FightView) -> Decision:
+	var outside: float = clampf(-view.me.style.value(StyleLeanings.RANGE) / 100.0, 0.0, 1.0)
+	if outside <= 0.0:
+		return null  # Inside fighters sprawl first, as before; a knee is still their answer once it fails.
+	_ready_choice(view)
+	for id in view.me.repertoire:
+		var action: Dictionary = view.actions.get_action(id)
+		if action.category != STRIKE or not action.strike.get("into_shots", false) or not action.positions.has(view.position()):
+			continue
+		if not (_usable(view, action) or (_band == Octagon.BAND_MID and view.ruleset.allows_action(action))):
+			continue
+		var b: OddsBreakdown = view.odds_ahead(id, _ticks_to_land(view, id))
+		if b.chance <= 0.0 or not (_has_bonus(b, "HEAD_LOW") or _has_bonus(b, "COMING_IN")):
+			continue  # It would land too late: the shot's over by then.
+		if view.roll() < outside * (KNEE_SHOT_BASE + KNEE_SHOT_PER_IQ * view.me.effective_stat("fight_iq") / 100.0):
+			_opp.decided = true
+			return Decision.new(id, DecisionLayer.AI, "knees into the shot")
+		return null
 	return null
 
 

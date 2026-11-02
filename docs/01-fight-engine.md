@@ -4245,3 +4245,67 @@ away and what it opens, the collar tie holding him down, sitting up ending with 
 rules, the call underneath and under mount, strikers throwing more than wrestlers and the call making it more),
 `tests/game/test_strike_sounds.gd` (their sounds), `tests/game/test_grapple_poses.gd` (posed) and
 `tests/data/test_data_files.gd` (`backs_off_ms`, `positions_by_role`, `bottom_strikes`).
+
+---
+
+## 46. Knees into shots from the outside fighters (D182)
+Kyle asked whether a knee intercepts a takedown yet, "I think that will help some of the kicking styles with wrestlers", and on
+a decision card picked "Read the shot and knee it": kickers who know the knee throw it into a shot they read whenever it will
+land in time, ahead of the sprawl, and the Karate fighter gets the knee.
+
+A knee into a shot was already there (§21.2, D29): one that lands while the shooter's head is low goes to the head for 1.5×
+damage and stops the shot, and drops him if it would rock him. But the Kicker stopped 0.3 of the Wrestler's 18 shots a fight with
+one, for two reasons: half the Wrestler's double legs start from mid range, where the knee (a pocket and clinch strike) couldn't
+reach, and a shot he read was always sprawled on first (60% + 30% × Takedown defense), so the knee only came when the sprawl
+roll failed.
+
+### 46.1 What changed
+- **The knee meets a shot from mid range** (`strike.into_shots`, `09` action@2; `FightSim.meets_shot`): when the other man is
+  shooting (a takedown that isn't a throw, in its wind-up or drive), the knee reaches from mid range too: he brings his head to it.
+  Against a man who isn't shooting it still falls short there.
+- **Outside fighters knee a shot they read, ahead of the sprawl** (`FighterAI._knee_the_shot`): a fighter who knows the knee, when
+  it would land while the shooter is coming in or his head is low, throws it (20% + 40% × Fight IQ / 100) × how much of an outside
+  fighter he is (his Range leaning under 0: the Kicker's −60 is 0.6 of it, the Karate fighter's −80 is 0.8). So the Kicker
+  knees about 24% of the shots he reads and the Karate fighter about 35%; the rest he sprawls on as before. The feed's reason is
+  *knees into the shot*.
+- **Inside fighters are unchanged:** the Muay Thai fighter (Range +20), the Leg-kick specialist and the Dirty boxer still sprawl
+  first and knee once that fails. The first try had everyone with a knee doing it, and it was far too strong: Muay Thai vs the
+  Wrestler 53% → 81%, the Leg-kick specialist 78% → 93%, a quarter more fights finished. A knee from mid range doing half damage
+  didn't fix that (their gain was from close in), and kneeing only the shots from mid range left the Kicker where he was (32%).
+- **The Karate fighter has the knee** (`data/fighters/karate.json`), so he knees in the clinch too.
+
+### 46.2 Balance
+Harness, no calls, 200 fights a pairing, seed 1, main before this → now:
+
+| Pairing | Wins | Finished inside the distance |
+|---|---|---|
+| Kicker vs Wrestler | Kicker 30.0% → 46.5% | 32% → 31% |
+| Kicker vs Pressure wrestler | Kicker 4.5% → 11.5% | 68% → 78% |
+| Kicker vs Judoka | Kicker 68.0% → 68.0% (the Judoka throws) | 13% → 13% |
+| Karate vs Wrestler | Karate 76.5% → 80.0% | 12% → 22% |
+| Karate vs Pressure wrestler | Karate 24.0% → 46.0% | 26% → 31% |
+| Karate vs Boxer | Karate 86.0% → 88.0% | 32% → 31% |
+| Karate vs Brawler | Karate 51.0% → 47.0% | 61% → 64% |
+| Karate vs Muay Thai | Karate 81.0% → 77.5% | 35% → 28% |
+| Kicker vs Boxer, Muay Thai vs Wrestler | the same fights (nobody shoots, or he doesn't knee first) | |
+
+Across the 2,000 fights: finished 35.7% → 37.8%. What it says: the kicking styles now have a real answer to a wrestler who shoots
+from distance (Kicker vs Wrestler is a coin flip; the Pressure wrestler, who walks him onto the fence first, still wins most),
+and the clinch strikers, who already had one, are left alone. The golden fights (§2.2): *Wrestler vs Kicker, coached* plays
+differently (the Wrestler now wins on points, not by a first-round submission), re-pinned; the other three are unchanged.
+
+After strikes from the bottom (§45, D271) reached main first, the four that matter most, 200 fights each again, main → now:
+Kicker vs Wrestler 33.0% → 42.5%, Karate vs Pressure wrestler 20.0% → 41.5%, Kicker vs Pressure wrestler 6.0% → 13.5%, Muay
+Thai vs Wrestler 56.0% → 56.0% (the same fights); finished 41.2% → 43.8%. With both in, *Wrestler vs Kicker, coached* is a
+third-round submission for the Wrestler, re-pinned again.
+
+### 46.3 To change it, and the tests
+- Which strikes meet a shot: `strike.into_shots` (the knee, `data/actions/knee.json`); the shot phases it meets from mid range:
+  `SHOT_PHASES` in `sim/fight/fight_sim.gd` (`meets_shot`).
+- How often: `KNEE_SHOT_BASE`, `KNEE_SHOT_PER_IQ` in `sim/fight/fighter_ai.gd` (`_knee_the_shot`), scaled by the Range leaning in
+  `data/fighters/`.
+- What the knee does when it lands into a shot: its `HEAD_LOW` and `COMING_IN` opportunities in `knee.json` (§21.2).
+
+Tested in `tests/sim/fight/test_knee_into_shot.gd` (the knee meets shots and the Karate fighter has one; a knee from mid range
+meets a shot and stops it, into the lowered head; from mid range it still falls short of a man who isn't shooting; an outside
+fighter knees the shots he reads and an inside one sprawls first) and `tests/data/test_data_files.gd` (`into_shots`).
