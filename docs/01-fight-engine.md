@@ -4267,6 +4267,11 @@ from distance (Kicker vs Wrestler is a coin flip; the Pressure wrestler, who wal
 and the clinch strikers, who already had one, are left alone. The golden fights (§2.2): *Wrestler vs Kicker, coached* plays
 differently (the Wrestler now wins on points, not by a first-round submission), re-pinned; the other three are unchanged.
 
+After strikes from the bottom (§45, D271) reached main first, the four that matter most, 200 fights each again, main → now:
+Kicker vs Wrestler 33.0% → 42.5%, Karate vs Pressure wrestler 20.0% → 41.5%, Kicker vs Pressure wrestler 6.0% → 13.5%, Muay
+Thai vs Wrestler 56.0% → 56.0% (the same fights); finished 41.2% → 43.8%. With both in, *Wrestler vs Kicker, coached* is a
+third-round submission for the Wrestler, re-pinned again.
+
 ### 46.3 To change it, and the tests
 - Which strikes meet a shot: `strike.into_shots` (the knee, `data/actions/knee.json`); the shot phases it meets from mid range:
   `SHOT_PHASES` in `sim/fight/fight_sim.gd` (`meets_shot`).
