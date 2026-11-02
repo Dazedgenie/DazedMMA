@@ -37,6 +37,10 @@ const DECLINE_AT: float = 31.0
 const DECLINE: float = 0.6
 const DECLINE_LATE_AT: float = 34.0
 const DECLINE_LATE: float = 1.5
+## The best men have further to fall (D359): from DECLINE_LATE_AT a man averaging over TOP_DECLINE_FROM falls TOP_DECLINE
+## a year more for every point he's over it (an 84 at 35 falls 1.5 + 1.8 a year).
+const TOP_DECLINE_FROM: float = 72.0
+const TOP_DECLINE: float = 0.15
 ## A man's potential: his average now plus, for every year under PEAK_AGE, between HEADROOM[0] and HEADROOM[1] points
 ## (leaning low: HEADROOM_SKEW), held at POTENTIAL_MAX.
 const PEAK_AGE: float = 28.0
@@ -79,6 +83,8 @@ const NEW_AMATEUR_AGES: Array[float] = [14.0, 16.0]
 ## A man's last fights kept (form, rust and the list), and the weeks of results kept for the hub.
 const HISTORY: int = 6
 const RESULTS_WEEKS: int = 8
+## A retired pro who never fought him or held a belt is forgotten this long after he retires (let_go, D359): 5 years.
+const FORGET_PROS_WEEKS: int = 5 * 52
 ## What a retired man no longer needs.
 const RETIRED_DROPS: Array[String] = ["frame", "seed", "potential", "lv", "history", "next_week", "out_until", "met_close", "best", "points"]
 
@@ -199,13 +205,18 @@ static func pair_gap(w: World, a: Dictionary, b: Dictionary) -> float:
 	return absf(float(ra if ra > 0 else n + 1) - float(rb if rb > 0 else n + 1)) * PLACE_GAP
 
 
-## Two of the world's men fight (ResultModel.decide, with form and rust): onto both records and histories, and they're
+## Two of the world's men fight (ResultModel.decide, with form and rust; `squeeze` under 1 counts the gap in their
+## averages for less, Titles.SQUEEZE in a title fight): onto both records and histories, and they're
 ## due again in about GAP_WEEKS (longer when hurt). Returns the result: { week, division, a, b, winner ("a", "b" or
 ## "draw"), method, round, chance (a's chance beforehand), pro }.
-static func fight(w: World, a: Dictionary, b: Dictionary, week: int, rng: RandomNumberGenerator, rounds: int = 3) -> Dictionary:
+static func fight(w: World, a: Dictionary, b: Dictionary, week: int, rng: RandomNumberGenerator, rounds: int = 3,
+		squeeze: float = 1.0) -> Dictionary:
 	var nudge: float = nudge_for(a, week) - nudge_for(b, week)
-	var chance: float = ResultModel.win_chance(String(a.style), w.average(a), String(b.style), w.average(b), nudge)
-	var r: Dictionary = ResultModel.decide(String(a.style), w.average(a), String(b.style), w.average(b), rng, rounds, nudge)
+	var mid: float = (w.average(a) + w.average(b)) / 2.0
+	var avg_a: float = mid + (w.average(a) - mid) * squeeze
+	var avg_b: float = mid + (w.average(b) - mid) * squeeze
+	var chance: float = ResultModel.win_chance(String(a.style), avg_a, String(b.style), avg_b, nudge)
+	var r: Dictionary = ResultModel.decide(String(a.style), avg_a, String(b.style), avg_b, rng, rounds, nudge)
 	var result_a: String = { "a": "win", "b": "loss" }.get(String(r.winner), "draw")
 	var result_b: String = { "a": "loss", "b": "win" }.get(String(r.winner), "draw")
 	var ranks: Array = [Rankings.rank_of(w, String(a.id)), Rankings.rank_of(w, String(b.id))]
@@ -280,23 +291,29 @@ static func nudge_for(m: Dictionary, week: int) -> float:
 static func new_men(w: World, week: int, lads: bool = true) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash([w.seed_value, "new year", week])
+	# Each division's men by level, amateurs by the division they'll grow into (D359).
+	var by_division: Dictionary = {}
+	for m: Dictionary in w.men.values():
+		if not World.active(m):
+			continue
+		var d: String = World.division_of(m, week) if bool(m.pro) else Weight.natural(m.get("frame", {}))
+		var tier: String = String(m.get("tier", "amateur")) if not bool(m.pro) else tier_for(w.average(m))
+		var counts_d: Dictionary = by_division.get_or_add(d, {})
+		counts_d[tier] = int(counts_d.get(tier, 0)) + 1
 	for division_id: String in Weight.ids():
-		var counts: Dictionary = {}
-		for m: Dictionary in w.in_division(division_id, week):
-			var tier: String = String(m.get("tier", "amateur")) if not bool(m.pro) else tier_for(w.average(m))
-			counts[tier] = int(counts.get(tier, 0)) + 1
+		var counts: Dictionary = by_division.get(division_id, {})
 		var pros_short: int = 0
 		for level: Dictionary in World.LEVELS:
 			if bool(level.pro):
-				pros_short += int(level.count) - int(counts.get(String(level.id), 0))
+				pros_short += World.count_in(level, division_id) - int(counts.get(String(level.id), 0))
 			elif lads:
-				for i in maxi(0, int(level.count) - int(counts.get(String(level.id), 0))):
+				for i in maxi(0, World.count_in(level, division_id) - int(counts.get(String(level.id), 0))):
 					var lad: Dictionary = w._make_man(rng, division_id, level, week, { "age": rng.randf_range(NEW_AMATEUR_AGES[0], NEW_AMATEUR_AGES[1]) })
 					lad.joined = week
 		for level: Dictionary in World.LEVELS:
 			if not bool(level.pro) or (String(level.id) == "local" and pros_short <= 0):
 				continue
-			for i in maxi(0, int(level.count) - int(counts.get(String(level.id), 0))):
+			for i in maxi(0, World.count_in(level, division_id) - int(counts.get(String(level.id), 0))):
 				var m: Dictionary = w._make_man(rng, division_id, level, week, {})
 				m.joined = week
 
@@ -325,7 +342,7 @@ static func change_a_week(w: World, m: Dictionary, age: float) -> float:
 			break
 	var change: float = maxf(0.0, float(m.get("potential", 0.0)) - w.average(m)) * rate / Career.WEEKS_PER_YEAR
 	if age >= DECLINE_LATE_AT:
-		change -= DECLINE_LATE / Career.WEEKS_PER_YEAR
+		change -= (DECLINE_LATE + TOP_DECLINE * maxf(0.0, w.average(m) - TOP_DECLINE_FROM)) / Career.WEEKS_PER_YEAR
 	elif age >= DECLINE_AT:
 		change -= DECLINE / Career.WEEKS_PER_YEAR
 	return change
@@ -383,13 +400,16 @@ static func _retire(w: World, m: Dictionary, week: int) -> void:
 		m.erase(key)
 
 
-## Each January, the retired men nobody will look for again go for good: amateurs who never turned pro and never
-## fought the career's fighter, retired before the results the hub still shows.
+## Each January, the retired men nobody will look for again go for good (Kyle, D359: "Notable ones and the last 5
+## years"): men who never fought the career's fighter and never held a belt, retired before the results the hub still
+## shows if they never turned pro, FORGET_PROS_WEEKS ago if they did. Champions, so the legends, are kept for good.
 static func let_go(w: World, week: int) -> void:
 	for id: String in w.men.keys():
 		var m: Dictionary = w.men[id]
-		if not World.active(m) and not bool(m.get("pro", false)) and int(m.get("met_week", -1)) < 0 \
-				and int(m.retired) < week - RESULTS_WEEKS:
+		if World.active(m) or int(m.get("met_week", -1)) >= 0 or w.reigns.has(id):
+			continue
+		var after: int = FORGET_PROS_WEEKS if bool(m.get("pro", false)) else RESULTS_WEEKS
+		if int(m.retired) < week - after:
 			w.men.erase(id)
 
 

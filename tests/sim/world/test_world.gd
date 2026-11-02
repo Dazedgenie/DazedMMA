@@ -16,16 +16,22 @@ func _until_offers(c: Career, weeks: int = 12) -> void:
 		c.run_week("time_off")
 
 
-func test_each_division_starts_with_100_men_in_a_pyramid() -> void:
+func test_each_division_starts_with_about_100_men_in_a_pyramid() -> void:
 	var w: World = _career().world()
-	assert_eq(w.men.size(), World.PER_DIVISION * Weight.ids().size())
-	for division_id: String in Weight.ids():
-		assert_eq(w.in_division(division_id, 0).size(), World.PER_DIVISION, division_id)
+	assert_almost_eq(w.men.size(), World.PER_DIVISION * Weight.ids().size(), 6)
 	var tiers: Dictionary = {}
-	for m: Dictionary in w.men.values():
-		tiers[String(m.tier)] = int(tiers.get(String(m.tier), 0)) + 1
+	for division_id: String in Weight.ids():
+		# Made for the division (D359: by his grown weight, so a lad may walk lighter now), times its size.
+		var made: Array = w.men.values().filter(func(m: Dictionary) -> bool: return String(m.id).begins_with(division_id + "_"))
+		var want: int = 0
+		for level: Dictionary in World.LEVELS:
+			want += World.count_in(level, division_id)
+			tiers[String(level.id)] = int(tiers.get(String(level.id), 0)) + World.count_in(level, division_id)
+		assert_eq(made.size(), want, division_id)
+		assert_almost_eq(float(want), World.PER_DIVISION * Weight.size_of(division_id), 2.0, division_id)
 	for level: Dictionary in World.LEVELS:
-		assert_eq(int(tiers.get(String(level.id), 0)), int(level.count) * Weight.ids().size(), String(level.id))
+		assert_eq(w.men.values().filter(func(m: Dictionary) -> bool: return String(m.tier) == String(level.id)).size(),
+			int(tiers[String(level.id)]), String(level.id))
 	var best: float = 0.0
 	var amateur_best: float = 0.0
 	for m: Dictionary in w.men.values():

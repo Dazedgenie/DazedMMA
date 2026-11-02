@@ -39,7 +39,8 @@ func test_every_pro_is_signed_by_level() -> void:
 	var w: World = c.world()
 	for division_id: String in Weight.ids():
 		var pros: Array = w.in_division(division_id, c.week).filter(func(m: Dictionary) -> bool: return bool(m.pro))
-		pros.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return w.average(a) > w.average(b))
+		pros.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+			return w.average(a) > w.average(b) if w.average(a) != w.average(b) else String(a.id) < String(b.id))
 		assert_eq(int(Promotions.of(w, pros[0]).rank), Promotions.MAJOR, "%s's best man fights for the world organisation" % division_id)
 		assert_eq(int(Promotions.of(w, pros[Promotions.MAJOR_MEN]).rank), Promotions.SECOND)
 		assert_eq(int(Promotions.of(w, pros[-1]).rank), Promotions.REGIONAL)

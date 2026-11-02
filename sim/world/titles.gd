@@ -43,6 +43,9 @@ const CHALLENGER_DUE: int = 4
 const CALL_UP_DEFENCES: int = 1
 ## Title fights are 5 rounds (the pro ruleset's title_rounds) and pay TITLE_PAY times a card's pay.
 const ROUNDS: int = 5
+## A title fight is closer than the men's averages say (D359): the gap between them counts this much, so a champion 10
+## points better wins about 78% rather than about 96% (a puncher's chance; a belt changes hands).
+const SQUEEZE: float = 0.4
 const TITLE_PAY: int = 2
 ## His title fight offer (D356): once he's in his promotion's top OFFER_FROM and the belt's due on the line.
 const OFFER_FROM: int = 2
@@ -234,7 +237,7 @@ static func his_eliminator(w: World, k: String, result: String, week: int) -> vo
 ## A title fight between two of the world's men: 5 rounds on the quick result model, onto both records, rankings points
 ## and the belt (`a` is the champion when there is one). Returns the fight's result with `title` (the belt's key).
 static func title_fight(w: World, k: String, a: Dictionary, b: Dictionary, week: int, rng: RandomNumberGenerator) -> Dictionary:
-	var r: Dictionary = WorldWeeks.fight(w, a, b, week, rng, ROUNDS)
+	var r: Dictionary = WorldWeeks.fight(w, a, b, week, rng, ROUNDS, SQUEEZE)
 	r.title = k
 	var b_: Dictionary = w.titles[k]
 	_clear_next(w, b_)

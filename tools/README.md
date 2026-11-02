@@ -174,3 +174,9 @@ style's wins and losses end and in which round. It writes `data/world/matchups.j
 model gets inside the engine's 95% range. Rebuild it when fights change.
 
     godot --headless --script res://tools/matchups.gd -- --fights=60
+
+`world_check.gd` is the 30-year check (D359, `docs/03` §12.9) for more seeds than the test runs: a new career's world
+played 30 years with a stand-in of his own, each seed's 5-year lines printed with anything out of bounds (about 25 s a
+seed; exits 1 if any seed is out).
+
+    godot --headless --script res://tools/world_check.gd -- --seeds=3,7,11

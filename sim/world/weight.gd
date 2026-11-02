@@ -65,6 +65,12 @@ static func division(id: String) -> Dictionary:
 	return {}
 
 
+## How big the division is next to the others (its file's `size`, 1 for an average one; D359, Kyle: "Most at lightweight
+## and welter"): World.LEVELS' counts are multiplied by it.
+static func size_of(id: String) -> float:
+	return float(division(id).get("size", 1.0))
+
+
 ## The division's name ("Lightweight"), or "" for none.
 static func name_of(id: String) -> String:
 	return String(division(id).get("name", ""))

@@ -105,7 +105,8 @@ const SCHEMAS := {
 		"every_weeks": TYPE_FLOAT,
 	} },
 	"division@1": { "folder": "divisions", "fields": {
-		"name": TYPE_STRING, "short": TYPE_STRING, "limit_kg": TYPE_FLOAT, "limit_lb": TYPE_FLOAT, "order": TYPE_FLOAT,
+		"name": TYPE_STRING, "short": TYPE_STRING, "limit_kg": TYPE_FLOAT, "limit_lb": TYPE_FLOAT, "size": TYPE_FLOAT,
+		"order": TYPE_FLOAT,
 	} },
 	"matchups@1": { "folder": "world", "fields": {
 		"per_point": TYPE_FLOAT, "draw": TYPE_FLOAT, "edges": TYPE_DICTIONARY, "wins": TYPE_DICTIONARY, "losses": TYPE_DICTIONARY,
@@ -1158,4 +1159,6 @@ func test_the_six_divisions_run_light_to_heavy_with_matching_pounds() -> void:
 		last = float(d.get("limit_kg", 0))
 		if absf(float(d.get("limit_kg", 0)) * Weight.LB_PER_KG - float(d.get("limit_lb", 0))) > 1.0:
 			problems.append("%s: %s kg is not %s lb" % [where, d.get("limit_kg"), d.get("limit_lb")])
+		if float(d.get("size", 0)) < 0.5 or float(d.get("size", 0)) > 1.5:
+			problems.append("%s: size %s is not between 0.5 and 1.5 (how big it is next to the others, D359)" % [where, d.get("size")])
 	_report(problems)
