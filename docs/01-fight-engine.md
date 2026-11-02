@@ -1654,7 +1654,8 @@ bias × 0.5 (adult amateur 15%, teen 25%) and they stop after one shot fewer.
 ### 24.3 Ground and pound (D121)
 In full guard the fighter on top strikes and the fighter underneath answers (since D130 the same strikes work from the top of
 half guard, side control, mount and the back, harder or softer by the position, §28; since D270 there are hammerfists, body
-punches and the posture-up bomb as well, and the man underneath can cover up, §41):
+punches and the posture-up bomb as well, and the man underneath can cover up, §41; since D271 he hits back from the guard and
+half guard with elbows and short punches, §45):
 
 | Move | Who | Timing (telegraph · wind-up · active · recovery) | Odds and damage | Notes |
 |---|---|---|---|---|
@@ -4125,3 +4126,95 @@ moment; the overhand over the top of the roll; a punch leaned back from misses a
 no leaning back on the fence; a punch on the high guard does a third of its damage; the uppercut and body shots get round the
 guard; a shot on the guard doesn't count toward stopping it; the AI picks the defence with the best odds and fires the right
 hand off the roll; a puncher follows up when his man leans back), and `tests/data/test_data_files.gd` (the D181 keys).
+
+---
+
+## 45. Strikes from the bottom: elbows and short punches from the guard (D271)
+Kyle (2026-11-02): "Can we do strikes from the bottom now?" Until now the man underneath could only up-kick a man standing up
+out of his guard (§43); otherwise he covered up, tied up or got out. Kyle answered three questions on cards, each the
+recommended answer: *Elbows and short punches* (not PRIDE extras, not elbows only), *Wear him down, open things* (not mainly
+keeping the referee off, not a real finishing threat) and *Key 1 on your back too* (not AI only, not a new call).
+
+### 45.1 The strikes (everyone's)
+| Move | From | Timing (telegraph · wind-up · active · recovery) | Odds and damage | Notes |
+|---|---|---|---|---|
+| Elbow from the bottom (`bottom_elbow`) | Underneath in the full guard and half guard | 0 · 0.2 · 0.1 · 0.3 s, 2 stamina | 50% + (Clinch striking, Guard) − Top control; +15% on `POSTURE_BROKEN` (his head tied down in the collar tie), −20% on `POSTURED_UP` (sat up out of reach); 5 to the head | Not where elbows are banned (amateur rules) |
+| Punch from the bottom (`bottom_punch`) | The same | 0 · 0.1 · 0.1 · 0.2 s, 1 stamina | 50% + (Boxing, Guard) − Top control; +5% on `POSTURE_BROKEN`, −10% on `POSTURED_UP`; 2 to the head | Amateur rules: to the body |
+
+Damage is scaled by Power and the position like every ground strike (`strike_damage_multiplier`). Landing one answers the shots
+(the referee's count starts again, §24.2), and they score for the judges like any landed strike. Not from under side control,
+the mount or the back: there he frames, bridges and gets out (§28, §40.12).
+
+### 45.2 What they open
+A clean one to the head (not on a cover-up, not to the body) makes the man on top **sit up away from it** for the strike's
+`backs_off_ms` (the elbow 2 s, the punch 1.2 s): he carries `POSTURED_UP`, so the openings that already look for a man sat up
+are there: the sweep (+15%), getting up (+20%), the armbar (+20%), recovering guard from half guard (+15%) and the tie-up and
+wrist grab (+10–15%). While he's sat back he throws nothing (he's out of range), though he can still work to pass, and the
+elbows are out of reach too. **Held down by the collar tie** (`POSTURE_BROKEN`) he can't sit up: he eats the elbows instead
+(the +15%). So the man underneath chooses: hold him down and hit him, or let him go and get out. Sitting up ends with the
+position, a new round and when the time runs out (`FighterState.backed_off_ticks`).
+
+### 45.3 Who throws them, and the call
+- **The AI**: underneath in the guard, his elbows and punches are weighted like his other moves there × `BOTTOM_STRIKES` (0.25) ×
+  (1 − Base / 100), kept between `BOTTOM_STRIKES_MIN` (0.2) and 1: strikers (the Boxer, the Kicker, Muay Thai) throw them,
+  wrestlers and judoka barely. Not while rocked. While the man on top is sat up away, he throws no more and takes the room:
+  getting up, the sweep and recovering guard are × `BACKED_OFF_TAKE` (4).
+- ***Ground and pound!*** (key 1) now works from the bottom too, in the full guard and half guard (the call's
+  `positions_by_role`): for its 15 s, strikes from his back are × the focus's `bottom_strikes` (4). From under side control, the
+  mount or the back the call isn't possible. On top it's as it was (§24.3). The AI corner doesn't call it underneath.
+
+### 45.4 Feed, sound, screen and the harness
+- Feed: *"Boxer's Elbow from the bottom LANDS (head, 5 damage: he sits up away from it)"*.
+- Sounds: the punch light and short, the elbow a sharp crack (`game/strike_sounds.gd`, `06` §6.8).
+- The 3D view (the ground rig, `game/rig/ground_pair.gd` `BOTTOM_STRIKES`, `strike_up`): his hand from by his own face up to the
+  man's head, the elbow coming across, his shoulders lifting off the canvas; the old figure has simple poses too.
+- The harness's **Underneath** line, each side: strikes landed from his back a fight (and the share that are elbows), how often
+  the other man sat up away from them, and how many ground moves worked off it (CSV `bottom_landed_*`, `bottom_elbows_*`,
+  `backed_off_*`, `backed_off_used_*`). Up-kicks count here now, not in the GnP line (they're thrown from the bottom).
+
+### 45.5 Balance (2026-11-02)
+Kyle's pick was *Wear him down, open things*: finishes about the same. The first tries had strikers on their backs **worse**
+off: hitting up took the place of getting up (the Boxer under a Wrestler tried 25% fewer get-ups), and the man on top used the
+moment he sat up to punch first. The numbers above are the sixth try: fewer strikes, cheaper, the man sat up throws nothing and
+the man underneath stops swinging and gets out while he's sat up, and he stays sat up long enough to use it. 200 fights a
+pairing, seed 1, pro rules, main (947ac1e) against this, compared seed by seed (`tools/balance_compare.gd`):
+
+| Pairing (red vs blue) | Red wins | Finished early | Landed from his back a fight (who) · sat up away · used |
+|---|---|---|---|
+| Kicker vs Boxer | 38.5 → 38.5% | 27.0 → 27.0% | almost never on the ground |
+| Wrestler vs Kicker | 70.0 → 65.0% | 30.0 → 27.5% | Kicker 2.9 · 2.2 · 0.14 |
+| Wrestler vs Boxer | 78.5 → 79.5% | 44.5 → 44.5% | Boxer 5.9 · 4.2 · 0.15 |
+| Ground-and-pound wrestler vs Boxer | 86.0 → 84.5% | 77.5 → 82.5% | Boxer 3.3 · 2.4 · 0.09 |
+| BJJ vs Boxer | 83.5 → 81.0% | 75.0 → 71.0% | Boxer 4.2 · 3.0 · 0.17 |
+| Judoka vs Boxer | 68.5 → 63.5% | 44.5 → 54.5% | Boxer 4.6 · 3.7 · 0.30 |
+| Sambo vs Kicker | 39.5 → 42.5% | 25.5 → 28.0% | Kicker 3.2 · 1.7 · 0.11 |
+| Pressure wrestler vs Kicker | 91.5 → 96.5% | 68.5 → 67.5% | Kicker 4.6 · 2.2 · 0.07 |
+| BJJ vs Wrestler | 47.5 → 50.0% | 39.5 → 36.0% | BJJ 1.1 · 0.7 · 0.09 |
+| Muay Thai vs Wrestler | 55.0 → 59.0% | 43.5 → 49.0% | Muay Thai 2.5 · 1.9 · 0.14 |
+
+- **Finishes**: 47.5% → 48.8% across the ten pairings. Only Judoka vs Boxer moves by more than the dice (+10 points, more
+  TKOs from the top); seed 2 (300 fights) has it +5, inside the dice.
+- **Wins**: every change but one is inside the seed-by-seed 95% range. The Pressure wrestler beats the Kicker a little more
+  often (91.5 → 96.5%; seed 2, 300 fights: 92 → 95%, just inside the dice): the Kicker hits up a little instead of tying him up.
+- **How much**: a striker on his back lands 3–6 a fight, about a third of them elbows; grapplers almost none (they work grips
+  and sweeps). One clean shot in four or five gets a get-up, sweep or grip off the man sitting up.
+- Speed: within the timing checks (§2.1).
+- These numbers were measured before the striking defence (D181, §44) and the referee (D373) merged; on top of them the golden
+  fights (§2.2) were re-pinned: *Kicker vs Boxer, no corners* went to a decision on seed 35019 (a knockdown he followed down
+  plays out differently on the ground), and it was the only stoppage, so it moved to seed 35022 (the Boxer by KO in round 2);
+  *Wrestler vs Kicker* and *Wrestler vs Boxer* go to decisions. The fight driver's between-rounds test moved to seed 5 (seed 2
+  became a first-round finish).
+
+### 45.6 To change it, and the tests
+- The strikes: `data/actions/bottom_elbow.json`, `bottom_punch.json` (`backs_off_ms`, `09`; their `POSTURE_BROKEN` and
+  `POSTURED_UP` openings, damage and stamina).
+- What sitting up opens: the `POSTURED_UP` lines already in `sweep.json`, `get_up.json`, `armbar.json`, `recover_guard.json`,
+  `tie_up.json`, `wrist_control.json`; that he throws nothing meanwhile: `FighterAI._pound`.
+- The AI: `FighterAI.BOTTOM_STRIKES` (0.25), `BOTTOM_STRIKES_MIN` (0.2), `BACKED_OFF_TAKE` (4), `BACKED_OFF_MOVES`.
+- The call: `data/calls/ground_and_pound.json` (`roles`, `positions_by_role`, the focus's `bottom_strikes`).
+
+Tested in `tests/sim/fight/test_bottom_strikes.gd` (who can throw them from where, damage, answering the referee, sitting up
+away and what it opens, the collar tie holding him down, sitting up ending with the position, a sweep off it counted, amateur
+rules, the call underneath and under mount, strikers throwing more than wrestlers and the call making it more),
+`tests/game/test_strike_sounds.gd` (their sounds), `tests/game/test_grapple_poses.gd` (posed) and
+`tests/data/test_data_files.gd` (`backs_off_ms`, `positions_by_role`, `bottom_strikes`).

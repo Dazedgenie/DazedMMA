@@ -390,6 +390,17 @@ const FRAME_WEIGHT: float = 0.6
 const TWO_ON_ONE_WEIGHT: float = 0.75
 const COVER_GROUND_ROCKED: float = 2.0
 const COVERED_WORK: float = 3.0
+## Strikes from the bottom (D271): in the guard and half guard, his elbows and short punches are
+## weighted like his other moves there × BOTTOM_STRIKES × (1 − Base / 100) kept between BOTTOM_STRIKES_MIN and 1
+## (strikers throw more from their backs, grapplers work their grips and sweeps), × the call's
+## `bottom_strikes` while *Ground and pound!* is on from underneath. Not while rocked. While the man on top
+## sits up away from them (FighterState.backed_off_ticks) the way out is open: getting up, the sweep and
+## working back to guard are × BACKED_OFF_TAKE and he throws no more strikes (the man is out of reach); the
+## man on top throws nothing until he's back in range (he can still work to pass).
+const BOTTOM_STRIKES: float = 0.25
+const BOTTOM_STRIKES_MIN: float = 0.2
+const BACKED_OFF_TAKE: float = 4.0
+const BACKED_OFF_MOVES: Array[String] = ["get_up", "sweep", "recover_guard"]
 ## Submissions (D126): only on an opening their hold looks for (the top fighter postured up for
 ## the armbar, his posture broken for the triangle, a head stuck low under a sprawl for the
 ## guillotine), and not again for SUB_RETRY_TICKS after the last try. Underneath, a hold is
@@ -1246,6 +1257,14 @@ func _tied(view: FightView, layer: DecisionLayer) -> Decision:
 					reason = "goes for the %s" % String(action.name).to_lower()
 				elif holding and action.category == STRIKE:
 					reason = "knees from the collar tie"
+		if view.opponent.backed_off_ticks > 0 and BACKED_OFF_MOVES.has(id):
+			w *= BACKED_OFF_TAKE  # He sat up away from the elbows: the room to get out (D271).
+			reason = "takes the room as he sits up: " + reason
+		if action.category == STRIKE and view.my_role() == PositionLibrary.BOTTOM and position != PositionLibrary.CLINCH:
+			if view.opponent.backed_off_ticks > 0:
+				continue  # He's sat back out of reach: get out, don't swing at air.
+			w *= BOTTOM_STRIKES * clampf(1.0 - base, BOTTOM_STRIKES_MIN, 1.0) * layer.calls.bottom_strike_focus()
+			reason = "elbows up from his back" if String(id).contains("elbow") else "punches up from his back"
 		if w > 0.0:
 			options.append(id)
 			weights.append(w)
@@ -1297,8 +1316,8 @@ func _pound(view: FightView, layer: DecisionLayer) -> Decision:
 		d = _work_position(view, layer)  # Posturing up out of his grips is one of these (D263).
 	if d != null:
 		return d
-	if f.tied_up_ticks > 0 or view.hands_tied():
-		return DecisionLayer.IDLE
+	if f.tied_up_ticks > 0 or view.hands_tied() or f.backed_off_ticks > 0:
+		return DecisionLayer.IDLE  # Tied up, or sat back out of range of the elbows (D271): nothing to hit with yet.
 	var rate: float = GNP_RATE * f.work_rate * maxf(0.0, 1.0 + _lean(view, layer, StyleLeanings.PACE) / 100.0)
 	if view.opponent.is_rocked():
 		rate *= 1.5 + _lean(view, layer, StyleLeanings.RISK) / 200.0

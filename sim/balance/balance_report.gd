@@ -554,6 +554,7 @@ func _pair_lines(of_rows: Array[Dictionary], names: Dictionary) -> PackedStringA
 		average(of_rows, "rolled_blue"), average(of_rows, "rolls_blue"), average(of_rows, "leaned_blue"), average(of_rows, "leans_blue"),
 		average(of_rows, "blocked_blue"), average(of_rows, "blocks_blue"), average(of_rows, "covered_hits_blue")])
 	lines.append("  GnP        %s %s · %s %s (D270)" % [red, _gnp_line(of_rows, "red", "blue"), blue, _gnp_line(of_rows, "blue", "red")])
+	lines.append("  Underneath %s %s · %s %s (D271)" % [red, _bottom_line(of_rows, "red", "blue"), blue, _bottom_line(of_rows, "blue", "red")])
 	lines.append("  Stand-ups  %s %s · %s %s (D330)" % [red, _stand_line(of_rows, "red", "blue"), blue, _stand_line(of_rows, "blue", "red")])
 	lines.append("  Chosen by  %s %s · %s %s (D250)" % [red, _chosen_line(of_rows, "red"), blue, _chosen_line(of_rows, "blue")])
 	lines.append("  AI parts   %s %s · %s %s (D254)" % [red, _parts_line(of_rows, "red"), blue, _parts_line(of_rows, "blue")])
@@ -570,6 +571,15 @@ static func _gnp_line(of_rows: Array[Dictionary], side: String, other: String) -
 	return "lands %.1f a fight (hammerfists %s · body %s · bombs %s), the other covers up %.1f (%.1f on the gloves), turns away %.2f" % [
 		landed, share.call("gnp_hammer"), share.call("gnp_body"), share.call("gnp_bomb"),
 		average(of_rows, "ground_covers_" + other), average(of_rows, "gnp_covered_" + other), average(of_rows, "turned_away_" + other)]
+
+
+## One side's strikes from the bottom (D271): "lands 3.1 a fight from his back (elbows 40%), the other
+## sits up away from them 1.2 times, used for a sweep, a get-up or a grip 0.3".
+static func _bottom_line(of_rows: Array[Dictionary], side: String, other: String) -> String:
+	var landed: float = average(of_rows, "bottom_landed_" + side)
+	return "lands %.1f a fight from his back (elbows %s), the other sits up away %.2f, used %.2f" % [
+		landed, _pct(average(of_rows, "bottom_elbows_" + side) / landed if landed > 0.0 else 0.0),
+		average(of_rows, "backed_off_" + other), average(of_rows, "backed_off_used_" + side)]
 
 
 ## One side's standing up from the top (D330, D333): "stands up 0.8 of 1.1 tries a fight, the other
