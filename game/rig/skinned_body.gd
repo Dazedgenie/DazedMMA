@@ -194,6 +194,40 @@ func set_look(colour: Color, look: Dictionary) -> void:
 		mesh.material_override = tinted
 
 
+## The referee's clothes over the body (D373, tools/body_regions.py): red his shirt, green its black stripes (with no
+## red, his bare hands), blue his trousers, alpha his shoes.
+const CLOTHES := "res://game/bodies/tripo_fighter_clothes.png"
+## The referee's shirt (white and black stripes), trousers and shoes, before the texture's shading.
+const SHIRT_WHITE := Color(0.86, 0.86, 0.84)
+const SHIRT_BLACK := Color(0.05, 0.05, 0.06)
+const TROUSERS := Color(0.3, 0.31, 0.33)
+const SHOES := Color(0.04, 0.04, 0.045)
+
+
+## Dresses the body as the referee (D373): his skin and hair as `look` (FighterLook), the striped shirt, grey
+## trousers, black shoes and bare hands over the fighter's body.
+func set_referee(look: Dictionary) -> void:
+	set_look(Color.WHITE, look)
+	var clothes: Texture2D = load(CLOTHES) if ResourceLoader.exists(CLOTHES) else null
+	if clothes == null:
+		return
+	for found: Node in find_children("*", "MeshInstance3D", true, false):
+		var dressed: ShaderMaterial = (found as MeshInstance3D).material_override as ShaderMaterial
+		if dressed == null:
+			continue
+		dressed.set_shader_parameter("clothes", clothes)
+		dressed.set_shader_parameter("has_clothes", true)
+		dressed.set_shader_parameter("shirt_white", SHIRT_WHITE)
+		dressed.set_shader_parameter("shirt_black", SHIRT_BLACK)
+		dressed.set_shader_parameter("trousers", TROUSERS)
+		dressed.set_shader_parameter("shoes", SHOES)
+
+
+## Where his hips are now, in the world.
+func hips_at() -> Vector3:
+	return _world_at("Hips")
+
+
 static var _shader: Shader
 
 
@@ -217,6 +251,12 @@ uniform float skin_detail = 0.5;
 uniform float hair_kept = 1.0;
 uniform float beard = 0.0;
 uniform float hair_sink = 0.0;
+uniform sampler2D clothes : hint_default_black, filter_linear_mipmap;
+uniform bool has_clothes = false;
+uniform vec4 shirt_white : source_color = vec4(0.86, 0.86, 0.84, 1.0);
+uniform vec4 shirt_black : source_color = vec4(0.05, 0.05, 0.06, 1.0);
+uniform vec4 trousers : source_color = vec4(0.3, 0.31, 0.33, 1.0);
+uniform vec4 shoes : source_color = vec4(0.04, 0.04, 0.045, 1.0);
 float lum(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
 void vertex() {
 	// A buzzed or shaved head: the hair's shell sinks in toward the scalp.
@@ -243,7 +283,18 @@ void fragment() {
 	out_c = mix(out_c, dyed, m.b);
 	// The beard darkens the skin toward his hair colour.
 	out_c = mix(out_c, hair.rgb * shade * 1.2, m.g * beard * is_skin);
-	ALBEDO = mix(out_c, tint.rgb * (0.35 + 0.75 * top), grey);
+	out_c = mix(out_c, tint.rgb * (0.35 + 0.75 * top), grey);
+	if (has_clothes) {
+		// The referee (D373): clothes shaded as the body's own texture is shaded there, and his gloves bare hands.
+		vec4 k = texture(clothes, UV);
+		float cloth_shade = clamp(lum(c) / lum(body_skin.rgb), 0.55, 1.15);
+		vec3 shirt = mix(shirt_white.rgb, shirt_black.rgb, smoothstep(0.35, 0.65, k.g)) * cloth_shade;
+		out_c = mix(out_c, trousers.rgb * cloth_shade, k.b * (1.0 - k.r));
+		out_c = mix(out_c, shirt, k.r);
+		out_c = mix(out_c, shoes.rgb * cloth_shade, k.a);
+		out_c = mix(out_c, skin.rgb * 0.85, k.g * (1.0 - k.r) * (1.0 - k.b) * (1.0 - k.a));
+	}
+	ALBEDO = out_c;
 	ROUGHNESS = 0.85;
 }
 """

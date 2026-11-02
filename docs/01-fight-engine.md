@@ -1655,7 +1655,7 @@ bias × 0.5 (adult amateur 15%, teen 25%) and they stop after one shot fewer.
 In full guard the fighter on top strikes and the fighter underneath answers (since D130 the same strikes work from the top of
 half guard, side control, mount and the back, harder or softer by the position, §28; since D270 there are hammerfists, body
 punches and the posture-up bomb as well, and the man underneath can cover up, §41; since D271 he hits back from the guard and
-half guard with elbows and short punches, §44):
+half guard with elbows and short punches, §45):
 
 | Move | Who | Timing (telegraph · wind-up · active · recovery) | Odds and damage | Notes |
 |---|---|---|---|---|
@@ -2981,7 +2981,7 @@ They're `defense` moves (`09` action@2), like the sprawl.
 - **Slip** (`slip`, a technique: the Boxer, Counter-striker, Dirty boxer and Muay Thai fighter): he moves his head off the line,
   at once, for 0.4 s. It stops **the jab, the cross and the overhand**, not hooks or uppercuts, and the uppercut is +20% into a
   man slipping (`SLIPPING`). Odds: 50% + (Striking defense and Speed − the puncher's Boxing) / 100. When it works the punch misses
-  and for 0.6 s his own strikes are +15% (*off the slip*, `SLIP_COUNTER_TICKS`, `SLIP_COUNTER_BONUS`), on top of the counter
+  and for 0.6 s his own strikes are +15% (*off the slip*, the slip's `defense.counter`, D181), on top of the counter
   bonus for catching the puncher in his recovery.
 - **Cover up** (`cover_up`, everyone, standing or in the clinch): hands high, elbows in, for 1.5 s (`COVERED` from its 0.1 s
   wind-up). Half the head damage gets through (`head_share` 0.5), rolled as usual; the body hook, body kick and knee are +15%
@@ -3039,8 +3039,8 @@ The golden fights (§2.2) were re-pinned: three of the four change (the Boxer ch
 - The moves: `data/actions/check_kick.json`, `slip.json`, `cover_up.json` (timing, odds, `against_strikes`, `hidden_by`, `head_share`, who has
   it: `basic`, or the fighters' `techniques`). The openings they leave: `SLIPPING` on the uppercut, `COVERED` on the body hook,
   body kick and knee.
-- The check's damage and the slip's counter: `CHECK_KICKER_SHARE`, `CHECK_SHIN_SHARE`, `CHECK_STUCK_TICKS`, `SLIP_COUNTER_TICKS`,
-  `SLIP_COUNTER_BONUS` at the top of `sim/fight/fight_sim.gd` (`_strike_defended`); the guard and the referee in `_land_strike`
+- The check's damage: `CHECK_KICKER_SHARE`, `CHECK_SHIN_SHARE`, `CHECK_STUCK_TICKS` at the top of `sim/fight/fight_sim.gd`
+  (`_strike_defended`); the slip's counter: `defense.counter` in `slip.json` (D181, §44); the guard and the referee in `_land_strike`
   and `_referee`.
 - The AI: `GUARD_BASE`, `GUARD_PER_SD`, `COVER_BASE`, `COVER_PER_IQ` in `sim/fight/fighter_ai.gd` (`_guard`, `_cover`);
   *Survive!*'s `cover_bonus` in `data/calls/survive.json`.
@@ -4037,15 +4037,105 @@ grappler getting out of a dangerous guard, nobody standing off a rocked man, the
 dives back down, *Get up!* on top), `tests/sim/fight/test_live_calls.gd`, `tests/game/test_grapple_poses.gd` (both moves posed),
 `tests/game/test_strike_sounds.gd` (the up-kick's sound) and `tests/data/test_data_files.gd` (`position_bonus`, `leaves_down_ms`).
 
+## 44. More striking defence: the shoulder roll, leaning back and the high guard (D181)
+Kyle asked for "defenses like the shoulder roll and leaning out of the way" and "the high guard". On four decision cards he
+picked: the high guard for everyone and the roll and the lean back as techniques; a third of a blocked punch still getting in;
+leaning back ruled out on the fence and leaving him off balance for the next strike; and the roll setting up a counter right hand.
+
+### 44.1 The three moves
+They're strike defences like the slip and the check (§38): `defense` moves with `against_strikes`, up as the strike lands, one
+roll, spent either way.
+- **Shoulder roll** (`shoulder_roll`, a technique: the Boxer and the Counter-striker): chin behind the lead shoulder, turning it
+  into the punch, at once for 0.4 s (`ROLLING`). It stops **the jab, the cross, the hook and the overhand**. Odds: 50% + (Striking
+  defense and Boxing − the puncher's Boxing) / 100, and **the overhand comes over the top**: −25% against it (`strike_bonus`,
+  *against the overhand*). When it works the punch misses and for 0.6 s **his cross and overhand are +20%** (*off the roll*,
+  `counter`), the counter right hand; the AI fires one off it, twice as likely to pick those two (`COUNTER_PREFER`).
+- **Lean back** (`lean_back`, a technique: the Counter-striker, the Kicker and the Karate fighter): weight onto the back foot, the
+  head back out of reach, at once for 0.4 s. It stops **the jab, the cross, the hook and the head kick**. Odds: 55% + (Striking
+  defense and Footwork − the striker's Speed) / 100. **Not with his back on the fence** (`not_with` `BACK_TO_CAGE`: no odds at
+  all, so the AI doesn't try). When it works the strike misses, but **he's off balance for 0.6 s: the other man's strikes are
+  +15%** (*leaned back*, `exposed`), and the AI throws the next one into it (*he's leaning back*). So cutting off an outside
+  fighter takes this away, and a combination's second punch finds him.
+- **High guard** (`high_guard`, everyone): both gloves up by the temples, after a 0.1 s wind-up, for 0.4 s (`HIGH_GUARD`). It meets
+  **the jab, the cross, the hook, the overhand, the head kick and the elbow**. Odds: 70% + (Striking defense − the striker's
+  Power) / 100: hard punchers get through it. When it works the strike isn't avoided, it's **blocked**: it's rolled as usual
+  and, if it lands, **a third of its damage gets in** (`block_share` 0.33), as a shot on the guard (*through the guard*, the
+  blocked sound, and the referee doesn't count it, like covering up, §38.1). **The uppercut and body shots get round it**: the
+  uppercut, the body hook and the body kick are +15% into a man with his guard up, and the uppercut isn't one it meets.
+
+The slip's counter moved into its data too (`counter` 600 ms, +15%, *off the slip*), so the slip works as before. The feed says
+*"ROLLS the cross off his shoulder"*, *"LEANS BACK from the jab: it misses, but he's off balance"* and *"BLOCKS the cross on his
+high guard"*. The figure turns his shoulder in and dips away for a roll, leans back for a lean back, and puts both gloves to his
+temples for the high guard. A roll sounds blocked (it glances off the shoulder), a lean back is a whoosh past his head, like the
+slip (D190).
+
+### 44.2 The AI
+- **The best defence for it.** When a strike he's read will land while a defence of his is up (§38.2), he now picks the one with
+  the best odds instead of the first he knows, with a block counted at the share it keeps out (70% × two thirds for the high
+  guard). Whether he defends at all is still 60% + 30% × Striking defense / 100.
+- **Off the roll** the counter right hand (above); **off the slip** and **off the check** as before.
+- **He's leaning back:** the striker whose punch was leaned away from throws the next one while the man's off balance, unless a
+  combination is already on its way.
+
+### 44.3 Balance
+Harness, no calls, 300 fights a pairing, seed 1, main before this → now:
+
+| Pairing | Wins | Finished inside the distance | Rolls a fight (worked) | Lean backs a fight (worked) | High guard blocks a fight (worked) |
+|---|---|---|---|---|---|
+| Kicker vs Boxer | Kicker 40.7% → 40.3% | 27% → 36% | none | the Kicker 2.3 (1.6) | the Kicker 1.4 (0.8), the Boxer 2.0 (1.3) |
+| Wrestler vs Boxer | Wrestler 82.0% → 83.7% | 43% → 42% | the Boxer 0.4 (0.2) | none | the Wrestler 2.4 (1.5) |
+| Muay Thai vs Kicker | Muay Thai 89.7% → 86.7% | 30% → 35% | none | the Kicker 1.5 (0.9) | Muay Thai 0.7 (0.6), the Kicker 0.2 (0.2) |
+| Muay Thai vs Boxer | Muay Thai 70.3% → 70.3% | 78% → 74% | the Boxer 0.9 (0.5) | none | Muay Thai 1.8 (1.2), the Boxer 0.2 (0.2) |
+| Counter-striker vs Boxer | Counter-striker 22.3% → 19.0% | 72% → 70% | the Counter-striker 2.7 (1.3), the Boxer 7.4 (3.4) | the Counter-striker 4.1 (2.8) | the Counter-striker 0.5 (0.3) |
+| Karate vs Boxer | Karate 90.0% → 87.0% | 31% → 34% | the Boxer 2.3 (1.2) | Karate 1.8 (1.3) | Karate 1.1 (0.7), the Boxer 2.9 (2.2) |
+| Counter-striker vs Kicker | Counter-striker 95.3% → 94.0% | 10% → 14% | none | the Counter-striker 1.1 (0.7), the Kicker 2.4 (1.3) | the Counter-striker 1.6 (1.4) |
+
+Across the 2,100 fights: finished 41.2% → 43.4%. Every win share is inside its 95% range of no change, and the #14 exit test
+still passes: the Boxer wins 59.3% against the Kicker (main 59.0%).
+
+What it says:
+- **They're used a few times a fight each**, not all the time: a defence has to be up as the strike lands, and the AI only uses
+  one on a strike it has read in time.
+- **A few more finishes, not fewer.** The high guard keeps some damage out, but a lean back leaves him open to the next punch and
+  the striker throws it, so Kicker vs Boxer has more knockouts (12% → 18%).
+- **The roll is the Boxer's** against the Counter-striker and the Karate fighter (he rolls 7.4 punches a fight against the
+  Counter-striker, about half of them work) and the Counter-striker leans back from about 4.
+- **The first pass picked on odds alone** and the Counter-striker leaned back from 6.6 punches a fight and won 17.3%: the odds
+  didn't count the punch that came after. Weighing what each is worth (a roll's counter adds, being off balance costs) moved
+  him to the roll and the slip more often (19.0%).
+
+The golden fights (§2.2) were re-pinned: *Kicker vs Boxer, no corners* became a decision on seed 35010, the only golden fight that
+was a knockout or stoppage, so it moved to seed 35019 (the Boxer by TKO in round 3); *Wrestler vs Boxer* changes (the Wrestler
+blocks with the high guard). The behaviour contracts' Kicker vs Boxer moved to seed 2 (seed 1 became a first-round triangle,
+too short to judge the combinations).
+
+### 44.4 To change it, and the tests
+- The moves: `data/actions/shoulder_roll.json`, `lean_back.json`, `high_guard.json` (timing, odds, `against_strikes`, and the
+  D181 keys: `block_share`, `counter`, `exposed`, `not_with`, `strike_bonus`; `09` action@2), who has them: `basic`, or the
+  fighters' `techniques`. The openings they leave: `HIGH_GUARD` on the uppercut, body hook and body kick.
+- How a defence plays out: `_strike_defended` and `_land_strike` in `sim/fight/fight_sim.gd`; the counter and off-balance bonuses
+  in `odds_breakdown` (`FighterState.counter`, `FighterState.exposed`).
+- The AI: `_guard` (the best odds) and the follow-ups on `strike_defended` in `sim/fight/fighter_ai.gd`; `COUNTER_PREFER`,
+  `OFF_CHECK_TICKS`.
+- The harness's *Defence* line (rolls, leans and blocks tried and worked) and its CSV columns (`rolls_red`, `rolled_red`, `leans_red`,
+  `leaned_red`, `blocks_red`, `blocked_red` and blue's): `sim/balance/`.
+- The feed: `ui/fight_log_formatter.gd`; the poses: `game/fighter_figure.gd`; the sounds: `WHOOSH_DEFENCES` in `game/strike_sounds.gd`.
+
+Tested in `tests/sim/fight/test_striking_defence_more.gd` (who has which; a rolled punch misses and sets up the right hand for a
+moment; the overhand over the top of the roll; a punch leaned back from misses and the next strike lands more, for a moment;
+no leaning back on the fence; a punch on the high guard does a third of its damage; the uppercut and body shots get round the
+guard; a shot on the guard doesn't count toward stopping it; the AI picks the defence with the best odds and fires the right
+hand off the roll; a puncher follows up when his man leans back), and `tests/data/test_data_files.gd` (the D181 keys).
+
 ---
 
-## 44. Strikes from the bottom: elbows and short punches from the guard (D271)
+## 45. Strikes from the bottom: elbows and short punches from the guard (D271)
 Kyle (2026-11-02): "Can we do strikes from the bottom now?" Until now the man underneath could only up-kick a man standing up
 out of his guard (§43); otherwise he covered up, tied up or got out. Kyle answered three questions on cards, each the
 recommended answer: *Elbows and short punches* (not PRIDE extras, not elbows only), *Wear him down, open things* (not mainly
 keeping the referee off, not a real finishing threat) and *Key 1 on your back too* (not AI only, not a new call).
 
-### 44.1 The strikes (everyone's)
+### 45.1 The strikes (everyone's)
 | Move | From | Timing (telegraph · wind-up · active · recovery) | Odds and damage | Notes |
 |---|---|---|---|---|
 | Elbow from the bottom (`bottom_elbow`) | Underneath in the full guard and half guard | 0 · 0.2 · 0.1 · 0.3 s, 2 stamina | 50% + (Clinch striking, Guard) − Top control; +15% on `POSTURE_BROKEN` (his head tied down in the collar tie), −20% on `POSTURED_UP` (sat up out of reach); 5 to the head | Not where elbows are banned (amateur rules) |
@@ -4055,7 +4145,7 @@ Damage is scaled by Power and the position like every ground strike (`strike_dam
 (the referee's count starts again, §24.2), and they score for the judges like any landed strike. Not from under side control,
 the mount or the back: there he frames, bridges and gets out (§28, §40.12).
 
-### 44.2 What they open
+### 45.2 What they open
 A clean one to the head (not on a cover-up, not to the body) makes the man on top **sit up away from it** for the strike's
 `backs_off_ms` (the elbow 2 s, the punch 1.2 s): he carries `POSTURED_UP`, so the openings that already look for a man sat up
 are there: the sweep (+15%), getting up (+20%), the armbar (+20%), recovering guard from half guard (+15%) and the tie-up and
@@ -4064,7 +4154,7 @@ elbows are out of reach too. **Held down by the collar tie** (`POSTURE_BROKEN`) 
 (the +15%). So the man underneath chooses: hold him down and hit him, or let him go and get out. Sitting up ends with the
 position, a new round and when the time runs out (`FighterState.backed_off_ticks`).
 
-### 44.3 Who throws them, and the call
+### 45.3 Who throws them, and the call
 - **The AI**: underneath in the guard, his elbows and punches are weighted like his other moves there × `BOTTOM_STRIKES` (0.25) ×
   (1 − Base / 100), kept between `BOTTOM_STRIKES_MIN` (0.2) and 1: strikers (the Boxer, the Kicker, Muay Thai) throw them,
   wrestlers and judoka barely. Not while rocked. While the man on top is sat up away, he throws no more and takes the room:
@@ -4073,7 +4163,7 @@ position, a new round and when the time runs out (`FighterState.backed_off_ticks
   `positions_by_role`): for its 15 s, strikes from his back are × the focus's `bottom_strikes` (4). From under side control, the
   mount or the back the call isn't possible. On top it's as it was (§24.3). The AI corner doesn't call it underneath.
 
-### 44.4 Feed, sound, screen and the harness
+### 45.4 Feed, sound, screen and the harness
 - Feed: *"Boxer's Elbow from the bottom LANDS (head, 5 damage: he sits up away from it)"*.
 - Sounds: the punch light and short, the elbow a sharp crack (`game/strike_sounds.gd`, `06` §6.8).
 - The 3D view (the ground rig, `game/rig/ground_pair.gd` `BOTTOM_STRIKES`, `strike_up`): his hand from by his own face up to the
@@ -4082,7 +4172,7 @@ position, a new round and when the time runs out (`FighterState.backed_off_ticks
   the other man sat up away from them, and how many ground moves worked off it (CSV `bottom_landed_*`, `bottom_elbows_*`,
   `backed_off_*`, `backed_off_used_*`). Up-kicks count here now, not in the GnP line (they're thrown from the bottom).
 
-### 44.5 Balance (2026-11-02)
+### 45.5 Balance (2026-11-02)
 Kyle's pick was *Wear him down, open things*: finishes about the same. The first tries had strikers on their backs **worse**
 off: hitting up took the place of getting up (the Boxer under a Wrestler tried 25% fewer get-ups), and the man on top used the
 moment he sat up to punch first. The numbers above are the sixth try: fewer strikes, cheaper, the man sat up throws nothing and
@@ -4109,8 +4199,13 @@ pairing, seed 1, pro rules, main (947ac1e) against this, compared seed by seed (
 - **How much**: a striker on his back lands 3–6 a fight, about a third of them elbows; grapplers almost none (they work grips
   and sweeps). One clean shot in four or five gets a get-up, sweep or grip off the man sitting up.
 - Speed: within the timing checks (§2.1).
+- These numbers were measured before the striking defence (D181, §44) and the referee (D373) merged; on top of them the golden
+  fights (§2.2) were re-pinned: *Kicker vs Boxer, no corners* went to a decision on seed 35019 (a knockdown he followed down
+  plays out differently on the ground), and it was the only stoppage, so it moved to seed 35022 (the Boxer by KO in round 2);
+  *Wrestler vs Kicker* and *Wrestler vs Boxer* go to decisions. The fight driver's between-rounds test moved to seed 5 (seed 2
+  became a first-round finish).
 
-### 44.6 To change it, and the tests
+### 45.6 To change it, and the tests
 - The strikes: `data/actions/bottom_elbow.json`, `bottom_punch.json` (`backs_off_ms`, `09`; their `POSTURE_BROKEN` and
   `POSTURED_UP` openings, damage and stamina).
 - What sitting up opens: the `POSTURED_UP` lines already in `sweep.json`, `get_up.json`, `armbar.json`, `recover_guard.json`,

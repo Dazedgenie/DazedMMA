@@ -11,7 +11,8 @@ extends Node
 ##
 ## What counts as which (from the fight's events, outcome_for): a landed strike is connected, unless it
 ## landed through a fighter covering up (covered, D180), which is blocked; a checked kick is blocked; a
-## slipped punch is missed (a slip is a whoosh past his head, SLIP_OUTCOME); any other miss is missed.
+## slipped punch or one he leans back from is missed (a whoosh past his head, SLIP_OUTCOME, D181); a
+## rolled punch is blocked; a shot on the high guard lands covered, so blocked; any other miss is missed.
 ## A landed shot gets louder and deeper the more damage it does (play_settings), and every sound plays
 ## at a slightly random pitch so repeats don't sound the same.
 ##
@@ -33,6 +34,9 @@ const OUTCOMES: Array[String] = [CONNECTED, MISSED, BLOCKED]
 
 ## How a slipped punch sounds (D190: Kyle's pick on the slip card).
 const SLIP_OUTCOME := MISSED
+## Defences that make a punch whoosh past his head (D181): the slip and leaning back. A roll
+## glances off the shoulder and a check lands on the shin, so those are blocked.
+const WHOOSH_DEFENCES: Array[String] = ["slip", "lean_back"]
 
 const RATE: int = 22050
 ## Each sound's length in seconds (the tail fades to silence well before).
@@ -328,7 +332,7 @@ static func outcome_for(event: FightEvent) -> String:
 			return BLOCKED if bool(event.data.get("covered", false)) else CONNECTED
 		FightEvent.STRIKE_MISSED:
 			if event.data.get("reason", "") == "defended":
-				return SLIP_OUTCOME if event.data.get("by_action", "") == "slip" else BLOCKED
+				return SLIP_OUTCOME if WHOOSH_DEFENCES.has(String(event.data.get("by_action", ""))) else BLOCKED
 			return MISSED
 	return ""
 

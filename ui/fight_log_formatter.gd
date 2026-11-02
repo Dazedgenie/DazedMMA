@@ -135,6 +135,13 @@ static func _describe(event: FightEvent, sim: FightSim) -> String:
 			if event.data.worked and event.data.has("leg"):
 				return "%s [b]CHECKS[/b] the %s: it lands on his shin (%d damage to the kicker's leg)%s" % [who, against, event.data.damage, _odds(event)]
 			if event.data.worked:
+				match String(event.data.action_id):
+					"shoulder_roll":
+						return "%s [b]ROLLS[/b] the %s off his shoulder%s" % [who, against, _odds(event)]
+					"lean_back":
+						return "%s [b]LEANS BACK[/b] from the %s: it misses, but he's off balance%s" % [who, against, _odds(event)]
+					"high_guard":
+						return "%s [b]BLOCKS[/b] the %s on his high guard%s" % [who, against, _odds(event)]
 				return "%s [b]SLIPS[/b] the %s%s" % [who, against, _odds(event)]
 			return "%s's %s doesn't stop the %s%s" % [who, _action_name(event.data.action_id, sim).to_lower(), against, _odds(event)]
 		FightEvent.FEINTED:

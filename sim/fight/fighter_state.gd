@@ -211,8 +211,12 @@ var grip: OddsBreakdown = null
 var sprawled: bool = false
 ## Bit on a feint (D131): hands up and weight back for this many more ticks (BIT_ON_FEINT).
 var bit_ticks: int = 0
-## Slipped a punch (D180): his strikes up to this tick come off the slip (FightSim.SLIP_COUNTER_BONUS).
-var slip_counter_until: int = -1
+## Slipped or rolled a punch (D180, D181): the counter it set up, from the defence's
+## `defense.counter`: { until (tick), bonus, strikes (none = any), name }. Empty for none.
+var counter: Dictionary = {}
+## Leaned back out of the way (D181): off balance until this, so the other man's strikes get
+## the defence's `defense.exposed` bonus: { until (tick), bonus, name }. Empty for none.
+var exposed: Dictionary = {}
 ## Set up (D131): this fighter's last strike or feint ended recently enough that a shot
 ## started up to this tick isn't blind.
 var set_up_until: int = -1

@@ -1,5 +1,5 @@
 extends GutTest
-## Strikes from the bottom (docs/01 §44, D271): elbows and short punches from the guard and half guard,
+## Strikes from the bottom (docs/01 §45, D271): elbows and short punches from the guard and half guard,
 ## the man on top sitting up away from them (POSTURED_UP: the sweep, the get-up and the armbar open),
 ## held down by the collar tie he eats them instead, amateur rules, *Ground and pound!* from underneath,
 ## and the fighter AI throwing them by style.

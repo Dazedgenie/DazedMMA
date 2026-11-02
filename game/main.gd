@@ -917,8 +917,8 @@ func _current_rules() -> Array:
 func _on_fight_over(event: FightEvent) -> void:
 	state = OVER
 	var sim: FightSim = driver.sim
-	if event.data.get("result", "") == FightSim.RESULT_SUB and arena.shows_hold() and DisplayServer.get_name() != "headless":
-		await arena.tapped  # Let the tap be seen first (D366, ArenaView.TAP_SECONDS).
+	if arena.holds_finish(event.data) and DisplayServer.get_name() != "headless":
+		await arena.finish_shown  # The finish held on the cage first (D374: the referee waves it off; D366 the tap).
 		if driver == null or driver.sim != sim:
 			return
 	var record: Dictionary = FightRecord.build(sim, settings, driver.player)

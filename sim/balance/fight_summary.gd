@@ -54,7 +54,9 @@ const COLUMNS: Array[String] = [
 	"off_feint_red", "off_feint_landed_red", "off_feint_blue", "off_feint_landed_blue",
 	"combos_red", "combo_strikes_red", "combo_landed_red", "combos_blue", "combo_strikes_blue", "combo_landed_blue",
 	"checks_red", "checked_red", "slips_red", "slipped_red", "covered_hits_red",
+	"rolls_red", "rolled_red", "leans_red", "leaned_red", "blocks_red", "blocked_red",
 	"checks_blue", "checked_blue", "slips_blue", "slipped_blue", "covered_hits_blue",
+	"rolls_blue", "rolled_blue", "leans_blue", "leaned_blue", "blocks_blue", "blocked_blue",
 	"gnp_landed_red", "gnp_hammer_red", "gnp_body_red", "gnp_bomb_red", "gnp_covered_red", "ground_covers_red", "turned_away_red",
 	"bottom_landed_red", "bottom_elbows_red", "backed_off_red", "backed_off_used_red",
 	"gnp_landed_blue", "gnp_hammer_blue", "gnp_body_blue", "gnp_bomb_blue", "gnp_covered_blue", "ground_covers_blue", "turned_away_blue",
@@ -68,6 +70,11 @@ const COLUMNS: Array[String] = [
 	"ai_defence_blue", "ai_counter_blue", "ai_combination_blue", "ai_set_up_blue", "ai_lead_blue", "ai_cage_blue", "ai_tied_blue", "ai_downed_blue",
 ]
 const SIDES: Array[String] = ["red", "blue"]
+## Each strike defence's columns (D180, D181): [met a strike, worked].
+const DEFENCE_COLUMNS := {
+	"check_kick": ["checks_", "checked_"], "slip": ["slips_", "slipped_"], "shoulder_roll": ["rolls_", "rolled_"],
+	"lean_back": ["leans_", "leaned_"], "high_guard": ["blocks_", "blocked_"],
+}
 ## The ground positions whose share of the fight each row reports (D130).
 const GROUND_POSITIONS: Array[String] = ["full_guard", "half_guard", "side_control", "mount", "back_control", "crucifix"]
 ## Ground strikes counted by kind (D270): the action, and its column.
@@ -237,7 +244,9 @@ static func of(sim: FightSim, lows: Array[float] = [], moves: Dictionary = {}) -
 		"rules_red": "", "rules_blue": "", "fired_red": 0, "fired_blue": 0,
 		"plan_red": plan_text(sim, 0), "plan_blue": plan_text(sim, 1),
 		"checks_red": 0, "checked_red": 0, "slips_red": 0, "slipped_red": 0, "covered_hits_red": 0,
+		"rolls_red": 0, "rolled_red": 0, "leans_red": 0, "leaned_red": 0, "blocks_red": 0, "blocked_red": 0,
 		"checks_blue": 0, "checked_blue": 0, "slips_blue": 0, "slipped_blue": 0, "covered_hits_blue": 0,
+		"rolls_blue": 0, "rolled_blue": 0, "leans_blue": 0, "leaned_blue": 0, "blocks_blue": 0, "blocked_blue": 0,
 		"winner": "draw" if winner < 0 else SIDES[winner],
 		"winner_id": "" if winner < 0 else sim.fighters[winner].id,
 		"result": end.data.result, "method": method_of(end.data.result),
@@ -377,11 +386,11 @@ static func of(sim: FightSim, lows: Array[float] = [], moves: Dictionary = {}) -
 					if card[0] == card[1]:
 						row.even_cards += 1
 			FightEvent.STRIKE_DEFENDED:
-				# Checks and slips that met a strike, and how many worked (D180).
-				var kind: String = "checks_" if sim.actions.get_action(e.data.against).strike.target == "legs" else "slips_"
-				row[kind + SIDES[e.actor]] += 1
+				# Checks, slips, rolls, lean backs and blocks that met a strike, and how many worked (D180, D181).
+				var kind: Array = DEFENCE_COLUMNS.get(e.data.action_id, DEFENCE_COLUMNS.check_kick if sim.actions.get_action(e.data.against).strike.target == "legs" else DEFENCE_COLUMNS.slip)
+				row[kind[0] + SIDES[e.actor]] += 1
 				if e.data.worked:
-					row[("checked_" if kind == "checks_" else "slipped_") + SIDES[e.actor]] += 1
+					row[kind[1] + SIDES[e.actor]] += 1
 				row.exchanges += 1
 				if e.data.odds.get("clamped", false):
 					row.clamped += 1

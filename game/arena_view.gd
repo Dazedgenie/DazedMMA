@@ -133,6 +133,10 @@ const HOLD_EASE: float = 0.35
 const PULL_EASE: float = 0.6
 const DANGER_SPEED: float = 3.0
 const TAP_SECONDS: float = 1.4
+## The finish (D374): a fight won by a knockout, a stoppage or a submission holds on the cage this many seconds,
+## the referee jumping in and waving it off (and the tap first after a submission), before the result comes up.
+const FINISH_HOLD: float = 3.0
+const FINISHES: Array[String] = [FightSim.RESULT_KO, FightSim.RESULT_TKO, FightSim.RESULT_SUB]
 ## The tag grows this much when the range or position changes, then settles (docs/06 §2).
 const TAG_BUMP: float = 1.7
 ## Standing, the sim's ranges are wider than a person's reach (pocket up to 1.5 m, long range 3 m apart), so
@@ -154,6 +158,8 @@ signal fence_slammed(strength: float)
 signal takedown_landed(strength: float)
 ## The tap at the end of a fight won by a submission has been shown (D366): the result can come up.
 signal tapped
+## A finish has been held on the cage long enough (D374, FINISH_HOLD): the result can come up.
+signal finish_shown
 
 var driver: FightDriver
 var camera: Camera3D
@@ -199,6 +205,10 @@ var _scramble_last: Array = []
 var _downed: Array[Dictionary] = [{}, {}]
 ## Which way the last shot that landed on each man turned his head (+1, -1, 0 for a straight shot), for the fall.
 var _last_hit_turn: Array[float] = [0.0, 0.0]
+## The referee (D373), with the skinned bodies only; and a finish being held on the cage (D374): {result, winner,
+## seconds (shown since it ended), shown (finish_shown sent)}, empty until a fight ends inside the distance.
+var referee: Referee
+var _finish: Dictionary = {}
 ## Light up scouted tells (D51): a toggle so the playtest can compare cue on and off.
 var tell_cues: bool = true
 var debug_marks: bool = false:
@@ -262,6 +272,10 @@ func watch(p_driver: FightDriver) -> void:
 	_scramble_last = []
 	_downed = [{}, {}]
 	_last_hit_turn = [0.0, 0.0]
+	_finish = {}
+	if referee != null:
+		referee.queue_free()
+		referee = null
 	_tell_limb = ["", ""]
 	_tell_until = [-1, -1]
 	_offset = [Vector2.ZERO, Vector2.ZERO]
@@ -286,6 +300,15 @@ func watch(p_driver: FightDriver) -> void:
 			rig.visible = false  # Only the bodies show it.
 			rig.fit(figure.body.measure())
 			_clinch_rigs.append(rig)
+		referee = Referee.new()
+		add_child(referee)
+		if referee.setup(driver.sim.fight_seed):
+			var men: Array[Vector2] = [driver.shown_pos(0), driver.shown_pos(1)]
+			var middle: Vector2 = (men[0] + men[1]) / 2.0
+			referee.place(Referee.watch_spot(men, Referee.STANDING_OFF, middle + Vector2(0, 8), middle), middle)
+		else:
+			referee.queue_free()
+			referee = null
 	driver.sim.event_emitted.connect(_on_event)
 	_focus = Vector3.ZERO
 	_zoom = ZOOM_STANDING
@@ -328,6 +351,8 @@ func _process(delta: float) -> void:
 		figures[i].show_state(sim, i, at, at + Vector2.from_angle(_facing[i]), delta, delta * driver.rate())
 		figures[i].show_tell(_tell_limb[i] if tell_cues and sim.now <= _tell_until[i] else "")
 	_pose_clinch(sim, delta)
+	_move_referee(sim, delta)
+	_hold_finish(delta)
 	_facing_set = true
 	var middle: Vector2 = (spots[0] + spots[1]) / 2.0 + _ground_shift
 	if _venue != null:
@@ -456,6 +481,63 @@ func _pose_hold(sim: FightSim, delta: float) -> bool:
 	for i in 2:
 		figures[i].body.follow(_clinch_rigs[i])
 	return true
+
+
+## True when a fight that ended with `data` (FIGHT_ENDED's) is held on the cage before the result (D374):
+## finish_shown says when it's been shown.
+func holds_finish(data: Dictionary) -> bool:
+	if not FINISHES.has(String(data.get("result", ""))):
+		return false
+	return referee != null or (String(data.result) == FightSim.RESULT_SUB and shows_hold())
+
+
+## How long the finish is held (D374): FINISH_HOLD with the referee there to wave it off, else just the tap.
+func finish_seconds() -> float:
+	return FINISH_HOLD if referee != null else TAP_SECONDS
+
+
+func _hold_finish(delta: float) -> void:
+	if _finish.is_empty() or bool(_finish.shown):
+		return
+	_finish.seconds = float(_finish.seconds) + delta
+	if float(_finish.seconds) >= finish_seconds():
+		_finish.shown = true
+		finish_shown.emit()
+
+
+## Moves the referee (D373): shadowing them on the far side from the camera, crouched over them on the ground,
+## over a knocked-down man, and jumping in to wave it off at a stoppage (D374).
+func _move_referee(sim: FightSim, delta: float) -> void:
+	if referee == null or figures.size() < 2:
+		return
+	var men: Array[Vector2] = []
+	for figure in figures:
+		var hips: Vector3 = figure.body.hips_at() if figure.body != null else figure.global_position
+		men.append(Vector2(hips.x, hips.z))
+	var eye := Vector2(camera.global_position.x, camera.global_position.z)
+	if not _finish.is_empty():
+		var winner: int = int(_finish.winner)
+		var loser: int = 1 - winner if winner in [0, 1] else 1
+		var hold := Vector3.INF
+		var low: bool = not sim.situation.is_standing() and sim.situation.position != PositionLibrary.CLINCH
+		if men[0].distance_to(men[1]) <= Referee.CLEAR_OF_MEN:  # Too close to get between: a hand on one of them.
+			var on: int = 1 - loser if low else loser  # On the ground he pulls the winner off; standing he holds the beaten man.
+			hold = figures[on].body.hips_at() + Vector3.UP * (0.25 if low else 0.4)
+		referee.want(Referee.stop_spot(men[1 - loser], men[loser], eye), men[1 - loser], "stop", hold, low)
+	else:
+		var down: int = -1
+		for i in 2:
+			if not _downed[i].is_empty() and sim.situation.is_standing():
+				down = i
+		if down >= 0:
+			var over: Array[Vector2] = [men[down], men[down]]
+			referee.want(Referee.watch_spot(over, Referee.DOWN_OFF, eye, referee.spot), men[down], "down")
+		elif sim.situation.phase == PositionLibrary.PHASE_GROUND:
+			referee.want(Referee.watch_spot(men, Referee.GROUND_OFF, eye, referee.spot), (men[0] + men[1]) / 2.0, "ground")
+		else:
+			var off: float = Referee.STANDING_OFF if sim.situation.is_standing() else Referee.CLINCH_OFF
+			referee.want(Referee.watch_spot(men, off, eye, referee.spot), (men[0] + men[1]) / 2.0, "watch")
+	referee.advance(delta)
 
 
 ## True while a hold is drawn from the rig (D366), so a fight ending in it plays the tap first.
@@ -1418,6 +1500,8 @@ func _place_camera(delta: float, middle: Vector2 = Vector2.ZERO, sim: FightSim =
 func _on_event(event: FightEvent) -> void:
 	if event.type == FightEvent.FIGHT_ENDED and event.data.get("result", "") == FightSim.RESULT_SUB and not _hold_pose.is_empty():
 		_tap_time = 0.0  # He tapped (D366): the hold plays his hand tapping.
+	if event.type == FightEvent.FIGHT_ENDED and holds_finish(event.data):
+		_finish = {"result": event.data.result, "winner": int(event.data.get("winner", -1)), "seconds": 0.0, "shown": false}
 	# Tell cues (D51): the playtest's opponents are scouted, so their tells show.
 	if event.type == FightEvent.ROUND_ENDED:
 		_tell_until = [-1, -1]

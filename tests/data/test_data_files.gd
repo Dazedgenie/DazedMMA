@@ -275,6 +275,7 @@ func test_values_come_from_the_allowed_lists() -> void:
 				var strike: Dictionary = _items("actions").get(strike_id, {})
 				if strike.get("category", "") != "strike":
 					problems.append("action '%s': against_strikes names strikes, not '%s' (D180)" % [id, strike_id])
+			_check_strike_defence(problems, id, action.defense)
 		if category == "feint":
 			var feint: Variant = action.get("feint")
 			if not feint is Dictionary or not feint.get("base_success") is float or not feint.get("bites_ms") is float \
@@ -1174,3 +1175,28 @@ func test_the_six_divisions_run_light_to_heavy_with_matching_pounds() -> void:
 		if absf(float(d.get("limit_kg", 0)) * Weight.LB_PER_KG - float(d.get("limit_lb", 0))) > 1.0:
 			problems.append("%s: %s kg is not %s lb" % [where, d.get("limit_kg"), d.get("limit_lb")])
 	_report(problems)
+
+
+## The D181 keys of a strike defence: block_share, counter, exposed, not_with and strike_bonus.
+func _check_strike_defence(problems: Array[String], id: String, defense: Dictionary) -> void:
+	var against: Array = defense.get("against_strikes", [])
+	if defense.has("block_share") and (not defense.block_share is float or defense.block_share <= 0.0 or defense.block_share >= 1.0 or against.is_empty()):
+		problems.append("action '%s': block_share is a strike defence's share of a blocked strike that still gets through, between 0 and 1 (D181)" % id)
+	for key: String in ["counter", "exposed"]:
+		if not defense.has(key):
+			continue
+		var c: Variant = defense[key]
+		if not c is Dictionary or against.is_empty() or not c.get("ms") is float or c.ms <= 0.0 or fmod(c.ms, FightClock.TICK_MS) != 0 \
+				or not c.get("bonus") is float or not c.get("name") is String or String(c.name) == "":
+			problems.append("action '%s': %s is a strike defence's {ms (a multiple of %d), bonus, name} (D181)" % [id, key, FightClock.TICK_MS])
+			continue
+		for strike_id: Variant in c.get("strikes", []):
+			if _items("actions").get(strike_id, {}).get("category", "") != "strike":
+				problems.append("action '%s': %s.strikes names strikes, not '%s' (D181)" % [id, key, strike_id])
+	var flags: Dictionary = _items("enums").get("flags", {}).get("values", {})
+	for flag: Variant in defense.get("not_with", []):
+		if not flags.has(flag):
+			problems.append("action '%s': not_with names flags, not '%s' (D181)" % [id, flag])
+	for strike_id: Variant in defense.get("strike_bonus", {}):
+		if not against.has(strike_id) or not defense.strike_bonus[strike_id] is float:
+			problems.append("action '%s': strike_bonus is a bonus to the defence against one of its against_strikes, not '%s' (D181)" % [id, strike_id])
