@@ -4,7 +4,7 @@ extends RefCounted
 ## above #1, 5-round title fights on the promotion's cards, defences about twice a year, vacant belts and champions
 ## moving up. Kyle (2026-11-02) picked a belt in every promotion ("Every promotion"), the best ranked man who's free as
 ## challenger ("Best ranked man who's free"), a belt stripped after a year without a defence ("Stripped after a year
-## out"), a champion called up after one defence ("After one defence"), 5 rounds for every title fight ("5 rounds, every
+## out"), a champion called up after one defence ("After one defence", two since D359), 5 rounds for every title fight ("5 rounds, every
 ## title fight") and his title fight offered once he's #1 or #2 ("At #1 or #2 in his promotion").
 ##
 ## Each belt (World.titles, by the rankings' key "org_0:lightweight"): { champion (an id, the career's fighter's
@@ -39,10 +39,18 @@ const STRIP_WEEKS: int = 52
 ## The challengers: the top CHALLENGER_FROM of the table, due a fight within CHALLENGER_DUE weeks.
 const CHALLENGER_FROM: int = 5
 const CHALLENGER_DUE: int = 4
-## A regional or international champion is called up after this many defences (Kyle: "After one defence").
-const CALL_UP_DEFENCES: int = 1
+## A regional or international champion is called up after this many defences (Kyle: "After one defence"; then, D359,
+## "Called up after 2 defences", so the smaller belts' champions average about 2 too).
+const CALL_UP_DEFENCES: int = 2
 ## Title fights are 5 rounds (the pro ruleset's title_rounds) and pay TITLE_PAY times a card's pay.
 const ROUNDS: int = 5
+## A title fight is closer than the men's averages say (D359): the gap between them counts this much, so a champion 10
+## points better wins about 78% rather than about 96% (a puncher's chance; a belt changes hands).
+const SQUEEZE: float = 0.4
+## The champion's edge in a defence (Kyle, 2026-11-02: "champs averaging 2-4 defenses ... with the chance at less and
+## more possible"): added to his side of the odds, as the man who's been five rounds before and knows the belt. Against
+## an even man he wins about 75%.
+const CHAMPION_EDGE: float = 1.1
 const TITLE_PAY: int = 2
 ## His title fight offer (D356): once he's in his promotion's top OFFER_FROM and the belt's due on the line.
 const OFFER_FROM: int = 2
@@ -234,9 +242,10 @@ static func his_eliminator(w: World, k: String, result: String, week: int) -> vo
 ## A title fight between two of the world's men: 5 rounds on the quick result model, onto both records, rankings points
 ## and the belt (`a` is the champion when there is one). Returns the fight's result with `title` (the belt's key).
 static func title_fight(w: World, k: String, a: Dictionary, b: Dictionary, week: int, rng: RandomNumberGenerator) -> Dictionary:
-	var r: Dictionary = WorldWeeks.fight(w, a, b, week, rng, ROUNDS)
-	r.title = k
 	var b_: Dictionary = w.titles[k]
+	var edge: float = CHAMPION_EDGE if String(b_.champion) != "" and String(b_.champion) == String(a.id) else 0.0
+	var r: Dictionary = WorldWeeks.fight(w, a, b, week, rng, ROUNDS, SQUEEZE, edge)
+	r.title = k
 	_clear_next(w, b_)
 	var holder: String = String(b_.champion)
 	var winner: String = String(r.a) if String(r.winner) == "a" else (String(r.b) if String(r.winner) == "b" else "")

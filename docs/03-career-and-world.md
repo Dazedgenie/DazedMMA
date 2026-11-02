@@ -1,6 +1,6 @@
 # 03 — Career, World & Life
 
-> Related decisions: D7, D16–D19, D21, D22, D25, D35, D41–D45, D55–D57, D160, D300–D316, D350–D359. Status: **design draft**; §7.1 and §10.1–§10.5 and §11 are built; §12 (D350–D359) is planned.
+> Related decisions: D7, D16–D19, D21, D22, D25, D35, D41–D45, D55–D57, D160, D300–D316, D350–D359. Status: **design draft**; §7.1 and §10.1–§10.5, §11 and §12 (D350–D359) are built.
 
 ---
 
@@ -782,7 +782,7 @@ hotbeds at the top, each organisation's own top 15, about 3 fights a year (champ
 | Titles: belts, 5-round title fights, defences, vacating | D356 | Built (§12.6) |
 | Climbing the ladder: call-ups to the bigger promotion, title eliminators, and asking for a step up from the hub at a risk of a tougher fight or a no (Kyle, 2026-11-01: "Call-ups plus asking for it"); fight-by-fight deals until phase 5 | D357 | Built (§12.7) |
 | A history before day one: the world played 10 years before his career starts, so there are long records and some retired legends (Kyle, 2026-11-01: "10 years") | D358 | Built (§12.8) |
-| The 30-year check: a tool and a test that the world stays healthy (A10) | D359 | Planned |
+| The 30-year check: a tool and a test that the world stays healthy (A10) | D359 | Built (§12.9) |
 
 **The world's other fights** are decided by a quick result model, not the fight engine (Kyle, 2026-11-01: "A quick result model"; this changes A9's middle tier). The
 engine takes about 0.6 s a fight (94 µs a tick, 2026-11-01), so 600 men fighting 3 times a year would cost about 9 minutes a
@@ -833,7 +833,8 @@ at the top ("Home locally, hotbeds at top").
 - **About 100 men a division**, 600 in all, made the first time the career needs them from its seed and his home, and
   kept in the save (a career saved before D352 makes its world when it next needs it). The same career makes the same men.
 - **The pyramid**, in each division: 25 amateurs, 20 local pros, 30 regional pros, 18 national-level pros and 7
-  world-class pros. A pro's average stat is 38–50 local, 46–58 regional, 55–67 national-level and 64–80 world class; an
+  world-class pros, times the division's size since D359 (§12.9: lightweight 1.25, light heavyweight 0.75), and each man
+  is fitted to his division by his grown weight. A pro's average stat is 38–50 local, 46–58 regional, 55–67 national-level and 64–80 world class; an
   amateur's comes from his age, about 28 at 16 and 2.5 more a year (give or take 6). Amateurs are 14 to 22 and lean
   young; pros are 20 to 35, the best a little older.
 - **Where they're from.** Every amateur is from his country, half of them his hometown. Of the pros, 75% of the local
@@ -856,7 +857,8 @@ at the top ("Home locally, hotbeds at top").
   a close fight (a draw, or a split or majority decision).
 - **His division** is a button on the hub's top bar: the men in his division this week, the ones he can be offered
   first (amateurs while he's one), best first by the scouts' grade, each with his age, hometown, level, record, style
-  and how it went if he's fought him.
+  and how it went if he's fought him. A man he's fought in the last 26 weeks stays on it even when one of them has grown
+  into the next division since ("now welterweight"; D359, `CareerHub.MET_LATELY_WEEKS`).
 
 From D353 the men fight each other too, get better and older, turn pro and retire (§12.3). Fights don't change (no
 golden re-pin).
@@ -929,7 +931,7 @@ knockouts wear them down, the good amateurs turn pro, men retire when they're to
 15 to 30 men turn pro and 35 to 90 retire a year (more as the first men age); 650 to 680 active men, 100 to 112 in the
 lightweights, the pyramid's levels within a few men of their counts except about 8 extra local pros a division; the
 best man averages 83 to 85; retired pros' median age 34, the oldest 42; a year takes about 0.4 s. The 30-year check
-(D359) will watch this for longer.
+(D359, §12.9) watches it for 30 years.
 
 **What the table says about the styles** (60 fights a pair, a point of average stat worth 0.32 on the logit, 0.4%
 draws, 44% knockouts, 15% submissions, 41% decisions; the model inside the engine's 95% range for all 105 pairs): some
@@ -1066,13 +1068,13 @@ pick on all six).
   Beating the champion scores in the rankings as beating a #1. A champion only fights for his belt, and isn't called up
   or let go by the usual three-in-a-row.
 - **Losing a belt without losing.** It goes vacant when the champion retires, leaves the promotion or division, or goes
-  a year (52 weeks) without a title fight (stripped); and a regional or international champion who's defended it once is
-  called up a rank (while there's room) and leaves it vacant. Each belt keeps its last 8 reigns.
+  a year (52 weeks) without a title fight (stripped); and a regional or international champion who's defended it twice (once
+  until D359, §12.9) is called up a rank (while there's room) and leaves it vacant. Each belt keeps its last 8 reigns.
 - **His title fights.** Ranked #1 or #2 in the promotion of his last pro fight, when its champion is due to defend (or
   the belt's vacant), the first of his offers is the title fight: on the promotion's first card far enough off for a camp,
   against the champion (or the best other ranked man for a vacant belt), 5 rounds, paying double. Win it and he's the
   champion; as champion his only offer is his defence when it's due (22 weeks on), against the best ranked man who's
-  free. A year without a defence strips him too. His call-up after a defence and the title eliminators: §12.7.
+  free. A year without a defence strips him too. His call-up after two defences and the title eliminators: §12.7.
 - **On the hub.** The rankings page puts each table's champion above it (since when, defences; vacant when it is), his
   card says when he's champion, *His division* says "champion, ACL", offers say when the man is a champion and a title
   fight says so ("Title shot: the IML lightweight title, 5 rounds, double pay"), his fights list marks title fights, and
@@ -1098,7 +1100,7 @@ his card, ask on This week" (my pick on all seven).
 
 - **Where he is.** He starts on the regional cards (D354's offers, mostly at home). Once he's signed by an
   organisation his offers are on its cards, against its men, at its pay; the world organisation is the top.
-- **Called up like everyone else.** Three wins in a row since his last move, or a title defence as a champion, and the
+- **Called up like everyone else.** Three wins in a row since his last move, or two title defences as a champion (one until D359), and the
   promotion a step up offers to sign him: one of his offers is a *Call-up* on their card, against one of their men about
   his level. Take it and he's theirs from that moment (a belt he holds goes vacant); turn it down, or let it go, and he
   stays, asked again after his next fight if he still qualifies.
@@ -1159,12 +1161,68 @@ pick on all five).
   legends in every division with their belts.
 
 **How healthy it is** (a fresh career, 2026-11-02): 10 years take about 8 s; about 680 active men and 480 retired ones
-kept; a save about 830 KB; about 40 legends; about 140 of the active men are former champions. One thing to watch: a
-dominant world champion can run up 20 defences over the 10 years (the result model has no reason to stop him short of
-age).
+kept; a save about 830 KB; about 40 legends; about 140 of the active men are former champions. A dominant world champion could
+run up 20 defences over the 10 years until the 30-year check (§12.9) made title fights closer and the best men fade.
 
 **To change it:** how many years in `Career.HISTORY_YEARS` (tests and tools set `Career.history_years`; the test run's
 pre-run hook `tests/pre_run.gd` sets 0), the wait in `game/main.gd` (`_write_history`, `HISTORY_SLICE`); legends and the
 hometown legend in `sim/world/history.gd` (`LEGEND_DEFENCES`, `LEGENDS_SHOWN`, `legacy`, `home_legend`); the page in
 `CareerHub` (`history_text`, `home_legend_text`, `_reign_line`). Tests: `tests/sim/world/test_history.gd`. Then update
 this section and D358.
+
+### 12.9 The 30-year check (D359)
+
+A test on every PR plays a new career's world for 30 years, with a stand-in of his own fighting through them, and fails
+when the world drifts out of bounds (A10's long-run validation). Kyle (2026-11-02) picked "About one a decade, any
+division", "Both a little", "Notable ones and the last 5 years", "A test on every PR", "Yes, a stand-in career too" and
+"Most at lightweight and welter" (my pick on all six).
+
+**What the first 30-year runs found** (before this, 2026-11-02): about 670 active men and steady ages and records, but
+world champions often 7 to 15 points better than their #1 contender, so reigns of 20 to 30 defences (a 42-year-old with
+22); every retired man kept for good (the save 1.3 MB and a year about 1 s by year 30); and light heavyweight oddly big,
+because a lad was fitted to his division at the weight he is now and grew out of it upward. What changed:
+
+- **Closer title fights.** In the world's title fights the gap between the two men's averages counts 40%
+  (`Titles.SQUEEZE` 0.4): a champion 10 points better wins about 78% rather than 96%. A puncher's chance. His own title
+  fights are on the engine and don't change.
+- **The best men fade faster after 34.** From 34 a man falls 1.5 a year as before, plus 0.15 a year for every point he
+  averages over 72 (`WorldWeeks.TOP_DECLINE`, `TOP_DECLINE_FROM`): an 84 at 35 falls 3.3 a year.
+- **The champion's edge.** Those two alone left world champions too easy to beat: half lost their first defence and
+  they averaged about 1.5 defences. Kyle (2026-11-02): "We should tune for champs averaging 2-4 defenses I think with the
+  chance at less and more possible". So in a defence the champion gets an edge on the odds (`Titles.CHAMPION_EDGE` 1.1,
+  the man who's been five rounds before and knows the belt): against an even man he wins about 75%.
+- Together, over four seeds with the stand-in: world organisation champions average 2.5 to 3.6 defences (the median 1
+  or 2: about a third still lose the first one), 5 to 7 reigns of 10 or more defences in 30 years across every belt, the
+  longest 15 to 25.
+- **The smaller belts' champions defend twice before a call-up.** Regional and international champions were called up
+  after one defence (D356), so they averaged under 1. Kyle (2026-11-02) picked "Called up after 2 defences"
+  (`Titles.CALL_UP_DEFENCES` 2; his own call-up as a champion too, §12.7).
+- **Retired men remembered when notable.** Each January a retired pro who never fought him and never held a belt is
+  forgotten 5 years after he retires (`WorldWeeks.FORGET_PROS_WEEKS`); champions (so every legend) and men he fought are
+  kept for good. The save is about 1.1 MB after 30 years with his own career in it, a year about 0.8 s.
+- **Divisions biggest in the middle.** Each division's file has a `size` (bantamweight 0.85, featherweight 0.95,
+  lightweight 1.25, welterweight 1.2, middleweight 1, light heavyweight 0.75) the pyramid's counts are multiplied by, and
+  a lad is fitted to his division by his grown weight, so he grows into it. Pros settle at about 100 at lightweight and
+  welterweight, 75 to 85 at bantam, feather and middle, and about 60 at light heavyweight (teenagers still walk lighter,
+  so the bantamweight list has the most amateurs in it).
+
+**The check** (`sim/world/world_check.gd`, `WorldCheck`): a career started without the 10-year history (so the world is
+30 years old at the end), played a year at a time; every 5 years it measures the world: active men 550 to 800, pros in
+each division 45 to 140, the best man averaging 72 to 90, at most a quarter of belts vacant, no active pro over 46, no
+record over 80 fights, retired pros' median age 30 to 39; and at the end: world organisation champions averaging 2 to 4
+defences, at most 12 reigns of 10+ defences and none over 28, every world organisation belt with 4 champions or more, the save under 1.5 MB. **The stand-in** takes his offers as
+they come (a step up, a title shot or an eliminator first), turns pro as soon as he can, asks for a step up now and then,
+wins 65% of his fights by decision, and his camps are weeks on his plan. After 30 years the test loads his save, runs a
+week and opens every hub page. On seed 3 he had about 150 fights and was 40, about 25 s in all.
+
+**Run it by hand** for more seeds, or after changing the world's numbers:
+
+    godot --headless --script res://tools/world_check.gd -- --seeds=3,7,11 [--years=30] [--world-only]
+
+It prints each seed's 5-year lines and anything out of bounds, and exits 1 if any seed is.
+
+**To change it:** the bounds and the stand-in in `WorldCheck` (`ACTIVE`, `PROS_IN_A_DIVISION`, `LONG_REIGNS_MAX`,
+`MOST_DEFENCES`, `WORLD_DEFENCES`, `STAND_IN_WINS`, …); title fights in `Titles.SQUEEZE` and `Titles.CHAMPION_EDGE`; fading in `WorldWeeks.TOP_DECLINE` and
+`TOP_DECLINE_FROM`; forgetting in `WorldWeeks.FORGET_PROS_WEEKS` (`let_go`); division sizes in `data/divisions/*.json`
+`size` (`Weight.size_of`, `World.count_in`). Tests: `tests/sim/world/test_world_check.gd`. Then update this section and
+D359.

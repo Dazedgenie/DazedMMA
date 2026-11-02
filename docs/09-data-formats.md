@@ -324,6 +324,7 @@ A weight division (D56, D351, `docs/03` §12.1). Loaded by `Weight` (`sim/world/
 |---|---|---|
 | `name`, `short` | strings | "Lightweight", "Light" |
 | `limit_kg`, `limit_lb` | numbers | The weigh-in limit (the validator checks the two agree to within 1 lb) |
+| `size` | number | How big the division is next to the others, 0.5 to 1.5 (1 an average one): the world's pyramid counts are multiplied by it, so lightweight's 1.25 keeps about 95 pros against an average one's 75 (D359, `docs/03` §12.9) |
 | `order` | number | 1 for the lightest, up by one to the heaviest |
 
 ### matchups@1 (`data/world/matchups.json`, made by `tools/matchups.gd`)

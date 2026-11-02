@@ -120,7 +120,8 @@ func test_at_number_one_or_two_he_is_offered_the_title_fight_at_double_pay() -> 
 	assert_gt(offers.size(), 1, "other offers too")
 	w.him.points = [[c.week, 1.0, Promotions.REGIONAL, 0, "w", "decision", ""]]
 	Rankings.update(w, c.week, false)
-	assert_gt(Rankings.rank_of(w, Career.FIGHTER_ID), Titles.OFFER_FROM)
+	var rank: int = Rankings.rank_of(w, Career.FIGHTER_ID)
+	assert_true(rank == 0 or rank > Titles.OFFER_FROM, "further down or out of the table (#%d)" % rank)
 	assert_true(Matchmaker.shared().title_offer(c, rng).is_empty(), "not further down")
 
 
