@@ -779,7 +779,7 @@ hotbeds at the top, each organisation's own top 15, about 3 fights a year (champ
 | The world's weeks: the other men fight about 3 times a year, age, retire, and new prospects join each January | D353 | Built (§12.3) |
 | Promotions and their cards: 3 or 4 regional pro promotions and 2 international organisations, made up each career (D57) | D354 | Built (§12.4) |
 | Rankings: each organisation's top 15, updated weekly, each move with its reason (A10) | D355 | Built (§12.5) |
-| Titles: belts, 5-round title fights, defences, vacating | D356 | Planned |
+| Titles: belts, 5-round title fights, defences, vacating | D356 | Built (§12.6) |
 | Climbing the ladder: call-ups to the bigger promotion, title eliminators, and asking for a step up from the hub at a risk of a tougher fight or a no (Kyle, 2026-11-01: "Call-ups plus asking for it"); fight-by-fight deals until phase 5 | D357 | Planned |
 | A history before day one: the world played 10 years before his career starts, so there are long records and some retired legends (Kyle, 2026-11-01: "10 years") | D358 | Planned |
 | The 30-year check: a tool and a test that the world stays healthy (A10) | D359 | Planned |
@@ -1047,3 +1047,44 @@ year still takes about 0.75 s and fights a man a year stay about 2.5.
 (`pair_gap`, `PLACE_GAP`); the page and the numbers by names in `CareerHub` (`rankings_text`, `move_text`,
 `his_rank_text`, `opponent_rank_text`, `_ranked_news`, `NEWS_TOP_RANK`) and `game/main.gd` (`open_rankings`). Tests:
 `tests/sim/world/test_rankings.gd`. Then update this section and D355.
+
+### 12.6 Titles (D356)
+
+Every promotion now has a belt in each division. Kyle (2026-11-02) picked "Every promotion", "Best ranked man who's free",
+"Stripped after a year out", "After one defence", "5 rounds, every title fight" and "At #1 or #2 in his promotion" (my
+pick on all six).
+
+- **A belt in every promotion's division.** The champion sits above the rankings (they're #1 to #15, or #1 to #10,
+  below him). On day one (until D358's history) each promotion's best man in each division holds its belt, won a few
+  months to a year and a half before, with up to 3 defences.
+- **Title fights** are on the promotion's cards, 5 rounds (the pro rules' title rounds; the world's on the quick result
+  model's 5-round spread), before the card's other fights:
+  - a champion defends once 22 weeks have gone since his last title fight and he's fit, against the best ranked man of
+    the table's top 5 who's due a fight, free (not booked to fight him) and hasn't met him lately: about twice a year;
+  - a vacant belt goes to the two best such men;
+  - a draw keeps the belt where it is.
+  Beating the champion scores in the rankings as beating a #1. A champion only fights for his belt, and isn't called up
+  or let go by the usual three-in-a-row.
+- **Losing a belt without losing.** It goes vacant when the champion retires, leaves the promotion or division, or goes
+  a year (52 weeks) without a title fight (stripped); and a regional or international champion who's defended it once is
+  called up a rank (while there's room) and leaves it vacant. Each belt keeps its last 8 reigns.
+- **His title fights.** Ranked #1 or #2 in the promotion of his last pro fight, when its champion is due to defend (or
+  the belt's vacant), the first of his offers is the title fight: on the promotion's first card far enough off for a camp,
+  against the champion (or the best other ranked man for a vacant belt), 5 rounds, paying double. Win it and he's the
+  champion; as champion his only offer is his defence when it's due (22 weeks on), against the best ranked man who's
+  free. A year without a defence strips him too. His call-up after a defence comes with D357.
+- **On the hub.** The rankings page puts each table's champion above it (since when, defences; vacant when it is), his
+  card says when he's champion, *His division* says "champion, ACL", offers say when the man is a champion and a title
+  fight says so ("Title shot: the IML lightweight title, 5 rounds, double pay"), his fights list marks title fights, and
+  the news says title fights ("… to win the SFC lightweight title"), belts gone vacant and his own title won.
+
+**How healthy it is** (10 years from a fresh career, 2026-11-02): about 90 title fights a year over the 36 belts (2.5 a
+belt); about 48 new champions a year, about 28 belts left by champions called up and one or two by retirements, none
+stripped; at most 2 belts vacant at once; the world organisation's lightweight reigns ran from 5 months to 2.5 years
+with up to 5 defences; a year still takes about 0.75 s.
+
+**To change it:** in `sim/world/titles.gd` (`DEFENCE_WEEKS`, `STRIP_WEEKS`, `CHALLENGER_FROM`, `CHALLENGER_DUE`,
+`CALL_UP_DEFENCES`, `ROUNDS`, `TITLE_PAY`, `OFFER_FROM`, `PAST_KEPT`, `SEED_*`); title rounds in `data/rulesets/pro.json`
+(`title_rounds`) and `game/main.gd` (`start_fight`); his offers in `Matchmaker.title_offer` (`TITLE_EVEN`); the hub in
+`CareerHub` (`champion_line`, `his_rank_text`, `offer_text`, `_title_news`). Tests: `tests/sim/world/test_titles.gd`.
+Then update this section and D356.

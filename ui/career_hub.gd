@@ -405,6 +405,10 @@ static func offer_text(c: Career, o: Dictionary, groups: Dictionary = {}) -> Str
 		lines.append("[color=%s][b]One-day tournament: %d men[/b][/color], up to %d fights on the day, a medal for the top %d." % [
 			GOOD.to_html(false), size, Tournament.rounds(size), 4 if size > Tournament.SIZES[0] else 2])
 		lines.append("First up, in the %s:" % Tournament.stage_name(size, 0).to_lower())
+	if String(o.get("title", "")) != "":
+		var w: World = c.world()
+		var what: String = { "defence": "Title defence", "vacant": "For the vacant title", "shot": "Title shot" }.get(String(o.get("title_how", "")), "Title fight")
+		lines.append("[color=%s][b]%s:[/b][/color] %s, 5 rounds, double pay" % [WARN.to_html(false), what, Titles.title_name(w, String(o.title))])
 	if int(o.get("lesson", 0)) > 0:
 		lines.append("[color=%s][b]Coach's pick[/b][/color] · %s" % [GOOD.to_html(false), LESSON_TEXT[clampi(int(o.lesson) - 1, 0, LESSON_TEXT.size() - 1)]])
 	var nick: String = String(about.get("nickname", ""))
@@ -448,6 +452,9 @@ static func opponent_rank_text(c: Career, id: String) -> String:
 	var r: int = Rankings.rank_of(w, id)
 	var m: Dictionary = w.man(id)
 	var p: Dictionary = Promotions.of(w, m)
+	var belt: String = Titles.held_by(w, id)
+	if belt != "":
+		return "[color=%s]Champion[/color]: holds %s" % [WARN.to_html(false), Titles.title_name(w, belt)]
 	if r <= 0 or p.is_empty():
 		return ""
 	return "[color=%s]Ranked #%d[/color] in the %s's %s rankings" % [GOOD.to_html(false), r, String(p.short),
@@ -544,6 +551,10 @@ static func his_rank_text(c: Career) -> String:
 	if not c.pro:
 		return ""
 	var w: World = c.world()
+	var belt: String = Titles.held_by(w, Career.FIGHTER_ID)
+	if belt != "":
+		return "[color=%s][b]Champion:[/b][/color] %s, %d defence%s" % [WARN.to_html(false), Titles.title_name(w, belt).trim_prefix("the "),
+			int(Titles.belt(w, belt).defences), "" if int(Titles.belt(w, belt).defences) == 1 else "s"]
 	var r: int = Rankings.rank_of(w, Career.FIGHTER_ID)
 	var p: Dictionary = Promotions.by_id(w, String(w.him.get("promotion", "")))
 	if r > 0 and not p.is_empty():
@@ -574,6 +585,7 @@ static func rankings_text(c: Career) -> String:
 		var ids: Array = Rankings.table(w, String(p.id), division)
 		var lines: Array[String] = ["[color=%s][b]%s[/b] (%s) · top %d[/color]" % [WARN.to_html(false), String(p.name), String(p.short),
 			Rankings.size_for(p)]]
+		lines.append(champion_line(c, w, Rankings.key(String(p.id), division)))
 		if ids.is_empty():
 			lines.append("[color=%s]Nobody ranked yet.[/color]" % DIM.to_html(false))
 		for i in ids.size():
@@ -601,6 +613,22 @@ static func rankings_text(c: Career) -> String:
 			lines.append("[color=%s]Moves after %s:[/color]\n%s" % [DIM.to_html(false), when, "\n".join(said)])
 		parts.append("\n".join(lines))
 	return "\n\n".join(parts)
+
+
+## A belt's line on the rankings page (D356): "Champion: Tom Hill (12-2-0), since Mar 2027, 2 defences" (him picked
+## out), or that it's vacant.
+static func champion_line(c: Career, w: World, k: String) -> String:
+	var b: Dictionary = Titles.belt(w, k)
+	var id: String = String(b.get("champion", ""))
+	if id == "":
+		return "[color=%s]Champion: vacant[/color]" % DIM.to_html(false)
+	var name: String = c.fighter_name() if id == Career.FIGHTER_ID else String(w.man(id).get("name", ""))
+	var record: String = c.record_text(true) if id == Career.FIGHTER_ID else World.record_text(w.man(id))
+	var d: Dictionary = c.date(0, int(b.won))
+	var when: String = "%s %d" % [Career.MONTHS[clampi(int(d.month) - 1, 0, 11)], int(d.year)]
+	var defences: int = int(b.defences)
+	return "[color=%s][b]Champion: %s[/b] (%s), since %s, %d defence%s%s[/color]" % [(GOOD if id == Career.FIGHTER_ID else WARN).to_html(false),
+		name, record, when, defences, "" if defences == 1 else "s", " · you" if id == Career.FIGHTER_ID else ""]
 
 
 ## One ranking move: "Up 4 to #3, Obinna Eze: beat #6 Ryan Baker on the cards", "Into the top 15 at #7", "Out (was
@@ -727,7 +755,7 @@ static func _division_line(c: Career, w: World, m: Dictionary, met: Dictionary) 
 		int(floor(World.age_of(m, c.week))), String(m.hometown), String(m.country)]
 	var promotion: Dictionary = Promotions.of(w, m)
 	line += "\n[color=%s]%s%s · %s · %s · grade %s[/color]" % [DIM.to_html(false), World.level_name(m),
-		(" · %s%s" % [(Rankings.rank_text(w, String(m.id)) + " ") if Rankings.rank_of(w, String(m.id)) > 0 else "", String(promotion.short)])
+		(" · %s%s" % [("champion, " if Titles.held_by(w, String(m.id)) != "" else (Rankings.rank_text(w, String(m.id)) + " ") if Rankings.rank_of(w, String(m.id)) > 0 else ""), String(promotion.short)])
 			if not promotion.is_empty() else "", World.record_text(m), style_name, TrainingCamp.grade(w.average(m))]
 	if met.has(String(m.id)):
 		var result: String = String(met[String(m.id)])
@@ -817,7 +845,11 @@ static func week_text(c: Career, reports: Array = []) -> String:
 		lines.append("[color=%s]Hurt (%s): %d days to heal.[/color]" % [BAD.to_html(false), c.trainee.injury_area, c.trainee.injured_days])
 	if c.suspended_days > 0:
 		lines.append("Suspended: %d days until he can fight." % c.suspended_days)
-	if c.offers.is_empty() and c.booked.is_empty() and c.trainee.injured_days == 0 and c.suspended_days == 0:
+	var belt: String = Titles.held_by(c.world(), Career.FIGHTER_ID) if c.pro else ""
+	if c.offers.is_empty() and c.booked.is_empty() and belt != "":
+		var due: int = int(Titles.belt(c.world(), belt).last) + Titles.DEFENCE_WEEKS
+		lines.append("The champion: he fights only to defend %s, due from %s." % [Titles.title_name(c.world(), belt), c.date_text(5, maxi(due, c.week))])
+	elif c.offers.is_empty() and c.booked.is_empty() and c.trainee.injured_days == 0 and c.suspended_days == 0:
 		lines.append("Free to fight: offers come in every few weeks.")
 	if c.booked.is_empty():
 		lines.append("This week: the %s plan." % String(TrainingLibrary.shared().plan(c.week_plan).get("name", c.week_plan)).to_lower())
@@ -871,6 +903,11 @@ static func news_text(c: Career, weeks: int = 1) -> String:
 				scored.append([moved_score, "%s%s %s." % [String(mm.get("name", "")),
 					(", " + _met_words(String(met[String(r.id)])) + ",") if met.has(String(r.id)) else "", said_move]])
 			continue
+		if kind == "title":
+			var said: Array = _title_news(c, w, r, met)
+			if not said.is_empty():
+				scored.append(said)
+			continue
 		if kind == "ranked":
 			if new_top.get(String(r.id), -1) == int(r.week):
 				continue
@@ -907,6 +944,10 @@ static func news_text(c: Career, weeks: int = 1) -> String:
 		var top: bool = String(r.winner) != "draw" and new_top.get(String(winner.id), -1) == int(r.week)
 		if top:
 			score += 2.0
+		var belt: String = String(r.get("title", ""))
+		if belt != "":
+			score += 3.0 + (1.0 if belt.begins_with("org_0") else 0.0)
+			top = false
 		if score < 2.0:
 			continue
 		var named: Dictionary = {}
@@ -920,6 +961,8 @@ static func news_text(c: Career, weeks: int = 1) -> String:
 			line = "%s beat %s %s%s%s%s." % [named[String(winner.id)], named[String(loser.id)], _how(String(r.method), int(r.round)),
 				(" at " + String(r.card)) if String(r.get("card", "")) != "" else "", " (an upset)" if upset else "",
 				(" and is the %s's new #1" % String(Promotions.by_id(w, String(r.get("promotion", ""))).get("short", ""))) if top else ""]
+			if belt != "" and String(r.get("title_how", "")) in ["won", "defended"]:
+				line = line.trim_suffix(".") + (" to win %s." if String(r.get("title_how", "")) == "won" else " to keep %s.") % Titles.title_name(w, belt)
 		for m: Dictionary in [a, b]:
 			if met.has(String(m.id)):
 				line += " %s %s." % [String(m.name).get_slice(" ", 0), _met_words(String(met[String(m.id)]), true)]
@@ -931,6 +974,23 @@ static func news_text(c: Career, weeks: int = 1) -> String:
 	for i in mini(NEWS_MAX, scored.size()):
 		out.append(String(scored[i][1]))
 	return "\n".join(out)
+
+
+## A belt's news (D356, a "title" result): his own title won always; a belt gone vacant (retired, called up, stripped,
+## left), more so in a bigger promotion or when he's fought the man. [score, line], [] when it's not worth saying.
+static func _title_news(c: Career, w: World, r: Dictionary, met: Dictionary) -> Array:
+	var k: String = Rankings.key(String(r.get("promotion", "")), String(r.get("division", "")))
+	var id: String = String(r.get("id", ""))
+	var name: String = c.fighter_name() if id == Career.FIGHTER_ID else String(w.man(id).get("name", ""))
+	var how: String = String(r.get("how", ""))
+	if how == "won":
+		if id == Career.FIGHTER_ID:
+			return [8.0, "%s has won %s!" % [name, Titles.title_name(w, k)]]
+		return []  # The world's title wins are on their fights' lines.
+	var why: String = { "retired": "%s has retired", "called up": "%s has been called up", "stripped": "%s has been stripped of it after a year without a defence",
+		"left": "%s has moved on" }.get(how, "%s has gone") % name
+	var score: float = 2.0 + (1.0 if k.begins_with("org_0") else 0.0) + (4.0 if met.has(id) else 0.0) + (4.0 if id == Career.FIGHTER_ID else 0.0)
+	return [score, "%s is vacant: %s." % [Titles.title_name(w, k).capitalize().substr(0, 1) + Titles.title_name(w, k).substr(1), why]]
 
 
 ## A ranking move as news (D355): his own moves always ([score, line]); a new #1, more so in a bigger promotion or when
@@ -1032,6 +1092,8 @@ static func fights_text(c: Career) -> String:
 			on += ", %s" % Tournament.stage_name(int(f.tournament.size), int(f.tournament.stage)).to_lower()
 			if String(f.get("medal", "")) != "":
 				on += " · [color=%s]%s[/color]" % [(MEDAL_COLOURS.get(String(f.medal), WARN) as Color).to_html(false), String(f.medal)]
+		if String(f.get("title", "")) != "":
+			on += " · [color=%s]title fight[/color]" % WARN.to_html(false)
 		lines.append("[color=%s]%s · %s%s[/color]" % [DIM.to_html(false), c.date_text(5, int(f.get("week", 0))), "pro" if bool(f.get("pro", false)) else "amateur",
 			(" · " + on) if on != "" else ""])
 	return "\n".join(lines)

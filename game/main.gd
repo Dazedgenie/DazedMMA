@@ -456,6 +456,7 @@ func _career_settings(profile: Dictionary, simmed: bool = false) -> Dictionary:
 		"label": "%s vs %s" % [career.fighter_name(), String(opponent.get("name", ""))],
 		"red": String(profile.id), "red_profile": profile, "blue": String(opponent.id),
 		"ruleset": String(career.booked.get("ruleset", Ruleset.DEFAULT_ID)),
+		"title": String(career.booked.get("title", "")) != "",
 		"seed": career.next_seed(), "normal_rate": 2.0, "auto_slow": true, "flourishes": true, "tell_cues": true,
 		"sound_volume": float(setup.settings().get("sound_volume", 1.0)), "easy": false, "rules": [],
 		# Tonight's plan from the fight night card; a tournament's later rounds keep the last round's (D320).
@@ -620,7 +621,10 @@ func start_fight(p_settings: Dictionary) -> void:
 	if settings.get("red_profile") is Dictionary:
 		_roster.add(settings.red_profile)
 		red = String(settings.red_profile.id)
-	var sim := FightSim.new(fight_seed, _roster.make_pair(red, settings.blue), _actions, Ruleset.load_id(String(settings.get("ruleset", Ruleset.DEFAULT_ID))))
+	var rules: Ruleset = Ruleset.load_id(String(settings.get("ruleset", Ruleset.DEFAULT_ID)))
+	if bool(settings.get("title", false)):
+		rules.rounds = rules.title_rounds  # A title fight (D356): 5 rounds.
+	var sim := FightSim.new(fight_seed, _roster.make_pair(red, settings.blue), _actions, rules)
 	sim.corners[1] = Corner.new(Corner.AI, fight_seed)
 	driver = FightDriver.new(sim, 0)
 	driver.normal_rate = float(settings.get("normal_rate", 2.0))

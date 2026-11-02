@@ -25,6 +25,8 @@ extends RefCounted
 ##
 ## Pure (D100): the same fights make the same tables.
 
+## A points entry's opponent rank for his promotion's champion (D356), who counts as a #1.
+const CHAMPION: int = -1
 ## Each table's length.
 const TOP_ORGANISATION: int = 15
 const TOP_REGIONAL: int = 10
@@ -82,7 +84,7 @@ static func rank_text(w: World, id: String) -> String:
 ## The points for one fight: his result `letter` (w, l or d), how it ended, the man's place in his table (0 unranked)
 ## and the table's length.
 static func points_for(letter: String, method: String, opponent_rank: int, n: int) -> float:
-	var quality: float = float(n + 1 - opponent_rank) / float(n) if opponent_rank > 0 else 0.0
+	var quality: float = float(n + 1 - opponent_rank) / float(n) if opponent_rank > 0 else (1.0 if opponent_rank < 0 else 0.0)
 	var finish: bool = method in ["ko", "submission"]
 	match letter:
 		"w":
@@ -103,6 +105,8 @@ static func note(w: World, m: Dictionary, opponent_id: String, letter: String, m
 	if p.is_empty():
 		return
 	var opponent_rank: int = rank_of(w, opponent_id)
+	if Titles.held_by(w, opponent_id) == key(String(p.id), String(m.get("division", ""))):
+		opponent_rank = CHAMPION  # His champion counts as a #1 (D356).
 	var pts: float = snappedf(points_for(letter, method, opponent_rank, size_for(p)), 0.1)
 	var points: Array = m.get_or_add("points", [])
 	points.append([week, pts, int(p.rank), opponent_rank, letter, method, opponent_id])
@@ -172,7 +176,10 @@ static func update(w: World, week: int, log: bool = true) -> void:
 			var k: String = key(String(p.id), division_id)
 			var scored: Array = []
 			var scores: Dictionary = {}
+			var champ: String = String(w.titles.get(k, {}).get("champion", ""))
 			for m: Dictionary in buckets.get(k, []):
+				if String(m.get("id", Career.FIGHTER_ID)) == champ:
+					continue  # The champion sits above the table (D356).
 				var s: float = score(m, int(p.rank), week)
 				if s > -INF:
 					scored.append([s, int(m.points[-1][0]), String(m.get("id", Career.FIGHTER_ID))])
@@ -246,6 +253,9 @@ static func why(w: World, id: String, week: int, from: int, to: int, since: int 
 		return "retired"
 	var points: Array = m.get("points", [])
 	var last: Array = points[-1] if not points.is_empty() else []
+	var belt: String = Titles.held_by(w, id)
+	if to == 0 and belt != "":
+		return "won %s" % Titles.title_name(w, belt)
 	if to == 0 and id != Career.FIGHTER_ID:
 		var now: Dictionary = Promotions.of(w, m)
 		if int(m.get("moved", -1)) == week and not now.is_empty():
@@ -270,6 +280,8 @@ static func fight_words(w: World, e: Array) -> String:
 	var who: String = name_of(w, opponent_id)
 	if int(e[3]) > 0:
 		who = "#%d %s" % [int(e[3]), who]
+	elif int(e[3]) == CHAMPION:
+		who = "the champion " + who
 	var how: String = { "ko": " by knockout", "submission": " by submission", "decision": " on the cards" }.get(String(e[5]), "")
 	match String(e[4]):
 		"w":
