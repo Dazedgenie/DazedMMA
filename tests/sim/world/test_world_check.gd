@@ -128,3 +128,19 @@ func test_the_divisions_are_biggest_in_the_middle_and_lads_grow_into_theirs() ->
 		if String(m.id).begins_with(Weight.natural(m.frame) + "_"):
 			fits += 1
 	assert_gt(float(fits) / lads.size(), 0.9, "a lad made for a division grows into it")
+
+
+func test_a_man_he_fought_lately_stays_on_his_division_list_once_he_has_grown_out_of_it() -> void:
+	var c: Career = _career()
+	var w: World = c.world()
+	var lad: Dictionary = w.in_division(c.division_now(), c.week).filter(func(m: Dictionary) -> bool: return not bool(m.pro))[0]
+	c.fights.append({ "opponent": String(lad.id), "result": "loss", "method": "Decision (unanimous)", "round": 3, "week": c.week })
+	lad.met_week = c.week
+	lad.frame.adult_kg = 95.0  # He's shot up into a heavier division since.
+	assert_ne(World.division_of(lad, c.week), c.division_now())
+	var text: String = CareerHub.division_text(c)
+	assert_string_contains(text, String(lad.name))
+	assert_string_contains(text, "you lost to him")
+	assert_string_contains(text, "now " + Weight.name_of(World.division_of(lad, c.week)).to_lower())
+	lad.met_week = c.week - CareerHub.MET_LATELY_WEEKS - 1
+	assert_false(String(lad.name) in CareerHub.division_text(c), "not once it's a while ago")

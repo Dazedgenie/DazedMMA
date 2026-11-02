@@ -857,7 +857,8 @@ at the top ("Home locally, hotbeds at top").
   a close fight (a draw, or a split or majority decision).
 - **His division** is a button on the hub's top bar: the men in his division this week, the ones he can be offered
   first (amateurs while he's one), best first by the scouts' grade, each with his age, hometown, level, record, style
-  and how it went if he's fought him.
+  and how it went if he's fought him. A man he's fought in the last 26 weeks stays on it even when one of them has grown
+  into the next division since ("now welterweight"; D359, `CareerHub.MET_LATELY_WEEKS`).
 
 From D353 the men fight each other too, get better and older, turn pro and retire (§12.3). Fights don't change (no
 golden re-pin).

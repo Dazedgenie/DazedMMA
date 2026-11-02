@@ -33,6 +33,8 @@ signal history_pressed
 ## Around his division (D353, news_text): at most NEWS_MAX lines; a winner who had under UPSET_CHANCE is an upset; a man
 ## averaging NEWS_BEST or more is one of the best.
 const NEWS_MAX: int = 4
+## A man he's fought in this many weeks is on his division's list even once one of them has moved division (D359).
+const MET_LATELY_WEEKS: int = 26
 const UPSET_CHANCE: float = 0.35
 ## A fight between two ranked men, one of them in his table's top NEWS_TOP_RANK, is a bit more news (D355).
 const NEWS_TOP_RANK: int = 5
@@ -866,6 +868,16 @@ static func division_title(c: Career) -> String:
 static func division_text(c: Career) -> String:
 	var w: World = c.world()
 	var men: Array[Dictionary] = w.in_division(c.division_now(), c.week)
+	# A man he's fought lately stays on his list though one of them has grown into the next division since (D359).
+	var listed: Dictionary = {}
+	for m: Dictionary in men:
+		listed[String(m.id)] = true
+	for f: Dictionary in c.fights:
+		var o: Dictionary = w.man(String(f.get("opponent", "")))
+		if not o.is_empty() and World.active(o) and not listed.has(String(o.id)) \
+				and int(o.get("met_week", -1)) >= c.week - MET_LATELY_WEEKS:
+			men.append(o)
+			listed[String(o.id)] = true
 	men.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		var x: float = w.average(a)
 		var y: float = w.average(b)
@@ -890,6 +902,9 @@ static func _division_line(c: Career, w: World, m: Dictionary, met: Dictionary) 
 	var nick: String = String(m.get("nickname", ""))
 	var line: String = "[b]%s[/b]%s · %d · %s, %s" % [String(m.name), (" '%s'" % nick) if nick != "" else "",
 		int(floor(World.age_of(m, c.week))), String(m.hometown), String(m.country)]
+	var now_in: String = World.division_of(m, c.week)
+	if now_in != c.division_now():
+		line += " · now %s" % Weight.name_of(now_in).to_lower()
 	var promotion: Dictionary = Promotions.of(w, m)
 	line += "\n[color=%s]%s%s · %s · %s · grade %s[/color]" % [DIM.to_html(false), World.level_name(m),
 		(" · %s%s" % [("champion, " if Titles.held_by(w, String(m.id)) != "" else (Rankings.rank_text(w, String(m.id)) + " ") if Rankings.rank_of(w, String(m.id)) > 0 else ""), String(promotion.short)])
