@@ -7,7 +7,8 @@ extends SceneTree
 ## --move=<move>[:n] does the same for the nth time the fight screen starts posing that move from the rig (D368,
 ## D369: scramble, scramble_up, get_up, get_up_fence, stand_up, double_leg, catch_kick_single, follow_down, or a
 ## clinch takedown by its move's name). --knockdown=n starts saving a second before the fight's nth knockdown
-## (D370: plays the fight once to find it). Every pass plays on through the round breaks.
+## (D370: plays the fight once to find it). --finish starts saving FINISH_LEAD s before the fight ends (D373, D374:
+## the referee jumping in and the hold on the finish). Every pass plays on through the round breaks.
 ## Encode with ffmpeg -framerate 24 -i build/motion/frame-%04d.png -c:v libx264 -pix_fmt yuv420p build/motion.mp4
 
 const FPS: int = 24
@@ -23,6 +24,9 @@ var _move_n: int = 1
 ## once to find it, then again from the start.
 var _knockdown: int = 0
 const KNOCKDOWN_LEAD: float = 1.0
+## --finish: start saving FINISH_LEAD s before the fight ends (found the same way).
+var _finish: bool = false
+const FINISH_LEAD: float = 1.5
 var _setup := {"red": "boxer", "blue": "kicker", "seed": 35003, "sound_volume": 0.0, "easy": true}
 
 
@@ -42,6 +46,8 @@ func _initialize() -> void:
 			_move_n = int(parts[1]) if parts.size() > 1 else 1
 		if arg.begins_with("--knockdown="):
 			_knockdown = int(arg.trim_prefix("--knockdown="))
+		if arg == "--finish":
+			_finish = true
 		for key: String in ["red", "blue", "seed"]:
 			if arg.begins_with("--%s=" % key):
 				var value: String = arg.trim_prefix("--%s=" % key)
@@ -53,12 +59,18 @@ func _capture() -> void:
 	root.size = Vector2i(960, 540)
 	if _knockdown > 0:
 		var at: float = _find_knockdown()
-		if at < 0.0:
+		if at <= 0.0:
 			push_error("Motion preview: no knockdown %d in this fight" % _knockdown)
 			quit(1)
 			return
 		_from = maxf(0.0, at - KNOCKDOWN_LEAD)
 		print("Motion preview: knockdown %d at %.1f s" % [_knockdown, at])
+	if _finish:
+		_knockdown = 1 << 30  # No such knockdown: the find pass plays to the end.
+		var end: float = _find_knockdown()
+		_knockdown = 0
+		_from = maxf(0.0, -end - FINISH_LEAD)
+		print("Motion preview: the fight ends at %.1f s" % -end)
 	var main: Node3D = load("res://game/main.tscn").instantiate()
 	root.add_child(main)
 	main.record_dir = ""
@@ -137,4 +149,4 @@ func _find_knockdown() -> float:
 	var found: bool = seen[0] >= _knockdown
 	root.remove_child(main)
 	main.free()
-	return float(frames) / FPS if found else -1.0
+	return float(frames) / FPS if found else -float(frames) / FPS  # Not found: minus where the fight ended.

@@ -16,7 +16,9 @@ submission is locked in, then saves `--seconds` from there, carrying on past the
 `follow_down`, or a clinch takedown's name; `--red=wrestler --blue=bjj --seed=35003 --move=double_leg --seconds=3` is a
 double leg shot from range). `--knockdown=n` starts saving a second before the fight's nth knockdown (D370: it plays the
 fight once to find it, then again; `--red=brawler --blue=boxer --seed=35004 --knockdown=1 --seconds=5` is a man dropped,
-down and back up). Every pass plays on through the round breaks.
+down and back up). `--finish` starts saving 1.5 s before the fight ends (D373, D374: the referee jumping in and the
+hold on the finish; `--red=brawler --blue=boxer --seed=35004 --finish --seconds=5` is a stoppage on their feet,
+`--red=bjj --blue=boxer --seed=35002 --finish --seconds=6` a triangle). Every pass plays on through the round breaks.
 
     godot --script res://tools/visual_preview.gd -- --out=res://build/visual --720p
     godot --script res://tools/character_preview.gd -- --out=res://build/characters
@@ -47,8 +49,9 @@ Counter-striker shows the most):
     godot --script res://tools/visual_preview.gd -- --out=res://build/visual --red=pressure_wrestler --blue=counter_striker
 
 `body_regions.py` (Python 3 with numpy and Pillow, not Godot) bakes `game/bodies/tripo_fighter_regions.png`, the mask
-that tells the body's shader which texels are hair, beard, eyebrows and shorts (D364). Run it again only if the body
-file changes; its heights and limits are this body's:
+that tells the body's shader which texels are hair, beard, eyebrows and shorts (D364), and
+`game/bodies/tripo_fighter_clothes.png`, the referee's striped shirt, trousers and shoes (D373). Run it again only if
+the body file changes or the clothes do; its heights and limits are this body's:
 
     python3 tools/body_regions.py
 

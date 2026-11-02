@@ -900,8 +900,8 @@ still takes his arms.
 `game/arena_view.gd`; the `ROCKED_*` numbers in `game/fighter_figure.gd`.
 
 **Limits:** the other man is today's figure meanwhile; a man rocked or knocked down in the clinch or on the ground has
-no fall of his own (the sim breaks them apart standing and he's shown down); no referee yet, and the result comes up
-the moment a knockout lands (the second PR); the poses are hand-placed, with no physics.
+no fall of his own (the sim breaks them apart standing and he's shown down); the poses are hand-placed, with no physics.
+The referee and the hold on the finish came in the second PR (D373, D374, below).
 
 Preview: `tools/rig_preview.gd --knockdowns --body` (each way down and up key by key and half way between); a real
 knockdown: `tools/motion_preview.gd --red=brawler --blue=boxer --seed=35004 --knockdown=1 --seconds=5`
@@ -914,6 +914,62 @@ the fence not through it, every way up ending on his feet) and `tests/game/test_
 on his back away from the man who dropped him, a hook turning a crumple, down the fence with no room, the liver fold,
 the leg giving out on either side, getting up through a knee and back to his figure, a knockout leaving him down,
 following him down from where he lies, the rocked wobble).
+
+## The referee and the finish (D373, D374)
+
+The second PR of knockdowns and finishes. Kyle's cards: "Yes, he jumps in to stop it" and "A few seconds on the
+finish" (04:51), then "Striped shirt, shadows the action" (13:23), each the recommended option. Presentation only: the
+fight doesn't know he's there, so fights are unchanged.
+
+**Him** (`game/rig/referee.gd`, `Referee`). The fighters' skinned body sized to a `SHOULDER_HEIGHT` of 1.5 m, posed by a
+hidden rig of his own. His face, skin and hair are rolled from the fight's seed (`LOOK_SEED`), so a fight's seed is
+always the same man. `SkinnedBody.set_referee` dresses him: a black-and-white striped shirt, grey
+trousers and black shoes (`SHIRT_WHITE`, `SHIRT_BLACK`, `TROUSERS`, `SHOES`), read from a second baked mask,
+`game/bodies/tripo_fighter_clothes.png` (`tools/body_regions.py`: R the shirt, G its stripes and the bare hands, B the
+trousers, A the shoes; the stripes run upright round his body and round his sleeves).
+
+**Where he stands** (`ArenaView._move_referee`, every frame):
+
+| What's happening | Where (`Referee.watch_spot` / `stop_spot`) | How he holds himself (`pose_spec`) |
+|---|---|---|
+| On their feet apart | `STANDING_OFF` (2.3 m) from the middle of them | "watch": upright, hands loose in front |
+| Tied up in the clinch | `CLINCH_OFF` (1.8 m) | "watch" |
+| On the ground | `GROUND_OFF` (1.6 m) | "ground": crouched, hands on his knees |
+| A man knocked down on his feet | `DOWN_OFF` (1.4 m) from the downed man | "down": bent over him, a hand out |
+| A stoppage, them apart | between them, 0.6 m from the beaten man toward the winner | "stop": both hands crossing over his head |
+| A stoppage, them closer than `CLEAR_OF_MEN` | beside them across the camera's view (`SIDE_ON`, 0.95 m) on the beaten man's side | "stop": a hand on the beaten man (on the ground on the winner, bent down to pull him off), the other waving |
+
+Watching, he tries `SPOT_TRIES` (16) spots round them and takes the one furthest round to the far side from the camera,
+less `STAY_WEIGHT` (0.6) for each step-length it moves him (so he doesn't dance about as they move), never within
+`CLEAR_OF_MEN` (1.2 m) of either man or `CLEAR_OF_FENCE` (0.55 m) of the fence. He walks there at `WALK_SPEED`
+(1.5 m/s) turning `TURN_SPEED` (5 rad/s) to face them, one foot stepping at a time once it's `STEP_FROM` (12 cm) out
+of place; at a stoppage he rushes in at `RUSH_SPEED` (4 m/s) with quicker steps. He waves `WAVE_RATE` (1.6) times a
+second.
+
+**The finish** (D374). A knockout, a stoppage (TKO) or a submission (`ArenaView.FINISHES`) is held on the cage for
+`FINISH_HOLD` (3 s) before the result comes up: the referee waving it off, a knocked-out man still falling, and after a
+submission the tap first (D367). `ArenaView.finish_shown` fires once when it's done and `main._on_fight_over` waits
+for it. A decision goes straight to the cards. Without the body there's no referee, and only a submission waits (for
+the tap, as before).
+
+**What to edit:** the numbers at the top of `game/rig/referee.gd`; his poses in `Referee.pose_spec`; the clothes'
+colours at the top of `game/rig/skinned_body.gd`; where the shirt ends (`WAIST`, `COLLAR`, `SLEEVE_END`), the stripes'
+width (`STRIPE`) and the trousers' hem (`HEM`) in `tools/body_regions.py` (then run it again); `FINISH_HOLD` in
+`game/arena_view.gd`.
+
+**Limits:** he walks through the fighters' arms and legs if they swing through his spot (he only keeps his hips clear
+of theirs); he doesn't step in to break up the clinch or a stalled fight, count, or check on a man between rounds; he
+isn't drawn in the camp or on the setup screens; the same body as the fighters with the shirt painted on it.
+
+Preview: `tools/motion_preview.gd --finish` starts saving `FINISH_LEAD` (1.5 s) before the fight ends:
+`--red=brawler --blue=boxer --seed=35004 --finish --seconds=5` is a stoppage on their feet, `--seed=35006` a knockout,
+`--red=gnp_wrestler --blue=kicker --seed=35003` a stoppage in the guard and `--red=bjj --blue=boxer --seed=35002` a
+triangle. Pictures: `/mnt/project-files/screenshots/referee-d373/`.
+
+Tests: `tests/game/test_referee.gd` (clear of both men and the fence on the far side from the camera, inside the cage
+with them against the fence, not dancing about, between them by the beaten man, beside them where the camera sees him
+when they're close, the waving hands and the one on the man, a referee in every fight dressed, the same man for the
+same seed, crouched on the ground, over a knocked-down man, the stoppage bringing him in and the result waiting 3 s).
 
 ## Review and verification
 
