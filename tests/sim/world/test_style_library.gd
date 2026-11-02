@@ -30,7 +30,24 @@ func test_different_seeds_make_different_opponents_of_the_same_style() -> void:
 	var b: Dictionary = _styles.generate("kicker", 2, 0, _roster)
 	assert_ne(JSON.stringify(a.stats), JSON.stringify(b.stats))
 	assert_eq(a.techniques, b.techniques, "the moves are the style's")
-	assert_eq(a.tells, b.tells, "the tell is the style's, so scouting it works on every one of them")
+	assert_eq(a.tells[0], b.tells[0], "the signature fighter's tell is every kicker's")
+
+
+func test_each_man_has_his_own_habits_from_his_styles_list() -> void:
+	for style_id: String in _styles.ids():
+		var style: Dictionary = _styles.get_style(style_id)
+		var signature: Array = _roster.profile(String(style.fighter)).get("tells", [])
+		var seen: Dictionary = {}
+		for s in 40:
+			var p: Dictionary = _styles.generate(style_id, s, 0, _roster)
+			var tells: Array = p.tells
+			assert_between(tells.size(), 1, 2, "%s #%d has one or two habits" % [style_id, s])
+			for t: Dictionary in signature:
+				assert_true(tells.has(t), "%s keeps the signature fighter's tell" % style_id)
+			for t: Dictionary in tells:
+				assert_true(signature.has(t) or (style.get("habits", []) as Array).has(t), "every habit is the style's")
+			seen[JSON.stringify(tells)] = true
+		assert_gt(seen.size(), 1, "%s: not every man has the same habits" % style_id)
 
 
 func test_opponents_stay_close_to_the_signature_fighter() -> void:

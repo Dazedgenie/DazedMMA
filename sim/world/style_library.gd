@@ -14,6 +14,10 @@ const DEFAULT_DIR := "res://data/styles/"
 const MAX_LEVEL: int = 30
 ## Reach keeps the signature fighter's ape index give or take this much (cm).
 const REACH_SPREAD_CM: int = 3
+## His habits (D401): with the signature fighter's tell, this chance of one more from the sheet's `habits`; without
+## one, 1 to HABITS_MAX of them.
+const HABIT_EXTRA_CHANCE: float = 0.5
+const HABITS_MAX: int = 2
 
 static var _default: StyleLibrary
 static var _stat_ids: Array = []
@@ -61,7 +65,8 @@ func get_style(id: String) -> Dictionary:
 ## `level` (−MAX_LEVEL to +MAX_LEVEL) moves every stat; the seed picks the rest:
 ## each stat, style leaning and move preference a little off the signature
 ## fighter's, a personality of their own, height (reach follows), and stance.
-## Moves, combinations, tells, gifts and flaws are the style's and stay as they are.
+## Moves, combinations, gifts and flaws are the style's and stay as they are; his habits are the signature
+## fighter's tell plus one or two of the sheet's `habits` (D401).
 ## Register the result with FighterLibrary.add() before a fight, so replays find it.
 func generate(style_id: String, fighter_seed: int, level: int, roster: FighterLibrary, fighter_id: String = "", fighter_name: String = "") -> Dictionary:
 	var style: Dictionary = get_style(style_id)
@@ -104,7 +109,24 @@ func generate(style_id: String, fighter_seed: int, level: int, roster: FighterLi
 	p.frame.reach_cm = int(p.frame.height_cm) + ape + rng.randi_range(-REACH_SPREAD_CM, REACH_SPREAD_CM)
 	if rng.randf() < float(style.southpaw_chance):
 		p.stance = "southpaw"
+	_roll_habits(p, style, fighter_seed)
 	return p
+
+
+## His own habits (D401): one or two from the sheet's `habits` on top of the signature fighter's tell, if any (with a
+## tell, HABIT_EXTRA_CHANCE of one more; without one, 1 to HABITS_MAX). Rolled on dice of their own, so the rest of
+## him is the same as before habits came in.
+static func _roll_habits(p: Dictionary, style: Dictionary, fighter_seed: int) -> void:
+	var pool: Array = (style.get("habits", []) as Array).duplicate(true) if style.get("habits") is Array else []
+	if pool.is_empty():
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.seed = ("%s:%d:habits" % [String(style.id), fighter_seed]).hash()
+	var tells: Array = p.get("tells", []) if p.get("tells") is Array else []
+	var extra: int = (1 if rng.randf() < HABIT_EXTRA_CHANCE else 0) if not tells.is_empty() else rng.randi_range(1, HABITS_MAX)
+	for n in mini(extra, pool.size()):
+		tells.append(pool.pop_at(rng.randi_range(0, pool.size() - 1)))
+	p.tells = tells
 
 
 ## The plan his corner gives a fighter (D324): his style sheet's `gameplan` ({approach, target,

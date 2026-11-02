@@ -126,6 +126,8 @@ var career: Career
 var _back: Button
 var _reset: Button
 var _night_button: Button
+var _scout_heading: Label
+var _scouting: RichTextLabel
 
 
 func _init(profile: Dictionary, camp_seed: int = 1, library: TrainingLibrary = null) -> void:
@@ -382,6 +384,11 @@ func log_text() -> String:
 	return _log.get_parsed_text()
 
 
+## The scouting box as text ("" when it isn't shown: outside a career, D401).
+func scouting_text() -> String:
+	return _scouting.get_parsed_text() if _scouting.visible else ""
+
+
 func stats_text() -> String:
 	return _stats_text
 
@@ -484,6 +491,16 @@ func _build_condition_card() -> Control:
 	setup.add_child(_weeks_picker)
 	_age = _spin(setup, "Age", 16.0, 45.0, float(_start.get("age", TrainingCamp.DEFAULT_AGE)))
 	_potential = _spin(setup, "True potential", 30.0, 100.0, float(_start.get("potential", TrainingCamp.DEFAULT_POTENTIAL)))
+
+	# In a career (D401): what you know of the man he's fighting.
+	_scout_heading = _heading("Scouting")
+	_scout_heading.visible = false
+	box.add_child(_scout_heading)
+	_scouting = _text_box(Vector2.ZERO)
+	_scouting.fit_content = true
+	_scouting.visible = false
+	_scouting.add_theme_font_size_override("normal_font_size", 14)
+	box.add_child(_scouting)
 
 	box.add_child(_heading("The camp so far"))
 	_log = _text_box(Vector2.ZERO)
@@ -833,6 +850,11 @@ func _refresh() -> void:
 	_refresh_condition(forecast)
 	_forecast.text = _forecast_bbcode(forecast)
 	_log.text = _log_bbcode()
+	var scouting: bool = career != null and not career.booked.is_empty()
+	_scout_heading.visible = scouting
+	_scouting.visible = scouting
+	if scouting:
+		_scouting.text = Scouting.report_text(career, career.booked_opponent(), _groups, CareerHub.SCOUTED_GROUPS)
 	_refresh_stats(forecast.get("gains", {}))
 	_night_button.visible = done()
 	night_card.visible = done() and _night_open
@@ -1027,6 +1049,11 @@ func _week_line(i: int, colours: bool = true) -> String:
 	for slot: int in r.get("played", {}):
 		bits.append("played %s × %.2f" % [_library.session(String(r.slots[slot].session)).name, r.played[slot]])
 	var lines: Array[String] = ["Week %d, %s: %s. %s" % [i + 1, _plan_name(r.plan), ", ".join(bits), _top_gains(r.gains, 3)]]
+	if career != null:
+		for t: Variant in career.booked_opponent().get("tells", []):
+			if t is Dictionary and (r.get("scouted", []) as Array).has(Scouting.key(t)):
+				lines.append("  [color=#ffe066]Film study found his habit:[/color] %s." % Scouting.tell_text(t) if colours
+					else "  Film study found his habit: %s." % Scouting.tell_text(t))
 	for injury: Dictionary in r.injuries:
 		lines.append(paint.call("  Hurt (%s) on %s in %s: out %d days." % [injury.area, TrainingCamp.DAY_NAMES[injury.day],
 			_library.session(injury.session).name, injury.days_out]))

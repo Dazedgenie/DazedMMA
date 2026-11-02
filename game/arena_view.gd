@@ -160,6 +160,8 @@ signal takedown_landed(strength: float)
 signal tapped
 ## A finish has been held on the cage long enough (D374, FINISH_HOLD): the result can come up.
 signal finish_shown
+## A habit of his the player hadn't found went off often enough in this fight to find it (D401, Scouting.Watch).
+signal tell_spotted(tell: Dictionary)
 
 var driver: FightDriver
 var camera: Camera3D
@@ -221,6 +223,9 @@ var _blood_spots: Array[MeshInstance3D] = []
 var _spot_rng := RandomNumberGenerator.new()
 ## Light up scouted tells (D51): a toggle so the playtest can compare cue on and off.
 var tell_cues: bool = true
+## In a career fight (D401): which of his habits are found and get the cue, counting the rest as they go off. null
+## (Quick fight): every tell is cued.
+var tell_watch: Scouting.Watch = null
 var debug_marks: bool = false:
 	set(value):
 		debug_marks = value
@@ -1682,8 +1687,18 @@ func _on_event(event: FightEvent) -> void:
 			continue
 		for tell: Dictionary in sim.fighters[i].tells:
 			if triggers.has(tell.trigger) and triggers.matches(tell.trigger, event, i):
-				_tell_limb[i] = FighterFigure.limb_for(String(tell.action))
-				_tell_until[i] = event.tick + int(tell.get("within_ms", 1000)) / FightClock.TICK_MS
+				if tell_watch != null:
+					tell_watch.set_off(tell, event.tick)
+				if tell_watch == null or tell_watch.cues(tell):
+					_tell_limb[i] = FighterFigure.limb_for(String(tell.action))
+					_tell_until[i] = event.tick + int(tell.get("within_ms", 1000)) / FightClock.TICK_MS
+		# A habit he hadn't been found out on, followed through: seen often enough, it's found (D401).
+		if tell_watch != null and event.actor == i and event.type == FightEvent.ACTION_PHASE \
+				and String(event.data.phase) in ["telegraph", "windup"]:
+			var spotted: String = tell_watch.started(String(event.data.get("action_id", "")), event.tick)
+			for tell: Dictionary in sim.fighters[i].tells:
+				if spotted != "" and Scouting.key(tell) == spotted:
+					tell_spotted.emit(tell)
 		# The tell's move is under way: the cue's job is done.
 		if event.actor == i and event.type == FightEvent.ACTION_PHASE and event.data.phase == "active":
 			_tell_until[i] = -1

@@ -10,6 +10,10 @@
 	"southpaw_chance": 0.15,
 	"variation": { "stats": 6, "style": 12, "tendencies": 0.2, "personality": 30, "height_cm": 4 },
 	"gameplan": { "approach": "pressure", "target": "head", "where": "" },
+	"habits": [
+		{ "trigger": "own_jab_blocked", "action": "hook", "chance": 0.5, "within_ms": 1000 },
+		{ "trigger": "opp_strike_misses", "action": "overhand", "chance": 0.4, "within_ms": 1000 }
+	],
 	"scouting": {
 		"summary": "Comes forward swinging hooks and overhands, takes one to give one, and looks for the knockout.",
 		"strengths": [
