@@ -831,7 +831,7 @@ origin `ScramblePair.FENCE_BACK` (40 cm) in from it (`wall_frame`). Standing up 
 man being shot on, so his stance is where it was drawn and the shot's later poses are the clinch takedown's
 (`RigPairs.double_leg`, `TakedownPair._dl_drive`); how far he steps in depends on how far apart they were drawn. The
 catch-kick single is mirrored when the kick came with the left leg (`ArenaView._kicking_leg`). Following him down is
-posed from the downed man's hips. Each lands laid out the way today's figures lay out the position (as D288's do) and
+posed from the downed man's hips (where his fall laid him, D370). Each lands laid out the way today's figures lay out the position (as D288's do) and
 today's figures carry on where it landed.
 
 **What to edit:** the poses, `TIMING` and `FENCE_BACK` in `game/rig/scramble_pair.gd`; the poses, `TIMING`,
@@ -839,8 +839,7 @@ today's figures carry on where it landed.
 `game/arena_view.gd`.
 
 **Limits:** the up-kick and diving back on him after standing up (D333, D334), the leg grab and the knee on the ground
-keep the pose they're in; a stuffed shot from range eases back to today's standing figures; the man knocked down is
-today's figure until someone follows him down; the scramble is one pose held (no hand fighting on the knees); the poses
+keep the pose they're in; a stuffed shot from range eases back to today's standing figures; the scramble is one pose held (no hand fighting on the knees); the poses
 are hand-placed on the Tripo body, with no physics.
 
 Preview: `tools/rig_preview.gd --moves --body` (each move key by key and half way between, the fence walk against the
@@ -855,6 +854,66 @@ feet and standing up leaving him down, the level change out at range) and `tests
 scramble on their knees, a half-worked shot carrying on into it, the scramble for the top landing in the guard, getting
 up out of it, the technical stand-up, the fence walk, a stopped get-up back in the guard, standing up leaving him down, the double leg
 from range, a sprawl on it, the catch-kick holding the leg he kicked with, following him down into half guard).
+
+## Knockdowns from the rig (D370–D372)
+
+The first PR of knockdowns and finishes (Kyle picked the slice on 2026-11-02 at 04:14; the visual slices now use
+D370–D379). A man knocked down used to snap flat in a third of a second, lie there stiff and snap back up; now he falls,
+lies and gets up on the rig. On Kyle's five cards (04:50–04:51) he picked the recommended answers: the fall "By the
+shot that dropped him", getting up "To a knee, then up on wobbly legs", rocked "Wobbly legs, low hands, stars kept",
+a referee in the cage who jumps in to stop it and a few seconds on the finish before the result (the second PR).
+
+**Which way down** (`ArenaView._lay_out_knockdown`, from the KNOCKDOWN event):
+
+| Dropped by | The fall (`KnockdownPose`) | Down for (FightSim) |
+|---|---|---|
+| A flash knockdown (D145) | "stiff": tipping back straight, arms up in front, flat on his back (0.45 s) | 2 s |
+| Anything else standing | "crumple": his knees go, he sits down hard and falls back (0.7 s) | 2 s |
+| A liver shot (D143) | "liver": folding onto both knees, curled over it with his forehead near the canvas (0.8 s) | 3 s |
+| A leg giving out (D144) | "leg": down onto that knee, his hands on the other (0.3 s; mirrored for the right leg) | 1 s |
+| No room behind him | "fence": sliding down the fence to sit against it, hands on his thighs (0.6 s) | 2 s |
+
+The fall is posed in his own frame (`knockdown_frame`): origin where his feet were, +Z behind him, away from the other
+man. A hook or a round kick that dropped him (the way it turned his head, `_last_hit_turn`) turns a stiff fall 55°
+and a crumple 35° toward that side. A stiff or crumpled fall needs `LYING_LENGTH` (1.75 m) behind him clear of the fence
+by `FENCE_ROOM` (15 cm); without it the fall turns `KNOCKDOWN_ROOM_TURNS` (±0.6 rad) to find room, and with none
+there either he goes down the fence, posed in the fence's frame (`wall_frame` turned half round). A southpaw's poses
+are mirrored. The fall quickens as he goes (`fall_x`). Dropped on the ground, he's shown already down.
+
+**Getting up** (D371, `KnockdownPose.rises`). The last `rise` seconds of his time down: from his back he sits up
+propped on his hands, comes up on one knee pushing off the other with both hands, and stands bent over, knees bent and
+hands low (0.9 s); from the liver shot a hand goes to the canvas first (1 s); from the leg he pushes straight up
+(0.45 s); against the fence he walks up it (0.9 s). Getting up turns him back to face the other man. Once the sim has
+him up he eases back to today's figure over `DOWN_EASE_OUT` (0.3 s). A knockout (or the third knockdown) ends the fight
+with him down, and the fall plays on to the canvas.
+
+**Following him down** (D369) dives on him from where his fall laid him (the rig's hips), not from his feet.
+
+**Rocked** (D372, `FighterFigure.rocked_pose`). On his feet and rocked, his hands drop `ROCKED_HANDS` (0.55 rad) from
+his guard, his hips sink `ROCKED_DIP` (4 cm) with his knees giving up to `ROCKED_BUCKLE` (10 cm) more now and then, and
+he sways side to side up to `ROCKED_SWAY` (0.16 rad), slower than before; all of it full when just rocked, fading to
+`ROCKED_LEAST` (40%) over his last `ROCKED_FADE_TICKS` (3 s) of being rocked. The stars stay. A cover-up or a strike
+still takes his arms.
+
+**What to edit:** the poses, `TIMING` (fall, rise, twist), `LYING_LENGTH` and `FENCE_ROOM` in
+`game/rig/knockdown_pose.gd`; `DOWN_EASE_IN`, `DOWN_EASE_OUT` and `KNOCKDOWN_ROOM_TURNS` at the top of
+`game/arena_view.gd`; the `ROCKED_*` numbers in `game/fighter_figure.gd`.
+
+**Limits:** the other man is today's figure meanwhile; a man rocked or knocked down in the clinch or on the ground has
+no fall of his own (the sim breaks them apart standing and he's shown down); no referee yet, and the result comes up
+the moment a knockout lands (the second PR); the poses are hand-placed, with no physics.
+
+Preview: `tools/rig_preview.gd --knockdowns --body` (each way down and up key by key and half way between); a real
+knockdown: `tools/motion_preview.gd --red=brawler --blue=boxer --seed=35004 --knockdown=1 --seconds=5`
+(`--knockdown=n` starts a second before the nth knockdown). Pictures: `/mnt/project-files/screenshots/knockdowns-d370/`
+(`now-*.png` how it looked before).
+
+Tests: `tests/game/test_knockdown_pose.gd` (every way down's keys and timing, the fall and getting up inside his time
+down, every hand and foot in place, no one under the canvas, lying behind where he stood inside the room it needs, down
+the fence not through it, every way up ending on his feet) and `tests/game/test_knockdown_view.gd` (a flash knockdown
+on his back away from the man who dropped him, a hook turning a crumple, down the fence with no room, the liver fold,
+the leg giving out on either side, getting up through a knee and back to his figure, a knockout leaving him down,
+following him down from where he lies, the rocked wobble).
 
 ## Review and verification
 

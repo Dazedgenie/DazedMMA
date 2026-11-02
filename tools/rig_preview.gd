@@ -36,6 +36,8 @@ var _takedowns: bool = false
 var _ground: bool = false
 ## --subs: stills of the submissions loose and tight, and tapping (D366, SubmissionPair).
 var _subs: bool = false
+## --knockdowns: one man's falls and getting up (D370, D371, KnockdownPose), key by key and half way between.
+var _knockdowns: bool = false
 ## --moves: stills along the scrambles, the ways up and the shots from range (D368, D369).
 var _moves: bool = false
 ## Where the camera looks (the pair's middle; the fence walk is posed against the fence).
@@ -67,6 +69,8 @@ func _initialize() -> void:
 			_subs = true
 		elif arg == "--moves":
 			_moves = true
+		elif arg == "--knockdowns":
+			_knockdowns = true
 		elif arg == "--body":
 			_body_path = SkinnedBody.TRIPO_BODY
 		elif arg.begins_with("--body="):
@@ -109,7 +113,9 @@ func _capture() -> void:
 			rig.fit(body.measure())
 			body.set_colour(colour)
 			_bodies.append(body)
-	if _moves:
+	if _knockdowns:
+		await _knockdown_stills()
+	elif _moves:
 		await _move_stills()
 	elif _subs:
 		var examples: Dictionary = SubmissionPair.examples()
@@ -219,6 +225,45 @@ func _move_stills() -> void:
 		var at: Vector2 = ShotPair.TIMING[move].at
 		keys_in.append([ShotPair.landing(move), _pair_frame * Transform3D(Basis.IDENTITY, Vector3(at.x, 0, at.y))])
 		await _path_stills(move, TakedownPair.chain(keys_in), _pair_frame.origin)
+	_look = Vector3(0, 0.7, 0)
+
+
+## Each way down and back up (D370, D371) for one man, red, side on; the fall down the fence against the fence.
+func _knockdown_stills() -> void:
+	var frame: Transform3D = _pair_frame
+	for kind: String in KnockdownPose.KINDS:
+		var down: Array = []
+		var up: Array = []
+		var fence: Transform3D = frame
+		if kind == "fence":
+			var across := Vector2(ArenaView.CAMERA_FROM.z, -ArenaView.CAMERA_FROM.x).normalized()
+			var n: Vector2 = Octagon.NORMALS[0]
+			for normal: Vector2 in Octagon.NORMALS:
+				if normal.dot(across) > n.dot(across):
+					n = normal
+			var z := Vector3(n.x, 0.0, n.y)  # Toward the fence: behind him.
+			var at: Vector2 = n * (Octagon.APOTHEM - ScramblePair.FENCE_BACK)
+			fence = Transform3D(Basis(Vector3.UP.cross(z), Vector3.UP, z), Vector3(at.x, 0.0, at.y))
+		var keys: Array[Dictionary] = KnockdownPose.falls(kind)
+		for k in keys.size():
+			var where: Transform3D = fence * Transform3D(Basis.IDENTITY, Vector3(0, 0, -0.7)) if kind == "fence" and k == 0 else fence
+			down.append([keys[k], where])
+		for key: Dictionary in KnockdownPose.rises(kind):
+			up.append([key, fence])
+		_look = fence.origin + Vector3(0, 0.6, 0) + fence.basis.z * 0.3
+		for half in [[down, "down"], [up, "up"]]:
+			var path: Array = half[0]
+			for n in path.size() * 2 - 1:
+				var x: float = n / 2.0
+				_title.text = "%s%s %s %s" % [_prefix(), kind, half[1], str(x)]
+				KnockdownPose.pose_along(_rigs[0], _rigs[1], path, x)
+				if not _bodies.is_empty():
+					_bodies[0].follow(_rigs[0])
+				_show_rigs(true)
+				_rigs[1].visible = false
+				if _bodies.size() > 1:
+					_bodies[1].visible = false
+				await _frames(1, "knockdown-%s-%s-%s.png" % [kind, half[1], str(x).replace(".", "_")])
 	_look = Vector3(0, 0.7, 0)
 
 
