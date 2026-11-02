@@ -25,6 +25,9 @@
 		"DOWN": "Knocked down, for the 2 s before he gets up (D141), or left on his back for a second when the man on top stands up out of it (D332). Only a soccer kick or a stomp lands on him, and only where the rules allow them (PRIDE); he can be followed back down.",
 		"STANDING_UP": "On top on the ground and standing up out of it (D330): weight coming off him, a foot planted. Exploited from underneath by the up-kick, which stops it, and by the leg locks as the leg comes past (D333).",
 		"SLIPPING": "Slipping a punch: head moved off the line for a moment (D180). Straight punches miss more; exploited by the uppercut.",
-		"COVERED": "Covering up: hands high and elbows in (D180). Half the head damage gets through; exploited by shots to the body."
+		"COVERED": "Covering up: hands high and elbows in (D180). Half the head damage gets through; exploited by shots to the body.",
+		"ROLLING": "Rolling a punch off the shoulder (D181): chin tucked behind the lead shoulder for a moment. The overhand comes over the top more often.",
+		"LEANING_BACK": "Leaning back out of the way (D181): weight on the back foot, can't be done with his back on the fence.",
+		"HIGH_GUARD": "High guard up to block (D181): a blocked head shot does a third of its damage; exploited by the uppercut and shots to the body."
 	}
 }
