@@ -80,6 +80,8 @@ var rank_cache: Dictionary = {}
 ## champion's belt key.
 var titles: Dictionary = {}
 var champion_cache: Dictionary = {}
+## Every belt reign that's ended, kept for good by the man's id (History, D358): [[belt key, won, lost, defences, how]].
+var reigns: Dictionary = {}
 ## The men next in line for a title shot (Titles.waiting, D357), worked out when needed; not saved.
 var next_cache: Dictionary = {}
 
@@ -364,7 +366,7 @@ func to_dict() -> Dictionary:
 	return { "version": VERSION, "seed": str(seed_value), "country_id": country_id, "hometown": hometown,
 		"men": men.values().map(func(m: Dictionary) -> Dictionary: return m.duplicate(true)), "next_number": next_number.duplicate(),
 		"played": played, "results": results.duplicate(true), "promotions": promotions.duplicate(true),
-		"rankings": rankings.duplicate(true), "ranking_moves": ranking_moves.duplicate(true), "him": him.duplicate(true),
+		"rankings": rankings.duplicate(true), "ranking_moves": ranking_moves.duplicate(true), "him": him.duplicate(true), "reigns": reigns.duplicate(true),
 		"titles": titles.duplicate(true) }
 
 
@@ -437,6 +439,13 @@ static func from_dict(data: Dictionary, p_styles: StyleLibrary = null, p_names: 
 				w.him[key] = int(w.him[key])
 		if w.him.get("answer") is Dictionary:
 			w.him.answer.week = int(w.him.answer.get("week", 0))
+	if data.get("reigns") is Dictionary:
+		for id: Variant in data.reigns:
+			var list: Array = []
+			for r: Variant in data.reigns[id]:
+				if r is Array and (r as Array).size() >= 5:
+					list.append([String(r[0]), int(r[1]), int(r[2]), int(r[3]), String(r[4])])
+			w.reigns[String(id)] = list
 	if data.get("titles") is Dictionary:
 		for k: Variant in data.titles:
 			var b: Dictionary = (data.titles[k] as Dictionary).duplicate(true)

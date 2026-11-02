@@ -65,6 +65,7 @@ The career and world simulation (D100), starting with training (`docs/02` §3.5,
 | `promotions.gd` | The world's promotions (docs/03 §12.4, D354): the organisations and regional promotions each career makes, every pro signed by level, their cards, call-ups and cuts |
 | `rankings.gd` | The rankings (docs/03 §12.5, D355): every promotion's own table in each division from points for recent results, fading and sliding, each move's reason, the career's fighter ranked from his pro fights |
 | `titles.gd` | The titles (docs/03 §12.6, D356): a belt in every promotion's division, title fights and defences, vacant belts, champions called up, his title fights; title eliminators and the man next in line (§12.7, D357) |
+| `history.gd` | The world's history (docs/03 §12.8, D358): every reign kept, the legends, former champions, his hometown's legend, a belt's line of champions |
 | `climb.gd` | Climbing the ladder (docs/03 §12.7, D357): his rung, call-ups after three wins or a defence, asking for a step up and the tryout, let go after three losses, the Ladder line |
 | `result_model.gd` | The quick result model (docs/03 §12.3, D350, D353): who wins a world fight, how and in which round, from the style matchup table the engine made (data/world/matchups.json) |
 | `aftermath.gd` | What a fight does to him afterwards (docs/03 §10.5, D305): the medical suspension and the Chin a knockout takes |

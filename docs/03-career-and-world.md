@@ -781,7 +781,7 @@ hotbeds at the top, each organisation's own top 15, about 3 fights a year (champ
 | Rankings: each organisation's top 15, updated weekly, each move with its reason (A10) | D355 | Built (§12.5) |
 | Titles: belts, 5-round title fights, defences, vacating | D356 | Built (§12.6) |
 | Climbing the ladder: call-ups to the bigger promotion, title eliminators, and asking for a step up from the hub at a risk of a tougher fight or a no (Kyle, 2026-11-01: "Call-ups plus asking for it"); fight-by-fight deals until phase 5 | D357 | Built (§12.7) |
-| A history before day one: the world played 10 years before his career starts, so there are long records and some retired legends (Kyle, 2026-11-01: "10 years") | D358 | Planned |
+| A history before day one: the world played 10 years before his career starts, so there are long records and some retired legends (Kyle, 2026-11-01: "10 years") | D358 | Built (§12.8) |
 | The 30-year check: a tool and a test that the world stays healthy (A10) | D359 | Planned |
 
 **The world's other fights** are decided by a quick result model, not the fight engine (Kyle, 2026-11-01: "A quick result model"; this changes A9's middle tier). The
@@ -1132,3 +1132,39 @@ year and the world one in about 2; winning 70% took 1 to 7 years to the internat
 `ELIMINATOR_AFTER`, `ELIMINATOR_ROUNDS`, `NEXT_WAIT`); his offers in `Matchmaker` (`step_up_offer`, `eliminator_offer`,
 `pro_cards`, `title_offer`); the hub in `CareerHub` (`fighter_card_text`, `offer_text`, the Ask button, `news_text`) and
 `game/main.gd` (`ask_step_up`). Tests: `tests/sim/world/test_climb.gd`. Then update this section and D357.
+
+### 12.8 A history before day one (D358)
+
+A new career's world has 10 years behind it. Kyle (2026-11-02) picked "A short wait with a progress line", "Records,
+reigns and a History page", "World champions and long reigns", "Yes, everywhere by name" and "Yes, named on the hub" (my
+pick on all five).
+
+- **The wait.** Once, when a new career starts (after the gym), the world is made at the start of a calendar 10 years
+  before his first week and played up to it: "WRITING 10 YEARS OF HISTORY" with the year counting up, about 8 seconds on
+  a PC (longer in the browser). His first week is still Monday 4 January 2027; the top bar's week counts from his start.
+  A loaded career never plays it again, and a career saved before D358 carries on without one.
+- **What it leaves.** Men with long records (the busiest about 50 pro fights), retired men kept with their records,
+  rankings built from real results, and every belt reign kept for good: who, when won and lost, how many defences and
+  how it ended.
+- **Legends:** anyone who's held the world organisation's belt, or defended any belt 3 times in one reign, retired or
+  still fighting, ranked by their reigns (a world organisation reign counts 3 times, the international one 1.5), about 40
+  after 10 years.
+- **Former champions marked everywhere by name.** A man who's held a belt and doesn't now is "former IML champion" (his
+  biggest one) on offers, the rankings, *His division* and the news.
+- **His hometown's legend.** Of the men who've held his home promotion's belts, one from his hometown if any is, else
+  from his country, the one whose reigns there count for most: named on the Promotions page under his home promotion and
+  on This week while he's a pro with no pro fights yet ("The IML's best ever: …").
+- **The History page** (*History* on the top bar): his hometown's legend; every promotion's champions in his division,
+  biggest promotion first and newest first ("2019–2022 Lewis Ward (England) · 4 defences · lost it"); and the top 20
+  legends in every division with their belts.
+
+**How healthy it is** (a fresh career, 2026-11-02): 10 years take about 8 s; about 680 active men and 480 retired ones
+kept; a save about 830 KB; about 40 legends; about 140 of the active men are former champions. One thing to watch: a
+dominant world champion can run up 20 defences over the 10 years (the result model has no reason to stop him short of
+age).
+
+**To change it:** how many years in `Career.HISTORY_YEARS` (tests and tools set `Career.history_years`; the test run's
+pre-run hook `tests/pre_run.gd` sets 0), the wait in `game/main.gd` (`_write_history`, `HISTORY_SLICE`); legends and the
+hometown legend in `sim/world/history.gd` (`LEGEND_DEFENCES`, `LEGENDS_SHOWN`, `legacy`, `home_legend`); the page in
+`CareerHub` (`history_text`, `home_legend_text`, `_reign_line`). Tests: `tests/sim/world/test_history.gd`. Then update
+this section and D358.

@@ -27,6 +27,8 @@ signal promotions_pressed
 signal rankings_pressed
 ## Asking the promotion a step up for a fight (D357, Climb.ask).
 signal ask_pressed
+## The history page (D358): each belt's champions in his division and the legends.
+signal history_pressed
 
 ## Around his division (D353, news_text): at most NEWS_MAX lines; a winner who had under UPSET_CHANCE is an upset; a man
 ## averaging NEWS_BEST or more is one of the best.
@@ -94,6 +96,7 @@ var _notebook: Button
 var _division: Button
 var _promotions: Button
 var _rankings: Button
+var _history: Button
 var _groups: Dictionary = {}
 var _gift_names: Dictionary = {}
 var _flaw_names: Dictionary = {}
@@ -154,6 +157,14 @@ func _init() -> void:
 	rankings.pressed.connect(func() -> void: rankings_pressed.emit())
 	top.add_child(rankings)
 	_rankings = rankings
+	var history := Button.new()
+	history.text = "History"
+	history.tooltip_text = "Every promotion's champions in his division, and the legends"
+	history.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	history.add_theme_font_size_override("font_size", 18)
+	history.pressed.connect(func() -> void: history_pressed.emit())
+	top.add_child(history)
+	_history = history
 	_date = Label.new()
 	DisplayFont.apply(_date, 34)
 	_date.add_theme_color_override("font_color", TEXT)
@@ -248,7 +259,7 @@ func show_career(p_career: Career, reports: Array = []) -> void:
 	if career.pro:
 		records += " · Pro %s" % career.record_text(true)
 	_line.text = "Age %d · %s · coached by %s" % [career.age(), records, coach_text(career)]
-	_date.text = "%s\nWEEK %d" % [career.date_text(), career.week + 1]
+	_date.text = "%s\nWEEK %d" % [career.date_text(), career.week - career.start_week + 1]
 	var night: Dictionary = career.trainee.fight_night()
 	for area: String in BodyDamageFigure.AREAS:
 		_figure.hurt[area] = float(night.hurt.get(area, 0.0))
@@ -477,10 +488,11 @@ static func opponent_rank_text(c: Career, id: String) -> String:
 	var belt: String = Titles.held_by(w, id)
 	if belt != "":
 		return "[color=%s]Champion[/color]: holds %s" % [WARN.to_html(false), Titles.title_name(w, belt)]
+	var former: String = History.former_tag(w, id)
 	if r <= 0 or p.is_empty():
-		return ""
-	return "[color=%s]Ranked #%d[/color] in the %s's %s rankings" % [GOOD.to_html(false), r, String(p.short),
-		Weight.name_of(String(m.get("division", ""))).to_lower()]
+		return ("[color=%s]A %s[/color]" % [WARN.to_html(false), former]) if former != "" else ""
+	return "[color=%s]Ranked #%d[/color] in the %s's %s rankings%s" % [GOOD.to_html(false), r, String(p.short),
+		Weight.name_of(String(m.get("division", ""))).to_lower(), (" · a " + former) if former != "" else ""]
 
 
 ## Grades by attribute group for a profile's stats, e.g. "Striking B · Wrestling C · Grappling D · Physical C".
@@ -567,6 +579,10 @@ func press_rankings() -> void:
 	_rankings.pressed.emit()
 
 
+func press_history() -> void:
+	_history.pressed.emit()
+
+
 ## His place in the rankings for his card (D355): "Ranked #4 in the ICF's lightweight rankings", or that he isn't yet
 ## ("" while he's an amateur).
 static func his_rank_text(c: Career) -> String:
@@ -585,6 +601,97 @@ static func his_rank_text(c: Career) -> String:
 		return "[color=%s]Ranked #%d[/color] in the %s's %s rankings%s" % [GOOD.to_html(false), r, String(p.short),
 			Weight.name_of(String(w.him.division)).to_lower(), next]
 	return "[color=%s]Not ranked yet: a fight on a promotion's card puts him in its rankings[/color]" % DIM.to_html(false)
+
+
+## His hometown's legend (D358): "The IML's best ever: Lewis Ward 'the Hammer', from Leeds, 3 reigns as welterweight
+## champion (2016–2021), 2 defences; retired 2024." ("" when there's none, or for a career saved before D358 with none).
+static func home_legend_text(c: Career) -> String:
+	var w: World = c.world()
+	if w.reigns.is_empty():
+		return ""  # No history yet (a career saved before D358): nobody to look back on.
+	var id: String = History.home_legend(w)
+	if id == "":
+		return ""
+	var m: Dictionary = w.man(id)
+	var home: Dictionary = Promotions.home(w)
+	var reigns: Array = History.reigns_of(w, id).filter(func(r: Array) -> bool: return String(r[0]).get_slice(":", 0) == String(home.id))
+	var defences: int = 0
+	var first: int = 1 << 30
+	var last: int = -(1 << 30)
+	var divisions: Dictionary = {}
+	for r: Array in reigns:
+		defences += int(r[3])
+		first = mini(first, int(r[1]))
+		last = maxi(last, int(r[2]) if int(r[2]) >= 0 else c.week)
+		divisions[Weight.name_of(String(r[0]).get_slice(":", 1)).to_lower()] = true
+	var nick: String = String(m.get("nickname", ""))
+	var now: String = "retired %d" % c.year_of(int(m.retired)) if not World.active(m) else "still fighting"
+	return "[color=%s]The %s's best ever:[/color] %s%s, from %s, %s %s champion (%d–%d), %d defence%s; %s." % [WARN.to_html(false),
+		String(home.short), String(m.get("name", "")), (" '%s'" % nick) if nick != "" else "", String(m.get("hometown", "")),
+		("%d reigns as" % reigns.size()) if reigns.size() > 1 else "the", " and ".join(divisions.keys()),
+		c.year_of(first), c.year_of(last), defences, "" if defences == 1 else "s", now]
+
+
+## The history page's title (D358).
+static func history_title(c: Career) -> String:
+	return "History · %s" % Weight.name_of(c.division_now())
+
+
+## The history page (D358): his hometown's legend, then every promotion's champions in his division, biggest first,
+## newest first (when, defences, how it ended), then the world's legends in every division.
+static func history_text(c: Career) -> String:
+	var w: World = c.world()
+	var division: String = c.division_now()
+	var parts: Array[String] = []
+	var legend: String = home_legend_text(c)
+	if legend != "":
+		parts.append(legend)
+	var ordered: Array = w.promotions.duplicate()
+	ordered.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return int(a.rank) < int(b.rank) if int(a.rank) != int(b.rank) else String(a.id) < String(b.id))
+	for p: Dictionary in ordered:
+		var k: String = Rankings.key(String(p.id), division)
+		var lines: Array[String] = ["[color=%s][b]%s %s champions[/b][/color]" % [WARN.to_html(false), String(p.name), Weight.name_of(division).to_lower()]]
+		for r: Array in History.line_of(w, k):
+			lines.append(_reign_line(c, w, String(r[0]), r))
+		if lines.size() == 1:
+			lines.append("[color=%s]Nobody's held it yet.[/color]" % DIM.to_html(false))
+		parts.append("
+".join(lines))
+	var legends: Array = History.legends(w)
+	var lines: Array[String] = ["[color=%s][b]LEGENDS[/b][/color] · the world organisation's champions, and anyone who defended a belt %d times" % [
+		WARN.to_html(false), History.LEGEND_DEFENCES]]
+	for id: String in legends.slice(0, History.LEGENDS_SHOWN):
+		var m: Dictionary = w.man(id)
+		var name: String = c.fighter_name() if id == Career.FIGHTER_ID else String(m.get("name", ""))
+		var belts: Array[String] = []
+		for r: Array in History.reigns_of(w, id):
+			belts.append("%s %s%s" % [String(Promotions.by_id(w, String(r[0]).get_slice(":", 0)).get("short", "")),
+				Weight.name_of(String(r[0]).get_slice(":", 1)).to_lower(), (" (%d)" % int(r[3])) if int(r[3]) > 0 else ""])
+		var record: String = c.record_text(true) if id == Career.FIGHTER_ID else World.record_text(m)
+		var status: String = "still fighting" if id == Career.FIGHTER_ID or World.active(m) else "retired %d" % c.year_of(int(m.retired))
+		lines.append("[b]%s[/b] · %s · %s · %s
+[color=%s]%s[/color]" % [name, String(m.get("country", c.about.get("country", ""))), record, status,
+			DIM.to_html(false), ", ".join(belts)])
+	if legends.is_empty():
+		lines.append("[color=%s]None yet.[/color]" % DIM.to_html(false))
+	parts.append("
+".join(lines))
+	return "
+
+".join(parts)
+
+
+## One reign on a belt's line: "2019–2022 Lewis Ward (England) · 4 defences · lost it" (or "since 2026 …").
+static func _reign_line(c: Career, w: World, id: String, r: Array) -> String:
+	var name: String = c.fighter_name() if id == Career.FIGHTER_ID else String(w.man(id).get("name", ""))
+	var country: String = String(c.about.get("country", "")) if id == Career.FIGHTER_ID else String(w.man(id).get("country", ""))
+	var won: int = c.year_of(int(r[1]))
+	var lost: int = c.year_of(int(r[2]))
+	var when: String = ("since %d" % won) if int(r[2]) < 0 else (str(won) if lost == won else "%d–%d" % [won, lost])
+	var how: String = { "lost": "lost it", "retired": "retired", "stripped": "stripped", "called up": "called up", "left": "moved on" }.get(String(r[4]), "")
+	var defences: int = int(r[3])
+	return "%s %s (%s) · %d defence%s%s" % [when, name, country, defences, "" if defences == 1 else "s", (" · " + how) if how != "" else ""]
 
 
 ## The rankings page's title (D355): "Lightweight rankings".
@@ -618,7 +725,9 @@ static func rankings_text(c: Career) -> String:
 				lines.append("[color=%s][b]%d. %s[/b] (%s) · you[/color]" % [GOOD.to_html(false), i + 1, c.fighter_name(), c.record_text(true)])
 				continue
 			var m: Dictionary = w.man(id)
-			lines.append("%d. %s (%s) · %s" % [i + 1, String(m.get("name", "")), World.record_text(m), String(m.get("country", ""))])
+			var former: String = History.former_tag(w, id)
+			lines.append("%d. %s (%s) · %s%s" % [i + 1, String(m.get("name", "")), World.record_text(m), String(m.get("country", "")),
+				(" · [color=%s]%s[/color]" % [WARN.to_html(false), former]) if former != "" else ""])
 		var note: Dictionary = w.ranking_moves.get(Rankings.key(String(p.id), division), {})
 		if not (note.get("moves", []) as Array).is_empty():
 			var week: int = int(note.week)
@@ -648,8 +757,8 @@ static func champion_line(c: Career, w: World, k: String) -> String:
 		return "[color=%s]Champion: vacant[/color]" % DIM.to_html(false)
 	var name: String = c.fighter_name() if id == Career.FIGHTER_ID else String(w.man(id).get("name", ""))
 	var record: String = c.record_text(true) if id == Career.FIGHTER_ID else World.record_text(w.man(id))
-	var d: Dictionary = c.date(0, int(b.won))
-	var when: String = "%s %d" % [Career.MONTHS[clampi(int(d.month) - 1, 0, 11)], int(d.year)]
+	var ymd: Array[int] = Career.civil_from_days(c.first_monday + int(b.won) * Career.DAYS_PER_WEEK)  # Before week 0 too.
+	var when: String = "%s %d" % [Career.MONTHS[clampi(ymd[1] - 1, 0, 11)], ymd[0]]
 	var defences: int = int(b.defences)
 	return "[color=%s][b]Champion: %s[/b] (%s), since %s, %d defence%s%s[/color]" % [(GOOD if id == Career.FIGHTER_ID else WARN).to_html(false),
 		name, record, when, defences, "" if defences == 1 else "s", " · you" if id == Career.FIGHTER_ID else ""]
@@ -704,6 +813,10 @@ static func promotions_text(c: Career) -> String:
 			next.append("%s, %s (%s)%s" % [String(card.short), c.short_date(week, 5), String(card.city), mine])
 		if not next.is_empty():
 			lines.append("Next: " + "; ".join(next))
+		if String(p.id) == String(Promotions.home(w).get("id", "")):
+			var legend: String = home_legend_text(c)
+			if legend != "":
+				lines.append(legend)
 		var last: Array[String] = []
 		var last_week: int = -1
 		var last_card: String = ""
@@ -781,6 +894,9 @@ static func _division_line(c: Career, w: World, m: Dictionary, met: Dictionary) 
 	line += "\n[color=%s]%s%s · %s · %s · grade %s[/color]" % [DIM.to_html(false), World.level_name(m),
 		(" · %s%s" % [("champion, " if Titles.held_by(w, String(m.id)) != "" else (Rankings.rank_text(w, String(m.id)) + " ") if Rankings.rank_of(w, String(m.id)) > 0 else ""), String(promotion.short)])
 			if not promotion.is_empty() else "", World.record_text(m), style_name, TrainingCamp.grade(w.average(m))]
+	var former: String = History.former_tag(w, String(m.id))
+	if former != "":
+		line += " · [color=%s]%s[/color]" % [WARN.to_html(false), former]
 	if met.has(String(m.id)):
 		var result: String = String(met[String(m.id)])
 		line += " · [color=%s]you %s[/color]" % [(GOOD if result == "win" else BAD if result == "loss" else WARN).to_html(false),
@@ -887,6 +1003,10 @@ static func week_text(c: Career, reports: Array = []) -> String:
 		lines.append("Free to fight: offers come in every few weeks.")
 	if c.booked.is_empty():
 		lines.append("This week: the %s plan." % String(TrainingLibrary.shared().plan(c.week_plan).get("name", c.week_plan)).to_lower())
+	if c.pro and c.record_text(true) == "0-0-0":
+		var legend: String = home_legend_text(c)
+		if legend != "":
+			lines.append(legend)
 	var answer: String = Climb.answer_text(c)
 	if answer != "":
 		lines.append(answer)
@@ -1004,7 +1124,8 @@ static func news_text(c: Career, weeks: int = 1) -> String:
 		var named: Dictionary = {}
 		for i in 2:
 			var m: Dictionary = [a, b][i]
-			named[String(m.id)] = ("#%d " % int(ranks[i]) if int(ranks[i]) > 0 else "") + String(m.name)
+			var former: String = History.former_tag(w, String(m.id))
+			named[String(m.id)] = ("#%d " % int(ranks[i]) if int(ranks[i]) > 0 else "") + String(m.name) + ((" (%s)" % former) if former != "" else "")
 		var line: String
 		if String(r.winner) == "draw":
 			line = "%s and %s fought to a draw." % [named[String(a.id)], named[String(b.id)]]
