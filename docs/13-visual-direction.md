@@ -540,13 +540,13 @@ the telegraph and wind-up, down onto the man underneath (the head, or the belly 
 and its active part, leaning `STRIKE_LEAN` (14°) into it, and back over the recovery. The bomb sits him up first (his
 posture through the wind-up), then comes down.
 
-**What stays on today's figures:** standing up and getting up (`GROUND_UNPOSED`), the scramble, a submission once it
-is locked in and the leg locks; the ease takes the bodies from the rig to them and back.
+**What stays on today's figures:** standing up and getting up (`GROUND_UNPOSED`) and the scramble (a submission once
+it is locked in and the leg locks did too until D366); the ease takes the bodies from the rig to them and back.
 
 **To change:** the poses, grips, `STRIKES`, `COCKED`, `STRIKE_LEAN` and the roll in `game/rig/ground_pair.gd`;
 `GROUND_EASE`, `ROLL_SECONDS`, `COCK_SHARE` and `GROUND_UNPOSED` at the top of `game/arena_view.gd`.
 
-**Limits:** the submissions and leg locks, the scramble and standing up are still today's figures; passes, taking
+**Limits:** the scramble and standing up are still today's figures (the submissions since D366 aren't); passes, taking
 the mount and the back ease between poses rather than stepping round; the knee on the ground (PRIDE) and the
 up-kick keep the pose; the poses are tuned on the Tripo body and are hand-placed, with no physics.
 
@@ -727,6 +727,70 @@ old save getting one, the world's men carrying their country), `tests/game/test_
 long arms long and the rig fitted to them, a stocky man thicker, the body coloured as his look with the corner's shorts,
 no profile drawn as before), the new-career screen's look in `tests/ui/test_career_screens.gd`, and the data checks on
 `home`, `look` and each country's `looks`.
+
+## Submissions from the rig (D366, D367)
+
+Kyle picked submissions and scrambles on the rig as the slice after fighters who look different, and said "You can
+start". It comes in two PRs: the holds first (this section), then the scramble, standing up and the shots from range.
+On the cards he picked "Submissions first", "Tightens with the danger", "Tap shown, escape eases out" and
+"Standing, sits back if deep".
+
+**A pose for each hold** (`game/rig/submission_pair.gd`, `SubmissionPair`), written like the ground's with the man
+attacking as "a" and the man in it as "b". Each hold has a loose pose (the danger meter near empty: he's nearly out)
+and a tight one (near full: about to tap):
+
+| Hold | The man attacking | The man in it | Tight |
+|---|---|---|---|
+| Guillotine, standing | upright, his arm round the neck, hands clasped under the chin | bent over in front of him, hands on the arm | he arches back and pulls up |
+| Guillotine, pulled to guard | on his back, the neck in his arm, legs round the waist | on his knees in the guard, head trapped | hips up, the head pulled in |
+| Triangle | on his back, legs locked round the head and one arm, a hand pulling the head down | on his knees, bent over into it | hips up, the head pulled down |
+| Armbar from the guard | on his back turned across, a leg over the face, both hands on the wrist | on his knees over him, the arm caught | hips up into the elbow, the arm straight |
+| Armbar from mount | swung off beside the head, legs across the chest and face | flat, the arm held up | falls back to the canvas |
+| Rear-naked choke | behind him, hooks in, an arm round the throat, a hand behind the head | sat in front, hands on the forearm | leans back and pulls, the chin up |
+| Arm-triangle, side control | low across him, arms round the head and near arm | flat, the near arm pinned across his face | drives in, the hips down, the head turned away |
+| Arm-triangle, mount | chest down on him, arms round the head and arm | flat under him | sprawls the hips down |
+| Ankle lock | sat facing him, the foot under his armpit, a foot on his hip | propped back on his hands | falls back arching, the leg straight |
+| Kneebar | on his back along the leg, the heel on his chest, legs round the thigh | propped back on his hands | arches the hips into the knee |
+| Heel hook | on his back, the leg between his, the heel in his elbow | on his back turning away | turns the heel, rolling onto his side |
+
+**Tightens with the danger** (`SubmissionPair.at_danger`): the pose blends loose to tight as the danger meter fills (eased
+at the ends), and the danger shown slides toward the sim's at `DANGER_SPEED` (3× the gap a second), so a struggle
+beat's jump eases rather than snapping.
+
+**Where it is drawn** (`ArenaView._start_hold`). A hold locked from a ground position is drawn in that position's frame
+(`ground_frame`, D289): where the bottom man was, the man on top on the far side from the camera in side control
+(the arm-triangle mirrored). A standing guillotine is drawn between the two (`hold_frame`); a leg lock side-on to the
+camera, since it is fought sat down face to face. The frame is kept while the hold lasts.
+
+**Easing in and out.** A new hold eases in over `HOLD_EASE` (0.35 s) from whatever was drawn; an escape eases out to
+where the sim puts them (back in the position, or the scramble on today's figures) as the clinch and ground do.
+
+**The guillotine standing, sitting back if deep.** A guillotine from standing or the clinch starts standing, the man
+caught bent over in front. Once the danger shown reaches `SubmissionPair.GUARD_PULL_AT` (70) he sits back and pulls
+him into the guard over `PULL_EASE` (0.6 s), and stays down even if it loosens.
+
+**The tap** (D367, `SubmissionPair.tapping`, `TAPS`). A fight won by a hold drawn from the rig holds the tight pose with
+the man in it tapping with his free hand, on the attacker or the canvas (`TAP_HZ`, 3 a second, `TAP_LIFT` 9 cm up), for
+`ArenaView.TAP_SECONDS` (1.4 s); the view says `tapped` and only then does the result screen come up
+(`game/main.gd` `_on_fight_over`; not in a headless run).
+
+**What to edit:** the poses, `TAPS`, `TAP_HZ`, `TAP_LIFT` and `GUARD_PULL_AT` in `game/rig/submission_pair.gd`;
+`HOLD_EASE`, `PULL_EASE`, `DANGER_SPEED` and `TAP_SECONDS` at the top of `game/arena_view.gd`.
+
+**Limits:** the scramble, standing up and getting up and the shots from range are still today's figures (the second
+PR); the hold is one pose blended, with no hands fighting the grip or rolling with it, and an escape eases out rather
+than being shown; the poses are hand-placed on the Tripo body, with no physics, and the hold's frame doesn't follow the
+sim nudging their spots.
+
+Preview: `tools/rig_preview.gd --subs --body` (each hold loose and tight, and the tap); a real fight from its first hold:
+`tools/motion_preview.gd --red=bjj --blue=boxer --seed=35002 --hold=1 --seconds=8` (a triangle to the tap; `--hold=n` starts
+recording at the nth hold). Pictures: `/mnt/project-files/screenshots/subs-d366/`.
+
+Tests: `tests/game/test_submission_pair.gd` (each hold loose, tight and a tap, every hand and foot in place, no one under
+the canvas, the danger taking it loose to tight, tight tighter than loose, the free hand tapping, the standing guillotine
+standing and pulled to guard, the side holds mirrored) and `tests/game/test_submission_view.gd` (a hold drawn where it
+was locked from, the danger sliding, the guillotine sitting back once deep and staying down, a leg lock side-on, an
+escape letting go, the tap before the result).
 
 ## Review and verification
 

@@ -9,7 +9,8 @@ extends SceneTree
 ## skinned Tripo body on the rigs (D284; --body=<file.glb> another Mixamo-rigged
 ## body). --takedowns saves the clinch takedowns' keys from the clinch to the landing (D288, takedown-<move>-<n>.png,
 ## n 0 the clinch) and the scramble and sprawl. --ground saves the ground positions with their grips (D289,
-## ground-<name>.png, GroundPair.examples). Nothing in the fight or the fight screen changes.
+## ground-<name>.png, GroundPair.examples). --subs saves each submission loose and tight and the defender tapping (D366,
+## sub-<name>.png, SubmissionPair.examples). Nothing in the fight or the fight screen changes.
 
 const FPS: int = 24
 const BLEND_FRAMES: int = 24
@@ -31,6 +32,8 @@ var _clinch: bool = false
 var _takedowns: bool = false
 ## --ground: stills of the ground positions and their grips (D289, GroundPair).
 var _ground: bool = false
+## --subs: stills of the submissions loose and tight, and tapping (D366, SubmissionPair).
+var _subs: bool = false
 var _angle: float = 0.0
 var _main: Node3D
 var _frame: int = 0
@@ -54,6 +57,8 @@ func _initialize() -> void:
 			_takedowns = true
 		elif arg == "--ground":
 			_ground = true
+		elif arg == "--subs":
+			_subs = true
 		elif arg == "--body":
 			_body_path = SkinnedBody.TRIPO_BODY
 		elif arg.begins_with("--body="):
@@ -96,7 +101,21 @@ func _capture() -> void:
 			rig.fit(body.measure())
 			body.set_colour(colour)
 			_bodies.append(body)
-	if _ground:
+	if _subs:
+		var examples: Dictionary = SubmissionPair.examples()
+		for example_name: String in examples:
+			var e: Array = examples[example_name]
+			var built: Dictionary = SubmissionPair.build(e[0], e[1], e[2], e[3])
+			var at: Array = SubmissionPair.at_danger(built, e[4])
+			_title.text = _prefix() + example_name.replace("_", " ")
+			_pose(at[0], at[1], at[2])
+			_show_rigs(true)
+			await _frames(1, "sub-%s.png" % example_name)
+			if String(example_name).ends_with("_tight"):
+				_title.text = _prefix() + example_name.trim_suffix("_tight").replace("_", " ") + " tapping"
+				_pose(SubmissionPair.tapping(built, 0.5 / SubmissionPair.TAP_HZ))
+				await _frames(1, "sub-%s-tap.png" % example_name.trim_suffix("_tight"))
+	elif _ground:
 		var examples: Dictionary = GroundPair.examples()
 		for example_name: String in examples:
 			var e: Array = examples[example_name]
