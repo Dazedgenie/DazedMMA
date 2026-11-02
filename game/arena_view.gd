@@ -111,6 +111,14 @@ const GROUND_UNPOSED: Array[String] = ["stand_up", "get_up"]
 const ROLL_SECONDS: float = 0.6
 ## A ground strike is cocked over this share of its telegraph and wind-up and thrown over the rest (D289).
 const COCK_SHARE: float = 0.65
+## Submissions from the rig (D366): a hold once locked in is posed by SubmissionPair, loose to tight as the danger
+## meter fills (shown at DANGER_SPEED of the way to it a second, so a beat's jump slides). It eases in over
+## HOLD_EASE and out of an escape over CLINCH_EASE, a standing guillotine sits back into the guard over PULL_EASE,
+## and a tap at the finish plays for TAP_SECONDS (the result waits that long, game/main.gd).
+const HOLD_EASE: float = 0.35
+const PULL_EASE: float = 0.6
+const DANGER_SPEED: float = 3.0
+const TAP_SECONDS: float = 1.4
 ## The tag grows this much when the range or position changes, then settles (docs/06 §2).
 const TAG_BUMP: float = 1.7
 ## Standing, the sim's ranges are wider than a person's reach (pocket up to 1.5 m, long range 3 m apart), so
@@ -130,6 +138,8 @@ const LUNGE_CLOSEST: float = 0.85
 signal fence_slammed(strength: float)
 ## A takedown landed on the canvas (D288), `strength` 0–1: a thud (StrikeSounds.play_thud).
 signal takedown_landed(strength: float)
+## The tap at the end of a fight won by a submission has been shown (D366): the result can come up.
+signal tapped
 
 var driver: FightDriver
 var camera: Camera3D
@@ -162,6 +172,10 @@ var _ground_far: float = -1.0
 ## The last ground pose shown, [pair, frame, the man on top], and a roll under way ({from: that, left}).
 var _ground_last: Array = []
 var _roll: Dictionary = {}
+## A hold posed from the rig (D366): {action, attacker, built (SubmissionPair.build), frame, danger shown, pulled},
+## kept after the fight ends in a submission so the tap can play; the tap's seconds so far (-1 none).
+var _hold_pose: Dictionary = {}
+var _tap_time: float = -1.0
 ## Light up scouted tells (D51): a toggle so the playtest can compare cue on and off.
 var tell_cues: bool = true
 var debug_marks: bool = false:
@@ -220,6 +234,8 @@ func watch(p_driver: FightDriver) -> void:
 	_ground_key = ""
 	_ground_last = []
 	_roll = {}
+	_hold_pose = {}
+	_tap_time = -1.0
 	_tell_limb = ["", ""]
 	_tell_until = [-1, -1]
 	_offset = [Vector2.ZERO, Vector2.ZERO]
@@ -308,6 +324,11 @@ func _pose_clinch(sim: FightSim, delta: float) -> void:
 		return
 	var held: int = held_now(sim)
 	_track_drive(sim, held)
+	if _pose_hold(sim, delta):
+		for figure in figures:
+			figure.body.settle(delta)
+		_bow_fence(-1, delta)
+		return
 	if _pose_takedown(sim, delta):
 		for figure in figures:
 			figure.body.settle(delta)
@@ -364,6 +385,87 @@ func _pose_built(sim: FightSim, built: Dictionary, frame: Transform3D) -> void:
 			var only: Array[String] = []
 			only.assign(strikes[i])
 			figures[i].body.follow_joints(figures[i].body_pose(), only)
+
+
+## A submission from the rig (D366): poses the hold locked in (SubmissionPair) in the frame of where it was
+## locked from, loose to tight by the danger meter, and the tap once he has tapped. Returns false when no hold is
+## posed now.
+func _pose_hold(sim: FightSim, delta: float) -> bool:
+	var hold: Dictionary = sim.hold()
+	if _tap_time >= 0.0 and not _hold_pose.is_empty():  # Tapped (the fight is over): the hold, his hand tapping.
+		var before: float = _tap_time
+		_tap_time += delta
+		if before < TAP_SECONDS and _tap_time >= TAP_SECONDS:
+			tapped.emit()
+		var pair: Dictionary = SubmissionPair.tapping(_hold_pose.built, _tap_time) if _tap_time < TAP_SECONDS \
+			else _hold_pose.built.tight
+		var attacker: int = int(_hold_pose.attacker)
+		FighterRig.pose_pair(_clinch_rigs[attacker], _clinch_rigs[1 - attacker], pair, _hold_pose.frame)
+		for i in 2:
+			figures[i].body.follow(_clinch_rigs[i])
+		return true
+	if hold.is_empty() or _clinch_rigs.is_empty() or not SubmissionPair.HOLDS.has(String(hold.action_id)):
+		_hold_pose = {}
+		return false
+	var attacker: int = int(hold.attacker)
+	var action: String = String(hold.action_id)
+	if _hold_pose.is_empty() or String(_hold_pose.action) != action or int(_hold_pose.attacker) != attacker:
+		_hold_pose = _start_hold(sim, hold)
+		for figure in figures:
+			figure.body.ease_over(HOLD_EASE)
+		_clinch_shown = "hold " + action  # Whatever comes next (an escape) eases from it.
+		_clinch_last = []
+		_ground_last = []
+		_ground_key = ""
+	var danger: float = float(hold.danger)
+	_hold_pose.danger = move_toward(float(_hold_pose.danger), danger, absf(danger - float(_hold_pose.danger)) * minf(1.0, DANGER_SPEED * delta) + 0.001)
+	if action == "guillotine" and not bool(_hold_pose.pulled) and float(_hold_pose.danger) >= SubmissionPair.GUARD_PULL_AT:
+		_hold_pose.pulled = true  # Deep: he sits back and pulls him into the guard, and stays down.
+		_hold_pose.built = SubmissionPair.build(action, String(hold.from), false, true)
+		for figure in figures:
+			figure.body.ease_over(PULL_EASE)
+	var at: Array = SubmissionPair.at_danger(_hold_pose.built, float(_hold_pose.danger))
+	FighterRig.pose_pair(_clinch_rigs[attacker], _clinch_rigs[1 - attacker], at[0], _hold_pose.frame, at[1], at[2])
+	for i in 2:
+		figures[i].body.follow(_clinch_rigs[i])
+	return true
+
+
+## True while a hold is drawn from the rig (D366), so a fight ending in it plays the tap first.
+func shows_hold() -> bool:
+	return not _hold_pose.is_empty()
+
+
+## A new hold (D366): its poses and the frame it is drawn in, kept while it lasts.
+func _start_hold(sim: FightSim, hold: Dictionary) -> Dictionary:
+	var attacker: int = int(hold.attacker)
+	var from: String = String(hold.from)
+	var roles: Array = hold.from_roles
+	var top: int = roles.find(PositionLibrary.TOP)
+	var built: Dictionary = SubmissionPair.build(String(hold.action_id), from, top == attacker)
+	var frame := Transform3D.IDENTITY
+	if String(built.frame) == "ground" and top >= 0 and GROUND_LAYOUTS.has(from):
+		var laid: Array = ground_frame(sim, top, from)
+		frame = laid[0]
+		built = SubmissionPair.build(String(hold.action_id), from, top == attacker, false, float(laid[1]))
+	else:
+		frame = hold_frame(attacker, String(built.frame) == "legs")
+	return {"action": String(hold.action_id), "attacker": attacker, "built": built, "frame": frame,
+		"danger": float(hold.danger), "pulled": false}
+
+
+## The frame a standing guillotine or a leg lock is drawn in (D366): on the canvas between the two, +Z toward the
+## attacker; side on to the camera for a leg lock (they are fought sat down face to face, and the sim keeps their
+## spots close), or when they are too close together to tell which way they face.
+func hold_frame(attacker: int, side_on: bool) -> Transform3D:
+	var mine: Vector3 = figures[attacker].global_position
+	var his: Vector3 = figures[1 - attacker].global_position
+	var z := Vector3(mine.x - his.x, 0.0, mine.z - his.z)
+	if side_on or z.length() < 0.2:
+		var across := Vector3(CAMERA_FROM.z, 0.0, -CAMERA_FROM.x).rotated(Vector3.UP, camera_swing).normalized()
+		z = across if z.dot(across) >= 0.0 else -across
+	z = z.normalized()
+	return Transform3D(Basis(Vector3.UP.cross(z), Vector3.UP, z), Vector3((mine.x + his.x) / 2.0, 0.0, (mine.z + his.z) / 2.0))
 
 
 ## The ground positions from the rig (D289): poses the position the two are in (GroundPair) with its grips and
@@ -481,12 +583,12 @@ static func ground_grips_now(sim: FightSim, top: int) -> Dictionary:
 		"cover": sim.active_flags(bottom).has(FightSim.COVERED) or sim.fighters[bottom].action_id == FightSim.GROUND_COVER}
 
 
-## The ground frame for the position the two are in with fighter `top` on top, laid out as today's figures lay
-## it out (lay_out): [its origin under the bottom man's hips and its +Z toward his feet, the side of him the top man
+## The ground frame for the position the two are in (or `where`: a hold is drawn where it was locked from, D366)
+## with fighter `top` on top, laid out as today's figures lay it out (lay_out): [its origin under the bottom man's hips and its +Z toward his feet, the side of him the top man
 ## is on along its +X, +1 (the side away from the camera, where lay_out puts him) or -1].
-func ground_frame(sim: FightSim, top: int) -> Array:
+func ground_frame(sim: FightSim, top: int, where: String = "") -> Array:
 	var spots: Array[Vector2] = [driver.shown_pos(0), driver.shown_pos(1)]
-	var laid: Array[Dictionary] = lay_out(sim.situation.position, top, spots)
+	var laid: Array[Dictionary] = lay_out(sim.situation.position if where == "" else where, top, spots)
 	var bottom: int = 1 - top
 	var feet: Vector2 = Vector2.from_angle(float(laid[bottom].facing))
 	var z := Vector3(feet.x, 0.0, feet.y)
@@ -1019,6 +1121,8 @@ func _place_camera(delta: float, middle: Vector2 = Vector2.ZERO, sim: FightSim =
 
 
 func _on_event(event: FightEvent) -> void:
+	if event.type == FightEvent.FIGHT_ENDED and event.data.get("result", "") == FightSim.RESULT_SUB and not _hold_pose.is_empty():
+		_tap_time = 0.0  # He tapped (D366): the hold plays his hand tapping.
 	# Tell cues (D51): the playtest's opponents are scouted, so their tells show.
 	if event.type == FightEvent.ROUND_ENDED:
 		_tell_until = [-1, -1]

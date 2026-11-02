@@ -867,9 +867,13 @@ func _current_rules() -> Array:
 	return out
 
 
-func _on_fight_over(_event: FightEvent) -> void:
+func _on_fight_over(event: FightEvent) -> void:
 	state = OVER
 	var sim: FightSim = driver.sim
+	if event.data.get("result", "") == FightSim.RESULT_SUB and arena.shows_hold() and DisplayServer.get_name() != "headless":
+		await arena.tapped  # Let the tap be seen first (D366, ArenaView.TAP_SECONDS).
+		if driver == null or driver.sim != sim:
+			return
 	var record: Dictionary = FightRecord.build(sim, settings, driver.player)
 	if record_dir != "":
 		last_record_path = FightRecord.save(record, record_dir)
