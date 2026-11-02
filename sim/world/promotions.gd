@@ -237,8 +237,8 @@ static func after_fight(w: World, m: Dictionary, week: int) -> void:
 	if not bool(m.get("pro", false)) or String(m.get("promotion", "")) == "":
 		return
 	var p: Dictionary = of(w, m)
-	if p.is_empty():
-		return
+	if p.is_empty() or Titles.held_by(w, String(m.get("id", ""))) != "":
+		return  # A champion moves on his belt's terms (Titles, D356).
 	var since: int = int(m.get("moved", -1))
 	var h: Array = (m.get("history", []) as Array).filter(func(x: Array) -> bool: return int(x[0]) > since)
 	var rank: int = int(p.rank)

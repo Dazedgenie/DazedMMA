@@ -31,7 +31,7 @@ func test_the_men_fight_each_other_about_three_times_a_year() -> void:
 			assert_eq(bool(a.pro), bool(b.pro), "amateurs meet amateurs, pros pros")
 		assert_true(String(r.winner) in ["a", "b", "draw"])
 		assert_true(String(r.method) in ["ko", "submission", "decision", "draw"])
-		assert_between(int(r.round), 1, 3)
+		assert_between(int(r.round), 1, Titles.ROUNDS if r.has("title") else 3, "title fights go 5 rounds (D356)")
 	assert_eq(w.played, 51)
 
 
