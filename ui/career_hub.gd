@@ -468,7 +468,9 @@ static func offer_text(c: Career, o: Dictionary, groups: Dictionary = {}) -> Str
 	var plan: Variant = style.get("gameplan", {})
 	if plan is Dictionary and not plan.is_empty():
 		lines.append("[color=%s]%s[/color]" % [WARN.to_html(false), GameplanPicker.expect_text(plan)])
-	lines.append("[color=%s]Scouted:[/color] %s" % [DIM.to_html(false), scouted_grades(p.get("stats", {}), groups)])
+	var pid: String = String(p.get("id", ""))  # Grades as ranges until he's scouted (D401).
+	lines.append("[color=%s]Scouted:[/color] %s" % [DIM.to_html(false), Scouting.grades_text(p.get("stats", {}), groups,
+		SCOUTED_GROUPS, Scouting.knowledge(c, pid), Scouting.seed_for(c, pid))])
 	var fight_week: int = int(o.get("week", c.week))
 	lines.append("Fight night %s · a %d-week camp · %s" % [c.date_text(5, fight_week), fight_week - c.week + 1, rules_name(String(o.get("ruleset", "")))])
 	if not t.is_empty():

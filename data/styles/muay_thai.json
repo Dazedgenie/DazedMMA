@@ -10,6 +10,11 @@
 	"southpaw_chance": 0.15,
 	"variation": { "stats": 6, "style": 12, "tendencies": 0.2, "personality": 30, "height_cm": 4 },
 	"gameplan": { "approach": "", "target": "body", "where": "clinch_work" },
+	"habits": [
+		{ "trigger": "own_jab_blocked", "action": "body_kick", "chance": 0.6, "within_ms": 1200 },
+		{ "trigger": "own_jab_blocked", "action": "leg_kick", "chance": 0.5, "within_ms": 1000 },
+		{ "trigger": "opp_strike_misses", "action": "knee", "chance": 0.4, "within_ms": 800 }
+	],
 	"scouting": {
 		"summary": "Walks into the clinch, grabs a collar tie and goes to work with knees and elbows.",
 		"strengths": [

@@ -517,7 +517,7 @@ Then update this section and D171.
 ## 4. Fight camp & fight week
 
 - **Camp** = the weeks between accepting a fight and fight night (usually 4–8; short notice = 1–2).
-- **Scouting**: pay or assign film study to reveal opponent tendencies and tells.
+- **Scouting**: pay or assign film study to reveal opponent tendencies and tells. Built for film study (D401, `03` §13.1): his grades as a range until scouted, film study sessions finding his habits, only found habits cued.
 - **Gameplan**: set during camp; affects which drills give bonus XP ("prep the takedown defense").
 - **Fight week / weight cut (D23)**: a 5-day planning mini-system:
   - Choose water loading, sodium, sauna sessions, and food per day.

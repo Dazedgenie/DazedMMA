@@ -409,6 +409,49 @@ func test_a_career_fight_goes_from_the_offer_through_the_camp_to_his_record() ->
 	assert_string_contains(_main.hub.text(), "L vs ")
 
 
+func test_film_study_in_a_career_camp_finds_his_habit_and_only_found_habits_are_cued() -> void:
+	_main.open_new_career()
+	_main.new_career.set_play_childhood(false)
+	_main.new_career.set_know_the_game(true)
+	_main.new_career.press_start()
+	_main.gym_screen.pick(0)
+	_main.gym_screen.press_start()
+	_main.career.week_plan = "time_off"
+	_main.hub.press_week()
+	_main.hub.press_accept(_main.hub.offer_ids()[0])
+	var him: Dictionary = _main.career.booked_opponent()
+	him.tells = [{ "trigger": "own_jab_blocked", "action": "body_kick", "chance": 0.7, "within_ms": 1500 },
+		{ "trigger": "opp_strike_misses", "action": "overhand", "chance": 0.5, "within_ms": 800 }]
+	_main.career.trainee.stats.fight_iq = 100.0
+	_main.career.coach_specialty = Coach.TACTICIAN  # Film study finds a habit 70% a session.
+	_main.hub.press_camp()
+	var planner: CampPlanner = _main.planner
+	assert_string_contains(planner.scouting_text(), "Known:", "the scouting box (D401)")
+	planner.pick_preset("time_off")
+	for i in 10:
+		planner.set_slot(i, "film_study")
+	planner.run_rest()
+	var found: Array[String] = Scouting.found(_main.career, String(him.id))
+	assert_false(found.is_empty(), "a camp of film study finds a habit")
+	assert_string_contains(planner.log_text(), "Film study found his habit")
+	assert_string_contains(planner.scouting_text(), "Habit:")
+	planner.fight_pressed.emit(planner.trained_profile())
+	assert_eq(_main.state, _main.FIGHT)
+	assert_eq(str(_main.settings.known_tells), str(found), "only found habits get the cue")
+	assert_not_null(_main.arena.tell_watch)
+	_main.driver.throw_towel()
+	var frames: int = 0
+	while _main.state != _main.OVER and frames < 100:
+		frames += 1
+		_main._process(FRAME)
+	assert_eq(_main.state, _main.OVER)
+
+
+func test_a_quick_fight_still_cues_every_tell() -> void:
+	_main.start_fight(_main.setup.settings())
+	assert_null(_main.arena.tell_watch, "no scouting outside a career")
+
+
 func test_simming_a_career_fight_goes_straight_to_the_result() -> void:
 	_main.open_new_career()
 	_main.new_career.set_play_childhood(false)

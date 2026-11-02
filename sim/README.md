@@ -67,6 +67,7 @@ The career and world simulation (D100), starting with training (`docs/02` §3.5,
 | `titles.gd` | The titles (docs/03 §12.6, D356): a belt in every promotion's division, title fights and defences, vacant belts, champions called up, his title fights; title eliminators and the man next in line (§12.7, D357) |
 | `history.gd` | The world's history (docs/03 §12.8, D358): every reign kept, the legends, former champions, his hometown's legend, a belt's line of champions |
 | `climb.gd` | Climbing the ladder (docs/03 §12.7, D357): his rung, call-ups after three wins or a defence, asking for a step up and the tryout, let go after three losses, the Ladder line |
+| `scouting.gd` | Scouting and film study (docs/03 §13.1, D401): how well he knows a man, grades as scouted ranges, film study finding the man's habits, and `Scouting.Watch`, which counts a habit going off in a fight so an unfound one is found after three |
 | `world_check.gd` | The 30-year check (docs/03 §12.9, D359): a career's world played 30 years with a stand-in of his own, measured every 5 years and held to bounds |
 | `result_model.gd` | The quick result model (docs/03 §12.3, D350, D353): who wins a world fight, how and in which round, from the style matchup table the engine made (data/world/matchups.json) |
 | `aftermath.gd` | What a fight does to him afterwards (docs/03 §10.5, D305): the medical suspension and the Chin a knockout takes |

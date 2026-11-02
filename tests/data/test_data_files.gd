@@ -725,6 +725,30 @@ func test_style_sheets_build_on_a_real_fighter_and_carry_a_scouting_card() -> vo
 			problems.append("%s: scouting.tell must be a sentence or null" % where)
 		if base in fighters and (tell != null) != not (fighters[base].get("tells", []) as Array).is_empty():
 			problems.append("%s: scouting.tell should describe the signature fighter's tell, and only if it has one" % where)
+		if s.has("habits"):  # His own habits (D401): extra tells a generated man may roll.
+			var signature: Array = fighters.get(base, {}).get("tells", []) if base in fighters else []
+			if not s.habits is Array or (s.habits as Array).is_empty():
+				problems.append("%s: habits must list at least one tell" % where)
+			else:
+				for h: Variant in s.habits:
+					if not h is Dictionary:
+						problems.append("%s: each habit is {trigger, action, chance, within_ms}" % where)
+						continue
+					if not _items("triggers").has(String(h.get("trigger", ""))):
+						problems.append("%s: habit trigger '%s' is not in data/triggers" % [where, h.get("trigger")])
+					var action: String = String(h.get("action", ""))
+					var basic: bool = bool(_items("actions").get(action, {}).get("basic", false))
+					if base in fighters and not basic and not (fighters[base].get("techniques", []) as Array).has(action):
+						problems.append("%s: habit move '%s' isn't one of %s's techniques" % [where, action, base])
+					var chance_of: Variant = h.get("chance")
+					if not (chance_of is float) or chance_of <= 0.0 or chance_of > 1.0:
+						problems.append("%s: a habit's chance is over 0, up to 1" % where)
+					var within: int = int(h.get("within_ms", 0))
+					if within < 300 or within > 3000 or within % 100 != 0:
+						problems.append("%s: a habit's within_ms is 300–3000, a multiple of 100" % where)
+					for t: Dictionary in signature:
+						if String(t.trigger) == String(h.get("trigger", "")) and String(t.action) == action:
+							problems.append("%s: habit %s>%s is already the signature fighter's tell" % [where, t.trigger, action])
 		if s.has("gameplan"):
 			var plan: Variant = s.gameplan
 			if not plan is Dictionary or not plan.keys().all(func(k: String) -> bool: return Gameplan.PARTS.has(k)):

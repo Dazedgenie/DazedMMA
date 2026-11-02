@@ -9,6 +9,10 @@
 	"southpaw_chance": 0.35,
 	"variation": { "stats": 6, "style": 12, "tendencies": 0.2, "personality": 30, "height_cm": 4 },
 	"gameplan": { "approach": "range", "target": "head", "where": "keep_standing" },
+	"habits": [
+		{ "trigger": "own_jab_blocked", "action": "body_kick", "chance": 0.5, "within_ms": 1200 },
+		{ "trigger": "opp_strike_misses", "action": "cross", "chance": 0.5, "within_ms": 800 }
+	],
 	"scouting": {
 		"summary": "Bounces on the outside, feints, then blitzes in with a straight punch or a head kick and is gone again.",
 		"strengths": [
