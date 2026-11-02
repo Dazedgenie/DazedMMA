@@ -148,6 +148,7 @@ const TURN_AWAY_BASE: float = 0.12
 const STAND_UP := "stand_up"
 const STANDING_UP := "STANDING_UP"
 const UP_KICK := "up_kick"
+const BOTTOM_ELBOW := "bottom_elbow"
 
 ## Tied up (clinch or ground), the fighters' centres are this close, on the spot
 ## where the one being taken down or tied up stood.
@@ -237,6 +238,7 @@ const DIG_UNDERHOOK := "dig_underhook"
 const WRIST_HELD := "WRIST_HELD"
 const WRISTS_HELD := "WRISTS_HELD"
 const POSTURE_BROKEN := "POSTURE_BROKEN"
+const POSTURED_UP := "POSTURED_UP"  # Sitting up on top: out of elbow range, room underneath (D271).
 ## The rest of the ground (D264, docs/01 §40.12). In side control and mount the man underneath sets a
 ## frame (FRAME: FRAMED, helping his escapes) and the man on top flattens it (FLATTEN). From side
 ## control the man on top can trap the near arm and take the crucifix (TAKE_CRUCIFIX, a position of its
@@ -755,6 +757,8 @@ func _clear_grips() -> void:
 	_half_inside = NO_GRIP
 	_frame = false
 	_two_on_one = false
+	for f: FighterState in fighters:
+		f.backed_off_ticks = 0  # Sitting up away from the elbows ends with the position (D271).
 
 
 func run_to_end() -> void:
@@ -885,6 +889,8 @@ func _advance_fighter(i: int) -> void:
 		return  # Frozen: it's coming.
 	if f.winded_ticks > 0:
 		f.winded_ticks -= 1
+	if f.backed_off_ticks > 0:
+		f.backed_off_ticks -= 1
 	if f.is_rocked():
 		f.rocked_ticks -= 1
 		if f.rocked_ticks == 0:
@@ -1592,6 +1598,8 @@ func active_flags(i: int) -> Array[String]:
 	if f.tied_up_ticks > 0:
 		out.append("POSTURE_BROKEN")
 	_grip_flags(i, out)
+	if f.backed_off_ticks > 0 and not out.has(POSTURED_UP) and not out.has(POSTURE_BROKEN):
+		out.append(POSTURED_UP)  # Sat up away from the shots from underneath (D271).
 	if f.bit_ticks > 0:
 		out.append("BIT_ON_FEINT")
 	if f.is_down():
@@ -1629,6 +1637,8 @@ func flags_ahead(i: int, ahead: int) -> Array[String]:
 	if f.tied_up_ticks > turns:
 		out.append("POSTURE_BROKEN")
 	_grip_flags(i, out)
+	if f.backed_off_ticks > turns and not out.has(POSTURED_UP) and not out.has(POSTURE_BROKEN):
+		out.append(POSTURED_UP)
 	if f.bit_ticks > turns:
 		out.append("BIT_ON_FEINT")
 	if f.down_ticks > turns:
@@ -1964,6 +1974,14 @@ func _land_strike(i: int, action: Dictionary) -> void:
 	attacker.strikes_landed += 1
 	if action.id == UP_KICK:
 		attacker.up_kicks_landed += 1  # Kicked up into him as he stood (D333).
+	var from_bottom: bool = situation.phase == PositionLibrary.PHASE_GROUND and situation.role(i) == PositionLibrary.BOTTOM
+	var backs_off: bool = false
+	if from_bottom:
+		attacker.bottom_strikes_landed += 1  # From his back (D271).
+		if action.strike.has("backs_off_ms") and target == "head" and not covered and not active_flags(1 - i).has(POSTURE_BROKEN):
+			defender.backed_off_ticks = maxi(defender.backed_off_ticks, int(action.strike.backs_off_ms) / FightClock.TICK_MS)
+			defender.backed_off += 1  # He sits up away from them: room to sweep, sub or get up (D271).
+			backs_off = true
 	if defender.bit_ticks > 0:
 		attacker.off_feint_landed += 1
 	if attacker.combo_step > 0 and attacker.combo_id != "":
@@ -1983,6 +2001,8 @@ func _land_strike(i: int, action: Dictionary) -> void:
 		landed.leg = leg
 	if covered:
 		landed.covered = true
+	if backs_off:
+		landed.backs_off = true
 	if blocked:
 		landed.blocked = true
 	_emit(FightEvent.STRIKE_LANDED, i, landed)
@@ -2033,6 +2053,7 @@ func _make_contact(i: int, action: Dictionary) -> void:
 		var b: OddsBreakdown = odds_breakdown(i, action.id)
 		if b.missing == "":
 			fighters[i].grip = b
+			fighters[i].grip_off_backed = fighters[1 - i].backed_off_ticks > 0 and _has_bonus(b, POSTURED_UP)
 			_meet_shot(1 - i)  # Already sprawling as it arrives?
 			return
 		stopped.reason = { "own " + HELD_ON_FENCE: "not on the fence", "own " + UNDERHOOK: "no underhook",
@@ -2085,6 +2106,8 @@ func _finish_grip(i: int) -> bool:
 	var result: String = ""
 	if roll < b.chance:
 		result = PositionLibrary.SUCCESS
+		if f.grip_off_backed:
+			f.backed_off_used += 1  # Swept, got up or took a grip as he sat up away from the shots (D271).
 	elif roll < b.chance + float(action[action.category].get("partial_within", 0.0)) \
 			and not transition_for(i, action.id, PositionLibrary.PARTIAL).is_empty():
 		result = PositionLibrary.PARTIAL
@@ -2664,6 +2687,7 @@ func _next_round() -> void:
 		f.left_down = false
 		f.liver_ticks = 0
 		f.winded_ticks = 0
+		f.backed_off_ticks = 0
 		f.stagger_ticks = 0
 		f.tied_up_ticks = 0
 		f.bit_ticks = 0
