@@ -920,6 +920,17 @@ func _move_pose(p: Dictionary, f: FighterState, action: Dictionary, reach: float
 		"cover_up":  # Gloves to the temples, elbows in, chin down (D180, D281).
 			p.cover = reach
 			p.lean = lerpf(p.lean, -0.18, reach)
+		"shoulder_roll":  # Chin behind the lead shoulder, turning it into the punch and dipping away (D181).
+			p.twist = lerpf(p.twist, p.twist + 0.4, reach)
+			p.slip = -0.6 * reach
+			p.hip_y = lerpf(p.hip_y, HIP_HEIGHT - 0.06, reach)
+			p.lean = lerpf(p.lean, -0.12, reach)
+		"lean_back":  # Weight onto the back foot, the head back out of reach (D181).
+			p.lean = lerpf(p.lean, 0.42, reach)
+			p.shift = lerpf(p.shift, -0.08, reach)
+		"high_guard":  # Both gloves up by the temples, forearms in front of the face (D181).
+			p.cover = 0.85 * reach
+			p.lean = lerpf(p.lean, -0.08, reach)
 		_:
 			if action.category == "strike":
 				p.arm_lead = lerpf(p.arm_lead, 1.57, reach)
