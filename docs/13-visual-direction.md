@@ -732,8 +732,8 @@ no profile drawn as before), the new-career screen's look in `tests/ui/test_care
 
 Kyle picked submissions and scrambles on the rig as the slice after fighters who look different, and said "You can
 start". It comes in two PRs: the holds first (this section), then the scramble, standing up and the shots from range.
-Four cards asked how it should look; it is built on the recommended answer of each while they are open:
-"Submissions first", "Tightens with the danger", "Tap shown, escape eases out" and "Standing, sits back if deep".
+On the cards he picked "Submissions first", "Tightens with the danger", "Tap shown, escape eases out" and
+"Standing, sits back if deep".
 
 **A pose for each hold** (`game/rig/submission_pair.gd`, `SubmissionPair`), written like the ground's with the man
 attacking as "a" and the man in it as "b". Each hold has a loose pose (the danger meter near empty: he's nearly out)
