@@ -136,10 +136,15 @@ func set_limbs(spec: Dictionary, frame: Transform3D, other: FighterRig, blend_to
 				pole = pole.lerp(_pole(blend_to, key), t)
 			# Nothing reaches through the canvas (D396): a foot hooked on a man lying there, a hand on the mat.
 			target.y = maxf(target.y, ankle_up * FOOT_FLOOR if limb == "foot" else HAND_FLOOR)
+			var trunk: Array[Vector3] = []
+			if other != null:
+				trunk = other.trunk()
+			if not trunk.is_empty():  # Nor into the other man (D397): a hand or foot that would be is put on him.
+				target = out_of(target, trunk[0], trunk[1])
 			if limb == "hand":
-				_solve_arm(side, target, pole)
+				_solve_arm(side, target, pole, trunk)
 			else:
-				_solve_leg(side, target, pole, _planted(spec, key, target))
+				_solve_leg(side, target, pole, _planted(spec, key, target), trunk)
 
 
 ## Where a hand or foot target `want` points, in the world. {"to": "b.back", "off": [x, y, z]} is a named
@@ -231,11 +236,11 @@ func _planted(spec: Dictionary, key: String, target: Vector3) -> float:
 	return 1.0 if target.y < ankle_up + 0.03 and not want.has("to") else 0.0
 
 
-func _solve_arm(side: String, target: Vector3, pole: Vector3) -> void:
+func _solve_arm(side: String, target: Vector3, pole: Vector3, trunk: Array[Vector3] = []) -> void:
 	var chest: Node3D = bones.waist
 	var joint: Vector3 = chest.global_transform * Vector3(shoulder.x * (-1.0 if side == "l" else 1.0), shoulder.y, shoulder.z)
 	var chain: Array[Vector3] = FighterMotion.solve_bones(Vector3.ZERO, target - joint, pole, upper_arm, forearm)
-	var elbow: Vector3 = above_canvas(joint, joint + chain[0], joint + chain[1])
+	var elbow: Vector3 = clear_of(joint, joint + chain[0], joint + chain[1], trunk)
 	var wrist: Vector3 = joint + chain[1]
 	_lay(bones["upper_" + side], joint, elbow, pole, upper_arm)
 	_lay(bones["fore_" + side], elbow, wrist, pole, forearm)
@@ -246,11 +251,11 @@ func _solve_arm(side: String, target: Vector3, pole: Vector3) -> void:
 	joints["wrist_" + side] = wrist
 
 
-func _solve_leg(side: String, target: Vector3, pole: Vector3, planted: float) -> void:
+func _solve_leg(side: String, target: Vector3, pole: Vector3, planted: float, trunk: Array[Vector3] = []) -> void:
 	var pelvis: Node3D = bones.pelvis
 	var hip: Vector3 = pelvis.global_transform * Vector3(hip_x * (-1.0 if side == "l" else 1.0), 0, 0)
 	var chain: Array[Vector3] = FighterMotion.solve_bones(Vector3.ZERO, target - hip, pole, thigh, shin)
-	var knee: Vector3 = above_canvas(hip, hip + chain[0], hip + chain[1])
+	var knee: Vector3 = clear_of(hip, hip + chain[0], hip + chain[1], trunk)
 	var ankle: Vector3 = hip + chain[1]
 	_lay(bones["thigh_" + side], hip, knee, pole, thigh)
 	_lay(bones["shin_" + side], knee, ankle, pole, shin)
@@ -265,6 +270,68 @@ func _solve_leg(side: String, target: Vector3, pole: Vector3, planted: float) ->
 	joints["hip_" + side] = hip
 	joints["knee_" + side] = knee
 	joints["ankle_" + side] = ankle
+
+
+## How close to the line up the middle of a man's trunk (his hips to his chest) the other man's joints may come
+## (metres, D397): a hand or knee pressed on him sits further out than this, one inside him closer.
+const TRUNK_RADIUS: float = 0.12
+## Where that line ends at the top: this far up from his chest bone (a share of POINTS' scale, as they are).
+const TRUNK_TOP: float = 0.2
+
+
+## The line up the middle of his trunk, his hips to his chest, in the world (D397).
+func trunk() -> Array[Vector3]:
+	var pelvis: Node3D = bones.pelvis
+	var chest: Node3D = bones.waist
+	return [pelvis.global_position, chest.global_transform * (Vector3(0, TRUNK_TOP, 0) * point_scale)]
+
+
+## The closest point to `p` on the line from `a` to `b`.
+static func closest_on(p: Vector3, a: Vector3, b: Vector3) -> Vector3:
+	var ab: Vector3 = b - a
+	var t: float = clampf((p - a).dot(ab) / maxf(ab.length_squared(), 0.0001), 0.0, 1.0)
+	return a + ab * t
+
+
+## `p`, or if it's inside the trunk from `a` to `b` (nearer its middle line than TRUNK_RADIUS), put out on it the
+## shortest way (D397).
+static func out_of(p: Vector3, a: Vector3, b: Vector3) -> Vector3:
+	var near: Vector3 = closest_on(p, a, b)
+	var off: Vector3 = p - near
+	if off.length() >= TRUNK_RADIUS:
+		return p
+	var line: Vector3 = (b - a).normalized()
+	if off.length() < 0.001:  # Right on the line: out sideways to it.
+		off = line.cross(Vector3.UP) if absf(line.dot(Vector3.UP)) < 0.9 else line.cross(Vector3.RIGHT)
+	return near + off.normalized() * TRUNK_RADIUS
+
+
+## A knee or elbow at `middle`, between `root` and `end`, kept out of the canvas (above_canvas) and out of the other
+## man's trunk `trunk` (D397): if it's inside him it's turned round the line from `root` to `end`, the least way that
+## gets it out and keeps it above the canvas. If no turn does, the furthest out of him it can go.
+static func clear_of(root: Vector3, middle: Vector3, end: Vector3, trunk: Array[Vector3]) -> Vector3:
+	var lifted: Vector3 = above_canvas(root, middle, end)
+	if trunk.is_empty() or lifted.distance_to(closest_on(lifted, trunk[0], trunk[1])) >= TRUNK_RADIUS:
+		return lifted
+	var axis: Vector3 = end - root
+	if axis.length() < 0.001:
+		return lifted
+	axis = axis.normalized()
+	var arm: Vector3 = lifted - root
+	var best: Vector3 = lifted
+	var best_out: float = lifted.distance_to(closest_on(lifted, trunk[0], trunk[1]))
+	for step in range(1, 37):
+		for sign: float in [1.0, -1.0]:
+			var turned: Vector3 = root + arm.rotated(axis, sign * step * FLOOR_STEP)
+			var out: float = turned.distance_to(closest_on(turned, trunk[0], trunk[1]))
+			if turned.y < JOINT_FLOOR:
+				continue
+			if out >= TRUNK_RADIUS:
+				return turned
+			if out > best_out:
+				best = turned
+				best_out = out
+	return best
 
 
 ## The lowest a knee or elbow's middle may sit (metres above the canvas; the canvas is at 0): a joint resting on it.

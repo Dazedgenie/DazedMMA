@@ -642,6 +642,19 @@ func settle(delta: float) -> void:
 			skeleton.set_bone_pose(id, _shown[id].interpolate_with(skeleton.get_bone_pose(id), t))
 		_ease_left -= delta
 		_lift_off_canvas()
+	_keep_out()
+	_remember_shown()
+
+
+## Keeps this body out of the other man's trunk again (`avoid` set afresh), once he's settled too (D397).
+func keep_out() -> void:
+	_keep_out()
+	_remember_shown()
+
+
+## What's shown now, to ease the next pose from and to measure its jumps against.
+func _remember_shown() -> void:
+	var count: int = skeleton.get_bone_count()
 	_shown.resize(count)
 	for id in count:
 		_shown[id] = skeleton.get_bone_pose(id)
@@ -660,6 +673,50 @@ func _lift_off_canvas() -> void:
 	var id: int = _ids.Hips
 	var up: Vector3 = skeleton.global_transform.basis.inverse() * Vector3.UP * (CANVAS_FLOOR - lowest)
 	skeleton.set_bone_pose_position(id, skeleton.get_bone_pose_position(id) + up)
+
+
+## The other man's trunk, the line from his hips to his chest in the world (set each frame before settle; empty
+## when there's no one to keep out of): no hand, foot, elbow or knee of this body is shown inside it (D397).
+var avoid: Array[Vector3] = []
+
+
+## The line up the middle of this body's trunk, its hips to its chest, in the world (D397).
+func trunk() -> Array[Vector3]:
+	return [_world_at("Hips"), _world_at("Spine2")]
+
+
+## Any limb with its hand or foot, elbow or knee inside the other man's trunk (`avoid`) is posed again, the hand or
+## foot put on him and the elbow or knee turned round the limb out of him (FighterRig.out_of, clear_of; D397). The
+## rig keeps its poses out of him already; this catches what the body adds: easing between two poses (a sweep turning
+## them over, getting up from underneath), its own lengths and the pieces' strikes.
+func _keep_out() -> void:
+	if avoid.size() != 2 or skeleton == null:
+		return
+	var to_skeleton: Transform3D = skeleton.global_transform.affine_inverse()
+	for limb: Array in LIMBS:
+		var upper: String = limb[0]
+		var lower: String = limb[1]
+		var end: String = limb[2]
+		var root: Vector3 = _world_at(upper)
+		var middle: Vector3 = _world_at(lower)
+		var tip: Vector3 = _world_at(end)
+		if _out_by(middle) >= FighterRig.TRUNK_RADIUS and _out_by(tip) >= FighterRig.TRUNK_RADIUS:
+			continue
+		var tip_turn: Basis = (skeleton.global_transform.basis * skeleton.get_bone_global_pose(_ids[end]).basis).orthonormalized()
+		var to: Vector3 = FighterRig.out_of(tip, avoid[0], avoid[1])
+		var chain: Array[Vector3] = FighterMotion.solve_bones(root, to, middle - root.lerp(to, 0.5),
+			root.distance_to(middle), middle.distance_to(tip))
+		var bent_at: Vector3 = FighterRig.clear_of(root, chain[0], chain[1], avoid)
+		var bend: Vector3 = bent_at - root.lerp(chain[1], 0.5)
+		var arm: bool = limb[4] == "arm"
+		_aim_bone(upper, lower, root, bent_at, bend, arm, to_skeleton)
+		_aim_bone(lower, end, bent_at, chain[1], bend, arm, to_skeleton)
+		_set_world(end, Transform3D(tip_turn, chain[1]), to_skeleton)
+
+
+## How far `point` is from the middle line of the other man's trunk.
+func _out_by(point: Vector3) -> float:
+	return point.distance_to(FighterRig.closest_on(point, avoid[0], avoid[1]))
 
 
 ## The lowest a joint's middle may be shown while easing (metres above the canvas).
