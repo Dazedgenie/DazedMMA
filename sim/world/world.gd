@@ -112,13 +112,18 @@ static func make(world_seed: int, home_country_id: String, home_town: String, we
 	rng.seed = hash([world_seed, "world"])
 	for division_id: String in Weight.ids():
 		for level: Dictionary in LEVELS:
-			for i in int(level.count):
+			for i in count_in(level, division_id):
 				w._make_man(rng, division_id, level, week)
 	w.promotions = Promotions.make(w, week)
 	Promotions.place_all(w, week)
 	Titles.seed(w, week)
 	Rankings.seed(w, week)
 	return w
+
+
+## How many men of this level a division keeps: LEVELS' count times the division's size (Weight.size_of, D359).
+static func count_in(level: Dictionary, division_id: String) -> int:
+	return roundi(float(level.count) * Weight.size_of(division_id))
 
 
 ## His age in years at this week.
@@ -245,7 +250,7 @@ func add_newcomer(rng: RandomNumberGenerator, division_id: String, pro: bool, st
 		for l: Dictionary in LEVELS.slice(1):
 			if avg >= float(l.avg[0]):
 				level = l
-	var m: Dictionary = _make_man(rng, division_id, level, week, { "style": style_id, "avg": avg, "age": age_now })
+	var m: Dictionary = _make_man(rng, division_id, level, week, { "style": style_id, "avg": avg, "age": age_now, "fit_now": true })
 	return String(m.id)
 
 
@@ -285,7 +290,9 @@ func _make_man(rng: RandomNumberGenerator, division_id: String, level: Dictionar
 	var shift: int = clampi(roundi(avg - average({ "style": style_id, "level": 0 })), -StyleLibrary.MAX_LEVEL, StyleLibrary.MAX_LEVEL)
 	var sig: Dictionary = _roster.profile(String(_styles.get_style(style_id).fighter))
 	var body: Dictionary = { "frame": (sig.get("frame", {}) as Dictionary).duplicate(true) }
-	Weight.fit(body, division_id, age, rng)
+	# Fitted to the division by his grown weight (D359): a lad made for it grows into it rather than out of it. A
+	# newcomer made for an offer (`fit_now`) weighs in for it now.
+	Weight.fit(body, division_id, age if bool(fixed.get("fit_now", false)) else maxf(age, Weight.GROWN_AT), rng)
 	var number: int = int(next_number.get(division_id, 1))
 	next_number[division_id] = number + 1
 	var m: Dictionary = {

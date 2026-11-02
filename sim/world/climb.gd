@@ -2,7 +2,7 @@ class_name Climb
 extends RefCounted
 ## Climbing the ladder (docs/03 §12.7, D357): the career's fighter moving up the promotions, from the regional cards to
 ## the international organisation to the world one. Kyle (2026-11-02) picked: called up like everyone else, three wins
-## in a row since his last move or a title defence ("Like everyone: 3 wins or a defence"); the call-up as an offer he can
+## in a row since his last move or Titles.CALL_UP_DEFENCES title defences ("Like everyone: 3 wins or a defence"); the call-up as an offer he can
 ## turn down ("An offer he can turn down"); asking for a step up from the hub, a yes being a tryout fight on the bigger
 ## promotion's card ("A tryout fight on their card"), more likely the higher he's ranked, with 3 months between asks
 ## ("By his rank, 3 months between asks"); let go a rank after three losses in a row ("Let go after 3 losses in a row");
@@ -202,7 +202,8 @@ static func ladder_text(c: Career) -> String:
 	var belt: String = Titles.held_by(w, Career.FIGHTER_ID)
 	var next: String
 	if belt != "":
-		next = "a call-up to the %s after a title defence" % String(to.short)
+		var left: int = maxi(1, Titles.CALL_UP_DEFENCES - int(Titles.belt(w, belt).get("defences", 0)))
+		next = "a call-up to the %s after %s" % [String(to.short), "a title defence" if left == 1 else "%d title defences" % left]
 	elif int(w.him.get("run", 0)) >= CALL_UP_WINS:
 		next = "%d wins in a row: the %s want him" % [int(w.him.run), String(to.short)]
 	else:
