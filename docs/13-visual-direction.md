@@ -1103,7 +1103,7 @@ draw raising both; the winner's arms up after a finish; a beaten man down sittin
 click skipping each one; a whole fight played with them unchanged; the setup's option; the round panel down the side).
 `tests/game/test_referee.gd` checks the referee still walks the same on `Walker`.
 
-## Limbs that stay put (D395)
+## Limbs that stay put (D395, D396)
 
 Kyle asked for an hour on the animations (2026-11-02 19:10: "limbs sometimes go all over the place") and picked
 "Stand-up striking" as where he sees it most. Presentation only: fights are unchanged (golden fights not re-pinned).
@@ -1133,8 +1133,46 @@ Numbers: `PLANTED_BELOW` 0.2 m, `LEG_REACH` 0.985, `SINK_MAX` 0.2 m, `KNEE_FORWA
 
 Pictures: `/mnt/project-files/screenshots/limbs-d395/` (the same moments before and after, side by side).
 
+**The rest of the animations (D396).** Kyle then asked for the same for everything else (2026-11-02 20:08). With
+`--all` the checker counts every frame, says what drew it (the feet, the clinch, a move such as a takedown or getting
+up, the ground, a man down), and also counts a hand, foot, elbow, knee or head inside the other man (within 9 cm of the
+line from his hips to his chest). Four grappling fights (Wrestler v BJJ, Judoka v Sambo, Muay Thai v Dirty boxer, GnP
+wrestler v Boxer; about 48 minutes, both men):
+
+- *Knees through the canvas*: 4.5% of frames, nearly all in mount and the crucifix (the top man's knees bent down
+  into it with his shins flat behind him) and the man underneath. `FighterRig.above_canvas` now turns a knee or elbow
+  round the line from hip to ankle (shoulder to wrist) the least way that lifts it to 5 cm (`JOINT_FLOOR`), keeping
+  the bones' lengths. After: 0.01%.
+- *Joints snapping between moves*: a joint jumping more than 45 cm in a frame against his hips, 0.4% of frames, worst
+  where one move hands over to another (a sprawl starting, a guard pull meeting a double leg so the pair turns round,
+  a scramble, getting up). `SkinnedBody.settle` now eases in any new pose that would move a hand, foot, elbow, knee or
+  the head faster than 20 m/s against his hips (`POP_SPEED`; the quickest kicks are about 15), at 5 m/s
+  (`EASE_SPEED`, at most 0.4 s), and lengthens an ease that was too short for how far the pose moves. After: jumps
+  down by about three quarters (the head's to none); strikes on the feet unchanged.
+- *Feet and hands through the canvas*: once the knees were out, a foot or wrist still went under it (0.3% of
+  frames): a foot hooked on a man lying there, a hand posted on the mat, and while easing between two poses (out of a
+  hold into a scramble). The rig now puts no wrist lower than 4 cm (`HAND_FLOOR`) and no ankle lower than 70% of its
+  height standing (`FOOT_FLOOR`), and while the body is easing, if any joint dips under 3 cm (`CANVAS_FLOOR` in
+  `skinned_body.gd`) the whole body is lifted until it doesn't. After: none in 48 minutes.
+- *Elbows flipping*: an elbow or knee whose bend swings right round in a frame, 0.45% of frames, mostly ground
+  punches from back control and the guard, clinch uppercuts and scrambles. Two causes. The hand going nearly straight
+  along the way its elbow is told to bend, so that way says almost nothing: `FighterRig.steady_pole` now leans in the
+  way it bent the frame before as the two line up, from 37° (`POLE_STEADY_FROM` 0.8) to all of it by 11°
+  (`POLE_STEADY_AT` 0.98). And a strike's phases handing the arm from one way of bending to another: the skinned body
+  now eases in, over 0.12 s (`FLIP_EASE`), any pose that would turn a bent elbow or knee (at least 6 cm off straight,
+  `FLIP_BENT`) more than 60° round its limb in a frame (`FLIP_TURN`). On the feet, a bent arm drawn from the pieces
+  also leans its elbow 4 cm down and out (`ELBOW_DOWN`).
+- *Inside the other man*: 3.9% at first, but most of it was the checker counting a hand on his neck. Measured to his
+  chest instead, 0.7% of frames, spread thinly (back control's seat belt, the full guard, double legs): left for the
+  final grappling pass Kyle has planned.
+
+Pictures: `ground-knees-before-left-after-right.png`, `guard-pull-before-after-half-speed.mp4` and
+`sprawl-before-after-half-speed.mp4` in the same folder.
+
 Tests: `tests/game/test_limbs.gd` (lifted hips sinking until both feet on the canvas reach; feet off the canvas not
-pulling him down; a nearly straight leg's knee bending forward).
+pulling him down; a nearly straight leg's knee bending forward; a knee bent into the canvas turning up out of it with
+its bones' lengths kept; a pose that jumps eased in; a quick strike not slowed; an arm reaching straight along its pole not swinging its elbow
+round; an elbow turned right round its arm in a frame eased round).
 
 ## Review and verification
 

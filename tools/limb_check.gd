@@ -1,14 +1,14 @@
 extends SceneTree
 ## Plays real seeded fights through the fight screen without drawing them and checks the skinned bodies every frame
-## (D395; docs/13 "Limbs that stay put"): an elbow or knee swinging round to the other side of the limb from one frame
-## to the next, a joint jumping further in a frame than a body can move, a knee bent backwards, a hand or foot through
-## the canvas, a leg locked straight on its foot, a foot that can't reach where the pieces put it. Prints a count of
-## each by what the fighter was doing, and the worst frames with the seconds to film them from
-## (tools/motion_preview.gd --from=). Headless:
+## (D395, D396; docs/13 "Limbs that stay put"): an elbow or knee swinging round to the other side of the limb from one
+## frame to the next, a joint jumping further in a frame than a body can move, a knee bent backwards, a hand or foot
+## through the canvas, a joint inside the other man, a leg locked straight on its foot, a foot that can't reach where
+## the pieces put it. Prints a count of each by what drew them and what the fighter was doing, and the worst frames
+## with the seconds to film them from (tools/motion_preview.gd --from=). Headless:
 ##   godot --headless --script res://tools/limb_check.gd -- --pairs=boxer:kicker,muay_thai:dirty_boxer --seconds=300
 ## --pairs= red:blue pairs, --seed= the first seed (each pair also plays seed+1 ... with --fights=n), --seconds= how
 ## much of each fight to play (0 the whole fight), --kind= lists only that kind's worst frames, --all counts the clinch,
-## the ground and rig poses too (by default only frames with both men on their feet, drawn from the pieces).
+## moves, the ground and a man down too (by default only frames with both men on their feet, drawn from the pieces).
 
 const FPS: int = 24
 ## An elbow or knee whose bend turns further than this round the line from shoulder to wrist (hip to ankle) in one frame
@@ -24,6 +24,8 @@ const BACK_KNEE: float = -0.35
 const STRETCHED: float = 0.995
 ## A foot or glove this far (metres) from where the pieces put it couldn't reach there.
 const SHORT_BY: float = 0.04
+## A joint of his this close (metres) to the line from the other man's hips to his chest is inside the other man.
+const THROUGH: float = 0.09
 const JOINTS := {"elbow_l": "LeftForeArm", "elbow_r": "RightForeArm", "wrist_l": "LeftHand", "wrist_r": "RightHand",
 	"knee_l": "LeftLeg", "knee_r": "RightLeg", "ankle_l": "LeftFoot", "ankle_r": "RightFoot", "head": "Head"}
 const LIMBS := [["arm_l", "LeftArm", "LeftForeArm", "LeftHand"], ["arm_r", "RightArm", "RightForeArm", "RightHand"],
@@ -35,7 +37,7 @@ var _fights: int = 1
 var _seconds: float = 300.0
 var _standing: bool = true
 var _counts := {}
-var _worst: Array = []
+var _worst_by := {}
 var _frames: int = 0
 ## --kind= lists only the worst frames of that kind ("short_foot", "jump ankle", ...).
 var _kind: String = ""
@@ -67,7 +69,7 @@ func _run() -> void:
 	print("\nLimb check: %d frames (%d s of fights at %d fps)" % [_frames, _frames / FPS, FPS])
 	var totals := {}
 	for key: String in _counts:
-		var kind: String = key.left(14).strip_edges()
+		var kind: String = key.left(13).strip_edges()
 		totals[kind] = int(totals.get(kind, 0)) + int(_counts[key])
 	for kind: String in totals:
 		print("  total %-14s %6d  (%.2f%% of frames)" % [kind, totals[kind], 100.0 * float(totals[kind]) / maxf(_frames * 2, 1)])
@@ -75,9 +77,12 @@ func _run() -> void:
 	kinds.sort_custom(func(a: String, b: String) -> bool: return int(_counts[a]) > int(_counts[b]))
 	for key: String in kinds.slice(0, 60):
 		print("  %6d  %s" % [_counts[key], key])
+	var _worst: Array = []
+	for kind: String in _worst_by:
+		_worst.append_array(_worst_by[kind])
 	_worst.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return float(a.size) > float(b.size))
 	print("\nWorst frames:")
-	for w: Dictionary in _worst.filter(func(w: Dictionary) -> bool: return float(w.size) < 1.0 and String(w.kind).begins_with(_kind)).slice(0, 40):
+	for w: Dictionary in _worst.filter(func(w: Dictionary) -> bool: return String(w.kind).begins_with(_kind)).slice(0, 40):
 		print("  %-22s %6.2f  %s v %s seed %d  --from=%.2f  %s" % [w.kind, w.size, w.red, w.blue, w.seed, w.at, w.what])
 	quit()
 
@@ -105,21 +110,25 @@ func _check(red: String, blue: String, fight_seed: int) -> void:
 		var standing: bool = sim.situation.is_standing() and sim.situation.position != PositionLibrary.CLINCH \
 			and arena._takedown.is_empty() and arena._clinch_shown == "" and not sim.fighters[0].is_down() \
 			and not sim.fighters[1].is_down()
+		var mode: String = _mode(sim, arena, standing)
+		var both: Array = []
 		for i in 2:
 			var figure: FighterFigure = main.arena.figures[i]
 			if figure.body == null:
-				continue
+				return
 			var now: Dictionary = _read(figure.body)
-			var pose: Dictionary = figure.body_pose()
-			for side: String in ["l", "r"]:
-				var want: Vector3 = Vector3(pose["ankle_" + side]) + Basis(pose["foot_" + side]).y * (figure.body._at("RightFoot").y - float(pose.ankle_up))
-				var hand: Vector3 = pose["wrist_" + side]
-				now["short_foot_" + side] = figure.body._world_at("LeftFoot" if side == "l" else "RightFoot").distance_to(want)
-				now["short_hand_" + side] = figure.body._world_at("LeftHand" if side == "l" else "RightHand").distance_to(hand)
+			now.pieces = standing
+			if standing:
+				var pose: Dictionary = figure.body_pose()
+				for side: String in ["l", "r"]:
+					var want: Vector3 = Vector3(pose["ankle_" + side]) + Basis(pose["foot_" + side]).y * (figure.body._at("RightFoot").y - float(pose.ankle_up))
+					now["short_foot_" + side] = figure.body._world_at("LeftFoot" if side == "l" else "RightFoot").distance_to(want)
+			both.append(now)
+		for i in 2:
 			if (standing or not _standing) and not Dictionary(last[i]).is_empty():
 				_frames += 1 if i == 0 else 0
-				_judge(now, last[i], sim, i, {"red": red, "blue": blue, "seed": fight_seed, "at": float(frame) / FPS})
-			last[i] = now
+				_judge(both[i], last[i], both[1 - i], sim, i, mode, {"red": red, "blue": blue, "seed": fight_seed, "at": float(frame) / FPS})
+			last[i] = both[i]
 	root.remove_child(main)
 	main.free()
 	await process_frame
@@ -143,14 +152,29 @@ func _read(body: SkinnedBody) -> Dictionary:
 	var turn: Basis = hips.basis.orthonormalized() * Transform3D(body._rest_world.Hips).basis.orthonormalized().inverse()
 	out.forward = turn * Vector3.FORWARD  # The body stands facing -Z at rest.
 	out.hips = hips.origin
+	out.chest = body._world_at("Spine2")
 	return out
 
 
-func _judge(now: Dictionary, was: Dictionary, sim: FightSim, i: int, where: Dictionary) -> void:
+## What's drawing them this frame: the pieces on the feet, the clinch, a takedown or move from the rig, the ground,
+## a man down.
+func _mode(sim: FightSim, arena: ArenaView, standing: bool) -> String:
+	if standing:
+		return "feet"
+	if not arena._takedown.is_empty():
+		return "move " + String(arena._takedown.get("move", arena._takedown.get("action", "")))
+	if sim.fighters[0].is_down() or sim.fighters[1].is_down():
+		return "down"
+	if sim.situation.position == PositionLibrary.CLINCH:
+		return "clinch"
+	return "ground"
+
+
+func _judge(now: Dictionary, was: Dictionary, other: Dictionary, sim: FightSim, i: int, mode: String, where: Dictionary) -> void:
 	var f: FighterState = sim.fighters[i]
-	var doing: String = "%s %s" % [f.action_id if f.action_id != "" else "-", f.phase]
-	if not sim.situation.is_standing():
-		doing = "%s %s" % [sim.situation.position, doing]
+	var doing: String = "%s | %s %s" % [mode, f.action_id if f.action_id != "" else "-", f.phase]
+	if mode != "feet":
+		doing = "%s | %s %s %s" % [mode, sim.situation.position, f.action_id if f.action_id != "" else "-", f.phase]
 	for limb: Array in LIMBS:
 		var a: Dictionary = now[limb[0]]
 		var b: Dictionary = was[limb[0]]
@@ -162,12 +186,12 @@ func _judge(now: Dictionary, was: Dictionary, sim: FightSim, i: int, where: Dict
 				_note("flip " + String(limb[0]).left(3), doing, turned / 90.0, where, i)
 		if String(limb[0]).begins_with("leg") and a.low and float(a.straight) > STRETCHED:
 			_note("stretched leg", doing, float(a.straight), where, i)
-		if String(limb[0]).begins_with("leg") and bend.length() > FLIP_BENT:
+		if now.pieces and String(limb[0]).begins_with("leg") and bend.length() > FLIP_BENT:
 			var facing: float = bend.normalized().dot(now.forward)
 			if facing < BACK_KNEE:
 				_note("back knee", doing, -facing, where, i)
 	for key: String in ["short_foot_l", "short_foot_r"]:
-		if float(now[key]) > SHORT_BY:
+		if now.has(key) and float(now[key]) > SHORT_BY:
 			_note(key.left(10), doing, float(now[key]), where, i)
 	var carried: Vector3 = Vector3(now.hips) - Vector3(was.hips)
 	if carried.length() > 1.0:
@@ -177,17 +201,31 @@ func _judge(now: Dictionary, was: Dictionary, sim: FightSim, i: int, where: Dict
 		if moved > JUMP_METRES:
 			_note("jump " + key.left(key.find("_")) if key.contains("_") else "jump " + key, doing, moved, where, i)
 		if Vector3(now[key]).y < -0.04 and key != "head":
-			_note("under canvas", doing, -Vector3(now[key]).y * 10.0, where, i)
+			_note("under " + key, doing, -Vector3(now[key]).y * 10.0, where, i)
+		# Through the other man: a joint inside his trunk (closer to the line from his hips to his chest than any limb
+		# pressed on him would be).
+		var inside: float = _to_segment(now[key], other.hips, other.chest)
+		if inside < THROUGH:
+			_note("thru " + key, doing, (THROUGH - inside) * 10.0, where, i)
+
+
+static func _to_segment(p: Vector3, a: Vector3, b: Vector3) -> float:
+	var ab: Vector3 = b - a
+	var t: float = clampf((p - a).dot(ab) / maxf(ab.length_squared(), 0.0001), 0.0, 1.0)
+	return p.distance_to(a + ab * t)
 
 
 func _note(kind: String, doing: String, size: float, where: Dictionary, i: int) -> void:
-	var key: String = "%-14s %s" % [kind, doing]
+	var key: String = "%-13s %s" % [kind, doing]
 	_counts[key] = int(_counts.get(key, 0)) + 1
 	var w: Dictionary = where.duplicate()
 	w.kind = kind + (" (red)" if i == 0 else " (blue)")
 	w.size = size
 	w.what = doing
-	_worst.append(w)
-	if _worst.size() > 4000:
-		_worst.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return float(a.size) > float(b.size))
-		_worst.resize(400)
+	if not _worst_by.has(kind):
+		_worst_by[kind] = []
+	var list: Array = _worst_by[kind]
+	list.append(w)
+	if list.size() > 400:  # Keep each kind's worst.
+		list.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return float(a.size) > float(b.size))
+		list.resize(50)

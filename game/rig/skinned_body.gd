@@ -485,6 +485,8 @@ func follow_joints(pose: Dictionary, only: Array[String] = []) -> void:
 		var end_at: Vector3 = pose[("wrist_" if arm else "ankle_") + side]
 		if not arm and pose.has("ankle_up"):
 			end_at += Basis(pose["foot_" + side]).y * (_at("RightFoot").y - float(pose.ankle_up))
+		# Nothing reaches through the canvas (D396), whatever drives him.
+		end_at.y = maxf(end_at.y, FighterRig.HAND_FLOOR if arm else _at("RightFoot").y * FighterRig.FOOT_FLOOR)
 		var first: float = Transform3D(_rest_world[upper]).origin.distance_to(Transform3D(_rest_world[lower]).origin)
 		var second: float = Transform3D(_rest_world[lower]).origin.distance_to(Transform3D(_rest_world[end]).origin)
 		if arm:
@@ -512,6 +514,12 @@ func follow_joints(pose: Dictionary, only: Array[String] = []) -> void:
 			# about from frame to frame (sunk to his feet, his legs bend more than the driver's): knees bend forward,
 			# so they lean that way unless the driver's knee points somewhere clearly (D395).
 			bend += Basis(pose.pelvis) * Vector3.FORWARD * KNEE_FORWARD
+		elif pose.has("shoulders_at"):
+			# The same for the pieces' nearly straight arm (a punch at full stretch, from the feet, the clinch or the
+			# ground): elbows hang down and out, so it leans that way instead of turning over from one frame to the next
+			# (D396). A rig's arms (round a man's back) bend where their poles put them.
+			var out: Vector3 = Vector3.LEFT if side == "l" else Vector3.RIGHT
+			bend += Basis(pose.chest) * (Vector3.DOWN + out * 0.5).normalized() * ELBOW_DOWN
 		var chain: Array[Vector3] = FighterMotion.solve_bones(root, end_at, bend, first, second)
 		var middle: Vector3 = chain[0]
 		var tip: Vector3 = chain[1]
@@ -553,6 +561,8 @@ const LEG_REACH: float = 0.985
 const SINK_MAX: float = 0.2
 ## How hard (metres) a knee leans forward of his hips when the driver's knee hardly says which way it bends.
 const KNEE_FORWARD: float = 0.08
+## How hard (metres) an elbow leans down and out when the driver's elbow hardly says which way it bends (D396).
+const ELBOW_DOWN: float = 0.04
 
 
 ## How far (metres) his hips must come down, as posed now, for each foot on the canvas in `pose` to be in reach.
@@ -613,16 +623,102 @@ func ease_over(seconds: float) -> void:
 
 ## Call once a frame after posing the body: while easing (ease_over), each bone is shown part of the way from
 ## last frame's pose to the new one, arriving when the time is up.
+##
+## A new pose that would throw a hand, foot, elbow, knee or his head further from his hips in one frame than a body
+## can move (POP_SPEED: one move handing over to another, the pair turned round, a pose built afresh) is eased in
+## too, over the time it takes at EASE_SPEED (D396), and an ease_over too short for how far the pose moves is
+## lengthened the same way.
 func settle(delta: float) -> void:
 	var count: int = skeleton.get_bone_count()
+	if _shown.size() == count and not _shown_world.is_empty() and delta > 0.0:
+		var moved: float = _furthest_move()
+		if moved > POP_SPEED * delta or _ease_left > 0.0:
+			_ease_left = maxf(_ease_left, minf(moved / EASE_SPEED, EASE_MAX))
+		if _furthest_turn() > FLIP_TURN:  # An elbow or knee swinging right round its limb in a frame.
+			_ease_left = maxf(_ease_left, FLIP_EASE)
 	if _ease_left > 0.0 and _shown.size() == count:
 		var t: float = clampf(delta / _ease_left, 0.0, 1.0)
 		for id in count:
 			skeleton.set_bone_pose(id, _shown[id].interpolate_with(skeleton.get_bone_pose(id), t))
 		_ease_left -= delta
+		_lift_off_canvas()
 	_shown.resize(count)
 	for id in count:
 		_shown[id] = skeleton.get_bone_pose(id)
+	for bone: String in TRACKED + LIMB_ROOTS:
+		_shown_world[bone] = _world_at(bone)
+
+
+## Part way between two poses each bone is turned part of the way, which can swing a limb down through the canvas (a
+## man lying turned over, a scramble): he's lifted until his lowest joint is back on it (D396).
+func _lift_off_canvas() -> void:
+	var lowest: float = INF
+	for bone: String in TRACKED:
+		lowest = minf(lowest, _world_at(bone).y)
+	if lowest >= CANVAS_FLOOR:
+		return
+	var id: int = _ids.Hips
+	var up: Vector3 = skeleton.global_transform.basis.inverse() * Vector3.UP * (CANVAS_FLOOR - lowest)
+	skeleton.set_bone_pose_position(id, skeleton.get_bone_pose_position(id) + up)
+
+
+## The lowest a joint's middle may be shown while easing (metres above the canvas).
+const CANVAS_FLOOR: float = 0.03
+
+
+## Faster than this (m/s, a hand, foot, elbow, knee or the head against his hips) a pose has jumped, not moved: the
+## quickest kicks are about 15.
+const POP_SPEED: float = 20.0
+## How fast a jumped pose is eased in (m/s, the joint that moves furthest), taking at most EASE_MAX seconds.
+const EASE_SPEED: float = 5.0
+const EASE_MAX: float = 0.4
+## The joints watched for a jump (and the hips they're measured from).
+const TRACKED: Array[String] = ["Hips", "Head", "LeftHand", "RightHand", "LeftFoot", "RightFoot", "LeftForeArm",
+	"RightForeArm", "LeftLeg", "RightLeg"]
+## Further than this (radians) round its limb in one frame an elbow or knee has flipped, not moved, and the pose is
+## eased in over FLIP_EASE seconds (D396): a strike's arm handed from one way of bending to another.
+const FLIP_TURN: float = PI / 3.0
+const FLIP_EASE: float = 0.12
+## Bent less than this (metres off the line from its root to its end) a limb's bend isn't watched: a straight limb
+## can turn its elbow any way without it showing.
+const FLIP_BENT: float = 0.06
+## The limbs' roots, watched with TRACKED to see a bend flip.
+const LIMB_ROOTS: Array[String] = ["LeftArm", "RightArm", "LeftUpLeg", "RightUpLeg"]
+## Where TRACKED were shown last frame, in the world.
+var _shown_world := {}
+
+
+## How far (radians) the elbow or knee that turns furthest round its limb has turned from how it was shown last frame
+## to the pose set now, counting only limbs bent at least FLIP_BENT both times.
+func _furthest_turn() -> float:
+	var furthest: float = 0.0
+	for limb: Array in LIMBS:
+		if not _shown_world.has(limb[0]):
+			continue
+		var was: Vector3 = _bend(_shown_world[limb[0]], _shown_world[limb[1]], _shown_world[limb[2]])
+		var now: Vector3 = _bend(_world_at(limb[0]), _world_at(limb[1]), _world_at(limb[2]))
+		if was.length() >= FLIP_BENT and now.length() >= FLIP_BENT:
+			furthest = maxf(furthest, was.angle_to(now))
+	return furthest
+
+
+## Which way and how far a limb's middle sits off the line from its root to its end.
+static func _bend(root: Vector3, middle: Vector3, end: Vector3) -> Vector3:
+	var line: Vector3 = end - root
+	var off: Vector3 = middle - root
+	return off - off.project(line) if line.length() > 0.001 else off
+
+
+## How far (metres) the joint that moves furthest against his hips has gone from where it was shown last frame to the
+## pose set now.
+func _furthest_move() -> float:
+	var hips: Vector3 = _world_at("Hips")
+	var hips_was: Vector3 = _shown_world.Hips
+	var furthest: float = 0.0
+	for bone: String in TRACKED:
+		if bone != "Hips":
+			furthest = maxf(furthest, ((_world_at(bone) - hips) - (Vector3(_shown_world[bone]) - hips_was)).length())
+	return furthest
 
 
 ## Where `bone` is in the world as posed now.

@@ -73,11 +73,12 @@ under Godot's movie maker, which writes the frames:
     godot --path . --fixed-fps 24 --write-movie build/moments/frame.png --script res://tools/moment_preview.gd -- --moment=break
 
 `limb_check.gd` plays real seeded fights through the fight screen without drawing them and flags every frame where a
-skinned body's limb goes wrong on the feet (D395, `docs/13` §Limbs that stay put): knees and elbows swinging round,
+skinned body's limb goes wrong on the feet (D395, D396, `docs/13` §Limbs that stay put): knees and elbows swinging round,
 joints jumping, knees bent backwards, legs locked straight, feet that can't reach, anything through the canvas. It
 prints a count of each by what the fighter was doing, a total of each, and the worst frames with the `--from=` seconds
 to film them with `motion_preview.gd`. `--pairs=red:blue,...`, `--seed=`, `--fights=n`, `--seconds=` (0 the whole
-fight), `--kind=` (list only that kind's worst frames), `--all` (count the ground and clinch too). Headless:
+fight), `--kind=` (list only that kind's worst frames), `--all` (every frame: the clinch, moves, the ground and a man down too, with a joint inside the other man
+counted). Headless:
 
     godot --headless --script res://tools/limb_check.gd -- --seconds=0
 
