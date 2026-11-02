@@ -77,6 +77,8 @@ static func _describe(event: FightEvent, sim: FightSim) -> String:
 			var guard: String = ", through the guard" if event.data.get("covered", false) else ""
 			if event.data.target == "body" and sim.actions.has(event.data.action_id) and sim.actions.get_action(event.data.action_id).strike.has("hands_down_ms"):
 				guard += ": his hands come down"  # A body shot on the ground (D270).
+			if event.data.get("backs_off", false):
+				guard += ": he sits up away from it"  # From the bottom: room to sweep or get up (D271).
 			return "%s's %s%s [b]LANDS[/b]%s (%s, %d damage%s)%s" % [who, counter, _action_name(event.data.action_id, sim), into, event.data.target, event.data.damage, guard, _odds(event)]
 		FightEvent.GRAPPLE_WON:
 			if event.data.result == "tied_up" and event.data.action_id == FightSim.COLLAR_TIE:

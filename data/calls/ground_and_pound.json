@@ -8,8 +8,9 @@
 	"hotkey": 1,
 	"voice_cost": 20,
 	"positions": ["full_guard", "half_guard", "side_control", "mount", "back_control"],
-	"roles": ["top"],
+	"roles": ["top", "bottom"],
+	"positions_by_role": { "bottom": ["full_guard", "half_guard"] },
 	"actions": [],
-	"focus": { "duration_ms": 15000, "leanings": { "pace": 80, "risk": 40 } },
+	"focus": { "duration_ms": 15000, "leanings": { "pace": 80, "risk": 40 }, "bottom_strikes": 4.0 },
 	"requires_technique": null
 }
