@@ -469,18 +469,15 @@ func _pose_clinch(sim: FightSim, delta: float) -> void:
 	var held: int = held_now(sim)
 	_track_drive(sim, held)
 	if _pose_hold(sim, delta):
-		for figure in figures:
-			figure.body.settle(delta)
+		_settle_bodies(delta)
 		_bow_fence(-1, delta)
 		return
 	if _pose_takedown(sim, delta):
-		for figure in figures:
-			figure.body.settle(delta)
+		_settle_bodies(delta)
 		_bow_fence(-1, delta)  # Off the fence: it springs back.
 		return
 	if _pose_ground(sim, delta) or _pose_scramble(sim):
-		for figure in figures:
-			figure.body.settle(delta)
+		_settle_bodies(delta)
 		_bow_fence(-1, delta)
 		return
 	var built: Dictionary = {}
@@ -498,9 +495,19 @@ func _pose_clinch(sim: FightSim, delta: float) -> void:
 	else:
 		_pose_built(sim, built, frame)
 	_pose_downed(sim, delta)
-	for figure in figures:
-		figure.body.settle(delta)
+	_settle_bodies(delta)
 	_bow_fence(held, delta)
+
+
+## Eases both bodies into the poses just set (SkinnedBody.settle), each kept out of the other's trunk (D397).
+func _settle_bodies(delta: float) -> void:
+	for i in figures.size():
+		var other: SkinnedBody = figures[1 - i].body if figures.size() == 2 else null
+		figures[i].body.avoid = other.trunk() if other != null else ([] as Array[Vector3])
+		figures[i].body.settle(delta)
+	if figures.size() == 2:  # The first again, against where the second ended up.
+		figures[0].body.avoid = figures[1].body.trunk()
+		figures[0].body.keep_out()
 
 
 ## Poses `built` (empty: today's figures) in `frame`, with any strike's limb from today's figure.

@@ -1103,7 +1103,7 @@ draw raising both; the winner's arms up after a finish; a beaten man down sittin
 click skipping each one; a whole fight played with them unchanged; the setup's option; the round panel down the side).
 `tests/game/test_referee.gd` checks the referee still walks the same on `Walker`.
 
-## Limbs that stay put (D395, D396)
+## Limbs that stay put (D395–D397)
 
 Kyle asked for an hour on the animations (2026-11-02 19:10: "limbs sometimes go all over the place") and picked
 "Stand-up striking" as where he sees it most. Presentation only: fights are unchanged (golden fights not re-pinned).
@@ -1163,15 +1163,34 @@ wrestler v Boxer; about 48 minutes, both men):
   elbow 4 cm down and out (`ELBOW_DOWN`). After: elbows 2 frames (from 312), knees none (from 17).
 - *Inside the other man*: 3.9% at first, but most of it was the checker counting a hand on his neck. Measured to his
   chest instead, 0.7% of frames, spread thinly (back control's seat belt, the full guard, double legs): left for the
-  final grappling pass Kyle has planned.
+  final grappling pass Kyle has planned (done next, D397).
 
 Pictures: `ground-knees-before-left-after-right.png`, `guard-pull-before-after-half-speed.mp4` and
 `sprawl-before-after-half-speed.mp4` in the same folder.
 
+**Out of the other man (D397).** Kyle asked for that grappling pass next (2026-11-02 23:01). A joint inside the other
+man (within 9 cm of the line from his hips to his chest) was 1,027 joint-frames in the four grappling fights: the bottom
+man's hands and knees in the full guard, his legs getting up from under a man, the back taker's knees and elbows, the
+shooter's knee in a double leg, and bodies passing through each other while easing from one position to the next (a
+sweep turning them over). Two layers now keep a hand, foot, elbow or knee at least 12 cm (`TRUNK_RADIUS` in
+`fighter_rig.gd`) from that line:
+
+- *The rig* (`FighterRig.set_limbs`): a hand or foot placed inside the other man is put on him the shortest way out
+  (`out_of`), and a knee or elbow inside him is turned round its limb the least way that gets it out while keeping it
+  above the canvas (`clear_of`), its bones' lengths kept.
+- *The body* (`SkinnedBody._keep_out`, after easing): `ArenaView._settle_bodies` hands each body the other's trunk
+  (`avoid`, his `Hips` to `Spine2`), and any limb still in it is posed again the same way. The first body is checked again
+  once the second has settled, so neither ends up in where the other moved to. This is what catches the easing.
+
+After: 47 joint-frames (from 1,027), 25 of them a head on his chest in the full guard. Elbow flips rose from 2 to 22
+frames as limbs are turned out of him. Pictures: `inside-guard.mp4`, `inside-back.mp4`, `inside-sweep.mp4` in the same
+folder (half speed, before on the left).
+
 Tests: `tests/game/test_limbs.gd` (lifted hips sinking until both feet on the canvas reach; feet off the canvas not
 pulling him down; a nearly straight leg's knee bending forward; a knee bent into the canvas turning up out of it with
 its bones' lengths kept; a pose that jumps eased in; a quick strike not slowed; an elbow turned right round its arm in a
-frame eased round).
+frame eased round; a hand inside the other man put on him; a knee inside him turned out keeping its bones' lengths; the
+body keeping its hands out of him).
 
 ## Review and verification
 
