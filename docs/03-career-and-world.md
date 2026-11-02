@@ -1250,6 +1250,7 @@ study" first, my pick):
 | Coaches: assistants for a weekly fee, the head coach's levels | D408 | Planned |
 | Changing gyms: his hometown and the nearest city | D409 | Planned |
 | Minigames, one a PR: film study, heavy bag, sprawl reflex, Thai pads first | D410 on | Planned |
+| Your corner naming the habits you found at each round break (Kyle's ask after D401) | D419 | Built (§13.1) |
 
 ### 13.1 Scouting and film study (D401)
 
@@ -1280,6 +1281,12 @@ range", "Film study sessions find them" and "Found after 3 fires" and "1 to 2 ha
   style: strikes a minute, shots, submissions and time in the clinch and on the ground within a little of before, and win
   shares moving inside what 12 fights can tell apart. The Sambo fighter's first list (two double legs) took him from 31 to 43
   shots a fight, so his second habit off a miss is a leg kick (35 shots, about as before, on 20 fights).
+
+- **Your corner talks about them** (D419; Kyle, 2026-11-02: "in the fight coaches should mention in the corner the tell
+  that was picked up"). At every round break of a career fight, the coach on the stool names each habit you've found, in camp
+  or in the fight so far, and how often he's done it: *Your corner: When his jab is blocked, he throws a body kick. He's done
+  it 3 times so far: make him pay.* (or *He hasn't shown it yet, but be ready.*). It's the first thing on the break's card.
+  Quick fights cue every tell and the corner says nothing of them, as before. (`corner_habit_lines` in `game/main.gd`.)
 
 Saved on the career as `scouting` (`docs/09` career@1; optional, so a career saved before D401 loads knowing nothing of
 anyone). A man who was already in the career's opponents keeps the habits he was made with.

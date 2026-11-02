@@ -484,6 +484,22 @@ func test_drilling_a_rule_in_a_career_camp_takes_it_into_the_fight_as_sharp_as_c
 	assert_eq(_main.state, _main.OVER)
 
 
+func test_his_corner_names_the_habits_you_found_and_how_often_he_has_done_them_at_the_break() -> void:
+	var kick := { "trigger": "own_jab_blocked", "action": "body_kick", "chance": 0.7, "within_ms": 1500 }
+	var overhand := { "trigger": "opp_strike_misses", "action": "overhand", "chance": 0.5, "within_ms": 800 }
+	var sim := FightSim.new(1, [FighterState.new("Red"), FighterState.new("Blue")], ActionLibrary.load_dir())
+	sim.fighters[1].tells.assign([kick, overhand])
+	assert_eq(_main.corner_habit_lines(sim, null), [] as Array[String], "a quick fight: no scouting, nothing said")
+	var watch := Scouting.Watch.new([Scouting.key(kick)])
+	var lines: Array[String] = _main.corner_habit_lines(sim, watch)
+	assert_eq(lines.size(), 1, "only the habit you found (D419)")
+	assert_string_contains(lines[0], "When his jab is blocked, he throws a body kick. He hasn't shown it yet")
+	for n in 2:
+		watch.set_off(kick, n * 100)
+		watch.started("body_kick", n * 100 + 1)
+	assert_string_contains(_main.corner_habit_lines(sim, watch)[0], "He's done it 2 times so far")
+
+
 func test_a_quick_camp_has_no_drill_rule_sessions() -> void:
 	var planner := CampPlanner.new(FighterLibrary.load_dir().profile("wrestler"))
 	add_child_autofree(planner)

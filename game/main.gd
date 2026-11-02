@@ -908,6 +908,9 @@ func _on_round_over(event: FightEvent) -> void:
 	else:
 		# Before his third fight the break is just the cards (D316): rules and the gameplan open with lesson 3.
 		summary = summary.replace("\n\n" + BREAK_CHANGE_LINE, "")
+	var corner: Array[String] = corner_habit_lines(sim, arena.tell_watch if bool(settings.get("career", false)) else null)
+	if not corner.is_empty():
+		summary = "\n".join(corner) + "\n\n" + summary  # Your corner on his habits (D419).
 	if bool(settings.get("career", false)) and career != null:
 		for t: Dictionary in Tutorial.due(career, "round_break"):
 			career.see_tip(String(t.id))
@@ -916,6 +919,23 @@ func _on_round_over(event: FightEvent) -> void:
 		arena.play_moment(Ceremony.CORNERS)  # To their stools (D391), the round's panel down the side.
 	hud.show_dialog("End of round %d" % event.round_number, summary,
 		[["Start round %d" % next, _start_next_round]], extra, _moments)
+
+
+## What your corner says on the stool about the opponent's habits (D419, Kyle 2026-11-02: "in the fight coaches should
+## mention in the corner the tell that was picked up"): each habit of his you've found, in camp or in this fight, and how
+## often he's done it so far. Empty outside a career (no scouting: every tell is cued anyway) or with nothing found.
+static func corner_habit_lines(sim: FightSim, watch: Scouting.Watch) -> Array[String]:
+	var out: Array[String] = []
+	if watch == null:
+		return out
+	for tell: Dictionary in sim.fighters[1].tells:
+		if not watch.cues(tell):
+			continue
+		var times: int = watch.fires(Scouting.key(tell))
+		var so_far: String = "He hasn't shown it yet, but be ready." if times == 0 else ("He's done it once so far: make him pay."
+			if times == 1 else "He's done it %d times so far: make him pay." % times)
+		out.append("[color=#ffe066][b]Your corner:[/b][/color] %s. %s" % [Scouting.tell_text(tell).get_slice(" (", 0), so_far])
+	return out
 
 
 ## The bell's text: each judge's card for the round, the totals and how both fighters are.
