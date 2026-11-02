@@ -53,7 +53,7 @@ const HIS_ELIMINATOR_TO: int = 5
 const ELIMINATOR_AFTER: int = 8
 const ELIMINATOR_ROUNDS: int = 3
 const NEXT_WAIT: int = 26
-## Reigns kept in a belt's `past`.
+## Reigns kept in a belt's `past` (every reign is also kept for good in World.reigns, History, D358).
 const PAST_KEPT: int = 8
 ## Day one: the best man of each promotion's division holds the belt, won SEED_WON weeks ago, with up to SEED_DEFENCES
 ## defences, his last title fight SEED_LAST weeks ago.
@@ -256,7 +256,7 @@ static func title_fight(w: World, k: String, a: Dictionary, b: Dictionary, week:
 ## He's the new champion: the old one's reign goes into `past` with how it ended.
 static func crown(w: World, k: String, id: String, week: int, how: String) -> void:
 	var b: Dictionary = w.titles[k]
-	_end_reign(b, week, how)
+	_end_reign(w, k, b, week, how)
 	b.champion = id
 	b.won = week
 	b.last = week
@@ -270,7 +270,7 @@ static func vacate(w: World, k: String, week: int, why: String) -> void:
 	var id: String = String(b.champion)
 	if id == "":
 		return
-	_end_reign(b, week, why)
+	_end_reign(w, k, b, week, why)
 	b.champion = ""
 	b.defences = 0
 	b.last = week
@@ -353,9 +353,10 @@ static func _clear_next(w: World, b: Dictionary) -> void:
 		w.next_cache = {}
 
 
-static func _end_reign(b: Dictionary, week: int, how: String) -> void:
+static func _end_reign(w: World, k: String, b: Dictionary, week: int, how: String) -> void:
 	if String(b.get("champion", "")) == "":
 		return
+	History.note_reign(w, k, String(b.champion), int(b.won), week, int(b.defences), how)
 	var past: Array = b.get_or_add("past", [])
 	past.append([String(b.champion), int(b.won), week, int(b.defences), how])
 	while past.size() > PAST_KEPT:

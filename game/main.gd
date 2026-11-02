@@ -22,6 +22,8 @@ extends Node3D
 const MIN_WINDOW_SIZE := Vector2i(960, 540)
 ## The division list's page (D352, TipCard.show_page): wide enough for a man a line.
 const DIVISION_WIDTH: float = 900.0
+## The world's history plays this many weeks a frame on the new-career wait (D358).
+const HISTORY_SLICE: int = 13
 const DIVISION_HEIGHT: float = 460.0
 const TITLE := "title"
 const NEW_CAREER := "new_career"
@@ -147,6 +149,7 @@ func _ready() -> void:
 	hub.promotions_pressed.connect(open_promotions)
 	hub.rankings_pressed.connect(open_rankings)
 	hub.ask_pressed.connect(ask_step_up)
+	hub.history_pressed.connect(open_history)
 	ui.add_child(hub)
 	result = FightResultCard.new()
 	result.visible = false
@@ -255,8 +258,34 @@ func _start_career(choices: Dictionary, career_seed: int) -> void:
 		return
 	career = Career.start(choices, career_seed, _roster)
 	career_slot = slot
+	if career.history_pending():
+		await _write_history()
 	save_career()
 	show_hub()
+
+
+## The world's history (D358; Kyle, 2026-11-02: "A short wait with a progress line"): a new career's world played for
+## Career.history_years years before his first week, HISTORY_SLICE weeks a frame, with the year counting up.
+func _write_history() -> void:
+	_hide_screens()
+	var panel := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.06, 0.07, 0.09)
+	panel.add_theme_stylebox_override("panel", style)
+	panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	var label := Label.new()
+	DisplayFont.apply(label, 34)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	panel.add_child(label)
+	$UI.add_child(panel)
+	var done: float = 0.0
+	while done < 1.0:
+		done = career.play_history(HISTORY_SLICE)
+		var year: int = int(career.date(0, int(done * float(career.week))).year)
+		label.text = "WRITING %d YEARS OF HISTORY\n%d" % [Career.history_years, year]
+		await get_tree().process_frame
+	panel.queue_free()
 
 
 func open_load() -> void:
@@ -334,6 +363,12 @@ func open_promotions() -> void:
 
 
 ## The rankings (D355): each promotion's table in his division and its last moves, to read.
+## The history page (D358): each promotion's champions in his division and the legends.
+func open_history() -> void:
+	if career != null:
+		tips.show_page("HISTORY", CareerHub.history_title(career), CareerHub.history_text(career), DIVISION_WIDTH, DIVISION_HEIGHT)
+
+
 func open_rankings() -> void:
 	if career != null:
 		tips.show_page("RANKINGS", CareerHub.rankings_title(career), CareerHub.rankings_text(career), DIVISION_WIDTH, DIVISION_HEIGHT)

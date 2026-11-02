@@ -57,6 +57,11 @@ const LEFT_SCHOOL := "left_school"
 const FIGHT_TO_MONDAY: int = 2
 ## How many weeks a year has for a birthday: TrainingCamp ages him 1/52 of a year a week (docs/02 §3.8).
 const WEEKS_PER_YEAR: float = 52.0
+## The world's history (D358; Kyle, 2026-11-02: "A short wait with a progress line"): a new career's world is played for
+## HISTORY_YEARS years before his first week, so there are long records, past champions and legends. `history_years`
+## is what a new career gets: tests and tools can set it lower (the test run's pre-run hook sets 0, tests/pre_run.gd).
+const HISTORY_YEARS: int = 10
+static var history_years: int = HISTORY_YEARS
 
 ## Why the last from_dict() or migrate() failed ("" when it didn't).
 static var load_error: String = ""
@@ -84,6 +89,9 @@ var trainee: TrainingCamp
 ## The day (days since 1 Jan 1970) of the Monday that starts week 0, and the week it is now.
 var first_monday: int = 0
 var week: int = 0
+## The week his career started (D358): HISTORY_YEARS years of the world's history come before it, so a new career's
+## calendar starts that far back and he starts at this week; 0 for a career saved before D358 (no history).
+var start_week: int = 0
 ## Whether training wore him down last week (WORN_DOWN): a week like it after this one isn't news.
 var worn_last_week: bool = false
 ## Days until a medical suspension lets him fight again (0 = none).
@@ -142,7 +150,11 @@ static func create(profile_in: Dictionary, new_seed: int, extra: Dictionary = {}
 		c.about[key] = String(extra.get(key, ""))
 	if extra.get("look") is Dictionary and FighterLook.check(extra.look) == "":
 		c.about.look = (extra.look as Dictionary).duplicate()
-	c.first_monday = days_from_civil(START_DATE[0], START_DATE[1], START_DATE[2])
+	c.start_week = history_years * int(WEEKS_PER_YEAR)
+	c.week = c.start_week
+	c.first_monday = days_from_civil(START_DATE[0], START_DATE[1], START_DATE[2]) - c.start_week * DAYS_PER_WEEK
+	c.next_offers_week = c.start_week + 1
+	c.next_tournament_week = c.start_week + Tournament.FIRST_WEEK
 	c.trainee = TrainingCamp.new(c.fighter, c._dice.randi(), c._library)
 	c.trainee.coach_specialty = c.coach_specialty
 	if extra.get("gym") is Dictionary:
@@ -385,17 +397,11 @@ func _check_offers(events: Array) -> void:
 
 ## The world's fighters (World, D352): made from the career's seed and his home the first time they're needed (a
 ## career saved before D352 makes them when it next needs them), or back from the save.
+##
+## A new career's world (D358) is made at the calendar's first week, start_week before his, and its history played up
+## to his first week: all at once here, or a slice at a time with play_history (the new-career screen's wait).
 func world() -> World:
-	if _world == null:
-		var m: Matchmaker = matchmaker()
-		if not _world_data.is_empty():
-			_world = World.from_dict(_world_data, m.styles, m.names, m.roster)
-		else:
-			_world = World.make(hash([career_seed, "world"]), m.names.country_id_of(String(about.get("country", ""))),
-				String(about.get("hometown", "")), week, m.styles, m.names, m.roster)
-		_world_data = {}
-		if _world.played < 0:
-			_world.played = week - 1  # A world saved before D353 starts its weeks now.
+	_make_world()
 	if _world.played < week - 1:
 		# The world's Saturdays since it last caught up (D353): everyone but the men booked to fight him or in his
 		# offers.
@@ -409,6 +415,38 @@ func world() -> World:
 					busy[String(r.profile.id)] = true
 		WorldWeeks.advance(_world, week - 1, busy, func(w: int) -> Dictionary: return date(0, w))
 	return _world
+
+
+func _make_world() -> void:
+	if _world != null:
+		return
+	var m: Matchmaker = matchmaker()
+	if not _world_data.is_empty():
+		_world = World.from_dict(_world_data, m.styles, m.names, m.roster)
+		if _world.played < 0:
+			_world.played = week - 1  # A world saved before D353 starts its weeks now.
+	else:
+		# A new career's world starts at the calendar's first week (D358: its history), an older career's now.
+		_world = World.make(hash([career_seed, "world"]), m.names.country_id_of(String(about.get("country", ""))),
+			String(about.get("hometown", "")), 0 if start_week > 0 else week, m.styles, m.names, m.roster)
+		if start_week <= 0:
+			_world.played = week - 1
+	_world_data = {}
+
+
+## Whether the world's history is still to be played (D358): a new career whose world hasn't been made yet.
+func history_pending() -> bool:
+	return _world == null and _world_data.is_empty() and start_week > 0
+
+
+## Plays up to `weeks` more of the world's history (D358), for the new-career wait. Returns how far it's got, 0–1 (1
+## when it's caught up to his first week).
+func play_history(weeks: int) -> float:
+	_make_world()
+	var to: int = mini(_world.played + weeks, week - 1)
+	if _world.played < to:
+		WorldWeeks.advance(_world, to, {}, func(w: int) -> Dictionary: return date(0, w))
+	return 1.0 if week <= 1 else clampf(float(_world.played + 1) / float(week), 0.0, 1.0)
 
 
 ## Who makes his offers: the shipped data's unless set (tests set their own).
@@ -712,6 +750,12 @@ func date(day_of_week: int = 0, of_week: int = -1) -> Dictionary:
 	return { "year": ymd[0], "month": ymd[1], "day": ymd[2], "weekday": WEEKDAYS[day_of_week] }
 
 
+## The year of any week, before the calendar's first one too (date() takes a negative week as this week): a belt won
+## before the history began (D358).
+func year_of(of_week: int) -> int:
+	return civil_from_days(first_monday + of_week * DAYS_PER_WEEK)[0]
+
+
 ## "Mon 4 Jan 2027" (this week, or week `of_week`).
 func date_text(day_of_week: int = 0, of_week: int = -1) -> String:
 	var d: Dictionary = date(day_of_week, of_week)
@@ -780,7 +824,7 @@ func to_dict() -> Dictionary:
 		"fighter": fighter.duplicate(true), "about": about.duplicate(true), "childhood": childhood.duplicate(true),
 		"gym": gym.duplicate(true), "gym_owed": gym_owed,
 		"trainee": trainee.snapshot(),
-		"calendar": { "first_monday": first_monday, "week": week },
+		"calendar": { "first_monday": first_monday, "week": week, "start_week": start_week },
 		"suspended_days": suspended_days, "money": money, "pro": pro, "week_plan": week_plan,
 		"worn_last_week": worn_last_week, "next_offers_week": next_offers_week,
 		"next_tournament_week": next_tournament_week, "medals": medals.duplicate(true), "division": division,
@@ -823,6 +867,7 @@ static func from_dict(data: Dictionary, library: TrainingLibrary = null) -> Care
 			person.age = int(person.get("age", 0))
 	c.first_monday = int(d.calendar.get("first_monday", 0))
 	c.week = int(d.calendar.get("week", 0))
+	c.start_week = int(d.calendar.get("start_week", 0))
 	c.suspended_days = int(d.get("suspended_days", 0))
 	c.money = int(d.get("money", 0))
 	c.pro = bool(d.get("pro", false))
