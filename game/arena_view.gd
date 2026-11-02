@@ -103,10 +103,17 @@ const TAKEDOWN_ENDED := "takedown ended"
 ## The ground positions from the rig (D289): full guard, half guard, side control, mount, the back and the
 ## crucifix are posed by GroundPair on the hidden rigs, laid out as today's figures lay them out (lay_out), with
 ## the grips held and ground and pound thrown from the pose. A new position eases in over GROUND_EASE, a grip
-## over CLINCH_EASE. Standing up, getting up and a submission locked in go back to today's figures.
+## over CLINCH_EASE. Standing up and getting up are posed as moves of their own (D368, below); a submission locked
+## in by SubmissionPair (D366).
 const GROUND_EASE: float = 0.4
-## Moves on the ground the rig doesn't pose: today's figures draw them.
+## Moves on the ground posed as moves of their own (D368, ScramblePair), not as the position, until they're over.
 const GROUND_UNPOSED: Array[String] = ["stand_up", "get_up"]
+## Scrambles, getting up and standing up from the rig (D368): the scramble is posed as both men on their knees
+## (ScramblePair.kneeling), and the scramble for the top, getting up out of it, getting up from underneath (the
+## technical stand-up, or up the fence when his back is on it) and standing up from the top play ScramblePair's
+## paths like the clinch takedowns, from the pose the rig drew last. The shots from range (D369: the double leg
+## and the catch-kick single) and following him down play ShotPair's from the two standing apart.
+const OPEN_SHOTS: Array[String] = ["double_leg", "catch_kick_single", "follow_down"]
 ## A sweep, a bridge or getting out from under the back (GroundPair.ROLLS) rolls them over in this many seconds.
 const ROLL_SECONDS: float = 0.6
 ## A ground strike is cocked over this share of its telegraph and wind-up and thrown over the rest (D289).
@@ -176,6 +183,9 @@ var _roll: Dictionary = {}
 ## kept after the fight ends in a submission so the tap can play; the tap's seconds so far (-1 none).
 var _hold_pose: Dictionary = {}
 var _tap_time: float = -1.0
+## The scramble from the rig (D368): the pose shown, [pair, frame, the man posed as "a"], kept while it lasts so
+## the pose doesn't swing round when the sim nudges their spots.
+var _scramble_last: Array = []
 ## Light up scouted tells (D51): a toggle so the playtest can compare cue on and off.
 var tell_cues: bool = true
 var debug_marks: bool = false:
@@ -236,6 +246,7 @@ func watch(p_driver: FightDriver) -> void:
 	_roll = {}
 	_hold_pose = {}
 	_tap_time = -1.0
+	_scramble_last = []
 	_tell_limb = ["", ""]
 	_tell_until = [-1, -1]
 	_offset = [Vector2.ZERO, Vector2.ZERO]
@@ -334,7 +345,7 @@ func _pose_clinch(sim: FightSim, delta: float) -> void:
 			figure.body.settle(delta)
 		_bow_fence(-1, delta)  # Off the fence: it springs back.
 		return
-	if _pose_ground(sim, delta):
+	if _pose_ground(sim, delta) or _pose_scramble(sim):
 		for figure in figures:
 			figure.body.settle(delta)
 		_bow_fence(-1, delta)
@@ -561,15 +572,15 @@ static func strike_blend(sim: FightSim, f: FighterState, fraction: float = 0.0) 
 	return []
 
 
-## True when the ground is drawn from the rig (D289): in a GroundPair position, no submission locked in, no
-## one standing up or getting up.
+## True when the ground position is drawn from the rig (D289): in a GroundPair position, no submission locked
+## in, no one standing up or getting up (those are posed as moves, D368).
 func rig_ground(sim: FightSim) -> bool:
 	if _clinch_rigs.is_empty() or not GroundPair.POSITIONS.has(sim.situation.position) or not sim.hold().is_empty():
 		return false
 	if sim.situation.roles.find(PositionLibrary.TOP) < 0:
 		return false
 	for f: FighterState in sim.fighters:
-		if GROUND_UNPOSED.has(f.action_id):
+		if GROUND_UNPOSED.has(f.action_id) and f.phase != "recovery":  # Stopped: back in the position.
 			return false
 	return true
 
@@ -631,33 +642,38 @@ func _pose_takedown(sim: FightSim, delta: float) -> bool:
 	match String(_takedown.state):
 		"attempt":
 			if f.action_id != String(_takedown.action) or f.phase == "recovery" \
-					or sim.situation.position != PositionLibrary.CLINCH:
+					or sim.situation.position != String(_takedown.where):
 				_end_takedown(STUFF_EASE)  # Stopped some other way (a knee that drops him, the round ending).
 				return false
-			_takedown.x = attempt_x(sim, f, last, float(TakedownPair.TIMING[_takedown.action].fall), driver.alpha())
+			_takedown.x = attempt_x(sim, f, last, float(_takedown.timing.fall), driver.alpha(), int(_takedown.timing.get("entry", 1)))
 		"landing":
 			_takedown.left = float(_takedown.left) - delta
 			var t: float = clampf(1.0 - float(_takedown.left) / float(_takedown.seconds), 0.0, 1.0)
 			_takedown.x = lerpf(float(_takedown.from), last, pow(t, 1.5))  # Quicker as he comes down.
 		"sprawl":
-			if f.action_id != String(_takedown.action) or sim.situation.position != PositionLibrary.CLINCH:
+			if f.action_id != String(_takedown.action) or sim.situation.position != String(_takedown.where):
 				_end_takedown(STUFF_EASE)  # Back up out of the sprawl.
 				return false
 			_takedown.left = float(_takedown.left) - delta
 			_takedown.x = smoothstep(0.0, 1.0, 1.0 - float(_takedown.left) / SPRAWL_SECONDS)
-	TakedownPair.pose_along(_clinch_rigs[by], _clinch_rigs[1 - by], _takedown.path, float(_takedown.x))
+	var a: int = int(_takedown.a)
+	TakedownPair.pose_along(_clinch_rigs[a], _clinch_rigs[1 - a], _takedown.path, float(_takedown.x))
 	for i in 2:
 		figures[i].body.follow(_clinch_rigs[i])
 	if String(_takedown.state) == "landing" and float(_takedown.x) >= last:
-		takedown_landed.emit(float(_takedown.thud))
+		if float(_takedown.thud) > 0.0:
+			takedown_landed.emit(float(_takedown.thud))
+		if bool(_takedown.get("scramble", false)):  # Half worked: the scramble carries on from where it left them.
+			_scramble_last = [ScramblePair.kneeling(), Transform3D((_takedown.path as Array)[0][1]), a]
 		_end_takedown(LAND_EASE)
 	return true
 
 
-## Starts a takedown when a man in the clinch the rig posed last frame begins one: its path from that pose.
+## Starts a takedown when a man in the clinch the rig posed last frame begins one: its path from that pose. Or
+## a scramble, a way up or a shot from range (D368, D369: _start_move).
 func _start_takedown(sim: FightSim) -> bool:
 	if _clinch_last.is_empty() or sim.situation.position != PositionLibrary.CLINCH or not sim.hold().is_empty():
-		return false
+		return _start_move(sim)
 	for by in 2:
 		var f: FighterState = sim.fighters[by]
 		if not TakedownPair.MOVES.has(f.action_id) or f.phase == "recovery":
@@ -668,19 +684,158 @@ func _start_takedown(sim: FightSim) -> bool:
 		var lying: Array = landing_turn(sim, by, f.action_id)
 		var path: Array = TakedownPair.path(f.action_id, start, lying[0], lying[1])
 		_keep_off_fence(path, by)
-		_takedown = {"by": by, "action": f.action_id, "path": path, "x": 0.0, "state": "attempt",
-			"thud": TakedownPair.TIMING[f.action_id].thud}
+		_takedown = {"by": by, "a": by, "action": f.action_id, "path": path, "x": 0.0, "state": "attempt",
+			"thud": TakedownPair.TIMING[f.action_id].thud, "timing": TakedownPair.TIMING[f.action_id],
+			"where": PositionLibrary.CLINCH, "ends": "ground"}
 		for figure in figures:
 			figure.body.ease_over(TAKEDOWN_EASE)
 		return true
 	return false
 
 
+## Starts a scramble, a way up (D368) or a shot from range or following him down (D369) when a man begins one:
+## its path from the pose the rig drew last (the scramble, the ground position) or from the two standing apart.
+func _start_move(sim: FightSim) -> bool:
+	if _clinch_rigs.is_empty() or not sim.hold().is_empty():
+		return false
+	for by in 2:
+		var f: FighterState = sim.fighters[by]
+		if f.action_id == "" or f.phase == "recovery":
+			continue
+		var move: Dictionary = _move_for(sim, by)
+		if move.is_empty():
+			continue
+		if String(move.move) != "get_up_fence":  # Up the fence leans on it; the rest are kept inside it.
+			_keep_off_fence(move.path, int(move.a))
+		_takedown = move
+		for figure in figures:
+			figure.body.ease_over(TAKEDOWN_EASE)
+		return true
+	return false
+
+
+## The move fighter `by` is starting from here, as _takedown holds it ({} when the rig doesn't pose it): a path
+## (TakedownPair.chain) from the pose they are in, the man posed as "a", the move's TIMING and where it ends.
+func _move_for(sim: FightSim, by: int) -> Dictionary:
+	var action: String = sim.fighters[by].action_id
+	var where: String = sim.situation.position
+	var move: String = ""
+	var a: int = by
+	var keys_in: Array = []
+	var landing: Array = []  # [pair, frame] where it lands on the ground, if it does.
+	if where == "scramble" and action in ["scramble", "get_up"] and not _scramble_last.is_empty():
+		move = "scramble" if action == "scramble" else "scramble_up"
+		var start: Array = _scramble_last
+		var pair: Dictionary = start[0]
+		var frame: Transform3D = start[1]
+		if int(start[2]) != by:  # Turned round so the man making the move is "a".
+			pair = ClinchPair.swap(pair)
+			frame = frame * Transform3D(Basis(Vector3.UP, PI), Vector3.ZERO)
+		keys_in = [[pair, frame]]
+		for key: Dictionary in ScramblePair.keys(move):
+			keys_in.append([key, frame])
+		if ScramblePair.lands(move):
+			var hips: Array = (keys_in[keys_in.size() - 1][0] as Dictionary).b.root
+			landing = [TakedownPair.landing("double_leg"), Transform3D(landing_turn(sim, by, action)[0],
+				frame * Vector3(float(hips[0]), 0.0, float(hips[2])))]
+	elif GROUND_UNPOSED.has(action) and not _ground_last.is_empty() and GroundPair.POSITIONS.has(where) \
+			and _ground_key == "%s %d" % [where, sim.situation.roles.find(PositionLibrary.TOP)]:
+		var top: int = int(_ground_last[2])
+		a = top  # The ground pose's "a" is the man on top, whoever is getting up.
+		var frame: Transform3D = _ground_last[1]
+		move = action
+		if action == "get_up" and sim.cage_proximity(by) == Octagon.CAGE_PINNED:
+			move = "get_up_fence"  # His back on the fence: he walks up it (D368).
+			frame = wall_frame(by)
+		elif action == "stand_up" and top != by:
+			return {}
+		keys_in = [[_ground_last[0], _ground_last[1]]]
+		for key: Dictionary in ScramblePair.keys(move):
+			keys_in.append([key, frame])
+	elif sim.situation.is_standing() and OPEN_SHOTS.has(action):
+		var other: int = 1 - by
+		if action == "follow_down" and not sim.fighters[other].is_down():
+			return {}
+		move = action
+		var mine: Vector3 = figures[by].global_position
+		var his: Vector3 = figures[other].global_position
+		var z := Vector3(mine.x - his.x, 0.0, mine.z - his.z)
+		var gap: float = z.length()
+		z = z.normalized() if gap > 0.01 else Vector3.BACK
+		var origin: Vector3 = Vector3(his.x, 0.0, his.z) + (Vector3.ZERO if action == "follow_down" else z * ShotPair.BEHIND_FEET)
+		var frame := Transform3D(Basis(Vector3.UP.cross(z), Vector3.UP, z), origin)
+		var start: Dictionary = ShotPair.start(move, gap)
+		var keys: Array[Dictionary] = ShotPair.keys(move, gap)
+		if action == "catch_kick_single" and _kicking_leg(sim, other) == "l":  # Caught on his other side.
+			start = ClinchPair.mirror(start)
+			for n in keys.size():
+				keys[n] = ClinchPair.mirror(keys[n])
+		keys_in = [[start, frame]]
+		for key: Dictionary in keys:
+			keys_in.append([key, frame])
+		var lying: Array = landing_turn(sim, by, action)
+		var at: Vector2 = ShotPair.TIMING[move].at
+		var to: String = String(sim.transition_for(by, action, PositionLibrary.SUCCESS).get("to", ""))
+		landing = [ShotPair.landing(move, to, lying[1]), Transform3D(lying[0], frame * Vector3(at.x, 0.0, at.y))]
+	if move == "":
+		return {}
+	if not landing.is_empty():
+		keys_in.append(landing)
+	var timing: Dictionary = ShotPair.TIMING[move] if ShotPair.TIMING.has(move) else ScramblePair.TIMING[move]
+	return {"by": by, "a": a, "action": action, "move": move, "path": TakedownPair.chain(keys_in), "x": 0.0,
+		"state": "attempt", "thud": float(timing.thud), "timing": timing, "where": where,
+		"ends": "ground" if not landing.is_empty() else "standing"}
+
+
+## The leg fighter `i` is kicking with (D369, the catch-kick single): "l" or "r", his rear leg when it can't tell.
+func _kicking_leg(sim: FightSim, i: int) -> String:
+	var limb: String = FighterFigure.limb_for(sim.fighters[i].action_id)
+	return figures[i].arm_letter(0 if limb == "lead_leg" else 1)
+
+
+## The frame the fence walk is posed in (D368) for fighter `bottom` getting up with his back on the fence: squared
+## to the panel nearest him, its origin ScramblePair.FENCE_BACK in from the fence's face, +Z toward the middle.
+func wall_frame(bottom: int) -> Transform3D:
+	var spot: Vector2 = driver.shown_pos(bottom) + _ground_shift
+	var n: Vector2 = Octagon.NORMALS[0]
+	for normal: Vector2 in Octagon.NORMALS:
+		if spot.dot(normal) > spot.dot(n):
+			n = normal
+	var at: Vector2 = spot - n * spot.dot(n) + n * (Octagon.APOTHEM - ScramblePair.FENCE_BACK)
+	var z := Vector3(-n.x, 0.0, -n.y)
+	return Transform3D(Basis(Vector3.UP.cross(z), Vector3.UP, z), Vector3(at.x, 0.0, at.y))
+
+
+## The scramble from the rig (D368): both men on their knees fighting for it, in the frame it started in (where
+## the takedown that half worked left them, or between them). False when they aren't in a scramble.
+func _pose_scramble(sim: FightSim) -> bool:
+	if _clinch_rigs.is_empty() or sim.situation.position != "scramble" or not sim.hold().is_empty():
+		_scramble_last = []
+		return false
+	if _scramble_last.is_empty():
+		var red: Vector2 = driver.shown_pos(0) + _ground_shift
+		var blue: Vector2 = driver.shown_pos(1) + _ground_shift
+		var z := Vector3(red.x - blue.x, 0.0, red.y - blue.y)
+		z = z.normalized() if z.length() > 0.01 else Vector3.BACK
+		var middle: Vector2 = (red + blue) / 2.0
+		_scramble_last = [ScramblePair.kneeling(), Transform3D(Basis(Vector3.UP.cross(z), Vector3.UP, z), Vector3(middle.x, 0.0, middle.y)), 0]
+	var a: int = int(_scramble_last[2])
+	if _clinch_shown != "scramble":
+		if _clinch_shown != TAKEDOWN_ENDED:
+			for figure in figures:
+				figure.body.ease_over(GROUND_EASE)
+		_clinch_shown = "scramble"
+	FighterRig.pose_pair(_clinch_rigs[a], _clinch_rigs[1 - a], _scramble_last[0], _scramble_last[1])
+	for i in 2:
+		figures[i].body.follow(_clinch_rigs[i])
+	return true
+
+
 ## The landing frame's turn for fighter `by`'s takedown `action` from here, laid out as today's figures will
 ## draw the ground position it ends in (lay_out): [the turn (its +Z toward the bottom man's feet), the side of
 ## him the top man is on along its +X, +1 or -1].
-func landing_turn(sim: FightSim, by: int, action: String) -> Array:
-	var t: Dictionary = sim.transition_for(by, action, PositionLibrary.SUCCESS)
+func landing_turn(sim: FightSim, by: int, action: String, result: String = PositionLibrary.SUCCESS) -> Array:
+	var t: Dictionary = sim.transition_for(by, action, result)
 	var top: int = by if String(t.get("roles", {}).get("actor", PositionLibrary.TOP)) == PositionLibrary.TOP else 1 - by
 	var spots: Array[Vector2] = [driver.shown_pos(0), driver.shown_pos(1)]
 	var laid: Array[Dictionary] = lay_out(String(t.get("to", "full_guard")), top, spots)
@@ -708,33 +863,45 @@ func _keep_off_fence(path: Array, by: int) -> void:
 		path[k][1] = Transform3D(frame.basis, frame.origin + Vector3(push.x, 0.0, push.y))
 
 
-## How far along its path a takedown attempt is (TakedownPair.path, `last` its last key): the entry through its
-## telegraph and wind-up, then `fall` of the way from there to the landing through its active part.
-static func attempt_x(sim: FightSim, f: FighterState, last: float, fall: float, fraction: float = 0.0) -> float:
+## How far along its path a takedown attempt is (TakedownPair.path, `last` its last key): the entry (`entry` keys:
+## the level change and the step in for a shot from range, D369) through its telegraph and wind-up, then `fall`
+## of the way from there to the landing through its active part.
+static func attempt_x(sim: FightSim, f: FighterState, last: float, fall: float, fraction: float = 0.0, entry: int = 1) -> float:
 	var telegraph: float = sim.phase_ticks(f, f.action_id, "telegraph")
 	var windup: float = sim.phase_ticks(f, f.action_id, "windup")
 	var total: float = maxf(1.0, sim.phase_ticks(f, f.action_id, f.phase))
 	var done: float = clampf(total - f.phase_ticks_left + fraction, 0.0, total)
+	var e: float = float(entry)
 	match f.phase:
 		"telegraph":
-			return smoothstep(0.0, 1.0, done / maxf(1.0, telegraph + windup))
+			return e * smoothstep(0.0, 1.0, done / maxf(1.0, telegraph + windup))
 		"windup":
-			return smoothstep(0.0, 1.0, (telegraph + done) / maxf(1.0, telegraph + windup))
+			return e * smoothstep(0.0, 1.0, (telegraph + done) / maxf(1.0, telegraph + windup))
 		"active":
-			return 1.0 + (last - 1.0) * fall * done / total
+			return e + (last - e) * fall * done / total
 	return 0.0
 
 
 ## The takedown worked (`result` success) or half worked (a scramble): down to the canvas from where it is.
 func _land(result: String) -> void:
 	var td: Dictionary = _takedown
-	var timing: Dictionary = TakedownPair.TIMING[td.action]
-	if result == PositionLibrary.PARTIAL:
+	var timing: Dictionary = td.timing
+	var by: int = int(td.by)
+	var half_to: String = String(driver.sim.transition_for(by, td.action, result).get("to", "")) \
+		if result == PositionLibrary.PARTIAL else ""
+	if result == PositionLibrary.PARTIAL and half_to == "scramble":
 		td.path = TakedownPair.to_scramble(td.path)
 		td.thud = TakedownPair.SCRAMBLE_THUD
-	else:
+		td.scramble = true
+	elif String(td.ends) == "ground":
+		if result == PositionLibrary.PARTIAL and td.action == "follow_down":  # Half worked: into his guard (D142).
+			var path: Array = (td.path as Array).duplicate()
+			var lying: Array = landing_turn(driver.sim, by, td.action, result)
+			var last: Array = path[path.size() - 1]
+			path[path.size() - 1] = [ShotPair.landing(td.action, half_to, lying[1]), Transform3D(lying[0], Transform3D(last[1]).origin)]
+			td.path = TakedownPair.chain(path)
 		var landed: Vector3 = Transform3D(td.path[(td.path as Array).size() - 1][1]).origin
-		var bottom: int = int(td.by) if TakedownPair.PULLS.has(td.action) else 1 - int(td.by)
+		var bottom: int = by if TakedownPair.PULLS.has(td.action) else 1 - by
 		var spot: Vector2 = driver.shown_pos(bottom)
 		_ground_shift = Vector2(landed.x, landed.z) - spot  # Today's figures carry on where he landed.
 	td.state = "landing"
