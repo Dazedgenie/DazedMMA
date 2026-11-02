@@ -71,6 +71,8 @@ const CHECK_STUCK_TICKS: int = 2
 ## What a strike defence did (D181, `_strike_defended`): the share of the strike that still gets
 ## through. 1.0 = nothing met it (or it failed), 0.0 = it missed, between = it hit the guard.
 const NOT_DEFENDED: float = 1.0
+## The phases of a shot a knee can meet from mid range (D182, meets_shot): his wind-up and his drive.
+const SHOT_PHASES: Array[String] = ["windup", "active"]
 const AVOIDED: float = 0.0
 ## Below a quarter tank the hands drop (docs/01 §5: HANDS_LOW from fatigue).
 const HANDS_LOW_BELOW: float = 0.25
@@ -1893,6 +1895,19 @@ func _strike_defended(i: int, action: Dictionary) -> float:
 	return AVOIDED
 
 
+## A strike that meets a shot (D182, `strike.into_shots`: the knee) reaches from mid range when the
+## other man is shooting at him (a takedown that isn't a throw, in its wind-up or drive): he brings his
+## head to it.
+func meets_shot(i: int, action: Dictionary) -> bool:
+	if not action.get("strike", {}).get("into_shots", false) or band() != Octagon.BAND_MID:
+		return false
+	var o: FighterState = fighters[1 - i]
+	if o.is_free() or not o.phase in SHOT_PHASES:
+		return false
+	var shot: Dictionary = actions.get_action(o.action_id)
+	return shot.category == "takedown" and not ActionLibrary.is_throw(shot)
+
+
 func _land_strike(i: int, action: Dictionary) -> void:
 	var attacker: FighterState = fighters[i]
 	var defender: FighterState = fighters[1 - i]
@@ -1902,7 +1917,7 @@ func _land_strike(i: int, action: Dictionary) -> void:
 		miss.reason = "opponent down"  # Only a soccer kick or a stomp hits a downed man (D141).
 		_emit(FightEvent.STRIKE_MISSED, i, miss)
 		return
-	if not action.ranges.has(band()):
+	if not action.ranges.has(band()) and not meets_shot(i, action):
 		miss.reason = "out of range"
 		_emit(FightEvent.STRIKE_MISSED, i, miss)
 		return
