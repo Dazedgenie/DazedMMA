@@ -35,6 +35,8 @@ const SETUP := "setup"
 const FIGHT := "fight"
 const ROUND_BREAK := "round_break"
 const OVER := "over"
+## A moment before the bell or walking out of the corners (D390, D391): the fight is held while it plays.
+const MOMENT := "moment"
 
 var arena: ArenaView
 var hud: FightHud
@@ -74,6 +76,10 @@ var _pending_seed: int = 0
 var _actions: ActionLibrary
 var _roster: FighterLibrary
 var _console: DebugConsole
+## This fight shows the moments before, between and after the rounds (D390-D394; the setup's "Walk-out and corners"
+## option): the bodies and the referee are drawn and it isn't headless (or a test asked, moments_in_headless).
+var _moments: bool = false
+var moments_in_headless: bool = false
 var _break_rules: RuleSlots
 ## The gameplan pickers on the between-rounds panel (D320).
 var _break_plan: GameplanPicker
@@ -502,6 +508,7 @@ func _career_settings(profile: Dictionary, simmed: bool = false) -> Dictionary:
 		"title": String(career.booked.get("title", "")) != "",
 		"seed": career.next_seed(), "normal_rate": 2.0, "auto_slow": true, "flourishes": true, "tell_cues": true,
 		"sound_volume": float(setup.settings().get("sound_volume", 1.0)), "easy": false, "rules": [],
+		"moments": bool(setup.settings().get("moments", true)),  # The setup's "Walk-out and corners" (D394).
 		# Tonight's plan from the fight night card; a tournament's later rounds keep the last round's (D320).
 		"gameplan": planner.night_card.gameplan.picked() if planner != null else Dictionary(settings.get("gameplan", {})),
 		"camp": camp,
@@ -686,6 +693,8 @@ func start_fight(p_settings: Dictionary) -> void:
 	driver.fight_over.connect(_on_fight_over)
 	arena.tell_cues = bool(settings.get("tell_cues", true))
 	arena.watch(driver)
+	_moments = bool(settings.get("moments", false)) and arena.can_play_moments() \
+		and (DisplayServer.get_name() != "headless" or moments_in_headless)
 	sounds.volume = float(settings.get("sound_volume", 1.0))
 	sounds.watch(sim)
 	hud.pause_allowed = bool(settings.get("easy", false))
@@ -704,11 +713,25 @@ func start_fight(p_settings: Dictionary) -> void:
 		driver.held = true
 		hud.show_dialog(String(settings.get("tip_title", settings.get("label", ""))), String(settings.tip), [["Fight!", _start_after_tip]])
 	else:
-		hud.show_banner("Round 1")
+		_first_bell()
 
 
 func _start_after_tip() -> void:
 	hud.hide_dialog()
+	_first_bell()
+
+
+## The first round starts: after the referee has called them to the centre to touch gloves (D390), if it's shown.
+func _first_bell() -> void:
+	if _moments:
+		state = MOMENT
+		driver.held = true
+		var sim: FightSim = driver.sim
+		arena.play_moment(Ceremony.INTRO)
+		await arena.ceremony.moment_done
+		if driver == null or driver.sim != sim or state != MOMENT:
+			return
+		state = FIGHT
 	driver.held = false
 	hud.show_banner("Round 1")
 
@@ -716,6 +739,15 @@ func _start_after_tip() -> void:
 func _process(delta: float) -> void:
 	if driver != null and state == FIGHT:
 		driver.advance(delta)
+
+
+## True when `event` is a key or click that skips the moment playing (D394; not F3, the debug overlay).
+func _skips_moment(event: InputEvent) -> bool:
+	if driver == null or not arena.moment_playing():
+		return false
+	if event is InputEventKey:
+		return event.pressed and not event.echo and (event as InputEventKey).keycode != KEY_F3
+	return event is InputEventMouseButton and event.pressed
 
 
 ## The player's corner makes a call (call bar, keys 1–9 and Q/E). Calls go in while paused.
@@ -730,6 +762,10 @@ func make_call(id: String) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if _skips_moment(event):
+		arena.skip_moment()  # Any key or click skips a moment (D394).
+		get_viewport().set_input_as_handled()
+		return
 	if not event is InputEventKey or not event.pressed or event.echo:
 		return
 	var key: Key = event.keycode
@@ -853,8 +889,10 @@ func _on_round_over(event: FightEvent) -> void:
 		for t: Dictionary in Tutorial.due(career, "round_break"):
 			career.see_tip(String(t.id))
 			summary = "[color=#fcc419][b]Coach's tip: %s.[/b][/color] %s\n\n%s" % [String(t.title), String(t.text), summary]
+	if _moments:
+		arena.play_moment(Ceremony.CORNERS)  # To their stools (D391), the round's panel down the side.
 	hud.show_dialog("End of round %d" % event.round_number, summary,
-		[["Start round %d" % next, _start_next_round]], extra)
+		[["Start round %d" % next, _start_next_round]], extra, _moments)
 
 
 ## The bell's text: each judge's card for the round, the totals and how both fighters are.
@@ -890,6 +928,13 @@ func _start_next_round() -> void:
 	if _break_plan != null and _break_plan.picked() != _current_plan():
 		driver.set_gameplan(_break_plan.picked())
 	hud.hide_dialog()
+	if _moments:
+		state = MOMENT
+		var sim: FightSim = driver.sim
+		arena.play_moment(Ceremony.OUT)  # Off the stools and out to their marks (D391).
+		await arena.ceremony.moment_done
+		if driver == null or driver.sim != sim or state != MOMENT:
+			return
 	state = FIGHT
 	driver.resume()
 	hud.show_banner("Round %d" % driver.sim.clock.current_round)
@@ -919,6 +964,13 @@ func _on_fight_over(event: FightEvent) -> void:
 	var sim: FightSim = driver.sim
 	if arena.holds_finish(event.data) and DisplayServer.get_name() != "headless":
 		await arena.finish_shown  # The finish held on the cage first (D374: the referee waves it off; D366 the tap).
+		if driver == null or driver.sim != sim:
+			return
+	if _moments:
+		# The winner celebrates after a finish, then the referee raises his hand (D392, D393).
+		arena.play_moment(Ceremony.VERDICT, {"winner": int(event.data.get("winner", -1)),
+			"finished": ArenaView.FINISHES.has(String(event.data.get("result", "")))})
+		await arena.ceremony.moment_done
 		if driver == null or driver.sim != sim:
 			return
 	var record: Dictionary = FightRecord.build(sim, settings, driver.player)

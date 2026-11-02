@@ -317,6 +317,13 @@ func show_state(sim: FightSim, i: int, at: Vector2, toward: Vector2, delta: floa
 	_place_overhead()
 
 
+## Hides everything over his head (the move, the call, the ring, the stars, the tell) while a moment before, between
+## or after the rounds plays (D390); the next show_state puts back what the fight shows.
+func hide_overhead() -> void:
+	for shown: Node3D in [_move_label, _call_label, _tell_label, _ring, _stars, _tell]:
+		shown.visible = false
+
+
 ## Draws the skinned body at `path` (D285; SkinnedBody) instead of the faceted pieces. The pieces still pose
 ## every frame (strikes aim, grips and tells read them) but aren't drawn; the body follows their joints. False
 ## (and the pieces stay) if the body can't be loaded.

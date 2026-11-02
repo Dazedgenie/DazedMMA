@@ -50,6 +50,8 @@ var _difficulty: OptionButton
 var _tells: CheckBox
 var _auto_slow: CheckBox
 var _flourish: CheckBox
+## The touch of gloves, the stools between rounds and the hand raised at the end (D390-D394).
+var _moments: CheckBox
 var _sound: HSlider
 var _seed: LineEdit
 var _rules_box: VBoxContainer
@@ -168,6 +170,8 @@ func _init(p_roster: FighterLibrary = null, p_actions: ActionLibrary = null) -> 
 	_tells = _toggle(toggles, "Tell cue", true)
 	_auto_slow = _toggle(toggles, "Auto slow-mo", true)
 	_flourish = _toggle(toggles, "Perfect-call flourish", true)
+	_moments = _toggle(toggles, "Walk-out and corners", true)
+	_moments.tooltip_text = "Touching gloves before the bell, the stools between rounds and the hand raised at the end. Any key or click skips one."
 	var sound_label := Label.new()
 	sound_label.text = "Sound"
 	toggles.add_child(sound_label)
@@ -223,7 +227,7 @@ func settings() -> Dictionary:
 		"ruleset": String(RULESETS[maxi(0, _ruleset.selected)][1]),
 		"easy": _difficulty.selected == 1,
 		"tell_cues": _tells.button_pressed, "auto_slow": _auto_slow.button_pressed, "flourishes": _flourish.button_pressed,
-		"sound_volume": _sound.value,
+		"sound_volume": _sound.value, "moments": _moments.button_pressed,
 		"rules": _rules.picked(),
 		"gameplan": gameplan.picked(),
 		"seed": int(typed) if typed.is_valid_int() else -1,
@@ -272,6 +276,7 @@ func show_settings(s: Dictionary) -> void:
 	_rules.show_rules(s.get("rules", []))
 	gameplan.show_plan(s.get("gameplan", {}))
 	_tells.button_pressed = bool(s.get("tell_cues", true))
+	_moments.button_pressed = bool(s.get("moments", true))
 	_ruleset.selected = maxi(0, RULESETS.map(func(r: Array) -> String: return r[1]).find(String(s.get("ruleset", "pro"))))
 	_tester.text = String(s.get("tester", ""))
 	_step.selected = 0

@@ -1,5 +1,5 @@
 class_name Referee
-extends Node3D
+extends Walker
 ## The referee (D373, D374; docs/13 "The referee and the finish"): a third body in the cage all fight, in a striped
 ## shirt, shadowing the action a few steps off on the far side from the camera, closer and crouched when they're on
 ## the ground, closer again over a knocked-down man. At a stoppage he jumps in between them and waves it off.
@@ -20,20 +20,9 @@ const SIDE_ON: float = 0.95
 ## being on the far side from the camera (so he doesn't dance about as they move).
 const SPOT_TRIES: int = 16
 const STAY_WEIGHT: float = 0.6
-## How quickly he walks to his spot (m/s), and when he jumps in.
+## How quickly he walks to his spot (m/s), and when he jumps in (Walker does the walking).
 const WALK_SPEED: float = 1.5
 const RUSH_SPEED: float = 4.0
-## How quickly he turns to face them (radians a second).
-const TURN_SPEED: float = 5.0
-## Stepping: a foot steps when it's this far from where it should be, taking this long (quicker rushing), lifted
-## this high, and landing this far ahead of where he's going (seconds of his speed).
-const STEP_FROM: float = 0.12
-const STEP_SECONDS: float = 0.3
-const RUSH_STEP_SECONDS: float = 0.17
-const STEP_LIFT: float = 0.08
-const STEP_LEAD: float = 0.2
-## Where his feet sit under him (his frame, -Z ahead), a little apart.
-const FEET: Array[Vector3] = [Vector3(-0.16, 0.0, 0.02), Vector3(0.16, 0.0, -0.04)]
 ## Waving it off: crossing his hands over his head this many times a second.
 const WAVE_RATE: float = 1.6
 ## His shoulder height when standing (m), which sizes the body.
@@ -44,53 +33,23 @@ const LOOK_SEED: int = 0x5EF
 ## What he's doing: "watch" (on their feet or tied up), "ground" (crouched over them), "down" (over a man knocked
 ## down), "stop" (jumping in and waving it off).
 var mode: String = "watch"
-var spot := Vector2.ZERO
-var facing: float = 0.0
-var rig: FighterRig
-var body: SkinnedBody
 var look: Dictionary = {}
-var _want := Vector2.ZERO
-var _look_at := Vector2.ZERO
-var _speed: float = WALK_SPEED
-var _feet: Array[Vector3] = []
-## A step under way: {foot, from, to, t (0 to 1)}.
-var _step: Dictionary = {}
 var _wave_time: float = 0.0
 ## At a stoppage, a point in the world he puts a hand on (the beaten man, or the winner on top to pull him off), or
 ## INF for none; and whether he's bent down to it (they're on the ground).
 var _hold_at := Vector3.INF
 var _low: bool = false
-var _placed: bool = false
+## Set by a moment before, between or after the rounds (D390-D393): his pose is `pose` as it's given, not his mode's.
+var posed: bool = false
 
 
 ## Builds him: the body dressed as the referee, with a look rolled from `look_seed`, and the hidden rig that poses it.
 func setup(look_seed: int) -> bool:
-	body = SkinnedBody.new()
-	add_child(body)
-	if not body.load_body(SkinnedBody.TRIPO_BODY, SHOULDER_HEIGHT):
-		body.queue_free()
-		body = null
+	if not dress(SHOULDER_HEIGHT):
 		return false
 	look = FighterLook.roll(look_seed ^ LOOK_SEED, "")
 	body.set_referee(look)
-	rig = FighterRig.new(Color.WHITE)
-	add_child(rig)
-	rig.visible = false
-	rig.fit(body.measure())
 	return true
-
-
-## Puts him at `at` facing `toward` at once (the start of a fight).
-func place(at: Vector2, toward: Vector2) -> void:
-	spot = at
-	_want = at
-	_look_at = toward
-	facing = facing_to(at, toward)
-	_feet = []
-	for foot in FEET:
-		_feet.append(frame() * foot)
-	_step = {}
-	_placed = true
 
 
 ## Where he should go and what he looks at this frame, and how he holds himself (`mode`). Stopping it, `hold` is a
@@ -101,78 +60,21 @@ func want(at: Vector2, toward: Vector2, p_mode: String, hold := Vector3.INF, low
 	if p_mode == "stop" and mode != "stop":
 		_wave_time = 0.0
 	mode = p_mode
-	_want = at
-	_look_at = toward
-	_speed = RUSH_SPEED if p_mode == "stop" else WALK_SPEED
+	posed = false
+	go(at, toward, RUSH_SPEED if p_mode == "stop" else WALK_SPEED)
 
 
-## Walks, turns, steps and poses him for `delta` seconds.
+## Walks, turns, steps and poses him for `delta` seconds, in his mode's pose.
 func advance(delta: float) -> void:
-	if body == null:
-		return
-	if not _placed:
-		place(_want, _look_at)
-	var to_go: Vector2 = _want - spot
-	var moving: float = minf(to_go.length(), _speed * delta)
-	var velocity := Vector2.ZERO
-	if to_go.length() > 0.001:
-		velocity = to_go.normalized() * (moving / maxf(delta, 0.0001))
-		spot += to_go.normalized() * moving
-	if spot.distance_to(_look_at) > 0.05:
-		var turn: float = angle_difference(facing, facing_to(spot, _look_at))
-		facing += clampf(turn, -TURN_SPEED * delta, TURN_SPEED * delta)
 	_wave_time += delta
-	_walk(velocity, delta)
-	var at: Transform3D = frame()
-	var inverse: Transform3D = at.affine_inverse()
-	var hold: Vector3 = inverse * _hold_at if _hold_at.is_finite() else Vector3.INF
-	var spec: Dictionary = pose_spec(mode, _wave_time, hold, _low)
-	for i in 2:
-		var foot: Vector3 = _feet[i]
-		if not _step.is_empty() and int(_step.foot) == i:
-			var t: float = float(_step.t)
-			foot = Vector3(_step.from).lerp(Vector3(_step.to), smoothstep(0.0, 1.0, t)) + Vector3.UP * STEP_LIFT * sin(PI * t)
-		var local: Vector3 = inverse * foot
-		spec["foot_" + FighterRig.SIDES[i]] = {"at": [local.x, FighterRig.ANKLE_UP + local.y, local.z]}
-	rig.corner = "a"
-	rig.set_body(spec, at)
-	rig.set_limbs(spec, at, null)
-	rig.set_limbs(spec, at, null)  # Twice: hands on his own knees find them where the legs ended up.
-	body.follow(rig)
+	super(delta)
 
 
-## Moves his feet: one steps at a time, toward where it should be under him (a little ahead when he's moving).
-func _walk(velocity: Vector2, delta: float) -> void:
-	var at: Transform3D = frame()
-	var ahead := Vector3(velocity.x, 0.0, velocity.y) * STEP_LEAD
-	if not _step.is_empty():
-		var seconds: float = RUSH_STEP_SECONDS if _speed > WALK_SPEED else STEP_SECONDS
-		_step.t = float(_step.t) + delta / seconds
-		_step.to = at * FEET[int(_step.foot)] + ahead
-		if float(_step.t) >= 1.0:
-			_feet[int(_step.foot)] = Vector3(_step.to)
-			_step = {}
-		return
-	var worst: int = -1
-	var worst_off: float = STEP_FROM
-	for i in 2:
-		var off: float = (_feet[i] - at * FEET[i]).length()
-		if off > worst_off:
-			worst = i
-			worst_off = off
-	if worst >= 0:
-		_step = {"foot": worst, "from": _feet[worst], "to": at * FEET[worst] + ahead, "t": 0.0}
-
-
-## His frame: at his spot on the canvas, facing his way (-Z ahead).
-func frame() -> Transform3D:
-	return Transform3D(Basis(Vector3.UP, facing), Vector3(spot.x, 0.0, spot.y))
-
-
-## The turn (about Y, 0 facing -Z) from `from` to look at `to`.
-static func facing_to(from: Vector2, to: Vector2) -> float:
-	var d: Vector2 = to - from
-	return atan2(-d.x, -d.y)
+func _spec(inverse: Transform3D) -> Dictionary:
+	if not posed:
+		var hold: Vector3 = inverse * _hold_at if _hold_at.is_finite() else Vector3.INF
+		pose = pose_spec(mode, _wave_time, hold, _low)
+	return super(inverse)
 
 
 ## His pose in `mode` (FighterRig spec, without the feet), `seconds` into it for the wave. Stopping it, `hold` (his

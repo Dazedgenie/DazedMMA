@@ -207,6 +207,23 @@ const SHOES := Color(0.04, 0.04, 0.045)
 ## Dresses the body as the referee (D373): his skin and hair as `look` (FighterLook), the striped shirt, grey
 ## trousers, black shoes and bare hands over the fighter's body.
 func set_referee(look: Dictionary) -> void:
+	set_clothes(look, SHIRT_WHITE, SHIRT_BLACK, TROUSERS, SHOES)
+
+
+## A cornerman's clothes (D391): a plain shirt in his corner's `colour`, dark trousers and shoes.
+const CORNER_TROUSERS := Color(0.08, 0.08, 0.09)
+
+
+## Dresses the body as one of a fighter's corner team (D391): his skin and hair as `look`, a shirt in the corner's
+## `colour` (the referee's clothes without the stripes) and dark trousers.
+func set_cornerman(look: Dictionary, colour: Color) -> void:
+	var shirt: Color = colour.lerp(Color.WHITE, 0.1)
+	set_clothes(look, shirt, shirt, CORNER_TROUSERS, SHOES)
+
+
+## Clothes over the body from the clothes mask (D373): the shirt and its stripes, trousers and shoes in these colours,
+## his skin and hair as `look`.
+func set_clothes(look: Dictionary, shirt: Color, stripes: Color, trousers: Color, shoes: Color) -> void:
 	set_look(Color.WHITE, look)
 	var clothes: Texture2D = load(CLOTHES) if ResourceLoader.exists(CLOTHES) else null
 	if clothes == null:
@@ -217,10 +234,10 @@ func set_referee(look: Dictionary) -> void:
 			continue
 		dressed.set_shader_parameter("clothes", clothes)
 		dressed.set_shader_parameter("has_clothes", true)
-		dressed.set_shader_parameter("shirt_white", SHIRT_WHITE)
-		dressed.set_shader_parameter("shirt_black", SHIRT_BLACK)
-		dressed.set_shader_parameter("trousers", TROUSERS)
-		dressed.set_shader_parameter("shoes", SHOES)
+		dressed.set_shader_parameter("shirt_white", shirt)
+		dressed.set_shader_parameter("shirt_black", stripes)
+		dressed.set_shader_parameter("trousers", trousers)
+		dressed.set_shader_parameter("shoes", shoes)
 
 
 ## Damage on the body (D375-D378, tools/body_regions.py): round each eye, his ribs and where he flushes (damage.png),
