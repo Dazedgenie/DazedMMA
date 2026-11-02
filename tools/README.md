@@ -14,7 +14,11 @@ submission is locked in, then saves `--seconds` from there, carrying on past the
 `--red=bjj --blue=boxer --seed=35002 --hold=1 --seconds=8` is a triangle to the tap)). `--move=<move>[:n]` does the same from the nth time the fight screen starts posing a move from the rig
 (D368, D369: `scramble`, `scramble_up`, `get_up`, `get_up_fence`, `stand_up`, `double_leg`, `catch_kick_single`,
 `follow_down`, or a clinch takedown's name; `--red=wrestler --blue=bjj --seed=35003 --move=double_leg --seconds=3` is a
-double leg shot from range).
+double leg shot from range). `--knockdown=n` starts saving a second before the fight's nth knockdown (D370: it plays the
+fight once to find it, then again; `--red=brawler --blue=boxer --seed=35004 --knockdown=1 --seconds=5` is a man dropped,
+down and back up). `--finish` starts saving 1.5 s before the fight ends (D373, D374: the referee jumping in and the
+hold on the finish; `--red=brawler --blue=boxer --seed=35004 --finish --seconds=5` is a stoppage on their feet,
+`--red=bjj --blue=boxer --seed=35002 --finish --seconds=6` a triangle). Every pass plays on through the round breaks.
 
     godot --script res://tools/visual_preview.gd -- --out=res://build/visual --720p
     godot --script res://tools/character_preview.gd -- --out=res://build/characters
@@ -45,10 +49,19 @@ Counter-striker shows the most):
     godot --script res://tools/visual_preview.gd -- --out=res://build/visual --red=pressure_wrestler --blue=counter_striker
 
 `body_regions.py` (Python 3 with numpy and Pillow, not Godot) bakes `game/bodies/tripo_fighter_regions.png`, the mask
-that tells the body's shader which texels are hair, beard, eyebrows and shorts (D364). Run it again only if the body
-file changes; its heights and limits are this body's:
+that tells the body's shader which texels are hair, beard, eyebrows and shorts (D364), and
+`game/bodies/tripo_fighter_clothes.png`, the referee's striped shirt, trousers and shoes (D373), and the two masks for
+damage on the body (D375-D378): `tripo_fighter_damage.png` (each eye's swelling, the ribs, the flush) and
+`tripo_fighter_marks.png` (each brow's cut and its trickle, each leg's bruising). Run it again only if the body file
+changes, the clothes do or where the marks go does; its heights and limits are this body's:
 
     python3 tools/body_regions.py
+
+`damage_preview.gd` draws one fighter at four stages of a hard fight (fresh, a round in, cut, a war), his face from the
+front and from the side and his whole body, each a strip of the four (D375-D378, `docs/13` §Damage on the body).
+`--man=` picks the test fighter (default the Boxer):
+
+    godot --path . --rendering-driver opengl3 --script res://tools/damage_preview.gd -- --out=res://build/damage
 
 `grapple_preview.gd` arranges the clinch grips (hand fighting, an underhook, the body lock), each grip and clinch move,
 ground and pound, covering up and turning away, the sweeps, passes and throws, and every submission going on and held,
@@ -67,7 +80,8 @@ grips (D289, `ground-<name>.png`) and a sweep rolling them over in steps (`groun
 submission loose and tight and the man in it tapping (D366, `sub-<hold>_loose.png`, `sub-<hold>_tight.png`,
 `sub-<hold>-tap.png`); `--moves` writes the scrambles, the ways up and standing up (D368) and the shots from range
 and following him down (D369) key by key from the pose each starts in (`move-<move>-<x>.png`, the fence walk against
-the fence):
+the fence); `--knockdowns` writes one man's falls and getting up (D370, D371: stiff, crumple, liver, leg and down the
+fence) key by key and half way between (`knockdown-<kind>-<down|up>-<x>.png`):
 
     godot --script res://tools/rig_preview.gd -- --out=res://build/rig --stills
     godot --script res://tools/rig_preview.gd -- --out=res://build/clinch --clinch --body
@@ -75,6 +89,7 @@ the fence):
     godot --script res://tools/rig_preview.gd -- --out=res://build/ground --ground --body
     godot --script res://tools/rig_preview.gd -- --out=res://build/subs --subs --body
     godot --script res://tools/rig_preview.gd -- --out=res://build/moves --moves --body
+    godot --script res://tools/rig_preview.gd -- --out=res://build/knockdowns --knockdowns --body
 
 Headless runners and utilities. `run_sim.gd` runs one placeholder fight (a kicker against a boxer) with no scene tree
 and prints a summary; `--fights=N` runs N seeds and counts how they ended:

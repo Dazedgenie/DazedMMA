@@ -57,6 +57,8 @@ const AIMS := {
 	"hammerfist": { "limb": "rear_arm", "point": "head", "contact": 0.0, "across": 0.0, "bend": "out" },
 	"ground_body_punch": { "limb": "rear_arm", "point": "body", "contact": 0.0, "across": 0.06, "bend": "down" },
 	"posture_bomb": { "limb": "rear_arm", "point": "head", "contact": 0.0, "across": 0.0, "bend": "down" },
+	"bottom_punch": { "limb": "lead_arm", "point": "head", "contact": 0.0, "across": 0.0, "bend": "down" },
+	"bottom_elbow": { "limb": "rear_arm", "point": "head", "contact": 0.0, "across": 0.06, "bend": "out" },
 	"teep": { "limb": "lead_leg", "point": "body", "contact": 1.1, "across": 0.0, "bend": "up" },
 	"body_kick": { "limb": "rear_leg", "point": "body", "contact": 1.0, "across": 0.14, "bend": "round" },
 	"head_kick": { "limb": "rear_leg", "point": "head", "contact": 0.9, "across": 0.14, "bend": "round" },
@@ -77,6 +79,16 @@ const HIT_LEG_DIP: float = 0.07
 const HIT_KNOCK: float = 0.14
 const HIT_FULL_DAMAGE: float = 18.0
 const HIT_FADE: float = 0.3
+## Rocked (Kyle, D372: wobbly legs, low hands, stars kept): his hands this far down from his guard (radians at the
+## shoulder), his hips ROCKED_DIP lower with his knees giving another ROCKED_BUCKLE now and then, and swaying side to
+## side up to ROCKED_SWAY (radians). All of it full when he's just been rocked, fading to ROCKED_LEAST of it as he
+## comes round over ROCKED_FADE_TICKS.
+const ROCKED_HANDS: float = 0.55
+const ROCKED_DIP: float = 0.04
+const ROCKED_BUCKLE: float = 0.1
+const ROCKED_SWAY: float = 0.16
+const ROCKED_LEAST: float = 0.4
+const ROCKED_FADE_TICKS: int = 30
 ## The support feet turn on the ball of the foot with the hips (D281): this share of the hip turn for the
 ## lead and rear foot, and the rear heel lifts this much (radians) per radian of turn.
 const FOOT_PIVOT: Array[float] = [0.35, 0.8]
@@ -522,6 +534,8 @@ func pose_for(sim: FightSim, i: int, fractional_tick: float = 0.0) -> Dictionary
 		elif sim.fighters[1 - i].tied_up_ticks > 0:  # Holding the collar tie: hands behind his head.
 			p.arm_lead = 2.1
 			p.arm_rear = 2.1
+	elif sim.situation.is_standing() and f.is_rocked() and not f.is_down():
+		rocked_pose(p, f, (sim.now + fractional_tick) / float(FightClock.TICKS_PER_SECOND))
 	elif sim.situation.is_standing() and f.bit_ticks > 0:  # Bit on a feint (D131): hands up, weight back.
 		p.arm_lead = maxf(2.4, float(p.arm_lead) + 0.35)  # Up from his own guard (D362).
 		p.arm_rear = maxf(2.4, float(p.arm_rear) + 0.35)
@@ -751,6 +765,12 @@ func _move_pose(p: Dictionary, f: FighterState, action: Dictionary, reach: float
 			else:
 				p.lean = lerpf(p.lean, -0.7, reach)
 				p.arm_rear = lerpf(p.arm_rear, 0.5, reach)
+		"bottom_punch":  # Off his back, the lead hand straight up into the face above him (D271).
+			p.arm_lead = lerpf(p.arm_lead, 2.4, reach)
+			p.reach_lead = lerpf(1.0, 1.3, reach)
+		"bottom_elbow":  # Lifts his shoulders and whips the rear elbow across the head above him (D271).
+			p.arm_rear = lerpf(p.arm_rear, 2.8 if f.phase == "telegraph" or f.phase == "windup" else 1.9, reach)
+			_ease(p, "hip_y", p.hip_y + 0.04, reach)
 		"ground_cover":  # Forearms over his face, elbows in (D270, D282).
 			p.cover = reach
 		"turn_away":  # Rolls onto his front, away from the punches, giving up his back (D270, D282).
@@ -901,6 +921,17 @@ func _move_pose(p: Dictionary, f: FighterState, action: Dictionary, reach: float
 		"cover_up":  # Gloves to the temples, elbows in, chin down (D180, D281).
 			p.cover = reach
 			p.lean = lerpf(p.lean, -0.18, reach)
+		"shoulder_roll":  # Chin behind the lead shoulder, turning it into the punch and dipping away (D181).
+			p.twist = lerpf(p.twist, p.twist + 0.4, reach)
+			p.slip = -0.6 * reach
+			p.hip_y = lerpf(p.hip_y, HIP_HEIGHT - 0.06, reach)
+			p.lean = lerpf(p.lean, -0.12, reach)
+		"lean_back":  # Weight onto the back foot, the head back out of reach (D181).
+			p.lean = lerpf(p.lean, 0.42, reach)
+			p.shift = lerpf(p.shift, -0.08, reach)
+		"high_guard":  # Both gloves up by the temples, forearms in front of the face (D181).
+			p.cover = 0.85 * reach
+			p.lean = lerpf(p.lean, -0.08, reach)
 		_:
 			if action.category == "strike":
 				p.arm_lead = lerpf(p.arm_lead, 1.57, reach)
@@ -1044,10 +1075,10 @@ static func _ease(p: Dictionary, key: String, value: float, amount: float) -> vo
 ## Which body part a move is thrown with ("lead_arm", "rear_leg", "hips" …), for the tell cue.
 static func limb_for(action_id: String) -> String:
 	match action_id:
-		"jab", "hook", "body_hook", "short_hook":
+		"jab", "hook", "body_hook", "short_hook", "bottom_punch":
 			return "lead_arm"
 		"cross", "uppercut", "short_uppercut", "overhand", "elbow", "ground_punch", "ground_elbow", "hammerfist", \
-				"ground_body_punch", "posture_bomb":
+				"ground_body_punch", "posture_bomb", "bottom_elbow":
 			return "rear_arm"
 		"teep", "stomp", "up_kick":
 			return "lead_leg"
@@ -1132,7 +1163,7 @@ func _apply_pose(f: FighterState) -> void:
 		- (0.05 * float(_hit.body) + HIT_LEG_DIP * float(_hit.legs)) * (1.0 - lie)
 	var sway: float = 0.0
 	if f.is_rocked() and not f.is_down():
-		sway = 0.18 * sin(_time * 7.0)
+		sway = ROCKED_SWAY * rocked_share(f) * (0.7 * sin(_time * 3.1) + 0.3 * sin(_time * 5.3))
 	sway -= lead * 0.5 * float(_pose.slip)
 	_hips.position.z = -float(_pose.shift)  # His weight over the front foot (D363).
 	var lean: float = float(_pose.lean) + 0.1 * float(_hit.head) - HIT_BODY_FOLD * float(_hit.body)
@@ -1462,6 +1493,22 @@ static func _segment(mesh: MeshInstance3D, start: Vector3, end: Vector3) -> void
 	var direction: Vector3 = end - start
 	mesh.position = start
 	mesh.basis = Basis(Quaternion(Vector3.DOWN, direction.normalized())).scaled_local(Vector3(1, direction.length(), 1))
+
+
+## How much of the rocked wobble shows (D372): all of it just rocked, down to ROCKED_LEAST as he comes round.
+static func rocked_share(f: FighterState) -> float:
+	return clampf(float(f.rocked_ticks) / ROCKED_FADE_TICKS, ROCKED_LEAST, 1.0)
+
+
+## Rocked (D372) on his feet: hands dropped from his guard, hips low and his knees giving now and then (`seconds`,
+## fight time, sets when), fading as he comes round. A cover-up or a strike still takes his arms.
+static func rocked_pose(p: Dictionary, f: FighterState, seconds: float) -> void:
+	var share: float = rocked_share(f)
+	p.arm_lead = float(p.arm_lead) - ROCKED_HANDS * share
+	p.arm_rear = float(p.arm_rear) - ROCKED_HANDS * share
+	var buckle: float = maxf(0.0, 0.6 * sin(seconds * 2.3) + 0.5 * sin(seconds * 3.7 + 1.0) - 0.3)
+	p.hip_y = float(p.hip_y) - (ROCKED_DIP + ROCKED_BUCKLE * buckle) * share
+	p.lean = float(p.lean) + 0.08 * share * sin(seconds * 1.9)
 
 
 static func _rest_pose() -> Dictionary:

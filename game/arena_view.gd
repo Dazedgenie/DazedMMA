@@ -106,6 +106,13 @@ const TAKEDOWN_ENDED := "takedown ended"
 ## over CLINCH_EASE. Standing up and getting up are posed as moves of their own (D368, below); a submission locked
 ## in by SubmissionPair (D366).
 const GROUND_EASE: float = 0.4
+## A man knocked down (D370, D371) is posed from the rig (KnockdownPose): into the fall over DOWN_EASE_IN and back to
+## today's figure, on his feet, over DOWN_EASE_OUT.
+const DOWN_EASE_IN: float = 0.1
+const DOWN_EASE_OUT: float = 0.3
+## With no room behind him for the way the shot sends him, the fall turns this far (radians) either way to find room;
+## with none there either he goes down the fence (KnockdownPose "fence").
+const KNOCKDOWN_ROOM_TURNS: Array[float] = [0.0, 0.6, -0.6]
 ## Moves on the ground posed as moves of their own (D368, ScramblePair), not as the position, until they're over.
 const GROUND_UNPOSED: Array[String] = ["stand_up", "get_up"]
 ## Scrambles, getting up and standing up from the rig (D368): the scramble is posed as both men on their knees
@@ -126,6 +133,10 @@ const HOLD_EASE: float = 0.35
 const PULL_EASE: float = 0.6
 const DANGER_SPEED: float = 3.0
 const TAP_SECONDS: float = 1.4
+## The finish (D374): a fight won by a knockout, a stoppage or a submission holds on the cage this many seconds,
+## the referee jumping in and waving it off (and the tap first after a submission), before the result comes up.
+const FINISH_HOLD: float = 3.0
+const FINISHES: Array[String] = [FightSim.RESULT_KO, FightSim.RESULT_TKO, FightSim.RESULT_SUB]
 ## The tag grows this much when the range or position changes, then settles (docs/06 §2).
 const TAG_BUMP: float = 1.7
 ## Standing, the sim's ranges are wider than a person's reach (pocket up to 1.5 m, long range 3 m apart), so
@@ -147,6 +158,8 @@ signal fence_slammed(strength: float)
 signal takedown_landed(strength: float)
 ## The tap at the end of a fight won by a submission has been shown (D366): the result can come up.
 signal tapped
+## A finish has been held on the cage long enough (D374, FINISH_HOLD): the result can come up.
+signal finish_shown
 
 var driver: FightDriver
 var camera: Camera3D
@@ -186,6 +199,21 @@ var _tap_time: float = -1.0
 ## The scramble from the rig (D368): the pose shown, [pair, frame, the man posed as "a"], kept while it lasts so
 ## the pose doesn't swing round when the sim nudges their spots.
 var _scramble_last: Array = []
+## Each man's knockdown being posed from the rig (D370): {data (the KNOCKDOWN event's), tick, ground (true: he was
+## dropped on the ground), and once it's laid out kind, down (the fall's [spec, frame] keys), up (getting up's),
+## seconds (his time down), after (seconds shown since the fight ended)}; empty while he's on his feet.
+var _downed: Array[Dictionary] = [{}, {}]
+## Which way the last shot that landed on each man turned his head (+1, -1, 0 for a straight shot), for the fall.
+var _last_hit_turn: Array[float] = [0.0, 0.0]
+## The referee (D373), with the skinned bodies only; and a finish being held on the cage (D374): {result, winner,
+## seconds (shown since it ended), shown (finish_shown sent)}, empty until a fight ends inside the distance.
+var referee: Referee
+var _finish: Dictionary = {}
+## What the fight has done to each man's body (D375-D378), drawn on the skinned bodies only; and the blood spots it
+## has left on the canvas.
+var marks: Array[BodyMarks] = []
+var _blood_spots: Array[MeshInstance3D] = []
+var _spot_rng := RandomNumberGenerator.new()
 ## Light up scouted tells (D51): a toggle so the playtest can compare cue on and off.
 var tell_cues: bool = true
 var debug_marks: bool = false:
@@ -247,6 +275,16 @@ func watch(p_driver: FightDriver) -> void:
 	_hold_pose = {}
 	_tap_time = -1.0
 	_scramble_last = []
+	_downed = [{}, {}]
+	_last_hit_turn = [0.0, 0.0]
+	_finish = {}
+	marks = []
+	for spot in _blood_spots:
+		spot.queue_free()
+	_blood_spots = []
+	if referee != null:
+		referee.queue_free()
+		referee = null
 	_tell_limb = ["", ""]
 	_tell_until = [-1, -1]
 	_offset = [Vector2.ZERO, Vector2.ZERO]
@@ -271,6 +309,19 @@ func watch(p_driver: FightDriver) -> void:
 			rig.visible = false  # Only the bodies show it.
 			rig.fit(figure.body.measure())
 			_clinch_rigs.append(rig)
+		for i in figures.size():
+			marks.append(BodyMarks.new(driver.sim.fight_seed * 2 + i))
+			figures[i].body.set_damage(marks[i])
+		_spot_rng.seed = hash([driver.sim.fight_seed, "blood spots"])
+		referee = Referee.new()
+		add_child(referee)
+		if referee.setup(driver.sim.fight_seed):
+			var men: Array[Vector2] = [driver.shown_pos(0), driver.shown_pos(1)]
+			var middle: Vector2 = (men[0] + men[1]) / 2.0
+			referee.place(Referee.watch_spot(men, Referee.STANDING_OFF, middle + Vector2(0, 8), middle), middle)
+		else:
+			referee.queue_free()
+			referee = null
 	driver.sim.event_emitted.connect(_on_event)
 	_focus = Vector3.ZERO
 	_zoom = ZOOM_STANDING
@@ -313,6 +364,9 @@ func _process(delta: float) -> void:
 		figures[i].show_state(sim, i, at, at + Vector2.from_angle(_facing[i]), delta, delta * driver.rate())
 		figures[i].show_tell(_tell_limb[i] if tell_cues and sim.now <= _tell_until[i] else "")
 	_pose_clinch(sim, delta)
+	_move_referee(sim, delta)
+	_show_marks(sim, delta)
+	_hold_finish(delta)
 	_facing_set = true
 	var middle: Vector2 = (spots[0] + spots[1]) / 2.0 + _ground_shift
 	if _venue != null:
@@ -364,6 +418,7 @@ func _pose_clinch(sim: FightSim, delta: float) -> void:
 		_pose_turn(sim, built, frame, delta)
 	else:
 		_pose_built(sim, built, frame)
+	_pose_downed(sim, delta)
 	for figure in figures:
 		figure.body.settle(delta)
 	_bow_fence(held, delta)
@@ -440,6 +495,129 @@ func _pose_hold(sim: FightSim, delta: float) -> bool:
 	for i in 2:
 		figures[i].body.follow(_clinch_rigs[i])
 	return true
+
+
+## True when a fight that ended with `data` (FIGHT_ENDED's) is held on the cage before the result (D374):
+## finish_shown says when it's been shown.
+func holds_finish(data: Dictionary) -> bool:
+	if not FINISHES.has(String(data.get("result", ""))):
+		return false
+	return referee != null or (String(data.result) == FightSim.RESULT_SUB and shows_hold())
+
+
+## How long the finish is held (D374): FINISH_HOLD with the referee there to wave it off, else just the tap.
+func finish_seconds() -> float:
+	return FINISH_HOLD if referee != null else TAP_SECONDS
+
+
+func _hold_finish(delta: float) -> void:
+	if _finish.is_empty() or bool(_finish.shown):
+		return
+	_finish.seconds = float(_finish.seconds) + delta
+	if float(_finish.seconds) >= finish_seconds():
+		_finish.shown = true
+		finish_shown.emit()
+
+
+## Bleeding cuts drop blood on the canvas (D376): how many spots at most a fight, each this big (metres), and how far
+## from under his head they land.
+const BLOOD_SPOTS_MAX: int = 40
+const BLOOD_SPOT_SIZE := Vector2(0.015, 0.045)
+const BLOOD_SPOT_SCATTER: float = 0.3
+const BLOOD_COLOUR := Color(0.33, 0.02, 0.03)
+
+
+## A strike by `a` landed on the other man (D375-D378): it marks him where it landed, may open a cut, and a shot on a
+## bleeding cut gets blood on the gloves that threw it and spots it on the canvas.
+func _mark_hit(a: int, action: String, data: Dictionary, covered: bool) -> void:
+	if marks.size() < 2:
+		return
+	var limb: String = String(FighterFigure.AIMS[action].limb) if FighterFigure.AIMS.has(action) else "rear_arm"
+	var lead_left: bool = figures[a].lead < 0.0
+	var thrown_left: bool = limb.begins_with("lead") == lead_left
+	var side: int = BodyMarks.side_hit(0 if thrown_left else 1)
+	var hit: BodyMarks = marks[1 - a]
+	var was_bleeding: bool = hit.bleeding(side)
+	hit.landed(action, String(data.get("target", "")), float(data.get("damage", 0.0)), covered, side,
+		driver.sim.fighters[1 - a].hurt("head"))
+	if was_bleeding and not covered and String(data.get("target", "")) == "head":
+		marks[a].blooded()
+		_drop_blood(1 - a)
+
+
+## A spot or two of his blood on the canvas under his head.
+func _drop_blood(i: int) -> void:
+	if figures[i].body == null:
+		return
+	var head: Vector3 = figures[i].body._world_at("Head")
+	for n in _spot_rng.randi_range(1, 2):
+		if _blood_spots.size() >= BLOOD_SPOTS_MAX:
+			return
+		var spot := MeshInstance3D.new()
+		var disc := CylinderMesh.new()
+		var size: float = _spot_rng.randf_range(BLOOD_SPOT_SIZE.x, BLOOD_SPOT_SIZE.y)
+		disc.top_radius = size
+		disc.bottom_radius = size
+		disc.height = 0.002
+		disc.radial_segments = 10
+		disc.rings = 1
+		spot.mesh = disc
+		var paint := StandardMaterial3D.new()
+		paint.albedo_color = BLOOD_COLOUR
+		paint.roughness = 0.35
+		spot.material_override = paint
+		var scatter := Vector2.from_angle(_spot_rng.randf() * TAU) * _spot_rng.randf() * BLOOD_SPOT_SCATTER
+		spot.position = Vector3(head.x + scatter.x, 0.004 + 0.0005 * _blood_spots.size(), head.z + scatter.y)
+		spot.scale = Vector3(_spot_rng.randf_range(0.7, 1.3), 1.0, _spot_rng.randf_range(0.7, 1.3))
+		add_child(spot)
+		_blood_spots.append(spot)
+
+
+## The marks brought up to date with the fight and drawn on the bodies (D375-D378).
+func _show_marks(sim: FightSim, delta: float) -> void:
+	if marks.size() < 2:
+		return
+	var minutes: float = sim.now * FightClock.TICK_MS / 60000.0
+	for i in 2:
+		if figures[i].body == null:
+			continue
+		marks[i].update(sim.fighters[i], delta * driver.rate(), minutes)
+		figures[i].body.set_damage(marks[i])
+
+
+## Moves the referee (D373): shadowing them on the far side from the camera, crouched over them on the ground,
+## over a knocked-down man, and jumping in to wave it off at a stoppage (D374).
+func _move_referee(sim: FightSim, delta: float) -> void:
+	if referee == null or figures.size() < 2:
+		return
+	var men: Array[Vector2] = []
+	for figure in figures:
+		var hips: Vector3 = figure.body.hips_at() if figure.body != null else figure.global_position
+		men.append(Vector2(hips.x, hips.z))
+	var eye := Vector2(camera.global_position.x, camera.global_position.z)
+	if not _finish.is_empty():
+		var winner: int = int(_finish.winner)
+		var loser: int = 1 - winner if winner in [0, 1] else 1
+		var hold := Vector3.INF
+		var low: bool = not sim.situation.is_standing() and sim.situation.position != PositionLibrary.CLINCH
+		if men[0].distance_to(men[1]) <= Referee.CLEAR_OF_MEN:  # Too close to get between: a hand on one of them.
+			var on: int = 1 - loser if low else loser  # On the ground he pulls the winner off; standing he holds the beaten man.
+			hold = figures[on].body.hips_at() + Vector3.UP * (0.25 if low else 0.4)
+		referee.want(Referee.stop_spot(men[1 - loser], men[loser], eye), men[1 - loser], "stop", hold, low)
+	else:
+		var down: int = -1
+		for i in 2:
+			if not _downed[i].is_empty() and sim.situation.is_standing():
+				down = i
+		if down >= 0:
+			var over: Array[Vector2] = [men[down], men[down]]
+			referee.want(Referee.watch_spot(over, Referee.DOWN_OFF, eye, referee.spot), men[down], "down")
+		elif sim.situation.phase == PositionLibrary.PHASE_GROUND:
+			referee.want(Referee.watch_spot(men, Referee.GROUND_OFF, eye, referee.spot), (men[0] + men[1]) / 2.0, "ground")
+		else:
+			var off: float = Referee.STANDING_OFF if sim.situation.is_standing() else Referee.CLINCH_OFF
+			referee.want(Referee.watch_spot(men, off, eye, referee.spot), (men[0] + men[1]) / 2.0, "watch")
+	referee.advance(delta)
 
 
 ## True while a hold is drawn from the rig (D366), so a fight ending in it plays the tap first.
@@ -524,6 +702,16 @@ func _pose_ground(sim: FightSim, delta: float) -> bool:
 			pair = stage[int(thrown[0])]
 			to = stage[int(thrown[0]) + 1]
 			t = float(thrown[1])
+	var under: FighterState = sim.fighters[1 - top]
+	if to.is_empty() and GroundPair.BOTTOM_STRIKES.has(under.action_id):  # Hitting up from his back (D271).
+		var letter_up: String = figures[1 - top].arm_letter(0 if FighterFigure.limb_for(under.action_id).begins_with("lead") else 1)
+		var up: Array = GroundPair.strike_up(pair, under.action_id, letter_up)
+		var thrown_up: Array = strike_blend(sim, under, driver.alpha())
+		if not thrown_up.is_empty():
+			var stage_up: Array = [pair, up[0], up[1], pair]
+			pair = stage_up[int(thrown_up[0])]
+			to = stage_up[int(thrown_up[0]) + 1]
+			t = float(thrown_up[1])
 	FighterRig.pose_pair(_clinch_rigs[top], _clinch_rigs[1 - top], pair, _ground_frame, to, t)
 	for i in 2:
 		figures[i].body.follow(_clinch_rigs[i])
@@ -759,6 +947,8 @@ func _move_for(sim: FightSim, by: int) -> Dictionary:
 		move = action
 		var mine: Vector3 = figures[by].global_position
 		var his: Vector3 = figures[other].global_position
+		if action == "follow_down" and _downed[other].has("down"):  # Where the fall laid him (D370), not his feet.
+			his = _clinch_rigs[other].bones.pelvis.global_position
 		var z := Vector3(mine.x - his.x, 0.0, mine.z - his.z)
 		var gap: float = z.length()
 		z = z.normalized() if gap > 0.01 else Vector3.BACK
@@ -785,6 +975,106 @@ func _move_for(sim: FightSim, by: int) -> Dictionary:
 	return {"by": by, "a": a, "action": action, "move": move, "path": TakedownPair.chain(keys_in), "x": 0.0,
 		"state": "attempt", "thud": float(timing.thud), "timing": timing, "where": where,
 		"ends": "ground" if not landing.is_empty() else "standing"}
+
+
+## A man knocked down standing (D370, D371): posed from the rig falling the way the shot that dropped him sends him
+## (KnockdownPose), lying there and getting up through a knee by the end of his time down, then eased back to today's
+## figure. A knockout leaves him down. The other man is still today's figure.
+func _pose_downed(sim: FightSim, delta: float) -> void:
+	for i in _downed.size():
+		var down: Dictionary = _downed[i]
+		if down.is_empty() or i >= figures.size() or _clinch_rigs.size() < 2:
+			continue
+		var f: FighterState = sim.fighters[i]
+		if not sim.situation.is_standing() or not (f.is_down() or sim.is_over()):
+			if down.has("down") and sim.situation.is_standing():
+				figures[i].body.ease_over(DOWN_EASE_OUT)  # Up: back to today's figure.
+			_downed[i] = {}
+			continue
+		if not down.has("down"):
+			_lay_out_knockdown(sim, i)
+			figures[i].body.ease_over(DOWN_EASE_IN)
+		var kind: String = String(down.kind)
+		var seconds: float = (sim.now - int(down.tick) + driver.alpha()) / float(FightClock.TICKS_PER_SECOND)
+		if sim.is_over():  # A knockout: the fall plays on from where it was and he stays down.
+			if not down.has("ended"):
+				down.ended = seconds
+				down.after = 0.0
+			down.after = float(down.after) + delta
+			seconds = float(down.ended) + float(down.after)
+		var rise_at: float = float(down.seconds) - float(KnockdownPose.TIMING[kind].rise)
+		var path: Array = down.down
+		var x: float = float(path.size() - 1)
+		if bool(down.ground):
+			pass  # Dropped on the ground: already down.
+		elif seconds < rise_at or sim.is_over():
+			x = KnockdownPose.fall_x(path.size(), seconds, kind)
+		if seconds >= rise_at and not sim.is_over():
+			path = down.up
+			x = KnockdownPose.rise_x(path.size(), seconds - rise_at, kind)
+		KnockdownPose.pose_along(_clinch_rigs[i], _clinch_rigs[1 - i], path, x)
+		figures[i].body.follow(_clinch_rigs[i])
+
+
+## Lays out fighter `i`'s knockdown (D370): which way down (KnockdownPose.KINDS) by what dropped him, the frames,
+## the fall's keys and getting up's, and his time down.
+func _lay_out_knockdown(sim: FightSim, i: int) -> void:
+	var down: Dictionary = _downed[i]
+	var data: Dictionary = down.data
+	var kind: String = "crumple"
+	var ticks: int = FightSim.DOWN_TICKS
+	if bool(data.get("liver", false)):
+		kind = "liver"
+		ticks = FightSim.LIVER_DOWN_TICKS
+	elif data.has("leg"):
+		kind = "leg"
+		ticks = FightSim.LEG_DOWN_TICKS
+	elif bool(data.get("flash", false)):
+		kind = "stiff"
+	var spot: Vector3 = figures[i].global_position
+	spot.y = 0.0
+	var facing: Vector2 = Vector2.from_angle(_facing[i])
+	var twist: float = deg_to_rad(float(KnockdownPose.TIMING[kind].twist)) * _last_hit_turn[i]
+	var own: Transform3D = knockdown_frame(Vector2(spot.x, spot.z), facing, 0.0)
+	var fell: Transform3D = own
+	if kind in ["stiff", "crumple"] and not bool(down.ground):
+		var room: float = -1.0
+		for extra: float in KNOCKDOWN_ROOM_TURNS:  # The way the shot sends him, or near it where there is room.
+			var frame: Transform3D = knockdown_frame(Vector2(spot.x, spot.z), facing, twist + extra)
+			var head: Vector3 = frame * Vector3(0.0, 0.0, KnockdownPose.LYING_LENGTH)
+			if Octagon.distance_to_fence(Vector2(head.x, head.z)) > KnockdownPose.FENCE_ROOM:
+				fell = frame
+				room = 1.0
+				break
+		if room < 0.0:
+			kind = "fence"
+			fell = wall_frame(i) * Transform3D(Basis(Vector3.UP, PI), Vector3.ZERO)
+	# A southpaw, or his right leg gone: the poses the other way round.
+	var mirror: bool = int(data.leg) == FighterState.RIGHT_LEG if kind == "leg" else figures[i].arm_letter(0) == "r"
+	var downs: Array = []
+	var keys: Array[Dictionary] = KnockdownPose.falls(kind)
+	for k in keys.size():
+		downs.append([_mirrored(keys[k], mirror), own if k == 0 else fell])
+	var ups: Array = []
+	keys = KnockdownPose.rises(kind)
+	for k in keys.size():
+		ups.append([_mirrored(keys[k], mirror), own if k == keys.size() - 1 and kind != "fence" else fell])
+	down.kind = kind
+	down.down = downs
+	down.up = ups
+	down.seconds = float(ticks) / FightClock.TICKS_PER_SECOND
+
+
+## A man's own frame for a knockdown (D370): the origin at `spot` on the canvas, facing `facing` (-Z), turned `twist`
+## radians round (+Z behind him: the way he falls).
+static func knockdown_frame(spot: Vector2, facing: Vector2, twist: float) -> Transform3D:
+	var z := Vector3(-facing.x, 0.0, -facing.y).rotated(Vector3.UP, twist)
+	z = z.normalized() if z.length() > 0.01 else Vector3.BACK
+	return Transform3D(Basis(Vector3.UP.cross(z), Vector3.UP, z), Vector3(spot.x, 0.0, spot.y))
+
+
+static func _mirrored(spec: Dictionary, mirror: bool) -> Dictionary:
+	return ClinchPair.mirror({"a": spec}).a if mirror else spec
 
 
 ## The leg fighter `i` is kicking with (D369, the catch-kick single): "l" or "r", his rear leg when it can't tell.
@@ -1290,12 +1580,19 @@ func _place_camera(delta: float, middle: Vector2 = Vector2.ZERO, sim: FightSim =
 func _on_event(event: FightEvent) -> void:
 	if event.type == FightEvent.FIGHT_ENDED and event.data.get("result", "") == FightSim.RESULT_SUB and not _hold_pose.is_empty():
 		_tap_time = 0.0  # He tapped (D366): the hold plays his hand tapping.
+	if event.type == FightEvent.FIGHT_ENDED and holds_finish(event.data):
+		_finish = {"result": event.data.result, "winner": int(event.data.get("winner", -1)), "seconds": 0.0, "shown": false}
 	# Tell cues (D51): the playtest's opponents are scouted, so their tells show.
 	if event.type == FightEvent.ROUND_ENDED:
 		_tell_until = [-1, -1]
+		if driver != null and not driver.sim.clock.is_fight_over():
+			for marked in marks:
+				marked.cornered()  # The cutman works on his cuts between rounds (D376), not after the last.
 		return
 	if event.actor in [0, 1] and figures.size() == 2:
 		_show_strike(event)
+	if event.type == FightEvent.KNOCKDOWN and event.actor in [0, 1]:
+		_downed[event.actor] = {"data": event.data, "tick": event.tick, "ground": not driver.sim.situation.is_standing()}
 	if event.type == FightEvent.GRAPPLE_WON and event.data.get("result", "") == PositionLibrary.SUCCESS \
 			and GroundPair.ROLLS.has(String(event.data.get("action_id", ""))) and not _ground_last.is_empty():
 		_roll = {"from": _ground_last, "left": ROLL_SECONDS}  # Rolled over (D289): the pose plays the roll.
@@ -1339,6 +1636,9 @@ func _show_strike(event: FightEvent) -> void:
 			if hook:  # A hook or round kick turns his head away from the side it came from.
 				turn = 1.0 if String(FighterFigure.AIMS[action].limb).begins_with("lead") == (figures[a].lead < 0.0) else -1.0
 			figures[1 - a].show_hit(String(event.data.target), float(event.data.damage), covered, turn)
+			_mark_hit(a, action, event.data, covered)
+			if not covered:
+				_last_hit_turn[1 - a] = turn
 		FightEvent.STRIKE_MISSED:
 			var reason: String = String(event.data.get("reason", ""))
 			var outcome: String = "missed"

@@ -302,6 +302,11 @@ body at once. The rig's paired poses (D283) take over the clinch and ground posi
   (`STRAIGHT_FROM`) the hand starts reaching for the glove itself and from 96% (`STRAIGHT_AT`) goes all the way.
   When the glove is then out of reach the shoulder blade turns toward it (up to `SHOULDER_REACH`, 0.5 rad) to
   make up the gap, as a man does when he extends a punch; a landed jab touches the face.
+- **Each bone starts from its parent** (`SkinnedBody._anchored`, D379). The trunk's bones, the shoulder blades and
+  the start of each arm and leg are placed at their rest spot on their parent bone as it's posed now, never read
+  back from where they were last frame. Reading them back let a stale position carry a bone a little further each
+  frame: by the end of a long fight an arm could hang metres from its shoulder, drawn as a long tube across the
+  cage, and the hips were dragged half way after it (found filming D375 in Dirty boxer v Muay Thai, seed 35001).
 - **Fists.** The fingers curl into a gloved fist when the body loads (`FIST_CURL` 1.35 rad a joint, the thumb
   about half as far). Mixamo's left-hand finger bones are mirrored, so they bend the other way round; each
   thumb folds about its own axis (`THUMB_AXIS`, found by search).
@@ -318,7 +323,8 @@ one face for both corners; smooth-shaded, not faceted.
 
 Tests: `tests/game/test_fight_body.gd` (the fight draws the body and hides the pieces but not the tell, the
 shoulders sit where the pieces' do, the hands go where the gloves do in guard, the jab, the hook and the clinch
-within 4 cm, standing feet are under the pieces' feet with the toes on the mat).
+within 4 cm, standing feet are under the pieces' feet with the toes on the mat, an arm knocked off its shoulder
+put back on the next pose without dragging the hips).
 
 ## The clinch from the rig, a pose for each grip (D286)
 
@@ -831,7 +837,7 @@ origin `ScramblePair.FENCE_BACK` (40 cm) in from it (`wall_frame`). Standing up 
 man being shot on, so his stance is where it was drawn and the shot's later poses are the clinch takedown's
 (`RigPairs.double_leg`, `TakedownPair._dl_drive`); how far he steps in depends on how far apart they were drawn. The
 catch-kick single is mirrored when the kick came with the left leg (`ArenaView._kicking_leg`). Following him down is
-posed from the downed man's hips. Each lands laid out the way today's figures lay out the position (as D288's do) and
+posed from the downed man's hips (where his fall laid him, D370). Each lands laid out the way today's figures lay out the position (as D288's do) and
 today's figures carry on where it landed.
 
 **What to edit:** the poses, `TIMING` and `FENCE_BACK` in `game/rig/scramble_pair.gd`; the poses, `TIMING`,
@@ -839,8 +845,7 @@ today's figures carry on where it landed.
 `game/arena_view.gd`.
 
 **Limits:** the up-kick and diving back on him after standing up (D333, D334), the leg grab and the knee on the ground
-keep the pose they're in; a stuffed shot from range eases back to today's standing figures; the man knocked down is
-today's figure until someone follows him down; the scramble is one pose held (no hand fighting on the knees); the poses
+keep the pose they're in; a stuffed shot from range eases back to today's standing figures; the scramble is one pose held (no hand fighting on the knees); the poses
 are hand-placed on the Tripo body, with no physics.
 
 Preview: `tools/rig_preview.gd --moves --body` (each move key by key and half way between, the fence walk against the
@@ -855,6 +860,181 @@ feet and standing up leaving him down, the level change out at range) and `tests
 scramble on their knees, a half-worked shot carrying on into it, the scramble for the top landing in the guard, getting
 up out of it, the technical stand-up, the fence walk, a stopped get-up back in the guard, standing up leaving him down, the double leg
 from range, a sprawl on it, the catch-kick holding the leg he kicked with, following him down into half guard).
+
+## Knockdowns from the rig (D370–D372)
+
+The first PR of knockdowns and finishes (Kyle picked the slice on 2026-11-02 at 04:14; the visual slices now use
+D370–D379). A man knocked down used to snap flat in a third of a second, lie there stiff and snap back up; now he falls,
+lies and gets up on the rig. On Kyle's five cards (04:50–04:51) he picked the recommended answers: the fall "By the
+shot that dropped him", getting up "To a knee, then up on wobbly legs", rocked "Wobbly legs, low hands, stars kept",
+a referee in the cage who jumps in to stop it and a few seconds on the finish before the result (the second PR).
+
+**Which way down** (`ArenaView._lay_out_knockdown`, from the KNOCKDOWN event):
+
+| Dropped by | The fall (`KnockdownPose`) | Down for (FightSim) |
+|---|---|---|
+| A flash knockdown (D145) | "stiff": tipping back straight, arms up in front, flat on his back (0.45 s) | 2 s |
+| Anything else standing | "crumple": his knees go, he sits down hard and falls back (0.7 s) | 2 s |
+| A liver shot (D143) | "liver": folding onto both knees, curled over it with his forehead near the canvas (0.8 s) | 3 s |
+| A leg giving out (D144) | "leg": down onto that knee, his hands on the other (0.3 s; mirrored for the right leg) | 1 s |
+| No room behind him | "fence": sliding down the fence to sit against it, hands on his thighs (0.6 s) | 2 s |
+
+The fall is posed in his own frame (`knockdown_frame`): origin where his feet were, +Z behind him, away from the other
+man. A hook or a round kick that dropped him (the way it turned his head, `_last_hit_turn`) turns a stiff fall 55°
+and a crumple 35° toward that side. A stiff or crumpled fall needs `LYING_LENGTH` (1.75 m) behind him clear of the fence
+by `FENCE_ROOM` (15 cm); without it the fall turns `KNOCKDOWN_ROOM_TURNS` (±0.6 rad) to find room, and with none
+there either he goes down the fence, posed in the fence's frame (`wall_frame` turned half round). A southpaw's poses
+are mirrored. The fall quickens as he goes (`fall_x`). Dropped on the ground, he's shown already down.
+
+**Getting up** (D371, `KnockdownPose.rises`). The last `rise` seconds of his time down: from his back he sits up
+propped on his hands, comes up on one knee pushing off the other with both hands, and stands bent over, knees bent and
+hands low (0.9 s); from the liver shot a hand goes to the canvas first (1 s); from the leg he pushes straight up
+(0.45 s); against the fence he walks up it (0.9 s). Getting up turns him back to face the other man. Once the sim has
+him up he eases back to today's figure over `DOWN_EASE_OUT` (0.3 s). A knockout (or the third knockdown) ends the fight
+with him down, and the fall plays on to the canvas.
+
+**Following him down** (D369) dives on him from where his fall laid him (the rig's hips), not from his feet.
+
+**Rocked** (D372, `FighterFigure.rocked_pose`). On his feet and rocked, his hands drop `ROCKED_HANDS` (0.55 rad) from
+his guard, his hips sink `ROCKED_DIP` (4 cm) with his knees giving up to `ROCKED_BUCKLE` (10 cm) more now and then, and
+he sways side to side up to `ROCKED_SWAY` (0.16 rad), slower than before; all of it full when just rocked, fading to
+`ROCKED_LEAST` (40%) over his last `ROCKED_FADE_TICKS` (3 s) of being rocked. The stars stay. A cover-up or a strike
+still takes his arms.
+
+**What to edit:** the poses, `TIMING` (fall, rise, twist), `LYING_LENGTH` and `FENCE_ROOM` in
+`game/rig/knockdown_pose.gd`; `DOWN_EASE_IN`, `DOWN_EASE_OUT` and `KNOCKDOWN_ROOM_TURNS` at the top of
+`game/arena_view.gd`; the `ROCKED_*` numbers in `game/fighter_figure.gd`.
+
+**Limits:** the other man is today's figure meanwhile; a man rocked or knocked down in the clinch or on the ground has
+no fall of his own (the sim breaks them apart standing and he's shown down); the poses are hand-placed, with no physics.
+The referee and the hold on the finish came in the second PR (D373, D374, below).
+
+Preview: `tools/rig_preview.gd --knockdowns --body` (each way down and up key by key and half way between); a real
+knockdown: `tools/motion_preview.gd --red=brawler --blue=boxer --seed=35004 --knockdown=1 --seconds=5`
+(`--knockdown=n` starts a second before the nth knockdown). Pictures: `/mnt/project-files/screenshots/knockdowns-d370/`
+(`now-*.png` how it looked before).
+
+Tests: `tests/game/test_knockdown_pose.gd` (every way down's keys and timing, the fall and getting up inside his time
+down, every hand and foot in place, no one under the canvas, lying behind where he stood inside the room it needs, down
+the fence not through it, every way up ending on his feet) and `tests/game/test_knockdown_view.gd` (a flash knockdown
+on his back away from the man who dropped him, a hook turning a crumple, down the fence with no room, the liver fold,
+the leg giving out on either side, getting up through a knee and back to his figure, a knockout leaving him down,
+following him down from where he lies, the rocked wobble).
+
+## The referee and the finish (D373, D374)
+
+The second PR of knockdowns and finishes. Kyle's cards: "Yes, he jumps in to stop it" and "A few seconds on the
+finish" (04:51), then "Striped shirt, shadows the action" (13:23), each the recommended option. Presentation only: the
+fight doesn't know he's there, so fights are unchanged.
+
+**Him** (`game/rig/referee.gd`, `Referee`). The fighters' skinned body sized to a `SHOULDER_HEIGHT` of 1.5 m, posed by a
+hidden rig of his own. His face, skin and hair are rolled from the fight's seed (`LOOK_SEED`), so a fight's seed is
+always the same man. `SkinnedBody.set_referee` dresses him: a black-and-white striped shirt, grey
+trousers and black shoes (`SHIRT_WHITE`, `SHIRT_BLACK`, `TROUSERS`, `SHOES`), read from a second baked mask,
+`game/bodies/tripo_fighter_clothes.png` (`tools/body_regions.py`: R the shirt, G its stripes and the bare hands, B the
+trousers, A the shoes; the stripes run upright round his body and round his sleeves).
+
+**Where he stands** (`ArenaView._move_referee`, every frame):
+
+| What's happening | Where (`Referee.watch_spot` / `stop_spot`) | How he holds himself (`pose_spec`) |
+|---|---|---|
+| On their feet apart | `STANDING_OFF` (2.3 m) from the middle of them | "watch": upright, hands loose in front |
+| Tied up in the clinch | `CLINCH_OFF` (1.8 m) | "watch" |
+| On the ground | `GROUND_OFF` (1.6 m) | "ground": crouched, hands on his knees |
+| A man knocked down on his feet | `DOWN_OFF` (1.4 m) from the downed man | "down": bent over him, a hand out |
+| A stoppage, them apart | between them, 0.6 m from the beaten man toward the winner | "stop": both hands crossing over his head |
+| A stoppage, them closer than `CLEAR_OF_MEN` | beside them across the camera's view (`SIDE_ON`, 0.95 m) on the beaten man's side | "stop": a hand on the beaten man (on the ground on the winner, bent down to pull him off), the other waving |
+
+Watching, he tries `SPOT_TRIES` (16) spots round them and takes the one furthest round to the far side from the camera,
+less `STAY_WEIGHT` (0.6) for each step-length it moves him (so he doesn't dance about as they move), never within
+`CLEAR_OF_MEN` (1.2 m) of either man or `CLEAR_OF_FENCE` (0.55 m) of the fence. He walks there at `WALK_SPEED`
+(1.5 m/s) turning `TURN_SPEED` (5 rad/s) to face them, one foot stepping at a time once it's `STEP_FROM` (12 cm) out
+of place; at a stoppage he rushes in at `RUSH_SPEED` (4 m/s) with quicker steps. He waves `WAVE_RATE` (1.6) times a
+second.
+
+**The finish** (D374). A knockout, a stoppage (TKO) or a submission (`ArenaView.FINISHES`) is held on the cage for
+`FINISH_HOLD` (3 s) before the result comes up: the referee waving it off, a knocked-out man still falling, and after a
+submission the tap first (D367). `ArenaView.finish_shown` fires once when it's done and `main._on_fight_over` waits
+for it. A decision goes straight to the cards. Without the body there's no referee, and only a submission waits (for
+the tap, as before).
+
+**What to edit:** the numbers at the top of `game/rig/referee.gd`; his poses in `Referee.pose_spec`; the clothes'
+colours at the top of `game/rig/skinned_body.gd`; where the shirt ends (`WAIST`, `COLLAR`, `SLEEVE_END`), the stripes'
+width (`STRIPE`) and the trousers' hem (`HEM`) in `tools/body_regions.py` (then run it again); `FINISH_HOLD` in
+`game/arena_view.gd`.
+
+**Limits:** he walks through the fighters' arms and legs if they swing through his spot (he only keeps his hips clear
+of theirs); he doesn't step in to break up the clinch or a stalled fight, count, or check on a man between rounds; he
+isn't drawn in the camp or on the setup screens; the same body as the fighters with the shirt painted on it.
+
+Preview: `tools/motion_preview.gd --finish` starts saving `FINISH_LEAD` (1.5 s) before the fight ends:
+`--red=brawler --blue=boxer --seed=35004 --finish --seconds=5` is a stoppage on their feet, `--seed=35006` a knockout,
+`--red=gnp_wrestler --blue=kicker --seed=35003` a stoppage in the guard and `--red=bjj --blue=boxer --seed=35002` a
+triangle. Pictures: `/mnt/project-files/screenshots/referee-d373/`.
+
+Tests: `tests/game/test_referee.gd` (clear of both men and the fence on the far side from the camera, inside the cage
+with them against the fence, not dancing about, between them by the beaten man, beside them where the camera sees him
+when they're close, the waving hands and the one on the man, a referee in every fight dressed, the same man for the
+same seed, crouched on the ground, over a knocked-down man, the stoppage bringing him in and the result waiting 3 s).
+
+## Damage on the body (D375–D378)
+
+The visual slice after knockdowns and finishes. Kyle picked "Damage on the body" (2026-11-02 14:39) and then, each the
+recommended option (14:40): cuts "By what hit him", blood "A trickle that grows", bruising "Swelling and marks where
+hit", sweat "Yes, with how tired he is" and "Looks only, for now". Presentation only: the fight never hears of a cut,
+so fights are unchanged (golden fights not re-pinned) and the doctor doesn't stop a fight on one yet.
+
+**What it remembers** (`game/rig/body_marks.gd`, `BodyMarks`, one a man, made by `ArenaView.watch` from the fight's
+seed). Every landed strike goes to `ArenaView._mark_hit`, which works out the side of his face it landed on from the
+limb that threw it and the thrower's stance (a left hand lands on the right side; `BodyMarks.side_hit`) and hands it
+to `BodyMarks.landed`. Each frame `ArenaView._show_marks` brings the marks up to date with the fight
+(`BodyMarks.update`) and draws them (`SkinnedBody.set_damage`).
+
+| Mark | What brings it on | Numbers (`BodyMarks`) |
+|---|---|---|
+| A cut over an eye (D375) | A clean head strike once his head is `CUT_FROM_HURT` (12%) hurt, on the side it landed, at the strike's chance scaled by how hard it landed (`CUT_FULL_DAMAGE`, within `CUT_SCALE_LIMITS`) and by `0.5 + how hurt his head is`; one a side | `CUT_CHANCE`: elbows 11%, knees, head kicks, soccer kicks and stomps 3%, overhand and posture-up bomb 1.6%, hooks and hammerfists 1.3%, cross 1.1%, ground punch 1%, uppercuts 0.8%, jab 0.4% |
+| The trickle (D376) | Starts at `BLEED_START` (25% of its length), each shot on it adds `BLEED_PER_HIT` (12%), runs on its own `BLEED_RATE` a second up to `BLEED_DRIFT_TO` (35% fresh to 80% hurt); the cutman leaves `BLEED_AFTER_CORNER` (30%) between rounds | the trickle runs from the cut down past the outer corner of his eye to his cheekbone |
+| Blood on the gloves (D376) | A clean shot on a bleeding cut puts `GLOVE_BLOOD_PER_HIT` (18%) on the hitter's gloves, smeared | `ArenaView._drop_blood` also spots 1–2 drops under his head (`BLOOD_SPOT_SIZE`, `BLOOD_SPOT_SCATTER`, at most `BLOOD_SPOTS_MAX` (40) a fight) |
+| A swollen eye (D377) | His head hurt, times how much of the damage landed on that side (`STRAIGHT_SHARE`: a straight shot puts 65% on the side it landed) | from `SWELL_FROM` (12%) to `SWELL_FULL` (60%); the eye puffs out (`SkinnedBody.SWELL_SIZE`, 8 mm) and goes purple underneath |
+| Bruised ribs and legs (D377) | His body damage and each leg's own damage | `BODY_MARK`, `LEG_MARK` (from 6%, full at 60%): red and blotchy, purple as they build |
+| Sweat and the flush (D378) | Work (`SWEAT_PER_MINUTE` up to `SWEAT_WORK_MAX`) and strain (his tank below `STRAIN_FROM`, half) | strain follows over `STRAIN_RISE_SECONDS` (20) and `STRAIN_FALL_SECONDS` (45); sweat adds `SWEAT_TIRED` (0.65) of it, coming on over `SWEAT_RISE_SECONDS` (20) and drying over `SWEAT_DRY_SECONDS` (180); the flush from `FLUSH` (15% to 75% strain) |
+
+How often (8 pairings × 40 seeds, the AI corner): about a quarter of fights see a cut, nearly half of them from elbows
+(on their feet and on the ground). Two men who only punch: about one in eight; a dirty boxer against a Muay Thai
+fighter: one in two.
+
+**How it's drawn** (the body's shader in `game/rig/skinned_body.gd`). Two more baked masks from
+`tools/body_regions.py`: `game/bodies/tripo_fighter_damage.png` (R and G each eye's swelling zone, under the brow and
+round the eye; B the ribs and stomach; A the flush on the face, neck and upper chest) and
+`game/bodies/tripo_fighter_marks.png` (R and G the cut on each brow, at 1, and its trickle, 0.95 at the cut falling
+along it, so the shader shows as much of it as the bleed says; B and A each leg's bruising, the outside and front of
+the thigh and the calf). The cut and the trickle are drawn on the front of the face only (`CUT`, `TRICKLE`,
+`front_of_face`), the swelling stops below the brow (`EYE_TOP`) so the brow doesn't lift off. The bruises mix
+`bruise_fresh` to `bruise_old` as they build, broken up by noise; the blood is `blood`; the flush multiplies by
+`flushed`; sweat lowers the skin's roughness (0.85 to 0.4) and raises its shine. Blood on the gloves is painted where
+the clothes mask marks the hands. Spots on the canvas are flat discs (no decals: the web build's renderer has none).
+
+**What to edit:** the numbers at the top of `game/rig/body_marks.gd`; the colours (`bruise_fresh`, `bruise_old`,
+`blood`, `flushed`) and `SWELL_SIZE` in `game/rig/skinned_body.gd`; where the cut, trickle, eyes, ribs and flush are
+(`CUT`, `TRICKLE`, `EYE`, `EYE_REACH`, `EYE_TOP`, `RIBS`, `FLUSH_FROM`) in `tools/body_regions.py` (then run it
+again, and `godot --headless --import`); the blood spots at the top of `game/arena_view.gd`.
+
+**Limits:** at the fight camera's distance a cut and a swollen eye are small (the gloves and the canvas show most);
+cuts don't stop fights, and the doctor doesn't look at them; there are no cuts on the nose, cheek or back of the head,
+no broken noses or black eyes from the same hit twice; the marks don't carry from fight to fight or show in the camp,
+the fight night card or the result screen; the referee is never marked; blood on the canvas doesn't smear when they
+roll through it; sweat doesn't make him slippery.
+
+Preview: `tools/damage_preview.gd` (fresh, a round in, cut, a war; `--man=`) and in a fight
+`tools/motion_preview.gd --red=dirty_boxer --blue=muay_thai --seed=35001 --from=880` (a cut, bloody gloves and a
+swollen eye by the end). Pictures: `/mnt/project-files/screenshots/damage-d375/`.
+
+Tests: `tests/game/test_body_marks.gd` (no cut or swelling from body and leg shots, no cut before his head is hurt,
+elbows cutting far more than punches and jabs least, a shot on his gloves opening nothing, the same seed opening the
+same cuts, a left hand landing on the right side, hooks on one side and straights spread, the trickle growing and the
+cutman, bloody gloves, an eye swelling on the side he's hit, the ribs and each leg marked by their own damage, sweat
+and the flush coming on over seconds, a watched fight drawing the marks on both men and capping the spots, a clean
+shot on a bleeding cut bloodying the hitter and the canvas).
 
 ## Review and verification
 

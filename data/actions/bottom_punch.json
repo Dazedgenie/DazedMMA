@@ -1,0 +1,20 @@
+{
+	"schema": "action@2",
+	"id": "bottom_punch",
+	"name": "Punch from the bottom",
+	"category": "strike",
+	"basic": true,
+	"positions": ["full_guard", "half_guard"],
+	"roles": ["bottom"],
+	"ranges": ["clinch"],
+	"phases_ms": { "telegraph": 0, "windup": 100, "active": 100, "recovery": 200 },
+	"stamina_cost": 1,
+	"flags_self": [],
+	"strike": { "target": "head", "base_damage": 2, "backs_off_ms": 1200 },
+	"stats": { "offense": ["boxing", "guard"], "defense": ["top_control"] },
+	"opportunities": [
+		{ "opponent_flag": "POSTURE_BROKEN", "success_bonus": 0.05 },
+		{ "opponent_flag": "POSTURED_UP", "success_bonus": -0.10 }
+	],
+	"requires_technique": null
+}
