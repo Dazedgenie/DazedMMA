@@ -234,10 +234,7 @@ func _planted(spec: Dictionary, key: String, target: Vector3) -> float:
 func _solve_arm(side: String, target: Vector3, pole: Vector3) -> void:
 	var chest: Node3D = bones.waist
 	var joint: Vector3 = chest.global_transform * Vector3(shoulder.x * (-1.0 if side == "l" else 1.0), shoulder.y, shoulder.z)
-	var out: Vector3 = chest.global_basis * (Vector3.LEFT if side == "l" else Vector3.RIGHT)
-	if joints.has("elbow_" + side):  # The way it bent last frame, so it carries on that way.
-		out = Vector3(joints["elbow_" + side]) - Vector3(joints["shoulder_" + side])
-	var chain: Array[Vector3] = FighterMotion.solve_bones(Vector3.ZERO, target - joint, steady_pole(pole, target - joint, out), upper_arm, forearm)
+	var chain: Array[Vector3] = FighterMotion.solve_bones(Vector3.ZERO, target - joint, pole, upper_arm, forearm)
 	var elbow: Vector3 = above_canvas(joint, joint + chain[0], joint + chain[1])
 	var wrist: Vector3 = joint + chain[1]
 	_lay(bones["upper_" + side], joint, elbow, pole, upper_arm)
@@ -252,10 +249,7 @@ func _solve_arm(side: String, target: Vector3, pole: Vector3) -> void:
 func _solve_leg(side: String, target: Vector3, pole: Vector3, planted: float) -> void:
 	var pelvis: Node3D = bones.pelvis
 	var hip: Vector3 = pelvis.global_transform * Vector3(hip_x * (-1.0 if side == "l" else 1.0), 0, 0)
-	var front: Vector3 = -pelvis.global_basis.z
-	if joints.has("knee_" + side):  # The way it bent last frame, so it carries on that way.
-		front = Vector3(joints["knee_" + side]) - Vector3(joints["hip_" + side])
-	var chain: Array[Vector3] = FighterMotion.solve_bones(Vector3.ZERO, target - hip, steady_pole(pole, target - hip, front), thigh, shin)
+	var chain: Array[Vector3] = FighterMotion.solve_bones(Vector3.ZERO, target - hip, pole, thigh, shin)
 	var knee: Vector3 = above_canvas(hip, hip + chain[0], hip + chain[1])
 	var ankle: Vector3 = hip + chain[1]
 	_lay(bones["thigh_" + side], hip, knee, pole, thigh)
@@ -271,29 +265,6 @@ func _solve_leg(side: String, target: Vector3, pole: Vector3, planted: float) ->
 	joints["hip_" + side] = hip
 	joints["knee_" + side] = knee
 	joints["ankle_" + side] = ankle
-
-
-## How lined up with the limb its pole may get before a second way to bend leans in (D396): the cosine of the angle.
-const POLE_STEADY_FROM: float = 0.8
-const POLE_STEADY_AT: float = 0.98
-
-
-## The way a limb's middle joint bends, kept steady (D396). When the hand or foot goes nearly straight along its pole
-## (an uppercut coming up past the hip, a punch down from the top), the pole says almost nothing about which way the
-## elbow or knee goes and it swings right round in a frame. So `second` (the way it bent the frame before, or out to
-## his side for an arm and his front for a leg) leans in as the pole lines up with the limb, all the way by
-## POLE_STEADY_AT.
-static func steady_pole(pole: Vector3, limb: Vector3, second: Vector3) -> Vector3:
-	if pole.length() < 0.001 or limb.length() < 0.001:
-		return pole
-	var lined_up: float = absf(pole.normalized().dot(limb.normalized()))
-	var lean: float = smoothstep(POLE_STEADY_FROM, POLE_STEADY_AT, lined_up)
-	if lean <= 0.0:
-		return pole
-	var across: Vector3 = second - second.project(limb.normalized())  # Only the part of it that says which way.
-	if across.length() < 0.001:
-		return pole
-	return pole.normalized() + across.normalized() * lean
 
 
 ## The lowest a knee or elbow's middle may sit (metres above the canvas; the canvas is at 0): a joint resting on it.

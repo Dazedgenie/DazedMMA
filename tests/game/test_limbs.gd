@@ -112,20 +112,6 @@ func test_a_quick_strike_is_not_slowed() -> void:
 	assert_lt(body._world_at("LeftHand").distance_to(want), 0.005, "shown where it was thrown")
 
 
-func test_an_arm_reaching_straight_along_its_pole_doesnt_swing_its_elbow_round() -> void:
-	var pole := Vector3.DOWN
-	var out := Vector3.RIGHT
-	var bends: Array[Vector3] = []
-	for nudge: float in [-0.03, 0.03]:  # The hand passing just either side of straight down his pole.
-		var target := Vector3(0.0, -0.45, nudge)
-		var chain: Array[Vector3] = FighterMotion.solve_bones(Vector3.ZERO, target,
-			FighterRig.steady_pole(pole, target, out), 0.3, 0.28)
-		bends.append(chain[0] - target * 0.5)
-	assert_gt(bends[0].normalized().dot(bends[1].normalized()), 0.7, "the elbow bends the same way either side")
-	var away := Vector3(0.0, 0.0, -0.45)
-	assert_eq(FighterRig.steady_pole(pole, away, out), pole, "a pole well off the limb is left as it is")
-
-
 func test_an_elbow_turned_right_round_its_arm_in_a_frame_is_eased_round() -> void:
 	var figure: FighterFigure = _figure()
 	var body: SkinnedBody = figure.body

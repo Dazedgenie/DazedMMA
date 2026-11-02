@@ -1156,13 +1156,11 @@ wrestler v Boxer; about 48 minutes, both men):
   height standing (`FOOT_FLOOR`), and while the body is easing, if any joint dips under 3 cm (`CANVAS_FLOOR` in
   `skinned_body.gd`) the whole body is lifted until it doesn't. After: none in 48 minutes.
 - *Elbows flipping*: an elbow or knee whose bend swings right round in a frame, 0.45% of frames, mostly ground
-  punches from back control and the guard, clinch uppercuts and scrambles. Two causes. The hand going nearly straight
-  along the way its elbow is told to bend, so that way says almost nothing: `FighterRig.steady_pole` now leans in the
-  way it bent the frame before as the two line up, from 37° (`POLE_STEADY_FROM` 0.8) to all of it by 11°
-  (`POLE_STEADY_AT` 0.98). And a strike's phases handing the arm from one way of bending to another: the skinned body
-  now eases in, over 0.12 s (`FLIP_EASE`), any pose that would turn a bent elbow or knee (at least 6 cm off straight,
-  `FLIP_BENT`) more than 60° round its limb in a frame (`FLIP_TURN`). On the feet, a bent arm drawn from the pieces
-  also leans its elbow 4 cm down and out (`ELBOW_DOWN`). After: elbows 312 frames to 2, knees 17 to none.
+  punches from back control and the guard, clinch uppercuts and scrambles: a strike's phases (or one hold handing
+  over to the next) turning the arm from one way of bending to another in a frame. The skinned body now eases in,
+  over 0.12 s (`FLIP_EASE`), any pose that would turn a bent elbow or knee (at least 6 cm off straight, `FLIP_BENT`)
+  more than 60° round its limb in a frame (`FLIP_TURN`). On the feet, a bent arm drawn from the pieces also leans its
+  elbow 4 cm down and out (`ELBOW_DOWN`). After: elbows 2 frames (from 312), knees none (from 17).
 - *Inside the other man*: 3.9% at first, but most of it was the checker counting a hand on his neck. Measured to his
   chest instead, 0.7% of frames, spread thinly (back control's seat belt, the full guard, double legs): left for the
   final grappling pass Kyle has planned.
@@ -1172,8 +1170,8 @@ Pictures: `ground-knees-before-left-after-right.png`, `guard-pull-before-after-h
 
 Tests: `tests/game/test_limbs.gd` (lifted hips sinking until both feet on the canvas reach; feet off the canvas not
 pulling him down; a nearly straight leg's knee bending forward; a knee bent into the canvas turning up out of it with
-its bones' lengths kept; a pose that jumps eased in; a quick strike not slowed; an arm reaching straight along its pole not swinging its elbow
-round; an elbow turned right round its arm in a frame eased round).
+its bones' lengths kept; a pose that jumps eased in; a quick strike not slowed; an elbow turned right round its arm in a
+frame eased round).
 
 ## Review and verification
 
