@@ -1235,8 +1235,8 @@ Phase 4 of the plan (§10, D300). Kyle (2026-11-02): "Merge and start the next p
 he was fighting: an offer showed the opponent's grades exactly, a career fight cued every one of his tells, and career
 fights started with no drilled rules. Phase 4 makes every camp about the man he's fighting: scout him, drill the rule that
 beats his habit, cut the weight and see it pay off on the night. The plan and its 16 questions are in the phase 4 plan doc
-(https://claude.ai/artifact/1nBbfwVWue3ZCFZGb2amh3). The pieces, in this order (D400, my pick; Kyle's answer on the order
-is open):
+(https://claude.ai/artifact/1nBbfwVWue3ZCFZGb2amh3). The pieces, in this order (D400; Kyle, 2026-11-02, picked "Scouting and film
+study" first, my pick):
 
 | Piece | Decision | Status |
 |---|---|---|
