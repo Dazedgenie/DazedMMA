@@ -58,7 +58,9 @@ const COLUMNS: Array[String] = [
 	"checks_blue", "checked_blue", "slips_blue", "slipped_blue", "covered_hits_blue",
 	"rolls_blue", "rolled_blue", "leans_blue", "leaned_blue", "blocks_blue", "blocked_blue",
 	"gnp_landed_red", "gnp_hammer_red", "gnp_body_red", "gnp_bomb_red", "gnp_covered_red", "ground_covers_red", "turned_away_red",
+	"bottom_landed_red", "bottom_elbows_red", "backed_off_red", "backed_off_used_red",
 	"gnp_landed_blue", "gnp_hammer_blue", "gnp_body_blue", "gnp_bomb_blue", "gnp_covered_blue", "ground_covers_blue", "turned_away_blue",
+	"bottom_landed_blue", "bottom_elbows_blue", "backed_off_blue", "backed_off_used_blue",
 	"stand_ups_tried_red", "stand_ups_red", "up_kicks_red", "stand_leg_grabs_red",
 	"stand_ups_tried_blue", "stand_ups_blue", "up_kicks_blue", "stand_leg_grabs_blue",
 	"calls_red", "calls_blue", "fired_red", "fired_blue", "call_outcomes_red", "call_outcomes_blue",
@@ -330,6 +332,10 @@ static func of(sim: FightSim, lows: Array[float] = [], moves: Dictionary = {}) -
 		row["combo_landed_" + side] = f.combo_landed
 		row["ground_covers_" + side] = f.ground_covers
 		row["turned_away_" + side] = f.turned_away
+		row["bottom_landed_" + side] = f.bottom_strikes_landed
+		row["bottom_elbows_" + side] = 0
+		row["backed_off_" + side] = f.backed_off
+		row["backed_off_used_" + side] = f.backed_off_used
 		row["stand_ups_tried_" + side] = f.stand_ups_tried
 		row["stand_ups_" + side] = f.stand_ups
 		row["up_kicks_" + side] = f.up_kicks_landed
@@ -390,7 +396,10 @@ static func of(sim: FightSim, lows: Array[float] = [], moves: Dictionary = {}) -
 					row.clamped += 1
 			FightEvent.STRIKE_LANDED, FightEvent.STRIKE_MISSED:
 				var ground: bool = sim.actions.has(e.data.action_id) and Ruleset.is_ground_strike(sim.actions.get_action(e.data.action_id))
-				if e.type == FightEvent.STRIKE_LANDED and ground:
+				if e.type == FightEvent.STRIKE_LANDED and ground and sim.actions.get_action(e.data.action_id).roles.has(PositionLibrary.BOTTOM):
+					if e.data.action_id == FightSim.BOTTOM_ELBOW:
+						row["bottom_elbows_" + SIDES[e.actor]] += 1  # From his back, not ground and pound (D271).
+				elif e.type == FightEvent.STRIKE_LANDED and ground:
 					_count_gnp(row, e)
 				elif e.type == FightEvent.STRIKE_LANDED and e.data.get("covered", false):
 					row["covered_hits_" + SIDES[1 - e.actor]] += 1

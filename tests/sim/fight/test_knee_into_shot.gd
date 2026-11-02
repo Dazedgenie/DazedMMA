@@ -1,5 +1,5 @@
 extends GutTest
-## Knees into shots (docs/01 §45, D182): the knee meets a shot from mid range as he brings his head
+## Knees into shots (docs/01 §46, D182): the knee meets a shot from mid range as he brings his head
 ## to it, and outside fighters who know the knee throw it into a shot they read, ahead of the sprawl.
 
 const SEED: int = 20261102

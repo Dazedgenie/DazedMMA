@@ -1,0 +1,20 @@
+{
+	"schema": "action@2",
+	"id": "bottom_elbow",
+	"name": "Elbow from the bottom",
+	"category": "strike",
+	"basic": true,
+	"positions": ["full_guard", "half_guard"],
+	"roles": ["bottom"],
+	"ranges": ["clinch"],
+	"phases_ms": { "telegraph": 0, "windup": 200, "active": 100, "recovery": 300 },
+	"stamina_cost": 2,
+	"flags_self": [],
+	"strike": { "target": "head", "base_damage": 5, "backs_off_ms": 2000 },
+	"stats": { "offense": ["clinch_striking", "guard"], "defense": ["top_control"] },
+	"opportunities": [
+		{ "opponent_flag": "POSTURE_BROKEN", "success_bonus": 0.15 },
+		{ "opponent_flag": "POSTURED_UP", "success_bonus": -0.20 }
+	],
+	"requires_technique": null
+}

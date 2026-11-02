@@ -622,6 +622,16 @@ func _pose_ground(sim: FightSim, delta: float) -> bool:
 			pair = stage[int(thrown[0])]
 			to = stage[int(thrown[0]) + 1]
 			t = float(thrown[1])
+	var under: FighterState = sim.fighters[1 - top]
+	if to.is_empty() and GroundPair.BOTTOM_STRIKES.has(under.action_id):  # Hitting up from his back (D271).
+		var letter_up: String = figures[1 - top].arm_letter(0 if FighterFigure.limb_for(under.action_id).begins_with("lead") else 1)
+		var up: Array = GroundPair.strike_up(pair, under.action_id, letter_up)
+		var thrown_up: Array = strike_blend(sim, under, driver.alpha())
+		if not thrown_up.is_empty():
+			var stage_up: Array = [pair, up[0], up[1], pair]
+			pair = stage_up[int(thrown_up[0])]
+			to = stage_up[int(thrown_up[0]) + 1]
+			t = float(thrown_up[1])
 	FighterRig.pose_pair(_clinch_rigs[top], _clinch_rigs[1 - top], pair, _ground_frame, to, t)
 	for i in 2:
 		figures[i].body.follow(_clinch_rigs[i])

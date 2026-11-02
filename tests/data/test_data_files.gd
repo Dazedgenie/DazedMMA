@@ -27,7 +27,7 @@ const ROLES: Array[String] = ["neutral", "top", "bottom", "attacker", "defender"
 ## Letters the fight screen already uses (game/main.gd): reads on Q and E, fast, pause, towel, sounds.
 const LETTER_KEYS_TAKEN: Array[String] = ["Q", "E", "F", "P", "T", "M"]
 ## What a focus call (docs/09 call@2) may hold.
-const FOCUS_KEYS: Array[String] = ["duration_ms", "leanings", "weights", "read_bonus", "sprawl_bonus", "struggle", "struggle_stamina", "cover_bonus", "hunt", "cut", "grip_bonus"]
+const FOCUS_KEYS: Array[String] = ["duration_ms", "leanings", "weights", "read_bonus", "sprawl_bonus", "struggle", "struggle_stamina", "cover_bonus", "hunt", "cut", "grip_bonus", "bottom_strikes"]
 ## Where a submission (docs/09 action@2 `submission.escape_to`, D126) leaves the fight when the defender gets out.
 const ESCAPES: Array[String] = ["back", "scramble"]
 ## The minigames a session can be played as (D38, docs/02 §3.2).
@@ -230,6 +230,10 @@ func test_values_come_from_the_allowed_lists() -> void:
 			var down: Variant = action.strike.hands_down_ms
 			if not down is float or down <= 0.0 or int(down) % FightClock.TICK_MS != 0 or not Ruleset.is_ground_strike(action):
 				problems.append("action '%s': strike.hands_down_ms is a ground strike's (D270), ms his hands stay down, a multiple of 100" % id)
+		if action.get("strike") is Dictionary and action.strike.has("backs_off_ms"):
+			var back: Variant = action.strike.backs_off_ms
+			if not back is float or back <= 0.0 or int(back) % FightClock.TICK_MS != 0 or not Ruleset.is_ground_strike(action) or action.get("roles", []) != ["bottom"]:
+				problems.append("action '%s': strike.backs_off_ms is a strike from the bottom's (D271), ms the man on top sits up away from it, a multiple of 100" % id)
 		var category: String = action.get("category", "")
 		if category == "defense" and action.get("defense") is Dictionary and action.defense.has("head_share"):
 			var share: Variant = action.defense.head_share
@@ -409,6 +413,14 @@ func test_calls_are_an_attempt_a_focus_or_a_read() -> void:
 		for r: Variant in c.get("roles", []):
 			if r not in ROLES:
 				problems.append("%s: unknown role '%s'" % [where, r])
+		if c.has("positions_by_role"):
+			var by_role: Variant = c.positions_by_role
+			if not by_role is Dictionary:
+				problems.append("%s: positions_by_role is {role: [positions]} (D271)" % where)
+			else:
+				for r: Variant in by_role:
+					if not c.get("roles", []).has(r) or not by_role[r] is Array or by_role[r].any(func(p: Variant) -> bool: return not c.get("positions", []).has(p)):
+						problems.append("%s: positions_by_role['%s'] narrows the call's positions for one of its roles (D271)" % [where, r])
 		if c.has("priority_boost"):
 			problems.append("%s: priority_boost went with call@1; an accepted call claims the choice outright" % where)
 		var actions: Array = c.get("actions", [])
@@ -454,6 +466,9 @@ func test_calls_are_an_attempt_a_focus_or_a_read() -> void:
 			var struggle_stamina: Variant = focus.get("struggle_stamina", 0.0)
 			if not struggle_stamina is float or struggle_stamina < 0.0:
 				problems.append("%s: focus.struggle_stamina is stamina a beat, 0 or more" % where)
+			var bottom: Variant = focus.get("bottom_strikes", 1.0)
+			if not bottom is float or bottom < 1.0 or bottom > 10.0 or (focus.has("bottom_strikes") and not c.get("roles", []).has("bottom")):
+				problems.append("%s: focus.bottom_strikes is how many times more he strikes from his back, 1 to 10, on a call heard underneath (D271)" % where)
 			var grip_bonus: Variant = focus.get("grip_bonus", 0.0)
 			if not grip_bonus is float or grip_bonus < 0.0 or grip_bonus > 0.5:
 				problems.append("%s: focus.grip_bonus is a chance from 0 to 0.5 on every grip move (D265)" % where)
