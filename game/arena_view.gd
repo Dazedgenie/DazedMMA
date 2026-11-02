@@ -209,6 +209,11 @@ var _last_hit_turn: Array[float] = [0.0, 0.0]
 ## seconds (shown since it ended), shown (finish_shown sent)}, empty until a fight ends inside the distance.
 var referee: Referee
 var _finish: Dictionary = {}
+## What the fight has done to each man's body (D375-D378), drawn on the skinned bodies only; and the blood spots it
+## has left on the canvas.
+var marks: Array[BodyMarks] = []
+var _blood_spots: Array[MeshInstance3D] = []
+var _spot_rng := RandomNumberGenerator.new()
 ## Light up scouted tells (D51): a toggle so the playtest can compare cue on and off.
 var tell_cues: bool = true
 var debug_marks: bool = false:
@@ -273,6 +278,10 @@ func watch(p_driver: FightDriver) -> void:
 	_downed = [{}, {}]
 	_last_hit_turn = [0.0, 0.0]
 	_finish = {}
+	marks = []
+	for spot in _blood_spots:
+		spot.queue_free()
+	_blood_spots = []
 	if referee != null:
 		referee.queue_free()
 		referee = null
@@ -300,6 +309,10 @@ func watch(p_driver: FightDriver) -> void:
 			rig.visible = false  # Only the bodies show it.
 			rig.fit(figure.body.measure())
 			_clinch_rigs.append(rig)
+		for i in figures.size():
+			marks.append(BodyMarks.new(driver.sim.fight_seed * 2 + i))
+			figures[i].body.set_damage(marks[i])
+		_spot_rng.seed = hash([driver.sim.fight_seed, "blood spots"])
 		referee = Referee.new()
 		add_child(referee)
 		if referee.setup(driver.sim.fight_seed):
@@ -352,6 +365,7 @@ func _process(delta: float) -> void:
 		figures[i].show_tell(_tell_limb[i] if tell_cues and sim.now <= _tell_until[i] else "")
 	_pose_clinch(sim, delta)
 	_move_referee(sim, delta)
+	_show_marks(sim, delta)
 	_hold_finish(delta)
 	_facing_set = true
 	var middle: Vector2 = (spots[0] + spots[1]) / 2.0 + _ground_shift
@@ -503,6 +517,72 @@ func _hold_finish(delta: float) -> void:
 	if float(_finish.seconds) >= finish_seconds():
 		_finish.shown = true
 		finish_shown.emit()
+
+
+## Bleeding cuts drop blood on the canvas (D376): how many spots at most a fight, each this big (metres), and how far
+## from under his head they land.
+const BLOOD_SPOTS_MAX: int = 40
+const BLOOD_SPOT_SIZE := Vector2(0.015, 0.045)
+const BLOOD_SPOT_SCATTER: float = 0.3
+const BLOOD_COLOUR := Color(0.33, 0.02, 0.03)
+
+
+## A strike by `a` landed on the other man (D375-D378): it marks him where it landed, may open a cut, and a shot on a
+## bleeding cut gets blood on the gloves that threw it and spots it on the canvas.
+func _mark_hit(a: int, action: String, data: Dictionary, covered: bool) -> void:
+	if marks.size() < 2:
+		return
+	var limb: String = String(FighterFigure.AIMS[action].limb) if FighterFigure.AIMS.has(action) else "rear_arm"
+	var lead_left: bool = figures[a].lead < 0.0
+	var thrown_left: bool = limb.begins_with("lead") == lead_left
+	var side: int = BodyMarks.side_hit(0 if thrown_left else 1)
+	var hit: BodyMarks = marks[1 - a]
+	var was_bleeding: bool = hit.bleeding(side)
+	hit.landed(action, String(data.get("target", "")), float(data.get("damage", 0.0)), covered, side,
+		driver.sim.fighters[1 - a].hurt("head"))
+	if was_bleeding and not covered and String(data.get("target", "")) == "head":
+		marks[a].blooded()
+		_drop_blood(1 - a)
+
+
+## A spot or two of his blood on the canvas under his head.
+func _drop_blood(i: int) -> void:
+	if figures[i].body == null:
+		return
+	var head: Vector3 = figures[i].body._world_at("Head")
+	for n in _spot_rng.randi_range(1, 2):
+		if _blood_spots.size() >= BLOOD_SPOTS_MAX:
+			return
+		var spot := MeshInstance3D.new()
+		var disc := CylinderMesh.new()
+		var size: float = _spot_rng.randf_range(BLOOD_SPOT_SIZE.x, BLOOD_SPOT_SIZE.y)
+		disc.top_radius = size
+		disc.bottom_radius = size
+		disc.height = 0.002
+		disc.radial_segments = 10
+		disc.rings = 1
+		spot.mesh = disc
+		var paint := StandardMaterial3D.new()
+		paint.albedo_color = BLOOD_COLOUR
+		paint.roughness = 0.35
+		spot.material_override = paint
+		var scatter := Vector2.from_angle(_spot_rng.randf() * TAU) * _spot_rng.randf() * BLOOD_SPOT_SCATTER
+		spot.position = Vector3(head.x + scatter.x, 0.004 + 0.0005 * _blood_spots.size(), head.z + scatter.y)
+		spot.scale = Vector3(_spot_rng.randf_range(0.7, 1.3), 1.0, _spot_rng.randf_range(0.7, 1.3))
+		add_child(spot)
+		_blood_spots.append(spot)
+
+
+## The marks brought up to date with the fight and drawn on the bodies (D375-D378).
+func _show_marks(sim: FightSim, delta: float) -> void:
+	if marks.size() < 2:
+		return
+	var minutes: float = sim.now * FightClock.TICK_MS / 60000.0
+	for i in 2:
+		if figures[i].body == null:
+			continue
+		marks[i].update(sim.fighters[i], delta * driver.rate(), minutes)
+		figures[i].body.set_damage(marks[i])
 
 
 ## Moves the referee (D373): shadowing them on the far side from the camera, crouched over them on the ground,
@@ -1505,6 +1585,9 @@ func _on_event(event: FightEvent) -> void:
 	# Tell cues (D51): the playtest's opponents are scouted, so their tells show.
 	if event.type == FightEvent.ROUND_ENDED:
 		_tell_until = [-1, -1]
+		if driver != null and not driver.sim.clock.is_fight_over():
+			for marked in marks:
+				marked.cornered()  # The cutman works on his cuts between rounds (D376), not after the last.
 		return
 	if event.actor in [0, 1] and figures.size() == 2:
 		_show_strike(event)
@@ -1553,6 +1636,7 @@ func _show_strike(event: FightEvent) -> void:
 			if hook:  # A hook or round kick turns his head away from the side it came from.
 				turn = 1.0 if String(FighterFigure.AIMS[action].limb).begins_with("lead") == (figures[a].lead < 0.0) else -1.0
 			figures[1 - a].show_hit(String(event.data.target), float(event.data.damage), covered, turn)
+			_mark_hit(a, action, event.data, covered)
 			if not covered:
 				_last_hit_turn[1 - a] = turn
 		FightEvent.STRIKE_MISSED:

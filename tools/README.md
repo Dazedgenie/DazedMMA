@@ -50,10 +50,18 @@ Counter-striker shows the most):
 
 `body_regions.py` (Python 3 with numpy and Pillow, not Godot) bakes `game/bodies/tripo_fighter_regions.png`, the mask
 that tells the body's shader which texels are hair, beard, eyebrows and shorts (D364), and
-`game/bodies/tripo_fighter_clothes.png`, the referee's striped shirt, trousers and shoes (D373). Run it again only if
-the body file changes or the clothes do; its heights and limits are this body's:
+`game/bodies/tripo_fighter_clothes.png`, the referee's striped shirt, trousers and shoes (D373), and the two masks for
+damage on the body (D375-D378): `tripo_fighter_damage.png` (each eye's swelling, the ribs, the flush) and
+`tripo_fighter_marks.png` (each brow's cut and its trickle, each leg's bruising). Run it again only if the body file
+changes, the clothes do or where the marks go does; its heights and limits are this body's:
 
     python3 tools/body_regions.py
+
+`damage_preview.gd` draws one fighter at four stages of a hard fight (fresh, a round in, cut, a war), his face from the
+front and from the side and his whole body, each a strip of the four (D375-D378, `docs/13` §Damage on the body).
+`--man=` picks the test fighter (default the Boxer):
+
+    godot --path . --rendering-driver opengl3 --script res://tools/damage_preview.gd -- --out=res://build/damage
 
 `grapple_preview.gd` arranges the clinch grips (hand fighting, an underhook, the body lock), each grip and clinch move,
 ground and pound, covering up and turning away, the sweeps, passes and throws, and every submission going on and held,

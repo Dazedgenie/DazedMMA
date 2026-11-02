@@ -98,3 +98,20 @@ func test_standing_his_feet_are_on_the_mat_under_the_pieces_feet() -> void:
 			var piece: Vector3 = figure._shins[i].global_transform * Vector3(0, -FighterMotion.SHIN, 0)
 			assert_lt(Vector2(ankle.x, ankle.z).distance_to(Vector2(piece.x, piece.z)), 0.05, "%s foot under the piece's" % side)
 			assert_between(_bone(figure, side + "ToeBase").y, 0.0, 0.08, "%s toes on the mat" % side)
+
+
+func test_an_arm_knocked_off_its_shoulder_is_put_back_on_the_next_pose() -> void:
+	var sim := _sim()
+	var figures := _pair()
+	_pose(sim, figures, 1.2)
+	var body: SkinnedBody = figures[0].body
+	var sk: Skeleton3D = body.skeleton
+	var joined: float = body._world_at("LeftShoulder").distance_to(body._world_at("LeftArm"))
+	var hips: Vector3 = body.hips_at()
+	# A bone left where a stale reading put it, far off its shoulder (seen at the end of a long fight).
+	var arm: int = sk.find_bone(sk.get_bone_name(body._ids["LeftArm"]))
+	sk.set_bone_pose_position(arm, sk.get_bone_pose_position(arm) + Vector3(0.0, 0.0, 300.0))
+	_pose(sim, figures, 1.2)
+	assert_almost_eq(body._world_at("LeftShoulder").distance_to(body._world_at("LeftArm")), joined, 0.01,
+		"back on his shoulder")
+	assert_lt(body.hips_at().distance_to(hips), 0.05, "and his hips not dragged after it")

@@ -13,6 +13,15 @@ and game/bodies/tripo_fighter_clothes.png, the referee's clothes over the same b
   green  the shirt's black stripes, upright round the trunk and round each sleeve; with no red, his bare hands
   blue   his trousers (the hips and legs down to the ankles)
   alpha  his shoes
+and game/bodies/tripo_fighter_damage.png, where damage shows on a fighter (D375-D378):
+  red    round his left eye (it swells and bruises), green round his right eye
+  blue   his ribs and stomach (body shots mark them)
+  alpha  where he flushes when he's tired (his face, neck and upper chest)
+and game/bodies/tripo_fighter_marks.png:
+  red    a cut over his left eyebrow and the line its blood trickles down (1 at the cut, falling to 0.05 at the end of
+         the trickle, so the trickle grows by showing more of it), green the same over his right eyebrow
+  blue   his left leg where kicks mark it (outside and front of the thigh, and the calf), alpha his right leg
+His left is -Z in the file.
 Only needed again if the body file changes:  python3 tools/body_regions.py
 Needs numpy and Pillow. The heights and limits below are this body's; another body needs its own.
 """
@@ -25,6 +34,8 @@ GLB = os.path.join(HERE, '..', 'game', 'bodies', 'tripo_fighter.glb')
 TEX = os.path.join(HERE, '..', 'game', 'bodies', 'tripo_fighter_low-poly_fighter_3d_model_basecolor.jpg')
 OUT = os.path.join(HERE, '..', 'game', 'bodies', 'tripo_fighter_regions.png')
 CLOTHES = os.path.join(HERE, '..', 'game', 'bodies', 'tripo_fighter_clothes.png')
+DAMAGE = os.path.join(HERE, '..', 'game', 'bodies', 'tripo_fighter_damage.png')
+MARKS = os.path.join(HERE, '..', 'game', 'bodies', 'tripo_fighter_marks.png')
 SIZE = 1024
 COMPONENT = {5126: np.float32, 5123: np.uint16, 5125: np.uint32, 5121: np.uint8}
 WIDTH = {'SCALAR': 1, 'VEC2': 2, 'VEC3': 3, 'VEC4': 4, 'MAT4': 16}
@@ -120,6 +131,109 @@ def clothes(p, bone_names, hand):
     return np.stack([shirt.astype(float), np.maximum(stripe, hands), trousers.astype(float), shoes.astype(float)], 1)
 
 
+# Damage (D375-D378), in the bind pose: the middle of each eye's swelling (left; the right is mirrored) and how far it
+# reaches; the cut over the eyebrow (from its inner to its outer end) and the trickle from its outer end down the side
+# of his face, both as (height, side) seen from in front and drawn on the face's front; how thick the cut and the
+# trickle are; the ribs' band; where he flushes.
+EYE = np.array([0.062, 0.925, -0.024])
+EYE_REACH = 0.024
+EYE_TOP = 0.932
+CUT = [np.array([0.9405, -0.026]), np.array([0.937, -0.035])]
+TRICKLE = [np.array([0.937, -0.035]), np.array([0.925, -0.039]), np.array([0.907, -0.036]), np.array([0.888, -0.029])]
+CUT_WIDTH = 0.0018
+TRICKLE_WIDTH = [0.003, 0.0018]
+RIBS = (0.6, 0.79)
+FLUSH_FROM = 0.75
+
+
+def along(p, line):
+    """For points `p`: the distance to the polyline `line` and how far along it (0 to 1) the nearest point is."""
+    lengths = [np.linalg.norm(line[k + 1] - line[k]) for k in range(len(line) - 1)]
+    total = sum(lengths)
+    best = np.full(len(p), np.inf)
+    where = np.zeros(len(p))
+    done = 0.0
+    for k in range(len(line) - 1):
+        a, b = line[k], line[k + 1]
+        t = np.clip(((p - a) @ (b - a)) / max(lengths[k] ** 2, 1e-12), 0, 1)
+        d = np.linalg.norm(p - (a + t[:, None] * (b - a)), axis=1)
+        closer = d < best
+        best[closer] = d[closer]
+        where[closer] = (done + t[closer] * lengths[k]) / total
+        done += lengths[k]
+    return best, where
+
+
+FRONT_CELL = 0.003
+FRONT_SPAN = (0.85, 1.0, -0.08, 0.08)
+
+
+def front_of_face(points):
+    """How far forward (x) the front of his head is at each (height, side), from the body's points: a function of
+    (y, z) giving the frontmost x in that 3 mm cell (or the next one round), so the inside of the head isn't marked."""
+    y0, y1, z0, z1 = FRONT_SPAN
+    rows, cols = int((y1 - y0) / FRONT_CELL) + 1, int((z1 - z0) / FRONT_CELL) + 1
+    grid = np.full((rows, cols), -np.inf)
+    head = points[(points[:, 1] >= y0) & (points[:, 1] <= y1) & (np.abs(points[:, 2]) <= z1)]
+    r = ((head[:, 1] - y0) / FRONT_CELL).astype(int)
+    c = ((head[:, 2] - z0) / FRONT_CELL).astype(int)
+    np.maximum.at(grid, (r, c), head[:, 0])
+    for _ in range(2):  # Fill cells no point fell in from their neighbours.
+        padded = np.pad(grid, 1, constant_values=-np.inf)
+        around = np.max([padded[1 + dr:rows + 1 + dr, 1 + dc:cols + 1 + dc] for dr in (-1, 0, 1) for dc in (-1, 0, 1)], 0)
+        grid = np.where(np.isfinite(grid), grid, around)
+
+    def front(q):
+        rr = np.clip(((q[:, 1] - y0) / FRONT_CELL).astype(int), 0, rows - 1)
+        cc = np.clip(((q[:, 2] - z0) / FRONT_CELL).astype(int), 0, cols - 1)
+        return grid[rr, cc]
+    return front
+
+
+FRONT = None
+
+
+def damage(p, bone_names, hand, normal):
+    """Where damage shows for texels at body points `p` on a face of the mesh turned to `normal` (D375-D378):
+    (damage.png, marks.png) channels."""
+    x, y, z = p[:, 0], p[:, 1], p[:, 2]
+    head = np.isin(bone_names, ['mixamorig:Head', 'mixamorig:Neck'])
+    trunk = np.isin(bone_names, ['mixamorig:' + b for b in TRUNK_BONES])
+    front = np.clip((x - 0.02) / 0.03, 0, 1)
+    eyes = []
+    marks = []
+    for side in (-1.0, 1.0):
+        mirror = np.array([1.0, 1.0, -side])  # The constants are his left side (-Z).
+        reach = np.linalg.norm(p - EYE * mirror, axis=1) / EYE_REACH
+        under_brow = np.clip((EYE_TOP - y) / 0.01, 0, 1)  # Puffs under the brow and round the eye, not the brow.
+        eyes.append(np.clip(1.0 - reach, 0, 1) ** 0.7 * front * head * under_brow)
+        seen = p[:, 1:]  # Seen from in front: (height, side).
+        flip = np.array([1.0, -side])
+        cut_d, _ = along(seen, [q * flip for q in CUT])
+        trickle_d, t = along(seen, [q * flip for q in TRICKLE])
+        width = TRICKLE_WIDTH[0] + (TRICKLE_WIDTH[1] - TRICKLE_WIDTH[0]) * t
+        trickle = np.where(trickle_d < width, 0.95 - 0.9 * t, 0.0)
+        cut = np.where(cut_d < CUT_WIDTH, 1.0, 0.0)
+        facing = (normal[0] > -0.1) | (normal[2] * side > 0.4)
+        outer = x > FRONT(p) - 0.004  # The face's front surface, not the inside of the head or the eyes behind it.
+        on_side = (z * side > 0.004) & head & (x > 0.02) & facing & outer
+        marks.append(np.maximum(cut, trickle) * on_side)
+    ribs = trunk & (y > RIBS[0]) & (y < RIBS[1]) & (x > -0.035) & (hand < 0.5)
+    body = ribs * np.clip(1.0 - np.abs(y - 0.7) / 0.1, 0.3, 1.0)
+    flush = (head & (x > -0.01)) * 1.0 + (trunk & (y > FLUSH_FROM) & (x > 0.0) & (hand < 0.5)) * 0.6
+    legs = []
+    for name, side in (('Left', -1.0), ('Right', 1.0)):
+        leg = np.isin(bone_names, ['mixamorig:%sUpLeg' % name, 'mixamorig:%sLeg' % name])
+        # Kicks land on the outside and front of the thigh, and the back and outside of the calf.
+        middle = np.where(np.abs(z) > 0.0, z, 0.0)
+        outward = np.clip((np.abs(middle) - 0.05) / 0.05, 0, 1) * (z * side > 0)
+        thigh = np.clip(np.maximum(outward, np.clip(x / 0.06, 0, 1) * 0.6), 0, 1) * np.clip((y - 0.3) / 0.04, 0, 1) * np.clip((0.56 - y) / 0.06, 0, 1)
+        calf = np.clip(np.maximum(outward, np.clip(-x / 0.04, 0, 1)), 0, 1) * np.clip((y - 0.1) / 0.04, 0, 1) * np.clip((0.26 - y) / 0.04, 0, 1)
+        legs.append(leg * np.maximum(thigh, calf * 0.8))
+    return (np.stack([eyes[0], eyes[1], body, np.minimum(flush, 1.0)], 1),
+            np.stack([marks[0], marks[1], legs[0], legs[1]], 1))
+
+
 def grow(out, covered):
     for _ in range(4):  # Grow the regions into the unused texels round them, so filtering doesn't bleed at seams.
         grown = np.stack([np.asarray(Image.fromarray(out[:, :, k]).filter(ImageFilter.MaxFilter(3))) for k in range(4)], 2)
@@ -128,7 +242,9 @@ def grow(out, covered):
 
 
 def main():
+    global FRONT
     mesh, names = load(GLB)
+    FRONT = front_of_face(mesh['pos'])
     texture = np.asarray(Image.open(TEX).convert('RGB')).astype(float) / 255.0
     tex_size = texture.shape[0]
     strongest = mesh['joints'][np.arange(len(mesh['joints'])), mesh['weights'].argmax(1)]
@@ -136,6 +252,8 @@ def main():
     hand = np.isin(strongest, hand_bones).astype(float)
     mask = np.zeros((SIZE, SIZE, 4))
     dressed = np.zeros((SIZE, SIZE, 4))
+    hurt = np.zeros((SIZE, SIZE, 4))
+    marked = np.zeros((SIZE, SIZE, 4))
     bone_of = np.array(names)[strongest]
     covered = np.zeros((SIZE, SIZE), bool)
     for tri in mesh['tris']:
@@ -164,11 +282,21 @@ def main():
         nearest = tri[bary.argmax(1)]
         worn = clothes(bary @ mesh['pos'][tri], bone_of[nearest], bary @ hand[tri])
         dressed[py, px] = np.maximum(dressed[py, px], worn)
+        corners = mesh['pos'][tri]
+        normal = np.cross(corners[1] - corners[0], corners[2] - corners[0])
+        normal = normal / max(np.linalg.norm(normal), 1e-12)
+        zones, marks = damage(bary @ corners, bone_of[nearest], bary @ hand[tri], normal)
+        hurt[py, px] = np.maximum(hurt[py, px], zones)
+        marked[py, px] = np.maximum(marked[py, px], marks)
         covered[py, px] = True
     Image.fromarray(grow((mask * 255).astype(np.uint8), covered), 'RGBA').save(OUT)
     print('Body regions:', os.path.normpath(OUT))
     Image.fromarray(grow((dressed * 255).astype(np.uint8), covered), 'RGBA').save(CLOTHES)
     print('Referee clothes:', os.path.normpath(CLOTHES))
+    Image.fromarray(grow((hurt * 255).astype(np.uint8), covered), 'RGBA').save(DAMAGE)
+    print('Damage zones:', os.path.normpath(DAMAGE))
+    Image.fromarray(grow((marked * 255).astype(np.uint8), covered), 'RGBA').save(MARKS)
+    print('Cuts and leg marks:', os.path.normpath(MARKS))
 
 
 if __name__ == '__main__':
