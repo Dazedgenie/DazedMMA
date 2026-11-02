@@ -27,11 +27,14 @@ const PROS_IN_A_DIVISION: Array[int] = [45, 140]
 ## The best man's average stat, and the share of belts vacant at once at most.
 const BEST: Array[float] = [72.0, 90.0]
 const VACANT_SHARE: float = 0.25
-## Reigns of 10 defences or more in the whole run, across every belt (about 3 expected in 30 years), and the most
+## A world organisation champion's defences, on average over the reigns that have ended (Kyle, 2026-11-02: "champs
+## averaging 2-4 defenses ... with the chance at less and more possible").
+const WORLD_DEFENCES: Array[float] = [2.0, 4.0]
+## Reigns of 10 defences or more in the whole run, across every belt (5 to 8 expected in 30 years), and the most
 ## defences in one reign.
 const LONG_REIGN: int = 10
-const LONG_REIGNS_MAX: int = 9
-const MOST_DEFENCES: int = 24
+const LONG_REIGNS_MAX: int = 12
+const MOST_DEFENCES: int = 28
 ## Every world organisation belt changes hands at least this often in the run (champions turn over).
 const WORLD_CHAMPIONS_MIN: int = 4
 ## Retired pros' median age when they stop, and the oldest active pro.
@@ -135,6 +138,9 @@ static func measure(c: Career) -> Dictionary:
 			if History.belt_rank(w, String(r[0])) == Promotions.MAJOR:
 				world_defences.append(int(r[3]))
 	world_defences.sort()
+	var world_total: int = 0
+	for d: int in world_defences:
+		world_total += d
 	var vacant: int = 0
 	var world_champions: Dictionary = {}
 	for k: String in w.titles:
@@ -150,7 +156,8 @@ static func measure(c: Career) -> Dictionary:
 	return { "active": active.size(), "retired_kept": w.men.size() - active.size(), "pros": pros, "best": snappedf(best, 0.1),
 		"belts": w.titles.size(), "vacant": vacant, "reigns_ended": reigns, "long_reigns": long_reigns, "most_defences": most,
 		"world_champions": world_champions,
-		"world_median_defences": world_defences[world_defences.size() / 2] if not world_defences.is_empty() else 0, "legends": History.legends(w).size(),
+		"world_median_defences": world_defences[world_defences.size() / 2] if not world_defences.is_empty() else 0,
+		"world_mean_defences": snappedf(float(world_total) / maxf(1.0, float(world_defences.size())), 0.01), "legends": History.legends(w).size(),
 		"retired_median": snappedf(retired_ages[retired_ages.size() / 2], 0.1) if not retired_ages.is_empty() else 0.0,
 		"oldest": snappedf(oldest, 0.1), "busiest": busiest, "save_kb": JSON.stringify(c.to_dict()).length() / 1024 }
 
@@ -186,6 +193,10 @@ static func problems(report: Dictionary) -> Array[String]:
 		for d: String in end.world_champions:
 			if int(end.world_champions[d]) < WORLD_CHAMPIONS_MIN:
 				out.append("the world %s belt had %d champions (%d at least)" % [d, int(end.world_champions[d]), WORLD_CHAMPIONS_MIN])
+	if int(report.get("years", YEARS)) >= YEARS and (float(end.get("world_mean_defences", 0.0)) < WORLD_DEFENCES[0]
+			or float(end.get("world_mean_defences", 0.0)) > WORLD_DEFENCES[1]):
+		out.append("world champions averaged %.1f defences (%.0f to %.0f)" % [float(end.get("world_mean_defences", 0.0)),
+			WORLD_DEFENCES[0], WORLD_DEFENCES[1]])
 	if int(end.save_kb) > SAVE_KB:
 		out.append("the save is %d KB (%d at most)" % [int(end.save_kb), SAVE_KB])
 	return out
@@ -196,10 +207,10 @@ static func report_text(report: Dictionary) -> String:
 	var lines: PackedStringArray = ["The world over %d years (seed %d%s)" % [int(report.years), int(report.seed),
 		(", %d ms a year" % int(report.ms_per_year)) if report.has("ms_per_year") else ""]]
 	for s: Dictionary in report.get("snapshots", []):
-		lines.append("Year %d: %d active men (%d retired kept), pros %s, best %.1f; %d/%d belts vacant, %d reigns ended, %d of %d+ defences, most %d; world champions %s (median %d defences); %d legends; retired at %.1f, oldest %.1f, busiest record %d; save %d KB" % [
+		lines.append("Year %d: %d active men (%d retired kept), pros %s, best %.1f; %d/%d belts vacant, %d reigns ended, %d of %d+ defences, most %d; world champions %s (%.1f defences on average, median %d); %d legends; retired at %.1f, oldest %.1f, busiest record %d; save %d KB" % [
 			int(s.year), int(s.active), int(s.retired_kept), JSON.stringify(s.pros), float(s.best), int(s.vacant), int(s.belts),
 			int(s.reigns_ended), int(s.long_reigns), LONG_REIGN, int(s.most_defences), JSON.stringify(s.world_champions),
-			int(s.world_median_defences), int(s.legends), float(s.retired_median), float(s.oldest), int(s.busiest), int(s.save_kb)])
+			float(s.get("world_mean_defences", 0.0)), int(s.world_median_defences), int(s.legends), float(s.retired_median), float(s.oldest), int(s.busiest), int(s.save_kb)])
 	if not (report.get("stand_in", {}) as Dictionary).is_empty():
 		var si: Dictionary = report.stand_in
 		lines.append("The stand-in: %d fights, amateur %s, pro %s, aged %d, on rung %d (%s)%s" % [int(si.fights), String(si.amateur),

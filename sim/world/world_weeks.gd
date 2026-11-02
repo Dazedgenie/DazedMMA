@@ -206,12 +206,12 @@ static func pair_gap(w: World, a: Dictionary, b: Dictionary) -> float:
 
 
 ## Two of the world's men fight (ResultModel.decide, with form and rust; `squeeze` under 1 counts the gap in their
-## averages for less, Titles.SQUEEZE in a title fight): onto both records and histories, and they're
+## averages for less, Titles.SQUEEZE in a title fight; `a_edge` is added to a's side, Titles.CHAMPION_EDGE for a champion): onto both records and histories, and they're
 ## due again in about GAP_WEEKS (longer when hurt). Returns the result: { week, division, a, b, winner ("a", "b" or
 ## "draw"), method, round, chance (a's chance beforehand), pro }.
 static func fight(w: World, a: Dictionary, b: Dictionary, week: int, rng: RandomNumberGenerator, rounds: int = 3,
-		squeeze: float = 1.0) -> Dictionary:
-	var nudge: float = nudge_for(a, week) - nudge_for(b, week)
+		squeeze: float = 1.0, a_edge: float = 0.0) -> Dictionary:
+	var nudge: float = nudge_for(a, week) - nudge_for(b, week) + a_edge
 	var mid: float = (w.average(a) + w.average(b)) / 2.0
 	var avg_a: float = mid + (w.average(a) - mid) * squeeze
 	var avg_b: float = mid + (w.average(b) - mid) * squeeze

@@ -1187,9 +1187,14 @@ because a lad was fitted to his division at the weight he is now and grew out of
   fights are on the engine and don't change.
 - **The best men fade faster after 34.** From 34 a man falls 1.5 a year as before, plus 0.15 a year for every point he
   averages over 72 (`WorldWeeks.TOP_DECLINE`, `TOP_DECLINE_FROM`): an 84 at 35 falls 3.3 a year.
-- Together: over four seeds, 1 to 4 reigns of 10 or more defences in 30 years across every belt (about 2.5, so about
-  one a decade), the longest 12 to 20; the median world organisation reign 1 defence, 12 to 37 champions per world belt
-  in 30 years (a new world champion most years: more turnover than the UFC, worth watching).
+- **The champion's edge.** Those two alone left world champions too easy to beat: half lost their first defence and
+  they averaged about 1.5 defences. Kyle (2026-11-02): "We should tune for champs averaging 2-4 defenses I think with the
+  chance at less and more possible". So in a defence the champion gets an edge on the odds (`Titles.CHAMPION_EDGE` 1.1,
+  the man who's been five rounds before and knows the belt): against an even man he wins about 75%.
+- Together, over four seeds with the stand-in: world organisation champions average 2.5 to 3.6 defences (the median 1
+  or 2: about a third still lose the first one), 5 to 7 reigns of 10 or more defences in 30 years across every belt, the
+  longest 15 to 25. Regional and international champions average under 1, because they're called up after one defence
+  (D356).
 - **Retired men remembered when notable.** Each January a retired pro who never fought him and never held a belt is
   forgotten 5 years after he retires (`WorldWeeks.FORGET_PROS_WEEKS`); champions (so every legend) and men he fought are
   kept for good. The save is about 1.1 MB after 30 years with his own career in it, a year about 0.8 s.
@@ -1202,8 +1207,8 @@ because a lad was fitted to his division at the weight he is now and grew out of
 **The check** (`sim/world/world_check.gd`, `WorldCheck`): a career started without the 10-year history (so the world is
 30 years old at the end), played a year at a time; every 5 years it measures the world: active men 550 to 800, pros in
 each division 45 to 140, the best man averaging 72 to 90, at most a quarter of belts vacant, no active pro over 46, no
-record over 80 fights, retired pros' median age 30 to 39; and at the end: at most 9 reigns of 10+ defences and none over
-24, every world organisation belt with 4 champions or more, the save under 1.5 MB. **The stand-in** takes his offers as
+record over 80 fights, retired pros' median age 30 to 39; and at the end: world organisation champions averaging 2 to 4
+defences, at most 12 reigns of 10+ defences and none over 28, every world organisation belt with 4 champions or more, the save under 1.5 MB. **The stand-in** takes his offers as
 they come (a step up, a title shot or an eliminator first), turns pro as soon as he can, asks for a step up now and then,
 wins 65% of his fights by decision, and his camps are weeks on his plan. After 30 years the test loads his save, runs a
 week and opens every hub page. On seed 3 he had about 150 fights and was 40, about 25 s in all.
@@ -1215,7 +1220,7 @@ week and opens every hub page. On seed 3 he had about 150 fights and was 40, abo
 It prints each seed's 5-year lines and anything out of bounds, and exits 1 if any seed is.
 
 **To change it:** the bounds and the stand-in in `WorldCheck` (`ACTIVE`, `PROS_IN_A_DIVISION`, `LONG_REIGNS_MAX`,
-`MOST_DEFENCES`, `STAND_IN_WINS`, …); title fights in `Titles.SQUEEZE`; fading in `WorldWeeks.TOP_DECLINE` and
+`MOST_DEFENCES`, `WORLD_DEFENCES`, `STAND_IN_WINS`, …); title fights in `Titles.SQUEEZE` and `Titles.CHAMPION_EDGE`; fading in `WorldWeeks.TOP_DECLINE` and
 `TOP_DECLINE_FROM`; forgetting in `WorldWeeks.FORGET_PROS_WEEKS` (`let_go`); division sizes in `data/divisions/*.json`
 `size` (`Weight.size_of`, `World.count_in`). Tests: `tests/sim/world/test_world_check.gd`. Then update this section and
 D359.

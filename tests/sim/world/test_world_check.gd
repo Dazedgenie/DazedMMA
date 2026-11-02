@@ -44,11 +44,13 @@ func test_the_check_names_what_is_out_of_bounds() -> void:
 	var s: Dictionary = { "year": 5, "active": 400, "pros": { "lightweight": 200 }, "best": 95.0, "belts": 36, "vacant": 20,
 		"oldest": 50.0, "busiest": 90, "retired_median": 25.0 }
 	var end: Dictionary = s.duplicate()
-	end.merge({ "long_reigns": 20, "most_defences": 30, "world_champions": { "lightweight": 1 }, "save_kb": 3000 })
+	end.merge({ "long_reigns": 20, "most_defences": 30, "world_champions": { "lightweight": 1 }, "world_mean_defences": 0.8,
+		"save_kb": 3000 })
 	var p: Array[String] = WorldCheck.problems({ "years": 30, "snapshots": [s], "end": end })
-	assert_eq(p.size(), 11, "\n".join(p))
+	assert_eq(p.size(), 12, "\n".join(p))
 	assert_string_contains("\n".join(p), "400 active men")
 	assert_string_contains("\n".join(p), "a reign of 30 defences")
+	assert_string_contains("\n".join(p), "world champions averaged 0.8 defences")
 
 
 func test_a_title_fight_is_closer_than_the_mens_averages_say() -> void:
