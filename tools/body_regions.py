@@ -8,6 +8,11 @@ writes game/bodies/tripo_fighter_regions.png (1024 x 1024, RGBA):
   green  where a beard grows (skin on the jaw, chin and upper lip, fading out at the cheeks; not the lips)
   blue   his eyebrows
   alpha  his shorts (colourless texels round the hips)
+and game/bodies/tripo_fighter_clothes.png, the referee's clothes over the same body (D373):
+  red    his shirt (the trunk from the waist to the collar, and short sleeves)
+  green  the shirt's black stripes, upright round the trunk and round each sleeve; with no red, his bare hands
+  blue   his trousers (the hips and legs down to the ankles)
+  alpha  his shoes
 Only needed again if the body file changes:  python3 tools/body_regions.py
 Needs numpy and Pillow. The heights and limits below are this body's; another body needs its own.
 """
@@ -19,6 +24,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 GLB = os.path.join(HERE, '..', 'game', 'bodies', 'tripo_fighter.glb')
 TEX = os.path.join(HERE, '..', 'game', 'bodies', 'tripo_fighter_low-poly_fighter_3d_model_basecolor.jpg')
 OUT = os.path.join(HERE, '..', 'game', 'bodies', 'tripo_fighter_regions.png')
+CLOTHES = os.path.join(HERE, '..', 'game', 'bodies', 'tripo_fighter_clothes.png')
 SIZE = 1024
 COMPONENT = {5126: np.float32, 5123: np.uint16, 5125: np.uint32, 5121: np.uint8}
 WIDTH = {'SCALAR': 1, 'VEC2': 2, 'VEC3': 3, 'VEC4': 4, 'MAT4': 16}
@@ -68,6 +74,59 @@ def classify(p, colour, hand):
     return np.stack([hair, beard, brows, shorts], 1).astype(float)
 
 
+# The referee's clothes (D373), in the body's bind pose (1.0 tall): the waist, the collar, where the sleeves end,
+# the trousers' hem, and the stripes' width round him (a 1.8 m man's stripes about 3.5 cm).
+WAIST = 0.59
+COLLAR = 0.835
+SLEEVE_END = 0.72
+HEM = 0.075
+STRIPE = 0.02
+TRUNK_BONES = ['Hips', 'Spine', 'Spine1', 'Spine2', 'LeftShoulder', 'RightShoulder', 'Neck']
+LEG_BONES = ['Hips', 'LeftUpLeg', 'RightUpLeg', 'LeftLeg', 'RightLeg']
+FOOT_BONES = ['LeftFoot', 'RightFoot', 'LeftToeBase', 'RightToeBase']
+# Each upper arm's line in the bind pose, shoulder to elbow (z mirrored), for the sleeves' stripes.
+ARM_FROM = np.array([-0.02, 0.8, 0.11])
+ARM_TO = np.array([-0.02, 0.655, 0.19])
+
+
+def stripes(p, arm):
+    """1 on the shirt's black stripes: upright round the trunk, and round the upper arm on a sleeve."""
+    trunk_arc = np.arctan2(p[:, 2], p[:, 0] + 0.01) * 0.09
+    side = np.where(p[:, 2] < 0, -1.0, 1.0)
+    origin = ARM_FROM * np.stack([np.ones_like(side), np.ones_like(side), side], 1)
+    axis = (ARM_TO - ARM_FROM) * np.stack([np.ones_like(side), np.ones_like(side), side], 1)
+    axis /= np.linalg.norm(axis, axis=1, keepdims=True)
+    rel = p - origin
+    rel -= axis * (rel * axis).sum(1, keepdims=True)
+    up = np.cross(axis, np.array([1.0, 0.0, 0.0]))
+    up /= np.linalg.norm(up, axis=1, keepdims=True)
+    arm_arc = np.arctan2((rel * up).sum(1), rel[:, 0]) * 0.04
+    arc = np.where(arm > 0.5, arm_arc, trunk_arc)
+    return (np.floor(arc / STRIPE).astype(int) % 2 == 0).astype(float)
+
+
+def clothes(p, bone_names, hand):
+    """The referee's clothes for texels at body points `p` whose strongest bones are `bone_names`."""
+    y = p[:, 1]
+    trunk = np.isin(bone_names, ['mixamorig:' + b for b in TRUNK_BONES])
+    arm = np.isin(bone_names, ['mixamorig:LeftArm', 'mixamorig:RightArm'])
+    legs = np.isin(bone_names, ['mixamorig:' + b for b in LEG_BONES])
+    feet = np.isin(bone_names, ['mixamorig:' + b for b in FOOT_BONES])
+    shirt = ((trunk & (y >= WAIST) & (y < COLLAR)) | (arm & (y > SLEEVE_END))) & (hand < 0.5)
+    stripe = shirt * stripes(p, arm.astype(float))
+    trousers = (legs & (y < WAIST) & (y > HEM) & (hand < 0.5)) | (trunk & (y < WAIST) & (hand < 0.5))
+    shoes = feet | (y <= HEM)
+    hands = (hand >= 0.5).astype(float)
+    return np.stack([shirt.astype(float), np.maximum(stripe, hands), trousers.astype(float), shoes.astype(float)], 1)
+
+
+def grow(out, covered):
+    for _ in range(4):  # Grow the regions into the unused texels round them, so filtering doesn't bleed at seams.
+        grown = np.stack([np.asarray(Image.fromarray(out[:, :, k]).filter(ImageFilter.MaxFilter(3))) for k in range(4)], 2)
+        out[~covered] = grown[~covered]
+    return out
+
+
 def main():
     mesh, names = load(GLB)
     texture = np.asarray(Image.open(TEX).convert('RGB')).astype(float) / 255.0
@@ -76,6 +135,8 @@ def main():
     hand_bones = [k for k, n in enumerate(names) if 'Hand' in n]
     hand = np.isin(strongest, hand_bones).astype(float)
     mask = np.zeros((SIZE, SIZE, 4))
+    dressed = np.zeros((SIZE, SIZE, 4))
+    bone_of = np.array(names)[strongest]
     covered = np.zeros((SIZE, SIZE), bool)
     for tri in mesh['tris']:
         uv = mesh['uv'][tri] * SIZE
@@ -100,13 +161,14 @@ def main():
                          np.minimum((px + 0.5) * tex_size / SIZE, tex_size - 1).astype(int)]
         regions = classify(bary @ mesh['pos'][tri], colour, bary @ hand[tri])
         mask[py, px] = np.maximum(mask[py, px], regions)
+        nearest = tri[bary.argmax(1)]
+        worn = clothes(bary @ mesh['pos'][tri], bone_of[nearest], bary @ hand[tri])
+        dressed[py, px] = np.maximum(dressed[py, px], worn)
         covered[py, px] = True
-    out = (mask * 255).astype(np.uint8)
-    for _ in range(4):  # Grow the regions into the unused texels round them, so filtering doesn't bleed at seams.
-        grown = np.stack([np.asarray(Image.fromarray(out[:, :, k]).filter(ImageFilter.MaxFilter(3))) for k in range(4)], 2)
-        out[~covered] = grown[~covered]
-    Image.fromarray(out, 'RGBA').save(OUT)
+    Image.fromarray(grow((mask * 255).astype(np.uint8), covered), 'RGBA').save(OUT)
     print('Body regions:', os.path.normpath(OUT))
+    Image.fromarray(grow((dressed * 255).astype(np.uint8), covered), 'RGBA').save(CLOTHES)
+    print('Referee clothes:', os.path.normpath(CLOTHES))
 
 
 if __name__ == '__main__':
