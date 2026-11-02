@@ -795,9 +795,9 @@ escape letting go, the tap before the result).
 ## Scrambles, getting up and shots from range (D368, D369)
 
 The second PR of submissions and scrambles on the rig (D366): what was left on today's figures off the feet comes
-onto the rig. On Kyle's four cards for it (2026-11-02) he picked the scramble as
-"Both on knees, fighting for it" and getting up as "Technical stand-up, fence walk" (03:37); the shot from range is
-built on the recommended "Level change and blast in" and following him down on "Dives on top" while those two are open.
+onto the rig. On Kyle's four cards for it (2026-11-02 03:37) he picked the
+recommended answers: the scramble as "Both on knees, fighting for it", getting up as "Technical stand-up, fence walk",
+the shot from range as "Level change and blast in" and following him down as "Dives on top".
 
 **How they play.** Each move is a list of paired poses (`game/rig/scramble_pair.gd`, `ScramblePair`, and
 `game/rig/shot_pair.gd`, `ShotPair`) played along from the pose the two were in, the way the clinch takedowns play
