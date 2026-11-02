@@ -1103,6 +1103,39 @@ draw raising both; the winner's arms up after a finish; a beaten man down sittin
 click skipping each one; a whole fight played with them unchanged; the setup's option; the round panel down the side).
 `tests/game/test_referee.gd` checks the referee still walks the same on `Walker`.
 
+## Limbs that stay put (D395)
+
+Kyle asked for an hour on the animations (2026-11-02 19:10: "limbs sometimes go all over the place") and picked
+"Stand-up striking" as where he sees it most. Presentation only: fights are unchanged (golden fights not re-pinned).
+
+**Finding them** (`tools/limb_check.gd`). Plays real seeded fights through the fight screen without drawing them and
+checks both skinned bodies every frame (24 a second) while they're on their feet and drawn from the pieces (not the
+clinch, a takedown or a man down): an elbow or knee whose bend turns more than 75° round the limb in one frame, a joint
+moving more than 45 cm in a frame against his hips, a knee bent backwards, a leg locked straight with its foot on the
+canvas, a foot more than 4 cm from where the pieces put it, anything through the canvas. It prints each by what the
+fighter was doing and the worst frames with the seconds to film them from (`tools/motion_preview.gd --from=`).
+
+**What it found** (four striking fights, about 30 minutes of standing, both men). The body is moved so its shoulders
+are where the pieces' are (D285), and its trunk is shorter, so its hips were lifted: in 17.6% of frames a leg was locked
+straight and in 6.5% a foot couldn't reach the canvas, hanging or sliding as he stepped. Knees swinging round, elbows
+flipping and joints jumping were rare (kicks snapping out from the chamber the most, 0.3% of frames).
+
+**The fix** (`SkinnedBody._sink_to_feet`). After the trunk is placed, his hips come down until each foot lower than
+20 cm off the canvas is within 98.5% of his leg's length, by at most 20 cm; a kicking foot doesn't pull him down, and a
+foot too far out to the side for any height is left. A bent arm comes down with him (a punch still reaches for the
+glove), so his guard stays where it is on him. A nearly straight leg barely says which way its knee bends, and sinking
+bends his legs more than the pieces', so the knee now leans 8 cm toward his front: knees bend forward unless the pieces'
+knee clearly points somewhere else (a round kick). After: legs locked straight 0.03% of frames, feet that can't reach
+2.0% (mostly easing out of the clinch and the first frames of a round), knee flips unchanged at 2 in 85,000.
+
+Numbers: `PLANTED_BELOW` 0.2 m, `LEG_REACH` 0.985, `SINK_MAX` 0.2 m, `KNEE_FORWARD` 0.08 m, all at the top of
+`game/rig/skinned_body.gd`. The checker's limits are at the top of `tools/limb_check.gd`.
+
+Pictures: `/mnt/project-files/screenshots/limbs-d395/` (the same moments before and after, side by side).
+
+Tests: `tests/game/test_limbs.gd` (lifted hips sinking until both feet on the canvas reach; feet off the canvas not
+pulling him down; a nearly straight leg's knee bending forward).
+
 ## Review and verification
 
 Open `project.godot` in Godot 4.7.2 and run the game normally. Start a fight and check striking,

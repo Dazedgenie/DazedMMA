@@ -459,11 +459,18 @@ func follow_joints(pose: Dictionary, only: Array[String] = []) -> void:
 	var to_skeleton: Transform3D = skeleton.global_transform.affine_inverse()
 	if only.is_empty():
 		_follow_trunk(pose, Vector3(pose.pelvis_at), to_skeleton)
+	var sink: float = 0.0
 	if only.is_empty() and pose.has("shoulders_at"):
 		# A driver with a longer trunk than the body's (the faceted pieces): the body's hips move along so its
 		# shoulders are where the driver's are and the arms start from the right place. Its legs take up the gap.
 		var shoulders: Vector3 = (_anchored("LeftArm") + _anchored("RightArm")) / 2.0
-		_follow_trunk(pose, Vector3(pose.pelvis_at) + Vector3(pose.shoulders_at) - shoulders, to_skeleton)
+		var hips_at: Vector3 = Vector3(pose.pelvis_at) + Vector3(pose.shoulders_at) - shoulders
+		_follow_trunk(pose, hips_at, to_skeleton)
+		# Lifting his hips to the pieces' shoulders can leave a foot on the canvas out of reach: the leg locked straight
+		# and the foot hanging off the canvas or sliding (D395). He sinks until both planted feet reach.
+		sink = _sink_to_feet(pose)
+		if sink > 0.0:
+			_follow_trunk(pose, hips_at + Vector3.DOWN * sink, to_skeleton)
 	# The limbs, in the body's own lengths, to the driver's wrists and ankles.
 	for limb: Array in LIMBS:
 		var side: String = limb[3]
@@ -489,13 +496,22 @@ func follow_joints(pose: Dictionary, only: Array[String] = []) -> void:
 			var shoulder_at: Vector3 = pose["shoulder_" + side]
 			var piece_reach: float = shoulder_at.distance_to(middle_at) + middle_at.distance_to(end_at)
 			var straight: float = shoulder_at.distance_to(end_at) / maxf(piece_reach, 0.001)
+			var reaching: float = smoothstep(STRAIGHT_FROM, STRAIGHT_AT, straight)
+			# Sunk to his feet (D395): a bent arm comes down with him, keeping his guard where it is on him.
+			end_at += Vector3.DOWN * sink * (1.0 - reaching)
+			middle_at += Vector3.DOWN * sink * (1.0 - reaching)
 			var bent_at: Vector3 = root + (end_at - root).normalized() * straight * (first + second)
-			end_at = bent_at.lerp(end_at, smoothstep(STRAIGHT_FROM, STRAIGHT_AT, straight))
+			end_at = bent_at.lerp(end_at, reaching)
 		if arm and root.distance_to(end_at) > first + second:
 			root = _reach_with_shoulder(("Left" if side == "l" else "Right") + "Shoulder", root, end_at,
 				root.distance_to(end_at) - first - second, to_skeleton)
 		var root_at: Vector3 = pose[("shoulder_" if arm else "hip_") + side]
 		var bend: Vector3 = middle_at - root_at.lerp(end_at, 0.5)
+		if not arm:
+			# A nearly straight leg's knee barely leaves the line from hip to ankle, so which way it bends would swing
+			# about from frame to frame (sunk to his feet, his legs bend more than the driver's): knees bend forward,
+			# so they lean that way unless the driver's knee points somewhere clearly (D395).
+			bend += Basis(pose.pelvis) * Vector3.FORWARD * KNEE_FORWARD
 		var chain: Array[Vector3] = FighterMotion.solve_bones(root, end_at, bend, first, second)
 		var middle: Vector3 = chain[0]
 		var tip: Vector3 = chain[1]
@@ -528,6 +544,42 @@ func _follow_trunk(pose: Dictionary, pelvis_at: Vector3, to_skeleton: Transform3
 		if bone == "Spine2":
 			for shoulder: String in ["LeftShoulder", "RightShoulder"]:
 				_set_world(shoulder, Transform3D(turn * Transform3D(_rest_world[shoulder]).basis, _anchored(shoulder)), to_skeleton)
+
+
+## Sinking his hips to his feet (D395): a foot this low (metres) is on the canvas; the leg reaching it may be this
+## straight (hip to ankle over the leg's length) at most; and he sinks this far at most.
+const PLANTED_BELOW: float = 0.2
+const LEG_REACH: float = 0.985
+const SINK_MAX: float = 0.2
+## How hard (metres) a knee leans forward of his hips when the driver's knee hardly says which way it bends.
+const KNEE_FORWARD: float = 0.08
+
+
+## How far (metres) his hips must come down, as posed now, for each foot on the canvas in `pose` to be in reach.
+func _sink_to_feet(pose: Dictionary) -> float:
+	var sink: float = 0.0
+	for limb: Array in LIMBS:
+		if limb[4] != "leg":
+			continue
+		var side: String = limb[3]
+		var end_at: Vector3 = _foot_target(pose, side)
+		if end_at.y > PLANTED_BELOW:
+			continue  # A kick or a knee up: free to straighten.
+		var reach: float = (_at(limb[0]).distance_to(_at(limb[1])) + _at(limb[1]).distance_to(_at(limb[2]))) * LEG_REACH
+		var gap: Vector3 = _anchored(limb[0]) - end_at
+		var across: float = Vector2(gap.x, gap.z).length()
+		if across >= reach:
+			continue  # Out of reach whatever the height: sinking wouldn't bring it back.
+		sink = maxf(sink, gap.y - sqrt(reach * reach - across * across))
+	return minf(sink, SINK_MAX)
+
+
+## Where the driver's `side` ankle wants this body's ankle (its ankle height over the sole may differ).
+func _foot_target(pose: Dictionary, side: String) -> Vector3:
+	var end_at: Vector3 = pose["ankle_" + side]
+	if pose.has("ankle_up"):
+		end_at += Basis(pose["foot_" + side]).y * (_at("RightFoot").y - float(pose.ankle_up))
+	return end_at
 
 
 ## How far a shoulder blade may turn to carry a hand that's out of reach (radians): a punch throws the shoulder.
