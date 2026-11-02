@@ -780,7 +780,7 @@ hotbeds at the top, each organisation's own top 15, about 3 fights a year (champ
 | Promotions and their cards: 3 or 4 regional pro promotions and 2 international organisations, made up each career (D57) | D354 | Built (§12.4) |
 | Rankings: each organisation's top 15, updated weekly, each move with its reason (A10) | D355 | Built (§12.5) |
 | Titles: belts, 5-round title fights, defences, vacating | D356 | Built (§12.6) |
-| Climbing the ladder: call-ups to the bigger promotion, title eliminators, and asking for a step up from the hub at a risk of a tougher fight or a no (Kyle, 2026-11-01: "Call-ups plus asking for it"); fight-by-fight deals until phase 5 | D357 | Planned |
+| Climbing the ladder: call-ups to the bigger promotion, title eliminators, and asking for a step up from the hub at a risk of a tougher fight or a no (Kyle, 2026-11-01: "Call-ups plus asking for it"); fight-by-fight deals until phase 5 | D357 | Built (§12.7) |
 | A history before day one: the world played 10 years before his career starts, so there are long records and some retired legends (Kyle, 2026-11-01: "10 years") | D358 | Planned |
 | The 30-year check: a tool and a test that the world stays healthy (A10) | D359 | Planned |
 
@@ -976,7 +976,7 @@ and "A Promotions button on the hub". The local amateur shows (§11.4) stay as t
 - **Call-ups and cuts as they happen.** Three wins in a row since he last moved and he's called up a rank, while the
   organisation has room in his division (fewer than its 18 or 20, plus 2); three losses in a row and he's let go a
   rank down. A move is news.
-- **His pro offers** are on a regional promotion's card, fight by fight (call-ups for him are D357), at its pay plus
+- **His pro offers** are on a regional promotion's card, fight by fight (until he's called up, §12.7), at its pay plus
   $250 more for each pro win: three in four on his home promotion's next card at least 5 weeks away (a camp can be up
   to a card's gap longer than usual), the rest on another regional promotion's card 5 to 8 weeks away. His opponent is
   any regional pro of his division (or a newcomer, who signs where the card is). Each offer says the card ("On Iron
@@ -1072,7 +1072,7 @@ pick on all six).
   the belt's vacant), the first of his offers is the title fight: on the promotion's first card far enough off for a camp,
   against the champion (or the best other ranked man for a vacant belt), 5 rounds, paying double. Win it and he's the
   champion; as champion his only offer is his defence when it's due (22 weeks on), against the best ranked man who's
-  free. A year without a defence strips him too. His call-up after a defence comes with D357.
+  free. A year without a defence strips him too. His call-up after a defence and the title eliminators: §12.7.
 - **On the hub.** The rankings page puts each table's champion above it (since when, defences; vacant when it is), his
   card says when he's champion, *His division* says "champion, ACL", offers say when the man is a champion and a title
   fight says so ("Title shot: the IML lightweight title, 5 rounds, double pay"), his fights list marks title fights, and
@@ -1088,3 +1088,47 @@ with up to 5 defences; a year still takes about 0.75 s.
 (`title_rounds`) and `game/main.gd` (`start_fight`); his offers in `Matchmaker.title_offer` (`TITLE_EVEN`); the hub in
 `CareerHub` (`champion_line`, `his_rank_text`, `offer_text`, `_title_news`). Tests: `tests/sim/world/test_titles.gd`.
 Then update this section and D356.
+
+### 12.7 Climbing the ladder (D357)
+
+He climbs the promotions now, from the regional cards to the international organisation to the world one. Kyle
+(2026-11-02) picked "Like everyone: 3 wins or a defence", "An offer he can turn down", "A tryout fight on their card",
+"By his rank, 3 months between asks", "Let go after 3 losses in a row", "#3 v #4, winner next in line" and "A line on
+his card, ask on This week" (my pick on all seven).
+
+- **Where he is.** He starts on the regional cards (D354's offers, mostly at home). Once he's signed by an
+  organisation his offers are on its cards, against its men, at its pay; the world organisation is the top.
+- **Called up like everyone else.** Three wins in a row since his last move, or a title defence as a champion, and the
+  promotion a step up offers to sign him: one of his offers is a *Call-up* on their card, against one of their men about
+  his level. Take it and he's theirs from that moment (a belt he holds goes vacant); turn it down, or let it go, and he
+  stays, asked again after his next fight if he still qualifies.
+- **Asking for a step up.** *Ask the ACL for a step up* on This week. A yes is about 70% in his promotion's top 3 (a
+  champion counts as #1), 30% in its top 10, 10% further down or unranked. A yes is a *Tryout* offer on their card against
+  one of their men a bit better than him: win it and they sign him, lose it and he's back where he was with the loss on
+  his record. A no means waiting 3 months to ask again. The answer shows on This week, and the date he can ask again.
+- **Let go.** Three losses in a row in an organisation and he's let go a rank (the international organisation lets him
+  go to his home promotion).
+- **Title eliminators.** Between a champion's title fights, from 8 weeks after the last one and while nobody's next in
+  line, the two best men of the table's #3 to #6 who are due and free fight a 3-round eliminator on the card. The winner
+  is next in line: he sits out the other fights and gets the next title shot before anyone ranked higher (the champion's
+  defence waits for him while he's hurt or booked), for up to 26 weeks, and no longer once he's left. Ranked #3 to #5,
+  with a champion and nobody next, he's offered an eliminator against the best other free man of #3 to #6; win it and
+  his title shot comes when the champion's next due, whatever his rank. A man next in line goes before his #1 or #2 shot.
+- **On the hub.** His card has a *Ladder* line ("Regional (IML) · 2 of 3 wins in a row to a call-up to the ACL", "a
+  call-up to the ACL after a title defence", "the top of the ladder", and how many losses in a row from being let go),
+  and his rank says when he's next in line. Offers say *Call-up*, *Tryout* or *Title eliminator*; his fights list marks
+  tryouts, eliminators, "signed up" and "let go"; the news says when he's signed or let go and when an eliminator's
+  winner is next in line.
+- **Fixed with it:** a man booked to fight him (or in his offers) no longer retires or turns pro before fight night,
+  which could break the fight's result going onto his record.
+
+**How healthy it is** (10 years from a fresh career, 2026-11-02): about 67 eliminators a year over the 36 belts, and
+the winner got the next title shot 3 times in 4; about 84 title fights a year; a year takes about 0.85 s. A stand-in
+career winning 85% of his fights (fewer against bigger promotions) reached the international organisation in about a
+year and the world one in about 2; winning 70% took 1 to 7 years to the international one and 2.5 to 9 to the world one.
+
+**To change it:** in `sim/world/climb.gd` (`CALL_UP_WINS`, `LET_GO_LOSSES`, `ASK_WAIT_WEEKS`, `ASK_YES`,
+`ASK_YES_UNRANKED`); the eliminators in `sim/world/titles.gd` (`ELIMINATOR_FROM`, `ELIMINATOR_TO`, `HIS_ELIMINATOR_TO`,
+`ELIMINATOR_AFTER`, `ELIMINATOR_ROUNDS`, `NEXT_WAIT`); his offers in `Matchmaker` (`step_up_offer`, `eliminator_offer`,
+`pro_cards`, `title_offer`); the hub in `CareerHub` (`fighter_card_text`, `offer_text`, the Ask button, `news_text`) and
+`game/main.gd` (`ask_step_up`). Tests: `tests/sim/world/test_climb.gd`. Then update this section and D357.

@@ -9,7 +9,8 @@ extends RefCounted
 ##
 ## Each belt (World.titles, by the rankings' key "org_0:lightweight"): { champion (an id, the career's fighter's
 ## Career.FIGHTER_ID, or "" vacant), won (the week he won it), defences, last (the week of his last title fight),
-## past ([[id, won, lost, defences, how it ended]], the last PAST_KEPT reigns) }.
+## past ([[id, won, lost, defences, how it ended]], the last PAST_KEPT reigns), next (the eliminator's winner, next in
+## line for a shot, "" for nobody, D357), next_week (when he won it) }.
 ##
 ## On a promotion's card week (WorldWeeks.play_week, before the other fights):
 ## - a champion who's retired, left the promotion or the division, or gone STRIP_WEEKS without a title fight loses the
@@ -20,6 +21,14 @@ extends RefCounted
 ## - a regional or international champion who's defended CALL_UP_DEFENCES times is called up a rank, while there's
 ##   room, and his belt goes vacant.
 ## A draw keeps the belt with the champion.
+##
+## Title eliminators (D357; Kyle, 2026-11-02: "#3 v #4, winner next in line"): between a champion's title fights, from
+## ELIMINATOR_AFTER weeks after the last one and while nobody's next in line, the two best men of the table's #3 to
+## ELIMINATOR_TO who are due and free fight a 3-round eliminator on the card; the winner is next in line (the belt's
+## `next`, from `next_week`) and waits for the shot, out of the other fights, which goes to him before anyone ranked
+## higher. He's next for NEXT_WAIT weeks at most (a man next who's hurt or busy holds the defence up until then), and
+## no longer once he's not active in that promotion and division. The career's fighter is offered an eliminator at #3
+## to HIS_ELIMINATOR_TO (Matchmaker.eliminator_offer) and, winning one, his title shot (Matchmaker.title_offer).
 ##
 ## Pure (D100): the same world makes the same champions.
 
@@ -37,6 +46,13 @@ const ROUNDS: int = 5
 const TITLE_PAY: int = 2
 ## His title fight offer (D356): once he's in his promotion's top OFFER_FROM and the belt's due on the line.
 const OFFER_FROM: int = 2
+## Title eliminators (D357, see the top).
+const ELIMINATOR_FROM: int = 3
+const ELIMINATOR_TO: int = 6
+const HIS_ELIMINATOR_TO: int = 5
+const ELIMINATOR_AFTER: int = 8
+const ELIMINATOR_ROUNDS: int = 3
+const NEXT_WAIT: int = 26
 ## Reigns kept in a belt's `past`.
 const PAST_KEPT: int = 8
 ## Day one: the best man of each promotion's division holds the belt, won SEED_WON weeks ago, with up to SEED_DEFENCES
@@ -92,6 +108,7 @@ static func seed(w: World, week: int) -> void:
 			w.titles[k] = { "champion": String(men[0].id), "won": won, "defences": rng.randi_range(0, SEED_DEFENCES),
 				"last": maxi(won, week - rng.randi_range(SEED_LAST[0], SEED_LAST[1])), "past": [] }
 	w.champion_cache = {}
+	w.next_cache = {}
 
 
 ## This card week's title business for every promotion with a card (see the top). Returns the title fights' results.
@@ -108,10 +125,23 @@ static func play_week(w: World, week: int, busy: Dictionary, rng: RandomNumberGe
 			if champ_id == Career.FIGHTER_ID or busy.has(champ_id):
 				continue  # His own belt is defended through his offers; a man booked to fight him waits.
 			if champ_id != "":
-				if week - int(b.last) < DEFENCE_WEEKS:
-					continue
 				var champ: Dictionary = w.man(champ_id)
+				var next: String = String(b.get("next", ""))
+				if week - int(b.last) < DEFENCE_WEEKS:
+					if next == "" and week - int(b.last) >= ELIMINATOR_AFTER:
+						var pair: Array = eliminators(w, k, week, busy)
+						if pair.size() == 2:
+							out.append(eliminator(w, k, pair[0], pair[1], week, rng))
+					continue
 				if int(champ.get("out_until", -1)) > week:
+					continue
+				if next != "":
+					if next == Career.FIGHTER_ID:
+						continue  # His shot comes as an offer (Matchmaker.title_offer); the champion waits for him.
+					var man: Dictionary = w.man(next)
+					if busy.has(next) or int(man.get("out_until", -1)) > week or WorldWeeks._met_lately(man, champ_id, week):
+						continue  # The man next in line holds it up until he's fit (see _check for how long).
+					out.append(title_fight(w, k, champ, man, week, rng))
 					continue
 				var picks: Array = challengers(w, k, week, busy, champ_id)
 				if picks.is_empty():
@@ -146,12 +176,68 @@ static func challengers(w: World, k: String, week: int, busy: Dictionary, agains
 	return out
 
 
+## The two best men of a table's #ELIMINATOR_FROM to #ELIMINATOR_TO who can fight an eliminator this week (as
+## challengers: due, fit, free, not met lately), [] when fewer than two can.
+static func eliminators(w: World, k: String, week: int, busy: Dictionary) -> Array:
+	var out: Array = []
+	var ids: Array = w.rankings.get(k, [])
+	for i in range(ELIMINATOR_FROM - 1, mini(ELIMINATOR_TO, ids.size())):
+		var id: String = String(ids[i])
+		if id == Career.FIGHTER_ID or busy.has(id):
+			continue
+		var m: Dictionary = w.man(id)
+		if m.is_empty() or not World.active(m) or int(m.get("out_until", -1)) > week or int(m.get("next_week", 0)) > week + CHALLENGER_DUE:
+			continue
+		if out.size() == 1 and WorldWeeks._met_lately(m, String(out[0].id), week):
+			continue
+		out.append(m)
+		if out.size() == 2:
+			break
+	return out
+
+
+## An eliminator between two of the world's men: 3 rounds, onto both records and rankings points; the winner is next in
+## line. Returns the fight's result with `eliminator` (the belt's key).
+static func eliminator(w: World, k: String, a: Dictionary, b: Dictionary, week: int, rng: RandomNumberGenerator) -> Dictionary:
+	var r: Dictionary = WorldWeeks.fight(w, a, b, week, rng, ELIMINATOR_ROUNDS)
+	r.eliminator = k
+	if String(r.winner) in ["a", "b"]:
+		set_next(w, k, String(r.a) if String(r.winner) == "a" else String(r.b), week)
+	return r
+
+
+## He's next in line for the belt's next title shot (an eliminator won).
+static func set_next(w: World, k: String, id: String, week: int) -> void:
+	var b: Dictionary = w.titles[k]
+	b.next = id
+	b.next_week = week
+	w.next_cache = {}
+
+
+## The men next in line for a shot, as { id: belt key } (kept out of the other fights while they wait).
+static func waiting(w: World) -> Dictionary:
+	if w.next_cache.is_empty():
+		for k: String in w.titles:
+			var id: String = String(w.titles[k].get("next", ""))
+			if id != "":
+				w.next_cache[id] = k
+		w.next_cache[""] = ""  # Worked out (even when nobody's waiting).
+	return w.next_cache
+
+
+## After his eliminator (D357): winning it, he's next in line.
+static func his_eliminator(w: World, k: String, result: String, week: int) -> void:
+	if w.titles.has(k) and result == "win" and String(w.titles[k].get("next", "")) == "":
+		set_next(w, k, Career.FIGHTER_ID, week)
+
+
 ## A title fight between two of the world's men: 5 rounds on the quick result model, onto both records, rankings points
 ## and the belt (`a` is the champion when there is one). Returns the fight's result with `title` (the belt's key).
 static func title_fight(w: World, k: String, a: Dictionary, b: Dictionary, week: int, rng: RandomNumberGenerator) -> Dictionary:
 	var r: Dictionary = WorldWeeks.fight(w, a, b, week, rng, ROUNDS)
 	r.title = k
 	var b_: Dictionary = w.titles[k]
+	_clear_next(w, b_)
 	var holder: String = String(b_.champion)
 	var winner: String = String(r.a) if String(r.winner) == "a" else (String(r.b) if String(r.winner) == "b" else "")
 	if holder != "" and (winner == holder or winner == ""):
@@ -199,6 +285,7 @@ static func his_title_fight(w: World, k: String, opponent: String, result: Strin
 	if not w.titles.has(k):
 		return
 	var b: Dictionary = w.titles[k]
+	_clear_next(w, b)
 	var holder: String = String(b.champion)
 	if result == "draw" or (result == "win" and holder == Career.FIGHTER_ID) or (result == "loss" and holder == opponent):
 		if holder != "":
@@ -213,6 +300,7 @@ static func his_title_fight(w: World, k: String, opponent: String, result: Strin
 ## A champion who's gone, left or not fought for the belt in STRIP_WEEKS loses it; one who's defended it
 ## CALL_UP_DEFENCES times in a promotion below the world organisation is called up.
 static func _check(w: World, k: String, b: Dictionary, week: int) -> void:
+	_check_next(w, k, b, week)
 	var id: String = String(b.champion)
 	if id == "":
 		return
@@ -240,6 +328,29 @@ static func _check(w: World, k: String, b: Dictionary, week: int) -> void:
 		m.moved = week
 		w.results.append({ "kind": "moved", "week": week, "id": id, "division": String(m.division), "from": pid,
 			"to": String(m.promotion), "up": true })
+
+
+## The man next in line stops being next after NEXT_WAIT weeks, or once he's not an active man of that promotion and
+## division (or the belt's gone vacant: a vacant belt goes to #1 and #2).
+static func _check_next(w: World, k: String, b: Dictionary, week: int) -> void:
+	var next: String = String(b.get("next", ""))
+	if next == "":
+		return
+	var gone: bool = String(b.champion) == "" or week - int(b.get("next_week", week)) >= NEXT_WAIT
+	if not gone and next == Career.FIGHTER_ID:
+		gone = String(w.him.get("promotion", "")) != k.get_slice(":", 0) or String(w.him.get("division", "")) != k.get_slice(":", 1)
+	elif not gone:
+		var m: Dictionary = w.man(next)
+		gone = m.is_empty() or not World.active(m) or String(m.get("promotion", "")) != k.get_slice(":", 0) \
+			or String(m.get("division", "")) != k.get_slice(":", 1)
+	if gone:
+		_clear_next(w, b)
+
+
+static func _clear_next(w: World, b: Dictionary) -> void:
+	if String(b.get("next", "")) != "":
+		b.next = ""
+		w.next_cache = {}
 
 
 static func _end_reign(b: Dictionary, week: int, how: String) -> void:

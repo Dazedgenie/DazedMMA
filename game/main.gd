@@ -146,6 +146,7 @@ func _ready() -> void:
 	hub.division_pressed.connect(open_division)
 	hub.promotions_pressed.connect(open_promotions)
 	hub.rankings_pressed.connect(open_rankings)
+	hub.ask_pressed.connect(ask_step_up)
 	ui.add_child(hub)
 	result = FightResultCard.new()
 	result.visible = false
@@ -367,6 +368,13 @@ func accept_offer(offer_id: String) -> void:
 func decline_offer(offer_id: String) -> void:
 	if career != null:
 		career.decline(offer_id)
+		save_career()
+		show_hub()
+
+
+## Ask for a step up (D357): the answer shows on This week, and a yes's tryout with the offers.
+func ask_step_up() -> void:
+	if career != null and not career.ask_step_up().is_empty():
 		save_career()
 		show_hub()
 
