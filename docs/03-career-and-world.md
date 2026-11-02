@@ -1254,8 +1254,7 @@ study" first, my pick):
 ### 13.1 Scouting and film study (D401)
 
 What you know of the man you're fighting is what you've found out (D11, D51, D66). Kyle (2026-11-02) picked "Grades as a
-range", "Film study sessions find them" and "Found after 3 fires" (my picks); each man rolling his own habits from his
-style is my pick while his card is open.
+range", "Film study sessions find them" and "Found after 3 fires" and "1 to 2 habits from his style" (my picks on all four).
 
 - **How well you know him** (0–100%): 3% for each fight on his record (his fights on film, at most 45%), 50% if he's fought
   him before, and what film study in this camp has added. The camp screen shows it.
