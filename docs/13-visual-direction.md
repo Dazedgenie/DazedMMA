@@ -1147,8 +1147,9 @@ wrestler v Boxer; about 48 minutes, both men):
   where one move hands over to another (a sprawl starting, a guard pull meeting a double leg so the pair turns round,
   a scramble, getting up). `SkinnedBody.settle` now eases in any new pose that would move a hand, foot, elbow, knee or
   the head faster than 20 m/s against his hips (`POP_SPEED`; the quickest kicks are about 15), at 5 m/s
-  (`EASE_SPEED`, at most 0.4 s), and lengthens an ease that was too short for how far the pose moves. After: jumps
-  down by about three quarters (the head's to none); strikes on the feet unchanged.
+  (`EASE_SPEED`, at most 0.4 s), and lengthens an ease that was too short for how far the pose moves. After (with the flips eased
+  too): elbows 153 frames to 10, wrists 170 to 18, knees 155 to 59, ankles 85 to 5, the head 18 to none; strikes on
+  the feet unchanged.
 - *Feet and hands through the canvas*: once the knees were out, a foot or wrist still went under it (0.3% of
   frames): a foot hooked on a man lying there, a hand posted on the mat, and while easing between two poses (out of a
   hold into a scramble). The rig now puts no wrist lower than 4 cm (`HAND_FLOOR`) and no ankle lower than 70% of its
@@ -1161,7 +1162,7 @@ wrestler v Boxer; about 48 minutes, both men):
   (`POLE_STEADY_AT` 0.98). And a strike's phases handing the arm from one way of bending to another: the skinned body
   now eases in, over 0.12 s (`FLIP_EASE`), any pose that would turn a bent elbow or knee (at least 6 cm off straight,
   `FLIP_BENT`) more than 60° round its limb in a frame (`FLIP_TURN`). On the feet, a bent arm drawn from the pieces
-  also leans its elbow 4 cm down and out (`ELBOW_DOWN`).
+  also leans its elbow 4 cm down and out (`ELBOW_DOWN`). After: elbows 312 frames to 2, knees 17 to none.
 - *Inside the other man*: 3.9% at first, but most of it was the checker counting a hand on his neck. Measured to his
   chest instead, 0.7% of frames, spread thinly (back control's seat belt, the full guard, double legs): left for the
   final grappling pass Kyle has planned.
