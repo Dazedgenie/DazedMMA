@@ -10,7 +10,7 @@
 	"flags_self": [
 		{ "flag": "ONE_LEG", "from": "windup", "to": "recovery" }
 	],
-	"strike": { "target": "body", "base_damage": 9, "into_shots": true },
+	"strike": { "target": "body", "base_damage": 9 },
 	"stats": { "offense": ["clinch_striking", "power"], "defense": ["striking_defense"] },
 	"opportunities": [
 		{ "opponent_flag": "COMING_IN", "success_bonus": 0.15, "stops": true },

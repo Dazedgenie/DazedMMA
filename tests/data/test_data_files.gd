@@ -27,7 +27,7 @@ const ROLES: Array[String] = ["neutral", "top", "bottom", "attacker", "defender"
 ## Letters the fight screen already uses (game/main.gd): reads on Q and E, fast, pause, towel, sounds.
 const LETTER_KEYS_TAKEN: Array[String] = ["Q", "E", "F", "P", "T", "M"]
 ## What a focus call (docs/09 call@2) may hold.
-const FOCUS_KEYS: Array[String] = ["duration_ms", "leanings", "weights", "read_bonus", "sprawl_bonus", "struggle", "struggle_stamina", "cover_bonus", "hunt", "cut", "grip_bonus", "bottom_strikes"]
+const FOCUS_KEYS: Array[String] = ["duration_ms", "leanings", "weights", "read_bonus", "sprawl_bonus", "struggle", "struggle_stamina", "cover_bonus", "hunt", "cut", "grip_bonus"]
 ## Where a submission (docs/09 action@2 `submission.escape_to`, D126) leaves the fight when the defender gets out.
 const ESCAPES: Array[String] = ["back", "scramble"]
 ## The minigames a session can be played as (D38, docs/02 §3.2).
@@ -221,8 +221,6 @@ func test_values_come_from_the_allowed_lists() -> void:
 		var push: Variant = action.get("strike", {}).get("push_m", 0.0) if action.get("strike") is Dictionary else 0.0
 		if not (push is float) or push < 0.0:
 			problems.append("action '%s': strike.push_m is metres pushed back, 0 or more" % id)
-		if action.get("strike") is Dictionary and action.strike.has("into_shots") and (not action.strike.into_shots is bool or not action.ranges.has("pocket")):
-			problems.append("action '%s': strike.into_shots (true or false, D182) is for a close strike that meets a shot from mid range" % id)
 		if action.get("strike") is Dictionary and action.strike.has("through_cover"):
 			var through: Variant = action.strike.through_cover
 			if not through is float or through <= 0.0 or through > 1.0:
@@ -231,10 +229,6 @@ func test_values_come_from_the_allowed_lists() -> void:
 			var down: Variant = action.strike.hands_down_ms
 			if not down is float or down <= 0.0 or int(down) % FightClock.TICK_MS != 0 or not Ruleset.is_ground_strike(action):
 				problems.append("action '%s': strike.hands_down_ms is a ground strike's (D270), ms his hands stay down, a multiple of 100" % id)
-		if action.get("strike") is Dictionary and action.strike.has("backs_off_ms"):
-			var back: Variant = action.strike.backs_off_ms
-			if not back is float or back <= 0.0 or int(back) % FightClock.TICK_MS != 0 or not Ruleset.is_ground_strike(action) or action.get("roles", []) != ["bottom"]:
-				problems.append("action '%s': strike.backs_off_ms is a strike from the bottom's (D271), ms the man on top sits up away from it, a multiple of 100" % id)
 		var category: String = action.get("category", "")
 		if category == "defense" and action.get("defense") is Dictionary and action.defense.has("head_share"):
 			var share: Variant = action.defense.head_share
@@ -278,7 +272,6 @@ func test_values_come_from_the_allowed_lists() -> void:
 				var strike: Dictionary = _items("actions").get(strike_id, {})
 				if strike.get("category", "") != "strike":
 					problems.append("action '%s': against_strikes names strikes, not '%s' (D180)" % [id, strike_id])
-			_check_strike_defence(problems, id, action.defense)
 		if category == "feint":
 			var feint: Variant = action.get("feint")
 			if not feint is Dictionary or not feint.get("base_success") is float or not feint.get("bites_ms") is float \
@@ -414,14 +407,6 @@ func test_calls_are_an_attempt_a_focus_or_a_read() -> void:
 		for r: Variant in c.get("roles", []):
 			if r not in ROLES:
 				problems.append("%s: unknown role '%s'" % [where, r])
-		if c.has("positions_by_role"):
-			var by_role: Variant = c.positions_by_role
-			if not by_role is Dictionary:
-				problems.append("%s: positions_by_role is {role: [positions]} (D271)" % where)
-			else:
-				for r: Variant in by_role:
-					if not c.get("roles", []).has(r) or not by_role[r] is Array or by_role[r].any(func(p: Variant) -> bool: return not c.get("positions", []).has(p)):
-						problems.append("%s: positions_by_role['%s'] narrows the call's positions for one of its roles (D271)" % [where, r])
 		if c.has("priority_boost"):
 			problems.append("%s: priority_boost went with call@1; an accepted call claims the choice outright" % where)
 		var actions: Array = c.get("actions", [])
@@ -467,9 +452,6 @@ func test_calls_are_an_attempt_a_focus_or_a_read() -> void:
 			var struggle_stamina: Variant = focus.get("struggle_stamina", 0.0)
 			if not struggle_stamina is float or struggle_stamina < 0.0:
 				problems.append("%s: focus.struggle_stamina is stamina a beat, 0 or more" % where)
-			var bottom: Variant = focus.get("bottom_strikes", 1.0)
-			if not bottom is float or bottom < 1.0 or bottom > 10.0 or (focus.has("bottom_strikes") and not c.get("roles", []).has("bottom")):
-				problems.append("%s: focus.bottom_strikes is how many times more he strikes from his back, 1 to 10, on a call heard underneath (D271)" % where)
 			var grip_bonus: Variant = focus.get("grip_bonus", 0.0)
 			if not grip_bonus is float or grip_bonus < 0.0 or grip_bonus > 0.5:
 				problems.append("%s: focus.grip_bonus is a chance from 0 to 0.5 on every grip move (D265)" % where)
@@ -1180,28 +1162,3 @@ func test_the_six_divisions_run_light_to_heavy_with_matching_pounds() -> void:
 		if float(d.get("size", 0)) < 0.5 or float(d.get("size", 0)) > 1.5:
 			problems.append("%s: size %s is not between 0.5 and 1.5 (how big it is next to the others, D359)" % [where, d.get("size")])
 	_report(problems)
-
-
-## The D181 keys of a strike defence: block_share, counter, exposed, not_with and strike_bonus.
-func _check_strike_defence(problems: Array[String], id: String, defense: Dictionary) -> void:
-	var against: Array = defense.get("against_strikes", [])
-	if defense.has("block_share") and (not defense.block_share is float or defense.block_share <= 0.0 or defense.block_share >= 1.0 or against.is_empty()):
-		problems.append("action '%s': block_share is a strike defence's share of a blocked strike that still gets through, between 0 and 1 (D181)" % id)
-	for key: String in ["counter", "exposed"]:
-		if not defense.has(key):
-			continue
-		var c: Variant = defense[key]
-		if not c is Dictionary or against.is_empty() or not c.get("ms") is float or c.ms <= 0.0 or fmod(c.ms, FightClock.TICK_MS) != 0 \
-				or not c.get("bonus") is float or not c.get("name") is String or String(c.name) == "":
-			problems.append("action '%s': %s is a strike defence's {ms (a multiple of %d), bonus, name} (D181)" % [id, key, FightClock.TICK_MS])
-			continue
-		for strike_id: Variant in c.get("strikes", []):
-			if _items("actions").get(strike_id, {}).get("category", "") != "strike":
-				problems.append("action '%s': %s.strikes names strikes, not '%s' (D181)" % [id, key, strike_id])
-	var flags: Dictionary = _items("enums").get("flags", {}).get("values", {})
-	for flag: Variant in defense.get("not_with", []):
-		if not flags.has(flag):
-			problems.append("action '%s': not_with names flags, not '%s' (D181)" % [id, flag])
-	for strike_id: Variant in defense.get("strike_bonus", {}):
-		if not against.has(strike_id) or not defense.strike_bonus[strike_id] is float:
-			problems.append("action '%s': strike_bonus is a bonus to the defence against one of its against_strikes, not '%s' (D181)" % [id, strike_id])

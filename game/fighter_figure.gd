@@ -57,8 +57,6 @@ const AIMS := {
 	"hammerfist": { "limb": "rear_arm", "point": "head", "contact": 0.0, "across": 0.0, "bend": "out" },
 	"ground_body_punch": { "limb": "rear_arm", "point": "body", "contact": 0.0, "across": 0.06, "bend": "down" },
 	"posture_bomb": { "limb": "rear_arm", "point": "head", "contact": 0.0, "across": 0.0, "bend": "down" },
-	"bottom_punch": { "limb": "lead_arm", "point": "head", "contact": 0.0, "across": 0.0, "bend": "down" },
-	"bottom_elbow": { "limb": "rear_arm", "point": "head", "contact": 0.0, "across": 0.06, "bend": "out" },
 	"teep": { "limb": "lead_leg", "point": "body", "contact": 1.1, "across": 0.0, "bend": "up" },
 	"body_kick": { "limb": "rear_leg", "point": "body", "contact": 1.0, "across": 0.14, "bend": "round" },
 	"head_kick": { "limb": "rear_leg", "point": "head", "contact": 0.9, "across": 0.14, "bend": "round" },
@@ -317,6 +315,13 @@ func show_state(sim: FightSim, i: int, at: Vector2, toward: Vector2, delta: floa
 		body.follow_joints(body_pose())
 	_show_overhead(sim, i, delta)
 	_place_overhead()
+
+
+## Hides everything over his head (the move, the call, the ring, the stars, the tell) while a moment before, between
+## or after the rounds plays (D390); the next show_state puts back what the fight shows.
+func hide_overhead() -> void:
+	for shown: Node3D in [_move_label, _call_label, _tell_label, _ring, _stars, _tell]:
+		shown.visible = false
 
 
 ## Draws the skinned body at `path` (D285; SkinnedBody) instead of the faceted pieces. The pieces still pose
@@ -765,12 +770,6 @@ func _move_pose(p: Dictionary, f: FighterState, action: Dictionary, reach: float
 			else:
 				p.lean = lerpf(p.lean, -0.7, reach)
 				p.arm_rear = lerpf(p.arm_rear, 0.5, reach)
-		"bottom_punch":  # Off his back, the lead hand straight up into the face above him (D271).
-			p.arm_lead = lerpf(p.arm_lead, 2.4, reach)
-			p.reach_lead = lerpf(1.0, 1.3, reach)
-		"bottom_elbow":  # Lifts his shoulders and whips the rear elbow across the head above him (D271).
-			p.arm_rear = lerpf(p.arm_rear, 2.8 if f.phase == "telegraph" or f.phase == "windup" else 1.9, reach)
-			_ease(p, "hip_y", p.hip_y + 0.04, reach)
 		"ground_cover":  # Forearms over his face, elbows in (D270, D282).
 			p.cover = reach
 		"turn_away":  # Rolls onto his front, away from the punches, giving up his back (D270, D282).
@@ -921,17 +920,6 @@ func _move_pose(p: Dictionary, f: FighterState, action: Dictionary, reach: float
 		"cover_up":  # Gloves to the temples, elbows in, chin down (D180, D281).
 			p.cover = reach
 			p.lean = lerpf(p.lean, -0.18, reach)
-		"shoulder_roll":  # Chin behind the lead shoulder, turning it into the punch and dipping away (D181).
-			p.twist = lerpf(p.twist, p.twist + 0.4, reach)
-			p.slip = -0.6 * reach
-			p.hip_y = lerpf(p.hip_y, HIP_HEIGHT - 0.06, reach)
-			p.lean = lerpf(p.lean, -0.12, reach)
-		"lean_back":  # Weight onto the back foot, the head back out of reach (D181).
-			p.lean = lerpf(p.lean, 0.42, reach)
-			p.shift = lerpf(p.shift, -0.08, reach)
-		"high_guard":  # Both gloves up by the temples, forearms in front of the face (D181).
-			p.cover = 0.85 * reach
-			p.lean = lerpf(p.lean, -0.08, reach)
 		_:
 			if action.category == "strike":
 				p.arm_lead = lerpf(p.arm_lead, 1.57, reach)
@@ -1075,10 +1063,10 @@ static func _ease(p: Dictionary, key: String, value: float, amount: float) -> vo
 ## Which body part a move is thrown with ("lead_arm", "rear_leg", "hips" …), for the tell cue.
 static func limb_for(action_id: String) -> String:
 	match action_id:
-		"jab", "hook", "body_hook", "short_hook", "bottom_punch":
+		"jab", "hook", "body_hook", "short_hook":
 			return "lead_arm"
 		"cross", "uppercut", "short_uppercut", "overhand", "elbow", "ground_punch", "ground_elbow", "hammerfist", \
-				"ground_body_punch", "posture_bomb", "bottom_elbow":
+				"ground_body_punch", "posture_bomb":
 			return "rear_arm"
 		"teep", "stomp", "up_kick":
 			return "lead_leg"

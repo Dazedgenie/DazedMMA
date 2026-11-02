@@ -11,8 +11,7 @@ extends Node
 ##
 ## What counts as which (from the fight's events, outcome_for): a landed strike is connected, unless it
 ## landed through a fighter covering up (covered, D180), which is blocked; a checked kick is blocked; a
-## slipped punch or one he leans back from is missed (a whoosh past his head, SLIP_OUTCOME, D181); a
-## rolled punch is blocked; a shot on the high guard lands covered, so blocked; any other miss is missed.
+## slipped punch is missed (a slip is a whoosh past his head, SLIP_OUTCOME); any other miss is missed.
 ## A landed shot gets louder and deeper the more damage it does (play_settings), and every sound plays
 ## at a slightly random pitch so repeats don't sound the same.
 ##
@@ -34,9 +33,6 @@ const OUTCOMES: Array[String] = [CONNECTED, MISSED, BLOCKED]
 
 ## How a slipped punch sounds (D190: Kyle's pick on the slip card).
 const SLIP_OUTCOME := MISSED
-## Defences that make a punch whoosh past his head (D181): the slip and leaning back. A roll
-## glances off the shoulder and a check lands on the shin, so those are blocked.
-const WHOOSH_DEFENCES: Array[String] = ["slip", "lean_back"]
 
 const RATE: int = 22050
 ## Each sound's length in seconds (the tail fades to silence well before).
@@ -65,8 +61,6 @@ const RECIPES := {
 	"hammerfist": { "thump": 95.0, "decay": 0.08, "snap": 0.35, "bright": 0.25, "swish": 0.08, "tone": 0.50, "gain": 0.80 },
 	"ground_body_punch": { "thump": 78.0, "decay": 0.11, "snap": 0.40, "bright": 0.30, "swish": 0.10, "tone": 0.50, "gain": 0.95 },
 	"posture_bomb": { "thump": 92.0, "decay": 0.12, "snap": 0.90, "bright": 0.55, "swish": 0.28, "tone": 0.40, "gain": 1.15 },
-	"bottom_punch": { "thump": 115.0, "decay": 0.06, "snap": 0.45, "bright": 0.45, "swish": 0.08, "tone": 0.60, "gain": 0.70 },
-	"bottom_elbow": { "thump": 135.0, "decay": 0.05, "snap": 0.95, "bright": 0.90, "swish": 0.10, "tone": 0.85, "gain": 0.90 },
 	"ground_elbow": { "thump": 130.0, "decay": 0.05, "snap": 0.95, "bright": 0.90, "swish": 0.12, "tone": 0.80, "gain": 0.95 },
 	"knee": { "thump": 70.0, "decay": 0.10, "snap": 0.45, "bright": 0.35, "swish": 0.18, "tone": 0.45, "gain": 1.05 },
 	"ground_knee": { "thump": 75.0, "decay": 0.10, "snap": 0.50, "bright": 0.40, "swish": 0.16, "tone": 0.45, "gain": 1.05 },
@@ -332,7 +326,7 @@ static func outcome_for(event: FightEvent) -> String:
 			return BLOCKED if bool(event.data.get("covered", false)) else CONNECTED
 		FightEvent.STRIKE_MISSED:
 			if event.data.get("reason", "") == "defended":
-				return SLIP_OUTCOME if WHOOSH_DEFENCES.has(String(event.data.get("by_action", ""))) else BLOCKED
+				return SLIP_OUTCOME if event.data.get("by_action", "") == "slip" else BLOCKED
 			return MISSED
 	return ""
 

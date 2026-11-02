@@ -63,6 +63,15 @@ front and from the side and his whole body, each a strip of the four (D375-D378,
 
     godot --path . --rendering-driver opengl3 --script res://tools/damage_preview.gd -- --out=res://build/damage
 
+`moment_preview.gd` records the moments before, between and after the rounds (D390-D394, `docs/13` §Before, between
+and after the fight) from a real seeded fight with the real game flow: `--moment=intro` (touching gloves), `break`
+(the end of round 1: to the stools, the corner team and the round panel, then out again) or `end` (the fight's last
+seconds, the finish held, the celebration and the hand raised). `--red=`, `--blue=`, `--seed=` pick the fight (default
+the Dirty boxer against the Muay Thai fighter, seed 35001); `--skip` presses a key a second into each moment. It runs
+under Godot's movie maker, which writes the frames:
+
+    godot --path . --fixed-fps 24 --write-movie build/moments/frame.png --script res://tools/moment_preview.gd -- --moment=break
+
 `grapple_preview.gd` arranges the clinch grips (hand fighting, an underhook, the body lock), each grip and clinch move,
 ground and pound, covering up and turning away, the sweeps, passes and throws, and every submission going on and held,
 side on to the camera, at 24 frames a fight second (D282, `docs/13`). `--only=` takes move or position ids:

@@ -373,14 +373,6 @@ func cut_focus() -> float:
 	return float(focus.call.focus.get("cut", -1.0))
 
 
-## How much more he strikes from his back while a focus call says so (D271, *Ground and pound!*
-## from underneath): its focus's `bottom_strikes`, or 1 when no such focus is on.
-func bottom_strike_focus() -> float:
-	if focus.is_empty():
-		return 1.0
-	return float(focus.call.focus.get("bottom_strikes", 1.0))
-
-
 ## The extra stamina each beat of a struggle costs while a struggle call's focus is on.
 func struggle_stamina() -> float:
 	if focus.is_empty():
@@ -529,9 +521,6 @@ func _infeasible(view: FightView, call: Dictionary) -> String:
 		return "not possible from this position"
 	if call.has("roles") and not call.roles.has(view.my_role()):
 		return "not possible from the %s" % view.my_role()
-	var by_role: Array = call.get("positions_by_role", {}).get(view.my_role(), positions)
-	if not by_role.is_empty() and not by_role.has(view.position()):
-		return "not possible from the %s here" % view.my_role()  # Ground and pound! underneath: the guards only (D271).
 	var technique: Variant = call.get("requires_technique")
 	if technique != null and not view.me.repertoire.has(technique):
 		return "hasn't learned the %s" % _move_name(view, technique)

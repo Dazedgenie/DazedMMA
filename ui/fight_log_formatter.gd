@@ -77,8 +77,6 @@ static func _describe(event: FightEvent, sim: FightSim) -> String:
 			var guard: String = ", through the guard" if event.data.get("covered", false) else ""
 			if event.data.target == "body" and sim.actions.has(event.data.action_id) and sim.actions.get_action(event.data.action_id).strike.has("hands_down_ms"):
 				guard += ": his hands come down"  # A body shot on the ground (D270).
-			if event.data.get("backs_off", false):
-				guard += ": he sits up away from it"  # From the bottom: room to sweep or get up (D271).
 			return "%s's %s%s [b]LANDS[/b]%s (%s, %d damage%s)%s" % [who, counter, _action_name(event.data.action_id, sim), into, event.data.target, event.data.damage, guard, _odds(event)]
 		FightEvent.GRAPPLE_WON:
 			if event.data.result == "tied_up" and event.data.action_id == FightSim.COLLAR_TIE:
@@ -135,13 +133,6 @@ static func _describe(event: FightEvent, sim: FightSim) -> String:
 			if event.data.worked and event.data.has("leg"):
 				return "%s [b]CHECKS[/b] the %s: it lands on his shin (%d damage to the kicker's leg)%s" % [who, against, event.data.damage, _odds(event)]
 			if event.data.worked:
-				match String(event.data.action_id):
-					"shoulder_roll":
-						return "%s [b]ROLLS[/b] the %s off his shoulder%s" % [who, against, _odds(event)]
-					"lean_back":
-						return "%s [b]LEANS BACK[/b] from the %s: it misses, but he's off balance%s" % [who, against, _odds(event)]
-					"high_guard":
-						return "%s [b]BLOCKS[/b] the %s on his high guard%s" % [who, against, _odds(event)]
 				return "%s [b]SLIPS[/b] the %s%s" % [who, against, _odds(event)]
 			return "%s's %s doesn't stop the %s%s" % [who, _action_name(event.data.action_id, sim).to_lower(), against, _odds(event)]
 		FightEvent.FEINTED:

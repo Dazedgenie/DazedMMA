@@ -145,7 +145,7 @@ func test_a_slipped_punch_misses_and_his_counter_comes_off_the_slip() -> void:
 		slipped += 1
 		assert_eq(_events(sim, FightEvent.STRIKE_LANDED).size(), 0, "the cross misses")
 		assert_has(_bonus_names(sim.odds_breakdown(1, "hook")), "off the slip")
-		_ticks(sim, 600 / FightClock.TICK_MS + 1)
+		_ticks(sim, FightSim.SLIP_COUNTER_TICKS + 1)
 		assert_does_not_have(_bonus_names(sim.odds_breakdown(1, "hook")), "off the slip", "for a moment only")
 	assert_gt(slipped, SEEDS * 4 / 5)
 
@@ -230,7 +230,7 @@ func test_only_a_fighter_who_knows_the_slip_slips_and_he_counters_off_it() -> vo
 		var slipper := FighterState.new("Slipper", { "fight_iq": 100, "striking_defense": 100, "speed": 100 }, moves, 0.0001)
 		var sim := FightSim.new(SEED, [puncher, slipper], _actions, 1, 300)
 		_ticks(sim, 3000)
-		results.append(_events(sim, FightEvent.STRIKE_DEFENDED, 1).filter(func(e: FightEvent) -> bool: return e.data.action_id == "slip").size())
+		results.append(_events(sim, FightEvent.STRIKE_DEFENDED, 1).size())
 		if knows:
 			assert_true(_starts(sim, 1).any(func(s: Dictionary) -> bool: return s.why == "off the slip"), "a counter off the slip")
 	assert_gt(results[0], 3)

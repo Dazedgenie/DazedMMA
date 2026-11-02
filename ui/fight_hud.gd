@@ -272,7 +272,9 @@ static func _seconds_left(sim: FightSim, until: int) -> int:
 
 
 ## Shows the dialog in the middle. `buttons`: [[label, Callable], …]; `extra` goes under the text.
-func show_dialog(title: String, body: String, buttons: Array, extra: Control = null) -> void:
+## With `side` it sits down the right of the screen (the round break with the corners shown, D391), else centred.
+func show_dialog(title: String, body: String, buttons: Array, extra: Control = null, side: bool = false) -> void:
+	_place_dialog(side)
 	_dialog_title.text = title
 	_dialog_body.text = body
 	for c in _dialog_extra.get_children():
@@ -301,6 +303,35 @@ static func focus_later(control: Control) -> void:
 		var c: Control = ref.get_ref() as Control
 		if c != null and c.is_visible_in_tree():
 			c.grab_focus()).call_deferred()
+
+
+## The round break's side panel (D391): this wide (px), this far in from the right edge.
+const SIDE_DIALOG_WIDTH: float = 600.0
+const SIDE_DIALOG_MARGIN: float = 24.0
+
+
+func _place_dialog(side: bool) -> void:
+	_dialog.grow_horizontal = Control.GROW_DIRECTION_BEGIN if side else Control.GROW_DIRECTION_BOTH
+	if side:
+		_dialog.anchor_left = 1.0
+		_dialog.anchor_right = 1.0
+		_dialog.anchor_top = 0.5
+		_dialog.anchor_bottom = 0.5
+		_dialog.offset_left = -SIDE_DIALOG_WIDTH - SIDE_DIALOG_MARGIN
+		_dialog.offset_right = -SIDE_DIALOG_MARGIN
+		_dialog.offset_top = -280.0
+		_dialog.offset_bottom = 280.0
+		return
+	_dialog.set_anchors_preset(Control.PRESET_CENTER)
+	_dialog.offset_left = -520.0
+	_dialog.offset_right = 520.0
+	_dialog.offset_top = -260.0
+	_dialog.offset_bottom = 260.0
+
+
+## True when the dialog sits down the side (the round break with the corners shown).
+func dialog_on_side() -> bool:
+	return _dialog.visible and _dialog.anchor_left > 0.5
 
 
 func hide_dialog() -> void:
@@ -673,11 +704,7 @@ func _build() -> void:
 	_danger_panel.visible = false
 
 	_dialog = _panel(Color(0.08, 0.09, 0.11, 0.96))
-	_dialog.set_anchors_preset(Control.PRESET_CENTER)
-	_dialog.offset_left = -520.0
-	_dialog.offset_right = 520.0
-	_dialog.offset_top = -260.0
-	_dialog.offset_bottom = 260.0
+	_place_dialog(false)
 	add_child(_dialog)
 	var dialog_column := VBoxContainer.new()
 	dialog_column.add_theme_constant_override("separation", 14)

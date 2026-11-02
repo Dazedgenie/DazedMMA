@@ -39,16 +39,6 @@ const STRIKES := {
 	"ground_body_punch": {"to": "belly", "off": [0.0, 0.0, -0.06]},
 	"posture_bomb": {"to": "head", "off": [0.0, 0.0, -0.1]},
 }
-## Strikes from the bottom (D271): the man underneath ("b") throws up from his back at the man on top's head,
-## from his hand by his own face. The elbow comes across (`pole` out to his side), the punch straight up.
-const BOTTOM_STRIKES := {
-	"bottom_punch": {"to": "head", "off": [0.0, 0.0, -0.1]},
-	"bottom_elbow": {"to": "head", "off": [0.06, 0.0, -0.06], "pole": [1.0, -0.2, 0.6]},
-}
-## His fist before it goes: by his own face (in his head's frame; x toward the striking side).
-const BOTTOM_COCKED := [0.1, 0.0, -0.12]
-## Throwing it he lifts his head and shoulders this much off the canvas (degrees of lean).
-const BOTTOM_LIFT: float = 10.0
 ## Throwing it he leans this much further into it (degrees): his arm does the work, his weight follows a little.
 const STRIKE_LEAN: float = 14.0
 ## The cocked fist: by his own ear, out to the side and back (in his head's frame; x toward the striking side).
@@ -170,22 +160,6 @@ static func strike(pair: Dictionary, action: String, letter: String) -> Array:
 	var pole: Array = aim.get("pole", [1.0, 0.6, 0.2])  # Out to his striking side.
 	landed.a[key] = {"to": "b." + String(aim.to), "off": aim.off, "pole": [side * float(pole[0]), pole[1], pole[2]]}
 	landed.a.lean = float(landed.a.get("lean", 0.0)) + STRIKE_LEAN
-	return [cocked, landed]
-
-
-## A strike from the bottom (BOTTOM_STRIKES, D271) thrown from `pair` (the man underneath "b") with his `letter`
-## arm: [cocked by his face, landed on the man on top's head], like `strike`.
-static func strike_up(pair: Dictionary, action: String, letter: String) -> Array:
-	var aim: Dictionary = BOTTOM_STRIKES.get(action, BOTTOM_STRIKES.bottom_punch)
-	var side: float = -1.0 if letter == "l" else 1.0
-	var key: String = "hand_" + letter
-	var cocked: Dictionary = pair.duplicate(true)
-	cocked.b[key] = {"to": "b.head", "off": [BOTTOM_COCKED[0] * side, BOTTOM_COCKED[1], BOTTOM_COCKED[2]], "pole": [side, -0.4, 0.6]}
-	var landed: Dictionary = pair.duplicate(true)
-	var pole: Array = aim.get("pole", [1.0, -0.4, 0.4])
-	var off: Array = aim.off
-	landed.b[key] = {"to": "a." + String(aim.to), "off": [float(off[0]) * side, off[1], off[2]], "pole": [side * float(pole[0]), pole[1], pole[2]]}
-	landed.b.lean = float(landed.b.get("lean", 0.0)) - BOTTOM_LIFT
 	return [cocked, landed]
 
 

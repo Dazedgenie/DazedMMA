@@ -209,6 +209,11 @@ var _last_hit_turn: Array[float] = [0.0, 0.0]
 ## seconds (shown since it ended), shown (finish_shown sent)}, empty until a fight ends inside the distance.
 var referee: Referee
 var _finish: Dictionary = {}
+## The moments before, between and after the rounds (D390-D394), when the bodies and the referee can play them.
+var ceremony: Ceremony
+## A round has ended with cuts for the cutman to close: at once, or once he's had a moment on the stool (D391).
+var _cuts_open: bool = false
+var _snap_view: bool = false
 ## What the fight has done to each man's body (D375-D378), drawn on the skinned bodies only; and the blood spots it
 ## has left on the canvas.
 var marks: Array[BodyMarks] = []
@@ -278,6 +283,7 @@ func watch(p_driver: FightDriver) -> void:
 	_downed = [{}, {}]
 	_last_hit_turn = [0.0, 0.0]
 	_finish = {}
+	_cuts_open = false
 	marks = []
 	for spot in _blood_spots:
 		spot.queue_free()
@@ -285,6 +291,9 @@ func watch(p_driver: FightDriver) -> void:
 	if referee != null:
 		referee.queue_free()
 		referee = null
+	if ceremony != null:
+		ceremony.queue_free()
+		ceremony = null
 	_tell_limb = ["", ""]
 	_tell_until = [-1, -1]
 	_offset = [Vector2.ZERO, Vector2.ZERO]
@@ -322,6 +331,10 @@ func watch(p_driver: FightDriver) -> void:
 		else:
 			referee.queue_free()
 			referee = null
+		if referee != null:
+			ceremony = Ceremony.new()
+			add_child(ceremony)
+			ceremony.setup(self)
 	driver.sim.event_emitted.connect(_on_event)
 	_focus = Vector3.ZERO
 	_zoom = ZOOM_STANDING
@@ -337,6 +350,11 @@ func _process(delta: float) -> void:
 		_place_camera(delta)
 		return
 	var sim: FightSim = driver.sim
+	if ceremony != null and ceremony.active():
+		_play_moment(sim, delta)
+		return
+	_tag.visible = true
+	close_cuts()
 	var spots: Array[Vector2] = [driver.shown_pos(0), driver.shown_pos(1)]
 	var placed: Array[Dictionary] = ground_spots(sim, spots)
 	if sim.situation.phase != PositionLibrary.PHASE_GROUND:
@@ -380,6 +398,67 @@ func _process(delta: float) -> void:
 			var o: Vector2 = spots[1 - i]
 			_want_rings[i].position = Vector3(o.x, 0.03, o.y)
 			_want_rings[i].scale = Vector3(want, 1.0, want)
+
+
+## The cutman closes the cuts after a round (D376): once a break.
+func close_cuts() -> void:
+	if not _cuts_open:
+		return
+	_cuts_open = false
+	for marked in marks:
+		marked.cornered()
+
+
+## True when the moments before, between and after the rounds can be shown (D390): the bodies and the referee are
+## drawn.
+func can_play_moments() -> bool:
+	return ceremony != null
+
+
+## Plays a moment (Ceremony.INTRO, CORNERS, OUT or VERDICT with {winner, finished}); moment_done says when it's at
+## its end. False (and nothing plays) when they can't be shown.
+func play_moment(kind: String, data: Dictionary = {}) -> bool:
+	if ceremony == null:
+		return false
+	ceremony.play(kind, data)
+	_snap_view = kind == Ceremony.INTRO  # The fight's first frame: the camera starts where the moment looks.
+	return true
+
+
+## True while a moment is moving, so a key or click can skip it (D394).
+func moment_playing() -> bool:
+	return ceremony != null and ceremony.playing()
+
+
+func skip_moment() -> void:
+	if ceremony != null:
+		ceremony.skip()
+
+
+## A frame of a moment (D390-D393): the ceremony walks and poses everyone, the marks stay drawn and the camera
+## looks where the moment says.
+func _play_moment(sim: FightSim, delta: float) -> void:
+	_tag.visible = false
+	ceremony.advance(delta)
+	_show_marks(sim, delta)
+	var shown: Array[Vector2] = [ceremony.men[0].spot, ceremony.men[1].spot]
+	if _venue != null:
+		_venue.show_near_fence(shown, delta)
+	var view: Dictionary = ceremony.view()
+	var k: float = 1.0 if _snap_view else 1.0 - exp(-CAMERA_SPEED * delta)
+	var focus: Vector2 = view.focus
+	_focus = _focus.lerp(Vector3(focus.x, float(view.get("height", 0.6)), focus.y), k)
+	_zoom = lerpf(_zoom, float(view.zoom), k)
+	camera.size = _zoom
+	var distance: float = _zoom / (2.0 * tan(deg_to_rad(camera.fov) / 2.0))
+	_swing_want = float(view.swing)
+	_rise_want = float(view.get("rise", 0.0))
+	var turn: float = 1.0 if _snap_view else 1.0 - exp(-CAMERA_TURN_SPEED * delta)
+	_snap_view = false
+	camera_swing = lerp_angle(camera_swing, _swing_want, turn)
+	camera_rise = lerpf(camera_rise, _rise_want, turn)
+	camera.position = _focus + camera_from(camera_swing, camera_rise) * distance
+	camera.look_at(_focus, Vector3.UP)
 
 
 ## Poses the bodies from the rig in the clinch (D286, D287; CLINCH_POSE_MOVES), easing in and out, playing the
@@ -702,16 +781,6 @@ func _pose_ground(sim: FightSim, delta: float) -> bool:
 			pair = stage[int(thrown[0])]
 			to = stage[int(thrown[0]) + 1]
 			t = float(thrown[1])
-	var under: FighterState = sim.fighters[1 - top]
-	if to.is_empty() and GroundPair.BOTTOM_STRIKES.has(under.action_id):  # Hitting up from his back (D271).
-		var letter_up: String = figures[1 - top].arm_letter(0 if FighterFigure.limb_for(under.action_id).begins_with("lead") else 1)
-		var up: Array = GroundPair.strike_up(pair, under.action_id, letter_up)
-		var thrown_up: Array = strike_blend(sim, under, driver.alpha())
-		if not thrown_up.is_empty():
-			var stage_up: Array = [pair, up[0], up[1], pair]
-			pair = stage_up[int(thrown_up[0])]
-			to = stage_up[int(thrown_up[0]) + 1]
-			t = float(thrown_up[1])
 	FighterRig.pose_pair(_clinch_rigs[top], _clinch_rigs[1 - top], pair, _ground_frame, to, t)
 	for i in 2:
 		figures[i].body.follow(_clinch_rigs[i])
@@ -1586,8 +1655,7 @@ func _on_event(event: FightEvent) -> void:
 	if event.type == FightEvent.ROUND_ENDED:
 		_tell_until = [-1, -1]
 		if driver != null and not driver.sim.clock.is_fight_over():
-			for marked in marks:
-				marked.cornered()  # The cutman works on his cuts between rounds (D376), not after the last.
+			_cuts_open = true  # The cutman works on his cuts between rounds (D376), not after the last: close_cuts.
 		return
 	if event.actor in [0, 1] and figures.size() == 2:
 		_show_strike(event)

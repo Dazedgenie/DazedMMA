@@ -1036,6 +1036,73 @@ cutman, bloody gloves, an eye swelling on the side he's hit, the ribs and each l
 and the flush coming on over seconds, a watched fight drawing the marks on both men and capping the spots, a clean
 shot on a bleeding cut bloodying the hitter and the canvas).
 
+## Before, between and after the fight (D390–D394)
+
+The visual slice after damage on the body. Kyle picked "Before, between and after" (2026-11-02 17:14) and then, each
+the recommended option (17:15): before the bell "Called to the centre, touch gloves", between rounds "Stools, coach
+and cutman", a decision "Referee raises his hand", after a finish "Celebrate, then hand raised", skipping "Both".
+Presentation only: the fight is held while a moment plays, so fights are unchanged (golden fights not re-pinned).
+
+**Walking** (`game/rig/walker.gd`, `Walker`). The referee's walking (D373) is now its own class: a body on a hidden
+rig that walks to a spot at a speed, turns to look at a point, steps one foot at a time and poses everything above its
+feet from a rig spec in its own frame, with hands able to reach a point in the world (another man's wrist or face).
+The referee is a Walker; so are the corner team; and for a moment each fighter's own body and rig are lent to one.
+
+**The moments** (`game/rig/ceremony.gd`, `Ceremony`, made by `ArenaView.watch` when the bodies and the referee are
+drawn). `ArenaView.play_moment` starts one; while one is on, `ArenaView._play_moment` hands the frame to it (the
+fight's own drawing waits, the overhead labels and the range tag hide, the camera looks where `Ceremony.view` says).
+Each moment is a list of beats; walks end when everyone has arrived (or after `WALK_MAX`, 5 s, when they're put
+there).
+
+| Moment | What happens | Numbers (`Ceremony`) |
+|---|---|---|
+| Before the bell (D390, `INTRO`) | Both men start by their stools, the referee in the middle; they walk to the centre, touch gloves (both hands, glove to glove), and back off to their marks (`FightSim.START_POSITIONS`); the referee steps out to his spot | `TOUCH_GAP` 1.05 m apart, `TOUCH_SECONDS` 1, `READY_SECONDS` 0.4 on the marks, `WALK` 1.4 m/s; about six seconds |
+| Between rounds (D391, `CORNERS`, then `OUT`) | Each walks to his stool (`stool_spot`: in from his corner post, red's far from the camera, blue's across), turns and sits; his coach crouches in front with a hand on his knee, talking with the other; the cutman leans in at his side, his hands on the cut (or the back of the neck); the referee waits by a neutral corner. They breathe harder the more tired they are (`BodyMarks.strain`). On Start round they stand, the team go out by the post and they walk to their marks | `STOOL_IN` 0.8 m from the post, `SEAT_HEIGHT` 0.5 m, `COACH_AT`, `CUTMAN_AT`, `TEAM_WALK` 1.8 m/s, `SIT_SECONDS` 0.6, `STAND_SECONDS` 0.5, `CUTMAN_SECONDS` 1.5 before the cut is closed, `BREATHE_HZ`, `BREATHE_DEG`, hands on his hips past `HANDS_ON_HIPS` (60% strain) |
+| A decision (D392, `VERDICT`) | Both walk to the centre and stand either side of the referee facing the camera, a wrist in each of his hands; he raises the winner's (both for a draw) | `RAISE_GAP` 0.78 m, `HOLD_SECONDS` 0.8, the arm going up over `RAISE_UP_SECONDS` 0.45 and held `RAISE_SECONDS` 1.8 |
+| A finish (D393, `VERDICT` with `finished`) | After the three-second hold (D374) the winner strolls a few steps toward his corner with his arms up, fists pumping, while the beaten man, if he's down, sits up on the canvas leaning back on his hands with the referee crouched over him, then gets up; then the hand raised as above | `CELEBRATE_SECONDS` 2.5, `STROLL` 0.7 m/s, `GET_UP_SECONDS` 1.2 |
+
+The camera: before the bell and walking out as in a fight (the men side-on, closing in to `CLOSE_ZOOM` at the touch);
+between rounds on the player's own corner from the middle of the cage (`CORNER_ZOOM`, raised by `CORNER_RISE`, looking
+`CORNER_SHIFT` to the right of the stool so it sits left of the round panel); the hand raised straight on
+(`VERDICT_ZOOM`).
+
+**The corner team** are two bodies a corner made at the first break (`Ceremony._make_team`), dressed by
+`SkinnedBody.set_cornerman`: the referee's clothes mask with a plain shirt in the corner's colour and dark trousers
+(`SkinnedBody.set_clothes` does both; `CORNER_TROUSERS`), their looks rolled from the fight's seed. The stools are
+three cylinders (`_build_stool`, `STOOL_COLOUR`).
+
+**The fight screen** (`game/main.gd`). With the setup's **Walk-out and corners** option on (the `moments` setting, on
+by default; career fights take it from the setup) and the bodies drawn: `Main._first_bell` plays the intro with the
+fight held (the state is `MOMENT`, so no calls go in); the round break plays the corners and shows its panel down the
+right (`FightHud.show_dialog(…, side)`, `SIDE_DIALOG_WIDTH` 600 px); Start round plays the walk out and then starts
+the round; the end plays the verdict after the finish hold and then shows the result. Any key or click while a moment
+is moving skips it to its end (`Main._skips_moment`, D394; not F3). A cut is closed by the cutman on the stool
+(`ArenaView.close_cuts`, once a break); with the option off, at the bell as before. Headless the moments don't play
+(`Main.moments_in_headless` for a test).
+
+**What to edit:** the numbers at the top of `game/rig/ceremony.gd` (and its poses: `stand_pose`, `sit_pose`,
+`celebrate_pose`, `sit_up_pose`, `_pose_team`); the walking at the top of `game/rig/walker.gd`; the corner team's
+clothes (`set_cornerman`, `CORNER_TROUSERS`) in `game/rig/skinned_body.gd`; the side panel at `SIDE_DIALOG_WIDTH` in
+`ui/fight_hud.gd`.
+
+**Limits:** no walkout from a tunnel, no announcer or cage door; the corner team appear by the post and leave the same
+way and say nothing on screen (the round panel is the coach's word); the cutman's hands are on the face but there's no
+swab or vaseline; the coach doesn't change what he says by how it went; the beaten man gets up on his own (the referee
+crouches by him) and a stretcher never comes; the winner never climbs the fence; nobody touches gloves again before
+the last round; the other corner is seen from behind; a man in the clinch or on the ground at the bell eases out of
+it as he starts walking.
+
+Preview: `tools/moment_preview.gd` with Godot's movie maker (`--moment=intro`, `break` or `end`, `--skip`; see
+`tools/README.md`). Pictures: `/mnt/project-files/screenshots/moments-d390/`.
+
+Tests: `tests/game/test_ceremony.gd` (the stools in each corner inside the cage, across from each other; a watched
+fight able to play them; walking from the corners to touch gloves and back to the marks with the fight waiting; sitting
+on the stools with the coach and cutman and walking out to the marks; the cutman closing a cut once he's had a moment,
+once a break, and at the bell without the moments; the hand raised after a decision with the referee in the middle; a
+draw raising both; the winner's arms up after a finish; a beaten man down sitting up and getting up first; a key or
+click skipping each one; a whole fight played with them unchanged; the setup's option; the round panel down the side).
+`tests/game/test_referee.gd` checks the referee still walks the same on `Walker`.
+
 ## Review and verification
 
 Open `project.godot` in Godot 4.7.2 and run the game normally. Start a fight and check striking,

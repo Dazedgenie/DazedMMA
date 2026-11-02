@@ -68,12 +68,9 @@ const COUNTER_DAMAGE: float = 1.3
 const CHECK_KICKER_SHARE: float = 0.6
 const CHECK_SHIN_SHARE: float = 0.2
 const CHECK_STUCK_TICKS: int = 2
-## What a strike defence did (D181, `_strike_defended`): the share of the strike that still gets
-## through. 1.0 = nothing met it (or it failed), 0.0 = it missed, between = it hit the guard.
-const NOT_DEFENDED: float = 1.0
-## The phases of a shot a knee can meet from mid range (D182, meets_shot): his wind-up and his drive.
-const SHOT_PHASES: Array[String] = ["windup", "active"]
-const AVOIDED: float = 0.0
+## A slipped punch: for SLIP_COUNTER_TICKS the slipper's strikes get SLIP_COUNTER_BONUS ("off the slip").
+const SLIP_COUNTER_TICKS: int = 6
+const SLIP_COUNTER_BONUS: float = 0.15
 ## Below a quarter tank the hands drop (docs/01 §5: HANDS_LOW from fatigue).
 const HANDS_LOW_BELOW: float = 0.25
 ## A clean shot stops the feet for a moment: 1 tick + 1 per 4 damage (a jab 2, a
@@ -150,7 +147,6 @@ const TURN_AWAY_BASE: float = 0.12
 const STAND_UP := "stand_up"
 const STANDING_UP := "STANDING_UP"
 const UP_KICK := "up_kick"
-const BOTTOM_ELBOW := "bottom_elbow"
 
 ## Tied up (clinch or ground), the fighters' centres are this close, on the spot
 ## where the one being taken down or tied up stood.
@@ -240,7 +236,6 @@ const DIG_UNDERHOOK := "dig_underhook"
 const WRIST_HELD := "WRIST_HELD"
 const WRISTS_HELD := "WRISTS_HELD"
 const POSTURE_BROKEN := "POSTURE_BROKEN"
-const POSTURED_UP := "POSTURED_UP"  # Sitting up on top: out of elbow range, room underneath (D271).
 ## The rest of the ground (D264, docs/01 §40.12). In side control and mount the man underneath sets a
 ## frame (FRAME: FRAMED, helping his escapes) and the man on top flattens it (FLATTEN). From side
 ## control the man on top can trap the near arm and take the crucifix (TAKE_CRUCIFIX, a position of its
@@ -759,8 +754,6 @@ func _clear_grips() -> void:
 	_half_inside = NO_GRIP
 	_frame = false
 	_two_on_one = false
-	for f: FighterState in fighters:
-		f.backed_off_ticks = 0  # Sitting up away from the elbows ends with the position (D271).
 
 
 func run_to_end() -> void:
@@ -891,8 +884,6 @@ func _advance_fighter(i: int) -> void:
 		return  # Frozen: it's coming.
 	if f.winded_ticks > 0:
 		f.winded_ticks -= 1
-	if f.backed_off_ticks > 0:
-		f.backed_off_ticks -= 1
 	if f.is_rocked():
 		f.rocked_ticks -= 1
 		if f.rocked_ticks == 0:
@@ -1600,8 +1591,6 @@ func active_flags(i: int) -> Array[String]:
 	if f.tied_up_ticks > 0:
 		out.append("POSTURE_BROKEN")
 	_grip_flags(i, out)
-	if f.backed_off_ticks > 0 and not out.has(POSTURED_UP) and not out.has(POSTURE_BROKEN):
-		out.append(POSTURED_UP)  # Sat up away from the shots from underneath (D271).
 	if f.bit_ticks > 0:
 		out.append("BIT_ON_FEINT")
 	if f.is_down():
@@ -1639,8 +1628,6 @@ func flags_ahead(i: int, ahead: int) -> Array[String]:
 	if f.tied_up_ticks > turns:
 		out.append("POSTURE_BROKEN")
 	_grip_flags(i, out)
-	if f.backed_off_ticks > turns and not out.has(POSTURED_UP) and not out.has(POSTURE_BROKEN):
-		out.append(POSTURED_UP)
 	if f.bit_ticks > turns:
 		out.append("BIT_ON_FEINT")
 	if f.down_ticks > turns:
@@ -1732,24 +1719,8 @@ func odds_breakdown(i: int, id: String, ahead: int = 0) -> OddsBreakdown:
 	if action.category == "defense" and action.defense.has("hidden_by") and b.defense > FighterState.DEFAULT_STAT:
 		# A good kicker hides his kicks (D180): his skill above average counts again against the check.
 		b.add_bonus("hidden", -float(action.defense.hidden_by) * (b.defense - FighterState.DEFAULT_STAT) / 100.0)
-	if action.category == "strike":
-		var at: int = now + maxi(ahead, 0)
-		var counter: Dictionary = fighters[i].counter
-		if not counter.is_empty() and int(counter.until) >= at and (counter.strikes.is_empty() or counter.strikes.has(action.id)):
-			b.add_bonus(String(counter.name), float(counter.bonus))  # Off the slip, or the right hand off the roll (D180, D181).
-		var exposed: Dictionary = fighters[1 - i].exposed
-		if not exposed.is_empty() and int(exposed.until) >= at:
-			b.add_bonus(String(exposed.name), float(exposed.bonus))  # He leaned back and he's still off balance (D181).
-	if action.category == "defense":
-		for flag: Variant in action.defense.get("not_with", []):
-			if own_flags.is_empty():
-				own_flags = active_flags(i)
-			if own_flags.has(flag) and b.missing == "":
-				b.missing = "own " + String(flag)  # No leaning back with the fence behind him (D181).
-		var against: String = fighters[1 - i].action_id
-		var harder: Dictionary = action.defense.get("strike_bonus", {})
-		if harder.has(against):
-			b.add_bonus("against the " + String(actions.get_action(against).name).to_lower(), float(harder[against]))  # The overhand comes over the roll (D181).
+	if action.category == "strike" and fighters[i].slip_counter_until >= now + maxi(ahead, 0):
+		b.add_bonus("off the slip", SLIP_COUNTER_BONUS)
 	if action.category == FEINT:
 		var again: int = _recent_feints(i)
 		if again > 0:
@@ -1844,26 +1815,22 @@ func _feint(i: int, action: Dictionary) -> void:
 	_emit(FightEvent.FEINTED, i, data)
 
 
-## Fighter i's strike meets the opponent's check, slip, roll, lean back or high guard (D180, D181),
-## if it's up as the strike lands and it's a defence against this strike (`defense.against_strikes`).
-## One roll on its odds, and either way the defence is spent. Returns the share of the strike that
-## still gets through: NOT_DEFENDED (it didn't work, or nothing met it), AVOIDED (it misses, and a
-## checked kick hurts the kicker's leg), or a guard's `block_share` (it lands on the arms). A slip or
-## a roll that works leaves him a counter (`defense.counter`); a lean back leaves him off balance
-## for the next strike (`defense.exposed`).
-func _strike_defended(i: int, action: Dictionary) -> float:
+## Fighter i's strike meets the opponent's check or slip (D180), if it's up as the strike lands
+## and it's a defence against this strike (`defense.against_strikes`). One roll on its odds, and
+## either way the defence is spent. True when it worked: the strike misses, and a checked kick
+## hurts the kicker's leg, or a slipped punch leaves the slipper a counter.
+func _strike_defended(i: int, action: Dictionary) -> bool:
 	var d: FighterState = fighters[1 - i]
 	if d.phase != "active":
-		return NOT_DEFENDED
+		return false
 	var defense: Dictionary = actions.get_action(d.action_id)
 	if defense.category != "defense" or not defense.defense.get("against_strikes", []).has(action.id):
-		return NOT_DEFENDED
+		return false
 	var b: OddsBreakdown = odds_breakdown(1 - i, defense.id)
 	var worked: bool = _rng.randf() < b.chance
 	var met := { "action_id": defense.id, "against": action.id, "worked": worked, "chance": b.chance, "odds": b.to_dict() }
 	var kicker_leg: int = -1
 	var kicker_hurt: int = 0
-	var share: float = AVOIDED if worked else NOT_DEFENDED
 	if worked and action.strike.target == "legs":
 		var kick: float = strike_damage(fighters[i], action.id) * _damage_scale[i]
 		kicker_leg = 1 - fighters[i].lead_leg()  # He kicks with the back leg, into the shin.
@@ -1877,45 +1844,17 @@ func _strike_defended(i: int, action: Dictionary) -> float:
 		met.damage = kicker_hurt
 		met.leg = kicker_leg
 	elif worked:
-		if defense.defense.has("block_share"):
-			share = float(defense.defense.block_share)  # On the arms: some of it still gets in (D181).
-			met.blocked = true
-		var counter: Dictionary = defense.defense.get("counter", {})
-		if not counter.is_empty():
-			var until: int = now + int(counter.ms) / FightClock.TICK_MS
-			d.counter = { "until": until, "bonus": float(counter.bonus), "strikes": counter.get("strikes", []), "name": String(counter.name) }
-			met.counter = String(counter.name)
-			met.counter_until = until
-			met.counter_strikes = counter.get("strikes", [])
-		var exposed: Dictionary = defense.defense.get("exposed", {})
-		if not exposed.is_empty():
-			var until: int = now + int(exposed.ms) / FightClock.TICK_MS
-			d.exposed = { "until": until, "bonus": float(exposed.bonus), "name": String(exposed.name) }
-			met.exposed = String(exposed.name)
-			met.exposed_until = until
+		d.slip_counter_until = now + SLIP_COUNTER_TICKS
 	_emit(FightEvent.STRIKE_DEFENDED, 1 - i, met)
 	_to_recovery(1 - i)
-	if share != AVOIDED:
-		return share
+	if not worked:
+		return false
 	_emit(FightEvent.STRIKE_MISSED, i, { "action_id": action.id, "target": action.strike.target, "chance": 0.0, "reason": "defended", "by_action": defense.id })
 	if kicker_leg >= 0:
 		fighters[i].phase_ticks_left += CHECK_STUCK_TICKS  # Still on one leg (ONE_LEG).
 		if situation.is_standing():
 			_leg_impact(1 - i, kicker_leg, kicker_hurt)
-	return AVOIDED
-
-
-## A strike that meets a shot (D182, `strike.into_shots`: the knee) reaches from mid range when the
-## other man is shooting at him (a takedown that isn't a throw, in its wind-up or drive): he brings his
-## head to it.
-func meets_shot(i: int, action: Dictionary) -> bool:
-	if not action.get("strike", {}).get("into_shots", false) or band() != Octagon.BAND_MID:
-		return false
-	var o: FighterState = fighters[1 - i]
-	if o.is_free() or not o.phase in SHOT_PHASES:
-		return false
-	var shot: Dictionary = actions.get_action(o.action_id)
-	return shot.category == "takedown" and not ActionLibrary.is_throw(shot)
+	return true
 
 
 func _land_strike(i: int, action: Dictionary) -> void:
@@ -1927,7 +1866,7 @@ func _land_strike(i: int, action: Dictionary) -> void:
 		miss.reason = "opponent down"  # Only a soccer kick or a stomp hits a downed man (D141).
 		_emit(FightEvent.STRIKE_MISSED, i, miss)
 		return
-	if not action.ranges.has(band()) and not meets_shot(i, action):
+	if not action.ranges.has(band()):
 		miss.reason = "out of range"
 		_emit(FightEvent.STRIKE_MISSED, i, miss)
 		return
@@ -1939,8 +1878,7 @@ func _land_strike(i: int, action: Dictionary) -> void:
 		target = "body"  # Amateur rules: ground strikes to the body only (docs/08, D121).
 	if defender.bit_ticks > 0:
 		attacker.off_feint_thrown += 1
-	var through_guard: float = _strike_defended(i, action)
-	if through_guard == AVOIDED:
+	if _strike_defended(i, action):
 		return
 	var counter: bool = is_counter(i)
 	var breakdown: OddsBreakdown = odds_breakdown(i, action.id)
@@ -1963,11 +1901,8 @@ func _land_strike(i: int, action: Dictionary) -> void:
 			scale *= float(opp.get("damage_multiplier", 1.0))
 			stops = stops or bool(opp.get("stops", false))
 	var into: String = defender.action_id if stops and defender.phase in STOPPABLE_PHASES else ""
-	var blocked: bool = through_guard < NOT_DEFENDED and target == "head"
-	var covered: bool = blocked or (target == "head" and active_flags(1 - i).has(COVERED))
-	if blocked:
-		scale *= maxf(through_guard, float(action.strike.get("through_cover", 0.0)))  # On the high guard (D181).
-	elif covered:
+	var covered: bool = target == "head" and active_flags(1 - i).has(COVERED)
+	if covered:
 		var through: float = float(actions.get_action(defender.action_id).defense.head_share)  # Through the guard (D180).
 		if situation.position == CRUCIFIX and situation.role(1 - i) == PositionLibrary.BOTTOM:
 			through = maxf(through, PINNED_COVER_SHARE)  # Both arms trapped in the crucifix: barely a cover-up (D264).
@@ -1989,14 +1924,6 @@ func _land_strike(i: int, action: Dictionary) -> void:
 	attacker.strikes_landed += 1
 	if action.id == UP_KICK:
 		attacker.up_kicks_landed += 1  # Kicked up into him as he stood (D333).
-	var from_bottom: bool = situation.phase == PositionLibrary.PHASE_GROUND and situation.role(i) == PositionLibrary.BOTTOM
-	var backs_off: bool = false
-	if from_bottom:
-		attacker.bottom_strikes_landed += 1  # From his back (D271).
-		if action.strike.has("backs_off_ms") and target == "head" and not covered and not active_flags(1 - i).has(POSTURE_BROKEN):
-			defender.backed_off_ticks = maxi(defender.backed_off_ticks, int(action.strike.backs_off_ms) / FightClock.TICK_MS)
-			defender.backed_off += 1  # He sits up away from them: room to sweep, sub or get up (D271).
-			backs_off = true
 	if defender.bit_ticks > 0:
 		attacker.off_feint_landed += 1
 	if attacker.combo_step > 0 and attacker.combo_id != "":
@@ -2016,10 +1943,6 @@ func _land_strike(i: int, action: Dictionary) -> void:
 		landed.leg = leg
 	if covered:
 		landed.covered = true
-	if backs_off:
-		landed.backs_off = true
-	if blocked:
-		landed.blocked = true
 	_emit(FightEvent.STRIKE_LANDED, i, landed)
 	if into != "":
 		_emit(FightEvent.GRAPPLE_STOPPED, 1 - i, { "action_id": into, "reason": "stopped", "by_action": action.id })
@@ -2068,7 +1991,6 @@ func _make_contact(i: int, action: Dictionary) -> void:
 		var b: OddsBreakdown = odds_breakdown(i, action.id)
 		if b.missing == "":
 			fighters[i].grip = b
-			fighters[i].grip_off_backed = fighters[1 - i].backed_off_ticks > 0 and _has_bonus(b, POSTURED_UP)
 			_meet_shot(1 - i)  # Already sprawling as it arrives?
 			return
 		stopped.reason = { "own " + HELD_ON_FENCE: "not on the fence", "own " + UNDERHOOK: "no underhook",
@@ -2121,8 +2043,6 @@ func _finish_grip(i: int) -> bool:
 	var result: String = ""
 	if roll < b.chance:
 		result = PositionLibrary.SUCCESS
-		if f.grip_off_backed:
-			f.backed_off_used += 1  # Swept, got up or took a grip as he sat up away from the shots (D271).
 	elif roll < b.chance + float(action[action.category].get("partial_within", 0.0)) \
 			and not transition_for(i, action.id, PositionLibrary.PARTIAL).is_empty():
 		result = PositionLibrary.PARTIAL
@@ -2702,7 +2622,6 @@ func _next_round() -> void:
 		f.left_down = false
 		f.liver_ticks = 0
 		f.winded_ticks = 0
-		f.backed_off_ticks = 0
 		f.stagger_ticks = 0
 		f.tied_up_ticks = 0
 		f.bit_ticks = 0
