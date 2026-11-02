@@ -25,6 +25,8 @@ signal division_pressed
 signal promotions_pressed
 ## The rankings page (D355): each promotion's table in his division and its last moves.
 signal rankings_pressed
+## Asking the promotion a step up for a fight (D357, Climb.ask).
+signal ask_pressed
 
 ## Around his division (D353, news_text): at most NEWS_MAX lines; a winner who had under UPSET_CHANCE is an upset; a man
 ## averaging NEWS_BEST or more is one of the best.
@@ -79,6 +81,7 @@ var _week: Button
 var _advance: Button
 var _camp: Button
 var _pro: Button
+var _ask: Button
 ## The division he turns pro in (D351): his natural one or one either side.
 var _pro_division: OptionButton
 var _pro_division_ids: Array[String] = []
@@ -214,6 +217,7 @@ func _init() -> void:
 	CampPlanner.style_fight_button(_week, 30)
 	_advance = CampPlanner._button(week_box, "Advance until something happens", func() -> void: advance_pressed.emit())
 	_advance.tooltip_text = "Runs weeks on his plan until he's hurt or healed, cleared to fight, worn down, has a birthday, school breaks up or starts again, or offers come in (up to %d weeks)" % Career.ADVANCE_MAX_WEEKS
+	_ask = CampPlanner._button(week_box, "Ask for a step up", func() -> void: ask_pressed.emit())
 	_pro_division = OptionButton.new()
 	_pro_division.tooltip_text = "The division he turns pro in and stays in: his natural one, or one either side of it"
 	week_box.add_child(_pro_division)
@@ -265,6 +269,12 @@ func show_career(p_career: Career, reports: Array = []) -> void:
 		_camp.text = "Go to camp: %d week%s to fight night" % [left, "" if left == 1 else "s"]
 	_pro.visible = Matchmaker.can_turn_pro(career)
 	_pro_division.visible = _pro.visible
+	_ask.visible = Climb.can_ask(career)
+	if _ask.visible:
+		var up: Dictionary = Climb.up(career.world())
+		_ask.text = "Ask the %s for a step up" % String(up.short)
+		_ask.tooltip_text = "A yes is a tryout on the %s's card: win it and they sign him. About %d%% at his ranking; a no means waiting 3 months to ask again" % [
+			String(up.name), roundi(Climb.ask_chance(career.world()) * 100.0)]
 	_pro_division_ids.clear()
 	_pro_division.clear()
 	if _pro.visible:
@@ -322,6 +332,9 @@ static func fighter_card_text(c: Career, gift_names: Dictionary = {}, flaw_names
 	var ranked: String = his_rank_text(c)
 	if ranked != "":
 		lines.append(ranked)
+	var ladder: String = Climb.ladder_text(c)
+	if ladder != "":
+		lines.append("[color=%s]Ladder:[/color] %s" % [DIM.to_html(false), ladder])
 	lines.append("")
 	lines.append("[color=%s]Feels:[/color] %s" % [DIM.to_html(false), feel_text(c.trainee)])
 	lines.append("[color=%s]Style:[/color] %s" % [DIM.to_html(false), style_text(c.trainee.style)])
@@ -409,6 +422,15 @@ static func offer_text(c: Career, o: Dictionary, groups: Dictionary = {}) -> Str
 		var w: World = c.world()
 		var what: String = { "defence": "Title defence", "vacant": "For the vacant title", "shot": "Title shot" }.get(String(o.get("title_how", "")), "Title fight")
 		lines.append("[color=%s][b]%s:[/b][/color] %s, 5 rounds, double pay" % [WARN.to_html(false), what, Titles.title_name(w, String(o.title))])
+	var step_to: Dictionary = Promotions.by_id(c.world(), String(o.get("to", ""))) if c.pro else {}
+	if String(o.get("step", "")) == Climb.CALL_UP and not step_to.is_empty():
+		lines.append("[color=%s][b]Call-up:[/b][/color] the %s want to sign him. Take this fight and his fights are theirs from now%s; turn it down and he stays." % [
+			GOOD.to_html(false), String(step_to.name), ", and his belt goes vacant" if Titles.held_by(c.world(), Career.FIGHTER_ID) != "" else ""])
+	elif String(o.get("step", "")) == Climb.TRYOUT and not step_to.is_empty():
+		lines.append("[color=%s][b]Tryout:[/b][/color] a fight on the %s's card. Win it and they sign him; lose it and he's back where he was." % [
+			GOOD.to_html(false), String(step_to.name)])
+	if String(o.get("eliminator", "")) != "":
+		lines.append("[color=%s][b]Title eliminator:[/b][/color] win it and he's next in line for %s" % [WARN.to_html(false), Titles.title_name(c.world(), String(o.eliminator))])
 	if int(o.get("lesson", 0)) > 0:
 		lines.append("[color=%s][b]Coach's pick[/b][/color] · %s" % [GOOD.to_html(false), LESSON_TEXT[clampi(int(o.lesson) - 1, 0, LESSON_TEXT.size() - 1)]])
 	var nick: String = String(about.get("nickname", ""))
@@ -558,8 +580,10 @@ static func his_rank_text(c: Career) -> String:
 	var r: int = Rankings.rank_of(w, Career.FIGHTER_ID)
 	var p: Dictionary = Promotions.by_id(w, String(w.him.get("promotion", "")))
 	if r > 0 and not p.is_empty():
-		return "[color=%s]Ranked #%d[/color] in the %s's %s rankings" % [GOOD.to_html(false), r, String(p.short),
-			Weight.name_of(String(w.him.division)).to_lower()]
+		var k: String = Rankings.key(String(p.id), String(w.him.division))
+		var next: String = ", next in line for the title" if String(Titles.belt(w, k).get("next", "")) == Career.FIGHTER_ID else ""
+		return "[color=%s]Ranked #%d[/color] in the %s's %s rankings%s" % [GOOD.to_html(false), r, String(p.short),
+			Weight.name_of(String(w.him.division)).to_lower(), next]
 	return "[color=%s]Not ranked yet: a fight on a promotion's card puts him in its rankings[/color]" % DIM.to_html(false)
 
 
@@ -779,6 +803,16 @@ func press_camp() -> void:
 		_camp.pressed.emit()
 
 
+## For tests: Ask for a step up, as a click would (D357).
+func press_ask() -> void:
+	if _ask.visible:
+		_ask.pressed.emit()
+
+
+func can_ask() -> bool:
+	return _ask.visible
+
+
 func press_turn_pro() -> void:
 	if _pro.visible:
 		_pro.pressed.emit()
@@ -853,6 +887,9 @@ static func week_text(c: Career, reports: Array = []) -> String:
 		lines.append("Free to fight: offers come in every few weeks.")
 	if c.booked.is_empty():
 		lines.append("This week: the %s plan." % String(TrainingLibrary.shared().plan(c.week_plan).get("name", c.week_plan)).to_lower())
+	var answer: String = Climb.answer_text(c)
+	if answer != "":
+		lines.append(answer)
 	var school: String = School.week_line(c)
 	if school != "":
 		lines.append(school)
@@ -892,6 +929,16 @@ static func news_text(c: Career, weeks: int = 1) -> String:
 		if int(r.get("week", -1)) < c.week - weeks or String(r.get("division", "")) != division:
 			continue
 		var kind: String = String(r.get("kind", "fight"))
+		if kind == "moved" and String(r.id) == Career.FIGHTER_ID:
+			var his_to: Dictionary = Promotions.by_id(w, String(r.get("to", "")))
+			var his_from: Dictionary = Promotions.by_id(w, String(r.get("from", "")))
+			if bool(r.get("up", false)):
+				scored.append([9.0, "%s has signed with the %s%s." % [c.fighter_name(), String(his_to.get("name", "")),
+					" after winning his tryout" if String(r.get("how", "")) == Climb.TRYOUT else ""]])
+			else:
+				scored.append([9.0, "The %s have let %s go: back to the %s." % [String(his_from.get("name", "")), c.fighter_name(),
+					String(his_to.get("name", ""))]])
+			continue
 		if kind == "moved":
 			var mm: Dictionary = w.man(String(r.id))
 			var to: Dictionary = Promotions.by_id(w, String(r.get("to", "")))
@@ -948,6 +995,10 @@ static func news_text(c: Career, weeks: int = 1) -> String:
 		if belt != "":
 			score += 3.0 + (1.0 if belt.begins_with("org_0") else 0.0)
 			top = false
+		var eliminator: String = String(r.get("eliminator", ""))
+		if eliminator != "":
+			score += 2.0 + (1.0 if eliminator.begins_with("org_0") else 0.0)
+			top = false
 		if score < 2.0:
 			continue
 		var named: Dictionary = {}
@@ -963,6 +1014,8 @@ static func news_text(c: Career, weeks: int = 1) -> String:
 				(" and is the %s's new #1" % String(Promotions.by_id(w, String(r.get("promotion", ""))).get("short", ""))) if top else ""]
 			if belt != "" and String(r.get("title_how", "")) in ["won", "defended"]:
 				line = line.trim_suffix(".") + (" to win %s." if String(r.get("title_how", "")) == "won" else " to keep %s.") % Titles.title_name(w, belt)
+			elif eliminator != "":
+				line = line.trim_suffix(".") + " in an eliminator and is next in line for %s." % Titles.title_name(w, eliminator)
 		for m: Dictionary in [a, b]:
 			if met.has(String(m.id)):
 				line += " %s %s." % [String(m.name).get_slice(" ", 0), _met_words(String(met[String(m.id)]), true)]
@@ -1094,6 +1147,15 @@ static func fights_text(c: Career) -> String:
 				on += " · [color=%s]%s[/color]" % [(MEDAL_COLOURS.get(String(f.medal), WARN) as Color).to_html(false), String(f.medal)]
 		if String(f.get("title", "")) != "":
 			on += " · [color=%s]title fight[/color]" % WARN.to_html(false)
+		if String(f.get("eliminator", "")) != "":
+			on += " · [color=%s]title eliminator[/color]" % WARN.to_html(false)
+		if String(f.get("step", "")) == Climb.TRYOUT:
+			on += " · [color=%s]tryout[/color]" % GOOD.to_html(false)
+		match String(f.get("moved", "")):
+			"up":
+				on += " · [color=%s]signed up[/color]" % GOOD.to_html(false)
+			"down":
+				on += " · [color=%s]let go[/color]" % BAD.to_html(false)
 		lines.append("[color=%s]%s · %s%s[/color]" % [DIM.to_html(false), c.date_text(5, int(f.get("week", 0))), "pro" if bool(f.get("pro", false)) else "amateur",
 			(" · " + on) if on != "" else ""])
 	return "\n".join(lines)

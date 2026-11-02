@@ -133,8 +133,8 @@ static func play_week(w: World, week: int, busy: Dictionary) -> Array:
 	rng.seed = hash([w.seed_value, "week", week])
 	for m: Dictionary in w.men.values():
 		if World.active(m):
-			_age_a_week(w, m, week, rng)
-	# Title fights first (D356), on their promotions' card weeks.
+			_age_a_week(w, m, week, rng, busy.has(String(m.id)))
+	# Title fights and eliminators first (D356, D357), on their promotions' card weeks.
 	for r: Dictionary in Titles.play_week(w, week, busy, rng):
 		w.results.append(r)
 		Promotions.after_fight(w, w.man(String(r.a)), week)
@@ -143,8 +143,8 @@ static func play_week(w: World, week: int, busy: Dictionary) -> Array:
 	for m: Dictionary in w.men.values():
 		if not World.active(m) or busy.has(String(m.id)) or int(m.next_week) > week or int(m.out_until) > week:
 			continue
-		if Titles.held_by(w, String(m.id)) != "":
-			continue  # A champion only fights for his belt.
+		if Titles.held_by(w, String(m.id)) != "" or Titles.waiting(w).has(String(m.id)):
+			continue  # A champion only fights for his belt, and the man next in line waits for his shot (D357).
 		var age: float = World.age_of(m, week)
 		if age < float(BackgroundLibrary.START_AGE):
 			continue
@@ -331,8 +331,9 @@ static func change_a_week(w: World, m: Dictionary, age: float) -> float:
 	return change
 
 
-## A week older for one man: better or worse, maybe pro, maybe retired.
-static func _age_a_week(w: World, m: Dictionary, week: int, rng: RandomNumberGenerator) -> void:
+## A week older for one man: better or worse, maybe pro, maybe retired. A man booked to fight the career's fighter or in
+## his offers (`booked`) ages but neither retires nor turns pro until that's done.
+static func _age_a_week(w: World, m: Dictionary, week: int, rng: RandomNumberGenerator, booked: bool = false) -> void:
 	var age: float = World.age_of(m, week)
 	var change: float = change_a_week(w, m, age)
 	m.lv = snappedf(clampf(float(m.lv) + change, -float(StyleLibrary.MAX_LEVEL), float(StyleLibrary.MAX_LEVEL)), 0.001)
@@ -340,8 +341,10 @@ static func _age_a_week(w: World, m: Dictionary, week: int, rng: RandomNumberGen
 	m.best = maxf(float(m.get("best", 0.0)), snappedf(w.average(m), 0.1))
 	if bool(m.pro):
 		m.tier = tier_for(w.average(m))
-		if rng.randf() < _weekly(retire_chance(w, m, age)):
+		if rng.randf() < _weekly(retire_chance(w, m, age)) and not booked:
 			_retire(w, m, week)
+		return
+	if booked:
 		return
 	var fights: int = int(m.record.win) + int(m.record.loss) + int(m.record.draw)
 	var share: float = float(m.record.win) / maxf(1.0, float(int(m.record.win) + int(m.record.loss)))

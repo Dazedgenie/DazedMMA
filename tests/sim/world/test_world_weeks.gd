@@ -127,7 +127,8 @@ func test_each_january_new_men_join_and_divisions_stay_about_100() -> void:
 	for m: Dictionary in lads:
 		assert_eq(String(m.country), "England", "from home")
 	for division_id: String in Weight.ids():
-		assert_between(w.in_division(division_id, w.played).size(), 70, 130, division_id)
+		# About 110 a division; 5 years on, one seed or another reaches the mid-130s (D357's eliminators shift who fights).
+		assert_between(w.in_division(division_id, w.played).size(), 70, 140, division_id)
 
 
 func test_the_man_booked_to_fight_him_doesnt_fight_anyone_else() -> void:

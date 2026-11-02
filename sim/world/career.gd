@@ -437,6 +437,8 @@ func accept(id: String) -> bool:
 		return false
 	booked = o.duplicate(true)
 	booked.erase("profile")
+	if String(o.get("step", "")) == Climb.CALL_UP:
+		Climb.sign_up(world(), week, Climb.CALL_UP)  # A call-up taken: he's theirs from now (D357).
 	booked.opponent = String(o.profile.id)
 	booked.camp_weeks = int(o.week) - week + 1
 	add_opponent(o.profile)
@@ -450,6 +452,14 @@ func accept(id: String) -> bool:
 	offers.clear()
 	trainee.start_camp()
 	return true
+
+
+## He asks the promotion a step up for a fight (D357, the hub's Ask for a step up when Climb.can_ask): a yes adds a
+## tryout offer. Returns the answer ({ week, yes, to }, {} when he can't ask).
+func ask_step_up() -> Dictionary:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = ("ask:%d:%d" % [career_seed, week]).hash()
+	return Climb.ask(self, rng)
 
 
 ## Turns an offer down: it goes, and nothing else happens (no penalty in phase 1, D304).
@@ -504,13 +514,31 @@ func finish_fight(entry: Dictionary) -> int:
 	e.opponent = String(booked.get("opponent", ""))
 	e.ruleset = String(booked.get("ruleset", ""))
 	var on: String = String(booked.get("card", {}).get("promotion", "")) if booked.get("card") is Dictionary else ""
-	if pro and on != "" and not booked.get("tournament") is Dictionary:
+	var on_card: bool = pro and on != "" and not booked.get("tournament") is Dictionary
+	var was: String = String(world().him.get("promotion", ""))
+	var step: String = String(booked.get("step", ""))
+	if on_card:
 		# Onto his ranking points, in the promotion whose card it was (D355).
 		Rankings.his_fight(world(), fighter_name(), on, division_now(), e.opponent, String(e.result), String(e.get("method", "")), week)
 	if String(booked.get("title", "")) != "":
 		# A title fight (D356): the belt goes with whoever won.
 		e.title = String(booked.title)
 		Titles.his_title_fight(world(), String(booked.title), e.opponent, String(e.result), week)
+	if String(booked.get("eliminator", "")) != "":
+		# A title eliminator (D357): won, he's next in line.
+		e.eliminator = String(booked.eliminator)
+		Titles.his_eliminator(world(), String(booked.eliminator), String(e.result), week)
+	if on_card:
+		# His climb (D357): a tryout won signs him; three losses in a row above the regional cards and he's let go.
+		if step != "":
+			e.step = step
+		if step == Climb.TRYOUT and String(e.result) != "win":
+			# A tryout lost: back where he was.
+			world().him.promotion = was if was != "" else String(Promotions.home(world()).get("id", ""))
+			world().rank_cache = {}
+		var moved: String = Climb.after_fight(world(), String(e.result), step, week)
+		if moved != "":
+			e.moved = moved
 	if not world().man(e.opponent).is_empty():
 		# Onto the man's own record too, and no rematch for a while (D352).
 		world().record_fight(e.opponent, String(e.result), week, World.is_close(String(e.result), String(e.get("method", ""))),
