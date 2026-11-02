@@ -451,6 +451,7 @@ func open_career_camp() -> void:
 
 func _career_camp_week(report: Dictionary) -> void:
 	career.scout_week(report)  # Film study on the man he's fighting (D401).
+	career.drill_week(report)  # The Drill rule sessions sharpen his two rules (D402).
 	if bool(report.get("fight_week", false)):
 		career.booked.fight_week_report = report.duplicate(true)  # Fight night waits for the fight, even over a reload.
 		save_career()
@@ -509,7 +510,8 @@ func _career_settings(profile: Dictionary, simmed: bool = false) -> Dictionary:
 		"ruleset": String(career.booked.get("ruleset", Ruleset.DEFAULT_ID)),
 		"title": String(career.booked.get("title", "")) != "",
 		"seed": career.next_seed(), "normal_rate": 2.0, "auto_slow": true, "flourishes": true, "tell_cues": true,
-		"sound_volume": float(setup.settings().get("sound_volume", 1.0)), "easy": false, "rules": [],
+		"sound_volume": float(setup.settings().get("sound_volume", 1.0)), "easy": false,
+		"rules": RuleDrilling.fight_rules(career),  # His two rules, as well drilled as camp left them (D402).
 		"moments": bool(setup.settings().get("moments", true)),  # The setup's "Walk-out and corners" (D394).
 		# Only his habits you've found get the tell cue (D401); one seen going off often enough in the fight joins them.
 		"known_tells": Scouting.found(career, String(opponent.id)),
@@ -524,6 +526,7 @@ func _career_settings(profile: Dictionary, simmed: bool = false) -> Dictionary:
 		s.tell_cues = Tutorial.tell_cue(lesson)
 		if not Tutorial.plan_open(lesson):
 			s.gameplan = {}
+			s.rules = []
 	if not simmed:
 		for t: Dictionary in Tutorial.due(career, "fight"):
 			career.see_tip(String(t.id))
@@ -894,6 +897,8 @@ func _on_round_over(event: FightEvent) -> void:
 	_break_plan = null
 	if Tutorial.plan_open(int(settings.get("lesson", 0))):
 		_break_rules = RuleSlots.new(sim.fighters[driver.player].profile, _actions)
+		if bool(settings.get("career", false)) and career != null:
+			_break_rules.use_drilled(_career_drilled())  # Only as sharp as camp left them (D402).
 		_break_rules.show_rules(_current_rules())
 		_break_plan = GameplanPicker.new("Gameplan for the next round")
 		_break_plan.show_plan(_current_plan())
@@ -969,6 +974,14 @@ func _current_plan() -> Dictionary:
 	var out: Dictionary = {}
 	for part: String in Gameplan.PARTS:
 		out[part] = "" if plan == null else String(plan.parts.get(part, ""))
+	return out
+
+
+## A career's drilled rules: rule id → drilled 0–100 (D402).
+func _career_drilled() -> Dictionary:
+	var out: Dictionary = {}
+	for id: String in career.drills:
+		out[id] = snappedf(RuleDrilling.drilled(career, id), 0.1)
 	return out
 
 

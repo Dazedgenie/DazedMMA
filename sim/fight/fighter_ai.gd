@@ -1734,6 +1734,12 @@ func _track(view: FightView) -> void:
 
 ## True once the opponent's current move has registered with this fighter (read, a
 ## reaction time after it started) and nothing has been decided about it yet.
+## Whether he read the move this event started himself (a drilled rule stands in for his read then, D402).
+func read_it(event: FightEvent) -> bool:
+	return not _opp.is_empty() and bool(_opp.read) and int(_opp.at) == event.tick \
+		and String(_opp.id) == String(event.data.get("action_id", ""))
+
+
 func _registered(view: FightView) -> bool:
 	if _opp.is_empty() or not _opp.read or _opp.decided or view.now < _opp.notice:
 		return false

@@ -666,6 +666,9 @@ func test_training_sessions_train_real_stats_in_shares_that_add_up() -> void:
 		var minigame: Variant = s.get("minigame")
 		if minigame != null and minigame not in MINIGAMES:
 			problems.append("%s: minigame '%s' is null or one of %s" % [where, minigame, MINIGAMES])
+		if s.has("drills_rule") and (not s.drills_rule is float or not int(s.drills_rule) in range(1, DrilledRules.MAX_SLOTS + 1)
+				or float(s.xp) <= 0.0):
+			problems.append("%s: drills_rule is the rule slot it drills (1–%d, D402), on a session that trains" % [where, DrilledRules.MAX_SLOTS])
 	_report(problems)
 
 

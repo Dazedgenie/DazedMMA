@@ -447,6 +447,50 @@ func test_film_study_in_a_career_camp_finds_his_habit_and_only_found_habits_are_
 	assert_eq(_main.state, _main.OVER)
 
 
+func test_drilling_a_rule_in_a_career_camp_takes_it_into_the_fight_as_sharp_as_camp_left_it() -> void:
+	_main.open_new_career()
+	_main.new_career.set_play_childhood(false)
+	_main.new_career.set_know_the_game(true)
+	_main.new_career.press_start()
+	_main.gym_screen.pick(0)
+	_main.gym_screen.press_start()
+	_main.career.week_plan = "time_off"
+	_main.hub.press_week()
+	_main.hub.press_accept(_main.hub.offer_ids()[0])
+	_main.hub.press_camp()
+	var planner: CampPlanner = _main.planner
+	assert_string_contains(planner.rules_text(), "Rule 1: none", "the Rules box (D402)")
+	assert_ne(planner.phase_text(), "", "the camp's part this week")
+	planner.rule_slots.pick(1, "sprawl_on_the_shot")
+	planner.rule_slots.changed.emit()
+	assert_eq(_main.career.rule_slots[0], "sprawl_on_the_shot")
+	planner.pick_preset("time_off")
+	for i in 4:
+		planner.set_slot(i, "drill_rule_1")
+	planner.run_rest()
+	var drilled: float = RuleDrilling.drilled(_main.career, "sprawl_on_the_shot")
+	assert_gt(drilled, 0.0, "drilled in camp")
+	assert_string_contains(planner.log_text(), "Drilled When he shoots → sprawl")
+	planner.fight_pressed.emit(planner.trained_profile())
+	assert_eq(_main.state, _main.FIGHT)
+	assert_eq(_main.settings.rules, [[1, "sprawl_on_the_shot", snappedf(drilled, 0.1)]])
+	_main.driver.step()  # The rule goes in with the first tick's commands.
+	assert_eq(String(_main.driver.sim.decisions[0].rules.slots[0].get("rule", {}).get("id", "")), "sprawl_on_the_shot", "in the fight")
+	_main.driver.throw_towel()
+	var frames: int = 0
+	while _main.state != _main.OVER and frames < 100:
+		frames += 1
+		_main._process(FRAME)
+	assert_eq(_main.state, _main.OVER)
+
+
+func test_a_quick_camp_has_no_drill_rule_sessions() -> void:
+	var planner := CampPlanner.new(FighterLibrary.load_dir().profile("wrestler"))
+	add_child_autofree(planner)
+	assert_false(planner._session_ids.has("drill_rule_1"), "nothing to drill outside a career")
+	assert_eq(planner.rules_text(), "")
+
+
 func test_a_quick_fight_still_cues_every_tell() -> void:
 	_main.start_fight(_main.setup.settings())
 	assert_null(_main.arena.tell_watch, "no scouting outside a career")

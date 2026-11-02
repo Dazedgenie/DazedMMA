@@ -28,6 +28,12 @@ const RELIABILITY_PER_HEAD_HURT: float = 0.5
 ## off the rule's reliability at Fight IQ 100 (half at 50), up to ADAPT_MAX.
 const ADAPT_PER_FIRE: float = 0.1
 const ADAPT_MAX: float = 0.5
+## A rule sits out while he's under this share of his tank (D402): gassed, a drilled reflex costs more than it wins.
+const FRESH_ABOVE: float = 0.3
+## A sprawl rule stands in for his own read (D402): on a shot he read himself his own answer stands (his sprawl, with
+## its chance lifted to the rule's reliability, or a knee into the shot when that fails), so the rule catches the shots
+## he'd have missed instead of doubling his read. Rules whose move his read never makes (the catch) aren't touched.
+const STAND_IN_FOR_READ: bool = true
 
 const SET := "set"
 const FIRED := "fired"
@@ -36,6 +42,8 @@ const SLOW := "slow"
 const OUTRANKED := "outranked"
 const NOT_ELIGIBLE := "not_eligible"
 const MISSED := "missed"
+const GASSED := "gassed"
+const READ := "read"
 
 ## One entry per slot, slot 1 first: {rule, slot, drilled (0–1), ready_at, fires}, or empty.
 var slots: Array[Dictionary] = []
@@ -47,6 +55,10 @@ var _triggers: TriggerLibrary
 var _filled: int = 0
 ## The rule waiting for the fighter's reaction time: {entry, started, notice, move}, or empty.
 var _armed: Dictionary = {}
+## The fighter's own AI (DecisionLayer sets it), to know whether he read a move himself (STAND_IN_FOR_READ).
+var ai: FighterAI = null
+## A sprawl rule standing in for his own read of a shot: {move, chance} until the shot is over, or empty.
+var _lift: Dictionary = {}
 
 
 func _init(p_rules: RuleLibrary = null, p_triggers: TriggerLibrary = null) -> void:
@@ -126,7 +138,14 @@ func on_event(view: FightView, event: FightEvent) -> void:
 		if view.now < entry.ready_at:
 			_answer(entry, COOLING, "fired %.0f s ago" % (float(view.now - entry.ready_at + _cooldown(entry)) / FightClock.TICKS_PER_SECOND))
 			continue
+		if view.me.stamina < FRESH_ABOVE * view.me.max_stamina():
+			_answer(entry, GASSED, "gassed: %d%% of his tank" % roundi(100.0 * view.me.stamina / view.me.max_stamina()))
+			continue
 		var chance: float = reliability(view, entry)
+		if STAND_IN_FOR_READ and ai != null and _is_sprawl(view, entry) and ai.read_it(event):
+			_lift = { "move": String(event.data.get("action_id", "")), "chance": chance }
+			_answer(entry, READ, "he read it himself: his own sprawl, %d%% sharp" % roundi(chance * 100.0))
+			continue
 		if view.roll() >= chance:
 			var wise: float = adaptation(view, entry)
 			_answer(entry, SLOW, "didn't see it in time: %d%% sharp%s" % [roundi(chance * 100.0),
@@ -137,6 +156,21 @@ func on_event(view: FightView, event: FightEvent) -> void:
 		var seen: int = event.tick + (1 if view.steps_after_me(event.actor) else 0)
 		_armed = { "entry": entry, "started": event.tick, "notice": seen + view.me.reaction_ticks(), "move": String(event.data.get("action_id", "")) }
 	_settle()
+
+
+## A sprawl rule lifts his own sprawl on a shot he read to the rule's reliability (STAND_IN_FOR_READ).
+func adjust_sprawl(view: FightView, chance: float) -> float:
+	if _lift.is_empty():
+		return chance
+	if view.opponent.action_id != _lift.move:
+		_lift = {}
+		return chance
+	return maxf(chance, _lift.chance)
+
+
+static func _is_sprawl(view: FightView, entry: Dictionary) -> bool:
+	var action: Dictionary = view.actions.get_action(entry.rule.action)
+	return action.category == "defense" and action.get("defense", {}).get("against_categories", []).has("takedown")
 
 
 func claim(view: FightView) -> Decision:
