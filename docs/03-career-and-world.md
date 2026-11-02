@@ -1244,7 +1244,7 @@ study" first, my pick):
 | Drilling rules in camp: a session that drills one of his two rule slots, the slots in career fights, the camp's early, middle and taper weeks marked | D402 | Planned |
 | More rules to drill: about six answers to the styles' habits | D403 | Planned |
 | The opponent's camp: a plan against your style, sometimes a rule against your favourite move, his own cut | D404 | Planned |
-| The weight cut and the weigh-in: how hard he cuts in fight week, missing weight | D405 | Planned |
+| The weight cut and the weigh-in: how hard he cuts in fight week, missing weight (Kyle, 2026-11-02: "One pick now, planner later": light, normal, hard or extreme now, D23's five-day planner later as a minigame) | D405 | Planned |
 | Named injuries, and hiding one from the doctor | D406 | Planned |
 | Sparring partners: named men at his gym from the world's local men | D407 | Planned |
 | Coaches: assistants for a weekly fee, the head coach's levels | D408 | Planned |
