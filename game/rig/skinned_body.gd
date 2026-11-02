@@ -223,6 +223,41 @@ func set_referee(look: Dictionary) -> void:
 		dressed.set_shader_parameter("shoes", SHOES)
 
 
+## Damage on the body (D375-D378, tools/body_regions.py): round each eye, his ribs and where he flushes (damage.png),
+## the cuts over his eyebrows with their trickles, and each leg (marks.png).
+const DAMAGE_ZONES := "res://game/bodies/tripo_fighter_damage.png"
+const DAMAGE_MARKS := "res://game/bodies/tripo_fighter_marks.png"
+## How far (metres) an eye swells out at its worst.
+const SWELL_SIZE: float = 0.008
+
+
+## Shows `marks` (BodyMarks) on the body: swelling and bruises, cuts and their blood, blood on his gloves, sweat and
+## flush. Call after set_look; again whenever the marks change.
+func set_damage(marks: BodyMarks) -> void:
+	for found: Node in find_children("*", "MeshInstance3D", true, false):
+		var mesh: MeshInstance3D = found
+		var skin: ShaderMaterial = mesh.material_override as ShaderMaterial
+		if skin == null:
+			continue
+		if skin.get_shader_parameter("has_damage") != true:
+			if not ResourceLoader.exists(DAMAGE_ZONES) or not ResourceLoader.exists(DAMAGE_MARKS):
+				return
+			skin.set_shader_parameter("damage_zones", load(DAMAGE_ZONES))
+			skin.set_shader_parameter("damage_marks", load(DAMAGE_MARKS))
+			if ResourceLoader.exists(CLOTHES):
+				skin.set_shader_parameter("clothes", load(CLOTHES))  # Only its hands, for blood on his gloves.
+			skin.set_shader_parameter("swell_size", SWELL_SIZE / maxf(mesh.global_basis.get_scale().y, 0.001))
+			skin.set_shader_parameter("has_damage", true)
+		skin.set_shader_parameter("swell", Vector2(marks.swell[0], marks.swell[1]))
+		skin.set_shader_parameter("body_mark", marks.body)
+		skin.set_shader_parameter("leg_mark", Vector2(marks.legs[0], marks.legs[1]))
+		skin.set_shader_parameter("cut", Vector2(float(marks.cut[0]), float(marks.cut[1])))
+		skin.set_shader_parameter("bleed", Vector2(marks.bleed[0], marks.bleed[1]))
+		skin.set_shader_parameter("glove_blood", marks.glove_blood)
+		skin.set_shader_parameter("sweat", marks.sweat)
+		skin.set_shader_parameter("flush", marks.flush)
+
+
 ## Where his hips are now, in the world.
 func hips_at() -> Vector3:
 	return _world_at("Hips")
@@ -257,12 +292,44 @@ uniform vec4 shirt_white : source_color = vec4(0.86, 0.86, 0.84, 1.0);
 uniform vec4 shirt_black : source_color = vec4(0.05, 0.05, 0.06, 1.0);
 uniform vec4 trousers : source_color = vec4(0.3, 0.31, 0.33, 1.0);
 uniform vec4 shoes : source_color = vec4(0.04, 0.04, 0.045, 1.0);
+uniform sampler2D damage_zones : hint_default_black, filter_linear_mipmap;
+uniform sampler2D damage_marks : hint_default_black, filter_linear_mipmap;
+uniform bool has_damage = false;
+uniform vec2 swell = vec2(0.0);
+uniform float swell_size = 0.0;
+uniform float body_mark = 0.0;
+uniform vec2 leg_mark = vec2(0.0);
+uniform vec2 cut = vec2(0.0);
+uniform vec2 bleed = vec2(0.0);
+uniform float glove_blood = 0.0;
+uniform float sweat = 0.0;
+uniform float flush = 0.0;
+uniform vec3 bruise_fresh = vec3(1.0, 0.45, 0.4);
+uniform vec3 bruise_old = vec3(0.45, 0.25, 0.45);
+uniform vec4 blood : source_color = vec4(0.42, 0.02, 0.03, 1.0);
+uniform vec3 flushed = vec3(1.08, 0.84, 0.8);
 float lum(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
 void vertex() {
 	// A buzzed or shaved head: the hair's shell sinks in toward the scalp.
 	if (has_regions && hair_sink > 0.0) {
 		VERTEX -= NORMAL * hair_sink * textureLod(regions, UV, 0.0).r;
 	}
+	// A swollen eye (D377) puffs out round it.
+	if (has_damage) {
+		vec4 z = textureLod(damage_zones, UV, 0.0);
+		float brows = has_regions ? textureLod(regions, UV, 0.0).b : 0.0;
+		VERTEX += NORMAL * swell_size * (z.r * swell.x + z.g * swell.y) * (1.0 - brows);
+	}
+}
+float blot(vec2 uv) {
+	vec2 i = floor(uv);
+	vec2 f = fract(uv);
+	f = f * f * (3.0 - 2.0 * f);
+	float a = fract(sin(dot(i, vec2(127.1, 311.7))) * 43758.5);
+	float b = fract(sin(dot(i + vec2(1.0, 0.0), vec2(127.1, 311.7))) * 43758.5);
+	float c = fract(sin(dot(i + vec2(0.0, 1.0), vec2(127.1, 311.7))) * 43758.5);
+	float d = fract(sin(dot(i + vec2(1.0, 1.0), vec2(127.1, 311.7))) * 43758.5);
+	return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
 }
 void fragment() {
 	vec3 c = texture(albedo, UV).rgb;
@@ -284,6 +351,38 @@ void fragment() {
 	// The beard darkens the skin toward his hair colour.
 	out_c = mix(out_c, hair.rgb * shade * 1.2, m.g * beard * is_skin);
 	out_c = mix(out_c, tint.rgb * (0.35 + 0.75 * top), grey);
+	float wet = 0.0;
+	if (has_damage) {
+		// Damage on the body (D375-D378): bruises red going purple round each eye, on his ribs and each leg; the
+		// flush of a tired man; a cut over an eyebrow and the blood trickling from it; blood on his gloves.
+		vec4 z = texture(damage_zones, UV);
+		vec4 k = texture(damage_marks, UV);
+		float skin_only = is_skin * (1.0 - m.r) * (1.0 - m.b);
+		vec2 eyes = vec2(z.r, z.g) * swell;
+		float limbs = max(min(z.b * 1.3, 1.0) * body_mark, max(k.b * leg_mark.x, k.a * leg_mark.y)) * mix(0.45, 1.0, blot(UV * 45.0));
+		float marked = max(max(eyes.x, eyes.y) * 1.25, limbs);
+		vec3 bruise = mix(bruise_fresh, bruise_old, smoothstep(0.35, 0.9, marked));
+		out_c *= mix(vec3(1.0), bruise, clamp(marked * 0.9, 0.0, 0.75) * skin_only);
+		out_c *= mix(vec3(1.0), flushed, z.a * flush * skin_only);
+		vec2 run = vec2(k.r, k.g);
+		vec2 shown = cut * smoothstep(1.0 - bleed - 0.04, 1.0 - bleed, run) * step(0.03, run);
+		vec2 opened = cut * smoothstep(0.96, 0.99, run);
+		float bloody = max(max(shown.x, shown.y), 0.0);
+		out_c = mix(out_c, blood.rgb, bloody);
+		out_c = mix(out_c, blood.rgb * 0.45, max(opened.x, opened.y));
+		wet = max(bloody, max(opened.x, opened.y));
+		if (has_clothes == false && glove_blood > 0.0) {
+			vec4 h = texture(clothes, UV);
+			float hands = h.g * (1.0 - h.r) * (1.0 - h.b) * (1.0 - h.a);
+			float smear = smoothstep(0.78 - 0.45 * glove_blood, 0.92 - 0.45 * glove_blood, blot(UV * 140.0));
+			out_c = mix(out_c, blood.rgb * 0.8, hands * smear * 0.85);
+			wet = max(wet, hands * smear);
+		}
+		ROUGHNESS = mix(0.85, 0.4, max(sweat * skin_only, wet * 0.8));
+		SPECULAR = 0.5 + 0.25 * sweat * skin_only;
+	} else {
+		ROUGHNESS = 0.85;
+	}
 	if (has_clothes) {
 		// The referee (D373): clothes shaded as the body's own texture is shaded there, and his gloves bare hands.
 		vec4 k = texture(clothes, UV);
@@ -295,7 +394,6 @@ void fragment() {
 		out_c = mix(out_c, skin.rgb * 0.85, k.g * (1.0 - k.r) * (1.0 - k.b) * (1.0 - k.a));
 	}
 	ALBEDO = out_c;
-	ROUGHNESS = 0.85;
 }
 """
 	return _shader

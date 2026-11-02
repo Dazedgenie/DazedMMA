@@ -971,6 +971,65 @@ with them against the fence, not dancing about, between them by the beaten man, 
 when they're close, the waving hands and the one on the man, a referee in every fight dressed, the same man for the
 same seed, crouched on the ground, over a knocked-down man, the stoppage bringing him in and the result waiting 3 s).
 
+## Damage on the body (D375–D378)
+
+The visual slice after knockdowns and finishes. Kyle picked "Damage on the body" (2026-11-02 14:39) and then, each the
+recommended option (14:40): cuts "By what hit him", blood "A trickle that grows", bruising "Swelling and marks where
+hit", sweat "Yes, with how tired he is" and "Looks only, for now". Presentation only: the fight never hears of a cut,
+so fights are unchanged (golden fights not re-pinned) and the doctor doesn't stop a fight on one yet.
+
+**What it remembers** (`game/rig/body_marks.gd`, `BodyMarks`, one a man, made by `ArenaView.watch` from the fight's
+seed). Every landed strike goes to `ArenaView._mark_hit`, which works out the side of his face it landed on from the
+limb that threw it and the thrower's stance (a left hand lands on the right side; `BodyMarks.side_hit`) and hands it
+to `BodyMarks.landed`. Each frame `ArenaView._show_marks` brings the marks up to date with the fight
+(`BodyMarks.update`) and draws them (`SkinnedBody.set_damage`).
+
+| Mark | What brings it on | Numbers (`BodyMarks`) |
+|---|---|---|
+| A cut over an eye (D375) | A clean head strike once his head is `CUT_FROM_HURT` (12%) hurt, on the side it landed, at the strike's chance scaled by how hard it landed (`CUT_FULL_DAMAGE`, within `CUT_SCALE_LIMITS`) and by `0.5 + how hurt his head is`; one a side | `CUT_CHANCE`: elbows 11%, knees, head kicks, soccer kicks and stomps 3%, overhand and posture-up bomb 1.6%, hooks and hammerfists 1.3%, cross 1.1%, ground punch 1%, uppercuts 0.8%, jab 0.4% |
+| The trickle (D376) | Starts at `BLEED_START` (25% of its length), each shot on it adds `BLEED_PER_HIT` (12%), runs on its own `BLEED_RATE` a second up to `BLEED_DRIFT_TO` (35% fresh to 80% hurt); the cutman leaves `BLEED_AFTER_CORNER` (30%) between rounds | the trickle runs from the cut down past the outer corner of his eye to his cheekbone |
+| Blood on the gloves (D376) | A clean shot on a bleeding cut puts `GLOVE_BLOOD_PER_HIT` (18%) on the hitter's gloves, smeared | `ArenaView._drop_blood` also spots 1–2 drops under his head (`BLOOD_SPOT_SIZE`, `BLOOD_SPOT_SCATTER`, at most `BLOOD_SPOTS_MAX` (40) a fight) |
+| A swollen eye (D377) | His head hurt, times how much of the damage landed on that side (`STRAIGHT_SHARE`: a straight shot puts 65% on the side it landed) | from `SWELL_FROM` (12%) to `SWELL_FULL` (60%); the eye puffs out (`SkinnedBody.SWELL_SIZE`, 8 mm) and goes purple underneath |
+| Bruised ribs and legs (D377) | His body damage and each leg's own damage | `BODY_MARK`, `LEG_MARK` (from 6%, full at 60%): red and blotchy, purple as they build |
+| Sweat and the flush (D378) | Work (`SWEAT_PER_MINUTE` up to `SWEAT_WORK_MAX`) and strain (his tank below `STRAIN_FROM`, half) | strain follows over `STRAIN_RISE_SECONDS` (20) and `STRAIN_FALL_SECONDS` (45); sweat adds `SWEAT_TIRED` (0.65) of it, coming on over `SWEAT_RISE_SECONDS` (20) and drying over `SWEAT_DRY_SECONDS` (180); the flush from `FLUSH` (15% to 75% strain) |
+
+How often (8 pairings × 40 seeds, the AI corner): about a quarter of fights see a cut, nearly half of them from elbows
+(on their feet and on the ground). Two men who only punch: about one in eight; a dirty boxer against a Muay Thai
+fighter: one in two.
+
+**How it's drawn** (the body's shader in `game/rig/skinned_body.gd`). Two more baked masks from
+`tools/body_regions.py`: `game/bodies/tripo_fighter_damage.png` (R and G each eye's swelling zone, under the brow and
+round the eye; B the ribs and stomach; A the flush on the face, neck and upper chest) and
+`game/bodies/tripo_fighter_marks.png` (R and G the cut on each brow, at 1, and its trickle, 0.95 at the cut falling
+along it, so the shader shows as much of it as the bleed says; B and A each leg's bruising, the outside and front of
+the thigh and the calf). The cut and the trickle are drawn on the front of the face only (`CUT`, `TRICKLE`,
+`front_of_face`), the swelling stops below the brow (`EYE_TOP`) so the brow doesn't lift off. The bruises mix
+`bruise_fresh` to `bruise_old` as they build, broken up by noise; the blood is `blood`; the flush multiplies by
+`flushed`; sweat lowers the skin's roughness (0.85 to 0.4) and raises its shine. Blood on the gloves is painted where
+the clothes mask marks the hands. Spots on the canvas are flat discs (no decals: the web build's renderer has none).
+
+**What to edit:** the numbers at the top of `game/rig/body_marks.gd`; the colours (`bruise_fresh`, `bruise_old`,
+`blood`, `flushed`) and `SWELL_SIZE` in `game/rig/skinned_body.gd`; where the cut, trickle, eyes, ribs and flush are
+(`CUT`, `TRICKLE`, `EYE`, `EYE_REACH`, `EYE_TOP`, `RIBS`, `FLUSH_FROM`) in `tools/body_regions.py` (then run it
+again, and `godot --headless --import`); the blood spots at the top of `game/arena_view.gd`.
+
+**Limits:** at the fight camera's distance a cut and a swollen eye are small (the gloves and the canvas show most);
+cuts don't stop fights, and the doctor doesn't look at them; there are no cuts on the nose, cheek or back of the head,
+no broken noses or black eyes from the same hit twice; the marks don't carry from fight to fight or show in the camp,
+the fight night card or the result screen; the referee is never marked; blood on the canvas doesn't smear when they
+roll through it; sweat doesn't make him slippery.
+
+Preview: `tools/damage_preview.gd` (fresh, a round in, cut, a war; `--man=`) and in a fight
+`tools/motion_preview.gd --red=dirty_boxer --blue=muay_thai --seed=35001 --from=880` (a cut, bloody gloves and a
+swollen eye by the end). Pictures: `/mnt/project-files/screenshots/damage-d375/`.
+
+Tests: `tests/game/test_body_marks.gd` (no cut or swelling from body and leg shots, no cut before his head is hurt,
+elbows cutting far more than punches and jabs least, a shot on his gloves opening nothing, the same seed opening the
+same cuts, a left hand landing on the right side, hooks on one side and straights spread, the trickle growing and the
+cutman, bloody gloves, an eye swelling on the side he's hit, the ribs and each leg marked by their own damage, sweat
+and the flush coming on over seconds, a watched fight drawing the marks on both men and capping the spots, a clean
+shot on a bleeding cut bloodying the hitter and the canvas).
+
 ## Review and verification
 
 Open `project.godot` in Godot 4.7.2 and run the game normally. Start a fight and check striking,
