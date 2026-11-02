@@ -126,10 +126,14 @@ const OPENING_SHARPNESS: float = 2.0
 ## Sprawling on a shot it read: 60% + 30% × Takedown defense / 100.
 const SPRAWL_BASE: float = 0.6
 const SPRAWL_PER_TDD: float = 0.3
-## Checking or slipping a strike it read (D180), when the defence will be up as it lands:
+## Checking, slipping, rolling, leaning back from or blocking a strike it read (D180, D181), when the defence will be up as it lands:
 ## 60% + 30% × Striking defense / 100. Then the defence's own roll decides it (FightSim).
 const GUARD_BASE: float = 0.6
 const GUARD_PER_SD: float = 0.3
+## After a check (D180): for this many ticks his strikes follow up while the kicker's on one leg.
+const OFF_CHECK_TICKS: int = 6
+## Off a roll (D181): the counter's own strikes (the cross and overhand) weigh this much more.
+const COUNTER_PREFER: float = 2.0
 ## Covering up when rocked (D180): decided once each time he's rocked, 20% + 40% × Fight IQ / 100
 ## (40% for an average fighter), plus the Survive! call's cover_bonus (it makes him).
 const COVER_BASE: float = 0.2
@@ -808,14 +812,17 @@ func _defend(view: FightView, layer: DecisionLayer) -> Decision:
 	return null
 
 
-## A strike it read (D180): check a low kick or slip a straight punch, if he has a defence
-## against it that will be up as it lands. One roll a strike; when it fails (or there's no
-## defence that fits), the strike is read like any other move: a counter, or backing off.
+## A strike it read (D180, D181): check a low kick, or slip, roll, lean back from or block a punch,
+## if he has a defence against it that will be up as it lands. When more than one fits, the one
+## with the best odds for what it's worth (a block lets some in, a counter adds, off balance costs). One roll a strike; when it fails (or there's no defence that fits), the
+## strike is read like any other move: a counter, or backing off.
 func _guard(view: FightView, layer: DecisionLayer) -> Decision:
 	if _opp.get("guard_rolled", false):
 		return null
 	_opp.guard_rolled = true
 	var lands: int = _ticks_until_active(view)
+	var best: String = ""
+	var best_chance: float = 0.0
 	for id in _all_moves(view):
 		var action: Dictionary = view.actions.get_action(id)
 		if action.category != DEFENSE or not action.defense.get("against_strikes", []).has(_opp.id) or not _usable(view, action):
@@ -825,11 +832,20 @@ func _guard(view: FightView, layer: DecisionLayer) -> Decision:
 		var up: int = view.phase_ticks(id, "telegraph") + view.phase_ticks(id, "windup")
 		if lands < maxi(1, up + 1) or lands > up + view.phase_ticks(id, "active"):
 			continue
-		var chance: float = GUARD_BASE + GUARD_PER_SD * view.me.effective_stat("striking_defense") / 100.0
-		if view.roll() < chance:
-			_opp.decided = true
-			return Decision.new(id, DecisionLayer.AI, "%s the %s" % [String(action.name).to_lower(), String(view.actions.get_action(_opp.id).name).to_lower()])
+		# What it's worth if it works: a block still lets some in, a counter is a bonus, being left
+		# off balance a cost (D181).
+		var worth: float = 1.0 - float(action.defense.get("block_share", 0.0)) \
+			+ float(action.defense.get("counter", {}).get("bonus", 0.0)) - float(action.defense.get("exposed", {}).get("bonus", 0.0))
+		var odds: float = _odds(view, id).chance * worth
+		if odds > best_chance:
+			best = id
+			best_chance = odds
+	if best == "":
 		return null
+	var chance: float = GUARD_BASE + GUARD_PER_SD * view.me.effective_stat("striking_defense") / 100.0
+	if view.roll() < chance:
+		_opp.decided = true
+		return Decision.new(best, DecisionLayer.AI, "%s the %s" % [String(view.actions.get_action(best).name).to_lower(), String(view.actions.get_action(_opp.id).name).to_lower()])
 	return null
 
 
@@ -881,6 +897,7 @@ func _follow_up(view: FightView, layer: DecisionLayer) -> Decision:
 	var last: String = _follow.last
 	var combo: String = String(_follow.get("combo", ""))
 	var why: String = String(_follow.get("why", "combination"))
+	var prefer: Array = _follow.get("prefer", [])
 	_follow = {}
 	if combo != "":
 		var next: String = view.combos.move(combo, int(_follow_step))
@@ -900,6 +917,8 @@ func _follow_up(view: FightView, layer: DecisionLayer) -> Decision:
 		var w: float = _score(view, layer, action, _seen_chance(view, action, b), _plain_chance(b), false)
 		if id == last and id != "jab":
 			w *= 0.5  # Double jabs, yes; double hooks, rarely.
+		if prefer.has(id):
+			w *= COUNTER_PREFER  # The right hand off the roll (D181).
 		if w > 0.0:
 			options.append(id)
 			weights.append(w)
@@ -2199,9 +2218,15 @@ func on_event(view: FightView, event: FightEvent, layer: DecisionLayer) -> void:
 					_follow = { "kind": COMBO, "until": event.tick + BAIT_COUNTER_TICKS, "last": "", "why": "off the bait" }
 		FightEvent.STRIKE_DEFENDED:
 			if event.actor == me and event.data.worked and not view.me.is_rocked():
-				# Off the slip, or while he's still on one leg from the check (D180).
-				var off: String = "off the check" if event.data.has("leg") else "off the slip"
-				_follow = { "kind": COMBO, "until": event.tick + FightSim.SLIP_COUNTER_TICKS, "last": "", "why": off }
+				# While he's still on one leg from the check (D180), or off the slip or the roll (D181).
+				if event.data.has("leg"):
+					_follow = { "kind": COMBO, "until": event.tick + OFF_CHECK_TICKS, "last": "", "why": "off the check" }
+				elif event.data.has("counter"):
+					_follow = { "kind": COMBO, "until": int(event.data.counter_until), "last": "", "why": event.data.counter,
+						"prefer": event.data.get("counter_strikes", []) }
+			elif event.actor != me and event.data.worked and event.data.has("exposed") and _follow.is_empty() and not view.me.is_rocked():
+				# He leaned back out of the way: the next punch, while he's off balance (D181).
+				_follow = { "kind": COMBO, "until": int(event.data.exposed_until), "last": String(event.data.against), "why": "he's leaning back" }
 		FightEvent.ROCKED, FightEvent.KNOCKDOWN:
 			if event.actor == me:
 				_follow = {}

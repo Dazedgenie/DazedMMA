@@ -11,7 +11,7 @@
 	"style": { "pace": -30, "range": -60, "base": 0, "risk": 0 },
 	"gifts": ["long_limbs"],
 	"flaws": [],
-	"techniques": ["jab", "teep", "leg_kick", "body_kick", "head_kick", "calf_kick", "knee", "triangle", "armbar"],
+	"techniques": ["jab", "teep", "leg_kick", "body_kick", "head_kick", "calf_kick", "knee", "triangle", "armbar", "lean_back"],
 	"combos": ["jab_leg_kick", "jab_body_kick", "teep_body_kick", "teep_head_kick", "body_kick_head_kick", "jab_calf_kick"],
 	"tendencies": { "work_rate": 0.015, "actions": { "jab": 0.6, "teep": 1.3, "leg_kick": 1.6, "body_kick": 1.6, "head_kick": 1.0, "calf_kick": 1.0, "knee": 0.2 } },
 	"tells": [
