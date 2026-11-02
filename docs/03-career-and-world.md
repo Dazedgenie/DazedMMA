@@ -1,6 +1,6 @@
 # 03 — Career, World & Life
 
-> Related decisions: D7, D16–D19, D21, D22, D25, D35, D41–D45, D55–D57, D160, D300–D316, D350–D359. Status: **design draft**; §7.1 and §10.1–§10.5, §11 and §12 (D350–D359) are built.
+> Related decisions: D7, D16–D19, D21, D22, D25, D35, D41–D45, D55–D57, D160, D300–D316, D350–D359, D400–D419. Status: **design draft**; §7.1 and §10.1–§10.5, §11 and §12 (D350–D359) are built; §13 (phase 4) is being built (§13.1 so far).
 
 ---
 
@@ -1226,3 +1226,69 @@ It prints each seed's 5-year lines and anything out of bounds, and exits 1 if an
 `TOP_DECLINE_FROM`; forgetting in `WorldWeeks.FORGET_PROS_WEEKS` (`let_go`); division sizes in `data/divisions/*.json`
 `size` (`Weight.size_of`, `World.count_in`). Tests: `tests/sim/world/test_world_check.gd`. Then update this section and
 D359.
+
+---
+
+## 13. A deeper camp (D400–D419)
+
+Phase 4 of the plan (§10, D300). Kyle (2026-11-02): "Merge and start the next phase". Until now the camp barely knew who
+he was fighting: an offer showed the opponent's grades exactly, a career fight cued every one of his tells, and career
+fights started with no drilled rules. Phase 4 makes every camp about the man he's fighting: scout him, drill the rule that
+beats his habit, cut the weight and see it pay off on the night. The plan and its 16 questions are in the phase 4 plan doc
+(https://claude.ai/artifact/1nBbfwVWue3ZCFZGb2amh3). The pieces, in this order (D400; Kyle, 2026-11-02, picked "Scouting and film
+study" first, my pick):
+
+| Piece | Decision | Status |
+|---|---|---|
+| Scouting and film study: grades as a range until he's scouted, film study finding his habits, only found habits cued, each man's own habits from his style | D401 | Built (§13.1) |
+| Drilling rules in camp: a session that drills one of his two rule slots, the slots in career fights, the camp's early, middle and taper weeks marked | D402 | Planned |
+| More rules to drill: about six answers to the styles' habits | D403 | Planned |
+| The opponent's camp: a plan against your style, sometimes a rule against your favourite move, his own cut | D404 | Planned |
+| The weight cut and the weigh-in: how hard he cuts in fight week, missing weight (Kyle, 2026-11-02: "One pick now, planner later": light, normal, hard or extreme now, D23's five-day planner later as a minigame) | D405 | Planned |
+| Named injuries, and hiding one from the doctor | D406 | Planned |
+| Sparring partners: named men at his gym from the world's local men | D407 | Planned |
+| Coaches: assistants for a weekly fee, the head coach's levels | D408 | Planned |
+| Changing gyms: his hometown and the nearest city | D409 | Planned |
+| Minigames, one a PR: film study, heavy bag, sprawl reflex, Thai pads first | D410 on | Planned |
+
+### 13.1 Scouting and film study (D401)
+
+What you know of the man you're fighting is what you've found out (D11, D51, D66). Kyle (2026-11-02) picked "Grades as a
+range", "Film study sessions find them" and "Found after 3 fires" and "1 to 2 habits from his style" (my picks on all four).
+
+- **How well you know him** (0–100%): 3% for each fight on his record (his fights on film, at most 45%), 50% if he's fought
+  him before, and what film study in this camp has added. The camp screen shows it.
+- **His grades as scouted.** An offer's *Scouted* line (and the camp screen's) shows each group's grade as a range, 16
+  points wide when you know nothing of him (*Striking B–A*), narrowing to his one true grade as you get to know him. The truth
+  is always inside it but not always in the middle, and the same man always scouts the same.
+- **Film study** (the session, `data/sessions/film_study.json`) studies the booked man when it's done in his camp: each one
+  adds 20% to how well you know him at Fight IQ 50 (10% at 0, 30% at 100), and has a chance of finding one of his habits he
+  hasn't shown you: 25%, + 30% × Fight IQ / 100, + 1% for each of his fights on film (at most 15%), + 15% with a Tactician
+  for a head coach (until the coach's own Reading, D408). Between fights it trains Fight IQ only, as before. The camp log
+  says what it found (*Film study found his habit: when his jab is blocked, he throws a body kick (7 times in 10, within 1.5
+  s)*) and the camp screen's **Scouting** box lists them.
+- **Only found habits get the tell cue** in a career fight (D51). One you haven't found is still in his fighting, and once
+  you've seen it go off three times in the fight (its move inside its window after its trigger) it's found: the feed says
+  *You've got his habit*, it's cued for the rest of the fight, the result lists it, and it stays found for a rematch. Not in a
+  simmed fight: nobody was watching. Quick fight cues every tell, as before.
+- **His own habits.** Each style sheet now lists two or three habits (style@1 `habits`, `docs/09`): a man made from it keeps
+  the signature fighter's tell (the kicker's body kick off a blocked jab) and, half the time, one more from the list; the five
+  styles whose signature fighter has none (the Boxer, BJJ, Judoka, Muay Thai, Sambo) get one or two. So two kickers can have
+  different habits, and every opponent has something to find. This changes how career opponents fight a little (the AI
+  follows its habits); quick fights, the harness and the golden fights use the authored fighters and don't change. On
+  `tools/style_sheets.gd --fights=12` (12 men of each style against the field, 2026-11-02) every style still fights in
+  style: strikes a minute, shots, submissions and time in the clinch and on the ground within a little of before, and win
+  shares moving inside what 12 fights can tell apart. The Sambo fighter's first list (two double legs) took him from 31 to 43
+  shots a fight, so his second habit off a miss is a leg kick (35 shots, about as before, on 20 fights).
+
+Saved on the career as `scouting` (`docs/09` career@1; optional, so a career saved before D401 loads knowing nothing of
+anyone). A man who was already in the career's opponents keeps the habits he was made with.
+
+**Not yet:** a scout's report you pay for, the head coach's Reading making the cue come earlier (D66, with the coach levels,
+D408), the film study minigame (spot the tell, D410), and the opponent studying you (D404).
+
+**What to change:** the numbers at the top of `sim/world/scouting.gd` (`SPREAD`, `OFFSET`, `FILM_PER_FIGHT`, `FILM_MAX`,
+`MET`, `STUDY_GAIN`, `STUDY_IQ`, `FIND_BASE`, `FIND_PER_IQ`, `FIND_PER_FIGHT`, `FIND_FILM_MAX`, `FIND_TACTICIAN`,
+`SPOT_FIRES`) and how each trigger reads in a habit (`TRIGGER_TEXT`); each style's `habits` in `data/styles/`, and how many a
+man rolls (`StyleLibrary.HABIT_EXTRA_CHANCE`, `HABITS_MAX`). Tested in `tests/sim/world/test_scouting.gd`,
+`tests/sim/world/test_style_library.gd` and `tests/game/test_main_scene.gd`.

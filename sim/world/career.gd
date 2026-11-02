@@ -123,6 +123,8 @@ var medals: Array = []
 ## His division once he's turned pro (Weight, D351): picked at the debut from his natural one or one either side, and
 ## kept. "" before: an amateur fights at whatever his weight that year makes (division_now()).
 var division: String = ""
+## What he knows of the men he fights (D401, Scouting): man id → { known, tells }.
+var scouting: Dictionary = {}
 ## The world's fighters (World, D352), made the first time they're needed and kept in the save.
 var _world: World
 var _world_data: Dictionary = {}
@@ -527,6 +529,20 @@ func camp_weeks_left() -> int:
 	return int(booked.week) - week + 1 if not booked.is_empty() else 0
 
 
+## A camp week's film study (D401, Scouting.study): each film study session done in it studies the booked man.
+## Returns the habits of his it found (fighter@1 tells), and keeps them on the report as `scouted` (their keys).
+func scout_week(report: Dictionary) -> Array[Dictionary]:
+	var sessions: int = 0
+	for slot: Dictionary in report.get("slots", []):
+		if String(slot.get("session", "")) == Scouting.FILM_STUDY and String(slot.get("result", "")) == TrainingCamp.DONE:
+			sessions += 1
+	var found: Array[Dictionary] = []
+	if not booked.is_empty():
+		found = Scouting.study(self, booked_opponent(), sessions)
+	report.scouted = found.map(func(t: Dictionary) -> String: return Scouting.key(t))
+	return found
+
+
 ## The booked opponent's profile and name ("" when not booked).
 func booked_opponent() -> Dictionary:
 	return opponents.get(String(booked.get("opponent", "")), {})
@@ -828,7 +844,7 @@ func to_dict() -> Dictionary:
 		"suspended_days": suspended_days, "money": money, "pro": pro, "week_plan": week_plan,
 		"worn_last_week": worn_last_week, "next_offers_week": next_offers_week,
 		"next_tournament_week": next_tournament_week, "medals": medals.duplicate(true), "division": division,
-		"tutorial": tutorial, "tips_seen": tips_seen.duplicate(),
+		"tutorial": tutorial, "tips_seen": tips_seen.duplicate(), "scouting": scouting.duplicate(true),
 		"fights": fights.duplicate(true), "opponents": opponents.duplicate(true),
 		"world": _world.to_dict() if _world != null else _world_data.duplicate(true),
 		"booked": booked.duplicate(true), "offers": offers.duplicate(true),
@@ -888,6 +904,10 @@ static func from_dict(data: Dictionary, library: TrainingLibrary = null) -> Care
 			m.size = int(m.get("size", 0))
 	c.fights = d.get("fights", []).duplicate(true)
 	c.opponents = d.get("opponents", {}).duplicate(true)
+	c.scouting = d.get("scouting", {}).duplicate(true) if d.get("scouting") is Dictionary else {}
+	for id: String in c.scouting.keys():
+		var entry: Dictionary = c.scouting[id] if c.scouting[id] is Dictionary else {}
+		c.scouting[id] = { "known": float(entry.get("known", 0.0)), "tells": (entry.get("tells", []) as Array).duplicate() if entry.get("tells") is Array else [] }
 	c._world_data = d.get("world", {}).duplicate(true) if d.get("world") is Dictionary else {}
 	c.booked = d.get("booked", {}).duplicate(true)
 	if c.booked.get("tournament") is Dictionary:

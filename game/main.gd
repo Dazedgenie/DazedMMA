@@ -99,6 +99,7 @@ func _ready() -> void:
 	add_child(sounds)
 	sounds.build_in_background()
 	arena.fence_slammed.connect(sounds.play_rattle)  # The fence rattles (D287).
+	arena.tell_spotted.connect(_on_tell_spotted)
 	arena.takedown_landed.connect(sounds.play_thud)  # A takedown thuds onto the canvas (D288).
 	var ui: CanvasLayer = $UI
 	hud = FightHud.new()
@@ -449,6 +450,7 @@ func open_career_camp() -> void:
 
 
 func _career_camp_week(report: Dictionary) -> void:
+	career.scout_week(report)  # Film study on the man he's fighting (D401).
 	if bool(report.get("fight_week", false)):
 		career.booked.fight_week_report = report.duplicate(true)  # Fight night waits for the fight, even over a reload.
 		save_career()
@@ -509,6 +511,8 @@ func _career_settings(profile: Dictionary, simmed: bool = false) -> Dictionary:
 		"seed": career.next_seed(), "normal_rate": 2.0, "auto_slow": true, "flourishes": true, "tell_cues": true,
 		"sound_volume": float(setup.settings().get("sound_volume", 1.0)), "easy": false, "rules": [],
 		"moments": bool(setup.settings().get("moments", true)),  # The setup's "Walk-out and corners" (D394).
+		# Only his habits you've found get the tell cue (D401); one seen going off often enough in the fight joins them.
+		"known_tells": Scouting.found(career, String(opponent.id)),
 		# Tonight's plan from the fight night card; a tournament's later rounds keep the last round's (D320).
 		"gameplan": planner.night_card.gameplan.picked() if planner != null else Dictionary(settings.get("gameplan", {})),
 		"camp": camp,
@@ -534,6 +538,19 @@ const BREAK_CHANGE_LINE := "[color=#adb5bd]Change your drilled rules and gamepla
 
 ## A career fight is over (D304): onto his record (Career.finish_fight), any injury fighting hurt made worse, saved.
 ## Returns the lines for the result screen.
+## Habits of his the player saw going off often enough to find them (D401) are found for good: a line each for the
+## result. Not in a simmed fight (nobody was watching).
+func _spotted_notes(sim: FightSim) -> Array[String]:
+	var out: Array[String] = []
+	if arena.tell_watch == null or bool(settings.get("sim", false)) or arena.tell_watch.spotted.is_empty():
+		return out
+	Scouting.learn(career, String(career.booked.get("opponent", "")), arena.tell_watch.spotted)
+	for t: Dictionary in sim.fighters[1 - driver.player].tells:
+		if arena.tell_watch.spotted.has(Scouting.key(t)):
+			out.append("[color=#ffe066]You found a habit of his:[/color] %s." % Scouting.tell_text(t))
+	return out
+
+
 func _finish_career_fight(sim: FightSim, record: Dictionary, injury: Dictionary) -> Array[String]:
 	var ended: Dictionary = record.get("result", {})
 	var winner: int = int(ended.get("winner", -1))
@@ -692,6 +709,7 @@ func start_fight(p_settings: Dictionary) -> void:
 	driver.round_over.connect(_on_round_over)
 	driver.fight_over.connect(_on_fight_over)
 	arena.tell_cues = bool(settings.get("tell_cues", true))
+	arena.tell_watch = Scouting.Watch.new(settings.known_tells) if settings.get("known_tells") is Array else null
 	arena.watch(driver)
 	_moments = bool(settings.get("moments", false)) and arena.can_play_moments() \
 		and (DisplayServer.get_name() != "headless" or moments_in_headless)
@@ -940,6 +958,11 @@ func _start_next_round() -> void:
 	hud.show_banner("Round %d" % driver.sim.clock.current_round)
 
 
+## A habit of his seen going off often enough to find it (D401): the feed says so, and it's cued from now on.
+func _on_tell_spotted(tell: Dictionary) -> void:
+	hud.feed.add_line(FightFeed.KEY_MOMENT, "[color=#ffe066][b]You've got his habit:[/b] %s.[/color]" % Scouting.tell_text(tell).to_lower())
+
+
 ## The player's gameplan as it stands: {approach, target, where} ("" = his own game).
 func _current_plan() -> Dictionary:
 	var plan: Gameplan = driver.sim.decisions[driver.player].gameplan
@@ -982,6 +1005,7 @@ func _on_fight_over(event: FightEvent) -> void:
 		notes.append(("[color=#ff8787]Fighting hurt made the %s injury worse: out %d days.[/color]" if injury.worse
 			else "The %s injury held up: %d more days to heal.") % [injury.area, injury.days_out])
 	if bool(settings.get("career", false)) and career != null:
+		notes.append_array(_spotted_notes(sim))
 		notes.append_array(_finish_career_fight(sim, record, injury))
 		hud.hide_dialog()
 		if career.tournament_stage() > 0:
