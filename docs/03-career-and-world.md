@@ -1459,8 +1459,8 @@ Tested in `tests/sim/world/test_sprawl_reflex.gd` and `tests/ui/test_camp_planne
 
 The third phase 4 minigame (Kyle, 2026-11-03, picked "Heavy bag" next, my pick: strikers get a session to play, after a
 mind drill and a wrestling drill). It's `docs/02` §3.2's power timing with chaining. A Heavy bag session ticked to **Play**
-in the camp planner opens a minute on the bag before the week runs. Kyle's three cards: [answers to come; built on my
-picks: "2D drawn bag and meter", "Load, release, meet the swing", "Quicker meter, smaller green"].
+in the camp planner opens a minute on the bag before the week runs. Kyle's three cards (2026-11-03, all my picks): "2D drawn
+bag and meter", "Load, release, meet the swing", "Quicker meter, smaller green".
 
 - **The screen**: the bag drawn swinging on its chain, his glove, and a power meter beside it (green at the top, good
   below it, weak under that), like mitt work's drawn mitts. A thud on every shot that lands, a whoosh on one that finds
