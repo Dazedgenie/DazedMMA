@@ -506,3 +506,37 @@ edge, the toggle's light and underline, which labels get the display font and it
 (`FADE_SECONDS`) in `ui/off_cage.gd`; how fast the hall turns and how far back the camera stands (`HALL_TURN_SPEED`,
 `HALL_ZOOM`) in `game/arena_view.gd`; the camp's own backing (`BACKGROUND`) in `ui/camp_planner.gd`. Tests:
 `tests/ui/test_one_look.gd`. Presentation only: fights and careers are unchanged (no golden re-pin).
+
+### 6.16 The result as a moment (D436)
+
+The sixth and last piece of D430: a fight ended and the full-screen sheet of numbers came straight up. Now (Kyle's picks
+on the four D436 cards, all four recommendations):
+
+- **The verdict first, over the cage** (`ui/verdict_banner.gd`, `VerdictBanner`): when the finish has been held and,
+  with *Walk-out and corners* on, his hand raised, the HUD goes and a dark band across the lower third of the cage reads
+  the verdict out like the announcer: how and when, then the winner's name big in his corner's colour. A key or a click
+  shows it all at once and another goes on to the sheet; left alone it goes on a few seconds after the last line.
+  The sheet (§6.9) then comes up as before. A simmed fight (D305) still goes straight to the sheet, and so do headless
+  runs unless a test asks (`verdict_in_headless` in `game/main.gd`).
+- **The finish again, slowly** (`game/finish_replay.gd`, `FinishReplay`): after a KO, TKO or tap the last few seconds
+  play again in slow motion behind the verdict, closer and from another angle (`ArenaView.view_turn`, `view_zoom`),
+  with REPLAY in the corner and its own sounds, held a moment at the end and played again, on and on behind the sheet
+  until you leave it. It's the real fight played again, not a recording: a fresh fight from the same seed, the same two
+  men made fresh and every command the fight took (your calls, his rules, the other corner's calls, the towel), as a
+  saved fight replays (docs/04 §2.2). It never starts before the last bell, so a finish early in a round only replays
+  that round. If it ever ended differently it wouldn't be shown again (`exact`).
+- **A decision read out one judge at a time**: "After 3 rounds, to the judges' scorecards", then each judge's score in
+  turn in the colour of the man he gave it to, then the winner with how it was decided. Whole-fight judging (PRIDE
+  rules, D141) reads as a finish does: how, then the winner.
+- **What it means, in a career** (`FightResultCard.meaning_rows`, `Career.standing()`): a fourth card on the result
+  beside your corner and the judges: his record before and after, his place in his promotion's rankings (the new ones
+  come out after the card, so it says so), a belt won, lost or kept, a call-up or being let go down the promotions, the
+  purse and his savings, and the suspension and any Chin lost. These moved off the notes under the sheet; the notes keep
+  the rest (simmed, a tournament's next round, a medal, a habit spotted).
+
+**To change it:** the band's colour and place, the gap between the judges, how long it stays up and the sizes
+(`BAND`, `BAND_TOP`, `BAND_BOTTOM`, `READ_GAP`, `STAY_FOR`, `NAME_SIZE`, `LINE_SIZE`, `REPLAY_SIZE`) in
+`ui/verdict_banner.gd`; how far back the replay starts, its speed, the hold before it plays again and the camera's turn
+and closeness (`SECONDS`, `RATE`, `HOLD_AFTER`, `VIEW_TURN`, `VIEW_ZOOM`) in `game/finish_replay.gd`; the panel's rows
+in `FightResultCard.meaning_rows` (`ui/result_card.gd`). Tests: `tests/ui/test_result_moment.gd`. Presentation only:
+fights and careers are unchanged (no golden re-pin).

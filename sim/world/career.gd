@@ -892,6 +892,17 @@ func _belt_held() -> String:
 	return Titles.title_name(_world, belt) if belt != "" else ""
 
 
+## Where he stands, for the result's "what it means" panel (D436): his record on the side he fights on, his place in
+## his promotion's rankings (0 unranked), the belt he holds by name and his money. Read only: it never moves the world on.
+func standing() -> Dictionary:
+	var out: Dictionary = { "record": record_text(pro), "pro": pro, "rank": 0, "belt": "", "money": money }
+	if _world != null and pro:
+		out.rank = Rankings.rank_of(_world, FIGHTER_ID)
+		out.belt = _belt_held()
+		out.promotion = String(Promotions.by_id(_world, String(_world.him.get("promotion", ""))).get("name", ""))
+	return out
+
+
 ## What the load screen needs to draw him (D434): his look, frame and stance.
 func _portrait_summary() -> Dictionary:
 	var him: Dictionary = profile()

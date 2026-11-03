@@ -239,6 +239,10 @@ var hall_drift: bool = false
 const HALL_TURN_SPEED: float = 0.06
 const HALL_ZOOM: float = 1.6
 var _hall_turn: float = 0.0
+## The camera turned this far round from where it would stand (radians) and standing this share of its distance: the
+## finish's replay from another angle, closer in (D436, FinishReplay).
+var view_turn: float = 0.0
+var view_zoom: float = 1.0
 var debug_marks: bool = false:
 	set(value):
 		debug_marks = value
@@ -1683,7 +1687,8 @@ func _place_camera(delta: float, middle: Vector2 = Vector2.ZERO, sim: FightSim =
 	var turn: float = 1.0 - exp(-CAMERA_TURN_SPEED * delta)
 	camera_swing = lerp_angle(camera_swing, _swing_want, turn)
 	camera_rise = lerpf(camera_rise, _rise_want, turn)
-	camera.position = _focus + camera_from(camera_swing, camera_rise) * distance
+	camera.size = _zoom * view_zoom
+	camera.position = _focus + camera_from(camera_swing + view_turn, camera_rise) * distance * view_zoom
 	camera.look_at(_focus, Vector3.UP)
 
 

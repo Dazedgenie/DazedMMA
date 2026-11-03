@@ -430,7 +430,8 @@ camp's wasted, the week's over).
 **The fight.** *Fight!* saves the career, then starts the fight against the booked man under the booked rules, with a seed
 from the career's dice. A career fight can't be restarted from the pause menu. When it ends it goes on his record
 (`Career.finish_fight`: result, how, the round, the rules, the purse), he's paid, an injury fighting hurt made worse (D135)
-carries on, the fight week ends and the career saves. The result screen says what it did to his record and his money, and
+carries on, the fight week ends and the career saves. The result screen says what it did to his record and his money (since
+D436 on its own *What it means* card with his rank, a belt, a promotion move and the suspension: `docs/06` §6.16), and
 *Back to the hub* goes home.
 
 **Not yet:** short-notice offers, a rematch, an opponent's own record and camp, and reputation for turning fights down.
