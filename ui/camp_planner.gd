@@ -968,6 +968,7 @@ func _refresh() -> void:
 func _night_info() -> Dictionary:
 	var start_chin: float = float(_start.get("stats", {}).get("chin", FighterState.DEFAULT_STAT))
 	return { "name": String(_start.get("name", "Fighter")), "age": camp.age, "weeks": weeks, "opponent": opponent_name,
+		"profile": _start,
 		"night": camp.fight_night(), "pulled_out": pulled_out, "history": _history(), "gains": camp.camp_gains(),
 		"chin": camp.stat("chin"), "chin_change": camp.stat("chin") - start_chin }
 

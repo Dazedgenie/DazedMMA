@@ -22,6 +22,8 @@ const STANCES: Array = [["Orthodox", "orthodox"], ["Southpaw", "southpaw"]]
 ## The chance Roll makes him a southpaw (about one fighter in five is).
 const SOUTHPAW_CHANCE: float = 0.2
 const NAME_LENGTH: int = 28
+## The preview's frame (D430): an average 16-year-old's, until his background or childhood sets his own.
+const PREVIEW_FRAME := { "height_cm": 175, "reach_cm": 177, "build": "average" }
 
 ## False when all the save slots are in use (main.gd sets it): Start career says to delete one first.
 var slot_free: bool = true
@@ -55,6 +57,8 @@ var _know_the_game: CheckBox
 var _about: RichTextLabel
 var _problem: Label
 var _start: Button
+## Him as picked (D430): his look and stance, in 3D, beside where he comes from.
+var preview: FighterPortrait
 
 
 func _init(p_names: NameLibrary = null, p_backgrounds: BackgroundLibrary = null) -> void:
@@ -125,6 +129,7 @@ func _init(p_names: NameLibrary = null, p_backgrounds: BackgroundLibrary = null)
 	_stance = OptionButton.new()
 	for entry: Array in STANCES:
 		_stance.add_item(entry[0])
+	_stance.item_selected.connect(func(_i: int) -> void: _show_preview())
 	who_box.add_child(_stance)
 	_caption(who_box, "His look")
 	var skins := HBoxContainer.new()
@@ -182,6 +187,10 @@ func _init(p_names: NameLibrary = null, p_backgrounds: BackgroundLibrary = null)
 	_about.add_theme_font_size_override("normal_font_size", 18)
 	_about.add_theme_color_override("default_color", TEXT)
 	bg_row.add_child(_about)
+	preview = FighterPortrait.new(FighterPortrait.FULL, 0, -20.0)
+	preview.custom_minimum_size = Vector2(300.0, 0.0)
+	preview.tooltip_text = "Him as you've picked him: his skin, hair and beard, in his stance"
+	bg_row.add_child(preview)
 
 	_problem = FightNightCard._label(17, BAD)
 	_problem.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -257,6 +266,20 @@ func pick_skin(tone: int) -> void:
 	_skin_picked = clampi(tone, 0, FighterLook.SKIN_TONES.size() - 1)
 	for i in _skin.size():
 		_skin[i].set_pressed_no_signal(i == _skin_picked)
+	_show_preview()
+
+
+## The preview of him (D430): his look and stance as picked, at an average 16-year-old's frame (his height comes from his
+## background or childhood once the career starts).
+func preview_profile() -> Dictionary:
+	return { "id": "new_career_preview", "name": _name.text.strip_edges() if _name != null else "",
+		"stance": String(STANCES[maxi(_stance.selected, 0)][1]) if _stance != null else "orthodox",
+		"look": look(), "frame": PREVIEW_FRAME.duplicate() }
+
+
+func _show_preview() -> void:
+	if preview != null and _hair != null and _hair_style != null and _beard != null:
+		preview.show_fighter(preview_profile())
 
 
 ## Whether Start career plays his childhood first (the background comes from it, not the list).
@@ -330,6 +353,7 @@ func set_field(field: String, value: String) -> void:
 
 
 func _refresh() -> void:
+	_show_preview()
 	_coach_about.text = "%s %s" % [Coach.background_about(coach_background_id()), Coach.specialty_does(coach_specialty_id())]
 	_start.text = "Play his childhood" if play_childhood() else "Start career"
 	_list.mouse_filter = Control.MOUSE_FILTER_IGNORE if play_childhood() else Control.MOUSE_FILTER_STOP
@@ -404,6 +428,7 @@ func _look_option(parent: Control, ids: Array) -> OptionButton:
 	for id: Variant in ids:
 		option.add_item(String(id).replace("_", " ").capitalize())
 	option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	option.item_selected.connect(func(_i: int) -> void: _show_preview())
 	parent.add_child(option)
 	return option
 

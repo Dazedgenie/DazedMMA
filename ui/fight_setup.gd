@@ -31,9 +31,10 @@ const TEXT := Color("#e9ecef")
 const DIM := Color("#8a8f98")
 const NOTE := Color("#adb5bd")
 const CORNERS: Array[Color] = [TaleOfTheTape.RED, TaleOfTheTape.BLUE]
-## The body figure's height for the tallest fighter (px); shorter men are drawn shorter.
-const FIGURE_H: float = 200.0
-const FIGURE_TALLEST_CM: float = 190.0
+## The portraits' height (px; D430): both men drawn at one scale, so the taller stands taller; and how far each turns
+## toward the other (degrees).
+const FIGURE_H: float = 290.0
+const FIGURE_TURN: float = 55.0
 ## The fighter's name between the arrows: its size, and how small a long name may shrink to fit NAME_W (px).
 const NAME_SIZE: int = 46
 const NAME_MIN_SIZE: int = 26
@@ -72,7 +73,7 @@ var _tape: TaleOfTheTape
 var _keys: RichTextLabel
 var _names: Array[Label] = []
 var _kinds: Array[Label] = []
-var _figures: Array[BodyDamageFigure] = []
+var _portraits: Array[FighterPortrait] = []
 var _scouting: Array[RichTextLabel] = []
 
 
@@ -336,8 +337,7 @@ func _refresh() -> void:
 		_fit_name(_names[corner])
 		var kind: String = String(sheet.get("name", ""))
 		_kinds[corner].text = kind if kind.to_upper() != _names[corner].text else ""
-		var height: float = float(profile.get("frame", {}).get("height_cm", FIGURE_TALLEST_CM))
-		_figures[corner].custom_minimum_size = Vector2(FIGURE_H * 0.6, FIGURE_H * minf(1.0, height / FIGURE_TALLEST_CM))
+		_portraits[corner].show_fighter(profile)
 		_scouting[corner].text = _scouting_bbcode(sheet.get("scouting", {}), sheet.get("gameplan", {}))
 	_tape.show_fighters(profiles[0], profiles[1])
 	var keys: Array[String] = TaleOfTheTape.keys(profiles[0], profiles[1], _style_of.get(picked[1], {}).get("scouting", {}))
@@ -393,15 +393,11 @@ func _build_fighter_card(corner: int) -> Control:
 	kind.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(kind)
 	_kinds.append(kind)
-	var stand := Control.new()  # The figure stands on the same line whatever his height.
-	stand.custom_minimum_size.y = FIGURE_H
-	box.add_child(stand)
-	var figure := BodyDamageFigure.new()
-	figure.tooltip_text = "fresh: drawn to his height"
-	stand.add_child(figure)
-	figure.resized.connect(func() -> void: figure.position = Vector2((stand.size.x - figure.size.x) * 0.5, FIGURE_H - figure.size.y))
-	stand.resized.connect(func() -> void: figure.position = Vector2((stand.size.x - figure.size.x) * 0.5, FIGURE_H - figure.size.y))
-	_figures.append(figure)
+	var portrait := FighterPortrait.new(FighterPortrait.FULL, corner, FIGURE_TURN * (1.0 if corner == 0 else -1.0))
+	portrait.custom_minimum_size = Vector2(0.0, FIGURE_H)
+	portrait.tooltip_text = "drawn to his height, reach and build"
+	box.add_child(portrait)
+	_portraits.append(portrait)
 	var scouting := RichTextLabel.new()
 	scouting.bbcode_enabled = true
 	scouting.fit_content = true
