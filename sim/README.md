@@ -18,6 +18,7 @@ Rules (docs/04-tech-and-production.md §2.2):
 | `decision.gd` / `decision_source.gd` | A decision (action, layer, reason) and the base for layers that claim or bias it |
 | `live_calls.gd` | Live calls: delay in fight time, compliance and feasibility checks, `call_answered` events |
 | `gameplan.gd` | Multiplies the AI's weights per action or category |
+| `drill_ai.gd` | A fighter in a training drill, not a fight (the sprawl reflex, D411): stands at mid range and starts only the moves he's given |
 | `fighter_ai.gd` | The fighter's own choices with no calls (#14, `docs/01` §20): the range plan and footwork, reads, counters, combinations, tells and what to throw |
 | `trigger_library.gd` | Loads `data/triggers/*.json` and matches an event against a trigger, as one fighter sees it (tells now; read calls and rules later) |
 | `odds_breakdown.gd` | Where an exchange's odds came from; strike events carry it as `odds` |
@@ -69,6 +70,7 @@ The career and world simulation (D100), starting with training (`docs/02` §3.5,
 | `climb.gd` | Climbing the ladder (docs/03 §12.7, D357): his rung, call-ups after three wins or a defence, asking for a step up and the tryout, let go after three losses, the Ladder line |
 | `scouting.gd` | Scouting and film study (docs/03 §13.1, D401): how well he knows a man, grades as scouted ranges, film study finding the man's habits, and `Scouting.Watch`, which counts a habit going off in a fight so an unfound one is found after three |
 | `film_study.gd` | The film study minigame (docs/03 §13.4, D410): his tape (a fight of his against a stand-in, played without drawing it), the clip where his habit goes off most, marks judged against it, his habit named from three, the session's score, and a man of a style when there's nothing of his to find |
+| `sprawl_reflex.gd` | The sprawl reflex minigame (docs/03 §13.5, D411): your fighter and a wrestling partner in the fight engine run as a drill, the partner's shots and feints, Space to sprawl, taken down and stood back up, the session's score, harder with Takedown defence |
 | `rule_drilling.gd` | Drilling rules in camp (docs/03 §13.2, D402): his two rule slots, the Drill rule sessions sharpening them, rules going rusty between camps, and the rules a career fight starts with; which rule answers which habit, for the Rules box's stars and the scouting report (§13.3, D403) |
 | `world_check.gd` | The 30-year check (docs/03 §12.9, D359): a career's world played 30 years with a stand-in of his own, measured every 5 years and held to bounds |
 | `result_model.gd` | The quick result model (docs/03 §12.3, D350, D353): who wins a world fight, how and in which round, from the style matchup table the engine made (data/world/matchups.json) |

@@ -218,4 +218,10 @@ seed; exits 1 if any seed is out).
 `film_preview.gd` shows the film study minigame (D410, `docs/03` §13.4) on a man of a style, the tape started at once and
 the naming panel at the end with `--name`, so its look can be checked. Needs a display:
 
+`sprawl_preview.gd` shows the sprawl reflex minigame (D411, `docs/03` §13.5) with the drill started at once, sprawling on
+every shot with `--sprawl` and biting on every feint too with `--bite`, at `--level=` Takedown defence, so its look can be
+checked. Needs a display:
+
+    godot --path . --fixed-fps 24 --write-movie build/sprawl/frame.png --script res://tools/sprawl_preview.gd -- --level=50 --sprawl
+
     godot --path . --fixed-fps 24 --write-movie build/film/frame.png --script res://tools/film_preview.gd -- --style=kicker --seconds=8 --name
