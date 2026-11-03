@@ -214,3 +214,8 @@ played 30 years with a stand-in of his own, each seed's 5-year lines printed wit
 seed; exits 1 if any seed is out).
 
     godot --headless --script res://tools/world_check.gd -- --seeds=3,7,11
+
+`film_preview.gd` shows the film study minigame (D410, `docs/03` §13.4) on a man of a style, the tape started at once and
+the naming panel at the end with `--name`, so its look can be checked. Needs a display:
+
+    godot --path . --fixed-fps 24 --write-movie build/film/frame.png --script res://tools/film_preview.gd -- --style=kicker --seconds=8 --name

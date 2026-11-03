@@ -181,6 +181,32 @@ func test_skipping_the_minigame_lets_the_session_auto_resolve() -> void:
 	assert_true(_planner.reports[0].played.is_empty())
 
 
+func test_a_ticked_film_study_plays_his_tape_first_and_its_score_counts() -> void:
+	_planner.set_slot(0, "film_study")
+	_planner.set_play(0, true)
+	assert_eq(_planner.played_slots(), [0] as Array[int], "film study can be played (D410)")
+	_planner.run_week()
+	assert_not_null(_planner.film, "the tape opens")
+	assert_null(_planner.minigame)
+	assert_true(_planner.reports.is_empty(), "the week waits for it")
+	var screen: FilmStudyScreen = _planner.film
+	assert_false(screen.study.finds, "a quick camp films a man of a style, for Fight IQ only")
+	screen.start()
+	for f: int in screen.study.fires:
+		screen.sim.now = f  # The marks land on his habit (the tape itself is tested in test_film_study).
+		screen.mark()
+	screen.end_tape()
+	for i in screen.study.choices.size():
+		if Scouting.key(screen.study.choices[i]) == Scouting.key(screen.study.habit):
+			screen.name_it(i)
+	assert_eq(screen.stage, "over")
+	screen.finish()
+	assert_null(_planner.film)
+	assert_eq(_planner.reports.size(), 1)
+	assert_almost_eq(float(_planner.reports[0].played[0]), TrainingCamp.PLAYED_MAX, 0.0001)
+	assert_true((_planner.reports[0].film as Dictionary).is_empty(), "nothing of a sample man's to find")
+
+
 func test_each_tile_shows_its_session_and_the_fatigue_after_it() -> void:
 	_planner.pick_preset("speed")
 	var forecast: Dictionary = _planner.camp.forecast(_planner.week_plan())
