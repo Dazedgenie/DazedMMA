@@ -1418,8 +1418,9 @@ shown as film to a corner, and the other minigames (sprawl reflex built next, §
 The second phase 4 minigame (Kyle, 2026-11-03, picked "Sprawl reflex" next, my pick: a reaction game, unlike mitt work's
 rhythm). A Sprawl drills session ticked to **Play** in the camp planner opens a minute of a drill before the week runs: your
 fighter and a wrestling partner (the Wrestler from `data/fighters/`) in the fight screen's 3D view, the partner shooting
-double legs at you, and **Space** to sprawl. Kyle's four cards: [answers to come; built on my picks: "3D view, him and a
-partner", "Feints, some shot off the feint", "He's taken down, then reset", "Pace, feints and speed by TD defence"].
+double legs at you, and **Space** to sprawl. Kyle then picked "3D view, him and a partner",
+"Feints, some shot off the feint", "He's taken down, then reset" and "Pace, feints and speed by TD defence" (my picks on all
+four).
 
 - **The engine is the referee.** It's the real fight engine, so the timing is the fights' own (`docs/01` §21.2): a sprawl
   works when its active phase meets the shot's drive. Pressed from his first step in until the drive's last moment, about
