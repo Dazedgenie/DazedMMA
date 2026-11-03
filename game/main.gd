@@ -79,6 +79,9 @@ var _console: DebugConsole
 ## option): the bodies and the referee are drawn and it isn't headless (or a test asked, moments_in_headless).
 var _moments: bool = false
 var moments_in_headless: bool = false
+## The fight behind the title screen (D434): not in headless runs unless a test asks (backdrop_in_headless).
+var backdrop: TitleBackdrop
+var backdrop_in_headless: bool = false
 var _break_rules: RuleSlots
 ## The gameplan pickers on the between-rounds panel (D320).
 var _break_plan: GameplanPicker
@@ -94,12 +97,18 @@ func _ready() -> void:
 	_roster = FighterLibrary.load_dir()
 	arena = ArenaView.new()
 	add_child(arena)
+	backdrop = TitleBackdrop.new(_roster, _actions)
 	sounds = StrikeSounds.new()
 	add_child(sounds)
 	sounds.build_in_background()
-	arena.fence_slammed.connect(sounds.play_rattle)  # The fence rattles (D287).
+	# The fence rattles (D287) and a takedown thuds onto the canvas (D288); the title's fight is silent (D434).
+	arena.fence_slammed.connect(func(strength: float) -> void:
+		if not backdrop.running():
+			sounds.play_rattle(strength))
 	arena.tell_spotted.connect(_on_tell_spotted)
-	arena.takedown_landed.connect(sounds.play_thud)  # A takedown thuds onto the canvas (D288).
+	arena.takedown_landed.connect(func(strength: float) -> void:
+		if not backdrop.running():
+			sounds.play_thud(strength))
 	var ui: CanvasLayer = $UI
 	hud = FightHud.new()
 	hud.visible = false
@@ -182,6 +191,8 @@ func show_title() -> void:
 	title.visible = true
 	$UI/Version.visible = true
 	state = TITLE
+	if DisplayServer.get_name() != "headless" or backdrop_in_headless:
+		backdrop.start(arena)  # A real fight behind the menu (D434).
 	title.focus_first()
 
 
@@ -684,6 +695,7 @@ func _hide_screens() -> void:
 		hud.hide_dialog()
 	if driver != null:
 		driver.held = true
+	backdrop.stop(arena)
 	$UI/Version.visible = false  # Only the title and load screens show it: elsewhere it sat on buttons (D431).
 
 
@@ -718,6 +730,7 @@ func start_fight(p_settings: Dictionary) -> void:
 		sim.submit(FightCommand.set_gameplan(0, 1, their_plan))  # His corner's plan (D324).
 	driver.round_over.connect(_on_round_over)
 	driver.fight_over.connect(_on_fight_over)
+	backdrop.stop(arena)  # The title's fight gives the cage up (D434; the tools start a fight from the title).
 	arena.tell_cues = bool(settings.get("tell_cues", true))
 	arena.tell_watch = Scouting.Watch.new(settings.known_tells) if settings.get("known_tells") is Array else null
 	arena.watch(driver)
@@ -767,6 +780,8 @@ func _first_bell() -> void:
 func _process(delta: float) -> void:
 	if driver != null and state == FIGHT:
 		driver.advance(delta)
+	elif state == TITLE and backdrop.running():
+		backdrop.advance(arena, delta)
 
 
 ## True when `event` is a key or click that skips the moment playing (D394; not F3, the debug overlay).
