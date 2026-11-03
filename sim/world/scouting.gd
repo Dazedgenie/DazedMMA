@@ -151,8 +151,7 @@ static func study(c: Career, profile: Dictionary, sessions: int) -> Array[Dictio
 	if id == "" or sessions <= 0:
 		return out
 	var entry: Dictionary = c.scouting.get(id, { "known": 0.0, "tells": [] })
-	var iq: float = c.trainee.stat("fight_iq")
-	var gain: float = STUDY_GAIN * (1.0 + STUDY_IQ * (iq - 50.0) / 50.0)
+	var gain: float = study_gain(c)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash([c.career_seed, c.week, id, "film"])
 	for n in sessions:
@@ -165,6 +164,21 @@ static func study(c: Career, profile: Dictionary, sessions: int) -> Array[Dictio
 			out.append(t)
 	c.scouting[id] = entry
 	return out
+
+
+## What a film study session adds to how well you know him (STUDY_GAIN, more with a high Fight IQ).
+static func study_gain(c: Career) -> float:
+	return STUDY_GAIN * (1.0 + STUDY_IQ * (c.trainee.stat("fight_iq") - 50.0) / 50.0)
+
+
+## `sessions` film study sessions that only add to how well you know him (no roll for a habit: the film study minigame
+## found one for sure, D410).
+static func study_known(c: Career, id: String, sessions: int) -> void:
+	if id == "" or sessions <= 0:
+		return
+	var entry: Dictionary = c.scouting.get(id, { "known": 0.0, "tells": [] })
+	entry.known = minf(1.0, float(entry.get("known", 0.0)) + study_gain(c) * sessions)
+	c.scouting[id] = entry
 
 
 ## Habits spotted in a fight (Watch.spotted) count as found for good.

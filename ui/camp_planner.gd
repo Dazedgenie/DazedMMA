@@ -6,7 +6,7 @@ extends PanelContainer
 ## what the week will probably do before it's run (TrainingCamp.forecast), and the log
 ## says what it did. On fight night it says how the camp sends the fighter in (tired, hurt,
 ## what the doctor says, D135) and offers Fight! or Pull out. Up to PLAY_MAX sessions a week with a
-## minigame built so far (mitt work, D137) can be ticked to Play: running the week plays them first and their
+## minigame built so far (mitt work, D137; film study, D410) can be ticked to Play: running the week plays them first and their
 ## scores count in the camp. Laid out as the camp week HUD (D170, docs/02 §3.10): the camp's weeks counting down
 ## to the fight along the top, the fighter's condition on the left, the week as coloured session tiles over a
 ## fatigue line in the middle, and the stats as bars on the right. Presentation only: TrainingCamp does the training.
@@ -32,7 +32,7 @@ const GROUPS: Array[String] = ["Physical", "Striking", "Wrestling", "Grappling",
 ## Forecast gains this small aren't worth a line.
 const SHOWN_GAIN: float = 0.005
 ## The minigames that can be played so far (D137), and how many sessions a week the player can play (docs/02 §3.1).
-const PLAYABLE: Array[String] = ["mitt_work"]
+const PLAYABLE: Array[String] = ["mitt_work", "film_study"]
 const PLAY_MAX: int = 3
 ## The fight is on the last week's Saturday evening (D135): this many days after that week's Monday.
 const FIGHT_DAY: int = 5
@@ -102,6 +102,10 @@ var _session_menu: PopupMenu
 var _menu_slot: int = -1  # The tile the session list is open for.
 ## The minigame on screen while a week is being played, else null.
 var minigame: MittWorkScreen
+## The film study minigame on screen (D410), else null.
+var film: FilmStudyScreen
+## slot → the habit's key a played film study found this week (D410), for Career.scout_week.
+var _film_found: Dictionary = {}
 var _to_play: Array[int] = []
 var _played: Dictionary = {}  # slot → quality, this week
 var _fatigue_line: FatigueLine
@@ -302,10 +306,11 @@ func week_plan() -> Dictionary:
 ## Runs the week on screen (the next week of the camp). Sessions ticked to Play are played first, one
 ## minigame after another, and the week runs when the last one is done.
 func run_week() -> void:
-	if done() or minigame != null:
+	if done() or minigame != null or film != null:
 		return
 	_to_play = played_slots()
 	_played = {}
+	_film_found = {}
 	_play_next()
 
 
@@ -328,11 +333,15 @@ func _play_next() -> void:
 	if _to_play.is_empty():
 		var report: Dictionary = camp.run_plan(week_plan(), _played, fight_week())
 		report.played = _played.duplicate()
+		report.film = _film_found.duplicate()
 		reports.append(report)
 		week_ran.emit(report)
 		_refresh()
 		return
 	var index: int = _to_play.pop_front()
+	if String(_library.session(_slot_ids[index]).get("minigame", "")) == "film_study":
+		_play_film(index)
+		return
 	var forecast: Dictionary = camp.forecast(week_plan(), fight_week())
 	var fatigue: float = float(forecast.slots[index].fatigue_before) if index < forecast.slots.size() else camp.fatigue
 	var drill := MittWork.new(camp.stat("boxing"), fatigue, hash([_camp_seed, reports.size(), index]))
@@ -348,6 +357,35 @@ func _play_next() -> void:
 	add_child(minigame)
 
 
+## A film study session played (D410): the booked man's tape when he has a habit you haven't found (one not found
+## earlier this week), else a man of his style (or any style, in a quick camp) for Fight IQ only.
+func _play_film(index: int) -> void:
+	var tape_seed: int = hash([_camp_seed, reports.size(), index, "film"])
+	var him: Dictionary = career.booked_opponent() if career != null else {}
+	var left: Array[Dictionary] = []
+	if not him.is_empty():
+		for t: Dictionary in Scouting.unfound(career, him):
+			if not _film_found.values().has(Scouting.key(t)):
+				left.append(t)
+	var finds: bool = not left.is_empty()
+	if not finds:
+		him = FilmStudy.sample_man(String(him.get("style_id", "")), tape_seed)
+	var target: Dictionary = left[posmod(tape_seed, left.size())] if finds else {}
+	var study := FilmStudy.new(him, target, finds, camp.stat("fight_iq"), tape_seed)
+	var day: int = index / TrainingCamp.SLOTS_PER_DAY
+	film = FilmStudyScreen.new(study, "Film study · week %d, %s %s%s" % [reports.size() + 1, TrainingCamp.DAY_NAMES[day],
+		SLOT_NAMES[index % TrainingCamp.SLOTS_PER_DAY].to_lower(), "" if finds else " · a man of his style, for Fight IQ"])
+	film.finished.connect(func(quality: float, played: bool, found: String) -> void:
+		if played:
+			_played[index] = quality
+		if found != "":
+			_film_found[index] = found
+		film.queue_free()
+		film = null
+		_play_next())
+	add_child(film)
+
+
 ## The week on screen is the last one: the fight is on its Saturday evening (D135).
 func fight_week() -> bool:
 	return reports.size() == weeks - 1
@@ -360,7 +398,7 @@ func days_to_fight() -> int:
 
 ## Runs every week left with the week on screen.
 func run_rest() -> void:
-	if minigame != null:
+	if minigame != null or film != null:
 		return
 	while not done():
 		var report: Dictionary = camp.run_plan(week_plan(), {}, fight_week())

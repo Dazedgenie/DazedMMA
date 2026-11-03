@@ -543,16 +543,35 @@ func camp_weeks_left() -> int:
 	return int(booked.week) - week + 1 if not booked.is_empty() else 0
 
 
-## A camp week's film study (D401, Scouting.study): each film study session done in it studies the booked man.
-## Returns the habits of his it found (fighter@1 tells), and keeps them on the report as `scouted` (their keys).
+## A camp week's film study (D401, Scouting.study): each film study session done in it studies the booked man. A
+## session played as the film study minigame that named his habit right (the report's `film`: slot → key, D410) finds
+## that habit for sure instead of rolling for one. Returns the habits of his it found (fighter@1 tells), and keeps them
+## on the report as `scouted` (their keys).
 func scout_week(report: Dictionary) -> Array[Dictionary]:
 	var sessions: int = 0
+	var sure: Array[String] = []
+	var film: Dictionary = report.get("film", {}) if report.get("film") is Dictionary else {}
 	for slot: Dictionary in report.get("slots", []):
-		if String(slot.get("session", "")) == Scouting.FILM_STUDY and String(slot.get("result", "")) == TrainingCamp.DONE:
+		if String(slot.get("session", "")) != Scouting.FILM_STUDY or String(slot.get("result", "")) != TrainingCamp.DONE:
+			continue
+		var i: int = int(slot.get("day", 0)) * TrainingCamp.SLOTS_PER_DAY + int(slot.get("slot", 0))
+		var k: String = String(film.get(i, film.get(str(i), "")))
+		if k != "" and not sure.has(k):
+			sure.append(k)
+		else:
 			sessions += 1
 	var found: Array[Dictionary] = []
 	if not booked.is_empty():
-		found = Scouting.study(self, booked_opponent(), sessions)
+		var him: Dictionary = booked_opponent()
+		var id: String = String(him.get("id", ""))
+		if not sure.is_empty():
+			var had: Array[String] = Scouting.found(self, id)
+			Scouting.learn(self, id, sure)
+			for t: Variant in him.get("tells", []):
+				if t is Dictionary and sure.has(Scouting.key(t)) and not had.has(Scouting.key(t)):
+					found.append(t)
+			Scouting.study_known(self, id, sure.size())  # Played well, it studied him as a session does.
+		found.append_array(Scouting.study(self, him, sessions))
 	report.scouted = found.map(func(t: Dictionary) -> String: return Scouting.key(t))
 	return found
 

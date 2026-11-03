@@ -1249,7 +1249,7 @@ study" first, my pick):
 | Sparring partners: named men at his gym from the world's local men | D407 | Planned |
 | Coaches: assistants for a weekly fee, the head coach's levels | D408 | Planned |
 | Changing gyms: his hometown and the nearest city | D409 | Planned |
-| Minigames, one a PR: film study, heavy bag, sprawl reflex, Thai pads first (Kyle, 2026-11-03: "Minigames first", next after D403, before the opponent's camp) | D410 on | Next |
+| Minigames, one a PR: film study, heavy bag, sprawl reflex, Thai pads first (Kyle, 2026-11-03: "Minigames first", next after D403, before the opponent's camp) | D410 on | Film study built (§13.4, D410) |
 | Your corner naming the habits you found at each round break (Kyle's ask after D401) | D419 | Built (§13.1) |
 
 ### 13.1 Scouting and film study (D401)
@@ -1376,3 +1376,39 @@ and the opponent drilling a rule against you (D404).
 which rule answers which habit in `RuleDrilling.answers()` (`sim/world/rule_drilling.gd`); how a defence rule is timed and
 whether it lifts his own read in `sim/fight/drilled_rules.gd` (`LIFT_GUARD_ON_READ`, `docs/01` §23.6). Tested in
 `tests/sim/world/test_rule_drilling.gd` and `tests/sim/fight/test_drilled_rules.gd`.
+
+### 13.4 Film study, the minigame (D410)
+
+The first of phase 4's minigames (§13 table; Kyle, 2026-11-03, picked "Minigames first" and "Film study" to lead them).
+A Film study session ticked to **Play** in the camp planner (up to three played sessions a week, as mitt work, `docs/02`
+§3.9) opens a minute of the man's tape before the week runs. Kyle picked "His fights in the 3D view", "Mark it, then name
+it", "The habit for sure, plus Fight IQ" and "Study a man of his style" (my picks on all four).
+
+- **The tape** is a whole fight of his, played without drawing it, against a stand-in (the Boxer, Kicker or
+  Counter-striker, whichever sets his habit off most): the 3 minutes of fight time where his habit goes off most (at least
+  twice, a new fight tried up to four times), shown in the fight screen's 3D view at 3× (a minute on screen, D38) with no
+  tell cues. Before the tape starts it's the same fight from the same seed, played up to the clip.
+- **Marking.** Press **Space** each time you think his habit just went off: a move he throws straight after the same
+  moment (his jab blocked, you making him miss). A press from 0.3 s before his habit's move starts to 1.5 s after counts
+  (fight time, ± 30% at Fight IQ 100 or 0); a press near one of his other habits costs nothing; any other press is a
+  stray.
+- **Naming.** When the tape runs out, pick his habit from three (keys 1–3): his, and two from the other styles' habits
+  that aren't his, in words without their numbers (*When his jab is blocked, he throws a body kick*).
+- **The score**: 60% the marks (fires caught, less a quarter of a fire a stray), 40% naming it right. It's the session's
+  quality, ×0.8 for nothing to ×1.5 for every fire and the name, on what the session trains (Fight IQ), as mitt work's
+  is on Boxing drills. **Skip it** lets the session auto-resolve (×1.0), as before.
+- **Finding it.** In a career, naming the booked man's habit right finds it for sure (`Career.scout_week`), instead of
+  the session's roll (§13.1), and the session still adds to how well you know him. Played but named wrong, or not played,
+  it rolls as before. The habit on the tape is one you haven't found, and not one another played session found that week.
+- **Nothing to find.** With no booked man (a quick camp), or all his habits found, the tape is a man of his style (any
+  style with habits, in a quick camp), made the way the world makes men: Fight IQ only.
+
+**Not yet:** a tape of his real past fights (the world's fights are quick results, not fights), the opponent's habits
+shown as film to a corner, and the other minigames (heavy bag, sprawl reflex, Thai pads next).
+
+**What to change:** the clip, speed, windows and score in the constants at the top of `sim/world/film_study.gd`
+(`CLIP_SECONDS`, `SPEED`, `WINDOW_BEFORE`, `WINDOW_AFTER`, `WINDOW_PER_IQ`, `STRAY_COST`, `MARK_SHARE`, `CHOICES`,
+`MIN_FIRES`, `TRIES`, `STAND_INS`); the screen in `ui/film_study_screen.gd`; which sessions can be played in
+`CampPlanner.PLAYABLE`. To see it: `godot --path . --script res://tools/film_preview.gd -- --style=kicker` (with
+`--write-movie` to save frames). Tested in `tests/sim/world/test_film_study.gd`, `tests/ui/test_camp_planner.gd` and
+`tests/game/test_main_scene.gd`.

@@ -107,7 +107,7 @@ Tags appear when an attribute crosses a threshold or is shown in fights.
 | **Sprawl reflex** | React to incoming shots with feints mixed in | Takedown defense, Speed |
 | **Rolling puzzle** | Turn-based positional puzzle: pick transitions, chess-like | Top control, Guard, Submissions |
 | **Roadwork** | Pace management: stay in the target zone; going too fast gasses you out | Cardio, Recovery |
-| **Film study** | Watch a short sim clip and spot the tell | Fight IQ; reveals opponent tells (D11) |
+| **Film study** | Watch a short sim clip and spot the tell (built: `03` §13.4, D410) | Fight IQ; reveals opponent tells (D11) |
 | **Hard sparring** | Short playable fight using the real fight engine. Injury risk, big XP | Composure, everything; habit forming |
 | **Meditation** | Focus/breathing: keep a marker centred against distractions | Composure, Heart |
 

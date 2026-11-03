@@ -453,6 +453,38 @@ func test_film_study_in_a_career_camp_finds_his_habit_and_only_found_habits_are_
 	assert_eq(_main.state, _main.OVER)
 
 
+func test_playing_film_study_on_the_booked_man_and_naming_his_habit_finds_it_for_sure() -> void:
+	_main.open_new_career()
+	_main.new_career.set_play_childhood(false)
+	_main.new_career.set_know_the_game(true)
+	_main.new_career.press_start()
+	_main.gym_screen.pick(0)
+	_main.gym_screen.press_start()
+	_main.career.week_plan = "time_off"
+	_main.hub.press_week()
+	_main.hub.press_accept(_main.hub.offer_ids()[0])
+	var him: Dictionary = _main.career.booked_opponent()
+	him.tells = [{ "trigger": "own_jab_blocked", "action": "body_kick", "chance": 0.7, "within_ms": 1500 }]
+	_main.hub.press_camp()
+	var planner: CampPlanner = _main.planner
+	planner.pick_preset("time_off")
+	planner.set_slot(10, "film_study")  # Saturday morning: no school.
+	planner.set_play(10, true)
+	planner.run_week()
+	var screen: FilmStudyScreen = planner.film
+	assert_not_null(screen, "his tape opens (D410)")
+	assert_true(screen.study.finds, "a habit of his left to find")
+	assert_eq(Scouting.key(screen.study.habit), "own_jab_blocked>body_kick")
+	screen.start()
+	screen.end_tape()
+	for i in screen.study.choices.size():
+		if Scouting.key(screen.study.choices[i]) == Scouting.key(screen.study.habit):
+			screen.name_it(i)
+	screen.finish()
+	assert_true(Scouting.found(_main.career, String(him.id)).has("own_jab_blocked>body_kick"), "named right: found for sure")
+	assert_string_contains(planner.log_text(), "Film study found his habit")
+
+
 func test_drilling_a_rule_in_a_career_camp_takes_it_into_the_fight_as_sharp_as_camp_left_it() -> void:
 	_main.open_new_career()
 	_main.new_career.set_play_childhood(false)
