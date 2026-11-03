@@ -40,7 +40,7 @@ const DIM := "#8a8f98"
 const GAIN := "#69db7c"
 const LOSS := "#ff8787"
 ## The HUD's colours (D170): the screen behind, the cards on it, and the red corner's.
-const BACKGROUND := Color(0.08, 0.09, 0.11, 0.97)
+const BACKGROUND := Color(0.08, 0.09, 0.11, 0.88)  # The dimmed hall shows through a little (D435).
 const CARD := Color("#1b1f26")
 const RED_CORNER := Color("#ff6b6b")
 ## Fatigue and injury gauges: green under the first number, yellow under the second, red past it.
@@ -896,6 +896,7 @@ static func _button(parent: Control, text: String, pressed: Callable) -> Button:
 	var b := Button.new()
 	b.text = text
 	b.custom_minimum_size = Vector2(0.0, 48.0)
+	OffCage.style_button(b)  # One look off the fight (D435).
 	b.pressed.connect(pressed)
 	parent.add_child(b)
 	return b

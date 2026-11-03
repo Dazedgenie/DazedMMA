@@ -232,6 +232,13 @@ var drill: bool = false
 ## A fight behind the title screen (D434, TitleBackdrop): no move names over their heads and no range tag, so it reads
 ## as a picture behind the menu; the referee stays. Set it before watch().
 var backdrop: bool = false
+## The dimmed hall behind the screens off the fight (D435, OffCage): with no fight to watch, the camera drifts slowly
+## round the empty cage, pulled back to take in the seats, instead of standing still.
+var hall_drift: bool = false
+## The hall's drift: how fast it turns (radians a second) and how far back it stands against standing's zoom.
+const HALL_TURN_SPEED: float = 0.06
+const HALL_ZOOM: float = 1.6
+var _hall_turn: float = 0.0
 var debug_marks: bool = false:
 	set(value):
 		debug_marks = value
@@ -1649,6 +1656,9 @@ static func side_on(a: Vector2, b: Vector2, swing: float) -> float:
 
 
 func _place_camera(delta: float, middle: Vector2 = Vector2.ZERO, sim: FightSim = null, shown: Array[Vector2] = []) -> void:
+	if sim == null and hall_drift:
+		_drift_round_the_hall(delta)
+		return
 	var want_zoom: float = ZOOM_STANDING
 	if sim != null and not sim.situation.is_standing():
 		want_zoom = ZOOM_CLINCH if sim.situation.position == PositionLibrary.CLINCH else ZOOM_GROUND
@@ -1673,6 +1683,19 @@ func _place_camera(delta: float, middle: Vector2 = Vector2.ZERO, sim: FightSim =
 	var turn: float = 1.0 - exp(-CAMERA_TURN_SPEED * delta)
 	camera_swing = lerp_angle(camera_swing, _swing_want, turn)
 	camera_rise = lerpf(camera_rise, _rise_want, turn)
+	camera.position = _focus + camera_from(camera_swing, camera_rise) * distance
+	camera.look_at(_focus, Vector3.UP)
+
+
+## The hall with nobody in it (D435): the camera turning slowly round the cage's centre, pulled back.
+func _drift_round_the_hall(delta: float) -> void:
+	_hall_turn = wrapf(_hall_turn + HALL_TURN_SPEED * delta, -PI, PI)
+	camera_swing = _hall_turn
+	camera_rise = 0.0
+	_focus = Vector3(0.0, 0.6, 0.0)
+	_zoom = ZOOM_STANDING * HALL_ZOOM
+	camera.size = _zoom
+	var distance: float = _zoom / (2.0 * tan(deg_to_rad(camera.fov) / 2.0))
 	camera.position = _focus + camera_from(camera_swing, camera_rise) * distance
 	camera.look_at(_focus, Vector3.UP)
 

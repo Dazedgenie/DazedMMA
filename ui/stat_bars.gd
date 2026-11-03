@@ -35,11 +35,20 @@ func show_rows(new_rows: Array[Dictionary]) -> void:
 	queue_redraw()
 
 
+## The name column: NAME_W, or wider so the longest name fits whole ("Submission defense" was cut short, D435).
+func name_width(font: Font) -> float:
+	var w: float = NAME_W
+	for row in rows:
+		if row.has("name"):
+			w = maxf(w, font.get_string_size(String(row.name), HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE).x + 20.0)
+	return w
+
+
 func _draw() -> void:
 	var font: Font = get_theme_default_font()
 	var y: float = 0.0
-	var bar_x: float = NAME_W
-	var bar_w: float = maxf(20.0, size.x - NAME_W - VALUE_W - 8.0)
+	var bar_x: float = name_width(font)
+	var bar_w: float = maxf(20.0, size.x - bar_x - VALUE_W - 8.0)
 	for row in rows:
 		if row.has("group"):
 			draw_string(DisplayFont.font(), Vector2(0.0, y + HEADER_H - 7.0), String(row.group).to_upper(), HORIZONTAL_ALIGNMENT_LEFT,
@@ -47,7 +56,7 @@ func _draw() -> void:
 			y += HEADER_H
 			continue
 		var base_line: float = y + ROW_H - 7.0
-		draw_string(font, Vector2(8.0, base_line), String(row.name), HORIZONTAL_ALIGNMENT_LEFT, NAME_W - 12.0, FONT_SIZE, TEXT)
+		draw_string(font, Vector2(8.0, base_line), String(row.name), HORIZONTAL_ALIGNMENT_LEFT, bar_x - 12.0, FONT_SIZE, TEXT)
 		var value: float = float(row.value)
 		var change: float = float(row.get("change", 0.0))
 		var bar_y: float = y + (ROW_H - BAR_H) * 0.5

@@ -135,7 +135,7 @@ func _init() -> void:
 	_gift_names = _enum("gifts")
 	_flaw_names = _enum("flaws")
 	set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_theme_stylebox_override("panel", FightHud._panel_style(BACKGROUND))
+	add_theme_stylebox_override("panel", OffCage.hall_panel())  # The dimmed hall shows through (D435).
 	var column := VBoxContainer.new()
 	column.add_theme_constant_override("separation", 12)
 	add_child(column)

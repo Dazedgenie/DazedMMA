@@ -77,7 +77,7 @@ static var _belt: ImageTexture
 
 func _init() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
-	var style: StyleBoxFlat = FightHud._panel_style(BACKGROUND)
+	var style: StyleBoxFlat = OffCage.hall_panel(true)  # Over the hub, so solid (D435).
 	style.set_content_margin_all(24)
 	add_theme_stylebox_override("panel", style)
 	var column := VBoxContainer.new()

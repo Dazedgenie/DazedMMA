@@ -27,7 +27,7 @@ var _back: Button
 
 func _init() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_theme_stylebox_override("panel", FightHud._panel_style(BACKGROUND))
+	add_theme_stylebox_override("panel", OffCage.hall_panel())  # The dimmed hall shows through (D435).
 	var column := VBoxContainer.new()
 	column.add_theme_constant_override("separation", 24)
 	add_child(column)

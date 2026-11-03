@@ -20,3 +20,4 @@ HUD, menus, minigame UI and themes (docs/06-fight-hud.md). Presentation only: no
 - `debug_overlay.gd`: F3 on the fight screen, the raw numbers behind what's on screen.
 - `debug_console.gd`: developer console (toggle with the ` key). "Run test fight" runs `game/sim_check.gd` and prints pass/fail; the fight on screen is logged here with every odds breakdown. Lines are formatted by `fight_log_formatter.gd`.
 - `background_icon.gd`: a picture for each of the 12 backgrounds and the five gym kinds, drawn in code (docs/06 §6.14, D434): the new-career tiles and the gym cards.
+- `off_cage.gd`: one look for the screens off the fight (docs/06 §6.15, D435): the see-through backing over the dimmed hall, the dark buttons edged in red and the theme every off-fight screen carries.
