@@ -308,3 +308,45 @@ colours (`FACE_COLOUR`, `GEAR_COLOUR`) and sizes (`GLOVE_RADIUS`, `FOOT_LENGTH`,
 and its caption `FightHud.position_text`. A new position needs a layout, a pose and a drawing (the diagram test checks
 every position has one). Tests: `tests/game/test_arena_view.gd` (each position's layout, holds and leg locks, the slide,
 the poses) and `tests/ui/test_fight_hud.gd` (the diagram, its caption, the panel only on the ground).
+
+### 6.11 Fighter portraits off the fight screen (D430, D431)
+
+Kyle, 2026-11-03: "lets work on visuals outside of the fight". A survey of every screen a career passes through (the
+review page with screenshots of each: https://claude.ai/artifact/DnbNi6dCeeibuhXWDFVYSe) put them in this order, and Kyle
+picked the first: **his own figure everywhere**, then the world pages as real pages, the hub rebuilt round the next fight,
+the front door (title, gyms, childhood), one look for every screen, and the result as a moment (D430).
+
+**What it is (D431).** Off the fight screen a fighter was the green capsule man (the body figure, D150). Now he's drawn as
+himself (`ui/fighter_portrait.gd`, `FighterPortrait`): the skinned body (D284) with his height, build and reach and his
+skin, hair and beard (D364), in his corner's shorts, standing in his stance (D362) and lit like the hall, on a see-through
+background so the card shows behind him. Kyle's picks on the cards:
+
+- **Framing, both by place:** full body (head to feet) on the big cards (fight night, the tale of the tape, the result and
+  the new-career preview); head and chest on the small spots (the hub's fighter card now; offers and the world pages'
+  tables later). Full body is drawn at one scale for everyone, feet on the bottom edge, so a taller man stands taller:
+  the tape compares them by eye.
+- **Breathe and bounce:** he shifts his weight slowly side to side and bounces a little, as if waiting for the bell, and
+  breathes (the fight's own breathing).
+- **The body figure stays small beside him:** a small capsule badge in the portrait's bottom corner shows where he's hurt,
+  only once an area is 5% hurt (always on the result, where how they finished matters).
+
+Where: the hub's fighter card (his bust beside his card text), the fight night card (full body, turned a little toward
+the fight), the tale of the tape (both men full body, each turned toward the other), the result screen (both, with how
+they finished), and the new-career screen (him as you pick his skin, hair, beard and stance, at an average 16-year-old's
+frame until his background or childhood sets his own). The camp planner's condition card and the fight screen's top bar
+keep the body figure as before.
+
+The 3D is built the first time a portrait is drawn, so a screen that's never shown costs nothing; each portrait is a
+small view of its own (one man, three lights).
+
+**Riding along:** the version line ("Chin Check · fight prototype · Godot …") shows only on the title and load screens; on
+the others it sat on top of the calendar, the camp's buttons and the setup's keys line.
+
+**To change it:** the framing (`FULL_VIEW_HEIGHT`, `FULL_FLOOR_SHARE`, `BUST_VIEW_HEIGHT`, `BUST_CENTRE_DROP`), the lens
+and how far round the camera looks (`LENS_FOV`, `THREE_QUARTER`), the idle (`SHIFT_SIDE`, `SHIFT_SECONDS`, `BOUNCE`,
+`BOUNCE_SECONDS`), the badge (`BADGE_FROM`, `BADGE_SIZE`) and the lights (`KEY`, `FILL`, `RIM`) at the top of
+`ui/fighter_portrait.gd`; each screen's size and turn where it makes its portrait (`CareerHub._init`,
+`FightNightCard._build_fighter_card`, `FightSetup.FIGURE_H` and `FIGURE_TURN`, `FightResultCard.RESULT_BADGE` and its card,
+`NewCareerScreen.PREVIEW_FRAME`). See them all at once: `godot --path . --rendering-driver opengl3 --script
+res://tools/portrait_preview.gd -- --out=res://build/portraits`. Tests: `tests/ui/test_fighter_portrait.gd` and the
+screens' own tests. Presentation only: fights and careers are unchanged (no golden re-pin).

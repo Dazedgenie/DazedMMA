@@ -33,6 +33,8 @@ const GAINS_SHOWN: int = 6
 
 var _title: Label
 var _subtitle: Label
+## His portrait (D430) and, in its corner, the hurt badge (the body figure, D150) as he walks out.
+var _portrait: FighterPortrait
 var _figure: BodyDamageFigure
 var _who: Label
 var _tank: Label
@@ -116,11 +118,9 @@ func show_night(info: Dictionary) -> void:
 	var against: String = " · vs %s" % info.opponent if String(info.get("opponent", "")) != "" else ""
 	_subtitle.text = "Saturday evening%s · after a %d-week camp" % [against, int(info.weeks)]
 	_who.text = "%s, %d" % [info.name, int(info.age)]
-	for area: String in BodyDamageFigure.AREAS:
-		_figure.hurt[area] = float(night.hurt.get(area, 0.0))
-	var legs: float = float(night.hurt.get("legs", 0.0))
-	_figure.leg_hurt = [legs, legs]
-	_figure.queue_redraw()
+	if info.get("profile") is Dictionary:
+		_portrait.show_fighter(info.profile)
+	_portrait.set_hurt(night.hurt)
 
 	var tank: float = float(night.tank)
 	_tank.text = "%d%%" % roundi(100.0 * tank)
@@ -207,11 +207,12 @@ func _build_fighter_card() -> Control:
 	corner.text = "Your corner"
 	corner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(corner)
-	_figure = BodyDamageFigure.new()
-	_figure.custom_minimum_size = Vector2(180.0, 300.0)
-	_figure.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_portrait = FighterPortrait.new(FighterPortrait.FULL, 0, 12.0)
+	_portrait.custom_minimum_size = Vector2(320.0, 560.0)
+	_portrait.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	box.add_child(_portrait)
+	_figure = _portrait.badge
 	_figure.tooltip_text = "where he's hurt as he walks out: green is fresh, red is badly hurt"
-	box.add_child(_figure)
 	return card
 
 

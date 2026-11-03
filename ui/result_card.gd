@@ -28,8 +28,12 @@ const GRADE_COLOURS := { "A+": Color("#51cf66"), "A": Color("#51cf66"), "A−": 
 var _title: Label
 var _verdict: Label
 var _figures: Array[BodyDamageFigure] = []
+## Both men's portraits (D430), with how they finished as the badge in the corner (always up here).
+var _portraits: Array[FighterPortrait] = []
 var _names: Array[Label] = []
 var _readouts: Array[Label] = []
+## The hurt badge on each portrait (px).
+const RESULT_BADGE := Vector2(60.0, 100.0)
 var _sheet: TaleOfTheTape
 var _cards: RichTextLabel
 var _grade: Label
@@ -125,6 +129,7 @@ func show_result(sim: FightSim, player: int, coaching: Dictionary, notes: Array[
 	for i in 2:
 		var f: FighterState = sim.fighters[i]
 		_names[i].text = f.name.to_upper()
+		_portraits[i].show_fighter(f.profile)
 		_figures[i].show_fighter(f)
 		_figures[i].rocked = false  # A still picture: no pulse.
 		_readouts[i].text = "   ".join(AREAS.map(func(area: String) -> String: return FightHud.area_text(f, area)))
@@ -340,11 +345,15 @@ func _build_fighter(corner: int) -> Control:
 	fighter_name.clip_text = true
 	box.add_child(fighter_name)
 	_names.append(fighter_name)
-	var figure := BodyDamageFigure.new()
-	figure.custom_minimum_size = Vector2(170.0, 280.0)
-	figure.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	var portrait := FighterPortrait.new(FighterPortrait.FULL, corner, 20.0 * (1.0 if corner == 0 else -1.0))
+	portrait.custom_minimum_size = Vector2(240.0, 300.0)
+	portrait.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	portrait.badge_always = true
+	portrait.badge_size = RESULT_BADGE
+	box.add_child(portrait)
+	_portraits.append(portrait)
+	var figure: BodyDamageFigure = portrait.badge
 	figure.tooltip_text = "how he finished: green is fresh, red is badly hurt"
-	box.add_child(figure)
 	_figures.append(figure)
 	var readout := Label.new()
 	DisplayFont.apply(readout, 22)

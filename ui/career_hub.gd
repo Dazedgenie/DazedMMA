@@ -75,6 +75,8 @@ var career: Career
 var _who: Label
 var _line: Label
 var _date: Label
+## His portrait (D430), with the hurt badge (the body figure) in its corner when he's hurt.
+var _portrait: FighterPortrait
 var _figure: BodyDamageFigure
 var _card_text: RichTextLabel
 var _bars: StatBars
@@ -178,18 +180,18 @@ func _init() -> void:
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	column.add_child(body)
 
-	var fighter_card := _card(Vector2(400.0, 0.0))
+	var fighter_card := _card(Vector2(440.0, 0.0))
 	body.add_child(fighter_card)
 	var fighter_box: VBoxContainer = fighter_card.get_child(0)
 	fighter_box.add_child(_heading("The fighter"))
 	var fighter_row := HBoxContainer.new()
 	fighter_row.add_theme_constant_override("separation", 12)
 	fighter_box.add_child(_scroll(fighter_row))
-	_figure = BodyDamageFigure.new()
-	_figure.custom_minimum_size = Vector2(110.0, 200.0)
-	_figure.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	_figure.tooltip_text = "where he's hurt: green is fine, red is badly hurt"
-	fighter_row.add_child(_figure)
+	_portrait = FighterPortrait.new(FighterPortrait.BUST, 0, 12.0)  # A small spot: head and chest (Kyle, D430).
+	_portrait.custom_minimum_size = Vector2(160.0, 200.0)
+	_portrait.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	fighter_row.add_child(_portrait)
+	_figure = _portrait.badge
 	_card_text = _rich()
 	_card_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	fighter_row.add_child(_card_text)
@@ -263,11 +265,8 @@ func show_career(p_career: Career, reports: Array = []) -> void:
 	_line.text = "Age %d · %s · coached by %s" % [career.age(), records, coach_text(career)]
 	_date.text = "%s\nWEEK %d" % [career.date_text(), career.week - career.start_week + 1]
 	var night: Dictionary = career.trainee.fight_night()
-	for area: String in BodyDamageFigure.AREAS:
-		_figure.hurt[area] = float(night.hurt.get(area, 0.0))
-	var legs: float = float(night.hurt.get("legs", 0.0))
-	_figure.leg_hurt = [legs, legs]
-	_figure.queue_redraw()
+	_portrait.show_fighter(career.profile())
+	_portrait.set_hurt(night.hurt)
 	_card_text.text = fighter_card_text(career, _gift_names, _flaw_names)
 	_bars.show_rows(stat_rows(career.trainee, _groups))
 	_week_text.text = week_text(career, reports)

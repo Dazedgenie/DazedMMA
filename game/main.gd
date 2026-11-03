@@ -179,6 +179,7 @@ func show_title() -> void:
 	title.save_dir = save_dir
 	title.refresh()
 	title.visible = true
+	$UI/Version.visible = true
 	state = TITLE
 	title.focus_first()
 
@@ -300,6 +301,7 @@ func open_load() -> void:
 	load_screen.save_dir = save_dir
 	load_screen.refresh()
 	load_screen.visible = true
+	$UI/Version.visible = true
 	state = LOAD
 	load_screen.focus_first()
 
@@ -677,7 +679,7 @@ func _hide_screens() -> void:
 		hud.hide_dialog()
 	if driver != null:
 		driver.held = true
-	$UI/Version.visible = true
+	$UI/Version.visible = false  # Only the title and load screens show it: elsewhere it sat on buttons (D431).
 
 
 ## Starts a fight with these settings (FightSetup.settings()). With `red_profile` (a fighter@1
@@ -1116,5 +1118,4 @@ func _back_to_setup() -> void:
 		driver.held = true
 	setup.show_settings(settings)
 	setup.visible = true
-	$UI/Version.visible = true
 	setup.focus_start()

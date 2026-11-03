@@ -219,13 +219,19 @@ func test_the_setup_sound_volume_reaches_the_fight_and_m_mutes_the_strikes() -> 
 	assert_false(_main.sounds.muted)
 
 
-func test_the_version_line_hides_during_the_fight_so_the_call_bar_has_the_corner() -> void:
+func test_the_version_line_shows_only_on_the_title_and_load_screens() -> void:
 	var version: Label = _main.get_node("UI/Version")
-	assert_true(version.visible, "on the setup")
+	assert_true(version.visible, "on the title the game opens on")
+	_main.quick_fight()
+	assert_false(version.visible, "not on the setup: it sat on its keys line (D431)")
 	_start()
 	assert_false(version.visible, "in the fight")
 	_main._back_to_setup()
-	assert_true(version.visible, "back on the setup")
+	assert_false(version.visible, "back on the setup")
+	_main.show_title()
+	assert_true(version.visible, "on the title")
+	_main.open_load()
+	assert_true(version.visible, "on the load screen")
 
 
 func test_esc_and_main_menu_go_back_to_the_title_from_the_setup() -> void:
