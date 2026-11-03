@@ -350,3 +350,49 @@ and how far round the camera looks (`LENS_FOV`, `THREE_QUARTER`), the idle (`SHI
 `NewCareerScreen.PREVIEW_FRAME`). See them all at once: `godot --path . --rendering-driver opengl3 --script
 res://tools/portrait_preview.gd -- --out=res://build/portraits`. Tests: `tests/ui/test_fighter_portrait.gd` and the
 screens' own tests. Presentation only: fights and careers are unchanged (no golden re-pin).
+
+### 6.12 The world pages (D432)
+
+The second piece of D430. *His division*, *Promotions*, *Rankings* and *History* on the hub were long text in a pop-up
+(D352, D354, D355, D358). Now they're one full-screen page with four tabs (`ui/world_screen.gd`, `WorldScreen`): each hub
+button opens it on its own tab, the tabs switch between them, and *Back to the hub* or Esc closes it. Kyle picked
+"Full-screen with tabs" and "Colour and badge" on the D430 cards, and my pick on all seven D432 cards about how each tab
+looks (one promotion at a time, sort and filter, a man's card at the side, the belt timeline, badge shape by size, gold and
+crimson fixed with the regionals rolled, badges only on the world pages for now).
+
+- **His division** is a table of every man in it this week and him, one row each: name and nickname, age, where he's
+  from, his level, his promotion and rank (*C* for a champion, with a belt by his name), record, style, grade, and how it
+  went if you've fought him. Click a column's title to sort by it (best grade first to start; the same column again turns
+  it round). Filters over it: Everyone, Pros, Amateurs, Ranked, Fought him. His row is picked out in green and stays in
+  whatever the filter. A former champion's name is gold; each promotion's name is in its colour.
+- **Rankings** shows one promotion at a time, picked from a row of its badges, opening on his own promotion (his home
+  promotion until he's signed). Over the table: where he stands, then the champion with a belt (click him for his card).
+  The table is #, the last move (▲ up, ▼ down, NEW, – none), name, record, where he's from and *former champion* tags;
+  beside it the moves after its last card and why.
+- **Promotions** is a card each, biggest first, edged in its colour with its badge: its name and kind (and whether it's
+  yours or your hometown's), city, venue and seats, pay, how many men and how many at his weight, its champion at his
+  weight, its next three cards as small posters in its colour (*HIS FIGHT* on his), the hometown legend on the home one,
+  and its last card's results at his weight.
+- **History** shows one promotion's belt at his weight at a time (the same badge row): every reign as a bar across the
+  years, newest at the top, its length how long he held it, the defences on it and how it ended after it (yours green, the
+  current one running to today with a white cap); click a row for his card. The hometown legend is over it, and the
+  legends are a wall of cards under it, each with the belts he held once each ("ACL middleweight, 3 reigns, 5 defences").
+- **A man's card.** Click a man anywhere and his card opens at the side (`ui/man_card.gd`, `ManCard`): his head-and-chest
+  portrait (D431), name and nickname, his promotion's badge, record, level and age (retired and when), where he's from,
+  his rank or belt or former belt, style, height and grade, how it went if you fought him, what you've scouted on him (the
+  camp's scouting report, D401) and his last five fights in the world's results. Close or Esc shuts it.
+
+**The badges (drawn in code, `ui/promotion_badge.gd`, `PromotionBadge`).** A promotion's initials on a shape that says how
+big it is: the world organisation a belt plate, the international one a shield, a regional promotion a round badge. The
+world organisation is always gold and the international one always crimson; each regional promotion gets its own colour
+from a set of eight, shuffled by the world's seed, so it's the same all career and differs between careers. For now they
+show only on the world pages; the hub gets them when it's rebuilt round the next fight (D430's next piece).
+
+**To change it:** the tabs, filters and columns (`TABS`, `FILTERS`, `DIVISION_COLUMNS`, `RANK_COLUMNS`), his row's colour
+(`HIM_ROW`), the table's look (`ROW_PAD`, `FONT_SIZE`, `_tree`) and the badge and belt sizes at the top of
+`ui/world_screen.gd`; the badge colours and shapes (`WORLD_GOLD`, `INTERNATIONAL_CRIMSON`, `REGIONAL_COLOURS`,
+`shape_of`) in `ui/promotion_badge.gd`; the timeline's rows and spacing (`ROW_HEIGHT`, `NAME_WIDTH`, `AXIS_HEIGHT`,
+`BAR_HEIGHT`) in `ui/belt_timeline.gd`; the man's card (`WIDTH`, `PORTRAIT_SIZE`, `LAST_FIGHTS`) in `ui/man_card.gd`. The
+old text pages (`CareerHub.division_text`, `rankings_text`, `promotions_text`, `history_text`) stay for the tests and the
+30-year check. Tests: `tests/ui/test_world_screen.gd`. Presentation only: fights and careers are unchanged (no golden
+re-pin).

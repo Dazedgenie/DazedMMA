@@ -868,6 +868,25 @@ static func division_title(c: Career) -> String:
 ## nickname, age, where he's from, his level, record and style, and how it went if he's fought him.
 static func division_text(c: Career) -> String:
 	var w: World = c.world()
+	var men: Array[Dictionary] = division_men(c)
+	var met: Dictionary = {}
+	for f: Dictionary in c.fights:
+		met[String(f.get("opponent", ""))] = String(f.get("result", ""))
+	var parts: Array[String] = []
+	for pros: bool in ([true, false] if c.pro else [false, true]):
+		var lines: Array[String] = []
+		for m: Dictionary in men:
+			if bool(m.pro) == pros:
+				lines.append(_division_line(c, w, m, met))
+		if not lines.is_empty():
+			parts.append("[color=%s][b]%s (%d)[/b][/color]\n%s" % [WARN.to_html(false), "PROS" if pros else "AMATEURS", lines.size(), "\n".join(lines)])
+	return "\n\n".join(parts) if not parts.is_empty() else "[color=%s]Nobody yet.[/color]" % DIM.to_html(false)
+
+
+## The men on his division's list this week (D352), best first by what the scouts make of him: everyone in his
+## division, and a man he's fought lately though one of them has since grown into the next division (D359).
+static func division_men(c: Career) -> Array[Dictionary]:
+	var w: World = c.world()
 	var men: Array[Dictionary] = w.in_division(c.division_now(), c.week)
 	# A man he's fought lately stays on his list though one of them has grown into the next division since (D359).
 	var listed: Dictionary = {}
@@ -883,18 +902,7 @@ static func division_text(c: Career) -> String:
 		var x: float = w.average(a)
 		var y: float = w.average(b)
 		return x > y if x != y else String(a.name) < String(b.name))
-	var met: Dictionary = {}
-	for f: Dictionary in c.fights:
-		met[String(f.get("opponent", ""))] = String(f.get("result", ""))
-	var parts: Array[String] = []
-	for pros: bool in ([true, false] if c.pro else [false, true]):
-		var lines: Array[String] = []
-		for m: Dictionary in men:
-			if bool(m.pro) == pros:
-				lines.append(_division_line(c, w, m, met))
-		if not lines.is_empty():
-			parts.append("[color=%s][b]%s (%d)[/b][/color]\n%s" % [WARN.to_html(false), "PROS" if pros else "AMATEURS", lines.size(), "\n".join(lines)])
-	return "\n\n".join(parts) if not parts.is_empty() else "[color=%s]Nobody yet.[/color]" % DIM.to_html(false)
+	return men
 
 
 static func _division_line(c: Career, w: World, m: Dictionary, met: Dictionary) -> String:
