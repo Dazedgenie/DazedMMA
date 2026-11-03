@@ -306,12 +306,19 @@ static func out_of(p: Vector3, a: Vector3, b: Vector3) -> Vector3:
 	return near + off.normalized() * TRUNK_RADIUS
 
 
-## A knee or elbow at `middle`, between `root` and `end`, kept out of the canvas (above_canvas) and out of the other
-## man's trunk `trunk` (D397): if it's inside him it's turned round the line from `root` to `end`, the least way that
-## gets it out and keeps it above the canvas. If no turn does, the furthest out of him it can go.
+## The nearest either segment of a bent limb comes to the other torso's centre line (D425).
+static func limb_clearance(root: Vector3, middle: Vector3, end: Vector3, trunk: Array[Vector3]) -> float:
+	var upper: PackedVector3Array = Geometry3D.get_closest_points_between_segments(root, middle, trunk[0], trunk[1])
+	var lower: PackedVector3Array = Geometry3D.get_closest_points_between_segments(middle, end, trunk[0], trunk[1])
+	return minf(upper[0].distance_to(upper[1]), lower[0].distance_to(lower[1]))
+
+
+## Keep both segments, not just the elbow/knee, outside the other trunk (D397, D425). Rotate the bend around
+## root-to-end to retain both bone lengths and the contact point. If the fixed endpoints make clearance impossible,
+## choose the least penetrating bend that still clears the canvas.
 static func clear_of(root: Vector3, middle: Vector3, end: Vector3, trunk: Array[Vector3]) -> Vector3:
 	var lifted: Vector3 = above_canvas(root, middle, end)
-	if trunk.is_empty() or lifted.distance_to(closest_on(lifted, trunk[0], trunk[1])) >= TRUNK_RADIUS:
+	if trunk.is_empty() or limb_clearance(root, lifted, end, trunk) >= TRUNK_RADIUS:
 		return lifted
 	var axis: Vector3 = end - root
 	if axis.length() < 0.001:
@@ -319,16 +326,16 @@ static func clear_of(root: Vector3, middle: Vector3, end: Vector3, trunk: Array[
 	axis = axis.normalized()
 	var arm: Vector3 = lifted - root
 	var best: Vector3 = lifted
-	var best_out: float = lifted.distance_to(closest_on(lifted, trunk[0], trunk[1]))
+	var best_out: float = limb_clearance(root, lifted, end, trunk)
 	for step in range(1, 37):
 		for sign: float in [1.0, -1.0]:
 			var turned: Vector3 = root + arm.rotated(axis, sign * step * FLOOR_STEP)
-			var out: float = turned.distance_to(closest_on(turned, trunk[0], trunk[1]))
+			var out: float = limb_clearance(root, turned, end, trunk)
 			if turned.y < JOINT_FLOOR:
 				continue
 			if out >= TRUNK_RADIUS:
 				return turned
-			if out > best_out:
+			if out > best_out + 0.00001:
 				best = turned
 				best_out = out
 	return best

@@ -1275,6 +1275,21 @@ plus leg/head disengagement for armbars and the triangle. Existing tap, referee 
 pass. `tools/hold_preview.gd` captures the tap, opening and released stages from two sides before the
 results panel appears; the final poses were reviewed visually.
 
+## Whole-limb torso clearance (D425)
+
+Checking only elbows, knees, hands and feet missed segments passing through the other torso between
+those points. `FighterRig.limb_clearance` now measures both complete segments against the torso line.
+`clear_of` rotates the bend around the fixed root-to-tip axis until both segments clear the existing
+12 cm capsule, retaining bone lengths and the contact point. The final skinned-body correction uses
+the same segment test after easing. An impossible fixed-endpoint pose gets the least penetrating
+bend; this does not replace authored contact poses or provide complete mesh collision detection.
+
+`tests/game/test_limb_segments.gd` reproduces an endpoint-clear but segment-crossing arm and checks
+the final back-control pose. Four torso crossings in back control (both forearms and both shins)
+become zero. Seven canonical ground/clinch poses can be audited with `tools/contact_audit.gd`;
+`--stills` captures both sides in the real scene. The remaining body-lock forearm crossing requires
+a contact-pose repair. Existing limb, rig, ground/clinch, strike and submission checks remain in force.
+
 ## Review and verification
 
 Open `project.godot` in Godot 4.7.2 and run the game normally. Start a fight and check striking,
