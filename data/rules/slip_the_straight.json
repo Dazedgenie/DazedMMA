@@ -1,0 +1,8 @@
+{
+	"schema": "rule@2",
+	"id": "slip_the_straight",
+	"name": "When he throws a straight → slip",
+	"trigger": "opp_straight_starts",
+	"action": "slip",
+	"cooldown_ms": 8000
+}

@@ -1,0 +1,8 @@
+{
+	"schema": "rule@2",
+	"id": "hands_up_when_blocked",
+	"name": "When I'm blocked → hands up",
+	"trigger": "own_strike_blocked",
+	"action": "high_guard",
+	"cooldown_ms": 8000
+}

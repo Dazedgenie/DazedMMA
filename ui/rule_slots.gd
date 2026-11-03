@@ -73,6 +73,23 @@ func use_drilled(drilled: Dictionary) -> void:
 	_show_drilled()
 
 
+## Marks the rules in `ids` in both pickers as answers to his habit (D403): "★ … (answers his habit)".
+func mark(ids: Array[String]) -> void:
+	var library: RuleLibrary = RuleLibrary.shared()
+	for picker: OptionButton in _pickers:
+		for i in _ids.size():
+			var name: String = String(library.get_rule(_ids[i]).name)
+			picker.set_item_text(i + 1, "★ %s (answers his habit)" % name if ids.has(_ids[i]) else name)
+
+
+## A picker's item texts (tests).
+func item_texts(slot: int) -> Array[String]:
+	var out: Array[String] = []
+	for i in _pickers[slot - 1].item_count:
+		out.append(_pickers[slot - 1].get_item_text(i))
+	return out
+
+
 ## Shows these rules ([[slot, rule id, drilled], …], as picked() gives them).
 func show_rules(rules: Array) -> void:
 	for entry: Array in rules:

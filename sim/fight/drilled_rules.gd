@@ -34,6 +34,10 @@ const FRESH_ABOVE: float = 0.3
 ## its chance lifted to the rule's reliability, or a knee into the shot when that fails), so the rule catches the shots
 ## he'd have missed instead of doubling his read. Rules whose move his read never makes (the catch) aren't touched.
 const STAND_IN_FOR_READ: bool = true
+## A defence rule on a strike he read himself (D403) lifts his own defence's chance like a sprawl rule (true), or just
+## stands aside and leaves his read to him (false: lifting it had him defending where he'd have countered, about −3% of
+## wins for the lean back and the hands-up rules on the harness).
+const LIFT_GUARD_ON_READ: bool = false
 
 const SET := "set"
 const FIRED := "fired"
@@ -44,6 +48,9 @@ const NOT_ELIGIBLE := "not_eligible"
 const MISSED := "missed"
 const GASSED := "gassed"
 const READ := "read"
+## What a rule stands in for when he read the move himself (_stands_in).
+const SPRAWL := "sprawl"
+const GUARD := "defence"
 
 ## One entry per slot, slot 1 first: {rule, slot, drilled (0–1), ready_at, fires}, or empty.
 var slots: Array[Dictionary] = []
@@ -142,9 +149,15 @@ func on_event(view: FightView, event: FightEvent) -> void:
 			_answer(entry, GASSED, "gassed: %d%% of his tank" % roundi(100.0 * view.me.stamina / view.me.max_stamina()))
 			continue
 		var chance: float = reliability(view, entry)
-		if STAND_IN_FOR_READ and ai != null and _is_sprawl(view, entry) and ai.read_it(event):
-			_lift = { "move": String(event.data.get("action_id", "")), "chance": chance }
-			_answer(entry, READ, "he read it himself: his own sprawl, %d%% sharp" % roundi(chance * 100.0))
+		# His move the rule answers ("" when the moment is the fighter's own: his strike blocked).
+		var his: String = String(event.data.get("action_id", "")) if event.actor != view.index else ""
+		var stands_in: String = _stands_in(view, entry, his)
+		if STAND_IN_FOR_READ and ai != null and stands_in != "" and ai.read_it(event):
+			if stands_in == SPRAWL or LIFT_GUARD_ON_READ:
+				_lift = { "move": his, "chance": chance, "kind": stands_in }
+				_answer(entry, READ, "he read it himself: his own %s, %d%% sharp" % [stands_in, roundi(chance * 100.0)])
+			else:
+				_answer(entry, READ, "he read it himself: his own answer")
 			continue
 		if view.roll() >= chance:
 			var wise: float = adaptation(view, entry)
@@ -154,13 +167,23 @@ func on_event(view: FightView, event: FightEvent) -> void:
 		# Fighters step in turn each tick: a move started after this fighter's step is
 		# first seen next tick (as the AI's reads and read calls, docs/01 §20).
 		var seen: int = event.tick + (1 if view.steps_after_me(event.actor) else 0)
-		_armed = { "entry": entry, "started": event.tick, "notice": seen + view.me.reaction_ticks(), "move": String(event.data.get("action_id", "")) }
+		_armed = { "entry": entry, "started": event.tick, "notice": seen + view.me.reaction_ticks(), "move": his }
 	_settle()
 
 
 ## A sprawl rule lifts his own sprawl on a shot he read to the rule's reliability (STAND_IN_FOR_READ).
 func adjust_sprawl(view: FightView, chance: float) -> float:
-	if _lift.is_empty():
+	return _lifted(view, chance, SPRAWL)
+
+
+## A defence rule (D403: the check, slip, roll, lean back, high guard) lifts his own defence of a strike he read the
+## same way.
+func adjust_guard(view: FightView, chance: float) -> float:
+	return _lifted(view, chance, GUARD)
+
+
+func _lifted(view: FightView, chance: float, kind: String) -> float:
+	if _lift.is_empty() or _lift.kind != kind:
 		return chance
 	if view.opponent.action_id != _lift.move:
 		_lift = {}
@@ -168,9 +191,16 @@ func adjust_sprawl(view: FightView, chance: float) -> float:
 	return maxf(chance, _lift.chance)
 
 
-static func _is_sprawl(view: FightView, entry: Dictionary) -> bool:
+## The kind of his own read the rule stands in for on `move` (SPRAWL on a shot, GUARD on a strike its defence
+## stops), or "" when his read never makes the rule's move (the catch, a knee, a counter).
+static func _stands_in(view: FightView, entry: Dictionary, move: String) -> String:
 	var action: Dictionary = view.actions.get_action(entry.rule.action)
-	return action.category == "defense" and action.get("defense", {}).get("against_categories", []).has("takedown")
+	if action.category != "defense":
+		return ""
+	var defense: Dictionary = action.get("defense", {})
+	if defense.get("against_categories", []).has("takedown"):
+		return SPRAWL
+	return GUARD if defense.get("against_strikes", []).has(move) else ""
 
 
 func claim(view: FightView) -> Decision:
@@ -194,6 +224,16 @@ func claim(view: FightView) -> Decision:
 		_answer(entry, NOT_ELIGIBLE, why)
 		_disarm()
 		return null
+	if action.category == "defense" and action.get("defense", {}).get("against_strikes", []).has(_armed.move):
+		# A defence goes up so it's up as the strike lands (D403), as his own read times it (FighterAI._guard).
+		var lands: int = FighterAI.ticks_until_active(view)
+		var up: int = view.phase_ticks(id, "telegraph") + view.phase_ticks(id, "windup")
+		if lands > up + view.phase_ticks(id, "active"):
+			return null  # Too soon: it would be down again before the strike lands.
+		if lands < maxi(1, up + 1):
+			_answer(entry, MISSED, "too late to get the %s up" % _move_name(view, id))
+			_disarm()
+			return null
 	if view.odds_ahead(id, view.ticks_to_land(id)).missing != "":
 		return null  # Waits for the opening while the move goes on: a catch waits for the leg.
 	return Decision.new(id, DecisionLayer.RULE, "rule: %s" % entry.rule.name)
@@ -206,7 +246,8 @@ func claimed_started(view: FightView, decision: Decision) -> void:
 	entry.ready_at = view.now + _cooldown(entry)
 	entry.fires += 1
 	var data := { "rule_id": entry.rule.id, "outcome": FIRED, "slot": entry.slot, "action_id": decision.action_id,
-		"reason": "%d ticks after the %s started" % [view.now - _armed.started, _move_name(view, _armed.move)] }
+		"reason": "%d ticks after %s" % [view.now - _armed.started,
+			("the %s started" % _move_name(view, _armed.move)) if _armed.move != "" else "it happened"] }
 	note(FightEvent.RULE_ANSWERED, data)
 	_disarm()
 

@@ -1,0 +1,8 @@
+{
+	"schema": "trigger@1",
+	"id": "opp_straight_starts",
+	"name": "Opponent starts a straight punch",
+	"type": "event",
+	"event": "action_phase",
+	"match": { "actor": "opponent", "action_ids": ["jab", "cross"], "phase": "telegraph" }
+}
