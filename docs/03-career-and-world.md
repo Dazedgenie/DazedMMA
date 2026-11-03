@@ -340,6 +340,10 @@ Fights don't change (no golden re-pin). Then update this section and D302.
 The hub (`ui/career_hub.gd`) is the screen a career comes back to between fights (Q6 in the plan: one default plan, Run
 this week or Advance).
 
+*Its look was rebuilt round the next fight in D433 (`06` §6.13): the same parts, laid out with his card on the left (About
+and Stats on tabs), the offers as posters or the booked fight counting down in the middle, the news and his fights on
+the right, a tab bar along the top and icons on the calendar. The list below is what's on it; §6.13 is where.*
+
 - **Top bar:** his name and nickname, age, amateur record (and pro once he's turned pro), his coach, the date and the week.
 - **The fighter:** the body figure showing any injury (as fight night would see it), how he feels (fresh, a little tired,
   worn down; hurt and for how long), his background, hometown, stance, height, reach and build, the style he's leaning

@@ -396,3 +396,39 @@ show only on the world pages; the hub gets them when it's rebuilt round the next
 old text pages (`CareerHub.division_text`, `rankings_text`, `promotions_text`, `history_text`) stay for the tests and the
 30-year check. Tests: `tests/ui/test_world_screen.gd`. Presentation only: fights and careers are unchanged (no golden
 re-pin).
+
+### 6.13 The hub, rebuilt round the next fight (D433)
+
+The third piece of D430. The hub had four columns of the same weight (his card, his stats, This week, his fights): the
+offers, the choice that matters, started under the division's news and were cut off, and a booked fight was a line of
+text. Now the next fight is the middle of the screen (`ui/career_hub.gd`; my picks on the seven D433 cards, built while
+they're open):
+
+- **The tab bar** under his name: *Hub*, then *His division*, *Rankings*, *Promotions* and *History* (each opens the world
+  pages on its tab, D432) and the *Coach's Notebook* at the far end. The hub stays the tab that's down.
+- **Left, his card** with *About* (his head and chest, D431, and his card's words) and *Stats* (every stat as a bar and a
+  grade) on tabs, so the next fight has the room.
+- **The middle, the next fight.** Each offer is a poster (`ui/fight_poster.gd`, `FightPoster`), side by side: along the
+  top the card's name and fight night's date in its promotion's colour with its badge (an amateur or local card in grey);
+  ribbons for what matters (*Coach's pick*, title fight, eliminator, call-up, tryout, tournament, how hard, *last week to
+  answer*); both men face to face, him on the left in red and the other man on the right in blue, each with his name and
+  record; *Take the fight* and *Turn it down*; then the offer's whole scouting card. Once he's booked, the poster stays up
+  counting down (*5 WEEKS* to fight night, the date, where his camp is, the rules) over *Go to camp*. Under it, what the
+  week holds (hurt, suspended, school, savings, the ladder, what the last week did), then the week's buttons, which stay
+  put: the week plan, *Run this week* and *Advance* side by side (the plan hidden once he's booked), *Ask for a step up*,
+  the debut division and *Turn pro*, and *Save and go to the title*.
+- **Right, the news and his fights.** *Around the division* (the news that used to sit under This week, D353) and *His
+  fights*, newest first, each line with its promotion's badge (D432) when it has one.
+- **The calendar** along the bottom: each coming week with an icon for each thing in it, drawn in code
+  (`ui/calendar_icon.gd`, `CalendarIcon`): crossed gloves for fight night (its week edged red), a red cross for hurt, a
+  green one for healed, a tick for cleared to fight, a candle for a birthday, a book for school, a sun for the summer
+  holidays, an envelope for offers, a coin for the gym shifts, a low battery for worn down.
+
+A poster is kept while its offer stays up (each has two portraits to build) and made new for a new one.
+
+**To change it:** the columns' widths (`FIGHTER_CARD_WIDTH`, `SIDE_WIDTH`) and the badge by a line (`LINE_BADGE`) at the
+top of `ui/career_hub.gd`; a poster's width, faces and ribbon colours (`WIDTH`, `FACE`, `AMATEUR`, `PICK`, `TITLE`, `STEP`,
+`URGENT`) in `ui/fight_poster.gd`; the icons' size, colours and drawings (`SIZE`, `COLOURS`, `_draw`) in
+`ui/calendar_icon.gd`. The hub's words are unchanged (`offer_text`, `week_text`, `news_text` and `news_items`,
+`fights_text` and `fight_lines`). Tests: `tests/ui/test_hub_rebuild.gd` and `tests/ui/test_career_screens.gd`.
+Presentation only: fights and careers are unchanged (no golden re-pin).
