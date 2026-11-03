@@ -1192,6 +1192,21 @@ its bones' lengths kept; a pose that jumps eased in; a quick strike not slowed; 
 frame eased round; a hand inside the other man put on him; a knee inside him turned out keeping its bones' lengths; the
 body keeping its hands out of him).
 
+## Round-kick arm clearance (D420)
+
+The rear glove used to sweep down through the raised thigh, especially while a head kick rechambered.
+The kicking-side hand now counterbalances outward and behind its shoulder through both extension and
+rechamber, then returns to guard. The lead hand still guards the head. `KICK_HAND_OUT`, `KICK_HAND_DOWN`
+and `KICK_HAND_BACK` in `fighter_figure.gd` describe that hand path in metres relative to the chest.
+This applies to body, head, leg and calf round kicks in either stance; it does not change the sim.
+
+`tests/game/test_kick_clearance.gd` samples every phase at 60 Hz and measures the visible body's
+forearm against its thigh, rather than only the hidden driver joints. The old path failed five of
+eight stance/action combinations (head-kick clearance fell to 11 cm); the new path clears the 18 cm
+regression threshold in all eight. Rendered body and head kicks were also compared through chamber,
+contact and recovery. This check covers the kicking arm against its own thigh, not every possible
+opponent contact.
+
 ## Review and verification
 
 Open `project.godot` in Godot 4.7.2 and run the game normally. Start a fight and check striking,
