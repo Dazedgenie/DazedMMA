@@ -40,6 +40,12 @@ var _grade: Label
 var _corner: RichTextLabel
 var _notes: RichTextLabel
 var _buttons: HBoxContainer
+## What the fight did to his career (D436): only on a career fight.
+var _meaning: PanelContainer
+var _meaning_text: RichTextLabel
+const GOLD := Color("#ffd43b")
+const WON := Color("#69db7c")
+const LOST := Color("#ff8787")
 
 
 func _init() -> void:
@@ -102,6 +108,14 @@ func _init() -> void:
 	judges_box.add_child(_heading("The judges"))
 	_cards = _rich(19)
 	judges_box.add_child(_cards)
+	_meaning = _card()
+	_meaning.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_meaning.visible = false
+	lower.add_child(_meaning)
+	var meaning_box: VBoxContainer = _meaning.get_child(0)
+	meaning_box.add_child(_heading("What it means"))
+	_meaning_text = _rich(19)
+	meaning_box.add_child(_meaning_text)
 
 	_notes = _rich(15)
 	_notes.add_theme_color_override("default_color", DIM)
@@ -140,6 +154,7 @@ func show_result(sim: FightSim, player: int, coaching: Dictionary, notes: Array[
 	_grade.add_theme_color_override("font_color", GRADE_COLOURS.get(graded.grade, DIM))
 	_corner.text = "\n".join(graded.lines)
 	_notes.text = "\n".join(notes)
+	_meaning.visible = false
 	for c in _buttons.get_children():
 		_buttons.remove_child(c)
 		c.queue_free()
@@ -155,7 +170,48 @@ func show_result(sim: FightSim, player: int, coaching: Dictionary, notes: Array[
 ## The card as text (tests read it).
 func text() -> String:
 	return "\n".join([_title.text, _verdict.text, _readouts[0].text, _readouts[1].text, _sheet.text(), _cards.get_parsed_text(),
-		"Corner " + _grade.text, _corner.get_parsed_text(), _notes.get_parsed_text()])
+		"Corner " + _grade.text, _corner.get_parsed_text(), _notes.get_parsed_text(),
+		_meaning_text.get_parsed_text() if _meaning.visible else ""])
+
+
+## A career fight's "what it means" panel (D436; Kyle's pick on the D436 cards): call after show_result with
+## meaning_rows().
+func show_meaning(rows: Array) -> void:
+	_meaning_text.text = "\n".join(rows.map(func(r: Array) -> String: return "[color=#%s]%s[/color]  %s" % [DIM.to_html(false), r[0], r[1]]))
+	_meaning.visible = not rows.is_empty()
+
+
+## What the fight did to his career, as [label, BBCode] rows: his record before and after, his place in the rankings (the
+## new ones come out after the card), a belt won, lost or kept, a move up or down the promotions, the purse and his
+## savings, and the suspension (`aftermath`, main.gd's line). `before` and `after` are Career.standing(); `fight` is
+## the entry on his fights list.
+static func meaning_rows(before: Dictionary, after: Dictionary, fight: Dictionary, aftermath: String) -> Array:
+	var rows: Array = []
+	var result: String = String(fight.get("result", ""))
+	var colour: Color = WON if result == "win" else (LOST if result == "loss" else TEXT)
+	rows.append(["Record", "%s → [color=#%s][b]%s[/b][/color] %s" % [before.get("record", ""), colour.to_html(false),
+		after.get("record", ""), "pro" if bool(after.get("pro", false)) else "amateur"]])
+	if bool(after.get("pro", false)):
+		var rank: int = int(after.get("rank", 0))
+		rows.append(["Rank", ("#%d" % rank if rank > 0 else "Unranked") + " [color=#%s](the new rankings come out after the card)[/color]" % DIM.to_html(false)])
+	var had: String = String(before.get("belt", ""))
+	var has: String = String(after.get("belt", ""))
+	if has != "" and had == "":
+		rows.append(["Belt", "[color=#%s][b]Won %s[/b][/color]" % [GOLD.to_html(false), has]])
+	elif had != "" and has == "":
+		rows.append(["Belt", "[color=#%s]Lost %s[/color]" % [LOST.to_html(false), had]])
+	elif has != "" and String(fight.get("title", "")) != "":
+		rows.append(["Belt", "[color=#%s]Kept %s[/color]" % [GOLD.to_html(false), has]])
+	var moved: String = String(fight.get("moved", ""))
+	if moved != "" and String(after.get("promotion", "")) != "":
+		rows.append(["Promotion", "[color=#%s]%s to %s[/color]" % [(WON if moved == "up" else LOST).to_html(false),
+			"Called up" if moved == "up" else "Let go, down", after.promotion]])
+	var paid: int = int(fight.get("purse", 0))
+	if paid > 0:
+		rows.append(["Purse", "[b]$%d[/b] [color=#%s](savings $%d)[/color]" % [paid, DIM.to_html(false), int(after.get("money", 0))]])
+	if aftermath != "":
+		rows.append(["After", aftermath])
+	return rows
 
 
 func button_labels() -> Array[String]:
