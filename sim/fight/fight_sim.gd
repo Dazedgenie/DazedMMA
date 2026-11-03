@@ -362,6 +362,9 @@ var views: Array[FightView] = []
 ## Each fighter's corner when it makes its own calls (the AI corner, the harness's coaching
 ## bots); null for a corner that only passes on the player's calls (docs/01 §22.7).
 var corners: Array[Corner] = [null, null]
+## A training drill, never a fight (the sprawl reflex minigame, docs/03 §13.5, D411): a sprawl that meets the shot always
+## works and a shot that isn't sprawled on always lands, so the drill is judged on timing alone. Off, nothing changes.
+var drill: bool = false
 ## Ticks processed since the opening bell. The next tick() processes tick `now`.
 var now: int = 0
 var events: Array[FightEvent] = []
@@ -2094,7 +2097,7 @@ func _meet_shot(k: int) -> void:
 	if sprawl.category != "defense" or not sprawl.defense.get("against_categories", []).has(shot.category) or ActionLibrary.is_throw(shot):
 		return  # Nothing to sprawl on in a throw or a trip (D128).
 	var b: OddsBreakdown = odds_breakdown(k, sprawl.id)
-	var worked: bool = _rng.randf() < b.chance
+	var worked: bool = drill or _rng.randf() < b.chance
 	_emit(FightEvent.SPRAWLED, k, { "action_id": sprawl.id, "against": s.action_id, "worked": worked, "chance": b.chance, "odds": b.to_dict() })
 	_to_recovery(k)
 	if not worked:
@@ -2117,7 +2120,7 @@ func _finish_grip(i: int) -> bool:
 	var b: OddsBreakdown = f.grip
 	f.grip = null
 	var action: Dictionary = actions.get_action(f.action_id)
-	var roll: float = _rng.randf()
+	var roll: float = -1.0 if drill else _rng.randf()
 	var result: String = ""
 	if roll < b.chance:
 		result = PositionLibrary.SUCCESS

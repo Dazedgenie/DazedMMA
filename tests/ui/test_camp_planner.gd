@@ -207,6 +207,29 @@ func test_a_ticked_film_study_plays_his_tape_first_and_its_score_counts() -> voi
 	assert_true((_planner.reports[0].film as Dictionary).is_empty(), "nothing of a sample man's to find")
 
 
+func test_a_ticked_sprawl_drill_plays_the_sprawl_reflex_first_and_its_score_counts() -> void:
+	_planner.set_slot(0, "sprawl_drill")
+	_planner.set_play(0, true)
+	assert_eq(_planner.played_slots(), [0] as Array[int], "sprawl drills can be played (D411)")
+	_planner.run_week()
+	assert_not_null(_planner.sprawl, "the drill opens")
+	assert_true(_planner.reports.is_empty(), "the week waits for it")
+	var screen: SprawlReflexScreen = _planner.sprawl
+	assert_almost_eq(screen.drill.level, _planner.camp.stat("takedown_defense"), 0.001, "at his Takedown defence")
+	screen.start()
+	while not screen.drill.is_over():
+		var p: FighterState = screen.drill.sim.fighters[1]
+		if p.action_id == "double_leg" and p.phase == "windup":
+			screen.sprawl()  # As he changes levels (the drill itself is tested in test_sprawl_reflex).
+		screen.drill.tick()
+	screen.run(0.0)
+	assert_eq(screen.stage, "over")
+	screen.finish()
+	assert_null(_planner.sprawl)
+	assert_eq(_planner.reports.size(), 1)
+	assert_almost_eq(float(_planner.reports[0].played[0]), TrainingCamp.PLAYED_MAX, 0.0001)
+
+
 func test_each_tile_shows_its_session_and_the_fatigue_after_it() -> void:
 	_planner.pick_preset("speed")
 	var forecast: Dictionary = _planner.camp.forecast(_planner.week_plan())

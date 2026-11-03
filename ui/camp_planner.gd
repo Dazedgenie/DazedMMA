@@ -6,7 +6,7 @@ extends PanelContainer
 ## what the week will probably do before it's run (TrainingCamp.forecast), and the log
 ## says what it did. On fight night it says how the camp sends the fighter in (tired, hurt,
 ## what the doctor says, D135) and offers Fight! or Pull out. Up to PLAY_MAX sessions a week with a
-## minigame built so far (mitt work, D137; film study, D410) can be ticked to Play: running the week plays them first and their
+## minigame built so far (mitt work, D137; film study, D410; sprawl reflex, D411) can be ticked to Play: running the week plays them first and their
 ## scores count in the camp. Laid out as the camp week HUD (D170, docs/02 §3.10): the camp's weeks counting down
 ## to the fight along the top, the fighter's condition on the left, the week as coloured session tiles over a
 ## fatigue line in the middle, and the stats as bars on the right. Presentation only: TrainingCamp does the training.
@@ -32,7 +32,7 @@ const GROUPS: Array[String] = ["Physical", "Striking", "Wrestling", "Grappling",
 ## Forecast gains this small aren't worth a line.
 const SHOWN_GAIN: float = 0.005
 ## The minigames that can be played so far (D137), and how many sessions a week the player can play (docs/02 §3.1).
-const PLAYABLE: Array[String] = ["mitt_work", "film_study"]
+const PLAYABLE: Array[String] = ["mitt_work", "film_study", "sprawl_reflex"]
 const PLAY_MAX: int = 3
 ## The fight is on the last week's Saturday evening (D135): this many days after that week's Monday.
 const FIGHT_DAY: int = 5
@@ -104,6 +104,8 @@ var _menu_slot: int = -1  # The tile the session list is open for.
 var minigame: MittWorkScreen
 ## The film study minigame on screen (D410), else null.
 var film: FilmStudyScreen
+## The sprawl reflex minigame on screen (D411), else null.
+var sprawl: SprawlReflexScreen
 ## slot → the habit's key a played film study found this week (D410), for Career.scout_week.
 var _film_found: Dictionary = {}
 var _to_play: Array[int] = []
@@ -306,7 +308,7 @@ func week_plan() -> Dictionary:
 ## Runs the week on screen (the next week of the camp). Sessions ticked to Play are played first, one
 ## minigame after another, and the week runs when the last one is done.
 func run_week() -> void:
-	if done() or minigame != null or film != null:
+	if done() or minigame != null or film != null or sprawl != null:
 		return
 	_to_play = played_slots()
 	_played = {}
@@ -344,6 +346,9 @@ func _play_next() -> void:
 		return
 	var forecast: Dictionary = camp.forecast(week_plan(), fight_week())
 	var fatigue: float = float(forecast.slots[index].fatigue_before) if index < forecast.slots.size() else camp.fatigue
+	if String(_library.session(_slot_ids[index]).get("minigame", "")) == "sprawl_reflex":
+		_play_sprawl(index, fatigue)
+		return
 	var drill := MittWork.new(camp.stat("boxing"), fatigue, hash([_camp_seed, reports.size(), index]))
 	var day: int = index / TrainingCamp.SLOTS_PER_DAY
 	minigame = MittWorkScreen.new(drill, "Mitt work · week %d, %s %s · fatigue %d" % [reports.size() + 1,
@@ -386,6 +391,21 @@ func _play_film(index: int) -> void:
 	add_child(film)
 
 
+## A sprawl drills session played (D411): his partner shooting at him, at his Takedown defence and how tired he is.
+func _play_sprawl(index: int, fatigue: float) -> void:
+	var drill := SprawlReflex.new(camp.profile(), camp.stat("takedown_defense"), fatigue, hash([_camp_seed, reports.size(), index, "sprawl"]))
+	var day: int = index / TrainingCamp.SLOTS_PER_DAY
+	sprawl = SprawlReflexScreen.new(drill, "Sprawl drills · week %d, %s %s · fatigue %d" % [reports.size() + 1,
+		TrainingCamp.DAY_NAMES[day], SLOT_NAMES[index % TrainingCamp.SLOTS_PER_DAY].to_lower(), roundi(fatigue)])
+	sprawl.finished.connect(func(quality: float, played: bool) -> void:
+		if played:
+			_played[index] = quality
+		sprawl.queue_free()
+		sprawl = null
+		_play_next())
+	add_child(sprawl)
+
+
 ## The week on screen is the last one: the fight is on its Saturday evening (D135).
 func fight_week() -> bool:
 	return reports.size() == weeks - 1
@@ -398,7 +418,7 @@ func days_to_fight() -> int:
 
 ## Runs every week left with the week on screen.
 func run_rest() -> void:
-	if minigame != null or film != null:
+	if minigame != null or film != null or sprawl != null:
 		return
 	while not done():
 		var report: Dictionary = camp.run_plan(week_plan(), {}, fight_week())

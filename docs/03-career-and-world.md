@@ -1249,7 +1249,7 @@ study" first, my pick):
 | Sparring partners: named men at his gym from the world's local men | D407 | Planned |
 | Coaches: assistants for a weekly fee, the head coach's levels | D408 | Planned |
 | Changing gyms: his hometown and the nearest city | D409 | Planned |
-| Minigames, one a PR: film study, heavy bag, sprawl reflex, Thai pads first (Kyle, 2026-11-03: "Minigames first", next after D403, before the opponent's camp) | D410 on | Film study built (§13.4, D410) |
+| Minigames, one a PR: film study, heavy bag, sprawl reflex, Thai pads first (Kyle, 2026-11-03: "Minigames first", next after D403, before the opponent's camp) | D410 on | Film study built (§13.4, D410); sprawl reflex built (§13.5, D411) |
 | Your corner naming the habits you found at each round break (Kyle's ask after D401) | D419 | Built (§13.1) |
 
 ### 13.1 Scouting and film study (D401)
@@ -1404,7 +1404,7 @@ it", "The habit for sure, plus Fight IQ" and "Study a man of his style" (my pick
   style with habits, in a quick camp), made the way the world makes men: Fight IQ only.
 
 **Not yet:** a tape of his real past fights (the world's fights are quick results, not fights), the opponent's habits
-shown as film to a corner, and the other minigames (heavy bag, sprawl reflex, Thai pads next).
+shown as film to a corner, and the other minigames (sprawl reflex built next, §13.5; heavy bag and Thai pads to come).
 
 **What to change:** the clip, speed, windows and score in the constants at the top of `sim/world/film_study.gd`
 (`CLIP_SECONDS`, `SPEED`, `WINDOW_BEFORE`, `WINDOW_AFTER`, `WINDOW_PER_IQ`, `STRAY_COST`, `MARK_SHARE`, `CHOICES`,
@@ -1412,3 +1412,41 @@ shown as film to a corner, and the other minigames (heavy bag, sprawl reflex, Th
 `CampPlanner.PLAYABLE`. To see it: `godot --path . --script res://tools/film_preview.gd -- --style=kicker` (with
 `--write-movie` to save frames). Tested in `tests/sim/world/test_film_study.gd`, `tests/ui/test_camp_planner.gd` and
 `tests/game/test_main_scene.gd`.
+
+### 13.5 Sprawl reflex, the minigame (D411)
+
+The second phase 4 minigame (Kyle, 2026-11-03, picked "Sprawl reflex" next, my pick: a reaction game, unlike mitt work's
+rhythm). A Sprawl drills session ticked to **Play** in the camp planner opens a minute of a drill before the week runs: your
+fighter and a wrestling partner (the Wrestler from `data/fighters/`) in the fight screen's 3D view, the partner shooting
+double legs at you, and **Space** to sprawl. Kyle then picked "3D view, him and a partner",
+"Feints, some shot off the feint", "He's taken down, then reset" and "Pace, feints and speed by TD defence" (my picks on all
+four).
+
+- **The engine is the referee.** It's the real fight engine, so the timing is the fights' own (`docs/01` §21.2): a sprawl
+  works when its active phase meets the shot's drive. Pressed from his first step in until the drive's last moment, about
+  0.9 s of fight time, it's in time; but a sprawl takes 0.7 s to finish and get back up from, and he can't start another
+  until it's over. The drill runs with `FightSim.drill`: a sprawl in time always stuffs the shot and a shot not sprawled on
+  always lands, so only the timing counts, never a roll. No move names, range tag or referee in the view: reading his level
+  change is the drill.
+- **The partner** stands at mid range and, after a short gap, does one of: a shot; a feint (a pump of the shot); or a feint
+  and the shot straight off it. Sprawl on the feint and the real shot comes while you're still getting back up.
+- **A shot that gets through** takes you down: a moment on the mat, then both are stood back up and the drill goes on (it
+  counts against you).
+- **Harder as he gets better**, by his Takedown defence from 20 to 90 (as mitt work by Boxing): the gap between reps from
+  2.4 s to 1.2 s (± 0.4 s), feints from 20% to 50% of reps (half of them with the shot off the feint), and the drill from 1×
+  to 1.3× (fight seconds per real second). From fatigue 40 it runs faster again, up to 1.2× more at 100: tired reflexes. It
+  always lasts a minute on screen.
+- **The score**: shots stuffed, less a quarter of a shot for each sprawl that met nothing (a bite on the feint, or just
+  jumpy), over the shots that reached him. It's the session's quality, ×0.8 for nothing up to ×1.5 for every shot, on what
+  Sprawl drills train (Takedown defence, Scrambles, Speed). **Skip it** lets the session auto-resolve (×1.0), as before.
+
+**Not yet:** knees into the shot (D182) as a second key, a gym partner from the world's men (D407), and the drill in a
+gym's own look (a mat, not the cage).
+
+**What to change:** the pace, feints, speed and score in the constants at the top of `sim/world/sprawl_reflex.gd`
+(`PARTNER`, `ROUND_SECONDS`, `GAP_SLOW`, `GAP_FAST`, `GAP_JITTER`, `FEINTS_LOW`, `FEINTS_HIGH`, `FEINT_SHOT_SHARE`,
+`SPEED_LOW`, `SPEED_HIGH`, `TIRED_FROM`, `TIRED_SPEED`, `LEVEL_LOW`, `LEVEL_HIGH`, `SETTLE_SECONDS`, `DOWN_SECONDS`,
+`STRAY_COST`, `FEINT_BITE_TICKS`); the sprawl's and the double leg's timings in `data/actions/`; the screen in
+`ui/sprawl_reflex_screen.gd`; which sessions can be played in `CampPlanner.PLAYABLE`. To see it:
+`godot --path . --script res://tools/sprawl_preview.gd -- --level=50 --sprawl` (with `--write-movie` to save frames).
+Tested in `tests/sim/world/test_sprawl_reflex.gd` and `tests/ui/test_camp_planner.gd`.

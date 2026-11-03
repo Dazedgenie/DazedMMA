@@ -14,5 +14,6 @@ HUD, menus, minigame UI and themes (docs/06-fight-hud.md). Presentation only: no
 - `fight_night_card.gd`: the fight night card (docs/02 §3.11, D171), opened over the planner when the camp is over.
 - `mitt_work_screen.gd`: the mitt work minigame (docs/02 §3.9, D137), opened by the planner for each Boxing drills session ticked to Play; the judging is `sim/world/mitt_work.gd`.
 - `film_study_screen.gd`: the film study minigame (docs/03 §13.4, D410), opened by the planner for each Film study session ticked to Play: the tape in a 3D view of its own, Space to mark, his habit named from three; the judging is `sim/world/film_study.gd`.
+- `sprawl_reflex_screen.gd`: the sprawl reflex minigame (docs/03 §13.5, D411), opened by the planner for each Sprawl drills session ticked to Play: the drill in a 3D view of its own (`ArenaView.drill`: no move names, range tag or referee), Space to sprawl; the judging is `sim/world/sprawl_reflex.gd`.
 - `debug_overlay.gd`: F3 on the fight screen, the raw numbers behind what's on screen.
 - `debug_console.gd`: developer console (toggle with the ` key). "Run test fight" runs `game/sim_check.gd` and prints pass/fail; the fight on screen is logged here with every odds breakdown. Lines are formatted by `fight_log_formatter.gd`.

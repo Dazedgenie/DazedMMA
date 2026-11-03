@@ -104,7 +104,7 @@ Tags appear when an attribute crosses a threshold or is shown in fights.
 | **Heavy bag** | Power-timing meter with combo chaining | Power, Strength |
 | **Thai pads** | Aim + timing; the pad holder feeds kicks/knees/elbows | Kicking, Clinch striking |
 | **Wrestling chain** | Directional input sequences under time pressure (shot → finish → chain) | Takedowns, Scrambles |
-| **Sprawl reflex** | React to incoming shots with feints mixed in | Takedown defense, Speed |
+| **Sprawl reflex** | React to incoming shots with feints mixed in (built: `03` §13.5, D411) | Takedown defense, Speed |
 | **Rolling puzzle** | Turn-based positional puzzle: pick transitions, chess-like | Top control, Guard, Submissions |
 | **Roadwork** | Pace management: stay in the target zone; going too fast gasses you out | Cardio, Recovery |
 | **Film study** | Watch a short sim clip and spot the tell (built: `03` §13.4, D410) | Fight IQ; reveals opponent tells (D11) |
