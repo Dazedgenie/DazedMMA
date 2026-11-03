@@ -1195,6 +1195,9 @@ The Wrestler grapples more on his own to make up for the Kicker's answers: he pl
   `data/actions/knee.json` (`target`, `damage_multiplier`, `stops`).
 - Judges: `Judging.TAKEDOWN_POINTS` (10) and `Judging.CONTROL_POINTS_PER_S` (0.3) in `sim/fight/judging.gd`.
 - The AI: the constants in §21.5 and §21.8, at the top of `sim/fight/fighter_ai.gd`.
+- A drill, never a fight (D411): `FightSim.drill` makes a sprawl that meets the shot always work and a shot not sprawled on
+  always land, so the sprawl reflex minigame (`03` §13.5) is judged on this section's timing alone; `DrillAI`
+  (`sim/fight/drill_ai.gd`) stands at mid range and starts only the moves it's given. Off (every fight), nothing changes.
 
 Tested in `tests/sim/fight/test_grappling.gd` (the catch-kick in and out of the `ONE_LEG` window, contact and roll, sprawls in
 time and too early, the knee into the shot and the flash knockdown, teen rules, only the bottom fighter gets up, wall-walking,

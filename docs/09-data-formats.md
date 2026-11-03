@@ -291,7 +291,7 @@ One kind of training session (`docs/02` §3.5, D125). Loaded by `TrainingLibrary
 | `heals` (optional) | days, 0–7 | Extra days of healing when done hurt (Rehab: 1). Only a light session heals |
 | `leanings` | `{leaning: −1–1}` | Style push per session (`docs/11` §4.2) |
 | `chin_wear` | 0–1 | Chin points lost per session (hard sparring) |
-| `minigame` | minigame id or null | The minigame that will play it (D38; only `mitt_work` is built so far, D137): `mitt_work`, `heavy_bag`, `thai_pads`, `wrestling_chain`, `sprawl_reflex`, `rolling_puzzle`, `roadwork`, `film_study`, `hard_sparring`, `meditation` |
+| `minigame` | minigame id or null | The minigame that will play it (D38; built so far: `mitt_work`, D137; `film_study`, D410; `sprawl_reflex`, D411): `mitt_work`, `heavy_bag`, `thai_pads`, `wrestling_chain`, `sprawl_reflex`, `rolling_puzzle`, `roadwork`, `film_study`, `hard_sparring`, `meditation` |
 | `drills_rule` (optional) | 1 or 2 | The rule slot it drills (D402, `docs/03` §13.2): each one done sharpens the career's rule in that slot. Only a career's planner offers it. `drill_rule_1.json`, `drill_rule_2.json` |
 | `career_only` (optional) | bool | Put in by the career, never planned: the camp planner doesn't offer it (the gym shift, D313; school and homework, D314) |
 
