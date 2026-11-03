@@ -163,12 +163,12 @@ func test_a_long_career_still_fits_the_hub_on_one_screen_and_its_long_parts_scro
 	var hub: CareerHub = add_child_autofree(CareerHub.new())
 	hub.show_career(c, reports)
 	assert_lte(hub.get_combined_minimum_size().y, 1080.0, "the buttons and the calendar stay on a 1080-high screen (D340)")
-	assert_eq(hub.scrolls().size(), 4, "the fighter, his stats, this week with the offers, his fights")
+	assert_eq(hub.scrolls().size(), 5, "the fighter (about and stats on tabs, D433), the next fight with this week, the news, his fights")
 	for scroll in hub.scrolls():
 		assert_eq(scroll.horizontal_scroll_mode, ScrollContainer.SCROLL_MODE_DISABLED)
-	hub.scrolls()[3].scroll_vertical = 200
+	hub.scrolls()[4].scroll_vertical = 200
 	hub.show_career(c)
-	assert_eq(hub.scrolls()[3].scroll_vertical, 0, "a refresh starts each list at the top")
+	assert_eq(hub.scrolls()[4].scroll_vertical, 0, "a refresh starts each list at the top")
 
 
 func test_picking_a_week_plan_on_the_hub_changes_his_weeks() -> void:
