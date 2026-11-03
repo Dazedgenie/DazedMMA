@@ -134,3 +134,40 @@ func test_an_elbow_turned_right_round_its_arm_in_a_frame_is_eased_round() -> voi
 		body.follow_joints(flipped)
 		body.settle(1.0 / 60.0)
 	assert_lt(body._world_at("LeftForeArm").distance_to(want), 0.01, "and round within half a second")
+
+
+func test_a_hand_inside_the_other_mans_trunk_is_put_on_him() -> void:
+	var hips := Vector3(0, 0.3, 0)
+	var chest := Vector3(0, 0.8, 0)
+	var put: Vector3 = FighterRig.out_of(Vector3(0.03, 0.5, 0.0), hips, chest)
+	assert_almost_eq(put.distance_to(Vector3(0, 0.5, 0)), FighterRig.TRUNK_RADIUS, 0.001, "on him, not in him")
+	assert_gt(put.x, 0.0, "out the side it went in")
+	var on_his_back := Vector3(0, 0.6, 0.17)
+	assert_eq(FighterRig.out_of(on_his_back, hips, chest), on_his_back, "a hand already on him stays put")
+
+
+func test_a_knee_inside_the_other_man_turns_out_of_him_keeping_its_bones_lengths() -> void:
+	var trunk: Array[Vector3] = [Vector3(0, 0.3, 0.35), Vector3(0, 0.8, 0.35)]  # Him, just in front.
+	var hip := Vector3(0, 0.45, 0)
+	var ankle := Vector3(0, 0.1, 0.45)
+	var knee := Vector3(0, 0.55, 0.3)  # Bent into his belly.
+	var turned: Vector3 = FighterRig.clear_of(hip, knee, ankle, trunk)
+	var out: float = turned.distance_to(FighterRig.closest_on(turned, trunk[0], trunk[1]))
+	assert_gte(out, FighterRig.TRUNK_RADIUS - 0.001, "out of him")
+	assert_almost_eq(turned.distance_to(hip), knee.distance_to(hip), 0.001, "the thigh keeps its length")
+	assert_almost_eq(turned.distance_to(ankle), knee.distance_to(ankle), 0.001, "the shin keeps its length")
+
+
+func test_the_body_keeps_its_hands_out_of_the_other_man() -> void:
+	var figure: FighterFigure = _figure()
+	var body: SkinnedBody = figure.body
+	body.follow_joints(figure.body_pose())
+	body.settle(1.0 / 60.0)
+	var hand: Vector3 = body._world_at("LeftHand")
+	body.avoid = [hand + Vector3(0.02, -0.3, 0), hand + Vector3(0.02, 0.3, 0)]  # His trunk right where the hand is.
+	body.follow_joints(figure.body_pose())
+	body.settle(1.0 / 60.0)
+	var now: Vector3 = body._world_at("LeftHand")
+	assert_gte(now.distance_to(FighterRig.closest_on(now, body.avoid[0], body.avoid[1])), FighterRig.TRUNK_RADIUS - 0.01,
+		"the hand is on him, not in him")
+	body.avoid = []
