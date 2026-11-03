@@ -1502,8 +1502,8 @@ Fights don't change.
 The fourth phase 4 minigame and the last of the four (Kyle, 2026-11-03, picked "Thai pads minigame" next, my pick: the
 kicking styles were the only strikers without a session to play). It's `docs/02` §3.2's aim and timing, the pad holder
 feeding kicks, knees and elbows. A Thai pads session ticked to **Play** in the camp planner opens a minute on the pads
-before the week runs. Kyle's three cards: [answers to come; built on my picks: "Read the pads, throw the strike", "2D
-drawn pad holder", "Quicker pads, then combinations"].
+before the week runs. Kyle's three cards (2026-11-03, all my picks): "Read the pads, throw the strike", "2D drawn pad
+holder", "Quicker pads, then combinations".
 
 - **The screen**: the pad holder drawn facing him, like the heavy bag, his pads held at his chest between strikes. A
   smack on every strike that lands, a whoosh on one that doesn't (made in code).
