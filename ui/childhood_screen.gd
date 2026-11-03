@@ -50,7 +50,7 @@ func _init(p_childhood: Childhood = null, p_backgrounds: BackgroundLibrary = nul
 	_childhood = p_childhood if p_childhood != null else Childhood.shared()
 	_backgrounds = p_backgrounds if p_backgrounds != null else BackgroundLibrary.shared()
 	set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_theme_stylebox_override("panel", FightHud._panel_style(BACKGROUND))
+	add_theme_stylebox_override("panel", OffCage.hall_panel())  # The dimmed hall shows through (D435).
 	var center := CenterContainer.new()
 	add_child(center)
 	var pair := HBoxContainer.new()

@@ -61,7 +61,7 @@ var gameplan: GameplanPicker
 
 func _init() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_theme_stylebox_override("panel", FightHud._panel_style(BACKGROUND))
+	add_theme_stylebox_override("panel", OffCage.hall_panel(true))  # Over the camp, so solid (D435).
 	var column := VBoxContainer.new()
 	column.add_theme_constant_override("separation", 18)
 	add_child(column)
