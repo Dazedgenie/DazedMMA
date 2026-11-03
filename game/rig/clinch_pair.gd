@@ -166,7 +166,7 @@ static func body(kind: String, head_side: float) -> Dictionary:
 			}
 		"lock":  # The a man has both arms under, hips in and a little lower; the other stands taller over him.
 			pair = {
-				"a": {"root": [0.04, 0.84, 0.28], "lean": 18, "bend": [8, -6, 12], "head": [6, -HEAD_TURN],
+				"a": {"root": [0.06, 0.84, 0.24], "lean": 16, "bend": [8, -6, 16], "head": [-20, -HEAD_TURN],
 					"foot_l": {"at": [-0.2, ANKLE, 0.12]}, "foot_r": {"at": [0.2, ANKLE, 0.56]}},
 				"b": {"root": [0.04, 0.9, -0.29], "turn": 180, "lean": 8, "bend": [4, 6, 12], "head": [6, HEAD_TURN],
 					"foot_l": {"at": [0.2, ANKLE, -0.14]}, "foot_r": {"at": [-0.2, ANKLE, -0.56]}},
@@ -192,7 +192,7 @@ static func hand(grip: String, letter: String, other: String) -> Dictionary:
 		"under":
 			return {"to": "%s.blade_%s" % [other, across], "off": [0.0, 0.02, 0.02], "pole": [out, -0.6, 0.2]}
 		"lock":
-			return {"to": "%s.lower_back" % other, "off": [theirs * 0.06, 0.06, -0.02], "pole": [out, -0.6, 0.2]}
+			return {"to": "%s.lower_back" % other, "off": [theirs * 0.1, 0.06, -0.02], "pole": [out, -0.6, 0.2]}
 		"over":
 			return {"to": "%s.upper_%s" % [other, across], "off": [theirs * 0.05, 0.0, 0.03], "pole": [out * 0.8, 0.2, 0.4]}
 		"collar":
