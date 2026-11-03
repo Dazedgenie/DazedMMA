@@ -1243,6 +1243,20 @@ eight panels and corners. Existing fence, takedown, clinch and submission-view c
 `tools/cage_preview.gd` supplies reproducible before/after fence samples in the real game scene.
 The final constraint is a safety bound; authored paths should still avoid large corrective slides.
 
+## Guard armbar position (D423)
+
+The armbar branch was selected correctly, but its pose kept the defender too upright and the attacker
+nearly in ordinary guard. The visible trapped elbow was about 60 cm from the attacker's hips. The
+attacker now turns perpendicular and bridges under the elbow, while the defender's shoulder lowers
+enough for the trapped arm to reach. Both hands retain the wrist. One bent leg controls the head and
+the other folds across the back, instead of leaving both feet raised like an open guard.
+
+`tests/game/test_armbar_contact.gd` checks the final skinned bodies with either fighter attacking:
+elbow at the hips, a nearly straight trapped arm, both hands at the wrist, and the folded leg near the
+head without passing through its centre. Existing submission-pair reach, floor and tightening checks
+remain in force. The loose and tight poses were inspected from both sides with `tools/hold_preview.gd`.
+The mount armbar remains its own existing pose; this repair concerns the armbar entered from guard.
+
 ## Review and verification
 
 Open `project.godot` in Godot 4.7.2 and run the game normally. Start a fight and check striking,
