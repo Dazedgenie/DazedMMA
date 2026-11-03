@@ -1,0 +1,8 @@
+{
+	"schema": "trigger@1",
+	"id": "opp_leg_kick_starts",
+	"name": "Opponent starts a leg kick",
+	"type": "event",
+	"event": "action_phase",
+	"match": { "actor": "opponent", "action_ids": ["leg_kick", "calf_kick"], "phase": "telegraph" }
+}

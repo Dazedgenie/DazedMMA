@@ -250,3 +250,47 @@ func test_a_catch_rule_still_fires_on_a_kick_he_read() -> void:
 	sim.decisions[0].ai._opp = { "id": "body_kick", "category": "strike", "at": sim.now, "notice": sim.now + 2, "read": true, "decided": false }
 	_rules(sim).on_event(sim.views[0], kick)
 	assert_true(_rules(sim).may_claim, "his read never catches a kick: the rule does")
+
+
+func test_a_check_rule_puts_the_check_up_in_time_for_the_leg_kick() -> void:
+	var sim: FightSim = _sim()
+	sim.submit(FightCommand.set_rule(0, 0, 1, "check_the_leg_kick", 100))
+	sim.submit(FightCommand.queue_action(KICK_AT, 1, "leg_kick"))
+	_run(sim, 30)
+	var checks: Array = _starts(sim).filter(func(s: Array) -> bool: return s[1] == "check_kick")
+	assert_eq(checks.size(), 1, "the drilled check (D403)")
+	var defended: bool = false
+	for e in sim.events:
+		defended = defended or (e.type == FightEvent.STRIKE_MISSED and e.actor == 1 and String(e.data.get("reason", "")) == "defended")
+	assert_true(_outcomes(sim).has(DrilledRules.FIRED))
+	assert_true(defended, "the check was up as the kick landed")
+
+
+func test_a_defence_rule_on_a_strike_he_read_leaves_the_answer_to_him() -> void:
+	var sim: FightSim = _sim()
+	sim.submit(FightCommand.set_rule(0, 0, 1, "check_the_leg_kick", 100))
+	_run(sim, 1)
+	var view: FightView = sim.views[0]
+	var rules: DrilledRules = _rules(sim)
+	var kick := FightEvent.new(sim.now, 1, FightEvent.ACTION_PHASE, 1, { "action_id": "leg_kick", "phase": "telegraph" })
+	sim.fighters[1].action_id = "leg_kick"
+	sim.decisions[0].ai._opp = { "id": "leg_kick", "category": "strike", "at": sim.now, "notice": sim.now + 2, "read": true, "decided": false }
+	rules.take_notes()
+	rules.on_event(view, kick)
+	assert_eq(rules.take_notes().map(func(a: Dictionary) -> String: return a.data.reason), ["he read it himself: his own answer"])
+	assert_almost_eq(rules.adjust_guard(view, 0.4), 0.4 if not DrilledRules.LIFT_GUARD_ON_READ else 1.0, 0.001,
+		"his own defence or counter, as he'd have picked it (D403)")
+	assert_almost_eq(rules.adjust_sprawl(view, 0.4), 0.4, 0.001, "a defence rule doesn't touch his sprawl")
+	assert_null(rules.claim(view), "the rule doesn't fire as well")
+
+
+func test_a_rule_on_his_own_strike_being_blocked_waits_for_him_not_the_other_man() -> void:
+	var sim: FightSim = _sim()
+	sim.submit(FightCommand.set_rule(0, 0, 1, "hands_up_when_blocked", 100))
+	_run(sim, 1)
+	var view: FightView = sim.views[0]
+	var rules: DrilledRules = _rules(sim)
+	var blocked := FightEvent.new(sim.now, 0, FightEvent.STRIKE_MISSED, 0, { "action_id": "jab", "reason": "defended" })
+	rules.on_event(view, blocked)
+	_run(sim, view.me.reaction_ticks() + 2)
+	assert_true(_outcomes(sim).has(DrilledRules.FIRED), "his hands go up, though the other man isn't throwing a jab (D403)")

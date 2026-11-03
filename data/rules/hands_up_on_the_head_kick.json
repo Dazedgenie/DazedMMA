@@ -1,0 +1,8 @@
+{
+	"schema": "rule@2",
+	"id": "hands_up_on_the_head_kick",
+	"name": "When he kicks high → hands up",
+	"trigger": "opp_head_kick_starts",
+	"action": "high_guard",
+	"cooldown_ms": 10000
+}
