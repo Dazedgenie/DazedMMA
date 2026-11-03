@@ -101,6 +101,46 @@ static func knows(c: Career, rule_id: String) -> bool:
 	return (technique == null or technique in techniques) and (bool(action.get("basic", false)) or move in techniques)
 
 
+## Whether rule `rule_id` answers his habit `tell` (fighter@1 tells, D403): its trigger is his habit's move starting (a
+## check for his leg kick), or the same moment his habit goes off on, seen from this side (his jab blocked, when the
+## habit is "when his jab is blocked").
+static func answers(rule_id: String, tell: Dictionary) -> bool:
+	if not RuleLibrary.shared().has(rule_id):
+		return false
+	var triggers: TriggerLibrary = TriggerLibrary.shared()
+	var mine: String = String(RuleLibrary.shared().get_rule(rule_id).trigger)
+	var his: String = String(tell.get("trigger", ""))
+	if not triggers.has(mine):
+		return false
+	var t: Dictionary = triggers.get_trigger(mine)
+	var m: Dictionary = t.get("match", {})
+	if t.get("event", "") == FightEvent.ACTION_PHASE and m.get("actor", "") == "opponent" \
+			and (m.get("action_ids", []) as Array).has(String(tell.get("action", ""))):
+		return true
+	if not triggers.has(his):
+		return false
+	var h: Dictionary = triggers.get_trigger(his)
+	var hm: Dictionary = (h.get("match", {}) as Dictionary).duplicate()
+	if h.get("event", "") != t.get("event", "") or not hm.has("actor"):
+		return false
+	hm.actor = "opponent" if hm.actor == "self" else "self"  # His "self" is my "opponent".
+	return hm == m
+
+
+## The rules he knows that answer any habit of the booked man's you've found (D403), for the Rules box's marks.
+static func answers_found(c: Career) -> Array[String]:
+	var out: Array[String] = []
+	var him: Dictionary = c.booked_opponent()
+	var found: Array[String] = Scouting.found(c, String(him.get("id", "")))
+	for tell: Variant in him.get("tells", []):
+		if not tell is Dictionary or not found.has(Scouting.key(tell)):
+			continue
+		for id: String in available(c):
+			if answers(id, tell) and not out.has(id):
+				out.append(id)
+	return out
+
+
 static func rule_name(rule_id: String) -> String:
 	return String(RuleLibrary.shared().get_rule(rule_id).name) if RuleLibrary.shared().has(rule_id) else rule_id
 
@@ -136,5 +176,8 @@ static func slots_text(c: Career) -> String:
 			lines.append("Rule %d: none" % (i + 1))
 		else:
 			lines.append("Rule %d: %s, drilled %d%%" % [i + 1, rule_name(id), roundi(drilled(c, id))])
+	var marked: Array[String] = answers_found(c)
+	if not marked.is_empty():
+		lines.append("Answers his habit: %s." % ", ".join(marked.map(func(id: String) -> String: return rule_name(id))))
 	lines.append("A Drill rule session sharpens that slot's rule. Rules go rusty slowly when he stops drilling them.")
 	return "\n".join(lines)

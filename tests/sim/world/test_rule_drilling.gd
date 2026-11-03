@@ -108,3 +108,38 @@ func test_the_two_drill_rule_sessions_drill_slots_one_and_two() -> void:
 	assert_eq(RuleDrilling.slot_of(lib.session("drill_rule_1")), 1)
 	assert_eq(RuleDrilling.slot_of(lib.session("drill_rule_2")), 2)
 	assert_eq(RuleDrilling.slot_of(lib.session("boxing_drill")), 0)
+
+
+func test_a_rule_answers_the_habit_whose_move_it_meets_or_whose_moment_it_sees_from_this_side() -> void:
+	var leg := { "trigger": "own_jab_blocked", "action": "leg_kick", "chance": 0.7, "within_ms": 1500 }
+	var shot := { "trigger": "opp_strike_misses", "action": "double_leg", "chance": 0.5, "within_ms": 800 }
+	assert_true(RuleDrilling.answers("check_the_leg_kick", leg), "checks the kick his habit throws (D403)")
+	assert_true(RuleDrilling.answers("beat_his_jab_habit", leg), "beats him to it when his jab is blocked")
+	assert_false(RuleDrilling.answers("slip_the_straight", leg))
+	assert_true(RuleDrilling.answers("sprawl_on_the_shot", shot))
+	assert_true(RuleDrilling.answers("knee_the_shot", shot))
+	assert_true(RuleDrilling.answers("hands_up_when_blocked", shot), "his habit goes off when you're blocked")
+	assert_false(RuleDrilling.answers("beat_his_jab_habit", shot))
+
+
+func test_the_rules_box_and_scouting_name_the_rule_that_beats_a_habit_you_have_found() -> void:
+	var c: Career = _career()
+	var leg := { "trigger": "own_jab_blocked", "action": "leg_kick", "chance": 0.7, "within_ms": 1500 }
+	c.opponents["habit_man"] = { "id": "habit_man", "name": "Lee Marsh", "stats": {}, "tells": [leg] }
+	c.booked = { "opponent": "habit_man", "week": c.week + 4, "camp_weeks": 5 }
+	assert_eq(RuleDrilling.answers_found(c), [] as Array[String], "nothing found yet")
+	Scouting.learn(c, "habit_man", [Scouting.key(leg)])
+	var marked: Array[String] = RuleDrilling.answers_found(c)
+	assert_true(marked.has("check_the_leg_kick"))
+	assert_true(marked.has("beat_his_jab_habit"))
+	assert_string_contains(RuleDrilling.slots_text(c), "Answers his habit: ")
+	assert_string_contains(Scouting.report_text(c, c.booked_opponent(), {}, [] as Array[String]), "Drill to beat it:")
+
+
+func test_every_new_rule_is_one_a_career_fighter_can_know() -> void:
+	var c: Career = _career()  # A street kid: a brawler's moves.
+	for id: String in ["check_the_leg_kick", "hands_up_on_the_head_kick", "beat_his_jab_habit", "hands_up_when_blocked",
+			"knee_the_shot", "sprawl_on_the_shot"]:
+		assert_true(RuleDrilling.knows(c, id), id)
+	assert_false(RuleDrilling.knows(c, "roll_the_hook"), "the shoulder roll is a boxer's")
+	assert_true(RuleDrilling.knows(_career("boxing_gym_kid"), "roll_the_hook"))

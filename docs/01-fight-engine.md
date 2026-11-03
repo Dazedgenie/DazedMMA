@@ -1584,6 +1584,14 @@ body kick started)"*, *"Wrestler holds the rule "When he kicks → catch & shoot
 |---|---|---|---|
 | When he kicks → catch & shoot | The opponent starts a body kick or teep | Catch-kick single | Fighters who learned the catch (the Wrestler, D112). The only way besides a call that the catch is ever thrown (D103) |
 | When he shoots → sprawl | The opponent starts a double leg | Sprawl | Everyone (the sprawl is basic) |
+| When he leg kicks → check it (D403) | The opponent starts a leg kick or calf kick | Check | Everyone |
+| When he throws a straight → slip (D403) | The opponent starts a jab or cross | Slip | Fighters who learned the slip (the Boxer, Counter-striker, Dirty boxer, Muay Thai) |
+| When he hooks → roll it (D403) | The opponent starts a hook | Shoulder roll | The Boxer and Counter-striker |
+| When he kicks high → lean back (D403) | The opponent starts a head kick | Lean back | The Counter-striker, Kicker and Karate fighter |
+| When he kicks high → hands up (D403) | The opponent starts a head kick | High guard | Everyone |
+| When he shoots → knee him (D403) | The opponent starts a double leg | Knee | Everyone with the knee |
+| When I block his jab → fire the cross (D403) | The opponent's jab is defended | Cross | Everyone |
+| When I'm blocked → hands up (D403) | His own strike is defended | High guard | Everyone |
 
 **To try it:** on the setup screen, pick your fighter's rules under *Rule 1* / *Rule 2*, set *Drilled*, then press **Start fight**;
 they can be changed at the bell between rounds, and the plan panel shows how sharp each one is and its cooldown (`06` §6).
@@ -1613,7 +1621,7 @@ the opponent's adaptation leaning on the rule's reliability (already in) more th
 - A rule's trigger, move and cooldown: its file in `data/rules/`; what sets a trigger off: `data/triggers/`.
 - Reliability, adaptation and the slot count: `RELIABILITY_PER_IQ`, `RELIABILITY_PER_HEAD_HURT`, `ADAPT_PER_FIRE`, `ADAPT_MAX`,
   `MAX_SLOTS` at the top of `sim/fight/drilled_rules.gd`; when a rule sits out gassed and how a sprawl rule stands in for his read: `FRESH_ABOVE`,
-  `STAND_IN_FOR_READ` (§23.5).
+  `STAND_IN_FOR_READ` (§23.5); whether a defence rule lifts his own defence of a strike he read: `LIFT_GUARD_ON_READ` (§23.6).
 - How far a caught move fades: `FighterAI.CAUGHT_FADE` (§21.8).
 - In the harness: `--rules=wrestler:catch_kick_and_shoot@80` (fighter:rule@drilled, a fighter's rules fill slots 1 and 2 in
   order) runs every pair once more with those rules and reports what they did to that fighter's wins.
@@ -1647,6 +1655,49 @@ firing moves wins by −1%, from the fights playing out differently). It fires a
 Kicker still loses a little against the Wrestler, who shoots 18 times a fight: his sprawls cost stamina he doesn't have.
 The catch rule drilled to 80% already won the Wrestler +3.5% against the Kicker on main before this (it fires on kicks, so
 neither change touches it much). Quick fights and the harness without `--rules` don't change; the golden fight with the Boxer's sprawl rule (*Wrestler vs Boxer, sprawl rule, AI corner*) was re-pinned: the Boxer now wins it in round 1.
+
+With the shoulder roll, lean back, high guard (D181), knees into shots (D182) and strikes from the bottom (D271) put back
+(PR #153, 2026-11-03), the same four lines read −0.3%, −2.7%, −2.3% and +0.3%: still about even.
+
+### 23.6 More rules: the defences, and moments of his own (D403, 2026-11-03)
+Eight more presets (§23.2), one answer to each kind of habit the styles have (`03` §7.1, §13.3). Kyle picked "Eight, one
+for every habit", "Only moves he knows", "Mark the answer" and "At least break even" (my picks on all four). What changed in
+the engine to make them work:
+
+- **A defence goes up in time.** A rule whose move is a defence against the strike it answers (the check, slip, roll, lean
+  back, high guard) doesn't fire the moment he's seen the strike: it waits until the defence will still be up as the strike
+  lands, the way his own read times it (`FighterAI.ticks_until_active`, the same window as `_guard`). Too late to get it up in
+  time is `missed` (*"too late to get the check up"*).
+- **His own read goes first.** On a strike his own AI read, a defence rule stands aside and leaves the answer to him, logged
+  as `read` (*"he read it himself: his own answer"*). Lifting his own defence's chance the way a sprawl rule lifts his sprawl
+  was tried (`LIFT_GUARD_ON_READ`) and changed nothing on the harness, so it's off: he keeps countering when he'd have
+  countered. The sprawl rule still lifts his sprawl (§23.5).
+- **Moments of his own.** A rule on his own strike being blocked (*When I'm blocked → hands up*) used to be called off at
+  once, because it waited for the other man's move to go on. A rule on his own moment now has no move to wait for.
+- **New triggers** (`data/triggers/`): `opp_leg_kick_starts`, `opp_straight_starts`, `opp_hook_starts`, `opp_head_kick_starts`,
+  `opp_jab_blocked`, `own_strike_blocked`. Rolling hooks *and* overhands cost the Boxer 8% of wins (the overhand comes over the
+  top of a roll, D181), so the roll answers hooks only.
+
+On the harness, each rule drilled to 80% in a matchup against a man with the habit it answers, 1,000 fights paired by seed
+(300 for the knee):
+
+| Rule | Who, against whom | Fires a fight | Wins |
+|---|---|---|---|
+| When he leg kicks → check it | Boxer against the Leg Kicker | 4.1 | +1.2% (−3.0 to +5.4) |
+| When he throws a straight → slip | Dirty boxer against the Karate fighter | 3.4 | +0.2% (−1.0 to +1.4) |
+| When he hooks → roll it | Boxer against the Brawler | 2.3 | +1.2% (−2.9 to +5.3) |
+| When he shoots → knee him | Kicker against the Wrestler | 1.8 | **+13.0%** (+5.1 to +20.9) |
+| When I block his jab → fire the cross | Dirty boxer against the Kicker | 2.7 | +3.3% (−0.2 to +6.8) |
+| When he kicks high → lean back | Counter-striker against the Kicker | 2.7 | −1.8% (−4.0 to +0.4); −3.2% against the Karate fighter |
+| When he kicks high → hands up | Boxer against the Kicker | 2.8 | −2.0% (−6.2 to +2.2); −3.1% for the Sprawl-and-brawler against the Karate fighter |
+| When I'm blocked → hands up | Muay Thai against the Brawler | 1.6 | −3.7% (−7.9 to +0.5); −0.5% for the Judoka against the Karate fighter |
+
+Five break even or better. The lean back and the two hands-up rules still cost 2 to 4%: the kick misses or lands on the
+arms, but he gives up the counter he'd have thrown, and the high guard only takes a third off a head kick that lands on it.
+Kyle (2026-11-03) picked "Keep all eight in careers": they're the weaker picks, and the place to fix them is the lean back
+and the high guard themselves (D181), which would change fights without rules. Quick fights and the harness without
+`--rules` don't change, and neither do the golden fights. Tested in `tests/sim/fight/test_drilled_rules.gd` (the check up in
+time, the read left to him, his own moment).
 
 ---
 

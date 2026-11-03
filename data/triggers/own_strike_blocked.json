@@ -1,0 +1,8 @@
+{
+	"schema": "trigger@1",
+	"id": "own_strike_blocked",
+	"name": "Own strike is blocked",
+	"type": "event",
+	"event": "strike_missed",
+	"match": { "actor": "self", "defended": true }
+}

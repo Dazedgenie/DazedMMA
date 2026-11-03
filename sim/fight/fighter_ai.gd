@@ -864,7 +864,7 @@ func _guard(view: FightView, layer: DecisionLayer) -> Decision:
 	if _opp.get("guard_rolled", false):
 		return null
 	_opp.guard_rolled = true
-	var lands: int = _ticks_until_active(view)
+	var lands: int = ticks_until_active(view)
 	var best: String = ""
 	var best_chance: float = 0.0
 	for id in _all_moves(view):
@@ -886,7 +886,7 @@ func _guard(view: FightView, layer: DecisionLayer) -> Decision:
 			best_chance = odds
 	if best == "":
 		return null
-	var chance: float = GUARD_BASE + GUARD_PER_SD * view.me.effective_stat("striking_defense") / 100.0
+	var chance: float = layer.guard_chance(view, GUARD_BASE + GUARD_PER_SD * view.me.effective_stat("striking_defense") / 100.0)
 	if view.roll() < chance:
 		_opp.decided = true
 		return Decision.new(best, DecisionLayer.AI, "%s the %s" % [String(view.actions.get_action(best).name).to_lower(), String(view.actions.get_action(_opp.id).name).to_lower()])
@@ -912,7 +912,9 @@ func _cover(view: FightView, layer: DecisionLayer) -> Decision:
 ## counted to this fighter's first turn after it lands. With the two taking turns to step first,
 ## he sometimes takes two turns between two of this fighter's, so a one-tick active phase can
 ## start and end between them: first seen past it still means it landed just before (D253).
-func _ticks_until_active(view: FightView) -> int:
+## Ticks until the opponent's move lands (its active phase), 0 when it's landing, over or never lands. Drilled rules
+## time a defence by it too (D403).
+static func ticks_until_active(view: FightView) -> int:
 	if view.opponent.phase == "active" or view.opponent.phase == "recovery":
 		return 0
 	var lands: bool = view.opponent_phase_ticks(view.opponent.action_id, "active") > 0

@@ -1242,14 +1242,14 @@ study" first, my pick):
 |---|---|---|
 | Scouting and film study: grades as a range until he's scouted, film study finding his habits, only found habits cued, each man's own habits from his style | D401 | Built (§13.1) |
 | Drilling rules in camp: a session that drills one of his two rule slots, the slots in career fights, the camp's early, middle and taper weeks marked | D402 | Built (§13.2) |
-| More rules to drill: about six answers to the styles' habits | D403 | Planned |
+| More rules to drill: eight answers to the styles' habits, the answer marked when you've found his habit | D403 | Built (§13.3) |
 | The opponent's camp: a plan against your style, sometimes a rule against your favourite move, his own cut | D404 | Planned |
 | The weight cut and the weigh-in: how hard he cuts in fight week, missing weight (Kyle, 2026-11-02: "One pick now, planner later": light, normal, hard or extreme now, D23's five-day planner later as a minigame) | D405 | Planned |
 | Named injuries, and hiding one from the doctor | D406 | Planned |
 | Sparring partners: named men at his gym from the world's local men | D407 | Planned |
 | Coaches: assistants for a weekly fee, the head coach's levels | D408 | Planned |
 | Changing gyms: his hometown and the nearest city | D409 | Planned |
-| Minigames, one a PR: film study, heavy bag, sprawl reflex, Thai pads first | D410 on | Planned |
+| Minigames, one a PR: film study, heavy bag, sprawl reflex, Thai pads first (Kyle, 2026-11-03: "Minigames first", next after D403, before the opponent's camp) | D410 on | Next |
 | Your corner naming the habits you found at each round break (Kyle's ask after D401) | D419 | Built (§13.1) |
 
 ### 13.1 Scouting and film study (D401)
@@ -1332,7 +1332,7 @@ five).
 
 Saved on the career as `rules` (`docs/09` career@1; optional, so a career saved before D402 loads with no rules).
 
-**Not yet:** more rules to drill (D403, about six answers to the styles' habits), a drilling minigame, the opponent
+**Not yet:** a drilling minigame, the opponent
 drilling a rule against you (D404), and a third slot with a coach (D408).
 
 **What to change:** `SCALE`, `FADE_PER_WEEK` and `KEEPS` at the top of `sim/world/rule_drilling.gd`; the sessions in
@@ -1340,3 +1340,39 @@ drilling a rule against you (D404), and a third slot with a coach (D408).
 (`sim/world/career.gd`); when a rule sits out and how it stands in for his read in `sim/fight/drilled_rules.gd`
 (`FRESH_ABOVE`, `STAND_IN_FOR_READ`, `docs/01` §23.5). Tested in `tests/sim/world/test_rule_drilling.gd`,
 `tests/sim/fight/test_drilled_rules.gd`, `tests/data/test_data_files.gd` and `tests/game/test_main_scene.gd`.
+
+### 13.3 More rules to drill (D403)
+
+Before this a career fighter had two rules to pick from: the sprawl, and the catch if he came from wrestling. Now there's an
+answer to every kind of habit a style has (§7.1). Kyle (2026-11-03) picked "Eight, one for every habit", "Only moves he
+knows", "Mark the answer" and "At least break even" (my picks), then "Keep all eight in careers".
+
+| Rule | Answers the habit | Who knows the move |
+|---|---|---|
+| When he leg kicks → check it | Leg kicks and calf kicks (the Kicker, Leg kicker, Muay Thai, Sambo and Counter-striker) | Everyone |
+| When he throws a straight → slip | The cross (the BJJ fighter, Judoka, Boxer and Karate fighter) | Fighters who learned the slip |
+| When he hooks → roll it | The hook (the Boxer, Brawler, Dirty boxer, Counter-striker and Sprawl-and-brawler) | Fighters who learned the shoulder roll |
+| When he kicks high → lean back | The head kick (the Kicker) | Fighters who learned the lean back |
+| When he kicks high → hands up | The head kick | Everyone |
+| When he shoots → knee him | The double leg (the wrestlers and Sambo) | Everyone with the knee |
+| When I block his jab → fire the cross | Anything he throws when his jab is blocked (most styles' first habit) | Everyone |
+| When I'm blocked → hands up | Anything he throws when your strike misses (most styles' second habit) | Everyone |
+
+- **Only the moves he knows** (as D402): the Rules box offers a rule when he knows its move, so a street kid can check, put
+  his hands up, knee, sprawl and fire the cross, and a boxing gym kid can also roll.
+- **The answer is marked.** Once you've found one of the booked man's habits (film study, or seen three times in a fight,
+  §13.1), every rule he knows that answers it is starred in the Rules box's pickers (*★ When he leg kicks → check it (answers
+  his habit)*), the box says *Answers his habit: …*, and the scouting report puts *Drill to beat it: …* under the habit.
+  Nothing is picked for you.
+- **Worth having.** Each rule was played in a matchup against a man with its habit, drilled to 80% (`docs/01` §23.6): the
+  check, slip, roll and jab counter break even or better, the knee wins the Kicker 13% more fights against the Wrestler, and
+  the lean back and the two hands-up rules cost 2 to 4%. They're kept as the weaker picks; the fix belongs in the lean back
+  and the high guard themselves.
+
+**Not yet:** an answer of its own to a body kick, a body hook or an overhand (the overhand comes over a roll and no defence stops a body shot yet), rules that fire on a position or a grip,
+and the opponent drilling a rule against you (D404).
+
+**What to change:** a rule's trigger, move and cooldown in `data/rules/`; what sets a trigger off in `data/triggers/`;
+which rule answers which habit in `RuleDrilling.answers()` (`sim/world/rule_drilling.gd`); how a defence rule is timed and
+whether it lifts his own read in `sim/fight/drilled_rules.gd` (`LIFT_GUARD_ON_READ`, `docs/01` §23.6). Tested in
+`tests/sim/world/test_rule_drilling.gd` and `tests/sim/fight/test_drilled_rules.gd`.

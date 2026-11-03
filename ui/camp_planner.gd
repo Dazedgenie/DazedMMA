@@ -912,6 +912,7 @@ func _refresh() -> void:
 	_phase.text = String(Career.CAMP_PHASE_TIPS.get(phase, ""))
 	if rule_slots != null:
 		rule_slots.use_drilled(_drilled_map())
+		rule_slots.mark(RuleDrilling.answers_found(career))  # The rules that beat a habit you've found (D403).
 		_rules_text.text = RuleDrilling.slots_text(career)
 	_refresh_stats(forecast.get("gains", {}))
 	_night_button.visible = done()

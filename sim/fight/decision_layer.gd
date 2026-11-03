@@ -180,6 +180,13 @@ func sprawl_chance(view: FightView, chance: float) -> float:
 	return chance
 
 
+## The chance he puts up his picked defence for a strike he read (D403), after every source's say.
+func guard_chance(view: FightView, chance: float) -> float:
+	for source in sources:
+		chance = source.adjust_guard(view, chance)
+	return chance
+
+
 ## The chance a rocked fighter covers up (D180), after every source's say.
 func cover_chance(view: FightView, chance: float) -> float:
 	for source in sources:

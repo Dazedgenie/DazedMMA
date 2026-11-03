@@ -1,0 +1,8 @@
+{
+	"schema": "trigger@1",
+	"id": "opp_jab_blocked",
+	"name": "Opponent's jab is blocked",
+	"type": "event",
+	"event": "strike_missed",
+	"match": { "actor": "opponent", "action_ids": ["jab"], "defended": true }
+}

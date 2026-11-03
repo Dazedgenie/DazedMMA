@@ -205,6 +205,12 @@ static func report_text(c: Career, profile: Dictionary, groups: Dictionary, grou
 	for t: Variant in profile.get("tells", []):
 		if t is Dictionary and have.has(key(t)):
 			lines.append("[color=#ffe066]Habit:[/color] %s" % tell_text(t))
+			var answers: Array[String] = []
+			for rule_id: String in RuleDrilling.available(c):
+				if RuleDrilling.answers(rule_id, t):
+					answers.append(RuleDrilling.rule_name(rule_id))
+			if not answers.is_empty():
+				lines.append("  [color=#8a8f98]Drill to beat it:[/color] %s" % ", ".join(answers))  # D403
 	var left: int = unfound(c, profile).size()
 	if have.is_empty() and left == 0:
 		lines.append("[color=#8a8f98]Film study hasn't turned up a habit of his.[/color]" if float(c.scouting.get(id, {}).get("known", 0.0)) > 0.0

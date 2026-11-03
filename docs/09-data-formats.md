@@ -124,7 +124,8 @@ range"). Loaded by `TriggerLibrary` (`sim/fight/trigger_library.gd`). State/thre
 ### rule@2 (examples: `catch_kick_and_shoot.json`, `sprawl_on_the_shot.json`)
 `name`, `trigger` (trigger id), `action` (action id), `cooldown_ms`. Which rule goes first is the slot it's put in (slot 1 before
 slot 2), and how well it's drilled is set with it (the `set_rule` command), not in the data (D116, `docs/01` §23). rule@1 had a
-`priority` field; the slot replaced it.
+`priority` field; the slot replaced it. The ten presets and who can use each: `docs/01` §23.2 (eight more since D403, §23.6;
+a rule on the fighter's own moment, such as `own_strike_blocked`, uses a trigger whose `actor` is `self`).
 
 ### ruleset@1 (examples: `pro`, `amateur_adult`, `amateur_teen`, `pride`)
 `name`, `rounds`, `title_rounds`, `round_seconds`, `glove_oz`, `gear`, `allows` (exactly: `elbows`, `head_strikes_on_ground`,

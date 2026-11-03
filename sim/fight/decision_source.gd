@@ -52,6 +52,11 @@ func adjust_sprawl(_view: FightView, chance: float) -> float:
 	return chance
 
 
+## The chance the fighter puts up the defence he picked for a strike he read (FighterAI._guard, D403). Unchanged by default.
+func adjust_guard(_view: FightView, chance: float) -> float:
+	return chance
+
+
 ## The chance a rocked fighter covers up (FighterAI, D180). Unchanged by default.
 func adjust_cover(_view: FightView, chance: float) -> float:
 	return chance
