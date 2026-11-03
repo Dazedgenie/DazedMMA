@@ -475,3 +475,34 @@ and the portrait's size (`AGE_FRAMES`, `PORTRAIT_SIZE`) in `ui/childhood_screen.
 his frame and the doorway (`CARD_WIDTH`, `OWNER_FACE`, `OWNER_FRAME`, `DOORWAY`) in `ui/gym_screen.gd`; the slot's face
 (`FACE`) in `ui/load_screen.gd`. Tests: `tests/ui/test_front_door.gd` and `tests/ui/test_career_screens.gd`.
 Presentation only: fights and careers are unchanged (no golden re-pin).
+
+### 6.15 One look off the fight (D435)
+
+The fifth piece of D430: the screens off the fight each had their own flat dark page and Godot's grey buttons, and they
+snapped from one to the next. Kyle's picks on the four D435 cards (all four recommendations):
+
+- **Every screen off the fight** shares the look: the setup, the title's menu, new career, his childhood, the gyms,
+  load, the hub, the world pages, the camp and its fight night card, and the result.
+- **The empty cage, lights low, behind them** (`ArenaView.hall_drift`): leaving any screen clears the cage, and with no
+  fight in it the camera drifts slowly round the empty cage, pulled back to take in the seats. The screens' backing is
+  see-through (`OffCage.HALL`) so the hall shows dimmed behind them. A page laid over another screen (the world pages
+  over the hub, the fight night card over the camp) stays solid (`OffCage.OVER`), so the screen under it doesn't read
+  through. The title keeps its own fight (§6.14), and the result keeps the fight that just ended behind it.
+- **Dark buttons, a red edge on hover** (`ui/off_cage.gd`, `OffCage.style_button` and `OffCage.theme()`): every button
+  dark with rounded corners, edged in red-corner red when the mouse is on it or the keyboard is on it, short labels in
+  the display font; the main action on each screen stays solid red (`CampPlanner.style_fight_button`). Tabs and other
+  toggles (the hub's tabs, the world pages' tabs and filters, the promotions strip) are lit a shade and underlined in red
+  when they're the one picked. The pickers keep their low height so the pages still fit, and tick boxes keep their own
+  look. Each screen carries the theme (`game/main.gd`), so a button no screen styled itself gets the look too.
+- **A quick fade** (`_fade_up` in `game/main.gd`): when one screen changes to the next, the old one fades out into the
+  dark over a fifth of a second (a picture of its last frame, so the game has already moved on underneath) and the new
+  one comes up out of the dark over the same again. Headless (the tests) only the second half runs.
+- **Small fixes**: the camp's stat names were cut short (*Submission defens*); the name column now widens to its
+  longest name (`StatBars.name_width`).
+
+**To change it:** the backing's darkness and the solid page's colour (`HALL`, `OVER`), the buttons' colours, the red
+edge, the toggle's light and underline, which labels get the display font and its size (`BUTTON`, `BUTTON_HOVER`,
+`BUTTON_PRESSED`, `EDGE`, `BUTTON_ON`, `ON_LINE`, `DISPLAY_UP_TO`, `DISPLAY_SIZE`) and the fade's length
+(`FADE_SECONDS`) in `ui/off_cage.gd`; how fast the hall turns and how far back the camera stands (`HALL_TURN_SPEED`,
+`HALL_ZOOM`) in `game/arena_view.gd`; the camp's own backing (`BACKGROUND`) in `ui/camp_planner.gd`. Tests:
+`tests/ui/test_one_look.gd`. Presentation only: fights and careers are unchanged (no golden re-pin).

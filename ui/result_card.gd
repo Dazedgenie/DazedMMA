@@ -44,7 +44,7 @@ var _buttons: HBoxContainer
 
 func _init() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
-	var panel: StyleBoxFlat = FightHud._panel_style(BACKGROUND)
+	var panel: StyleBoxFlat = OffCage.hall_panel()  # The dimmed hall shows through (D435).
 	panel.content_margin_bottom = 40.0
 	add_theme_stylebox_override("panel", panel)
 	var column := VBoxContainer.new()

@@ -82,6 +82,10 @@ var moments_in_headless: bool = false
 ## The fight behind the title screen (D434): not in headless runs unless a test asks (backdrop_in_headless).
 var backdrop: TitleBackdrop
 var backdrop_in_headless: bool = false
+## The fade between screens off the fight (D435): the next screen comes up out of the dark.
+var _veil: ColorRect
+var _snap: TextureRect
+var _fade: Tween
 var _break_rules: RuleSlots
 ## The gameplan pickers on the between-rounds panel (D320).
 var _break_plan: GameplanPicker
@@ -171,8 +175,22 @@ func _ready() -> void:
 	ui.add_child(result)
 	world_page = WorldScreen.new()
 	ui.add_child(world_page)
+	_veil = ColorRect.new()
+	_veil.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_veil.color = Color(OffCage.HALL, 0.0)
+	_veil.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ui.add_child(_veil)  # Over the screens, under the tips and the console: the fade between screens (D435).
+	_snap = TextureRect.new()
+	_snap.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_snap.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_snap.stretch_mode = TextureRect.STRETCH_SCALE
+	_snap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_snap.visible = false
+	ui.add_child(_snap)  # The old screen as it last looked, fading out over the veil.
 	tips = TipCard.new()
 	ui.add_child(tips)
+	for screen: Control in [setup, title, new_career, childhood, gym_screen, load_screen, hub, result, world_page, tips]:
+		screen.theme = OffCage.theme()  # One look off the fight (D435): the buttons no screen styled itself.
 	ui.move_child($UI/Version, -1)  # Over the full-screen setup.
 	_console = $UI/DebugConsole
 	ui.move_child(_console, -1)
@@ -459,7 +477,9 @@ func open_career_camp() -> void:
 	planner.back_pressed.connect(_career_camp_back)
 	# The gameplan opens with his third fight (D316).
 	planner.night_card.gameplan.visible = Tutorial.plan_open(Tutorial.lesson(career))
+	planner.theme = OffCage.theme()
 	$UI.add_child(planner)
+	_veil_on_top()  # The camp fades up too (D435).
 	$UI.move_child(_console, -1)
 	$UI.move_child(tips, -1)
 	state = CAREER
@@ -696,7 +716,38 @@ func _hide_screens() -> void:
 	if driver != null:
 		driver.held = true
 	backdrop.stop(arena)
+	arena.watch(null)  # The empty hall behind the screens off the fight, the camera drifting round it (D435).
+	arena.hall_drift = true
+	_fade_up()
 	$UI/Version.visible = false  # Only the title and load screens show it: elsewhere it sat on buttons (D431).
+
+
+## The change of screen (D435, Kyle's pick "A quick fade"): the old screen fades out into the dark over
+## OffCage.FADE_SECONDS (a picture of its last frame, so the game has already moved on underneath) and the new one
+## comes up out of it over the same again. With no picture to take (headless) only the second half runs.
+func _fade_up() -> void:
+	if _veil == null:
+		return
+	if _fade != null and _fade.is_valid():
+		_fade.kill()
+	_snap.visible = false
+	_veil.color = Color(OffCage.HALL, 1.0)
+	_fade = create_tween()
+	if DisplayServer.get_name() != "headless":
+		var shot: Image = get_viewport().get_texture().get_image()
+		if shot != null and not shot.is_empty():
+			_snap.texture = ImageTexture.create_from_image(shot)
+			_snap.modulate.a = 1.0
+			_snap.visible = true
+			_fade.tween_property(_snap, "modulate:a", 0.0, OffCage.FADE_SECONDS)
+			_fade.tween_callback(func() -> void: _snap.visible = false)
+	_fade.tween_property(_veil, "color:a", 0.0, OffCage.FADE_SECONDS)
+
+
+## Keeps the fade over a screen added after the others (the camp).
+func _veil_on_top() -> void:
+	$UI.move_child(_veil, -1)
+	$UI.move_child(_snap, -1)
 
 
 ## Starts a fight with these settings (FightSetup.settings()). With `red_profile` (a fighter@1
@@ -1107,7 +1158,9 @@ func open_camp(p_settings: Dictionary) -> void:
 	planner.plan_start = settings.get("gameplan", {})
 	planner.fight_pressed.connect(_fight_after_camp)
 	planner.back_pressed.connect(_back_to_setup)
+	planner.theme = OffCage.theme()
 	$UI.add_child(planner)
+	_veil_on_top()  # The camp fades up too (D435).
 	$UI.move_child(_console, -1)
 	setup.visible = false
 	planner.focus_run()
