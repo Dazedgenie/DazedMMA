@@ -256,6 +256,26 @@ func test_a_ticked_heavy_bag_plays_its_round_first_and_its_score_counts() -> voi
 	assert_almost_eq(float(_planner.reports[0].played[0]), TrainingCamp.PLAYED_MAX, 0.0001)
 
 
+func test_ticked_thai_pads_play_their_round_first_and_the_score_counts() -> void:
+	_planner.set_slot(0, "thai_pads")
+	_planner.set_play(0, true)
+	assert_eq(_planner.played_slots(), [0] as Array[int], "Thai pads can be played (D413)")
+	_planner.run_week()
+	assert_not_null(_planner.pads, "the round opens")
+	assert_true(_planner.reports.is_empty(), "the week waits for it")
+	var screen: ThaiPadsScreen = _planner.pads
+	assert_almost_eq(screen.drill.kicking, _planner.camp.stat("kicking"), 0.001, "at his Kicking")
+	screen.start()
+	for pad: Dictionary in screen.drill.pads.duplicate():  # Every pad struck the moment it goes up (tested in test_thai_pads).
+		screen.tick(float(pad.t))
+		screen.strike(String(pad.key))
+	screen.tick(screen.drill.length())
+	assert_true(screen.over)
+	screen.finish()
+	assert_null(_planner.pads)
+	assert_eq(_planner.reports.size(), 1)
+	assert_almost_eq(float(_planner.reports[0].played[0]), TrainingCamp.PLAYED_MAX, 0.0001)
+
 func test_each_tile_shows_its_session_and_the_fatigue_after_it() -> void:
 	_planner.pick_preset("speed")
 	var forecast: Dictionary = _planner.camp.forecast(_planner.week_plan())

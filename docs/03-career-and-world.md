@@ -1260,7 +1260,7 @@ study" first, my pick):
 | Sparring partners: named men at his gym from the world's local men | D407 | Planned |
 | Coaches: assistants for a weekly fee, the head coach's levels | D408 | Planned |
 | Changing gyms: his hometown and the nearest city | D409 | Planned |
-| Minigames, one a PR: film study, heavy bag, sprawl reflex, Thai pads first (Kyle, 2026-11-03: "Minigames first", next after D403, before the opponent's camp) | D410 on | Film study built (§13.4, D410); sprawl reflex built (§13.5, D411); heavy bag built (§13.6, D412) |
+| Minigames, one a PR: film study, heavy bag, sprawl reflex, Thai pads first (Kyle, 2026-11-03: "Minigames first", next after D403, before the opponent's camp) | D410 on | Film study built (§13.4, D410); sprawl reflex built (§13.5, D411); heavy bag built (§13.6, D412); Thai pads built (§13.7, D413): all four built |
 | Your corner naming the habits you found at each round break (Kyle's ask after D401) | D419 | Built (§13.1) |
 
 ### 13.1 Scouting and film study (D401)
@@ -1415,7 +1415,7 @@ it", "The habit for sure, plus Fight IQ" and "Study a man of his style" (my pick
   style with habits, in a quick camp), made the way the world makes men: Fight IQ only.
 
 **Not yet:** a tape of his real past fights (the world's fights are quick results, not fights), the opponent's habits
-shown as film to a corner, and the other minigames (sprawl reflex built next, §13.5; heavy bag and Thai pads to come).
+shown as film to a corner, and the other minigames (sprawl reflex built next, §13.5; heavy bag, §13.6; Thai pads, §13.7).
 
 **What to change:** the clip, speed, windows and score in the constants at the top of `sim/world/film_study.gd`
 (`CLIP_SECONDS`, `SPEED`, `WINDOW_BEFORE`, `WINDOW_AFTER`, `WINDOW_PER_IQ`, `STRAY_COST`, `MARK_SHARE`, `CHOICES`,
@@ -1497,3 +1497,40 @@ fighter on it.
 `CampPlanner.PLAYABLE`. To see it: `godot --path . --script res://tools/bag_preview.gd -- --power=50` (with
 `--write-movie` to save frames). Tested in `tests/sim/world/test_heavy_bag.gd` and `tests/ui/test_camp_planner.gd`.
 Fights don't change.
+
+### 13.7 Thai pads, the minigame (D413)
+
+The fourth phase 4 minigame and the last of the four (Kyle, 2026-11-03, picked "Thai pads minigame" next, my pick: the
+kicking styles were the only strikers without a session to play). It's `docs/02` §3.2's aim and timing, the pad holder
+feeding kicks, knees and elbows. A Thai pads session ticked to **Play** in the camp planner opens a minute on the pads
+before the week runs. Kyle's three cards (2026-11-03, all my picks): "Read the pads, throw the strike", "2D drawn pad
+holder", "Quicker pads, then combinations".
+
+- **The screen**: the pad holder drawn facing him, like the heavy bag, his pads held at his chest between strikes. A
+  smack on every strike that lands, a whoosh on one that doesn't (made in code).
+- **Reading the pads**: he sets a pad where he wants a strike and you throw it before he drops it. Pad high beside his
+  head: **1** head kick. Pad flat in front of his face: **2** elbow. Pad on his ribs: **3** body kick. Both pads at his
+  belly: **4** knee. The thigh pad on his lead leg: **5** low kick. Now and then (15% of single pads) his rear leg comes
+  up as he kicks back: **Space** checks it. Each key is drawn faintly beside its pad's place.
+- **Timing**: a ring round the pad runs down until he drops it. A strike while it's gold (the first 45% of the pad's
+  time) is perfect, a later one good (worth 0.6). The wrong strike misses that pad, and a pad he drops unhit is missed
+  ("Too slow"). A strike with no pad up, or at one already hit, finds nothing and takes a quarter of a strike off.
+- **The score**: perfect strikes, plus good ones at 0.6, less the strikes at nothing, over every pad he held. It's the
+  session's quality, ×0.8 for nothing up to ×1.5 for a perfect round, on what Thai pads trains (Kicking 50%, Clinch
+  striking 30%, Power 20%). **Skip it** lets the session auto-resolve (×1.0), as before.
+- **Harder as he gets better**, by his Kicking from 20 to 90 (as mitt work by Boxing): a pad stays up 1.2 s down to
+  0.65 s, and the next one comes after 1.1 s down to 0.5 s. **Combinations:** from Kicking 60 half the sets are two pads
+  in a row, and from 80 half of those are three; each pad in a combination is up for three quarters of a single pad's
+  time and the next goes up as it drops, never the same pad twice running. **Tired legs:** from fatigue 40 at that
+  point of the week a pad's time shrinks in a line to 60% of itself at fatigue 100, as mitt work's windows do.
+
+**Not yet:** fake-outs (a pad shown and pulled), the plum and knees from it, teeps, harder pads at a Muay Thai gym or a
+camp abroad (`docs/02` §6, Bangkok), and a 3D view of him and the holder.
+
+**What to change:** the round, the pads' times, the combinations and the score in the constants at the top of
+`sim/world/thai_pads.gd` (`ROUND_SECONDS`, `COUNT_IN`, `OPEN_SLOW`, `OPEN_FAST`, `GAP_SLOW`, `GAP_FAST`, `LEVEL_LOW`,
+`LEVEL_HIGH`, `PERFECT_SHARE`, `COMBO_FROM`, `TRIPLE_FROM`, `COMBO_CHANCE`, `TRIPLE_CHANCE`, `COMBO_SHARE`, `CHECK_CHANCE`,
+`TIRED_FROM`, `TIRED_FLOOR`, `GOOD_CREDIT`, `STRAY_COST`); the drawing, keys, colours and sounds in
+`ui/thai_pads_screen.gd`; which sessions can be played in `CampPlanner.PLAYABLE`. To see it:
+`godot --path . --script res://tools/pads_preview.gd -- --kicking=70` (with `--write-movie` to save frames). Tested in
+`tests/sim/world/test_thai_pads.gd` and `tests/ui/test_camp_planner.gd`. Fights don't change.
