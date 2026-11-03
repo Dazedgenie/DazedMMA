@@ -20,11 +20,8 @@ extends Node3D
 
 ## Smallest window the UI still fits in (the game opens windowed and resizable).
 const MIN_WINDOW_SIZE := Vector2i(960, 540)
-## The division list's page (D352, TipCard.show_page): wide enough for a man a line.
-const DIVISION_WIDTH: float = 900.0
 ## The world's history plays this many weeks a frame on the new-career wait (D358).
 const HISTORY_SLICE: int = 13
-const DIVISION_HEIGHT: float = 460.0
 const TITLE := "title"
 const NEW_CAREER := "new_career"
 const CHILDHOOD := "childhood"
@@ -61,6 +58,8 @@ var hub: CareerHub
 var career: Career
 ## Tip cards and the Coach's Notebook (D316), over every screen.
 var tips: TipCard
+## The world pages (D432): his division, the rankings, the promotions and the history, full-screen over the hub.
+var world_page: WorldScreen
 var career_slot: int = -1
 ## Where careers are saved (tests use their own folder).
 var save_dir: String = CareerSaves.DIR
@@ -161,6 +160,8 @@ func _ready() -> void:
 	result = FightResultCard.new()
 	result.visible = false
 	ui.add_child(result)
+	world_page = WorldScreen.new()
+	ui.add_child(world_page)
 	tips = TipCard.new()
 	ui.add_child(tips)
 	ui.move_child($UI/Version, -1)  # Over the full-screen setup.
@@ -357,31 +358,35 @@ func open_notebook() -> void:
 		tips.show_notebook(Tutorial.notebook(career))
 
 
-## His division (D352): the men in it this week, to read.
+## His division (D352): the men in it this week, as a table on the world pages (D432).
 func open_division() -> void:
-	if career != null:
-		tips.show_page("HIS DIVISION", CareerHub.division_title(career), CareerHub.division_text(career), DIVISION_WIDTH, DIVISION_HEIGHT)
-		save_career()  # A career saved before D352 has just made its world.
+	_open_world(WorldScreen.DIVISION)
 
 
-## The world's promotions (D354): each one's pay, next cards and last results in his division, to read.
+## The world's promotions (D354): a card each on the world pages.
 func open_promotions() -> void:
-	if career != null:
-		tips.show_page("PROMOTIONS", "The promotions", CareerHub.promotions_text(career), DIVISION_WIDTH, DIVISION_HEIGHT)
-		save_career()  # A career saved before D354 has just made its promotions.
+	_open_world(WorldScreen.PROMOTIONS)
 
 
-## The rankings (D355): each promotion's table in his division and its last moves, to read.
-## The history page (D358): each promotion's champions in his division and the legends.
-func open_history() -> void:
-	if career != null:
-		tips.show_page("HISTORY", CareerHub.history_title(career), CareerHub.history_text(career), DIVISION_WIDTH, DIVISION_HEIGHT)
-
-
+## The rankings (D355): each promotion's table in his division and its last moves.
 func open_rankings() -> void:
-	if career != null:
-		tips.show_page("RANKINGS", CareerHub.rankings_title(career), CareerHub.rankings_text(career), DIVISION_WIDTH, DIVISION_HEIGHT)
-		save_career()  # A career saved before D355 has just made its rankings.
+	_open_world(WorldScreen.RANKINGS)
+
+
+## The history page (D358): each belt's champions in his division and the legends.
+func open_history() -> void:
+	_open_world(WorldScreen.HISTORY)
+
+
+## The world pages (D432) on this tab, over the hub. A career saved before D352–D355 makes its world, promotions and
+## rankings as they're first read, so it's saved after.
+func _open_world(tab: String) -> void:
+	if career == null:
+		return
+	world_page.show_world(career, tab)
+	$UI.move_child(world_page, -1)
+	$UI.move_child(_console, -1)
+	save_career()
 
 
 ## Run this week on the hub: a week between fights, then an autosave (docs/03 §10.1).
@@ -673,7 +678,7 @@ func _hub_to_title() -> void:
 
 func _hide_screens() -> void:
 	_close_camp()
-	for screen: Control in [title, new_career, childhood, gym_screen, load_screen, hub, setup, result, hud]:
+	for screen: Control in [title, new_career, childhood, gym_screen, load_screen, hub, world_page, setup, result, hud]:
 		screen.visible = false
 	if hud.dialog_open():
 		hud.hide_dialog()
