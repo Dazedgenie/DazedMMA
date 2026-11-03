@@ -101,7 +101,7 @@ Tags appear when an attribute crosses a threshold or is shown in fights.
 | Minigame | Mechanic | Trains |
 |---|---|---|
 | **Mitt work** | Rhythm game: the coach calls combos and you hit them on the beat | Boxing, Speed |
-| **Heavy bag** | Power-timing meter with combo chaining | Power, Strength |
+| **Heavy bag** | Power-timing meter with combo chaining (built: `03` §13.6, D412) | Power, Strength |
 | **Thai pads** | Aim + timing; the pad holder feeds kicks/knees/elbows | Kicking, Clinch striking |
 | **Wrestling chain** | Directional input sequences under time pressure (shot → finish → chain) | Takedowns, Scrambles |
 | **Sprawl reflex** | React to incoming shots with feints mixed in (built: `03` §13.5, D411) | Takedown defense, Speed |

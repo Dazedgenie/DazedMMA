@@ -224,4 +224,9 @@ checked. Needs a display:
 
     godot --path . --fixed-fps 24 --write-movie build/sprawl/frame.png --script res://tools/sprawl_preview.gd -- --level=50 --sprawl
 
+`bag_preview.gd` shows the heavy bag minigame (D412, `docs/03` §13.6) with the round played perfectly (every shot loaded
+to meet the bag as it swings back), at `--power=` and `--fatigue=`, so its look can be checked. Needs a display:
+
+    godot --path . --fixed-fps 24 --write-movie build/bag/frame.png --script res://tools/bag_preview.gd -- --power=50 --seconds=6
+
     godot --path . --fixed-fps 24 --write-movie build/film/frame.png --script res://tools/film_preview.gd -- --style=kicker --seconds=8 --name
