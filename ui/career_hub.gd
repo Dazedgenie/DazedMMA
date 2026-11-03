@@ -1,15 +1,18 @@
 class_name CareerHub
 extends PanelContainer
-## The career hub (docs/03 §10.3, D303; first version D302): the screen a career comes back to between fights.
+## The career hub (docs/03 §10.3, D303; first version D302; rebuilt round the next fight, docs/06 §6.13, D433): the
+## screen a career comes back to between fights.
 ##
-## The top bar says who he is, his records, the date and the week. Left, his card: the body figure with any injury, how
-## he feels, his background, hometown and frame, the style he's leaning toward (D88), the gifts and flaws he knows of
-## and his scouted potential; then every stat as a bar and a grade. In the middle, *This week*: what's next (an offer,
-## a booked fight, hurt, suspended), the week plan between fights (any data/week_plans plan; Between fights to start),
-## Run this week, Advance (weeks until something happens, at most Career.ADVANCE_MAX_WEEKS) and Save and go to the
-## title. Right, his fights, newest first. Along the bottom, the calendar: the coming weeks and what will happen in them.
-## Fight offers (D304) show under This week, each as a scouting card with Take the fight and Turn it down; once he's
-## booked, Go to camp replaces the week's buttons, and Turn pro shows when he can.
+## The top bar says who he is, his records, the date and the week; under it a tab bar: the hub, then the world pages
+## (His division, Rankings, Promotions, History, D432) and the Coach's Notebook. Left, his card with About (his
+## portrait, D431, with any injury as a badge, how he feels, his background, hometown and frame, the style he's leaning
+## toward, the gifts and flaws he knows of and his scouted potential) and Stats (every stat as a bar and a grade) on
+## tabs. In the middle, the next fight: fight offers (D304) as posters side by side (FightPoster: both men face to face,
+## the card in its promotion's colour, the ribbons, the scouting card, Take the fight and Turn it down), or the booked
+## fight's poster counting down the weeks; then what the week holds; then the week's buttons, which stay put: Go to camp
+## once he's booked, else the week plan, Run this week and Advance; Ask for a step up and Turn pro when he can; Save and go
+## to the title. Right, the news from his division and his fights, newest first, each line with its promotion's badge.
+## Along the bottom, the calendar: the coming weeks with an icon for each thing in them (CalendarIcon).
 
 signal week_pressed
 signal advance_pressed
@@ -67,6 +70,14 @@ const LESSON_TEXT: Array[String] = [
 ]
 ## Medal colours on his card and fights list (D315).
 const MEDAL_COLOURS := { "gold": Color("#ffd43b"), "silver": Color("#ced4da"), "bronze": Color("#e8a26a") }
+## The hub's columns (D433): his card on the left and the news and his fights on the right, this wide (px); the next
+## fight takes the rest in the middle.
+const FIGHTER_CARD_WIDTH: float = 420.0
+const SIDE_WIDTH: float = 380.0
+## A badge by a news line or a fight on his list (px).
+const LINE_BADGE := Vector2(24.0, 24.0)
+## The booked fight's poster's key among the offers' (D433).
+const BOOKED_POSTER := "booked"
 ## The attribute groups an offer's scouting grades show.
 const SCOUTED_GROUPS: Array[String] = ["Striking", "Wrestling", "Grappling", "Physical"]
 
@@ -91,9 +102,22 @@ var _ask: Button
 ## The division he turns pro in (D351): his natural one or one either side.
 var _pro_division: OptionButton
 var _pro_division_ids: Array[String] = []
-var _offers: VBoxContainer
+## The offers' posters, or the booked fight's (D433), by offer id ("booked" for the booked fight).
+var _offers: HFlowContainer
+var _posters: Dictionary = {}
 var _offer_ids: Array[String] = []
-var _fights_text: RichTextLabel
+var _next_heading: Label
+var _news_heading: Label
+var _news: VBoxContainer
+var _news_lines: Array[String] = []
+var _fights: VBoxContainer
+var _fight_lines: Array[String] = []
+var _calendar_lines: Array[String] = []
+var _plan_row: HBoxContainer
+var _about_tab: Button
+var _stats_tab: Button
+var _about_scroll: ScrollContainer
+var _stats_scroll: ScrollContainer
 var _calendar: HBoxContainer
 var _scrolls: Array[ScrollContainer] = []
 var _notebook: Button
@@ -113,7 +137,7 @@ func _init() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_theme_stylebox_override("panel", FightHud._panel_style(BACKGROUND))
 	var column := VBoxContainer.new()
-	column.add_theme_constant_override("separation", 14)
+	column.add_theme_constant_override("separation", 12)
 	add_child(column)
 
 	var top := HBoxContainer.new()
@@ -129,124 +153,149 @@ func _init() -> void:
 	names.add_child(_who)
 	_line = FightNightCard._label(18, DIM)
 	names.add_child(_line)
-	var notebook := Button.new()
-	notebook.text = "Coach's Notebook"
-	notebook.tooltip_text = "Every tip you've seen, to read again"
-	notebook.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	notebook.add_theme_font_size_override("font_size", 18)
-	notebook.pressed.connect(func() -> void: notebook_pressed.emit())
-	top.add_child(notebook)
-	_notebook = notebook
-	var division := Button.new()
-	division.text = "His division"
-	division.tooltip_text = "The men in his division this week"
-	division.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	division.add_theme_font_size_override("font_size", 18)
-	division.pressed.connect(func() -> void: division_pressed.emit())
-	top.add_child(division)
-	_division = division
-	var promotions := Button.new()
-	promotions.text = "Promotions"
-	promotions.tooltip_text = "The world's promotions, their next cards and their last results"
-	promotions.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	promotions.add_theme_font_size_override("font_size", 18)
-	promotions.pressed.connect(func() -> void: promotions_pressed.emit())
-	top.add_child(promotions)
-	_promotions = promotions
-	var rankings := Button.new()
-	rankings.text = "Rankings"
-	rankings.tooltip_text = "Each promotion's rankings in his division, and who moved and why"
-	rankings.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	rankings.add_theme_font_size_override("font_size", 18)
-	rankings.pressed.connect(func() -> void: rankings_pressed.emit())
-	top.add_child(rankings)
-	_rankings = rankings
-	var history := Button.new()
-	history.text = "History"
-	history.tooltip_text = "Every promotion's champions in his division, and the legends"
-	history.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	history.add_theme_font_size_override("font_size", 18)
-	history.pressed.connect(func() -> void: history_pressed.emit())
-	top.add_child(history)
-	_history = history
 	_date = Label.new()
 	DisplayFont.apply(_date, 34)
 	_date.add_theme_color_override("font_color", TEXT)
 	_date.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	top.add_child(_date)
 
+	# The tab bar (D433): the hub, then the world pages' tabs (D432) and the Coach's Notebook.
+	var tabs := HBoxContainer.new()
+	tabs.add_theme_constant_override("separation", 4)
+	column.add_child(tabs)
+	var hub_tab: Button = _tab(tabs, "Hub", "This week, his next fight and the calendar")
+	hub_tab.set_pressed_no_signal(true)
+	hub_tab.pressed.connect(func() -> void: hub_tab.set_pressed_no_signal(true))
+	_division = _tab(tabs, "His division", "The men in his division this week")
+	_division.pressed.connect(func() -> void: _tab_back(_division); division_pressed.emit())
+	_rankings = _tab(tabs, "Rankings", "Each promotion's rankings in his division, and who moved and why")
+	_rankings.pressed.connect(func() -> void: _tab_back(_rankings); rankings_pressed.emit())
+	_promotions = _tab(tabs, "Promotions", "The world's promotions, their next cards and their last results")
+	_promotions.pressed.connect(func() -> void: _tab_back(_promotions); promotions_pressed.emit())
+	_history = _tab(tabs, "History", "Every promotion's champions in his division, and the legends")
+	_history.pressed.connect(func() -> void: _tab_back(_history); history_pressed.emit())
+	var gap := Control.new()
+	gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tabs.add_child(gap)
+	_notebook = _tab(tabs, "Coach's Notebook", "Every tip you've seen, to read again")
+	_notebook.pressed.connect(func() -> void: _tab_back(_notebook); notebook_pressed.emit())
+
 	var body := HBoxContainer.new()
 	body.add_theme_constant_override("separation", 16)
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	column.add_child(body)
 
-	var fighter_card := _card(Vector2(440.0, 0.0))
+	# Left: his card, with About and Stats on tabs (D433).
+	var fighter_card := _card(Vector2(FIGHTER_CARD_WIDTH, 0.0))
 	body.add_child(fighter_card)
 	var fighter_box: VBoxContainer = fighter_card.get_child(0)
-	fighter_box.add_child(_heading("The fighter"))
+	var card_tabs := HBoxContainer.new()
+	card_tabs.add_theme_constant_override("separation", 4)
+	fighter_box.add_child(card_tabs)
+	var heading := _heading("The fighter")
+	heading.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	card_tabs.add_child(heading)
+	var group := ButtonGroup.new()
+	_about_tab = _small_tab(card_tabs, "About", group)
+	_stats_tab = _small_tab(card_tabs, "Stats", group)
+	_about_tab.set_pressed_no_signal(true)
+	_about_tab.pressed.connect(func() -> void: show_card_tab(false))
+	_stats_tab.pressed.connect(func() -> void: show_card_tab(true))
 	var fighter_row := HBoxContainer.new()
 	fighter_row.add_theme_constant_override("separation", 12)
-	fighter_box.add_child(_scroll(fighter_row))
+	_about_scroll = _scroll(fighter_row)
+	fighter_box.add_child(_about_scroll)
 	_portrait = FighterPortrait.new(FighterPortrait.BUST, 0, 12.0)  # A small spot: head and chest (Kyle, D430).
-	_portrait.custom_minimum_size = Vector2(160.0, 200.0)
+	_portrait.custom_minimum_size = Vector2(150.0, 190.0)
 	_portrait.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	fighter_row.add_child(_portrait)
 	_figure = _portrait.badge
 	_card_text = _rich()
+	_card_text.add_theme_font_size_override("normal_font_size", 16)
 	_card_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	fighter_row.add_child(_card_text)
-
-	var stats_card := _card(Vector2(440.0, 0.0))
-	body.add_child(stats_card)
-	var stats_box: VBoxContainer = stats_card.get_child(0)
-	stats_box.add_child(_heading("His stats"))
 	_bars = StatBars.new()
-	stats_box.add_child(_scroll(_bars))
+	_stats_scroll = _scroll(_bars)
+	_stats_scroll.visible = false
+	fighter_box.add_child(_stats_scroll)
 
+	# The middle: the next fight (offers as posters, or the booked fight counting down), this week, and his week's
+	# buttons, which stay put under it (D433).
 	var week_card := _card(Vector2(0.0, 0.0))
 	week_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	body.add_child(week_card)
 	var week_box: VBoxContainer = week_card.get_child(0)
-	week_box.add_child(_heading("This week"))
-	# The week's news and the offers scroll together above the buttons, which stay put (D340).
-	var news := VBoxContainer.new()
-	news.add_theme_constant_override("separation", 12)
+	_next_heading = _heading("The next fight")
+	week_box.add_child(_next_heading)
+	var middle := VBoxContainer.new()
+	middle.add_theme_constant_override("separation", 12)
+	_offers = HFlowContainer.new()
+	_offers.add_theme_constant_override("h_separation", 12)
+	_offers.add_theme_constant_override("v_separation", 12)
+	middle.add_child(_offers)
 	_week_text = _rich()
-	news.add_child(_week_text)
-	_offers = VBoxContainer.new()
-	_offers.add_theme_constant_override("separation", 8)
-	news.add_child(_offers)
-	week_box.add_child(_scroll(news))
+	middle.add_child(_week_text)
+	week_box.add_child(_scroll(middle))
 	_camp = CampPlanner._button(week_box, "Go to camp", func() -> void: camp_pressed.emit())
 	CampPlanner.style_fight_button(_camp, 30)
+	var plan_row := HBoxContainer.new()
+	plan_row.add_theme_constant_override("separation", 10)
+	week_box.add_child(plan_row)
+	_plan_row = plan_row
 	var plan_label := FightNightCard._label(16, DIM)
 	plan_label.text = "His week plan between fights"
-	week_box.add_child(plan_label)
+	plan_row.add_child(plan_label)
 	_plan = OptionButton.new()
+	_plan.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	for id: String in TrainingLibrary.shared().plan_ids():
 		_plan_ids.append(id)
 		_plan.add_item(String(TrainingLibrary.shared().plan(id).get("name", id)))
 	_plan.item_selected.connect(func(i: int) -> void: pick_plan(_plan_ids[i]))
-	week_box.add_child(_plan)
-	_week = CampPlanner._button(week_box, "Run this week", func() -> void: week_pressed.emit())
-	CampPlanner.style_fight_button(_week, 30)
-	_advance = CampPlanner._button(week_box, "Advance until something happens", func() -> void: advance_pressed.emit())
+	plan_row.add_child(_plan)
+	var run_row := HBoxContainer.new()
+	run_row.add_theme_constant_override("separation", 10)
+	week_box.add_child(run_row)
+	_week = CampPlanner._button(run_row, "Run this week", func() -> void: week_pressed.emit())
+	CampPlanner.style_fight_button(_week, 26)
+	_week.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_advance = CampPlanner._button(run_row, "Advance until something happens", func() -> void: advance_pressed.emit())
+	_advance.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_advance.tooltip_text = "Runs weeks on his plan until he's hurt or healed, cleared to fight, worn down, has a birthday, school breaks up or starts again, or offers come in (up to %d weeks)" % Career.ADVANCE_MAX_WEEKS
 	_ask = CampPlanner._button(week_box, "Ask for a step up", func() -> void: ask_pressed.emit())
+	var pro_row := HBoxContainer.new()
+	pro_row.add_theme_constant_override("separation", 10)
+	week_box.add_child(pro_row)
 	_pro_division = OptionButton.new()
+	_pro_division.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_pro_division.tooltip_text = "The division he turns pro in and stays in: his natural one, or one either side of it"
-	week_box.add_child(_pro_division)
-	_pro = CampPlanner._button(week_box, "Turn pro", func() -> void: turn_pro_pressed.emit())
+	pro_row.add_child(_pro_division)
+	_pro = CampPlanner._button(pro_row, "Turn pro", func() -> void: turn_pro_pressed.emit())
 	_pro.tooltip_text = "From now his fights count on his pro record, under pro rules, for a purse"
 	var title: Button = CampPlanner._button(week_box, "Save and go to the title", func() -> void: title_pressed.emit())
-	title.custom_minimum_size.y = 44.0
+	title.custom_minimum_size.y = 40.0
 
-	var fights_card := _card(Vector2(340.0, 0.0))
-	body.add_child(fights_card)
+	# Right: the news from his division, then his fights, each line with its promotion's badge (D433).
+	var right := VBoxContainer.new()
+	right.add_theme_constant_override("separation", 16)
+	right.custom_minimum_size.x = SIDE_WIDTH
+	body.add_child(right)
+	var news_card := _card(Vector2(SIDE_WIDTH, 0.0))
+	news_card.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	right.add_child(news_card)
+	var news_box: VBoxContainer = news_card.get_child(0)
+	_news_heading = _heading("Around the division")
+	news_box.add_child(_news_heading)
+	_news = VBoxContainer.new()
+	_news.add_theme_constant_override("separation", 8)
+	news_box.add_child(_scroll(_news))
+	var fights_card := _card(Vector2(SIDE_WIDTH, 0.0))
+	fights_card.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	right.add_child(fights_card)
 	var fights_box: VBoxContainer = fights_card.get_child(0)
 	fights_box.add_child(_heading("His fights"))
-	_fights_text = _rich()
-	fights_box.add_child(_scroll(_fights_text))
+	_fights = VBoxContainer.new()
+	_fights.add_theme_constant_override("separation", 6)
+	fights_box.add_child(_scroll(_fights))
 
 	column.add_child(_heading("The calendar"))
 	_calendar = HBoxContainer.new()
@@ -269,16 +318,19 @@ func show_career(p_career: Career, reports: Array = []) -> void:
 	_portrait.set_hurt(night.hurt)
 	_card_text.text = fighter_card_text(career, _gift_names, _flaw_names)
 	_bars.show_rows(stat_rows(career.trainee, _groups))
-	_week_text.text = week_text(career, reports)
+	_week_text.text = week_text(career, reports, false)
 	_plan.select(maxi(_plan_ids.find(career.week_plan), 0))
 	var booked: bool = not career.booked.is_empty()
 	_week.visible = not booked
 	_advance.visible = not booked
 	_plan.disabled = booked
+	_plan_row.visible = not booked  # His camp plans his weeks once he's booked.
 	_camp.visible = booked
 	if booked:
 		var left: int = career.camp_weeks_left()
 		_camp.text = "Go to camp: %d week%s to fight night" % [left, "" if left == 1 else "s"]
+	_next_heading.text = ("FIGHT OFFERS · TAKE ONE OR LET THEM GO" if career.offers.size() > 1 else "A FIGHT OFFER") if not career.offers.is_empty() \
+		else ("HIS NEXT FIGHT" if booked else "THE NEXT FIGHT")
 	_pro.visible = Matchmaker.can_turn_pro(career)
 	_pro_division.visible = _pro.visible
 	_ask.visible = Climb.can_ask(career)
@@ -297,10 +349,19 @@ func show_career(p_career: Career, reports: Array = []) -> void:
 			_pro_division.add_item("%s: %s" % [Weight.label(id), why])
 		_pro_division.select(_pro_division_ids.find(home))
 	_show_offers()
-	_fights_text.text = fights_text(career)
+	_show_news(news_items(career, maxi(1, reports.size())))
+	_show_fights()
 	_show_calendar(career.calendar())
 	for scroll in _scrolls:
 		scroll.scroll_vertical = 0
+
+
+## His card's About (false) or Stats (true) tab.
+func show_card_tab(stats: bool) -> void:
+	_about_scroll.visible = not stats
+	_stats_scroll.visible = stats
+	_about_tab.set_pressed_no_signal(not stats)
+	_stats_tab.set_pressed_no_signal(stats)
 
 
 ## Sets the week plan he runs between fights (a data/week_plans id).
@@ -309,7 +370,7 @@ func pick_plan(id: String) -> void:
 		return
 	career.week_plan = id
 	_plan.select(_plan_ids.find(id))
-	_week_text.text = week_text(career, [])
+	_week_text.text = week_text(career, [], false)
 
 
 ## Who coaches him, for the top bar: "Sam Reed (Tactician)", or the name alone for a career saved before D311.
@@ -528,36 +589,98 @@ static func purse_text(purse: Dictionary) -> String:
 
 
 func _show_offers() -> void:
-	for child in _offers.get_children():
-		_offers.remove_child(child)
-		child.queue_free()
+	# Posters are kept while their offer stays up (each has two portraits to build), and made for new ones (D433).
+	var want: Array[String] = []
+	for o: Dictionary in career.offers:
+		want.append(String(o.id))
+	if not career.booked.is_empty():
+		want.append(BOOKED_POSTER)
+	for id: String in _posters.keys():
+		if not id in want:
+			var gone: FightPoster = _posters[id]
+			_offers.remove_child(gone)
+			gone.queue_free()
+			_posters.erase(id)
 	_offer_ids.clear()
 	for o: Dictionary in career.offers:
 		var id: String = String(o.id)
 		_offer_ids.append(id)
-		var tile := PanelContainer.new()
-		var style: StyleBoxFlat = FightHud._panel_style(TILE)
-		style.set_content_margin_all(12)
-		tile.add_theme_stylebox_override("panel", style)
-		var box := VBoxContainer.new()
-		box.add_theme_constant_override("separation", 6)
-		tile.add_child(box)
-		var label := RichTextLabel.new()
-		label.bbcode_enabled = true
-		label.fit_content = true
-		label.scroll_active = false
-		label.add_theme_font_size_override("normal_font_size", 16)
-		label.add_theme_color_override("default_color", TEXT)
-		label.text = offer_text(career, o, _groups)
-		box.add_child(label)
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 8)
-		box.add_child(row)
-		var take: Button = CampPlanner._button(row, "Take the fight", func() -> void: accept_pressed.emit(id))
-		take.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		var turn_down: Button = CampPlanner._button(row, "Turn it down", func() -> void: decline_pressed.emit(id))
-		turn_down.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		_offers.add_child(tile)
+		var poster: FightPoster = _posters.get(id)
+		if poster == null:
+			poster = FightPoster.new()
+			poster.take_pressed.connect(func() -> void: accept_pressed.emit(id))
+			poster.turn_down_pressed.connect(func() -> void: decline_pressed.emit(id))
+			_offers.add_child(poster)
+			_posters[id] = poster
+		poster.show_offer(career, o, _groups)
+	if not career.booked.is_empty():
+		var poster: FightPoster = _posters.get(BOOKED_POSTER)
+		if poster == null:
+			poster = FightPoster.new()
+			_offers.add_child(poster)
+			_posters[BOOKED_POSTER] = poster
+		poster.show_booked(career)
+	_offers.visible = not _posters.is_empty()
+
+
+## The news down the right (D433), each line with its promotion's badge.
+func _show_news(items: Array) -> void:
+	_news_heading.text = "AROUND THE %s" % Weight.name_of(career.division_now()).to_upper()
+	_news_lines.clear()
+	for child in _news.get_children():
+		_news.remove_child(child)
+		child.queue_free()
+	if items.is_empty():
+		_news.add_child(_line_row(career.world(), "", "[color=%s]Nothing new from his division this week.[/color]" % DIM.to_html(false)))
+		return
+	for item: Array in items:
+		_news_lines.append(String(item[0]))
+		_news.add_child(_line_row(career.world(), String(item[1]), String(item[0])))
+
+
+## His fights down the right (D433), each with its promotion's badge.
+func _show_fights() -> void:
+	_fight_lines.clear()
+	for child in _fights.get_children():
+		_fights.remove_child(child)
+		child.queue_free()
+	var items: Array = fight_lines(career)
+	if items.is_empty():
+		_fights.add_child(_line_row(career.world(), "", fights_text(career)))
+		_fight_lines.append(fights_text(career))
+		return
+	for item: Array in items:
+		_fight_lines.append(String(item[0]))
+		_fights.add_child(_line_row(career.world(), String(item[1]), String(item[0])))
+
+
+## A line with a promotion's badge before it (a blank space when there's no promotion).
+func _line_row(w: World, promotion: String, bbcode: String) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	var p: Dictionary = Promotions.by_id(w, promotion) if promotion != "" else {}
+	var spot := Control.new()
+	spot.custom_minimum_size = LINE_BADGE
+	row.add_child(spot)
+	if not p.is_empty():
+		var size: Vector2 = Vector2(LINE_BADGE.x * (1.5 if PromotionBadge.shape_of(p) == PromotionBadge.PLATE else 1.0), LINE_BADGE.y)
+		spot.custom_minimum_size = size
+		var badge := PromotionBadge.new(size)
+		badge.show_promotion(w, p)
+		spot.add_child(badge)
+	spot.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	var label := _rich()
+	label.add_theme_font_size_override("normal_font_size", 15)
+	label.add_theme_font_size_override("bold_font_size", 15)
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	label.text = bbcode
+	row.add_child(label)
+	return row
+
+
+## The poster for an offer, or "booked" for the booked fight (null when it isn't up).
+func poster(id: String) -> FightPoster:
+	return _posters.get(id)
 
 
 ## The ids of the offers on screen, top to bottom.
@@ -868,6 +991,25 @@ static func division_title(c: Career) -> String:
 ## nickname, age, where he's from, his level, record and style, and how it went if he's fought him.
 static func division_text(c: Career) -> String:
 	var w: World = c.world()
+	var men: Array[Dictionary] = division_men(c)
+	var met: Dictionary = {}
+	for f: Dictionary in c.fights:
+		met[String(f.get("opponent", ""))] = String(f.get("result", ""))
+	var parts: Array[String] = []
+	for pros: bool in ([true, false] if c.pro else [false, true]):
+		var lines: Array[String] = []
+		for m: Dictionary in men:
+			if bool(m.pro) == pros:
+				lines.append(_division_line(c, w, m, met))
+		if not lines.is_empty():
+			parts.append("[color=%s][b]%s (%d)[/b][/color]\n%s" % [WARN.to_html(false), "PROS" if pros else "AMATEURS", lines.size(), "\n".join(lines)])
+	return "\n\n".join(parts) if not parts.is_empty() else "[color=%s]Nobody yet.[/color]" % DIM.to_html(false)
+
+
+## The men on his division's list this week (D352), best first by what the scouts make of him: everyone in his
+## division, and a man he's fought lately though one of them has since grown into the next division (D359).
+static func division_men(c: Career) -> Array[Dictionary]:
+	var w: World = c.world()
 	var men: Array[Dictionary] = w.in_division(c.division_now(), c.week)
 	# A man he's fought lately stays on his list though one of them has grown into the next division since (D359).
 	var listed: Dictionary = {}
@@ -883,18 +1025,7 @@ static func division_text(c: Career) -> String:
 		var x: float = w.average(a)
 		var y: float = w.average(b)
 		return x > y if x != y else String(a.name) < String(b.name))
-	var met: Dictionary = {}
-	for f: Dictionary in c.fights:
-		met[String(f.get("opponent", ""))] = String(f.get("result", ""))
-	var parts: Array[String] = []
-	for pros: bool in ([true, false] if c.pro else [false, true]):
-		var lines: Array[String] = []
-		for m: Dictionary in men:
-			if bool(m.pro) == pros:
-				lines.append(_division_line(c, w, m, met))
-		if not lines.is_empty():
-			parts.append("[color=%s][b]%s (%d)[/b][/color]\n%s" % [WARN.to_html(false), "PROS" if pros else "AMATEURS", lines.size(), "\n".join(lines)])
-	return "\n\n".join(parts) if not parts.is_empty() else "[color=%s]Nobody yet.[/color]" % DIM.to_html(false)
+	return men
 
 
 static func _division_line(c: Career, w: World, m: Dictionary, met: Dictionary) -> String:
@@ -986,7 +1117,7 @@ static func weight_text(c: Career) -> String:
 
 ## What the week holds (an offer, a booked fight, hurt, suspended, free), his plan and savings, and what the last
 ## Run this week or Advance did.
-static func week_text(c: Career, reports: Array = []) -> String:
+static func week_text(c: Career, reports: Array = [], with_news: bool = true) -> String:
 	var lines: Array[String] = []
 	if not c.offers.is_empty():
 		lines.append("[color=%s]%d fight offer%s waiting: take one, or let them go.[/color]" % [WARN.to_html(false), c.offers.size(), "" if c.offers.size() == 1 else "s"])
@@ -1039,7 +1170,7 @@ static func week_text(c: Career, reports: Array = []) -> String:
 	if not reports.is_empty():
 		lines.append("")
 		lines.append(last_text(c, reports))
-	var news: String = news_text(c, maxi(1, reports.size()))
+	var news: String = news_text(c, maxi(1, reports.size())) if with_news else ""
 	if news != "":
 		lines.append("")
 		lines.append(news)
@@ -1050,6 +1181,18 @@ static func week_text(c: Career, reports: Array = []) -> String:
 ## NEWS_MAX: men he's fought first, then upsets (the winner had under UPSET_CHANCE beforehand), first-round finishes,
 ## the best men, and men of his kind; and men he's fought turning pro or retiring.
 static func news_text(c: Career, weeks: int = 1) -> String:
+	var items: Array = news_items(c, weeks)
+	if items.is_empty():
+		return ""
+	var out: Array[String] = ["[color=%s]AROUND THE %s[/color]" % [DIM.to_html(false), Weight.name_of(c.division_now()).to_upper()]]
+	for item: Array in items:
+		out.append(String(item[0]))
+	return "\n".join(out)
+
+
+## The news (news_text) as [line, promotion id ("" for none)], best first, at most NEWS_MAX: the hub shows each with its
+## promotion's badge (D433).
+static func news_items(c: Career, weeks: int = 1) -> Array:
 	var w: World = c.world()
 	var division: String = c.division_now()
 	var met: Dictionary = {}
@@ -1061,7 +1204,13 @@ static func news_text(c: Career, weeks: int = 1) -> String:
 		if String(r.get("kind", "")) == "ranked" and int(r.get("to", 0)) == 1 and String(r.get("why", "")).begins_with("beat ") \
 				and String(r.id) != Career.FIGHTER_ID and int(r.get("week", -1)) >= c.week - weeks:
 			new_top[String(r.id)] = int(r.week)
+	var tagged: int = 0  # Each line said about a result is tagged with that result's promotion.
+	var promotion: String = ""
 	for r: Dictionary in w.results:
+		for i in range(tagged, scored.size()):
+			(scored[i] as Array).append(promotion)
+		tagged = scored.size()
+		promotion = String(r.get("promotion", r.get("to", "")))
 		if int(r.get("week", -1)) < c.week - weeks or String(r.get("division", "")) != division:
 			continue
 		var kind: String = String(r.get("kind", "fight"))
@@ -1157,13 +1306,13 @@ static func news_text(c: Career, weeks: int = 1) -> String:
 			if met.has(String(m.id)):
 				line += " %s %s." % [String(m.name).get_slice(" ", 0), _met_words(String(met[String(m.id)]), true)]
 		scored.append([score, line])
-	if scored.is_empty():
-		return ""
+	for i in range(tagged, scored.size()):
+		(scored[i] as Array).append(promotion)
 	scored.sort_custom(func(x: Array, y: Array) -> bool: return float(x[0]) > float(y[0]))
-	var out: Array[String] = ["[color=%s]AROUND THE %s[/color]" % [DIM.to_html(false), Weight.name_of(division).to_upper()]]
+	var out: Array = []
 	for i in mini(NEWS_MAX, scored.size()):
-		out.append(String(scored[i][1]))
-	return "\n".join(out)
+		out.append([String(scored[i][1]), String(scored[i][2]) if (scored[i] as Array).size() > 2 else ""])
+	return out
 
 
 ## A belt's news (D356, a "title" result): his own title won always; a belt gone vacant (retired, called up, stripped,
@@ -1265,6 +1414,15 @@ static func fights_text(c: Career) -> String:
 	if c.fights.is_empty():
 		return "[color=%s]No fights yet.[/color]" % DIM.to_html(false)
 	var lines: Array[String] = []
+	for item: Array in fight_lines(c):
+		lines.append(String(item[0]))
+	return "\n".join(lines)
+
+
+## His fights list (fights_text) as [two lines, promotion id ("" for none)], newest first, at most FIGHTS_SHOWN: the hub
+## shows each with its promotion's badge (D433).
+static func fight_lines(c: Career) -> Array:
+	var out: Array = []
 	var shown: int = 0
 	for i in range(c.fights.size() - 1, -1, -1):
 		if shown >= FIGHTS_SHOWN:
@@ -1276,7 +1434,7 @@ static func fights_text(c: Career) -> String:
 		var how: String = String(f.get("method", ""))
 		if f.has("round"):
 			how += (", " if how != "" else "") + "R%d" % int(f.round)
-		lines.append("[color=%s][b]%s[/b][/color] vs %s%s" % [(mark[1] as Color).to_html(false), mark[0], opponent, (" · " + how) if how != "" else ""])
+		var first: String = "[color=%s][b]%s[/b][/color] vs %s%s" % [(mark[1] as Color).to_html(false), mark[0], opponent, (" · " + how) if how != "" else ""]
 		var on: String = String(f.get("card", {}).get("name", "")) if f.get("card") is Dictionary else ""
 		if f.get("tournament") is Dictionary:
 			on += ", %s" % Tournament.stage_name(int(f.tournament.size), int(f.tournament.stage)).to_lower()
@@ -1293,31 +1451,49 @@ static func fights_text(c: Career) -> String:
 				on += " · [color=%s]signed up[/color]" % GOOD.to_html(false)
 			"down":
 				on += " · [color=%s]let go[/color]" % BAD.to_html(false)
-		lines.append("[color=%s]%s · %s%s[/color]" % [DIM.to_html(false), c.date_text(5, int(f.get("week", 0))), "pro" if bool(f.get("pro", false)) else "amateur",
-			(" · " + on) if on != "" else ""])
-	return "\n".join(lines)
+		var second: String = "[color=%s]%s · %s%s[/color]" % [DIM.to_html(false), c.date_text(5, int(f.get("week", 0))), "pro" if bool(f.get("pro", false)) else "amateur",
+			(" · " + on) if on != "" else ""]
+		out.append([first + "\n" + second, String(f.get("card", {}).get("promotion", "")) if f.get("card") is Dictionary else ""])
+	return out
 
 
 func _show_calendar(weeks: Array[Dictionary]) -> void:
+	_calendar_lines.clear()
 	for child in _calendar.get_children():
 		_calendar.remove_child(child)
 		child.queue_free()
 	for i in weeks.size():
 		var entry: Dictionary = weeks[i]
+		_calendar_lines.append(calendar_tile_text(entry, i == 0))
 		var tile := PanelContainer.new()
 		tile.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		tile.custom_minimum_size.y = 76.0
 		var style: StyleBoxFlat = FightHud._panel_style(NOW if i == 0 else TILE)
 		style.set_content_margin_all(10)
+		var fight: bool = (entry.events as Array).any(func(e: Dictionary) -> bool: return String(e.kind) == Career.FIGHT_NIGHT)
+		if fight:
+			style.border_color = CalendarIcon.colour_of(Career.FIGHT_NIGHT)
+			style.set_border_width_all(2)
 		tile.add_theme_stylebox_override("panel", style)
-		var label := RichTextLabel.new()
-		label.bbcode_enabled = true
-		label.fit_content = true
-		label.scroll_active = false
-		label.add_theme_font_size_override("normal_font_size", 15)
-		label.add_theme_color_override("default_color", TEXT)
-		label.text = calendar_tile_text(entry, i == 0)
-		tile.add_child(label)
+		var box := VBoxContainer.new()
+		box.add_theme_constant_override("separation", 4)
+		tile.add_child(box)
+		var date := FightNightCard._label(15, TEXT if i == 0 else DIM)
+		DisplayFont.apply(date, 18)
+		date.text = ("THIS WEEK" if i == 0 else "W/C " + String(entry.date).to_upper())
+		box.add_child(date)
+		for event: Dictionary in entry.events:
+			var row := HBoxContainer.new()
+			row.add_theme_constant_override("separation", 6)
+			var icon := CalendarIcon.new(String(event.kind))
+			icon.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+			row.add_child(icon)
+			var words := FightNightCard._label(14, CalendarIcon.colour_of(String(event.kind)).lightened(0.15))
+			words.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			words.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			words.text = Career.event_text(event)
+			row.add_child(words)
+			box.add_child(row)
 		_calendar.add_child(tile)
 
 
@@ -1332,13 +1508,25 @@ static func calendar_tile_text(entry: Dictionary, now: bool) -> String:
 
 func text() -> String:
 	var tiles: Array[String] = []
-	for tile in _calendar.get_children():
-		tiles.append((tile.get_child(0) as RichTextLabel).get_parsed_text())
+	for line: String in _calendar_lines:
+		tiles.append(_plain(line))
 	var offer_cards: Array[String] = []
-	for tile in _offers.get_children():
-		offer_cards.append((tile.get_child(0).get_child(0) as RichTextLabel).get_parsed_text())
-	return "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s" % [_who.text, _line.text, _date.text, _card_text.get_parsed_text(), _week_text.get_parsed_text(),
-		"\n".join(offer_cards), _camp.text if _camp.visible else "", _fights_text.get_parsed_text(), " | ".join(tiles)]
+	for id: String in _offer_ids:
+		offer_cards.append((_posters[id] as FightPoster).details.get_parsed_text())
+	var news: Array[String] = []
+	for line: String in _news_lines:
+		news.append(_plain(line))
+	var fights: Array[String] = []
+	for line: String in _fight_lines:
+		fights.append(_plain(line))
+	return "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s" % [_who.text, _line.text, _date.text, _card_text.get_parsed_text(), _week_text.get_parsed_text(),
+		"\n".join(news), "\n".join(offer_cards), _camp.text if _camp.visible else "", "\n".join(fights), " | ".join(tiles)]
+
+
+## BBCode with its tags taken out.
+static func _plain(bbcode: String) -> String:
+	var re := RegEx.create_from_string("\\[[^\\]]*\\]")
+	return re.sub(bbcode, "", true)
 
 
 ## For tests: the scrolling parts, top to bottom of each card left to right (the fighter, his stats, this week's news
@@ -1380,6 +1568,33 @@ func _scroll(content: Control) -> ScrollContainer:
 	scroll.add_child(content)
 	_scrolls.append(scroll)
 	return scroll
+
+
+## A tab on the hub's tab bar (D433).
+func _tab(parent: Control, label: String, tip: String) -> Button:
+	var b := Button.new()
+	b.text = label
+	b.tooltip_text = tip
+	b.toggle_mode = true
+	DisplayFont.apply(b, 22)
+	b.custom_minimum_size = Vector2(0.0, 42.0)
+	parent.add_child(b)
+	return b
+
+
+## A world tab opens its page over the hub and springs back: the hub stays the tab that's down.
+func _tab_back(b: Button) -> void:
+	b.set_pressed_no_signal(false)
+
+
+func _small_tab(parent: Control, label: String, group: ButtonGroup) -> Button:
+	var b := Button.new()
+	b.text = label
+	b.toggle_mode = true
+	b.button_group = group
+	b.add_theme_font_size_override("font_size", 15)
+	parent.add_child(b)
+	return b
 
 
 func _card(min_size: Vector2) -> PanelContainer:

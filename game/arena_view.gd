@@ -226,6 +226,9 @@ var tell_cues: bool = true
 ## In a career fight (D401): which of his habits are found and get the cue, counting the rest as they go off. null
 ## (Quick fight): every tell is cued.
 var tell_watch: Scouting.Watch = null
+## A training drill (the sprawl reflex, D411), not a fight: no move names over their heads (reading the move is the
+## drill), no range tag and no referee. Set it before watch().
+var drill: bool = false
 var debug_marks: bool = false:
 	set(value):
 		debug_marks = value
@@ -329,7 +332,7 @@ func watch(p_driver: FightDriver) -> void:
 		_spot_rng.seed = hash([driver.sim.fight_seed, "blood spots"])
 		referee = Referee.new()
 		add_child(referee)
-		if referee.setup(driver.sim.fight_seed):
+		if not drill and referee.setup(driver.sim.fight_seed):
 			var men: Array[Vector2] = [driver.shown_pos(0), driver.shown_pos(1)]
 			var middle: Vector2 = (men[0] + men[1]) / 2.0
 			referee.place(Referee.watch_spot(men, Referee.STANDING_OFF, middle + Vector2(0, 8), middle), middle)
@@ -386,6 +389,8 @@ func _process(delta: float) -> void:
 		figures[i].label_scale = zoom_share()
 		figures[i].show_state(sim, i, at, at + Vector2.from_angle(_facing[i]), delta, delta * driver.rate())
 		figures[i].show_tell(_tell_limb[i] if tell_cues and sim.now <= _tell_until[i] else "")
+		if drill:
+			figures[i].hide_overhead()
 	_pose_clinch(sim, delta)
 	_move_referee(sim, delta)
 	_show_marks(sim, delta)
@@ -395,6 +400,7 @@ func _process(delta: float) -> void:
 	if _venue != null:
 		_venue.show_near_fence(shown, delta)
 	_show_tag(sim, middle, delta)
+	_tag.visible = not drill
 	_place_camera(delta, middle, sim, shown)
 	if debug_marks:
 		for i in _want_rings.size():
