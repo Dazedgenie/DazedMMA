@@ -1283,7 +1283,7 @@ range", "Film study sessions find them" and "Found after 3 fires" and "1 to 2 ha
   shots a fight, so his second habit off a miss is a leg kick (35 shots, about as before, on 20 fights).
 
 - **Your corner talks about them** (D419; Kyle, 2026-11-02: "in the fight coaches should mention in the corner the tell
-  that was picked up"). At every round break of a career fight, the coach on the stool names each habit you've found, in camp
+  that was picked up", then picked "At each round break", my pick). At every round break of a career fight, the coach on the stool names each habit you've found, in camp
   or in the fight so far, and how often he's done it: *Your corner: When his jab is blocked, he throws a body kick. He's done
   it 3 times so far: make him pay.* (or *He hasn't shown it yet, but be ready.*). It's the first thing on the break's card.
   Quick fights cue every tell and the corner says nothing of them, as before. (`corner_habit_lines` in `game/main.gd`.)
