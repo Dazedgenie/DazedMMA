@@ -1,0 +1,16 @@
+{
+	"schema": "session@1",
+	"id": "drill_rule_1",
+	"name": "Drill rule 1",
+	"kind": "mind",
+	"trains": { "fight_iq": 0.5, "speed": 0.5 },
+	"xp": 4,
+	"fatigue": 6,
+	"injury_risk": 0.0005,
+	"injury_area": "body",
+	"light": false,
+	"leanings": {},
+	"chin_wear": 0,
+	"minigame": null,
+	"drills_rule": 1
+}

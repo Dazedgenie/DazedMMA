@@ -447,6 +447,66 @@ func test_film_study_in_a_career_camp_finds_his_habit_and_only_found_habits_are_
 	assert_eq(_main.state, _main.OVER)
 
 
+func test_drilling_a_rule_in_a_career_camp_takes_it_into_the_fight_as_sharp_as_camp_left_it() -> void:
+	_main.open_new_career()
+	_main.new_career.set_play_childhood(false)
+	_main.new_career.set_know_the_game(true)
+	_main.new_career.press_start()
+	_main.gym_screen.pick(0)
+	_main.gym_screen.press_start()
+	_main.career.week_plan = "time_off"
+	_main.hub.press_week()
+	_main.hub.press_accept(_main.hub.offer_ids()[0])
+	_main.hub.press_camp()
+	var planner: CampPlanner = _main.planner
+	assert_string_contains(planner.rules_text(), "Rule 1: none", "the Rules box (D402)")
+	assert_ne(planner.phase_text(), "", "the camp's part this week")
+	planner.rule_slots.pick(1, "sprawl_on_the_shot")
+	planner.rule_slots.changed.emit()
+	assert_eq(_main.career.rule_slots[0], "sprawl_on_the_shot")
+	planner.pick_preset("time_off")
+	for i in 4:
+		planner.set_slot(i, "drill_rule_1")
+	planner.run_rest()
+	var drilled: float = RuleDrilling.drilled(_main.career, "sprawl_on_the_shot")
+	assert_gt(drilled, 0.0, "drilled in camp")
+	assert_string_contains(planner.log_text(), "Drilled When he shoots → sprawl")
+	planner.fight_pressed.emit(planner.trained_profile())
+	assert_eq(_main.state, _main.FIGHT)
+	assert_eq(_main.settings.rules, [[1, "sprawl_on_the_shot", snappedf(drilled, 0.1)]])
+	_main.driver.step()  # The rule goes in with the first tick's commands.
+	assert_eq(String(_main.driver.sim.decisions[0].rules.slots[0].get("rule", {}).get("id", "")), "sprawl_on_the_shot", "in the fight")
+	_main.driver.throw_towel()
+	var frames: int = 0
+	while _main.state != _main.OVER and frames < 100:
+		frames += 1
+		_main._process(FRAME)
+	assert_eq(_main.state, _main.OVER)
+
+
+func test_his_corner_names_the_habits_you_found_and_how_often_he_has_done_them_at_the_break() -> void:
+	var kick := { "trigger": "own_jab_blocked", "action": "body_kick", "chance": 0.7, "within_ms": 1500 }
+	var overhand := { "trigger": "opp_strike_misses", "action": "overhand", "chance": 0.5, "within_ms": 800 }
+	var sim := FightSim.new(1, [FighterState.new("Red"), FighterState.new("Blue")], ActionLibrary.load_dir())
+	sim.fighters[1].tells.assign([kick, overhand])
+	assert_eq(_main.corner_habit_lines(sim, null), [] as Array[String], "a quick fight: no scouting, nothing said")
+	var watch := Scouting.Watch.new([Scouting.key(kick)])
+	var lines: Array[String] = _main.corner_habit_lines(sim, watch)
+	assert_eq(lines.size(), 1, "only the habit you found (D419)")
+	assert_string_contains(lines[0], "When his jab is blocked, he throws a body kick. He hasn't shown it yet")
+	for n in 2:
+		watch.set_off(kick, n * 100)
+		watch.started("body_kick", n * 100 + 1)
+	assert_string_contains(_main.corner_habit_lines(sim, watch)[0], "He's done it 2 times so far")
+
+
+func test_a_quick_camp_has_no_drill_rule_sessions() -> void:
+	var planner := CampPlanner.new(FighterLibrary.load_dir().profile("wrestler"))
+	add_child_autofree(planner)
+	assert_false(planner._session_ids.has("drill_rule_1"), "nothing to drill outside a career")
+	assert_eq(planner.rules_text(), "")
+
+
 func test_a_quick_fight_still_cues_every_tell() -> void:
 	_main.start_fight(_main.setup.settings())
 	assert_null(_main.arena.tell_watch, "no scouting outside a career")

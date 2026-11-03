@@ -205,3 +205,48 @@ func test_a_fight_with_rules_replays_from_its_command_log() -> void:
 	assert_gt(_answers(sim, 0).size() + _answers(sim, 1).size(), 2, "the rules did something")
 	var again: FightSim = FightSim.replay(SEED, _roster.make_pair("wrestler", "kicker"), _actions, sim.command_log_as_dicts(), 1, 120)
 	assert_eq(JSON.stringify(again.events_as_dicts()), JSON.stringify(sim.events_as_dicts()))
+
+
+func test_a_gassed_fighter_lets_his_rule_sit_out() -> void:
+	var sim: FightSim = _sim()
+	sim.submit(FightCommand.set_rule(0, 0, 1, "catch_kick_and_shoot", 100))
+	sim.submit(FightCommand.queue_action(KICK_AT, 1, "body_kick"))
+	_run(sim, KICK_AT - 1)
+	sim.fighters[0].stamina = (DrilledRules.FRESH_ABOVE - 0.1) * sim.fighters[0].max_stamina()
+	_run(sim, 20)
+	assert_eq(_starts(sim).filter(func(s: Array) -> bool: return s[1] == "catch_kick_single"), [], "no catch")
+	assert_true(_outcomes(sim).has(DrilledRules.GASSED))
+	assert_string_starts_with(_answers(sim).filter(func(a: Dictionary) -> bool: return a.outcome == DrilledRules.GASSED)[0].reason, "gassed: ")
+
+
+func test_a_sprawl_rule_stands_in_for_his_own_read_of_the_shot_and_lifts_his_sprawl() -> void:
+	var sim: FightSim = _sim()
+	sim.submit(FightCommand.set_rule(0, 0, 1, "sprawl_on_the_shot", 100))
+	_run(sim, 1)
+	var view: FightView = sim.views[0]
+	var rules: DrilledRules = _rules(sim)
+	var shot := FightEvent.new(sim.now, 1, FightEvent.ACTION_PHASE, 1, { "action_id": "double_leg", "phase": "telegraph" })
+	sim.fighters[1].action_id = "double_leg"
+	sim.decisions[0].ai._opp = { "id": "double_leg", "category": "takedown", "at": sim.now, "notice": sim.now + 2, "read": true, "decided": false }
+	rules.take_notes()
+	rules.on_event(view, shot)
+	var notes: Array = rules.take_notes().map(func(a: Dictionary) -> String: return a.data.outcome)
+	assert_eq(notes, [DrilledRules.READ], "he read it: his own answer goes")
+	assert_false(rules.may_claim, "the rule doesn't claim the move")
+	assert_almost_eq(rules.adjust_sprawl(view, 0.3), 1.0, 0.001, "his sprawl is as sharp as the rule")
+	sim.fighters[1].action_id = ""
+	assert_almost_eq(rules.adjust_sprawl(view, 0.3), 0.3, 0.001, "only on that shot")
+	sim.decisions[0].ai._opp.read = false
+	sim.fighters[1].action_id = "double_leg"
+	rules.on_event(view, shot)
+	assert_true(rules.may_claim, "a shot he didn't read: the drilled sprawl catches it")
+
+
+func test_a_catch_rule_still_fires_on_a_kick_he_read() -> void:
+	var sim: FightSim = _sim()
+	sim.submit(FightCommand.set_rule(0, 0, 1, "catch_kick_and_shoot", 100))
+	_run(sim, 1)
+	var kick := FightEvent.new(sim.now, 1, FightEvent.ACTION_PHASE, 1, { "action_id": "body_kick", "phase": "telegraph" })
+	sim.decisions[0].ai._opp = { "id": "body_kick", "category": "strike", "at": sim.now, "notice": sim.now + 2, "read": true, "decided": false }
+	_rules(sim).on_event(sim.views[0], kick)
+	assert_true(_rules(sim).may_claim, "his read never catches a kick: the rule does")

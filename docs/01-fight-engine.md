@@ -1575,7 +1575,7 @@ rules never wakes any of this.
 
 Live calls still outrank rules: a call the fighter is acting on goes first. Rules take no voice and cost no attention.
 
-Every outcome is a `rule_answered` event (A16): `set`, `fired`, `cooling`, `slow`, `outranked`, `not_eligible`, `missed`. The
+Every outcome is a `rule_answered` event (A16): `set`, `fired`, `cooling`, `slow`, `outranked`, `not_eligible`, `missed`, and since D402 `gassed` and `read` (§23.5). The
 debug console prints them: *"Wrestler goes on the rule "When he kicks → catch & shoot": Catch-kick single leg (3 ticks after the
 body kick started)"*, *"Wrestler holds the rule "When he kicks → catch & shoot" (fired 4 s ago)"*.
 
@@ -1612,7 +1612,8 @@ the opponent's adaptation leaning on the rule's reliability (already in) more th
 ### 23.4 To change it, and the tests
 - A rule's trigger, move and cooldown: its file in `data/rules/`; what sets a trigger off: `data/triggers/`.
 - Reliability, adaptation and the slot count: `RELIABILITY_PER_IQ`, `RELIABILITY_PER_HEAD_HURT`, `ADAPT_PER_FIRE`, `ADAPT_MAX`,
-  `MAX_SLOTS` at the top of `sim/fight/drilled_rules.gd`.
+  `MAX_SLOTS` at the top of `sim/fight/drilled_rules.gd`; when a rule sits out gassed and how a sprawl rule stands in for his read: `FRESH_ABOVE`,
+  `STAND_IN_FOR_READ` (§23.5).
 - How far a caught move fades: `FighterAI.CAUGHT_FADE` (§21.8).
 - In the harness: `--rules=wrestler:catch_kick_and_shoot@80` (fighter:rule@drilled, a fighter's rules fill slots 1 and 2 in
   order) runs every pair once more with those rules and reports what they did to that fighter's wins.
@@ -1620,6 +1621,32 @@ the opponent's adaptation leaning on the rule's reliability (already in) more th
 Tested in `tests/sim/fight/test_drilled_rules.gd` (firing with reaction time, reliability, cooldown, slot order, out of range,
 rocked, busy, setting rules, adaptation, untouched fights, replays), `tests/sim/balance/` (the rules columns and lines) and
 `tests/ui/test_fight_log_formatter.gd`.
+
+### 23.5 Rules worth having (D402, 2026-11-02)
+Before rules went into the career (`03` §13.2), Kyle picked "Fresh, and in place of his read":
+
+- **A rule sits out while he's gassed**: under 30% of his tank (`FRESH_ABOVE`), logged as `gassed` (*"gassed: 24% of his
+  tank"*). A drilled reflex he hasn't the legs for costs more than it wins.
+- **A sprawl rule stands in for his own read** (`STAND_IN_FOR_READ`): on a shot his own AI read, his own answer goes, logged as
+  `read` (*"he read it himself: his own sprawl, 80% sharp"*), with his sprawl's chance lifted to the rule's reliability, and a
+  knee into the shot when that fails, as before. On a shot he didn't read, the rule fires as before: it catches the shots he'd
+  have missed. Rules whose move his read never makes (the catch) aren't touched. The AI says whether it read a move with
+  `FighterAI.read_it()`.
+
+On the harness, 300 fights a matchup paired by seed, the sprawl rule drilled to 80%:
+
+| Who has the sprawl rule | Before | After |
+|---|---|---|
+| Kicker against the Wrestler | −7.3% | −5.7% |
+| Boxer against the Wrestler | +0.3% | +3.3% |
+| Kicker against the Pressure Wrestler | −1.3% | +2.3% |
+| Boxer against the GnP Wrestler | −3.3% | +0.3% |
+
+So it went from costing about 3% of wins on average to breaking even (each number is ±5% on its own; a rule set but never
+firing moves wins by −1%, from the fights playing out differently). It fires about 1.5 times a fight now instead of 6. The
+Kicker still loses a little against the Wrestler, who shoots 18 times a fight: his sprawls cost stamina he doesn't have.
+The catch rule drilled to 80% already won the Wrestler +3.5% against the Kicker on main before this (it fires on kicks, so
+neither change touches it much). Quick fights and the harness without `--rules` don't change; the golden fight with the Boxer's sprawl rule (*Wrestler vs Boxer, sprawl rule, AI corner*) was re-pinned: the Boxer now wins it in round 1.
 
 ---
 

@@ -23,6 +23,15 @@ const FIGHTER_ID := "career_fighter"
 const START_DATE: Array[int] = [2027, 1, 4]
 ## The week plan for weeks between fights until the player picks another (data/week_plans, docs/02 §3.8).
 const BETWEEN_PLAN := "between_fights"
+## A fight camp's three parts (D402, camp_phase): marked on the planner with a tip each, nothing locked.
+const CAMP_EARLY := "early"
+const CAMP_MIDDLE := "middle"
+const CAMP_TAPER := "taper"
+const CAMP_PHASE_TIPS := {
+	CAMP_EARLY: "Early camp: build him up. Strength, cardio and skills, and the hard sessions while the fight's far off.",
+	CAMP_MIDDLE: "Middle camp: get ready for this man. Film study, sparring and drilling your two rules for him.",
+	CAMP_TAPER: "Taper: fight week. Keep it light so he goes in fresh: the less tired he is, the fuller his tank.",
+}
 const DAYS_PER_WEEK: int = 7
 const WEEKDAYS: Array[String] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 const MONTHS: Array[String] = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
@@ -125,6 +134,10 @@ var medals: Array = []
 var division: String = ""
 ## What he knows of the men he fights (D401, Scouting): man id → { known, tells }.
 var scouting: Dictionary = {}
+## The two rules he takes into a fight (D402, RuleDrilling), slot 1 first ("" empty), and every rule he's drilled:
+## rule id → { drilled 0–100, best, week (the last week he drilled it) }.
+var rule_slots: Array[String] = ["", ""]
+var drills: Dictionary = {}
 ## The world's fighters (World, D352), made the first time they're needed and kept in the save.
 var _world: World
 var _world_data: Dictionary = {}
@@ -263,6 +276,7 @@ func run_week(plan: Variant = null, played: Dictionary = {}) -> Dictionary:
 	var report: Dictionary = trainee.run_plan(plan_data, played)
 	gym_owed -= worked
 	report.gym_worked = worked
+	drill_week(report)
 	var owed_before: int = gym_owed
 	report.gym_fee = end_week()
 	report.week = week - 1
@@ -543,6 +557,24 @@ func scout_week(report: Dictionary) -> Array[Dictionary]:
 	return found
 
 
+## A week's Drill rule sessions (D402, RuleDrilling.drill_week): each done one drills its slot's rule. On the report as
+## `drilled` (rule id → [before, after]).
+func drill_week(report: Dictionary) -> Dictionary:
+	return RuleDrilling.drill_week(self, report, _library)
+
+
+## Where the booked fight's camp is (D402): EARLY for its first third, MIDDLE, then TAPER in the fight week; "" when not
+## booked. Only marked: nothing is locked (Kyle's pick). CAMP_PHASE_TIPS says what each is for.
+func camp_phase() -> String:
+	var left: int = camp_weeks_left()
+	if left <= 0:
+		return ""
+	if left == 1:
+		return CAMP_TAPER
+	var length: int = maxi(int(booked.get("camp_weeks", left)), left)
+	return CAMP_EARLY if float(length - left) < length / 3.0 else CAMP_MIDDLE
+
+
 ## The booked opponent's profile and name ("" when not booked).
 func booked_opponent() -> Dictionary:
 	return opponents.get(String(booked.get("opponent", "")), {})
@@ -737,6 +769,7 @@ func _after_booking() -> void:
 ## Returns the gym fee he paid as the week turned ($, 0 when none was due): his gym's `fee` comes out of his savings on
 ## the first Monday of each month (D313), as much of it as he has; the rest he owes (gym_owed) and works off.
 func end_week() -> int:
+	RuleDrilling.fade_week(self)  # The rules he didn't drill this week go a little rusty (D402).
 	week += 1
 	suspended_days = maxi(0, suspended_days - DAYS_PER_WEEK)
 	_school_week()
@@ -845,6 +878,7 @@ func to_dict() -> Dictionary:
 		"worn_last_week": worn_last_week, "next_offers_week": next_offers_week,
 		"next_tournament_week": next_tournament_week, "medals": medals.duplicate(true), "division": division,
 		"tutorial": tutorial, "tips_seen": tips_seen.duplicate(), "scouting": scouting.duplicate(true),
+		"rules": { "slots": rule_slots.duplicate(), "drills": drills.duplicate(true) },
 		"fights": fights.duplicate(true), "opponents": opponents.duplicate(true),
 		"world": _world.to_dict() if _world != null else _world_data.duplicate(true),
 		"booked": booked.duplicate(true), "offers": offers.duplicate(true),
@@ -908,6 +942,15 @@ static func from_dict(data: Dictionary, library: TrainingLibrary = null) -> Care
 	for id: String in c.scouting.keys():
 		var entry: Dictionary = c.scouting[id] if c.scouting[id] is Dictionary else {}
 		c.scouting[id] = { "known": float(entry.get("known", 0.0)), "tells": (entry.get("tells", []) as Array).duplicate() if entry.get("tells") is Array else [] }
+	var rules: Dictionary = d.get("rules", {}) if d.get("rules") is Dictionary else {}
+	if rules.get("slots") is Array and (rules.slots as Array).size() == c.rule_slots.size():
+		for i in c.rule_slots.size():
+			c.rule_slots[i] = String(rules.slots[i]) if RuleLibrary.shared().has(String(rules.slots[i])) else ""
+	var drilled: Dictionary = rules.get("drills", {}) if rules.get("drills") is Dictionary else {}
+	for id: String in drilled:
+		if drilled[id] is Dictionary:
+			c.drills[id] = { "drilled": float(drilled[id].get("drilled", 0.0)), "best": float(drilled[id].get("best", 0.0)),
+				"week": int(drilled[id].get("week", 0)) }
 	c._world_data = d.get("world", {}).duplicate(true) if d.get("world") is Dictionary else {}
 	c.booked = d.get("booked", {}).duplicate(true)
 	if c.booked.get("tournament") is Dictionary:

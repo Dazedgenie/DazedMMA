@@ -3,11 +3,20 @@ extends HFlowContainer
 ## The two drilled-rule slots and the Drilled slider (docs/01 §23), as the fight
 ## setup and the between-rounds panel show them. Only rules whose move the fighter
 ## knows are offered (the Kicker never learned the catch, D112).
+##
+## In a career (use_drilled, D402) there's no slider: each rule goes in as well drilled as camp left it, and the label
+## says how sharp each slot's rule is.
+
+## A slot's rule was changed by the player.
+signal changed
 
 var _pickers: Array[OptionButton] = []
 var _drilled: HSlider
 var _drilled_label: Label
 var _ids: Array[String] = []
+## Rule id → drilled 0–100 in a career (use_drilled); empty: the slider sets it.
+var _fixed: Dictionary = {}
+var _career: bool = false
 
 
 func _init(fighter_profile: Dictionary = {}, actions: ActionLibrary = null) -> void:
@@ -26,6 +35,9 @@ func _init(fighter_profile: Dictionary = {}, actions: ActionLibrary = null) -> v
 		picker.add_item("none")
 		for id in _ids:
 			picker.add_item(String(library.get_rule(id).name))
+		picker.item_selected.connect(func(_i: int) -> void:
+			_show_drilled()
+			changed.emit())
 		add_child(picker)
 		_pickers.append(picker)
 	_drilled_label = Label.new()
@@ -47,8 +59,18 @@ func picked() -> Array:
 	var out: Array = []
 	for slot in _pickers.size():
 		var at: int = _pickers[slot].selected
-		out.append([slot + 1, _ids[at - 1] if at > 0 else "", _drilled.value])
+		var id: String = _ids[at - 1] if at > 0 else ""
+		out.append([slot + 1, id, float(_fixed.get(id, 0.0)) if _career else _drilled.value])
 	return out
+
+
+## A career's rules (D402): `drilled` is rule id → how well drilled (0–100). The slider goes; each picked rule goes in
+## at its own drilled share (one never drilled at 0%).
+func use_drilled(drilled: Dictionary) -> void:
+	_career = true
+	_fixed = drilled.duplicate()
+	_drilled.visible = false
+	_show_drilled()
 
 
 ## Shows these rules ([[slot, rule id, drilled], …], as picked() gives them).
@@ -57,13 +79,15 @@ func show_rules(rules: Array) -> void:
 		var slot: int = int(entry[0]) - 1
 		if slot >= 0 and slot < _pickers.size():
 			_pickers[slot].selected = maxi(0, _ids.find(String(entry[1])) + 1)
-		if String(entry[1]) != "":
+		if String(entry[1]) != "" and not _career:
 			_drilled.value = float(entry[2])
+	_show_drilled()
 
 
 ## Picks the rule in a slot by id (tests, and remembering the last fight's rules).
 func pick(slot: int, rule_id: String) -> void:
 	_pickers[slot - 1].selected = _ids.find(rule_id) + 1
+	_show_drilled()
 
 
 func set_drilled(value: float) -> void:
@@ -71,4 +95,11 @@ func set_drilled(value: float) -> void:
 
 
 func _show_drilled() -> void:
-	_drilled_label.text = "Drilled %d%%" % roundi(_drilled.value)
+	if not _career:
+		_drilled_label.text = "Drilled %d%%" % roundi(_drilled.value)
+		return
+	var parts: Array[String] = []
+	for entry: Array in picked():
+		if String(entry[1]) != "":
+			parts.append("rule %d %d%%" % [int(entry[0]), roundi(float(entry[2]))])
+	_drilled_label.text = "Drilled: " + (", ".join(parts) if not parts.is_empty() else "no rules picked")

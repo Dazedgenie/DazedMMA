@@ -127,6 +127,11 @@ var _back: Button
 var _reset: Button
 var _night_button: Button
 var _scout_heading: Label
+## In a career (D402): the camp's part this week (Career.camp_phase) and the two rules he's drilling.
+var _phase: Label
+var _rules_heading: Label
+var rule_slots: RuleSlots
+var _rules_text: Label
 var _scouting: RichTextLabel
 
 
@@ -137,7 +142,9 @@ func _init(profile: Dictionary, camp_seed: int = 1, library: TrainingLibrary = n
 	_plan_ids = _library.plan_ids()
 	_session_ids = []
 	for id: String in _library.session_ids():
-		if not bool(_library.session(id).get("career_only", false)):  # Gym shifts aren't a camp's to plan (D313).
+		var session: Dictionary = _library.session(id)
+		# Gym shifts aren't a camp's to plan (D313); Drill rule sessions only drill a career's rules (D402).
+		if not bool(session.get("career_only", false)) and RuleDrilling.slot_of(session) == 0:
 			_session_ids.append(id)
 	_slot_ids.resize(TrainingCamp.DAYS * TrainingCamp.SLOTS_PER_DAY)
 	_slot_ids.fill(_session_ids[0])
@@ -218,6 +225,37 @@ func use_career(c: Career) -> void:
 	_back.text = "Back to the hub"
 	night_card.sim_allowed = true
 	night_card.sim_pressed.connect(func() -> void: sim_pressed.emit(trained_profile()))
+	for id: String in _library.session_ids():
+		if RuleDrilling.slot_of(_library.session(id)) > 0 and not _session_ids.has(id):
+			_session_ids.append(id)  # His two rules can be drilled now (D402).
+	_session_menu.queue_free()
+	_build_session_menu()
+	rule_slots = RuleSlots.new(_start, ActionLibrary.load_dir())
+	rule_slots.use_drilled(_drilled_map())
+	for i in c.rule_slots.size():
+		rule_slots.pick(i + 1, c.rule_slots[i])
+	rule_slots.changed.connect(_on_rules_changed)
+	_rules_text.get_parent().add_child(rule_slots)
+	_rules_text.get_parent().move_child(rule_slots, _rules_text.get_index())
+	_rules_heading.visible = true
+	_rules_text.visible = true
+	_refresh()
+
+
+## Rule id → drilled 0–100 for his rules (RuleSlots.use_drilled).
+func _drilled_map() -> Dictionary:
+	var out: Dictionary = {}
+	for id: String in RuleLibrary.shared().ids():
+		out[id] = RuleDrilling.drilled(career, id)
+	return out
+
+
+## The planner's rule pickers changed: the career's slots follow (D402).
+func _on_rules_changed() -> void:
+	for entry: Array in rule_slots.picked():
+		RuleDrilling.set_slot(career, int(entry[0]), String(entry[1]))
+	for i in career.rule_slots.size():
+		rule_slots.pick(i + 1, career.rule_slots[i])  # The same rule in both slots leaves the other.
 	_refresh()
 
 
@@ -502,6 +540,15 @@ func _build_condition_card() -> Control:
 	_scouting.add_theme_font_size_override("normal_font_size", 14)
 	box.add_child(_scouting)
 
+	# In a career (D402): his two rules and how sharp each is; Drill rule sessions sharpen them.
+	_rules_heading = _heading("Rules")
+	_rules_heading.visible = false
+	box.add_child(_rules_heading)
+	_rules_text = _dim_label(14)
+	_rules_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_rules_text.visible = false
+	box.add_child(_rules_text)
+
 	box.add_child(_heading("The camp so far"))
 	_log = _text_box(Vector2.ZERO)
 	_log.scroll_following = true
@@ -518,6 +565,11 @@ func _build_week_card() -> Control:
 	_week_label = Label.new()
 	DisplayFont.apply(_week_label, 32)
 	box.add_child(_week_label)
+	_phase = Label.new()
+	_phase.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_phase.add_theme_color_override("font_color", Color("#ffe066"))
+	_phase.visible = false
+	box.add_child(_phase)
 	var picks := GridContainer.new()
 	picks.columns = 4
 	picks.add_theme_constant_override("h_separation", 10)
@@ -855,6 +907,12 @@ func _refresh() -> void:
 	_scouting.visible = scouting
 	if scouting:
 		_scouting.text = Scouting.report_text(career, career.booked_opponent(), _groups, CareerHub.SCOUTED_GROUPS)
+	var phase: String = career.camp_phase() if career != null and not done() else ""
+	_phase.visible = phase != ""
+	_phase.text = String(Career.CAMP_PHASE_TIPS.get(phase, ""))
+	if rule_slots != null:
+		rule_slots.use_drilled(_drilled_map())
+		_rules_text.text = RuleDrilling.slots_text(career)
 	_refresh_stats(forecast.get("gains", {}))
 	_night_button.visible = done()
 	night_card.visible = done() and _night_open
@@ -1054,6 +1112,9 @@ func _week_line(i: int, colours: bool = true) -> String:
 			if t is Dictionary and (r.get("scouted", []) as Array).has(Scouting.key(t)):
 				lines.append("  [color=#ffe066]Film study found his habit:[/color] %s." % Scouting.tell_text(t) if colours
 					else "  Film study found his habit: %s." % Scouting.tell_text(t))
+		for id: String in r.get("drilled", {}):
+			var moved: Array = r.drilled[id]
+			lines.append("  Drilled %s: %d%% → %d%%." % [RuleDrilling.rule_name(id), roundi(float(moved[0])), roundi(float(moved[1]))])
 	for injury: Dictionary in r.injuries:
 		lines.append(paint.call("  Hurt (%s) on %s in %s: out %d days." % [injury.area, TrainingCamp.DAY_NAMES[injury.day],
 			_library.session(injury.session).name, injury.days_out]))
@@ -1107,3 +1168,13 @@ static func _top_gains(gains: Dictionary, count: int) -> String:
 	for id: String in ids.slice(0, count):
 		bits.append("%s +%.2f" % [TrainingCamp.STAT_NAMES.get(id, id), gains[id]])
 	return ", ".join(bits)
+
+
+## The Rules box as text ("" outside a career, D402).
+func rules_text() -> String:
+	return _rules_text.text if _rules_text.visible else ""
+
+
+## The camp phase's tip this week ("" outside a career or on fight night, D402).
+func phase_text() -> String:
+	return _phase.text if _phase.visible else ""

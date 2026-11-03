@@ -47,6 +47,7 @@ func _init(p_ai: FighterAI = null) -> void:
 	calls = LiveCalls.new()
 	add_source(calls)
 	rules = DrilledRules.new()
+	rules.ai = ai
 	add_source(rules)
 
 

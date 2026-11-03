@@ -1,6 +1,6 @@
 # 03 — Career, World & Life
 
-> Related decisions: D7, D16–D19, D21, D22, D25, D35, D41–D45, D55–D57, D160, D300–D316, D350–D359, D400–D419. Status: **design draft**; §7.1 and §10.1–§10.5, §11 and §12 (D350–D359) are built; §13 (phase 4) is being built (§13.1 so far).
+> Related decisions: D7, D16–D19, D21, D22, D25, D35, D41–D45, D55–D57, D160, D300–D316, D350–D359, D400–D419. Status: **design draft**; §7.1 and §10.1–§10.5, §11 and §12 (D350–D359) are built; §13 (phase 4) is being built (§13.1 and §13.2 so far).
 
 ---
 
@@ -1241,7 +1241,7 @@ study" first, my pick):
 | Piece | Decision | Status |
 |---|---|---|
 | Scouting and film study: grades as a range until he's scouted, film study finding his habits, only found habits cued, each man's own habits from his style | D401 | Built (§13.1) |
-| Drilling rules in camp: a session that drills one of his two rule slots, the slots in career fights, the camp's early, middle and taper weeks marked | D402 | Planned |
+| Drilling rules in camp: a session that drills one of his two rule slots, the slots in career fights, the camp's early, middle and taper weeks marked | D402 | Built (§13.2) |
 | More rules to drill: about six answers to the styles' habits | D403 | Planned |
 | The opponent's camp: a plan against your style, sometimes a rule against your favourite move, his own cut | D404 | Planned |
 | The weight cut and the weigh-in: how hard he cuts in fight week, missing weight (Kyle, 2026-11-02: "One pick now, planner later": light, normal, hard or extreme now, D23's five-day planner later as a minigame) | D405 | Planned |
@@ -1250,6 +1250,7 @@ study" first, my pick):
 | Coaches: assistants for a weekly fee, the head coach's levels | D408 | Planned |
 | Changing gyms: his hometown and the nearest city | D409 | Planned |
 | Minigames, one a PR: film study, heavy bag, sprawl reflex, Thai pads first | D410 on | Planned |
+| Your corner naming the habits you found at each round break (Kyle's ask after D401) | D419 | Built (§13.1) |
 
 ### 13.1 Scouting and film study (D401)
 
@@ -1281,6 +1282,12 @@ range", "Film study sessions find them" and "Found after 3 fires" and "1 to 2 ha
   shares moving inside what 12 fights can tell apart. The Sambo fighter's first list (two double legs) took him from 31 to 43
   shots a fight, so his second habit off a miss is a leg kick (35 shots, about as before, on 20 fights).
 
+- **Your corner talks about them** (D419; Kyle, 2026-11-02: "in the fight coaches should mention in the corner the tell
+  that was picked up", then picked "At each round break", my pick). At every round break of a career fight, the coach on the stool names each habit you've found, in camp
+  or in the fight so far, and how often he's done it: *Your corner: When his jab is blocked, he throws a body kick. He's done
+  it 3 times so far: make him pay.* (or *He hasn't shown it yet, but be ready.*). It's the first thing on the break's card.
+  Quick fights cue every tell and the corner says nothing of them, as before. (`corner_habit_lines` in `game/main.gd`.)
+
 Saved on the career as `scouting` (`docs/09` career@1; optional, so a career saved before D401 loads knowing nothing of
 anyone). A man who was already in the career's opponents keeps the habits he was made with.
 
@@ -1292,3 +1299,44 @@ D408), the film study minigame (spot the tell, D410), and the opponent studying 
 `SPOT_FIRES`) and how each trigger reads in a habit (`TRIGGER_TEXT`); each style's `habits` in `data/styles/`, and how many a
 man rolls (`StyleLibrary.HABIT_EXTRA_CHANCE`, `HABITS_MAX`). Tested in `tests/sim/world/test_scouting.gd`,
 `tests/sim/world/test_style_library.gd` and `tests/game/test_main_scene.gd`.
+
+### 13.2 Drilling rules in camp (D402)
+
+The two drilled rules (`docs/01` §23, D82, D116) come into the career: you pick them in the camp, drill them in sessions,
+and he takes them into the fight as sharp as camp left them. Kyle (2026-11-02) picked "Drill a rule sessions", "Fades
+slowly, keeps half", "Marked, nothing locked", "Fresh, and in place of his read" and "In the camp planner" (my picks on all
+five).
+
+- **His two rules** are picked in a career camp's new **Rules** box (two pickers). Only rules whose move he knows are offered:
+  everyone can sprawl, only a man from the Wrestling family background knows the catch. One rule can't sit in both slots.
+  The box shows how well drilled each one is. The career keeps them for the next camp (`rule_slots`).
+- **Drill rule 1** and **Drill rule 2** are two new sessions (`data/sessions/drill_rule_1.json`, `_2`; session@1
+  `drills_rule`), only offered in a career's planner (a quick camp has no rules to drill). Each one done takes that slot's
+  rule most of the way up: drilled = 1 − (1 − drilled) × e^(−reps / 3.73), one rep a session (less when he's worn out, as
+  every session's gains). About six sessions take a rule from nothing to 80%, and each one after adds less. They train a
+  little Fight IQ and Speed too and cost 6 fatigue. The camp log says what moved (*Drilled When he shoots → sprawl: 0% → 24%*).
+  A session for an empty slot drills nothing. Weeks between fights drill too, if you put them in the week's plan.
+- **Going rusty.** Every rule he's drilled is remembered, so swapping one out keeps what it had. A week he doesn't drill one,
+  it loses 2 points, but never drops below half of his best with it: drilled to 80% and left for a year, it's at 40% when he
+  comes back to it.
+- **In the fight** his two rules go in at their drilled share (a rule never drilled goes in at 0% and never fires). At the
+  round break you can swap between rules, each at its own drilled share; there's no slider in a career. Lesson fights 1 and 2
+  of the tutorial (§11.6) have no rules, as before.
+- **Rules worth having.** Before this, a drilled sprawl cost the man who had it wins (`docs/01` §23.3). Two changes to the
+  rules themselves (`docs/01` §23.5) fixed that before they went into the career: a rule sits out while he's gassed (under 30%
+  of his tank), and a sprawl rule stands in for his own read of a shot instead of doubling it.
+- **The camp's three parts** (A6) are marked above the week: *Early camp* for its first third (build him up), *Middle camp*
+  (get ready for this man: film study, sparring and drilling), and the *Taper* in fight week (keep it light: the less tired he
+  is, the fuller his tank, as before). Only marked, with a tip each: nothing is locked and nothing extra is paid for following
+  them.
+
+Saved on the career as `rules` (`docs/09` career@1; optional, so a career saved before D402 loads with no rules).
+
+**Not yet:** more rules to drill (D403, about six answers to the styles' habits), a drilling minigame, the opponent
+drilling a rule against you (D404), and a third slot with a coach (D408).
+
+**What to change:** `SCALE`, `FADE_PER_WEEK` and `KEEPS` at the top of `sim/world/rule_drilling.gd`; the sessions in
+`data/sessions/drill_rule_*.json`; the camp's parts and their tips in `Career.camp_phase()` and `CAMP_PHASE_TIPS`
+(`sim/world/career.gd`); when a rule sits out and how it stands in for his read in `sim/fight/drilled_rules.gd`
+(`FRESH_ABOVE`, `STAND_IN_FOR_READ`, `docs/01` §23.5). Tested in `tests/sim/world/test_rule_drilling.gd`,
+`tests/sim/fight/test_drilled_rules.gd`, `tests/data/test_data_files.gd` and `tests/game/test_main_scene.gd`.
