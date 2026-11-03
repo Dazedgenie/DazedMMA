@@ -99,6 +99,8 @@ var left_down: bool = false
 var liver_ticks: int = 0
 var liver_by: int = -1
 var winded_ticks: int = 0
+## Ticks left sitting up on top, away from strikes from underneath (D271): POSTURED_UP.
+var backed_off_ticks: int = 0
 ## Ticks left flinching from a clean shot: the feet stop (FightSim.STAGGER_*).
 var stagger_ticks: int = 0
 ## Ticks left with their posture broken: tied up from the bottom, so no ground strikes (D121).
@@ -158,6 +160,12 @@ var stand_ups_tried: int = 0
 var stand_ups: int = 0
 var up_kicks_landed: int = 0
 var stand_leg_grabs: int = 0
+## Strikes from the bottom (D271): landed from his back, and times they made the man on top sit up away from them.
+var bottom_strikes_landed: int = 0
+var backed_off: int = 0
+## Ground moves that worked off it (sweeps, getting up, grips taken), and whether the one in hand was started off it.
+var backed_off_used: int = 0
+var grip_off_backed: bool = false
 ## Ground grips (D263): tie-ups (the collar tie from underneath), wrists taken, posturing up out
 ## of them, and the half-guard underhook (dug from underneath, the crossface on top), tried and won.
 var ground_ties_tried: int = 0
@@ -203,8 +211,12 @@ var grip: OddsBreakdown = null
 var sprawled: bool = false
 ## Bit on a feint (D131): hands up and weight back for this many more ticks (BIT_ON_FEINT).
 var bit_ticks: int = 0
-## Slipped a punch (D180): his strikes up to this tick come off the slip (FightSim.SLIP_COUNTER_BONUS).
-var slip_counter_until: int = -1
+## Slipped or rolled a punch (D180, D181): the counter it set up, from the defence's
+## `defense.counter`: { until (tick), bonus, strikes (none = any), name }. Empty for none.
+var counter: Dictionary = {}
+## Leaned back out of the way (D181): off balance until this, so the other man's strikes get
+## the defence's `defense.exposed` bonus: { until (tick), bonus, name }. Empty for none.
+var exposed: Dictionary = {}
 ## Set up (D131): this fighter's last strike or feint ended recently enough that a shot
 ## started up to this tick isn't blind.
 var set_up_until: int = -1

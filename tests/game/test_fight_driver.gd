@@ -84,9 +84,9 @@ func test_a_paused_fight_stands_still_but_calls_still_go_in() -> void:
 
 
 func test_the_bell_holds_the_fight_until_the_next_round_is_started() -> void:
-	# Seed 2 goes the distance; on the file's seed the Wrestler finishes it in round 1 since the
-	# corners take turns stepping first (D253).
-	var sim: FightSim = _sim(2)
+	# Seed 5 goes the distance; on the file's seed the Wrestler finishes it in round 1 since the
+	# corners take turns stepping first (D253), and on seed 2 since strikes from the bottom (D271).
+	var sim: FightSim = _sim(5)
 	var driver := FightDriver.new(sim)
 	var rounds: Array[int] = []
 	driver.round_over.connect(func(e: FightEvent) -> void: rounds.append(e.round_number))

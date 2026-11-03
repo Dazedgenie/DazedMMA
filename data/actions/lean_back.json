@@ -1,0 +1,21 @@
+{
+	"schema": "action@2",
+	"id": "lean_back",
+	"name": "Lean back",
+	"category": "defense",
+	"positions": ["standing"],
+	"ranges": ["mid", "pocket"],
+	"phases_ms": { "telegraph": 0, "windup": 0, "active": 400, "recovery": 200 },
+	"stamina_cost": 2,
+	"flags_self": [
+		{ "flag": "LEANING_BACK", "from": "active", "to": "recovery" }
+	],
+	"defense": { "against_strikes": ["jab", "cross", "hook", "head_kick"], "base_success": 0.55,
+		"not_with": ["BACK_TO_CAGE"],
+		"exposed": { "ms": 600, "bonus": 0.15, "name": "leaned back" } },
+	"stats": { "offense": ["striking_defense", "footwork"], "defense": ["speed"] },
+	"opportunities": [
+		{ "own_flag": "BIT_ON_FEINT", "success_bonus": -0.10 }
+	],
+	"requires_technique": null
+}

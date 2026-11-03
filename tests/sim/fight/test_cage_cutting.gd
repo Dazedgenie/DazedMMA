@@ -191,10 +191,14 @@ func test_a_cutter_herds_a_circling_fighter_with_a_feint() -> void:
 
 func test_the_time_he_cut_the_opponent_off_onto_the_fence_is_counted() -> void:
 	var roster := FighterLibrary.load_dir()
-	var sim := FightSim.new(SEED, roster.make_pair("pressure_wrestler", "counter_striker"), _actions, 1, 300)
-	sim.run_to_end()
-	assert_gt(sim.cut_offs[0], 0, "the Pressure wrestler walks him onto the fence now and then")
-	assert_gte(sim.cut_offs[0], sim.cut_offs[1], "more than the Counter-striker does to him")
+	var cut_offs: Array[int] = [0, 0]
+	for n in 3:  # A few fights: one can go to the ground early and stay there (D271's guard strikes changed seed 1's).
+		var sim := FightSim.new(SEED + n, roster.make_pair("pressure_wrestler", "counter_striker"), _actions, 1, 300)
+		sim.run_to_end()
+		cut_offs[0] += sim.cut_offs[0]
+		cut_offs[1] += sim.cut_offs[1]
+	assert_gt(cut_offs[0], 0, "the Pressure wrestler walks him onto the fence now and then")
+	assert_gte(cut_offs[0], cut_offs[1], "more than the Counter-striker does to him")
 
 
 # --- Escape routes and being shut in (D233, D234, docs/01 §20.6) -------------------

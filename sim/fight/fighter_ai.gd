@@ -126,10 +126,17 @@ const OPENING_SHARPNESS: float = 2.0
 ## Sprawling on a shot it read: 60% + 30% × Takedown defense / 100.
 const SPRAWL_BASE: float = 0.6
 const SPRAWL_PER_TDD: float = 0.3
-## Checking or slipping a strike it read (D180), when the defence will be up as it lands:
+## Kneeing a shot it read (D182, _knee_the_shot), ahead of the sprawl: (20% + 40% × Fight IQ / 100) × outside (-Range / 100).
+const KNEE_SHOT_BASE: float = 0.2
+const KNEE_SHOT_PER_IQ: float = 0.4
+## Checking, slipping, rolling, leaning back from or blocking a strike it read (D180, D181), when the defence will be up as it lands:
 ## 60% + 30% × Striking defense / 100. Then the defence's own roll decides it (FightSim).
 const GUARD_BASE: float = 0.6
 const GUARD_PER_SD: float = 0.3
+## After a check (D180): for this many ticks his strikes follow up while the kicker's on one leg.
+const OFF_CHECK_TICKS: int = 6
+## Off a roll (D181): the counter's own strikes (the cross and overhand) weigh this much more.
+const COUNTER_PREFER: float = 2.0
 ## Covering up when rocked (D180): decided once each time he's rocked, 20% + 40% × Fight IQ / 100
 ## (40% for an average fighter), plus the Survive! call's cover_bonus (it makes him).
 const COVER_BASE: float = 0.2
@@ -386,6 +393,17 @@ const FRAME_WEIGHT: float = 0.6
 const TWO_ON_ONE_WEIGHT: float = 0.75
 const COVER_GROUND_ROCKED: float = 2.0
 const COVERED_WORK: float = 3.0
+## Strikes from the bottom (D271): in the guard and half guard, his elbows and short punches are
+## weighted like his other moves there × BOTTOM_STRIKES × (1 − Base / 100) kept between BOTTOM_STRIKES_MIN and 1
+## (strikers throw more from their backs, grapplers work their grips and sweeps), × the call's
+## `bottom_strikes` while *Ground and pound!* is on from underneath. Not while rocked. While the man on top
+## sits up away from them (FighterState.backed_off_ticks) the way out is open: getting up, the sweep and
+## working back to guard are × BACKED_OFF_TAKE and he throws no more strikes (the man is out of reach); the
+## man on top throws nothing until he's back in range (he can still work to pass).
+const BOTTOM_STRIKES: float = 0.25
+const BOTTOM_STRIKES_MIN: float = 0.2
+const BACKED_OFF_TAKE: float = 4.0
+const BACKED_OFF_MOVES: Array[String] = ["get_up", "sweep", "recover_guard"]
 ## Submissions (D126): only on an opening their hold looks for (the top fighter postured up for
 ## the armbar, his posture broken for the triangle, a head stuck low under a sprawl for the
 ## guillotine), and not again for SUB_RETRY_TICKS after the last try. Underneath, a hold is
@@ -788,7 +806,7 @@ func lead_rate(view: FightView, layer: DecisionLayer) -> float:
 	return minf(layer.lead_rate(view, rate), LEAD_RATE_CAP * f.work_rate)
 
 
-## Danger first (A2): a shot it read gets sprawled on. When the sprawl roll fails
+## Danger first (A2): a shot it read gets kneed (D182, by a fighter with the knee) or sprawled on. When that roll fails
 ## (or there's no sprawl), the shot is treated like any other move it read: a knee into
 ## the lowered head, or backing off.
 func _defend(view: FightView, layer: DecisionLayer) -> Decision:
@@ -797,6 +815,9 @@ func _defend(view: FightView, layer: DecisionLayer) -> Decision:
 	if ActionLibrary.is_throw(view.actions.get_action(_opp.id)):
 		return null  # Nothing to sprawl on (D128): it's read like any other move.
 	_opp.sprawl_rolled = true
+	var knee: Decision = _knee_the_shot(view)
+	if knee != null:
+		return knee
 	for id in _all_moves(view):
 		var action: Dictionary = view.actions.get_action(id)
 		if action.category == DEFENSE and action.defense.get("against_categories", []).has(TAKEDOWN) and _usable(view, action):
@@ -808,14 +829,44 @@ func _defend(view: FightView, layer: DecisionLayer) -> Decision:
 	return null
 
 
-## A strike it read (D180): check a low kick or slip a straight punch, if he has a defence
-## against it that will be up as it lands. One roll a strike; when it fails (or there's no
-## defence that fits), the strike is read like any other move: a counter, or backing off.
+## A shot it read, met with a knee (D182): a fighter who knows a strike that meets shots
+## (`strike.into_shots`: the knee) throws it ahead of the sprawl when it will land while the shooter is
+## coming in or his head is low: (KNEE_SHOT_BASE + KNEE_SHOT_PER_IQ × Fight IQ / 100) × how much of an outside
+## fighter he is (his Range leaning under 0, −100 = all of it), so the Kicker and the Karate fighter do it and the
+## Muay Thai fighter, who wants the clinch, still sprawls first. From
+## mid range too: the shooter brings his head to it (FightSim.meets_shot).
+func _knee_the_shot(view: FightView) -> Decision:
+	var outside: float = clampf(-view.me.style.value(StyleLeanings.RANGE) / 100.0, 0.0, 1.0)
+	if outside <= 0.0:
+		return null  # Inside fighters sprawl first, as before; a knee is still their answer once it fails.
+	_ready_choice(view)
+	for id in view.me.repertoire:
+		var action: Dictionary = view.actions.get_action(id)
+		if action.category != STRIKE or not action.strike.get("into_shots", false) or not action.positions.has(view.position()):
+			continue
+		if not (_usable(view, action) or (_band == Octagon.BAND_MID and view.ruleset.allows_action(action))):
+			continue
+		var b: OddsBreakdown = view.odds_ahead(id, _ticks_to_land(view, id))
+		if b.chance <= 0.0 or not (_has_bonus(b, "HEAD_LOW") or _has_bonus(b, "COMING_IN")):
+			continue  # It would land too late: the shot's over by then.
+		if view.roll() < outside * (KNEE_SHOT_BASE + KNEE_SHOT_PER_IQ * view.me.effective_stat("fight_iq") / 100.0):
+			_opp.decided = true
+			return Decision.new(id, DecisionLayer.AI, "knees into the shot")
+		return null
+	return null
+
+
+## A strike it read (D180, D181): check a low kick, or slip, roll, lean back from or block a punch,
+## if he has a defence against it that will be up as it lands. When more than one fits, the one
+## with the best odds for what it's worth (a block lets some in, a counter adds, off balance costs). One roll a strike; when it fails (or there's no defence that fits), the
+## strike is read like any other move: a counter, or backing off.
 func _guard(view: FightView, layer: DecisionLayer) -> Decision:
 	if _opp.get("guard_rolled", false):
 		return null
 	_opp.guard_rolled = true
 	var lands: int = _ticks_until_active(view)
+	var best: String = ""
+	var best_chance: float = 0.0
 	for id in _all_moves(view):
 		var action: Dictionary = view.actions.get_action(id)
 		if action.category != DEFENSE or not action.defense.get("against_strikes", []).has(_opp.id) or not _usable(view, action):
@@ -825,11 +876,20 @@ func _guard(view: FightView, layer: DecisionLayer) -> Decision:
 		var up: int = view.phase_ticks(id, "telegraph") + view.phase_ticks(id, "windup")
 		if lands < maxi(1, up + 1) or lands > up + view.phase_ticks(id, "active"):
 			continue
-		var chance: float = GUARD_BASE + GUARD_PER_SD * view.me.effective_stat("striking_defense") / 100.0
-		if view.roll() < chance:
-			_opp.decided = true
-			return Decision.new(id, DecisionLayer.AI, "%s the %s" % [String(action.name).to_lower(), String(view.actions.get_action(_opp.id).name).to_lower()])
+		# What it's worth if it works: a block still lets some in, a counter is a bonus, being left
+		# off balance a cost (D181).
+		var worth: float = 1.0 - float(action.defense.get("block_share", 0.0)) \
+			+ float(action.defense.get("counter", {}).get("bonus", 0.0)) - float(action.defense.get("exposed", {}).get("bonus", 0.0))
+		var odds: float = _odds(view, id).chance * worth
+		if odds > best_chance:
+			best = id
+			best_chance = odds
+	if best == "":
 		return null
+	var chance: float = GUARD_BASE + GUARD_PER_SD * view.me.effective_stat("striking_defense") / 100.0
+	if view.roll() < chance:
+		_opp.decided = true
+		return Decision.new(best, DecisionLayer.AI, "%s the %s" % [String(view.actions.get_action(best).name).to_lower(), String(view.actions.get_action(_opp.id).name).to_lower()])
 	return null
 
 
@@ -881,6 +941,7 @@ func _follow_up(view: FightView, layer: DecisionLayer) -> Decision:
 	var last: String = _follow.last
 	var combo: String = String(_follow.get("combo", ""))
 	var why: String = String(_follow.get("why", "combination"))
+	var prefer: Array = _follow.get("prefer", [])
 	_follow = {}
 	if combo != "":
 		var next: String = view.combos.move(combo, int(_follow_step))
@@ -900,6 +961,8 @@ func _follow_up(view: FightView, layer: DecisionLayer) -> Decision:
 		var w: float = _score(view, layer, action, _seen_chance(view, action, b), _plain_chance(b), false)
 		if id == last and id != "jab":
 			w *= 0.5  # Double jabs, yes; double hooks, rarely.
+		if prefer.has(id):
+			w *= COUNTER_PREFER  # The right hand off the roll (D181).
 		if w > 0.0:
 			options.append(id)
 			weights.append(w)
@@ -1227,6 +1290,14 @@ func _tied(view: FightView, layer: DecisionLayer) -> Decision:
 					reason = "goes for the %s" % String(action.name).to_lower()
 				elif holding and action.category == STRIKE:
 					reason = "knees from the collar tie"
+		if view.opponent.backed_off_ticks > 0 and BACKED_OFF_MOVES.has(id):
+			w *= BACKED_OFF_TAKE  # He sat up away from the elbows: the room to get out (D271).
+			reason = "takes the room as he sits up: " + reason
+		if action.category == STRIKE and view.my_role() == PositionLibrary.BOTTOM and position != PositionLibrary.CLINCH:
+			if view.opponent.backed_off_ticks > 0:
+				continue  # He's sat back out of reach: get out, don't swing at air.
+			w *= BOTTOM_STRIKES * clampf(1.0 - base, BOTTOM_STRIKES_MIN, 1.0) * layer.calls.bottom_strike_focus()
+			reason = "elbows up from his back" if String(id).contains("elbow") else "punches up from his back"
 		if w > 0.0:
 			options.append(id)
 			weights.append(w)
@@ -1278,8 +1349,8 @@ func _pound(view: FightView, layer: DecisionLayer) -> Decision:
 		d = _work_position(view, layer)  # Posturing up out of his grips is one of these (D263).
 	if d != null:
 		return d
-	if f.tied_up_ticks > 0 or view.hands_tied():
-		return DecisionLayer.IDLE
+	if f.tied_up_ticks > 0 or view.hands_tied() or f.backed_off_ticks > 0:
+		return DecisionLayer.IDLE  # Tied up, or sat back out of range of the elbows (D271): nothing to hit with yet.
 	var rate: float = GNP_RATE * f.work_rate * maxf(0.0, 1.0 + _lean(view, layer, StyleLeanings.PACE) / 100.0)
 	if view.opponent.is_rocked():
 		rate *= 1.5 + _lean(view, layer, StyleLeanings.RISK) / 200.0
@@ -2205,9 +2276,15 @@ func on_event(view: FightView, event: FightEvent, layer: DecisionLayer) -> void:
 					_follow = { "kind": COMBO, "until": event.tick + BAIT_COUNTER_TICKS, "last": "", "why": "off the bait" }
 		FightEvent.STRIKE_DEFENDED:
 			if event.actor == me and event.data.worked and not view.me.is_rocked():
-				# Off the slip, or while he's still on one leg from the check (D180).
-				var off: String = "off the check" if event.data.has("leg") else "off the slip"
-				_follow = { "kind": COMBO, "until": event.tick + FightSim.SLIP_COUNTER_TICKS, "last": "", "why": off }
+				# While he's still on one leg from the check (D180), or off the slip or the roll (D181).
+				if event.data.has("leg"):
+					_follow = { "kind": COMBO, "until": event.tick + OFF_CHECK_TICKS, "last": "", "why": "off the check" }
+				elif event.data.has("counter"):
+					_follow = { "kind": COMBO, "until": int(event.data.counter_until), "last": "", "why": event.data.counter,
+						"prefer": event.data.get("counter_strikes", []) }
+			elif event.actor != me and event.data.worked and event.data.has("exposed") and _follow.is_empty() and not view.me.is_rocked():
+				# He leaned back out of the way: the next punch, while he's off balance (D181).
+				_follow = { "kind": COMBO, "until": int(event.data.exposed_until), "last": String(event.data.against), "why": "he's leaning back" }
 		FightEvent.ROCKED, FightEvent.KNOCKDOWN:
 			if event.actor == me:
 				_follow = {}
