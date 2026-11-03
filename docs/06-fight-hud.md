@@ -509,8 +509,8 @@ edge, the toggle's light and underline, which labels get the display font and it
 
 ### 6.16 The result as a moment (D436)
 
-The sixth and last piece of D430: a fight ended and the full-screen sheet of numbers came straight up. Now (my picks on
-the four D436 cards, built while they're open):
+The sixth and last piece of D430: a fight ended and the full-screen sheet of numbers came straight up. Now (Kyle's picks
+on the four D436 cards, all four recommendations):
 
 - **The verdict first, over the cage** (`ui/verdict_banner.gd`, `VerdictBanner`): when the finish has been held and,
   with *Walk-out and corners* on, his hand raised, the HUD goes and a dark band across the lower third of the cage reads
