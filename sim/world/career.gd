@@ -879,7 +879,23 @@ func summary() -> Dictionary:
 		"background": String(about.get("background", "")),
 		"age": age(), "date": date_text(), "week": week, "pro": pro,
 		"amateur_record": record_text(false), "pro_record": record_text(true),
+		"division": division, "belt": _belt_held(), "portrait": _portrait_summary(),
 	}
+
+
+## The belt he holds by name ("the IML welterweight title"), or "" (D434's load screen). Read from the world as it
+## stands: a summary never moves the world on.
+func _belt_held() -> String:
+	if _world == null or not pro:
+		return ""
+	var belt: String = Titles.held_by(_world, FIGHTER_ID)
+	return Titles.title_name(_world, belt) if belt != "" else ""
+
+
+## What the load screen needs to draw him (D434): his look, frame and stance.
+func _portrait_summary() -> Dictionary:
+	var him: Dictionary = profile()
+	return { "look": him.get("look", {}), "frame": him.get("frame", {}), "stance": String(him.get("stance", "orthodox")) }
 
 
 ## The whole career as plain data for a save file (docs/09 career@1). Seeds and dice are text: a 64-bit number

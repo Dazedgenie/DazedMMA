@@ -229,6 +229,9 @@ var tell_watch: Scouting.Watch = null
 ## A training drill (the sprawl reflex, D411), not a fight: no move names over their heads (reading the move is the
 ## drill), no range tag and no referee. Set it before watch().
 var drill: bool = false
+## A fight behind the title screen (D434, TitleBackdrop): no move names over their heads and no range tag, so it reads
+## as a picture behind the menu; the referee stays. Set it before watch().
+var backdrop: bool = false
 var debug_marks: bool = false:
 	set(value):
 		debug_marks = value
@@ -389,7 +392,7 @@ func _process(delta: float) -> void:
 		figures[i].label_scale = zoom_share()
 		figures[i].show_state(sim, i, at, at + Vector2.from_angle(_facing[i]), delta, delta * driver.rate())
 		figures[i].show_tell(_tell_limb[i] if tell_cues and sim.now <= _tell_until[i] else "")
-		if drill:
+		if drill or backdrop:
 			figures[i].hide_overhead()
 	_pose_clinch(sim, delta)
 	_move_referee(sim, delta)
@@ -400,7 +403,7 @@ func _process(delta: float) -> void:
 	if _venue != null:
 		_venue.show_near_fence(shown, delta)
 	_show_tag(sim, middle, delta)
-	_tag.visible = not drill
+	_tag.visible = not drill and not backdrop
 	_place_camera(delta, middle, sim, shown)
 	if debug_marks:
 		for i in _want_rings.size():

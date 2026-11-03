@@ -285,6 +285,8 @@ The title screen and the slots on screen came with D302 (§10.2); the hub saves 
 
 ### 10.2 The title screen and a new career (D302)
 
+*Its look was rebuilt in D434 (`06` §6.14): the title over a real fight with the menu down the left, the new-career page with him in the middle and the backgrounds as tiles, and the load slots with his face. What's on each screen is as below; §6.14 is how it looks.*
+
 **The title screen** (`ui/title_screen.gd`) is the first thing the game shows, in the corner-board look of the screens off
 the cage (D170): CHIN CHECK in the display font, Lampsmoke Games under it (D242), then:
 
@@ -518,6 +520,8 @@ visual work).
 
 ### 11.2 His childhood (D312)
 
+*Since D434 (`06` §6.14): him at that age beside each scene.*
+
 Before he's 16 he's a boy (D8, D83, `02` §1.1). A new career now plays three short scenes from his childhood, at about 8, 12
 and 15, and what he chose in them makes him. *Play his childhood* on the new-career screen is ticked by default; *Start
 career* becomes *Play his childhood* and opens the scenes (`ui/childhood_screen.gd`). Untick it to pick his background from
@@ -568,6 +572,8 @@ that age's pool); the flavour, the height lean and the ages in `sim/world/childh
 section and D312.
 
 ### 11.3 Your gym and the walk-in (D313)
+
+*Since D434 (`06` §6.14): each gym a card with its owner's face and what it trains as chips, and him in a lit doorway at the walk-in.*
 
 You coach at a gym, and that's where he walks in at 16 (D37). Kyle (2026-11-01) picked **Yours** on the plan's card ("Whose
 gym does he walk into at 16?"): you coach at a gym, picked from three in his hometown when he walks in, and the walk-in is
