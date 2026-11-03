@@ -1259,7 +1259,7 @@ study" first, my pick):
 | Sparring partners: named men at his gym from the world's local men | D407 | Planned |
 | Coaches: assistants for a weekly fee, the head coach's levels | D408 | Planned |
 | Changing gyms: his hometown and the nearest city | D409 | Planned |
-| Minigames, one a PR: film study, heavy bag, sprawl reflex, Thai pads first (Kyle, 2026-11-03: "Minigames first", next after D403, before the opponent's camp) | D410 on | Film study built (§13.4, D410); sprawl reflex built (§13.5, D411) |
+| Minigames, one a PR: film study, heavy bag, sprawl reflex, Thai pads first (Kyle, 2026-11-03: "Minigames first", next after D403, before the opponent's camp) | D410 on | Film study built (§13.4, D410); sprawl reflex built (§13.5, D411); heavy bag built (§13.6, D412) |
 | Your corner naming the habits you found at each round break (Kyle's ask after D401) | D419 | Built (§13.1) |
 
 ### 13.1 Scouting and film study (D401)
@@ -1460,3 +1460,39 @@ gym's own look (a mat, not the cage).
 `ui/sprawl_reflex_screen.gd`; which sessions can be played in `CampPlanner.PLAYABLE`. To see it:
 `godot --path . --script res://tools/sprawl_preview.gd -- --level=50 --sprawl` (with `--write-movie` to save frames).
 Tested in `tests/sim/world/test_sprawl_reflex.gd` and `tests/ui/test_camp_planner.gd`.
+
+### 13.6 Heavy bag, the minigame (D412)
+
+The third phase 4 minigame (Kyle, 2026-11-03, picked "Heavy bag" next, my pick: strikers get a session to play, after a
+mind drill and a wrestling drill). It's `docs/02` §3.2's power timing with chaining. A Heavy bag session ticked to **Play**
+in the camp planner opens a minute on the bag before the week runs. Kyle's three cards (2026-11-03, all my picks): "2D drawn
+bag and meter", "Load, release, meet the swing", "Quicker meter, smaller green".
+
+- **The screen**: the bag drawn swinging on its chain, his glove, and a power meter beside it (green at the top, good
+  below it, weak under that), like mitt work's drawn mitts. A thud on every shot that lands, a whoosh on one that finds
+  nothing (made in code).
+- **A shot**: hold **Space** to load it. The meter climbs to the top and back down, over and over, while it's held; let
+  go with it in the green. The green is a full shot, the band below it good (worth 0.6), lower weak (0.15).
+- **The swing**: the bag swings away and back to him 1.4 s after a shot lands, however hard it was hit (a pendulum's
+  pace). Let go within 0.15 s of it coming back and the shot **meets** it: it counts in full and the chain grows. Let go
+  after it's back and the shot lands but misses the swing (× 0.6) and the chain ends. Let go while it's still swinging
+  away and the shot finds nothing: a whiff, a quarter of a shot off, and the chain ends. A ring over the meter fills as
+  the bag swings in and turns green as it meets you. The first shot meets a still bag.
+- **The skill**: start loading while the bag is still swinging away, so the meter tops out just as it comes back.
+- **The score**: what the shots were worth, less the whiffs, over a perfect round's shots (one each swing, 42). It's
+  the session's quality, ×0.8 for nothing up to ×1.5 for a perfect round, on what Heavy bag trains (Power 50%, Boxing
+  30%, Strength 20%). **Skip it** lets the session auto-resolve (×1.0), as before.
+- **Harder as he gets better**, by his Power from 20 to 90 (as mitt work by Boxing): the meter tops out in 1.0 s down to
+  0.6 s, and the green shrinks from 20% of the meter to 10%. **Tired arms:** from fatigue 40 at that point of the week the
+  green shrinks in a line to 60% of itself at fatigue 100, as mitt work's windows do.
+
+**Not yet:** kicks and knees on the bag (Thai pads will have them), the bag in a gym's own look, and a 3D view of his
+fighter on it.
+
+**What to change:** the round, the swing, the meter and the score in the constants at the top of
+`sim/world/heavy_bag.gd` (`ROUND_SECONDS`, `SWING_SECONDS`, `MEET_WINDOW`, `LOAD_SLOW`, `LOAD_FAST`, `GREEN_WIDE`,
+`GREEN_NARROW`, `GOOD_BAND`, `LEVEL_LOW`, `LEVEL_HIGH`, `TIRED_FROM`, `TIRED_FLOOR`, `MISSED_SWING`, `GOOD_CREDIT`,
+`WEAK_CREDIT`, `WHIFF_COST`); the drawing, colours and sounds in `ui/heavy_bag_screen.gd`; which sessions can be played in
+`CampPlanner.PLAYABLE`. To see it: `godot --path . --script res://tools/bag_preview.gd -- --power=50` (with
+`--write-movie` to save frames). Tested in `tests/sim/world/test_heavy_bag.gd` and `tests/ui/test_camp_planner.gd`.
+Fights don't change.
