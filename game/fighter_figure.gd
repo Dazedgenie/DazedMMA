@@ -36,12 +36,16 @@ const READ_COLOUR := Color("#66d9e8")
 ## them; a punch that has further to go turns the shoulder, leans and steps in (ArenaView.lunge_for).
 const UPPER_ARM: float = 0.31
 const FOREARM: float = 0.32
+## D421: folded hand/heel directions in the striker's frame (outward, up, backward).
+const ELBOW_FOLD := Vector3(0.75, -0.5, 1.0)
+const KNEE_FOLD := Vector3(0.0, -0.65, 1.0)
 ## Strikes that aim at the man in front (D281). limb: what throws it. point: where it lands on him
 ## (head, body, legs or calf). contact: the drawn centre-to-centre gap it lands at, so the view knows how
 ## far to step in. across: metres the contact sits toward the striking limb's side (a hook lands on the
 ## side of the head, a round kick on the ribs). bend: which way the elbow or knee points ("down" for a
 ## straight punch, "out" for a hook, "under" for an uppercut, "round" for a round kick, "up" for a teep).
 ## drop (if set): metres below the point it lands (the uppercut comes up under the chin, D360; was 0.8 contact).
+## joint (if true): aim the elbow/knee, keeping the hand/foot folded behind it (D421).
 const AIMS := {
 	"jab": { "limb": "lead_arm", "point": "head", "contact": 1.0, "across": 0.0, "bend": "down" },
 	"cross": { "limb": "rear_arm", "point": "head", "contact": 1.0, "across": 0.0, "bend": "down" },
@@ -51,7 +55,8 @@ const AIMS := {
 	"body_hook": { "limb": "lead_arm", "point": "body", "contact": 0.8, "across": 0.12, "bend": "out" },
 	"short_hook": { "limb": "lead_arm", "point": "head", "contact": 0.7, "across": 0.1, "bend": "out" },
 	"short_uppercut": { "limb": "rear_arm", "point": "head", "contact": 0.7, "across": 0.0, "bend": "under" },
-	"elbow": { "limb": "rear_arm", "point": "head", "contact": 0.7, "across": 0.08, "bend": "out" },
+	"elbow": { "limb": "rear_arm", "point": "head", "contact": 0.65, "across": 0.08, "bend": "out", "joint": true },
+	"knee": { "limb": "rear_leg", "point": "body", "contact": 0.67, "across": 0.0, "bend": "up", "joint": true },
 	"ground_punch": { "limb": "rear_arm", "point": "head", "contact": 0.0, "across": 0.0, "bend": "down" },
 	"ground_elbow": { "limb": "rear_arm", "point": "head", "contact": 0.0, "across": 0.0, "bend": "out" },
 	"hammerfist": { "limb": "rear_arm", "point": "head", "contact": 0.0, "across": 0.0, "bend": "out" },
@@ -380,7 +385,24 @@ func body_pose() -> Dictionary:
 		pose["knee_" + side] = _thighs[i].global_transform * Vector3(0, -FighterMotion.THIGH, 0)
 		pose["ankle_" + side] = _shins[i].global_transform * Vector3(0, -FighterMotion.SHIN, 0)
 		pose["foot_" + side] = _feet[i].global_basis.orthonormalized()
+	# Short strikes aim their middle joint, not the endpoint (D421). Retarget in the body's own lengths.
+	var action: String = _outcome_action
+	if AIMS.has(action) and bool(AIMS[action].get("joint", false)):
+		var arm: bool = String(AIMS[action].limb).ends_with("arm")
+		var root: Vector3 = _arm_meshes[1].global_position if arm else _leg_meshes[1].global_position
+		var target: Vector3 = aim_point(action, root)
+		if target.is_finite():
+			pose["joint_strike_" + ("arm_" if arm else "leg_") + arm_letter(1)] = {
+				"target": target, "weight": float(_pose.aim), "fold": _short_strike_fold(arm),
+			}
 	return pose
+
+
+## The distal limb folds back toward the striker; the glove stays beside his cheek, the heel below his knee.
+func _short_strike_fold(arm: bool) -> Vector3:
+	if arm:
+		return (global_basis.z * ELBOW_FOLD.z + _limb_side("rear_arm") * ELBOW_FOLD.x + Vector3.UP * ELBOW_FOLD.y).normalized()
+	return (global_basis * KNEE_FOLD).normalized()
 
 
 ## The pose (joint angles and heights) for fighter i right now: plain numbers, so it can be tested.
@@ -684,7 +706,7 @@ func _move_pose(p: Dictionary, f: FighterState, action: Dictionary, reach: float
 		"elbow":
 			p.arm_rear = lerpf(p.arm_rear, 1.8, reach)
 			p.reach_rear = lerpf(1.0, 0.9, reach)
-			p.twist = lerpf(p.twist, 0.5, reach)
+			p.twist = lerpf(p.twist, -0.55, reach)
 		"leg_kick":
 			p.leg_rear = lerpf(0.0, 0.9, reach)
 			p.twist = lerpf(p.twist, 0.7, reach)
@@ -1432,6 +1454,10 @@ func _pose_legs() -> void:
 							bend = (target - hip).normalized() + Vector3.UP * 0.5 + _limb_side(String(AIMS[kick].limb)) * 0.6
 						pole = pole.lerp(bend, aim)
 			var solved: Array[Vector3] = FighterMotion.solve(hip, ankle, pole)
+			if i == 1 and kick != "" and bool(AIMS[kick].get("joint", false)):
+				var target: Vector3 = aim_point(kick, hip)
+				if target.is_finite():
+					solved = FighterMotion.strike_joint(hip, solved, target, _short_strike_fold(false), float(_pose.aim), FighterMotion.THIGH, FighterMotion.SHIN)
 			knee = solved[0]
 			ankle = solved[1]
 		_bone(_thighs[i], pivot.to_local(hip), pivot.to_local(knee), FighterMotion.THIGH)
@@ -1501,6 +1527,10 @@ func _pose_arm(side: int, reach: float, angle: float) -> void:
 			pole = pole.lerp(pivot.global_basis.inverse() * bend, aim)
 	# Fixed bones (D281): the hand stops at full extension instead of stretching the arm.
 	var joints: Array[Vector3] = FighterMotion.solve_bones(Vector3.ZERO, hand, pole, UPPER_ARM, FOREARM)
+	if side == 1 and AIMS.has(action) and bool(AIMS[action].get("joint", false)) and String(AIMS[action].limb).ends_with("arm"):
+		var target: Vector3 = aim_point(action, pivot.global_position)
+		if target.is_finite():
+			joints = FighterMotion.strike_joint(Vector3.ZERO, joints, pivot.to_local(target), pivot.global_basis.inverse() * _short_strike_fold(true), aim, UPPER_ARM, FOREARM)
 	elbow = joints[0]
 	hand = joints[1]
 	_segment(_upper_arms[side], Vector3.ZERO, elbow)

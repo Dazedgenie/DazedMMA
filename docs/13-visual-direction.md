@@ -1207,6 +1207,25 @@ regression threshold in all eight. Rendered body and head kicks were also compar
 contact and recovery. This check covers the kicking arm against its own thigh, not every possible
 opponent contact.
 
+## Short-strike contact (D421)
+
+Standing elbows now lead with the elbow, and knees lead with the knee. Previously the elbow used the
+punch solver's hand target and the knee had no opponent target or step-in distance. The elbow also
+turned the rear shoulder away from the opponent, crowding the striker's own head when brought close.
+Its torso now turns the rear shoulder forward. Contact gaps are 0.65 m for an elbow and 0.67 m for a knee.
+
+The `joint` flag in `FighterFigure.AIMS` selects middle-joint contact. `FighterMotion.strike_joint`
+blends limb directions with fixed bone lengths, folding the hand/foot back along `ELBOW_FOLD` or
+`KNEE_FOLD`. `body_pose` carries that intent to `SkinnedBody.follow_joints`, which solves it again
+using the visible body's actual lengths. The existing outcome target still chooses landed, covered,
+missed or short contact; no fight rules or timing change.
+
+`tests/game/test_short_strike_contact.gd` checks visible elbow/knee contact in both stances, the distal
+limb behind the striking joint, the elbow forearm outside its own head, and fixed bone lengths through
+extension and recovery. `tools/strike_preview.gd -- --only=elbow,knee` renders the standing strikes.
+Clinch and ground combinations remain separate review cases; this does not certify every grip or
+transition around a short strike.
+
 ## Review and verification
 
 Open `project.godot` in Godot 4.7.2 and run the game normally. Start a fight and check striking,

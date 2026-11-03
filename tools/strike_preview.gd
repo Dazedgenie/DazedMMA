@@ -12,6 +12,7 @@ const CASES := [
 	["jab", "landed", "", "mid"], ["jab", "missed", "slip", "mid"],
 	["cross", "landed", "", "mid"], ["cross", "covered", "cover_up", "mid"], ["cross", "short", "", "long"],
 	["hook", "landed", "", "pocket"], ["uppercut", "landed", "", "pocket"],
+	["elbow", "landed", "", "pocket"], ["knee", "landed", "", "pocket"],
 	["body_kick", "landed", "", "long"], ["body_kick", "covered", "cover_up", "mid"],
 	["leg_kick", "landed", "", "mid"], ["leg_kick", "checked", "check_kick", "mid"],
 	["head_kick", "landed", "", "mid"], ["teep", "landed", "", "long"], ["calf_kick", "landed", "", "pocket"],
