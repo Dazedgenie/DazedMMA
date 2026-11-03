@@ -656,6 +656,14 @@ func keep_out() -> void:
 	_remember_shown()
 
 
+## Moves the whole posed body without changing its limbs, and remembers the corrected result (D422).
+func translate_pose(offset: Vector3) -> void:
+	var id: int = _ids.Hips
+	var local_offset: Vector3 = skeleton.global_transform.basis.inverse() * offset
+	skeleton.set_bone_pose_position(id, skeleton.get_bone_pose_position(id) + local_offset)
+	_remember_shown()
+
+
 ## What's shown now, to ease the next pose from and to measure its jumps against.
 func _remember_shown() -> void:
 	var count: int = skeleton.get_bone_count()

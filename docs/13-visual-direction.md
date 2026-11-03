@@ -1226,6 +1226,23 @@ extension and recovery. `tools/strike_preview.gd -- --only=elbow,knee` renders t
 Clinch and ground combinations remain separate review cases; this does not certify every grip or
 transition around a short strike.
 
+## Keeping the whole body inside the cage (D422)
+
+Sprawl paths bypassed the fence adjustment, and that adjustment checked only trunk/head points.
+The final body's toes could extend more than 80 cm outside the wire. Sprawl paths now receive the
+same adjustment as other takedowns, and authored path checks include the rig's limb joints.
+
+After both visible bodies settle, the view also checks `FENCE_BONES` with surface allowances against
+every octagon panel. One shared translation brings the pair inside, preserving their relative contact
+and every bone length. This catches limbs swinging outside between path keys and the visible body's
+different proportions. `SkinnedBody.translate_pose` remembers the corrected pose for the next frame.
+This is presentation only; the simulation positions remain unchanged.
+
+`tests/game/test_cage_clearance.gd` samples the visible body during sprawls and takedowns beside all
+eight panels and corners. Existing fence, takedown, clinch and submission-view checks also pass.
+`tools/cage_preview.gd` supplies reproducible before/after fence samples in the real game scene.
+The final constraint is a safety bound; authored paths should still avoid large corrective slides.
+
 ## Review and verification
 
 Open `project.godot` in Godot 4.7.2 and run the game normally. Start a fight and check striking,

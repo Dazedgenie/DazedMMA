@@ -99,6 +99,15 @@ const SPRAWL_SECONDS: float = 0.3
 const LAND_EASE: float = 0.45
 const FENCE_GAP: float = 0.06
 const FENCE_SPOTS: Array[String] = ["head", "back_of_head", "chin", "back", "lower_back", "seat", "chest", "belly"]
+## D422: surface allowances around the final body's joints, in metres. Include toes beyond the ankle.
+const FENCE_BONES := {
+	"Hips": 0.14, "Spine1": 0.18, "Spine2": 0.18, "Head": 0.13,
+	"LeftArm": 0.09, "RightArm": 0.09, "LeftForeArm": 0.07, "RightForeArm": 0.07,
+	"LeftHand": 0.09, "RightHand": 0.09, "LeftUpLeg": 0.11, "RightUpLeg": 0.11,
+	"LeftLeg": 0.09, "RightLeg": 0.09, "LeftFoot": 0.07, "RightFoot": 0.07,
+	"LeftToeBase": 0.07, "RightToeBase": 0.07,
+}
+const FENCE_SOLVE_PASSES: int = 8
 const TAKEDOWN_ENDED := "takedown ended"
 ## The ground positions from the rig (D289): full guard, half guard, side control, mount, the back and the
 ## crucifix are posed by GroundPair on the hidden rigs, laid out as today's figures lay them out (lay_out), with
@@ -519,6 +528,33 @@ func _settle_bodies(delta: float) -> void:
 	if figures.size() == 2:  # The first again, against where the second ended up.
 		figures[0].body.avoid = figures[1].body.trunk()
 		figures[0].body.keep_out()
+	_keep_bodies_in_cage()
+
+
+## A single translation preserves both bodies' contact and bone lengths, including between path keys.
+## Apply after easing: an interpolated foot can cross the wire even when both authored poses fit.
+func _keep_bodies_in_cage() -> void:
+	var over: Array[float] = []
+	for normal: Vector2 in Octagon.NORMALS:
+		var furthest: float = -INF
+		for figure in figures:
+			if figure.body == null:
+				continue
+			for bone: String in FENCE_BONES:
+				var at: Vector3 = figure.body._world_at(bone)
+				furthest = maxf(furthest, Vector2(at.x, at.z).dot(normal) + float(FENCE_BONES[bone]) - Octagon.APOTHEM)
+		over.append(furthest)
+	var push := Vector2.ZERO
+	for pass_index in FENCE_SOLVE_PASSES:
+		for i in Octagon.NORMALS.size():
+			var normal: Vector2 = Octagon.NORMALS[i]
+			var excess: float = over[i] + push.dot(normal)
+			if excess > 0.0:
+				push -= normal * excess
+	if push.length_squared() > 0.00000001:
+		for figure in figures:
+			if figure.body != null:
+				figure.body.translate_pose(Vector3(push.x, 0.0, push.y))
 
 
 ## Poses `built` (empty: today's figures) in `frame`, with any strike's limb from today's figure.
@@ -1240,8 +1276,12 @@ func _keep_off_fence(path: Array, by: int) -> void:
 		TakedownPair.pose_along(_clinch_rigs[by], _clinch_rigs[1 - by], path, float(k))
 		var push := Vector2.ZERO
 		for rig in _clinch_rigs:
+			var points: Array[Vector3] = []
 			for spot: String in FENCE_SPOTS:
-				var p: Vector3 = rig.point(spot)
+				points.append(rig.point(spot))
+			for joint: String in rig.joints:
+				points.append(Vector3(rig.joints[joint]))
+			for p: Vector3 in points:
 				for normal: Vector2 in Octagon.NORMALS:
 					var over: float = (Vector2(p.x, p.z) + push).dot(normal) - (Octagon.APOTHEM - FENCE_GAP)
 					if over > 0.0:
@@ -1300,6 +1340,7 @@ func _land(result: String) -> void:
 ## The double leg sprawled on: down onto his knees under the sprawl, held there until his move is over.
 func _sprawled() -> void:
 	_takedown.path = TakedownPair.to_sprawl(_takedown.path, float(_takedown.x))
+	_keep_off_fence(_takedown.path, int(_takedown.a))
 	_takedown.state = "sprawl"
 	_takedown.x = 0.0
 	_takedown.left = SPRAWL_SECONDS
