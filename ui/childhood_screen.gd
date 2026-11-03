@@ -1,7 +1,7 @@
 class_name ChildhoodScreen
 extends PanelContainer
 ## His childhood (docs/03 §11.2, D312): three scenes, at about 8, 12 and 15 (Childhood.draw), one at a time on a
-## corner-board card. Pick one of three choices, read what came of it, then Next. After the third, *Who he became*: the
+## corner-board card, with him at that age beside it (docs/06 §6.14, D434). Pick one of three choices, read what came of it, then Next. After the third, *Who he became*: the
 ## background his choices add up to, the flavour of the runner-up, the people they brought in and his starting money,
 ## and Start career.
 
@@ -14,6 +14,15 @@ const RED_CORNER := Color("#ff6b6b")
 const TEXT := Color("#e9ecef")
 const DIM := Color("#8a8f98")
 const GOOD := Color("#69db7c")
+
+## Him at each scene's age (D434): his height, reach and build (lean) then, and no beard before 15. Past the last
+## age, he's drawn as Who he became makes him.
+const AGE_FRAMES := {
+	8: { "height_cm": 128, "reach_cm": 126, "build": "lean" },
+	12: { "height_cm": 151, "reach_cm": 150, "build": "lean" },
+	15: { "height_cm": 170, "reach_cm": 171, "build": "lean" },
+}
+const PORTRAIT_SIZE := Vector2(340.0, 620.0)
 
 ## What he chose so far: [{scene, choice}], oldest first.
 var picks: Array = []
@@ -33,6 +42,8 @@ var _buttons: VBoxContainer
 var _outcome: Label
 var _next: Button
 var _start: Button
+## Him at the age of the scene showing (D434).
+var portrait: FighterPortrait
 
 
 func _init(p_childhood: Childhood = null, p_backgrounds: BackgroundLibrary = null) -> void:
@@ -42,6 +53,14 @@ func _init(p_childhood: Childhood = null, p_backgrounds: BackgroundLibrary = nul
 	add_theme_stylebox_override("panel", FightHud._panel_style(BACKGROUND))
 	var center := CenterContainer.new()
 	add_child(center)
+	var pair := HBoxContainer.new()
+	pair.add_theme_constant_override("separation", 24)
+	center.add_child(pair)
+	# Him at that age beside the card (D434, Kyle's card "Him at that age"): shorter and slighter at 8 and 12, nearly
+	# grown at 15, and as he'll start at 16 on Who he became.
+	portrait = FighterPortrait.new(FighterPortrait.FULL, 0, -20.0)
+	portrait.custom_minimum_size = PORTRAIT_SIZE
+	pair.add_child(portrait)
 	var card := PanelContainer.new()
 	card.custom_minimum_size = Vector2(900.0, 560.0)
 	var style: StyleBoxFlat = FightHud._panel_style(CARD)
@@ -49,7 +68,7 @@ func _init(p_childhood: Childhood = null, p_backgrounds: BackgroundLibrary = nul
 	style.border_width_top = 6
 	style.border_color = RED_CORNER
 	card.add_theme_stylebox_override("panel", style)
-	center.add_child(card)
+	pair.add_child(card)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 14)
 	card.add_child(box)
@@ -162,6 +181,7 @@ func _show_scene() -> void:
 	_outcome.visible = false
 	_next.visible = false
 	_start.visible = false
+	portrait.show_fighter(at_age(int(sc.age)))
 	if not _choice_buttons().is_empty():
 		FightHud.focus_later(_choice_buttons()[0])
 
@@ -200,12 +220,30 @@ func _show_summary() -> void:
 	lines.append("He starts with $%d saved." % (int(bg.get("money", 0)) + _childhood.money(picks)))
 	lines.append(String(bg.get("hook", "")))
 	_body.text = "\n".join(lines)
+	var grown: Dictionary = him.duplicate(true)
+	grown.id = "childhood_him"
+	grown.look = _choices.get("look", {})
+	portrait.show_fighter(grown)
 	for b: Button in _choice_buttons():
 		b.visible = false
 	_outcome.visible = false
 	_next.visible = false
 	_start.visible = true
 	FightHud.focus_later(_start)
+
+
+## Him as a boy of `age` for the portrait: his look and stance from the new-career screen, at that age's frame
+## (AGE_FRAMES: the nearest age at or under it), with no beard before 15.
+func at_age(age: int) -> Dictionary:
+	var frame: Dictionary = AGE_FRAMES[AGE_FRAMES.keys()[0]]
+	for a: int in AGE_FRAMES:
+		if a <= age:
+			frame = AGE_FRAMES[a]
+	var look: Dictionary = Dictionary(_choices.get("look", {})).duplicate()
+	if age < 15:
+		look.beard = "none"
+	return { "id": "childhood_%d" % age, "name": String(_choices.get("name", "")),
+		"stance": String(_choices.get("stance", "orthodox")), "look": look, "frame": frame.duplicate() }
 
 
 ## The fighter@1 profile these picks make (as Career.start makes him): his background's fighter, changed by his choices.
