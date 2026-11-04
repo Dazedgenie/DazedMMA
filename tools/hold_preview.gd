@@ -51,12 +51,13 @@ func _capture() -> void:
 		if not sim._lock_in(int(case[3]), sim.actions.get_action(case[1])):
 			push_error("Could not arrange hold: " + String(case[0]))
 			continue
-		for stage: String in ["loose", "tight", "released"]:
-			if stage == "released":
+		for stage: String in ["loose", "tight", "tap", "opening", "released"]:
+			if stage == "tap":
 				sim._finish(int(case[3]), FightSim.RESULT_SUB)
-			else:
+			elif stage in ["loose", "tight"]:
 				sim._hold.danger = 20.0 if stage == "loose" else 95.0
-			for frame in 120:
+			var frames: int = 120 if stage in ["loose", "tight"] else (30 if stage == "tap" else 27)
+			for frame in frames:
 				view._process(1.0 / 30.0)
 			var focus: Vector3 = (view.figures[0].body.hips_at() + view.figures[1].body.hips_at()) / 2.0 + Vector3.UP * 0.3
 			for side in 2:

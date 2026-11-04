@@ -1257,6 +1257,24 @@ head without passing through its centre. Existing submission-pair reach, floor a
 remain in force. The loose and tight poses were inspected from both sides with `tools/hold_preview.gd`.
 The mount armbar remains its own existing pose; this repair concerns the armbar entered from guard.
 
+## Releasing a submission after the tap (D424)
+
+The finish previously returned to the tight submission after the tapping interval. It now captures
+the posed contacts, opens the hands and hooks for `RELEASE_GRIP_SECONDS` (0.4 s), then separates the
+bodies over `RELEASE_SPACE_SECONDS` (0.65 s). This starts after the existing 1.4 s tap and completes
+within the existing 3 s finish presentation; the result and tap signal timing are unchanged.
+
+Release targets are measured from the actual fitted rigs, with opponent-relative grip anchors replaced
+by explicit targets. Both bodies relax toward the hold's loose torso posture. A mount armbar retracts
+its legs to the attacker's side before separation so they do not sweep down across the defender's head.
+`RELEASE_HAND`, `RELEASE_HOOK`, `RELEASE_SPACE` and the remaining `RELEASE_*` constants in `arena_view.gd`
+set the distances. This is a disengagement, not a new stand-up animation.
+
+`tests/game/test_submission_view.gd` verifies body separation and hand release for nine hold cases,
+plus leg/head disengagement for armbars and the triangle. Existing tap, referee and ceremony checks
+pass. `tools/hold_preview.gd` captures the tap, opening and released stages from two sides before the
+results panel appears; the final poses were reviewed visually.
+
 ## Review and verification
 
 Open `project.godot` in Godot 4.7.2 and run the game normally. Start a fight and check striking,
