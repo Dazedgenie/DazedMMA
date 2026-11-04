@@ -521,6 +521,10 @@ func follow_joints(pose: Dictionary, only: Array[String] = []) -> void:
 			var out: Vector3 = Vector3.LEFT if side == "l" else Vector3.RIGHT
 			bend += Basis(pose.chest) * (Vector3.DOWN + out * 0.5).normalized() * ELBOW_DOWN
 		var chain: Array[Vector3] = FighterMotion.solve_bones(root, end_at, bend, first, second)
+		var strike_key: String = "joint_strike_" + String(limb[4]) + "_" + side
+		if pose.has(strike_key):
+			var strike: Dictionary = pose[strike_key]
+			chain = FighterMotion.strike_joint(root, chain, strike.target, strike.fold, float(strike.weight), first, second)
 		var middle: Vector3 = chain[0]
 		var tip: Vector3 = chain[1]
 		_aim_bone(upper, lower, root, middle, bend, arm, to_skeleton)

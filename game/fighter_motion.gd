@@ -70,3 +70,16 @@ static func solve_bones(root: Vector3, end: Vector3, pole: Vector3, first: float
 	var along: float = (first * first - second * second + distance * distance) / (2.0 * distance)
 	var height: float = sqrt(maxf(0.0, first * first - along * along))
 	return [hip + axis * along + bend.normalized() * height, hip + axis * distance]
+
+
+## Aim an elbow/knee at the contact while folding the distal limb behind it (D421).
+## Blend directions rather than positions so neither bone changes length during the strike.
+static func strike_joint(root: Vector3, chain: Array[Vector3], target: Vector3, fold: Vector3, weight: float, first: float, second: float) -> Array[Vector3]:
+	var toward: Vector3 = target - root
+	if toward.length_squared() < 0.0001 or fold.length_squared() < 0.0001:
+		return chain
+	var a: float = clampf(weight, 0.0, 1.0)
+	var upper: Vector3 = (chain[0] - root).normalized().slerp(toward.normalized(), a)
+	var lower: Vector3 = (chain[1] - chain[0]).normalized().slerp(fold.normalized(), a)
+	var middle: Vector3 = root + upper * first
+	return [middle, middle + lower * second]
