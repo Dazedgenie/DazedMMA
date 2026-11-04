@@ -143,6 +143,12 @@ var _rules_heading: Label
 var rule_slots: RuleSlots
 var _rules_text: Label
 var _scouting: RichTextLabel
+## In a pro career fight (D405): how hard he cuts, its line, and the weigh-in card shown before the fight night card.
+var cut_picker: OptionButton
+var _cut_heading: Label
+var _cut_text: Label
+var weigh_in_card: WeighInCard
+var _weighed: bool = false
 
 
 func _init(profile: Dictionary, camp_seed: int = 1, library: TrainingLibrary = null) -> void:
@@ -200,6 +206,12 @@ func _init(profile: Dictionary, camp_seed: int = 1, library: TrainingLibrary = n
 	night_card.pull_out_pressed.connect(pull_out)
 	night_card.back_pressed.connect(func() -> void: show_night_card(false))
 	add_child(night_card)
+	weigh_in_card = WeighInCard.new()
+	weigh_in_card.visible = false
+	weigh_in_card.continue_pressed.connect(func() -> void:
+		_weighed = true
+		_refresh())
+	add_child(weigh_in_card)
 	_new_camp()
 	pick_preset(START_PLAN if _plan_ids.has(START_PLAN) else _plan_ids[0])
 
@@ -249,6 +261,36 @@ func use_career(c: Career) -> void:
 	_rules_text.get_parent().move_child(rule_slots, _rules_text.get_index())
 	_rules_heading.visible = true
 	_rules_text.visible = true
+	_weighed = false
+	if not WeightCut.of(c).is_empty() and cut_picker == null:
+		# A pro fight (D405): how hard he cuts in fight week.
+		var box: Node = _rules_text.get_parent()
+		_cut_heading = _heading("Weight cut")
+		box.add_child(_cut_heading)
+		box.move_child(_cut_heading, _rules_text.get_index() + 1)
+		cut_picker = OptionButton.new()
+		for level: String in WeightCut.LEVELS:
+			cut_picker.add_item(String(WeightCut.NAMES[level]))
+		cut_picker.tooltip_text = "How much water he sheds in fight week: a harder cut makes him heavier on fight night but drains him and risks missing weight"
+		cut_picker.item_selected.connect(func(i: int) -> void: set_cut(WeightCut.LEVELS[i]))
+		box.add_child(cut_picker)
+		box.move_child(cut_picker, _cut_heading.get_index() + 1)
+		_cut_text = _dim_label(14)
+		_cut_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		box.add_child(_cut_text)
+		box.move_child(_cut_text, cut_picker.get_index() + 1)
+	if cut_picker != null:
+		cut_picker.selected = WeightCut.LEVELS.find(WeightCut.level_of(c))
+	_refresh()
+
+
+## How hard he cuts for the booked fight (D405): light, normal, hard or extreme. Fixed once the camp is over.
+func set_cut(level: String) -> void:
+	if career == null or done() or not level in WeightCut.LEVELS:
+		return
+	career.booked.cut = level
+	if cut_picker != null:
+		cut_picker.selected = WeightCut.LEVELS.find(level)
 	_refresh()
 
 
@@ -1017,7 +1059,15 @@ func _refresh() -> void:
 		_rules_text.text = RuleDrilling.slots_text(career)
 	_refresh_stats(forecast.get("gains", {}))
 	_night_button.visible = done()
-	night_card.visible = done() and _night_open
+	var weighed: Dictionary = WeightCut.of(career) if career != null else {}
+	if cut_picker != null:
+		cut_picker.disabled = done()
+		_cut_text.text = WeightCut.plan_text(weighed.get("him", {}))
+	weigh_in_card.visible = done() and _night_open and not weighed.is_empty() and not _weighed
+	if weigh_in_card.visible:
+		weigh_in_card.show_weigh_in(weighed, [_start, career.booked_opponent()], [String(_start.get("name", "Fighter")), opponent_name],
+			Weight.name_of(career.division_now()), String(career.booked.get("title", "")) != "")
+	night_card.visible = done() and _night_open and not weigh_in_card.visible
 	if done() and not _plan_filled:
 		_plan_filled = true
 		night_card.gameplan.show_plan(camp_plan())
@@ -1030,9 +1080,15 @@ func _refresh() -> void:
 ## What the fight night card shows (FightNightCard.show_night).
 func _night_info() -> Dictionary:
 	var start_chin: float = float(_start.get("stats", {}).get("chin", FighterState.DEFAULT_STAT))
+	var night: Dictionary = camp.fight_night()
+	var weighed: Dictionary = WeightCut.of(career) if career != null else {}
+	if not weighed.is_empty():
+		night.tank = float(night.tank) * (1.0 - float(weighed.him.tank_cost))  # What his cut costs him (D405).
+		night.cut_cost = float(weighed.him.tank_cost)
 	return { "name": String(_start.get("name", "Fighter")), "age": camp.age, "weeks": weeks, "opponent": opponent_name,
 		"profile": _start,
-		"night": camp.fight_night(), "pulled_out": pulled_out, "history": _history(), "gains": camp.camp_gains(),
+		"weigh_in": WeightCut.lines(weighed, String(_start.get("name", "Fighter")), opponent_name),
+		"night": night, "pulled_out": pulled_out, "history": _history(), "gains": camp.camp_gains(),
 		"chin": camp.stat("chin"), "chin_change": camp.stat("chin") - start_chin,
 		"their_camp": OpponentCamp.lines(OpponentCamp.of(career)) if career != null else [] }
 

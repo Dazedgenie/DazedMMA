@@ -625,10 +625,21 @@ func finish_fight(entry: Dictionary) -> int:
 	if on_card:
 		# Onto his ranking points, in the promotion whose card it was (D355).
 		Rankings.his_fight(world(), fighter_name(), on, division_now(), e.opponent, String(e.result), String(e.get("method", "")), week)
+	# The weigh-in (D405): both men's cuts onto his record; a man who missed weight is fined and can't win a belt.
+	var weighed: Dictionary = WeightCut.of(self)
+	var i_missed: bool = not weighed.is_empty() and not bool(weighed.him.made)
+	var he_missed: bool = not weighed.is_empty() and not bool(weighed.opp.made)
+	if not weighed.is_empty():
+		e.weigh_in = WeightCut.record(weighed)
 	if String(booked.get("title", "")) != "":
 		# A title fight (D356): the belt goes with whoever won.
 		e.title = String(booked.title)
-		Titles.his_title_fight(world(), String(booked.title), e.opponent, String(e.result), week)
+		var k: String = String(booked.title)
+		var holder: String = String(world().titles.get(k, {}).get("champion", ""))
+		if (i_missed and holder == FIGHTER_ID) or (he_missed and holder == e.opponent):
+			Titles.vacate(world(), k, week, "missed weight")  # A champion who misses weight is stripped at the scale.
+		if not ((i_missed and String(e.result) == "win") or (he_missed and String(e.result) == "loss")):
+			Titles.his_title_fight(world(), k, e.opponent, String(e.result), week)
 	if String(booked.get("eliminator", "")) != "":
 		# A title eliminator (D357): won, he's next in line.
 		e.eliminator = String(booked.eliminator)
@@ -652,6 +663,12 @@ func finish_fight(entry: Dictionary) -> int:
 		e.card = (booked.card as Dictionary).duplicate()  # The local card it was on (D314).
 	var purse: Dictionary = booked.get("purse", {})
 	var paid: int = int(purse.get("show", 0)) + (int(purse.get("win", 0)) if String(e.result) == "win" else 0)
+	if i_missed and paid > 0:
+		e.fine = roundi(WeightCut.FINE * paid)  # A share of his purse to the other man (D405).
+		paid -= int(e.fine)
+	elif he_missed and int(purse.get("show", 0)) > 0:
+		e.fine_got = roundi(WeightCut.FINE * int(purse.get("show", 0)))  # A share of his, as much as your show money.
+		paid += int(e.fine_got)
 	if paid > 0:
 		e.purse = paid
 	var after: Dictionary = Aftermath.of(String(e.result), String(e.get("method", "")), hard)

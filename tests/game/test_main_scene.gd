@@ -559,6 +559,52 @@ func test_the_booked_man_comes_in_with_his_camp_and_your_moves_go_on_your_record
 	assert_eq(_main.state, _main.OVER)
 	assert_true(_main.career.fights[-1].get("moves") is Dictionary, "what he threw, kept for the next man's camp")
 
+func test_a_pro_picks_his_cut_in_camp_weighs_in_before_fight_night_and_fights_with_what_it_cost_and_won() -> void:
+	_main.open_new_career()
+	_main.new_career.set_play_childhood(false)
+	_main.new_career.set_know_the_game(true)
+	_main.new_career.press_start()
+	_main.gym_screen.pick(0)
+	_main.gym_screen.press_start()
+	_main.career.week_plan = "time_off"
+	_main.hub.press_week()
+	_main.hub.press_accept(_main.hub.offer_ids()[0])
+	_main.career.trainee.age_years = 21.0
+	_main.career.pro = true
+	_main.career.division = "lightweight"
+	_main.career.fighter.frame.adult_kg = 80.0
+	_main.career.booked.pro = true  # A pro fight weighs in the day before (D405).
+	_main.hub.press_camp()
+	var planner: CampPlanner = _main.planner
+	assert_not_null(planner.cut_picker, "the cut is picked in the camp")
+	planner.set_cut(WeightCut.HARD)
+	assert_eq(String(_main.career.booked.cut), WeightCut.HARD)
+	var weighed: Dictionary = WeightCut.of(_main.career)
+	planner.pick_preset("time_off")
+	planner.run_rest()
+	assert_true(planner.weigh_in_card.visible, "the weigh-in comes first")
+	assert_false(planner.night_card.visible)
+	assert_string_contains(planner.weigh_in_card.text(), "Hard cut")
+	assert_string_contains(planner.weigh_in_card.text(), "WEIGHT")
+	planner.weigh_in_card.press_continue()
+	assert_true(planner.night_card.visible, "then fight night")
+	assert_string_contains(planner.night_card.text(), "WEIGH-IN")
+	var trained: Dictionary = planner.trained_profile()
+	planner.fight_pressed.emit(trained)
+	assert_eq(_main.state, _main.FIGHT)
+	assert_eq(String(_main.settings.weigh_in.cut), WeightCut.HARD)
+	var red: Dictionary = _main.settings.red_profile
+	assert_almost_eq(float(red.condition.tank), float(trained.condition.tank) * (1.0 - float(weighed.him.tank_cost)), 0.002, "the cut drains his tank")
+	assert_almost_eq(float(red.stats.chin), float(trained.stats.chin) - float(weighed.him.chin_cost), 0.01)
+	assert_almost_eq(float(red.stats.get("strength", FighterState.DEFAULT_STAT)),
+		float(trained.stats.get("strength", FighterState.DEFAULT_STAT)) + float(weighed.edge), 0.01, "the bigger man's edge")
+	_main.driver.throw_towel()
+	var frames: int = 0
+	while _main.state != _main.OVER and frames < 100:
+		frames += 1
+		_main._process(FRAME)
+	assert_eq(String(_main.career.fights[-1].weigh_in.cut), WeightCut.HARD, "on his record")
+
 func test_his_corner_names_the_habits_you_found_and_how_often_he_has_done_them_at_the_break() -> void:
 	var kick := { "trigger": "own_jab_blocked", "action": "body_kick", "chance": 0.7, "within_ms": 1500 }
 	var overhand := { "trigger": "opp_strike_misses", "action": "overhand", "chance": 0.5, "within_ms": 800 }
