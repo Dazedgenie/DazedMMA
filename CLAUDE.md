@@ -22,6 +22,7 @@
 - How long each fighter circled and cut off the cage, reported after every fight (what counts, the numbers to change it): `docs/01-fight-engine.md` §20.3 (D119).
 - Smoke-run the main scene: `godot --headless --quit-after 30`
 - The fight screen (setup, grey-box 3D view, HUD v0, speed controls, hotkeys, F3 debug overlay), what's not in v0 yet and what to edit: `docs/06-fight-hud.md` §6 (D117).
+- The fight screen cleaned up (the score bug, your corner card, only the calls that work from here, the damage numbers and the full feed on Tab, the round break down the side with bars, the danger meter over the calls, `tools/hud_shots.gd` for screenshots, the numbers to change): `docs/06-fight-hud.md` §6.17 (D460–D466).
 - The body damage figure on the top bar (head, body and legs green → red, the readout, hit flash and rocked pulse; it replaced the health bar) and the numbers to change it: `docs/06-fight-hud.md` §6.2 and §6.6 (D150).
 - Playtest kit (the Windows download from Actions → Playtest build, the Playtest fights in `data/playtest/`, saved fights and `tools/playtest_report.gd`, the host script, feedback form and write-up template): `docs/playtests/README.md` (D118). No testers: `docs/playtests/solo-checklist.md` (D127). Self-check an export: `ChinCheck.x86_64 --headless -- --self-check`.
 - Re-run the playtest write-up's balance numbers without Godot installed: Actions → Playtest numbers → Run workflow (`.github/workflows/playtest-numbers.yml`, D124); what each part is and where its numbers go: `docs/playtests/README.md` §4.

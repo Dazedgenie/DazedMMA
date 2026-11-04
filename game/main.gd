@@ -598,10 +598,6 @@ func _career_settings(profile: Dictionary, simmed: bool = false) -> Dictionary:
 	return s
 
 
-## The round break's last line, about changing rules and the gameplan.
-const BREAK_CHANGE_LINE := "[color=#adb5bd]Change your drilled rules and gameplan for the next round if you like.[/color]"
-
-
 ## A career fight is over (D304): onto his record (Career.finish_fight), any injury fighting hurt made worse, saved.
 ## Returns the lines for the result screen.
 ## Habits of his the player saw going off often enough to find them (D401) are found for good: a line each for the
@@ -825,6 +821,7 @@ func start_fight(p_settings: Dictionary) -> void:
 	arena.tell_cues = bool(settings.get("tell_cues", true))
 	arena.tell_watch = Scouting.Watch.new(settings.known_tells) if settings.get("known_tells") is Array else null
 	arena.watch(driver)
+	arena.hud_names_holds = true  # The danger meter names the hold (D466).
 	_moments = bool(settings.get("moments", false)) and arena.can_play_moments() \
 		and (DisplayServer.get_name() != "headless" or moments_in_headless)
 	sounds.volume = float(settings.get("sound_volume", 1.0))
@@ -895,7 +892,7 @@ func make_call(id: String) -> void:
 		return
 	var why: String = FightHud.call_problem(driver.sim, driver.player, driver.sim.calls.get_call(id))
 	if why != "":
-		hud.feed.add_line(FightFeed.EXPLANATION, "[color=#8a8f98]Can't call \"%s\" now: %s[/color]" % [driver.sim.calls.get_call(id).name, why])
+		hud.feed.add_line(FightFeed.NOTE, "[color=#8a8f98]Can't call \"%s\" now: %s[/color]" % [driver.sim.calls.get_call(id).name, why])
 		return
 	driver.make_call(id)
 
@@ -938,7 +935,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			_on_control("towel")
 		KEY_M:
 			sounds.muted = not sounds.muted
-			hud.feed.add_line(FightFeed.EXPLANATION, "[color=#8a8f98]Sound %s (M)[/color]" % ("off" if sounds.muted else "on"))
+			hud.feed.add_line(FightFeed.NOTE, "[color=#8a8f98]Sound %s (M)[/color]" % ("off" if sounds.muted else "on"))
 		KEY_ESCAPE:
 			_open_menu()
 		KEY_Q:
@@ -1009,34 +1006,34 @@ func _on_round_over(event: FightEvent) -> void:
 	state = ROUND_BREAK
 	var sim: FightSim = driver.sim
 	var next: int = event.round_number + 1  # The clock may not have moved on yet when the bell rings.
-	var summary: String = round_summary(sim, event)
-	var extra: VBoxContainer = null
+	# The break's side panel (D465): the round's card (the judges' chips, the two men as bars), then the pickers.
+	var extra := VBoxContainer.new()
+	extra.add_theme_constant_override("separation", 14)
+	var card := RoundBreakCard.new()
+	card.show_round(sim, event)
+	extra.add_child(card)
 	_break_rules = null
 	_break_plan = null
 	if Tutorial.plan_open(int(settings.get("lesson", 0))):
+		extra.add_child(FightHud._heading("NEXT ROUND"))
 		_break_rules = RuleSlots.new(sim.fighters[driver.player].profile, _actions)
 		if bool(settings.get("career", false)) and career != null:
 			_break_rules.use_drilled(_career_drilled())  # Only as sharp as camp left them (D402).
 		_break_rules.show_rules(_current_rules())
-		_break_plan = GameplanPicker.new("Gameplan for the next round")
+		_break_plan = GameplanPicker.new("Gameplan")
 		_break_plan.show_plan(_current_plan())
-		extra = VBoxContainer.new()
-		extra.add_child(_break_rules)
 		extra.add_child(_break_plan)
-	else:
-		# Before his third fight the break is just the cards (D316): rules and the gameplan open with lesson 3.
-		summary = summary.replace("\n\n" + BREAK_CHANGE_LINE, "")
-	var corner: Array[String] = corner_habit_lines(sim, arena.tell_watch if bool(settings.get("career", false)) else null)
-	if not corner.is_empty():
-		summary = "\n".join(corner) + "\n\n" + summary  # Your corner on his habits (D419).
+		extra.add_child(_break_rules)
+	# Before his third fight the break is just the cards (D316): rules and the gameplan open with lesson 3.
+	var lines: Array[String] = corner_habit_lines(sim, arena.tell_watch if bool(settings.get("career", false)) else null)
 	if bool(settings.get("career", false)) and career != null:
 		for t: Dictionary in Tutorial.due(career, "round_break"):
 			career.see_tip(String(t.id))
-			summary = "[color=#fcc419][b]Coach's tip: %s.[/b][/color] %s\n\n%s" % [String(t.title), String(t.text), summary]
+			lines.push_front("[color=#fcc419][b]Coach's tip: %s.[/b][/color] %s" % [String(t.title), String(t.text)])
 	if _moments:
-		arena.play_moment(Ceremony.CORNERS)  # To their stools (D391), the round's panel down the side.
-	hud.show_dialog("End of round %d" % event.round_number, summary,
-		[["Start round %d" % next, _start_next_round]], extra, _moments)
+		arena.play_moment(Ceremony.CORNERS)  # To their stools (D391).
+	hud.show_dialog("End of round %d" % event.round_number, "\n\n".join(lines),
+		[["Start round %d" % next, _start_next_round]], extra, true)
 
 
 ## What your corner says on the stool about the opponent's habits (D419, Kyle 2026-11-02: "in the fight coaches should
@@ -1054,29 +1051,6 @@ static func corner_habit_lines(sim: FightSim, watch: Scouting.Watch) -> Array[St
 			if times == 1 else "He's done it %d times so far: make him pay." % times)
 		out.append("[color=#ffe066][b]Your corner:[/b][/color] %s. %s" % [Scouting.tell_text(tell).get_slice(" (", 0), so_far])
 	return out
-
-
-## The bell's text: each judge's card for the round, the totals and how both fighters are.
-static func round_summary(sim: FightSim, event: FightEvent) -> String:
-	var lines: Array[String] = []
-	if not event.data.has("cards"):
-		lines.append("No round scores under %s: the judges score the whole fight (the effort to finish, then control, then aggression)." % sim.ruleset.name)
-		lines.append("So far: %s" % FightHud.judges_estimate(sim).trim_prefix("Judges: "))
-	else:
-		var cards: Array[String] = []
-		for c: Array in event.data.cards:
-			cards.append("%d-%d" % [c[0], c[1]])
-		lines.append("Judges this round (%s – %s): %s" % [sim.fighters[0].name, sim.fighters[1].name, ", ".join(cards)])
-		var totals: Array[String] = []
-		for t: Array in sim.judge_totals:
-			totals.append("%d-%d" % [t[0], t[1]])
-		lines.append("So far: %s" % ", ".join(totals))
-	for f in sim.fighters:
-		lines.append("%s: stamina %d/%d, landed %d of %d, damage taken head %d · body %d · legs %d" % [f.name,
-			roundi(f.stamina), roundi(f.max_stamina()), f.strikes_landed, f.strikes_thrown, f.damage.head, f.damage.body, f.damage.legs])
-	lines.append("")
-	lines.append(BREAK_CHANGE_LINE)
-	return "\n".join(lines)
 
 
 func _start_next_round() -> void:

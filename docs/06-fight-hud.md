@@ -97,6 +97,8 @@ screen; **Start fight** plays three rounds with the player as the **red corner**
 | Training camp first | Opens the camp planner for your fighter (`02` §3.6, D134); its *Fight!* starts this fight with the fighter as the camp left them. *Start fight* skips the camp |
 
 ### 6.2 What's on screen (v0)
+The HUD's layout, the calls on show, the damage numbers, the feed's two ways and the round break changed with D460–D466
+(§6.17); this table is v0 as built, with the pieces §6.17 moved or replaced marked there.
 | Element | v0 | Code |
 |---|---|---|
 | Cage and fighters | Grey-box octagon and fence, orthographic isometric camera that follows the fighters and moves in for the clinch and closer still for the ground (D80). Fighters are capsule bodies with stick limbs that act out the move: punches reach out, kicks lift the leg (the rear one, the lead one for a teep), shots and sprawls drop the hips, the bottom fighter lies on their back, the top fighter postures up and drives down ground punches and elbows (pulled down flat while tied up), and the bottom fighter reaches up to tie up (D121). On the ground the two are laid out by the position: guard, half guard, side control, mount and the back each look different (D210, §6.10). They slide between ticks | `game/arena_view.gd`, `game/fighter_figure.gd` |
@@ -540,3 +542,40 @@ on the four D436 cards, all four recommendations):
 and closeness (`SECONDS`, `RATE`, `HOLD_AFTER`, `VIEW_TURN`, `VIEW_ZOOM`) in `game/finish_replay.gd`; the panel's rows
 in `FightResultCard.meaning_rows` (`ui/result_card.gd`). Tests: `tests/ui/test_result_moment.gd`. Presentation only:
 fights and careers are unchanged (no golden re-pin).
+
+### 6.17 The fight screen cleaned up (D460–D466)
+Kyle, 2026-11-04: "we need to work on the ui for infight its pretty ugly and cluttered atm". The audit (every piece,
+today against the proposal, over five moments from real fights) is the page https://claude.ai/artifact/MUdkReyx7nVgXNuE58c7r3;
+Kyle picked my recommendation on all five cards. What was wrong: all 20 calls on screen at once, most greyed out, with
+keys 1, 2, 4, 5, 6 and 7 each on two or three buttons; the position named three times (the cage, the diagram's card and
+the feed) and a hold the same; the feed's odds, "trust 50", "2× · stopped" and six percentage lines changing on every
+hit; a white speech box; an empty grey box in a clinch nobody had a grip in; and the round break a wall of text over the
+cage. Presentation only: fights are unchanged (no golden re-pin).
+
+| Piece | Now | Code |
+|---|---|---|
+| Score bug (D460, D461) | One see-through bar across the top middle, like a fight on TV: each man's body figure (D150), "YOUR CORNER" over your name, his name, his stamina as a thin white bar under it (so it can't pass for a health bar), ROCKED as a red chip beside the tag, a stripe in his corner's colour along the bottom; between them the round, the clock and the judges' lean ("≈ 10-9 Kicker") | `FightHud._build_bug`, `FightHud.clock_parts` |
+| Corners' shouts (D460) | Under each side of the bug: theirs in a blue chip for 3 s (it was a white box); yours in amber, the call he's hearing, going for, acting on (with seconds left) or primed for | `FightHud.call_state` |
+| Corner card (D460) | Top left: the plan big (and *drifting off it* in red, D323), each drilled rule with READY or its seconds to wait, and a thin line for how sharp it is (the number on hover); it flashes green when it fires | `FightHud.rule_state`, `FightHud.plan_words` |
+| Speed (D460) | Top right: the speed now ("▶ 2×") and four small buttons, ½× (Space), 4× (F), II (P, on Easy) and the towel (T) | `FightHud._build_speed` |
+| Calls (D462) | Bottom middle, one row: **only the calls that work from here**, each key once (standing 12, the clinch 6, on top in the guard 7, a hold 1), the read calls (Q, E, keys edged in cyan) after a thin gap. The keys don't change. A call that fits but can't be made yet (not enough voice) stays, dimmed, with the reason on hover; the call being acted on is edged in amber. The voice line runs along the top of the row with its number; trust is in the F3 overlay | `FightHud.call_fits`, `FightHud.HIDES`, `FightHud._build_calls` |
+| Damage numbers (D463) | The figure's colours only; hover the figure, or hold **Tab**, for HEAD / BODY / LEGS % | `FightHud._readouts` |
+| Feed (D464) | Bottom right: the **key moments** in plain words (no odds), and lines the screen adds for you ("Can't call…", "Sound off") always. Hold **Tab**, or press its ALL · TAB button to keep it up, for every line with the odds behind each move, the feed running up to under the speed buttons | `FightFeed.details`, `FightFeed.strip_odds`, `FightFeed.NOTE` |
+| Position (D460) | Bottom left, only when there's something to show: on the ground the drawing (D210) with the position small over it and the grips under it (D265); in a clinch the grips alone, and nothing when nobody holds anything (the empty box is gone). The words under the fighters stay the one big place the position is named | `FightHud._position_panel` |
+| Danger meter (D466) | Just over the calls while a hold is locked in, with its ends marked (0 · out of it, 100 · tap); the words under the fighters step aside for it (`ArenaView.hud_names_holds`) | `FightHud._danger_panel` |
+| Round break (D465) | Down the right always (it was in the middle unless the corners were shown), so you can see your man: the judges' cards as chips in the colour of the man each went to and whose round it was, the totals from round 2, the two men as mirrored bars (landed, stamina, head, body and legs hurt), then *Next round*: the gameplan and the rules, and Start round in solid red. The calls, the feed and the corner card go down while any dialog is up | `ui/round_break_card.gd`, `game/main.gd` `_on_round_over` |
+| Dialogs (D460) | The off-fight look (D435): dark buttons edged in red, the first button the main action in solid red | `FightTheme`, `FightHud.show_dialog` |
+
+**To change it:** the bug's size and place (`BUG_WIDTH`, `BUG_HEIGHT`, `BUG_TOP`), the figure (`FIGURE_SIZE`), the edge
+(`EDGE`), the corner and position cards' widths (`CORNER_WIDTH`, `POSITION_WIDTH`, `DIAGRAM_HEIGHT`), the feed's size and
+place with and without the details (`FEED_WIDTH`, `FEED_BOTTOM`, `FEED_HEIGHT`, `FEED_DETAILS_TOP`), a call's height and
+the key's room (`CALL_HEIGHT`, `KEY_ROOM`), which reasons hide a call rather than dim it (`HIDES`), the colours (`GLASS`,
+`MUTED`, `LIVE`, `READ_COLOUR`) and the round break's width (`SIDE_DIALOG_WIDTH`): the constants at the top of
+`ui/fight_hud.gd`. The round break card's bars and rows: `BAR_WIDTH` and `RoundBreakCard.rows` in
+`ui/round_break_card.gd`. What counts as a key moment: `FightFeed.kind_of`.
+**Screenshots:** `tools/hud_shots.gd` plays seeded fights to five moments (standing, the clinch, the ground, a hold, the
+round break) and saves the screen (`--clean` also saves the cage with the HUD hidden):
+`xvfb-run -s "-screen 0 1920x1080x24" godot --path . --rendering-driver opengl3 --script res://tools/hud_shots.gd -- --out=build/hud`.
+**Tests:** `tests/ui/test_fight_hud.gd` (the row of calls by position, dimmed for voice, the numbers with the details,
+the corner card, the clock, no empty clinch card, a dialog taking the play pieces down), `tests/ui/test_fight_feed.gd`
+(key moments without odds, the details with them), `tests/ui/test_round_break_card.gd`.
