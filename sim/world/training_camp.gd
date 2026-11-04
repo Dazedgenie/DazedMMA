@@ -93,6 +93,8 @@ const TANK_PER_FATIGUE: float = 0.005
 const TANK_FLOOR: float = 0.5
 ## A healing injury starts the fight this hurt in its area for each day it still needs (3 days → 9%).
 const HURT_PER_DAY: float = 0.03
+## The most an injury starts him hurt, however long it has to heal (a hidden long one, D406).
+const HURT_MAX: float = 0.5
 ## The doctor won't clear a fighter with more than this many days still to heal.
 const DOCTOR_MAX_DAYS: int = 7
 ## Fighting hurt: a chance of WORSEN_BASE + WORSEN_PER_DAY a day still to heal that the injury gets worse,
@@ -129,7 +131,8 @@ var stats: Dictionary = {}  # stat id → 0–100 (fractions kept, so small gain
 var style: StyleLeanings
 var fatigue: float = 0.0
 var injured_days: int = 0
-var injury_area: String = ""  # Where the injury that's healing is ("" when not hurt).
+var injury_area: String = ""  # Where the injury that's healing is ("" when not hurt): head, body, legs or hands (D406).
+var injury: String = ""  # Which injury it is (data/injuries id, D406); "" for an old save's or none.
 var age: int
 var age_years: float  # Age with the weeks since the last birthday: each week run adds one (Ageing, D136).
 var potential: float
@@ -245,6 +248,7 @@ func forecast(plan: Dictionary, fight_week: bool = false) -> Dictionary:
 	copy.fatigue = fatigue
 	copy.injured_days = injured_days
 	copy.injury_area = injury_area
+	copy.injury = injury
 	copy.age_years = age_years
 	copy.age = age
 	copy._camp_gains = _camp_gains.duplicate()
@@ -259,9 +263,11 @@ func fight_night() -> Dictionary:
 	var hurt: Dictionary = {}
 	var doctor: String = FIT
 	if injured_days > 0:
-		hurt[injury_area] = minf(1.0, injured_days * HURT_PER_DAY)
+		if injury_area in INJURY_AREAS:
+			hurt[injury_area] = minf(HURT_MAX, injured_days * HURT_PER_DAY)  # A hand starts nothing hurt: it cuts stats (D406).
 		doctor = NOT_CLEARED if injured_days > DOCTOR_MAX_DAYS else CLEARED_HURT
 	return { "fatigue": fatigue, "tank": tank_at(fatigue), "injury_area": injury_area if injured_days > 0 else "",
+		"injury": injury if injured_days > 0 else "", "effects": Injuries.effects(injury) if injured_days > 0 else {},
 		"injured_days": injured_days, "hurt": hurt, "doctor": doctor,
 		"worsen_chance": WORSEN_BASE + WORSEN_PER_DAY * injured_days if injured_days > 0 else 0.0 }
 
@@ -274,6 +280,8 @@ func fight_profile() -> Dictionary:
 	for area: String in night.hurt:
 		hurt[area] = snappedf(night.hurt[area], 0.001)
 	out.condition = { "tank": snappedf(night.tank, 0.001), "hurt": hurt }
+	for stat_id: String in night.effects:
+		out.stats[stat_id] = maxf(1.0, float(out.stats.get(stat_id, FighterState.DEFAULT_STAT)) + float(night.effects[stat_id]))  # What it does (D406).
 	if Coach.call_delay(coach_specialty) != 1.0:
 		out.condition.call_delay = Coach.call_delay(coach_specialty)  # A Tactician's calls reach him sooner (D311).
 	return out
@@ -295,7 +303,7 @@ static func after_fight(night: Dictionary, roll_seed: int) -> Dictionary:
 	var worse: bool = rng.randf() < float(night.worsen_chance)
 	if worse:
 		days += rng.randi_range(WORSEN_DAYS_MIN, WORSEN_DAYS_MAX)
-	return { "worse": worse, "area": String(night.injury_area), "days_out": days }
+	return { "worse": worse, "area": String(night.injury_area), "injury": String(night.get("injury", "")), "days_out": days }
 
 
 ## How much each stat has gained since start_camp().
@@ -313,7 +321,7 @@ func snapshot() -> Dictionary:
 		leanings[leaning] = style.value(leaning)
 	return {
 		"stats": stats.duplicate(), "style": leanings, "fatigue": fatigue,
-		"injured_days": injured_days, "injury_area": injury_area,
+		"injured_days": injured_days, "injury_area": injury_area, "injury": injury,
 		"age_years": age_years, "potential": potential,
 		"camp_gains": _camp_gains.duplicate(), "dice": str(_rng.state),
 	}
@@ -328,6 +336,7 @@ func restore(snap: Dictionary) -> void:
 	fatigue = float(snap.get("fatigue", 0.0))
 	injured_days = int(snap.get("injured_days", 0))
 	injury_area = String(snap.get("injury_area", ""))
+	injury = String(snap.get("injury", ""))
 	age_years = float(snap.get("age_years", age_years))
 	age = int(age_years + 0.0001)
 	potential = float(snap.get("potential", potential))
@@ -445,14 +454,23 @@ func _run_slot(id: String, day: int, quality: float, variety: float, instruction
 	if float(session.injury_risk) > 0.0:
 		_unhurt *= 1.0 - minf(1.0, injury_chance(session))
 	if float(session.injury_risk) > 0.0 and _roll(injury_chance(session)):
-		var days: int = _rng.randi_range(INJURY_DAYS_MIN, INJURY_DAYS_MAX)
-		if "slow_healer" in _profile.get("flaws", []):
+		# A named injury (D406): one this kind of session causes, with its own healing time and effects.
+		var named: String = Injuries.pick_camp(String(session.get("kind", "")), String(session.get("injury_area", INJURY_AREAS[1])), _rng.randf())
+		var slow: bool = "slow_healer" in _profile.get("flaws", [])
+		var days: int = Injuries.days_for(named, _rng.randf(), slow) if named != "" else _rng.randi_range(INJURY_DAYS_MIN, INJURY_DAYS_MAX)
+		if named == "" and slow:
 			days = ceili(days * SLOW_HEALER)
-		var area: String = String(session.get("injury_area", INJURY_AREAS[1]))
+		var area: String = Injuries.area_of(named) if named != "" else String(session.get("injury_area", INJURY_AREAS[1]))
 		if days >= injured_days:
 			injury_area = area
+			injury = named
 		injured_days = maxi(injured_days, days)
-		week.injuries.append({ "day": day, "session": id, "days_out": days, "area": area })
+		var hurt_entry := { "day": day, "session": id, "days_out": days, "area": area, "injury": named }
+		var dent: Dictionary = Injuries.lasting(named, _rng.randf(), _rng.randf())
+		if not dent.is_empty():
+			stats[String(dent.stat)] = maxf(1.0, stat(String(dent.stat)) - float(dent.points))  # A lasting dent (D406).
+			hurt_entry.dent = dent
+		week.injuries.append(hurt_entry)
 	var mult: float = clampf(quality, PLAYED_MIN, PLAYED_MAX) * fatigue_factor() * variety * Gym.xp_share(gym, String(session.get("kind", "")))
 	for stat_id: String in session.trains:
 		var points: float = float(session.xp) * float(session.trains[stat_id]) * mult * learning(stat_id) / xp_per_point(stat_id)
@@ -478,6 +496,7 @@ func _heal(days: int) -> void:
 	injured_days = maxi(0, injured_days - days)
 	if injured_days == 0:
 		injury_area = ""
+		injury = ""
 
 
 ## A dice roll at this chance; a forecast never rolls (and never uses up the camp's dice).

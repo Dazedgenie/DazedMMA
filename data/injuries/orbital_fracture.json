@@ -1,0 +1,26 @@
+{
+	"schema": "injury@1",
+	"id": "orbital_fracture",
+	"name": "Orbital fracture",
+	"area": "head",
+	"days": [
+		35,
+		70
+	],
+	"effects": {
+		"striking_defense": -6
+	},
+	"fight": {
+		"cause": "head",
+		"weight": 0.4
+	},
+	"lasting": {
+		"chance": 0.25,
+		"stat": "striking_defense",
+		"points": [
+			2,
+			3
+		]
+	},
+	"about": "A broken eye socket: he doesn't see shots coming as well."
+}

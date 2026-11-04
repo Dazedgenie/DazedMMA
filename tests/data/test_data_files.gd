@@ -119,6 +119,9 @@ const SCHEMAS := {
 	"tip@1": { "folder": "tips", "fields": {
 		"title": TYPE_STRING, "text": TYPE_STRING, "where": TYPE_STRING, "order": TYPE_FLOAT,
 	} },
+	"injury@1": { "folder": "injuries", "fields": {
+		"name": TYPE_STRING, "area": TYPE_STRING, "days": TYPE_ARRAY, "effects": TYPE_DICTIONARY, "about": TYPE_STRING,
+	} },
 	"names@1": { "folder": "names", "fields": {
 		"country": TYPE_STRING, "cities": TYPE_ARRAY, "first": TYPE_ARRAY, "last": TYPE_ARRAY,
 	} },
@@ -998,6 +1001,50 @@ func test_childhood_scenes_have_three_choices_that_lean_toward_real_backgrounds(
 		for bg: String in backgrounds:
 			if not covered[age].has(bg):
 				problems.append("no scene at age %d leans toward '%s': every background must be reachable at every age" % [age, bg])
+	_report(problems)
+
+
+func test_injuries_are_in_a_real_area_cut_real_stats_and_come_from_real_sessions_and_fights() -> void:
+	var problems: Array[String] = []
+	var kinds: Array = []
+	for id: String in _items("sessions"):
+		if not String(_items("sessions")[id].get("kind", "")) in kinds:
+			kinds.append(String(_items("sessions")[id].kind))
+	var causes: Dictionary = {}
+	for id: String in _items("injuries"):
+		var inj: Dictionary = _items("injuries")[id]
+		var where := "injury '%s'" % id
+		if String(inj.get("id", "")) != id:
+			problems.append("%s: its id must match its file name" % where)
+		if not String(inj.get("area", "")) in Injuries.AREAS:
+			problems.append("%s: area must be one of %s" % [where, Injuries.AREAS])
+		var days: Variant = inj.get("days")
+		if not (days is Array and days.size() == 2 and int(days[0]) >= 1 and int(days[0]) <= int(days[1])):
+			problems.append("%s: days must be [fewest, most], at least 1" % where)
+		for stat: Variant in inj.get("effects", {}):
+			if not TrainingCamp.STAT_NAMES.has(stat):
+				problems.append("%s: unknown stat '%s' in effects" % [where, stat])
+			elif float(inj.effects[stat]) >= 0.0:
+				problems.append("%s: effects take points off, so '%s' must be negative" % [where, stat])
+		var camp: Variant = inj.get("camp", {})
+		for kind: Variant in (camp as Dictionary).get("kinds", []) if camp is Dictionary else []:
+			if not kind in kinds:
+				problems.append("%s: no session is of kind '%s'" % [where, kind])
+		var fight: Variant = inj.get("fight", {})
+		if fight is Dictionary and not (fight as Dictionary).is_empty():
+			if not String(fight.get("cause", "")) in ["head", "body", "legs", "punches"]:
+				problems.append("%s: a fight cause must be head, body, legs or punches" % where)
+			causes[String(fight.get("cause", ""))] = true
+		var lasting: Variant = inj.get("lasting", {})
+		if lasting is Dictionary and not (lasting as Dictionary).is_empty():
+			if not TrainingCamp.STAT_NAMES.has(String(lasting.get("stat", ""))):
+				problems.append("%s: lasting must name a real stat" % where)
+			var chance: float = float(lasting.get("chance", -1.0))
+			if chance <= 0.0 or chance > 1.0:
+				problems.append("%s: lasting chance must be over 0 and at most 1" % where)
+	for cause: String in ["head", "body", "legs", "punches"]:
+		if not causes.has(cause):
+			problems.append("no injury comes from a fight's '%s': every cause needs one" % cause)
 	_report(problems)
 
 

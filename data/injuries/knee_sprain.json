@@ -1,0 +1,35 @@
+{
+	"schema": "injury@1",
+	"id": "knee_sprain",
+	"name": "Sprained knee",
+	"area": "legs",
+	"days": [
+		14,
+		35
+	],
+	"effects": {
+		"footwork": -5,
+		"takedowns": -5
+	},
+	"camp": {
+		"kinds": [
+			"wrestling",
+			"grappling",
+			"conditioning"
+		],
+		"weight": 0.6
+	},
+	"fight": {
+		"cause": "legs",
+		"weight": 1
+	},
+	"lasting": {
+		"chance": 0.15,
+		"stat": "footwork",
+		"points": [
+			2,
+			3
+		]
+	},
+	"about": "An unstable knee: slower feet and weaker shots."
+}

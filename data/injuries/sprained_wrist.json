@@ -1,0 +1,21 @@
+{
+	"schema": "injury@1",
+	"id": "sprained_wrist",
+	"name": "Sprained wrist",
+	"area": "hands",
+	"days": [
+		4,
+		12
+	],
+	"effects": {
+		"power": -4,
+		"boxing": -3
+	},
+	"camp": {
+		"kinds": [
+			"striking"
+		],
+		"weight": 2
+	},
+	"about": "He can't make a tight fist."
+}
