@@ -1290,6 +1290,20 @@ become zero. Seven canonical ground/clinch poses can be audited with `tools/cont
 `--stills` captures both sides in the real scene. The remaining body-lock forearm crossing requires
 a contact-pose repair. Existing limb, rig, ground/clinch, strike and submission checks remain in force.
 
+## Body-lock contact (D426)
+
+The lock's near-straight forearm crossed the opponent's torso even after complete-segment routing.
+The target was too narrow for that reach. Keep the hands slightly wider at the lower back (10 cm
+authored side offset rather than 6 cm), bring the driver's hips 4 cm closer, and raise the head beside
+the shoulder. Small changes to lean and side bend preserve a compact body lock rather than an
+exaggerated sideways fold. Underhooks, collar ties and fence body postures retain their own poses.
+
+`tests/game/test_clinch_contact.gd` checks either owner and both lead-side assignments on the final
+bodies: forearm/upper-arm clearance, separate heads, and head clearance from the torso and shoulders.
+Existing target reach, body pressure, grip identity, mirror, clinch, fence and takedown checks pass.
+Both camera angles from `contact_audit.gd --stills` were reviewed; the seven canonical torso-capsule
+samples now report zero crossings. This does not certify every clinch strike or full mesh contact.
+
 ## Review and verification
 
 Open `project.godot` in Godot 4.7.2 and run the game normally. Start a fight and check striking,

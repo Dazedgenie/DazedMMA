@@ -241,10 +241,10 @@ checked. Needs a display:
     godot --path . --fixed-fps 24 --write-movie build/pads/frame.png --script res://tools/pads_preview.gd -- --kicking=70 --seconds=8
 
     godot --path . --fixed-fps 24 --write-movie build/film/frame.png --script res://tools/film_preview.gd -- --style=kicker --seconds=8 --name
+
 `contact_audit.gd` checks final limb segments against the other torso in seven canonical ground/clinch
 poses. It writes JSON diagnostics; `--stills` also captures two camera angles in the real scene.
 This measures the existing torso capsule, not complete mesh collisions.
 
     godot --headless --path . --script res://tools/contact_audit.gd -- --out=res://build/contact-audit.json
     godot --path . --script res://tools/contact_audit.gd -- --stills --out=res://build/contact-audit.json
-
