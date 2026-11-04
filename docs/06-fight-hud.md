@@ -432,3 +432,111 @@ top of `ui/career_hub.gd`; a poster's width, faces and ribbon colours (`WIDTH`, 
 `ui/calendar_icon.gd`. The hub's words are unchanged (`offer_text`, `week_text`, `news_text` and `news_items`,
 `fights_text` and `fight_lines`). Tests: `tests/ui/test_hub_rebuild.gd` and `tests/ui/test_career_screens.gd`.
 Presentation only: fights and careers are unchanged (no golden re-pin).
+
+### 6.14 The front door (D434)
+
+The fourth piece of D430: the screens a new player sees first, before his first week. They were dark pages of text
+and lists. Now (my picks on the eight D434 cards, built while they're open):
+
+- **The title over a real fight** (`game/title_backdrop.gd`, `TitleBackdrop`). Two men picked at random from the roster
+  (never the tests' own `check_` fighters) fight a simmed fight in the cage behind the menu: both corners the AI's,
+  at normal speed with the fight screen's own slow-downs on big shots, no names over their heads and no range tag
+  (`ArenaView.backdrop`), the referee in with them, the camera slid left so they sit to the right of the menu, and
+  silent. When it ends the finish is held, and a few seconds later a new pair walks in. It runs only while the title is
+  up: any other screen stops it and clears the cage, and a real fight takes the cage over. Headless runs (the tests,
+  the smoke run) leave it off unless a test asks (`backdrop_in_headless` in `game/main.gd`).
+- **The menu down the left** (`ui/title_screen.gd`): CHIN CHECK, Lampsmoke Games and the buttons in a dark strip that
+  fades out over the fight.
+- **New career on one page** (`ui/new_career_screen.gd`): you and him on the left as before; in the middle his full
+  figure (D431) under a spotlight, changing as his look is picked, with his name and nickname, stance and hometown under
+  him; on the right where he comes from, the 12 backgrounds as tiles each with a picture drawn in code
+  (`ui/background_icon.gd`, `BackgroundIcon`: a glove, a plaster, a football, a barn, a belt, a gi, a clock, Thai pads,
+  a brick wall, a running track, a gate, a wrestling mat), the picked one edged in its colour, and what it means under
+  them. With *Play his childhood* ticked the tiles are dimmed, as the list was.
+- **His childhood** (`ui/childhood_screen.gd`): him at that age beside each scene's card, shorter and slighter at 8
+  and 12 (`AGE_FRAMES`), nearly grown at 15, no beard before 15; on *Who he became*, him as his career will start.
+- **Where you coach** (`ui/gym_screen.gd`): each gym a card topped in its kind's colour with its picture (the gym kinds
+  borrow the nearest background's, the MMA gym a cage) and its name and kind; the owner's head and chest (a man from
+  his hometown's country, his look rolled from his name) beside his name and words; what it trains as chips, green for
+  better and red for worse with the share (*Wrestling +25%*), and the culture's (*Fewer skipped sessions*, *More
+  injuries*, *Sparring +20%*); the kind and culture in a line each; the fee big; *Coach here*.
+- **The walk-in**: him standing in a lit doorway beside the words, as his career will make him (his background's
+  height and his childhood's changes, `GymScreen.his_profile`), the owner's face by his line under them.
+- **Load career** (`ui/load_screen.gd`): each slot with his head and chest at the top, his record with his division,
+  and the belt he holds in gold. The save's summary carries what it needs (`division`, `belt`, `portrait`; `docs/09`
+  career@1); a career saved before D434 shows without them until it's saved again.
+
+**To change it:** the title fight's speed, the wait before the next pair, the camera's slide and who's left out
+(`RATE`, `NEXT_AFTER`, `CAMERA_SHIFT`, `LEFT_OUT_PREFIX`) in `game/title_backdrop.gd`; the strip's width, darkness, solid
+share and the menu's edge (`STRIP_WIDTH`, `STRIP_ALPHA`, `STRIP_SOLID`, `MENU_LEFT`) in `ui/title_screen.gd`; the stage's
+width and colour and the tiles' grid (`STAGE_WIDTH`, `STAGE`, `TILE_COLUMNS`, `TILE_SIZE`) in `ui/new_career_screen.gd`;
+the pictures and their colours (`_draw`, `COLOURS`, `ALIASES`) in `ui/background_icon.gd`; the boy's frame at each age
+and the portrait's size (`AGE_FRAMES`, `PORTRAIT_SIZE`) in `ui/childhood_screen.gd`; the cards' width, the owner's face,
+his frame and the doorway (`CARD_WIDTH`, `OWNER_FACE`, `OWNER_FRAME`, `DOORWAY`) in `ui/gym_screen.gd`; the slot's face
+(`FACE`) in `ui/load_screen.gd`. Tests: `tests/ui/test_front_door.gd` and `tests/ui/test_career_screens.gd`.
+Presentation only: fights and careers are unchanged (no golden re-pin).
+
+### 6.15 One look off the fight (D435)
+
+The fifth piece of D430: the screens off the fight each had their own flat dark page and Godot's grey buttons, and they
+snapped from one to the next. Kyle's picks on the four D435 cards (all four recommendations):
+
+- **Every screen off the fight** shares the look: the setup, the title's menu, new career, his childhood, the gyms,
+  load, the hub, the world pages, the camp and its fight night card, and the result.
+- **The empty cage, lights low, behind them** (`ArenaView.hall_drift`): leaving any screen clears the cage, and with no
+  fight in it the camera drifts slowly round the empty cage, pulled back to take in the seats. The screens' backing is
+  see-through (`OffCage.HALL`) so the hall shows dimmed behind them. A page laid over another screen (the world pages
+  over the hub, the fight night card over the camp) stays solid (`OffCage.OVER`), so the screen under it doesn't read
+  through. The title keeps its own fight (§6.14), and the result keeps the fight that just ended behind it.
+- **Dark buttons, a red edge on hover** (`ui/off_cage.gd`, `OffCage.style_button` and `OffCage.theme()`): every button
+  dark with rounded corners, edged in red-corner red when the mouse is on it or the keyboard is on it, short labels in
+  the display font; the main action on each screen stays solid red (`CampPlanner.style_fight_button`). Tabs and other
+  toggles (the hub's tabs, the world pages' tabs and filters, the promotions strip) are lit a shade and underlined in red
+  when they're the one picked. The pickers keep their low height so the pages still fit, and tick boxes keep their own
+  look. Each screen carries the theme (`game/main.gd`), so a button no screen styled itself gets the look too.
+- **A quick fade** (`_fade_up` in `game/main.gd`): when one screen changes to the next, the old one fades out into the
+  dark over a fifth of a second (a picture of its last frame, so the game has already moved on underneath) and the new
+  one comes up out of the dark over the same again. Headless (the tests) only the second half runs.
+- **Small fixes**: the camp's stat names were cut short (*Submission defens*); the name column now widens to its
+  longest name (`StatBars.name_width`).
+
+**To change it:** the backing's darkness and the solid page's colour (`HALL`, `OVER`), the buttons' colours, the red
+edge, the toggle's light and underline, which labels get the display font and its size (`BUTTON`, `BUTTON_HOVER`,
+`BUTTON_PRESSED`, `EDGE`, `BUTTON_ON`, `ON_LINE`, `DISPLAY_UP_TO`, `DISPLAY_SIZE`) and the fade's length
+(`FADE_SECONDS`) in `ui/off_cage.gd`; how fast the hall turns and how far back the camera stands (`HALL_TURN_SPEED`,
+`HALL_ZOOM`) in `game/arena_view.gd`; the camp's own backing (`BACKGROUND`) in `ui/camp_planner.gd`. Tests:
+`tests/ui/test_one_look.gd`. Presentation only: fights and careers are unchanged (no golden re-pin).
+
+### 6.16 The result as a moment (D436)
+
+The sixth and last piece of D430: a fight ended and the full-screen sheet of numbers came straight up. Now (Kyle's picks
+on the four D436 cards, all four recommendations):
+
+- **The verdict first, over the cage** (`ui/verdict_banner.gd`, `VerdictBanner`): when the finish has been held and,
+  with *Walk-out and corners* on, his hand raised, the HUD goes and a dark band across the lower third of the cage reads
+  the verdict out like the announcer: how and when, then the winner's name big in his corner's colour. A key or a click
+  shows it all at once and another goes on to the sheet; left alone it goes on a few seconds after the last line.
+  The sheet (§6.9) then comes up as before. A simmed fight (D305) still goes straight to the sheet, and so do headless
+  runs unless a test asks (`verdict_in_headless` in `game/main.gd`).
+- **The finish again, slowly** (`game/finish_replay.gd`, `FinishReplay`): after a KO, TKO or tap the last few seconds
+  play again in slow motion behind the verdict, closer and from another angle (`ArenaView.view_turn`, `view_zoom`),
+  with REPLAY in the corner and its own sounds, held a moment at the end and played again, on and on behind the sheet
+  until you leave it. It's the real fight played again, not a recording: a fresh fight from the same seed, the same two
+  men made fresh and every command the fight took (your calls, his rules, the other corner's calls, the towel), as a
+  saved fight replays (docs/04 §2.2). It never starts before the last bell, so a finish early in a round only replays
+  that round. If it ever ended differently it wouldn't be shown again (`exact`).
+- **A decision read out one judge at a time**: "After 3 rounds, to the judges' scorecards", then each judge's score in
+  turn in the colour of the man he gave it to, then the winner with how it was decided. Whole-fight judging (PRIDE
+  rules, D141) reads as a finish does: how, then the winner.
+- **What it means, in a career** (`FightResultCard.meaning_rows`, `Career.standing()`): a fourth card on the result
+  beside your corner and the judges: his record before and after, his place in his promotion's rankings (the new ones
+  come out after the card, so it says so), a belt won, lost or kept, a call-up or being let go down the promotions, the
+  purse and his savings, and the suspension and any Chin lost. These moved off the notes under the sheet; the notes keep
+  the rest (simmed, a tournament's next round, a medal, a habit spotted).
+
+**To change it:** the band's colour and place, the gap between the judges, how long it stays up and the sizes
+(`BAND`, `BAND_TOP`, `BAND_BOTTOM`, `READ_GAP`, `STAY_FOR`, `NAME_SIZE`, `LINE_SIZE`, `REPLAY_SIZE`) in
+`ui/verdict_banner.gd`; how far back the replay starts, its speed, the hold before it plays again and the camera's turn
+and closeness (`SECONDS`, `RATE`, `HOLD_AFTER`, `VIEW_TURN`, `VIEW_ZOOM`) in `game/finish_replay.gd`; the panel's rows
+in `FightResultCard.meaning_rows` (`ui/result_card.gd`). Tests: `tests/ui/test_result_moment.gd`. Presentation only:
+fights and careers are unchanged (no golden re-pin).
