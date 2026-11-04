@@ -1,5 +1,11 @@
 # tools/ — developer scripts
 
+`cage_preview.gd` captures a sprawl and double-leg landing beside the fence (D422).
+`hold_preview.gd` captures actual locked submissions at low/high danger and after the tap from two
+angles (D423). Use `--only=armbar` to inspect both guard and mount variants, or a specific case such
+as `--only=armbar_guard`; `--out=res://build/holds-review` chooses a fresh output directory.
+Both require a display and arrange throwaway fights without saving them.
+
 The rendered visual reviews require a graphics display (Godot 4.7.2). `visual_preview.gd` captures
 the real fight screen in standing, striking, kicking, clinch, ground and fence poses; `--720p`
 checks the smaller desktop window. `character_preview.gd` captures the actual fighter models
