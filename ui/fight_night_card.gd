@@ -57,6 +57,8 @@ var _sim: Button
 var sim_allowed: bool = false
 ## Tonight's gameplan (D320): the camp fills it in, the player can change it before Fight!.
 var gameplan: GameplanPicker
+## His camp (D404): his plan, his rule against you and his tank, on one line under yours.
+var _their: Label
 
 
 func _init() -> void:
@@ -93,6 +95,14 @@ func _init() -> void:
 	gameplan = GameplanPicker.new("GAMEPLAN", true)
 	gameplan.custom_minimum_size.x = 900.0
 	plan_row.add_child(gameplan)
+	_their = _label(18, TEXT)
+	_their.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_their.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_their.custom_minimum_size.x = 1100.0
+	_their.visible = false
+	var their_row := CenterContainer.new()
+	their_row.add_child(_their)
+	column.add_child(their_row)
 
 	var buttons := HBoxContainer.new()
 	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -112,7 +122,7 @@ func _init() -> void:
 
 
 ## Fills the card. `info`: name, age, weeks, opponent, night (TrainingCamp.fight_night), pulled_out, history (the
-## countdown's weeks), gains (stat id → what the camp added), chin and chin_change.
+## countdown's weeks), gains (stat id → what the camp added), chin and chin_change; their_camp (OpponentCamp.lines, D404).
 func show_night(info: Dictionary) -> void:
 	var night: Dictionary = info.night
 	var against: String = " · vs %s" % info.opponent if String(info.get("opponent", "")) != "" else ""
@@ -170,12 +180,16 @@ func show_night(info: Dictionary) -> void:
 	history.assign(info.get("history", []))
 	_countdown.show_camp(int(info.weeks), history, _fight.disabled)
 	_gains.text = _gains_bbcode(info.get("gains", {}), float(info.get("chin_change", 0.0)), float(info.get("chin", 0.0)))
+	var their: Array = info.get("their_camp", [])
+	_their.visible = not their.is_empty()
+	_their.text = "HIS CAMP:  " + "   ".join(their) if not their.is_empty() else ""
 
 
 ## The card as text (tests read it).
 func text() -> String:
 	return "\n".join([_subtitle.text, _who.text, "Gas tank " + _tank.text, _tank_note.text, "Fatigue " + _fatigue.text,
-		_fatigue_note.text, "Injury " + _injury.text, _injury_note.text, _stamp.text, _verdict.text, _gains.get_parsed_text()])
+		_fatigue_note.text, "Injury " + _injury.text, _injury_note.text, _stamp.text, _verdict.text, _gains.get_parsed_text(),
+		_their.text])
 
 
 func can_fight() -> bool:

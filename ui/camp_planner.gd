@@ -1005,6 +1005,9 @@ func _refresh() -> void:
 	_scouting.visible = scouting
 	if scouting:
 		_scouting.text = Scouting.report_text(career, career.booked_opponent(), _groups, CareerHub.SCOUTED_GROUPS)
+		if OpponentCamp.known_early(career) and not OpponentCamp.of(career).is_empty():
+			# Known well enough, his camp shows from fight week (D404).
+			_scouting.text += "\n[b]His camp[/b] (you know him well enough to hear it early):\n" + "\n".join(OpponentCamp.lines(OpponentCamp.of(career)))
 	var phase: String = career.camp_phase() if career != null and not done() else ""
 	_phase.visible = phase != ""
 	_phase.text = String(Career.CAMP_PHASE_TIPS.get(phase, ""))
@@ -1030,7 +1033,8 @@ func _night_info() -> Dictionary:
 	return { "name": String(_start.get("name", "Fighter")), "age": camp.age, "weeks": weeks, "opponent": opponent_name,
 		"profile": _start,
 		"night": camp.fight_night(), "pulled_out": pulled_out, "history": _history(), "gains": camp.camp_gains(),
-		"chin": camp.stat("chin"), "chin_change": camp.stat("chin") - start_chin }
+		"chin": camp.stat("chin"), "chin_change": camp.stat("chin") - start_chin,
+		"their_camp": OpponentCamp.lines(OpponentCamp.of(career)) if career != null else [] }
 
 
 ## The weeks run so far, for the countdowns (CampCountdown.show_camp).
