@@ -1,0 +1,34 @@
+{
+	"schema": "injury@1",
+	"id": "broken_hand",
+	"name": "Broken hand",
+	"area": "hands",
+	"days": [
+		28,
+		56
+	],
+	"effects": {
+		"power": -8,
+		"boxing": -5
+	},
+	"camp": {
+		"kinds": [
+			"striking",
+			"sparring"
+		],
+		"weight": 0.3
+	},
+	"fight": {
+		"cause": "punches",
+		"weight": 1
+	},
+	"lasting": {
+		"chance": 0.2,
+		"stat": "power",
+		"points": [
+			2,
+			4
+		]
+	},
+	"about": "A broken bone in his hand: he can't hit hard with it."
+}

@@ -1,0 +1,23 @@
+{
+	"schema": "injury@1",
+	"id": "sprained_ankle",
+	"name": "Sprained ankle",
+	"area": "legs",
+	"days": [
+		4,
+		14
+	],
+	"effects": {
+		"footwork": -6,
+		"kicking": -3
+	},
+	"camp": {
+		"kinds": [
+			"conditioning",
+			"striking",
+			"wrestling"
+		],
+		"weight": 3
+	},
+	"about": "Slow feet and nothing to kick off."
+}

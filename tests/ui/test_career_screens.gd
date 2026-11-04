@@ -150,7 +150,7 @@ func test_the_hub_shows_what_is_next_his_fights_and_the_calendar() -> void:
 	hub.show_career(c)
 	assert_string_contains(hub.text(), "W vs First Man · KO, R1")
 	assert_string_contains(hub.text(), "Sat 9 Jan 2027 · amateur")
-	assert_string_contains(hub.text(), "Hurt (legs): 10 days to heal")
+	assert_string_contains(hub.text(), "Leg injury: 10 days to heal")
 	assert_string_contains(hub.text(), "Healed", "the calendar says when")
 
 
@@ -339,3 +339,39 @@ func test_you_pick_your_fighters_look_and_roll_makes_one_like_where_hes_from() -
 	assert_eq(screen.choices().look, look, "what you pick is what he gets")
 	screen.pick_skin(6)
 	assert_eq(int(screen.look().skin), 6)
+
+
+func test_an_injury_the_doctor_wont_clear_can_be_hidden_and_he_may_be_found_out() -> void:
+	var outcomes: Dictionary = {}
+	for s in 40:
+		var c: Career = _career()
+		c.run_week("time_off")
+		assert_true(c.accept(String(c.offers[0].id)))
+		c.career_seed = s
+		var planner: CampPlanner = add_child_autofree(CampPlanner.new(c.profile(), 1))
+		planner.use_career(c)
+		planner.run_rest()
+		planner.camp.injured_days = 20
+		planner.camp.injury_area = "hands"
+		planner.camp.injury = "broken_hand"
+		planner._refresh()
+		assert_false(planner.can_fight(), "the doctor won't clear him")
+		assert_true(planner.can_hide())
+		assert_true(planner.night_card.can_hide(), "the night card offers to hide it")
+		assert_string_contains(planner.forecast_text(), "hide it from him")
+		var before: float = float(planner.summary().worsen_chance)
+		planner.night_card.press_hide()
+		assert_true(planner.hiding())
+		assert_false(planner.can_hide(), "once")
+		assert_eq(planner.can_fight(), not planner.caught())
+		if planner.caught():
+			assert_eq(String(planner.summary().doctor), CampPlanner.CAUGHT)
+			assert_string_contains(planner.night_card.text(), "CAUGHT HIDING IT")
+		else:
+			assert_eq(String(planner.summary().doctor), CampPlanner.HIDDEN)
+			assert_almost_eq(float(planner.summary().worsen_chance), minf(1.0, before * Injuries.HIDDEN_WORSEN), 0.002, "twice as likely to get worse")
+			assert_string_contains(planner.night_card.text(), "CLEARED (HIDING IT)")
+		assert_string_contains(planner.night_card.text(), "Broken hand, 20 days to heal")
+		assert_string_contains(planner.night_card.text(), "Power −8")
+		outcomes[planner.caught()] = int(outcomes.get(planner.caught(), 0)) + 1
+	assert_eq(outcomes.size(), 2, "sometimes he's found out, sometimes not")

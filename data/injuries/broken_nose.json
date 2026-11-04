@@ -1,0 +1,24 @@
+{
+	"schema": "injury@1",
+	"id": "broken_nose",
+	"name": "Broken nose",
+	"area": "head",
+	"days": [
+		14,
+		28
+	],
+	"effects": {
+		"cardio": -3
+	},
+	"camp": {
+		"kinds": [
+			"sparring"
+		],
+		"weight": 1
+	},
+	"fight": {
+		"cause": "head",
+		"weight": 2
+	},
+	"about": "He can't breathe through it, so he tires sooner."
+}

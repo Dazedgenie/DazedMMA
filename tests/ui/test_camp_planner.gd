@@ -93,7 +93,7 @@ func test_fight_night_says_how_the_camp_sends_the_fighter_in() -> void:
 	_planner._refresh()
 	var text: String = _planner.forecast_text()
 	assert_string_contains(text, "75% of the gas tank")
-	assert_string_contains(text, "Still hurt (legs)")
+	assert_string_contains(text, "Leg injury, 3 more days to heal")
 	assert_string_contains(text, "clears him to fight hurt")
 	assert_true(_planner.can_fight())
 	var condition: Dictionary = _planner.trained_profile().condition
@@ -323,5 +323,5 @@ func test_a_hurt_fighters_tiles_say_the_sessions_he_will_miss() -> void:
 	_planner.pick_preset("speed")
 	assert_string_contains(_planner.tile_text(0), "out hurt", "sprints are off while he's hurt")
 	assert_false(_planner.tile_text(5).contains("out hurt"), "film study is light, so it goes ahead")
-	assert_string_contains(_planner.condition_text(), "Hurt (legs): 5 more days")
+	assert_string_contains(_planner.condition_text(), "Leg injury: 5 more days")
 	assert_gt(float(_planner._figure.hurt.legs), 0.0, "the figure shows where")

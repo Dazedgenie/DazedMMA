@@ -1,0 +1,26 @@
+{
+	"schema": "injury@1",
+	"id": "cracked_rib",
+	"name": "Cracked rib",
+	"area": "body",
+	"days": [
+		14,
+		35
+	],
+	"effects": {
+		"cardio": -5
+	},
+	"camp": {
+		"kinds": [
+			"sparring",
+			"wrestling",
+			"grappling"
+		],
+		"weight": 0.6
+	},
+	"fight": {
+		"cause": "body",
+		"weight": 1
+	},
+	"about": "Every breath hurts: a smaller gas tank and less cardio."
+}

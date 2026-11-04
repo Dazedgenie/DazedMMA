@@ -628,6 +628,7 @@ func _finish_career_fight(sim: FightSim, record: Dictionary, injury: Dictionary)
 	if not injury.is_empty():
 		career.trainee.injured_days = int(injury.days_out)
 		career.trainee.injury_area = String(injury.area)
+		career.trainee.injury = String(injury.get("injury", ""))
 	var me: FighterState = sim.fighters[driver.player]
 	var condition: Variant = settings.get("red_profile", {}).get("condition", {})
 	var tank_in: float = float(condition.get("tank", 1.0)) if condition is Dictionary else 1.0
@@ -636,7 +637,8 @@ func _finish_career_fight(sim: FightSim, record: Dictionary, injury: Dictionary)
 		"round": sim.clock.current_round, "seed": sim.fight_seed, "simmed": bool(settings.get("sim", false)),
 		"hard": Aftermath.is_hard(me.hurt("head"), me.hurt("body"), me.knockdowns),
 		"tank": tank_in, "hurt": { "head": me.hurt("head"), "body": me.hurt("body"), "legs": me.hurt("legs") },
-		"moves": OpponentCamp.moves_of(sim, driver.player) })  # What he threw, for the next man's camp (D404).
+		"moves": OpponentCamp.moves_of(sim, driver.player),  # What he threw, for the next man's camp (D404).
+		"punches": Injuries.punches_landed(sim, driver.player) })  # For his hand (D406).
 	save_career()
 	var lines: Array[String] = []
 	if bool(settings.get("sim", false)):
@@ -645,6 +647,8 @@ func _finish_career_fight(sim: FightSim, record: Dictionary, injury: Dictionary)
 		lines.append("[color=#ff8787]He missed weight: $%d of his purse went to the other man.[/color]" % int(career.fights[-1].fine))
 	elif int(career.fights[-1].get("fine_got", 0)) > 0:
 		lines.append("[color=#69db7c]The other man missed weight: $%d of his purse came to you.[/color]" % int(career.fights[-1].fine_got))
+	if career.fights[-1].get("injury") is Dictionary:
+		lines.append("[color=#ff8787]%s[/color]" % Injuries.fight_text(career.fights[-1].injury))
 	# What it did to his career goes on its own panel (D436): record, rank, belt, promotion, purse, suspension.
 	var through: String = tournament_text(career)
 	_meaning = FightResultCard.meaning_rows(before, career.standing(), career.fights[-1],
