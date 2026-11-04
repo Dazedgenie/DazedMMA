@@ -207,24 +207,23 @@ static func _triangle(tight: bool) -> Dictionary:
 	}
 
 
-## The armbar from the bottom of the guard: red on his back turned across under blue, curled up with his left leg
-## across blue's face and his right on his back, both hands on blue's right wrist at his chest. Blue on his knees
-## bent over him, that arm caught between red's legs. Tight: red's hips up into the elbow and his legs pinching,
-## blue's arm straight.
+## The armbar from guard (D423): red turns perpendicular, his hips under blue's trapped right elbow,
+## right leg across the head and left over the back, both hands on the wrist. Blue is on his knees with
+## his shoulder low enough for that arm to reach the hips. Tight: red bridges into the elbow and the arm straightens.
 static func _armbar(tight: bool) -> Dictionary:
 	var k: float = 1.0 if tight else 0.0
 	return {
 		"a": {
-			"root": [0.0, 0.14 + 0.07 * k, 0.04], "turn": 150, "lean": 270, "bend": [8 - 2 * k, 0, 0], "head": [30, 0],
+			"root": [0.3, 0.18 + 0.12 * k, -0.13], "turn": 90, "lean": 270 - 10 * k, "bend": [8 - 8 * k, 0, 0], "head": [30, 0],
 			"hand_l": {"to": "b.wrist_r", "off": [0.0, 0.0, 0.0], "pole": [1, 0.0, 0.6]},
 			"hand_r": {"to": "b.wrist_r", "off": [0.0, 0.06, 0.0], "pole": [-1, 0.0, 0.6]},
-			"foot_l": {"to": "b.shoulder_l", "off": [-0.12, 0.08, -0.12 - 0.04 * k], "pole": [1, 0.6, 0.0]},
-			"foot_r": {"to": "b.waist_r", "off": [0.12, 0.0, 0.06], "pole": [-1, 0.6, 0.2]},
+			"foot_l": {"at": [-0.35, 0.25, 0.2], "pole": [0, 0.2, -1]},
+			"foot_r": {"at": [-0.3, 0.32, -0.64], "pole": [0, 0.2, -1]},
 		},
 		"b": {
-			"root": [0.04, 0.48, 0.32 + 0.03 * k], "turn": 10, "lean": 56 - 10 * k, "bend": [14 - 6 * k, 0, 0],
+			"root": [-0.1, 0.38, 0.3], "turn": 0, "lean": 70 + 16 * k, "bend": [0, 0, 0],
 			"head": [-8 + 12 * k, 0],
-			"hand_r": {"to": "a.chest", "off": [0.0, 0.1 + 0.06 * k, -0.1 - 0.06 * k], "pole": [1, -0.6, 0.2]},
+			"hand_r": {"at": [0.48 + 0.14 * k, 0.38, -0.13], "pole": [0, 0, -1]},
 			"hand_l": {"to": "b.hip_l", "off": [0.0, 0.02, -0.14], "pole": [-1, -0.4, 0.2]},
 			"foot_l": {"at": [-0.2, ANKLE, 0.82], "pole": [0, -0.3, -1], "flat": 0.0},
 			"foot_r": {"at": [0.2, ANKLE, 0.82], "pole": [0, -0.3, -1], "flat": 0.0},

@@ -129,12 +129,13 @@ func test_the_grips_put_his_hands_where_they_hold() -> void:
 func test_a_ground_strike_lands_on_the_man_underneath_from_cocked_by_his_ear() -> void:
 	for where: String in ["full_guard", "half_guard", "side_control", "mount", "crucifix"]:
 		for action: String in GroundPair.STRIKES:
-			var keys: Array = GroundPair.strike(GroundPair.build(where).pair, action, "r")
+			var keys: Array = GroundPair.strike(GroundPair.build(where).pair, action, "r", where)
 			FighterRig.pose_pair(_rigs[0], _rigs[1], keys[0], Transform3D.IDENTITY)
 			assert_lt(_rigs[0].joints.wrist_r.distance_to(_rigs[0].point("head")), 0.3, "%s %s: cocked" % [where, action])
 			FighterRig.pose_pair(_rigs[0], _rigs[1], keys[1], Transform3D.IDENTITY)
 			var target: String = String(GroundPair.STRIKES[action].to)
-			assert_lt(_rigs[0].joints.wrist_r.distance_to(_rigs[1].point(target)), 0.24, "%s %s: lands" % [where, action])
+			var contact: Vector3 = _rigs[0].joints.elbow_r if action == "ground_elbow" else _rigs[0].joints.wrist_r
+			assert_lt(contact.distance_to(_rigs[1].point(target)), 0.24, "%s %s: lands with the striking joint" % [where, action])
 
 
 func test_a_sweep_rolls_them_over_onto_their_sides_and_out_the_other_way_round() -> void:

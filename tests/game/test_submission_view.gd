@@ -138,3 +138,44 @@ func test_a_finish_plays_the_tap_before_the_result() -> void:
 	assert_gt(high - low, SubmissionPair.TAP_LIFT * 0.5, "his hand coming up and down")
 	_frames(view, 6)
 	assert_signal_emit_count(view, "tapped", 1, "then the result")
+
+
+func test_a_submission_finish_releases_the_grip_and_separates_after_the_tap() -> void:
+	for case: Array in [
+		["armbar", "full_guard", 1, "RightHand"], ["armbar", "mount", 0, "RightHand"],
+		["guillotine", "standing", 0, "Head"], ["rear_naked_choke", "back_control", 0, "Head"],
+		["triangle", "full_guard", 1, "Head"],
+		["arm_triangle", "side_control", 0, "Head"], ["ankle_lock", "full_guard", 1, "RightFoot"],
+		["heel_hook", "full_guard", 1, "RightFoot"], ["kneebar", "half_guard", 0, "RightFoot"],
+	]:
+		var setup: Array = _watched(case[1], int(case[2]))
+		var sim: FightSim = setup[0]
+		var view: ArenaView = setup[1]
+		_lock(sim, 0, case[0])
+		_frames(view, 40)
+		sim._finish(0, FightSim.RESULT_SUB)
+		_frames(view, int(ArenaView.TAP_SECONDS * 30.0) - 2)
+		var a: SkinnedBody = view.figures[0].body
+		var b: SkinnedBody = view.figures[1].body
+		var target_bone: String = case[3]
+		if target_bone == "RightHand" and _nearest_hand(a, b._world_at("LeftHand")) < _nearest_hand(a, b._world_at("RightHand")):
+			target_bone = "LeftHand"  # A mirrored side hold traps the other arm.
+		var held_gap: float = a.hips_at().distance_to(b.hips_at())
+		var held_contact: float = _nearest_hand(a, b._world_at(target_bone))
+		var held_leg: float = _nearest_shin(a, b._world_at("Head"))
+		_frames(view, 50)
+		assert_gt(a.hips_at().distance_to(b.hips_at()), held_gap + 0.15, "%s: bodies separate after the tap" % case[0])
+		assert_gt(_nearest_hand(a, b._world_at(target_bone)), held_contact + 0.08, "%s: the attacking hands let go" % case[0])
+		if case[0] in ["armbar", "triangle"]:
+			assert_gt(_nearest_shin(a, b._world_at("Head")), held_leg + 0.08, "%s: the legs release the head" % case[0])
+
+
+func _nearest_hand(body: SkinnedBody, point: Vector3) -> float:
+	return minf(body._world_at("LeftHand").distance_to(point), body._world_at("RightHand").distance_to(point))
+
+
+func _nearest_shin(body: SkinnedBody, point: Vector3) -> float:
+	var gap: float = INF
+	for side: String in ["Left", "Right"]:
+		gap = minf(gap, point.distance_to(Geometry3D.get_closest_point_to_segment(point, body._world_at(side + "Leg"), body._world_at(side + "Foot"))))
+	return gap

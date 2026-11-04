@@ -445,6 +445,7 @@ func follow(rig: FighterRig) -> void:
 		pose["chest" if key == "waist" else key] = node.global_basis.orthonormalized()
 	pose.pelvis_at = rig.bones.pelvis.global_position
 	pose.merge(rig.joints)
+	pose.merge(rig.joint_strikes)
 	follow_joints(pose)
 
 
@@ -521,6 +522,13 @@ func follow_joints(pose: Dictionary, only: Array[String] = []) -> void:
 			var out: Vector3 = Vector3.LEFT if side == "l" else Vector3.RIGHT
 			bend += Basis(pose.chest) * (Vector3.DOWN + out * 0.5).normalized() * ELBOW_DOWN
 		var chain: Array[Vector3] = FighterMotion.solve_bones(root, end_at, bend, first, second)
+		var strike_key: String = "joint_strike_" + String(limb[4]) + "_" + side
+		if pose.has(strike_key):
+			var strike: Dictionary = pose[strike_key]
+			if arm and bool(strike.get("shoulder_reach", false)):
+				var reach: float = minf(maxf(root.distance_to(strike.target) - first, 0.0), 0.05) * float(strike.weight)
+				root = _reach_with_shoulder(("Left" if side == "l" else "Right") + "Shoulder", root, strike.target, reach, to_skeleton)
+			chain = FighterMotion.strike_joint(root, chain, strike.target, strike.fold, float(strike.weight), first, second)
 		var middle: Vector3 = chain[0]
 		var tip: Vector3 = chain[1]
 		_aim_bone(upper, lower, root, middle, bend, arm, to_skeleton)
@@ -641,14 +649,44 @@ func settle(delta: float) -> void:
 		for id in count:
 			skeleton.set_bone_pose(id, _shown[id].interpolate_with(skeleton.get_bone_pose(id), t))
 		_ease_left -= delta
+		_restore_limb_lengths()
 		_lift_off_canvas()
 	_keep_out()
 	_remember_shown()
 
 
+## Interpolating local joint translations can shorten a bent limb even though both endpoint poses have fixed
+## lengths (D427). Restore those lengths along the eased directions before floor and torso clearance.
+func _restore_limb_lengths() -> void:
+	var to_skeleton: Transform3D = skeleton.global_transform.affine_inverse()
+	for limb: Array in LIMBS:
+		var root: Vector3 = _world_at(limb[0])
+		var middle: Vector3 = _world_at(limb[1])
+		var tip: Vector3 = _world_at(limb[2])
+		var middle_turn: Basis = (skeleton.global_transform * skeleton.get_bone_global_pose(_ids[limb[1]])).basis
+		var tip_turn: Basis = (skeleton.global_transform * skeleton.get_bone_global_pose(_ids[limb[2]])).basis
+		var first: float = _at(limb[0]).distance_to(_at(limb[1]))
+		var second: float = _at(limb[1]).distance_to(_at(limb[2]))
+		if limb[4] == "arm":
+			first *= _arm_length
+			second *= _arm_length
+		var bent: Vector3 = root + (middle - root).normalized() * first
+		var end: Vector3 = bent + (tip - middle).normalized() * second
+		_set_world(limb[1], Transform3D(middle_turn, bent), to_skeleton)
+		_set_world(limb[2], Transform3D(tip_turn, end), to_skeleton)
+
+
 ## Keeps this body out of the other man's trunk again (`avoid` set afresh), once he's settled too (D397).
 func keep_out() -> void:
 	_keep_out()
+	_remember_shown()
+
+
+## Moves the whole posed body without changing its limbs, and remembers the corrected result (D422).
+func translate_pose(offset: Vector3) -> void:
+	var id: int = _ids.Hips
+	var local_offset: Vector3 = skeleton.global_transform.basis.inverse() * offset
+	skeleton.set_bone_pose_position(id, skeleton.get_bone_pose_position(id) + local_offset)
 	_remember_shown()
 
 
@@ -676,7 +714,7 @@ func _lift_off_canvas() -> void:
 
 
 ## The other man's trunk, the line from his hips to his chest in the world (set each frame before settle; empty
-## when there's no one to keep out of): no hand, foot, elbow or knee of this body is shown inside it (D397).
+## when there's no one to keep out of). Used to route complete limb segments around it (D397, D425).
 var avoid: Array[Vector3] = []
 
 
@@ -685,7 +723,7 @@ func trunk() -> Array[Vector3]:
 	return [_world_at("Hips"), _world_at("Spine2")]
 
 
-## Any limb with its hand or foot, elbow or knee inside the other man's trunk (`avoid`) is posed again, the hand or
+## Any limb segment crossing the other man's trunk (`avoid`) is posed again, the hand or
 ## foot put on him and the elbow or knee turned round the limb out of him (FighterRig.out_of, clear_of; D397). The
 ## rig keeps its poses out of him already; this catches what the body adds: easing between two poses (a sweep turning
 ## them over, getting up from underneath), its own lengths and the pieces' strikes.
@@ -700,7 +738,7 @@ func _keep_out() -> void:
 		var root: Vector3 = _world_at(upper)
 		var middle: Vector3 = _world_at(lower)
 		var tip: Vector3 = _world_at(end)
-		if _out_by(middle) >= FighterRig.TRUNK_RADIUS and _out_by(tip) >= FighterRig.TRUNK_RADIUS:
+		if FighterRig.limb_clearance(root, middle, tip, avoid) >= FighterRig.TRUNK_RADIUS:
 			continue
 		var tip_turn: Basis = (skeleton.global_transform.basis * skeleton.get_bone_global_pose(_ids[end]).basis).orthonormalized()
 		var to: Vector3 = FighterRig.out_of(tip, avoid[0], avoid[1])
@@ -712,11 +750,6 @@ func _keep_out() -> void:
 		_aim_bone(upper, lower, root, bent_at, bend, arm, to_skeleton)
 		_aim_bone(lower, end, bent_at, chain[1], bend, arm, to_skeleton)
 		_set_world(end, Transform3D(tip_turn, chain[1]), to_skeleton)
-
-
-## How far `point` is from the middle line of the other man's trunk.
-func _out_by(point: Vector3) -> float:
-	return point.distance_to(FighterRig.closest_on(point, avoid[0], avoid[1]))
 
 
 ## The lowest a joint's middle may be shown while easing (metres above the canvas).

@@ -1192,6 +1192,140 @@ its bones' lengths kept; a pose that jumps eased in; a quick strike not slowed; 
 frame eased round; a hand inside the other man put on him; a knee inside him turned out keeping its bones' lengths; the
 body keeping its hands out of him).
 
+## Round-kick arm clearance (D420)
+
+The rear glove used to sweep down through the raised thigh, especially while a head kick rechambered.
+The kicking-side hand now counterbalances outward and behind its shoulder through both extension and
+rechamber, then returns to guard. The lead hand still guards the head. `KICK_HAND_OUT`, `KICK_HAND_DOWN`
+and `KICK_HAND_BACK` in `fighter_figure.gd` describe that hand path in metres relative to the chest.
+This applies to body, head, leg and calf round kicks in either stance; it does not change the sim.
+
+`tests/game/test_kick_clearance.gd` samples every phase at 60 Hz and measures the visible body's
+forearm against its thigh, rather than only the hidden driver joints. The old path failed five of
+eight stance/action combinations (head-kick clearance fell to 11 cm); the new path clears the 18 cm
+regression threshold in all eight. Rendered body and head kicks were also compared through chamber,
+contact and recovery. This check covers the kicking arm against its own thigh, not every possible
+opponent contact.
+
+## Short-strike contact (D421)
+
+Standing elbows now lead with the elbow, and knees lead with the knee. Previously the elbow used the
+punch solver's hand target and the knee had no opponent target or step-in distance. The elbow also
+turned the rear shoulder away from the opponent, crowding the striker's own head when brought close.
+Its torso now turns the rear shoulder forward. Contact gaps are 0.65 m for an elbow and 0.67 m for a knee.
+
+The `joint` flag in `FighterFigure.AIMS` selects middle-joint contact. `FighterMotion.strike_joint`
+blends limb directions with fixed bone lengths, folding the hand/foot back along `ELBOW_FOLD` or
+`KNEE_FOLD`. `body_pose` carries that intent to `SkinnedBody.follow_joints`, which solves it again
+using the visible body's actual lengths. The existing outcome target still chooses landed, covered,
+missed or short contact; no fight rules or timing change.
+
+`tests/game/test_short_strike_contact.gd` checks visible elbow/knee contact in both stances, the distal
+limb behind the striking joint, the elbow forearm outside its own head, and fixed bone lengths through
+extension and recovery. `tools/strike_preview.gd -- --only=elbow,knee` renders the standing strikes.
+Clinch and ground combinations remain separate review cases; this does not certify every grip or
+transition around a short strike.
+
+## Keeping the whole body inside the cage (D422)
+
+Sprawl paths bypassed the fence adjustment, and that adjustment checked only trunk/head points.
+The final body's toes could extend more than 80 cm outside the wire. Sprawl paths now receive the
+same adjustment as other takedowns, and authored path checks include the rig's limb joints.
+
+After both visible bodies settle, the view also checks `FENCE_BONES` with surface allowances against
+every octagon panel. One shared translation brings the pair inside, preserving their relative contact
+and every bone length. This catches limbs swinging outside between path keys and the visible body's
+different proportions. `SkinnedBody.translate_pose` remembers the corrected pose for the next frame.
+This is presentation only; the simulation positions remain unchanged.
+
+`tests/game/test_cage_clearance.gd` samples the visible body during sprawls and takedowns beside all
+eight panels and corners. Existing fence, takedown, clinch and submission-view checks also pass.
+`tools/cage_preview.gd` supplies reproducible before/after fence samples in the real game scene.
+The final constraint is a safety bound; authored paths should still avoid large corrective slides.
+
+## Guard armbar position (D423)
+
+The armbar branch was selected correctly, but its pose kept the defender too upright and the attacker
+nearly in ordinary guard. The visible trapped elbow was about 60 cm from the attacker's hips. The
+attacker now turns perpendicular and bridges under the elbow, while the defender's shoulder lowers
+enough for the trapped arm to reach. Both hands retain the wrist. One bent leg controls the head and
+the other folds across the back, instead of leaving both feet raised like an open guard.
+
+`tests/game/test_armbar_contact.gd` checks the final skinned bodies with either fighter attacking:
+elbow at the hips, a nearly straight trapped arm, both hands at the wrist, and the folded leg near the
+head without passing through its centre. Existing submission-pair reach, floor and tightening checks
+remain in force. The loose and tight poses were inspected from both sides with `tools/hold_preview.gd`.
+The mount armbar remains its own existing pose; this repair concerns the armbar entered from guard.
+
+## Releasing a submission after the tap (D424)
+
+The finish previously returned to the tight submission after the tapping interval. It now captures
+the posed contacts, opens the hands and hooks for `RELEASE_GRIP_SECONDS` (0.4 s), then separates the
+bodies over `RELEASE_SPACE_SECONDS` (0.65 s). This starts after the existing 1.4 s tap and completes
+within the existing 3 s finish presentation; the result and tap signal timing are unchanged.
+
+Release targets are measured from the actual fitted rigs, with opponent-relative grip anchors replaced
+by explicit targets. Both bodies relax toward the hold's loose torso posture. A mount armbar retracts
+its legs to the attacker's side before separation so they do not sweep down across the defender's head.
+`RELEASE_HAND`, `RELEASE_HOOK`, `RELEASE_SPACE` and the remaining `RELEASE_*` constants in `arena_view.gd`
+set the distances. This is a disengagement, not a new stand-up animation.
+
+`tests/game/test_submission_view.gd` verifies body separation and hand release for nine hold cases,
+plus leg/head disengagement for armbars and the triangle. Existing tap, referee and ceremony checks
+pass. `tools/hold_preview.gd` captures the tap, opening and released stages from two sides before the
+results panel appears; the final poses were reviewed visually.
+
+## Whole-limb torso clearance (D425)
+
+Checking only elbows, knees, hands and feet missed segments passing through the other torso between
+those points. `FighterRig.limb_clearance` now measures both complete segments against the torso line.
+`clear_of` rotates the bend around the fixed root-to-tip axis until both segments clear the existing
+12 cm capsule, retaining bone lengths and the contact point. The final skinned-body correction uses
+the same segment test after easing. An impossible fixed-endpoint pose gets the least penetrating
+bend; this does not replace authored contact poses or provide complete mesh collision detection.
+
+`tests/game/test_limb_segments.gd` reproduces an endpoint-clear but segment-crossing arm and checks
+the final back-control pose. Four torso crossings in back control (both forearms and both shins)
+become zero. Seven canonical ground/clinch poses can be audited with `tools/contact_audit.gd`;
+`--stills` captures both sides in the real scene. The remaining body-lock forearm crossing requires
+a contact-pose repair. Existing limb, rig, ground/clinch, strike and submission checks remain in force.
+
+## Body-lock contact (D426)
+
+The lock's near-straight forearm crossed the opponent's torso even after complete-segment routing.
+The target was too narrow for that reach. Keep the hands slightly wider at the lower back (10 cm
+authored side offset rather than 6 cm), bring the driver's hips 4 cm closer, and raise the head beside
+the shoulder. Small changes to lean and side bend preserve a compact body lock rather than an
+exaggerated sideways fold. Underhooks, collar ties and fence body postures retain their own poses.
+
+`tests/game/test_clinch_contact.gd` checks either owner and both lead-side assignments on the final
+bodies: forearm/upper-arm clearance, separate heads, and head clearance from the torso and shoulders.
+Existing target reach, body pressure, grip identity, mirror, clinch, fence and takedown checks pass.
+Both camera angles from `contact_audit.gd --stills` were reviewed; the seven canonical torso-capsule
+samples now report zero crossings. This does not certify every clinch strike or full mesh contact.
+
+## Paired short strikes (D427)
+
+Ground elbows previously targeted the glove, leaving the elbow 32–61 cm from the opponent's head.
+Paired limb specs can now carry a separate `joint_to`/`joint_off` contact and optional `joint_weight`.
+The rig and final body aim the elbow or knee there while folding the distal limb back. Mirroring and
+role swaps preserve those targets. Ground elbows shift the shoulder over the target; bottom strikes
+lift the torso toward the opponent. Clinch elbows turn the striking shoulder forward while the
+supporting body-lock hand moves slightly wider; knees retain the held body pose and target the belly.
+
+The final body can turn its shoulder blade for a short elbow reach. During easing, limb lengths are
+restored along the interpolated directions before floor/torso correction, preserving the fighter's
+individual arm-length setting. The motion check also samples the driver's fractional tick so it does
+not introduce artificial simulation-tick jumps.
+
+`tests/game/test_paired_short_strikes.gd` covers legal ground positions, both corners/leads and both
+body-lock owners, then samples windup through recovery and checks the return to the hold. Extend
+`tools/contact_audit.gd --stills` with `--action=ground_elbow` or `--action=bottom_elbow --who=1` to
+inspect the action; `--motion` also captures windup through recovery at 20 fps. Final motion samples
+were inspected from both sides after the easing correction. All 180 focused assertions pass. The
+broader local game suite passes 304/305 tests, with only the known baseline speed-threshold failure;
+the GitHub full test suite and playtest build pass. Other contacts and transitions remain tracked.
+
 ## Review and verification
 
 Open `project.godot` in Godot 4.7.2 and run the game normally. Start a fight and check striking,

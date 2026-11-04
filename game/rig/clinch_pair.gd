@@ -166,7 +166,7 @@ static func body(kind: String, head_side: float) -> Dictionary:
 			}
 		"lock":  # The a man has both arms under, hips in and a little lower; the other stands taller over him.
 			pair = {
-				"a": {"root": [0.04, 0.84, 0.28], "lean": 18, "bend": [8, -6, 12], "head": [6, -HEAD_TURN],
+				"a": {"root": [0.06, 0.84, 0.24], "lean": 16, "bend": [8, -6, 16], "head": [-20, -HEAD_TURN],
 					"foot_l": {"at": [-0.2, ANKLE, 0.12]}, "foot_r": {"at": [0.2, ANKLE, 0.56]}},
 				"b": {"root": [0.04, 0.9, -0.29], "turn": 180, "lean": 8, "bend": [4, 6, 12], "head": [6, HEAD_TURN],
 					"foot_l": {"at": [0.2, ANKLE, -0.14]}, "foot_r": {"at": [-0.2, ANKLE, -0.56]}},
@@ -192,7 +192,7 @@ static func hand(grip: String, letter: String, other: String) -> Dictionary:
 		"under":
 			return {"to": "%s.blade_%s" % [other, across], "off": [0.0, 0.02, 0.02], "pole": [out, -0.6, 0.2]}
 		"lock":
-			return {"to": "%s.lower_back" % other, "off": [theirs * 0.06, 0.06, -0.02], "pole": [out, -0.6, 0.2]}
+			return {"to": "%s.lower_back" % other, "off": [theirs * 0.1, 0.06, -0.02], "pole": [out, -0.6, 0.2]}
 		"over":
 			return {"to": "%s.upper_%s" % [other, across], "off": [theirs * 0.05, 0.0, 0.03], "pole": [out * 0.8, 0.2, 0.4]}
 		"collar":
@@ -360,12 +360,12 @@ static func _mirror_limb(want: Dictionary) -> Dictionary:
 	var m := {}
 	for key: String in want:
 		var value: Variant = want[key]
-		if key == "to":
+		if key in ["to", "joint_to"]:
 			var point_name: String = String(value)
 			if point_name.ends_with("_l") or point_name.ends_with("_r"):
 				point_name = point_name.left(-1) + _other(point_name.right(1))
 			m[key] = point_name
-		elif key in ["at", "off", "pole"]:
+		elif key in ["at", "off", "pole", "joint_off"]:
 			m[key] = [-value[0], value[1], value[2]]
 		else:
 			m[key] = value
@@ -376,10 +376,12 @@ static func _relabel(spec: Dictionary) -> Dictionary:
 	var out := {}
 	for key: String in spec:
 		var value: Variant = spec[key]
-		if value is Dictionary and (value as Dictionary).has("to"):
+		if value is Dictionary:
 			var want: Dictionary = (value as Dictionary).duplicate()
-			var point_name: String = String(want.to)
-			want.to = ("b" if point_name.begins_with("a.") else "a") + point_name.substr(1)
+			for target_key: String in ["to", "joint_to"]:
+				if want.has(target_key):
+					var point_name: String = String(want[target_key])
+					want[target_key] = ("b" if point_name.begins_with("a.") else "a") + point_name.substr(1)
 			out[key] = want
 		else:
 			out[key] = value

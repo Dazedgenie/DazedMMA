@@ -71,6 +71,8 @@ var corner: String = "a"
 ## body follows has that body's trunk and limbs.
 var waist_up: float = WAIST_UP
 var neck_up: float = NECK_UP
+## Middle-joint strike intent, separate from the positional joints consumed by bounds/path checks (D427).
+var joint_strikes: Dictionary = {}
 var head_up: Vector3 = HEAD_UP
 var shoulder: Vector3 = SHOULDER
 var hip_x: float = HIP_X
@@ -129,6 +131,11 @@ func set_limbs(spec: Dictionary, frame: Transform3D, other: FighterRig, blend_to
 	for side: String in SIDES:
 		for limb: String in ["hand", "foot"]:
 			var key: String = "%s_%s" % [limb, side]
+			var strike_key: String = "joint_strike_" + ("arm_" if limb == "hand" else "leg_") + side
+			joint_strikes.erase(strike_key)
+			var strike: Dictionary = _joint_aim(spec.get(key, {}), blend_to.get(key, {}), not blend_to.is_empty(), t, key, frame, other)
+			if not strike.is_empty():
+				joint_strikes[strike_key] = strike
 			var target: Vector3 = target_for(spec.get(key, {}), key, frame, other)
 			var pole: Vector3 = _pole(spec, key)
 			if not blend_to.is_empty():
@@ -142,9 +149,28 @@ func set_limbs(spec: Dictionary, frame: Transform3D, other: FighterRig, blend_to
 			if not trunk.is_empty():  # Nor into the other man (D397): a hand or foot that would be is put on him.
 				target = out_of(target, trunk[0], trunk[1])
 			if limb == "hand":
-				_solve_arm(side, target, pole, trunk)
+				_solve_arm(side, target, pole, trunk, strike)
 			else:
-				_solve_leg(side, target, pole, _planted(spec, key, target), trunk)
+				_solve_leg(side, target, pole, _planted(spec, key, target), trunk, strike)
+
+
+## A paired short strike keeps its ordinary grip/guard target and blends its elbow or knee toward a separate
+## contact (D427). Carry this intent to the final body so retargeting cannot turn an elbow back into a punch.
+func _joint_aim(from: Dictionary, to: Dictionary, blending: bool, t: float, key: String, frame: Transform3D, other: FighterRig) -> Dictionary:
+	var a: float = float(from.get("joint_weight", 1.0)) if from.has("joint_to") else 0.0
+	var b: float = float(to.get("joint_weight", 1.0)) if to.has("joint_to") else 0.0
+	var weight: float = lerpf(a, b, t) if blending else a
+	if weight < 0.001:
+		return {}
+	var want: Dictionary = from if a > 0.0 else to
+	var target: Vector3 = target_for({"to": want.joint_to, "off": want.get("joint_off", [0, 0, 0])}, key, frame, other)
+	if a > 0.0 and b > 0.0:
+		target = target.lerp(target_for({"to": to.joint_to, "off": to.get("joint_off", [0, 0, 0])}, key, frame, other), t)
+	var side: float = -1.0 if key.ends_with("_l") else 1.0
+	var fold: Vector3 = bones.pelvis.global_basis * Vector3(0, -0.65, 1)
+	if key.begins_with("hand"):
+		fold = point("head") + bones.waist.global_basis * Vector3(side * 0.16, -0.10, -0.10) - target
+	return {"target": target, "weight": weight, "fold": fold.normalized(), "shoulder_reach": key.begins_with("hand")}
 
 
 ## Where a hand or foot target `want` points, in the world. {"to": "b.back", "off": [x, y, z]} is a named
@@ -236,10 +262,12 @@ func _planted(spec: Dictionary, key: String, target: Vector3) -> float:
 	return 1.0 if target.y < ankle_up + 0.03 and not want.has("to") else 0.0
 
 
-func _solve_arm(side: String, target: Vector3, pole: Vector3, trunk: Array[Vector3] = []) -> void:
+func _solve_arm(side: String, target: Vector3, pole: Vector3, trunk: Array[Vector3] = [], strike: Dictionary = {}) -> void:
 	var chest: Node3D = bones.waist
 	var joint: Vector3 = chest.global_transform * Vector3(shoulder.x * (-1.0 if side == "l" else 1.0), shoulder.y, shoulder.z)
 	var chain: Array[Vector3] = FighterMotion.solve_bones(Vector3.ZERO, target - joint, pole, upper_arm, forearm)
+	if not strike.is_empty():
+		chain = FighterMotion.strike_joint(Vector3.ZERO, chain, Vector3(strike.target) - joint, strike.fold, float(strike.weight), upper_arm, forearm)
 	var elbow: Vector3 = clear_of(joint, joint + chain[0], joint + chain[1], trunk)
 	var wrist: Vector3 = joint + chain[1]
 	_lay(bones["upper_" + side], joint, elbow, pole, upper_arm)
@@ -251,10 +279,13 @@ func _solve_arm(side: String, target: Vector3, pole: Vector3, trunk: Array[Vecto
 	joints["wrist_" + side] = wrist
 
 
-func _solve_leg(side: String, target: Vector3, pole: Vector3, planted: float, trunk: Array[Vector3] = []) -> void:
+func _solve_leg(side: String, target: Vector3, pole: Vector3, planted: float, trunk: Array[Vector3] = [], strike: Dictionary = {}) -> void:
 	var pelvis: Node3D = bones.pelvis
 	var hip: Vector3 = pelvis.global_transform * Vector3(hip_x * (-1.0 if side == "l" else 1.0), 0, 0)
 	var chain: Array[Vector3] = FighterMotion.solve_bones(Vector3.ZERO, target - hip, pole, thigh, shin)
+	if not strike.is_empty():
+		chain = FighterMotion.strike_joint(Vector3.ZERO, chain, Vector3(strike.target) - hip, strike.fold, float(strike.weight), thigh, shin)
+		planted *= 1.0 - float(strike.weight)
 	var knee: Vector3 = clear_of(hip, hip + chain[0], hip + chain[1], trunk)
 	var ankle: Vector3 = hip + chain[1]
 	_lay(bones["thigh_" + side], hip, knee, pole, thigh)
@@ -306,12 +337,19 @@ static func out_of(p: Vector3, a: Vector3, b: Vector3) -> Vector3:
 	return near + off.normalized() * TRUNK_RADIUS
 
 
-## A knee or elbow at `middle`, between `root` and `end`, kept out of the canvas (above_canvas) and out of the other
-## man's trunk `trunk` (D397): if it's inside him it's turned round the line from `root` to `end`, the least way that
-## gets it out and keeps it above the canvas. If no turn does, the furthest out of him it can go.
+## The nearest either segment of a bent limb comes to the other torso's centre line (D425).
+static func limb_clearance(root: Vector3, middle: Vector3, end: Vector3, trunk: Array[Vector3]) -> float:
+	var upper: PackedVector3Array = Geometry3D.get_closest_points_between_segments(root, middle, trunk[0], trunk[1])
+	var lower: PackedVector3Array = Geometry3D.get_closest_points_between_segments(middle, end, trunk[0], trunk[1])
+	return minf(upper[0].distance_to(upper[1]), lower[0].distance_to(lower[1]))
+
+
+## Keep both segments, not just the elbow/knee, outside the other trunk (D397, D425). Rotate the bend around
+## root-to-end to retain both bone lengths and the contact point. If the fixed endpoints make clearance impossible,
+## choose the least penetrating bend that still clears the canvas.
 static func clear_of(root: Vector3, middle: Vector3, end: Vector3, trunk: Array[Vector3]) -> Vector3:
 	var lifted: Vector3 = above_canvas(root, middle, end)
-	if trunk.is_empty() or lifted.distance_to(closest_on(lifted, trunk[0], trunk[1])) >= TRUNK_RADIUS:
+	if trunk.is_empty() or limb_clearance(root, lifted, end, trunk) >= TRUNK_RADIUS:
 		return lifted
 	var axis: Vector3 = end - root
 	if axis.length() < 0.001:
@@ -319,16 +357,16 @@ static func clear_of(root: Vector3, middle: Vector3, end: Vector3, trunk: Array[
 	axis = axis.normalized()
 	var arm: Vector3 = lifted - root
 	var best: Vector3 = lifted
-	var best_out: float = lifted.distance_to(closest_on(lifted, trunk[0], trunk[1]))
+	var best_out: float = limb_clearance(root, lifted, end, trunk)
 	for step in range(1, 37):
 		for sign: float in [1.0, -1.0]:
 			var turned: Vector3 = root + arm.rotated(axis, sign * step * FLOOR_STEP)
-			var out: float = turned.distance_to(closest_on(turned, trunk[0], trunk[1]))
+			var out: float = limb_clearance(root, turned, end, trunk)
 			if turned.y < JOINT_FLOOR:
 				continue
 			if out >= TRUNK_RADIUS:
 				return turned
-			if out > best_out:
+			if out > best_out + 0.00001:
 				best = turned
 				best_out = out
 	return best

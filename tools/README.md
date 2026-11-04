@@ -1,5 +1,11 @@
 # tools/ — developer scripts
 
+`cage_preview.gd` captures a sprawl and double-leg landing beside the fence (D422).
+`hold_preview.gd` captures actual locked submissions at low/high danger and after the tap from two
+angles (D423). Use `--only=armbar` to inspect both guard and mount variants, or a specific case such
+as `--only=armbar_guard`; `--out=res://build/holds-review` chooses a fresh output directory.
+Both require a display and arrange throwaway fights without saving them.
+
 The rendered visual reviews require a graphics display (Godot 4.7.2). `visual_preview.gd` captures
 the real fight screen in standing, striking, kicking, clinch, ground and fence poses; `--720p`
 checks the smaller desktop window. `character_preview.gd` captures the actual fighter models
@@ -235,3 +241,14 @@ checked. Needs a display:
     godot --path . --fixed-fps 24 --write-movie build/pads/frame.png --script res://tools/pads_preview.gd -- --kicking=70 --seconds=8
 
     godot --path . --fixed-fps 24 --write-movie build/film/frame.png --script res://tools/film_preview.gd -- --style=kicker --seconds=8 --name
+
+`contact_audit.gd` checks final limb segments against the other torso in seven canonical ground/clinch
+poses. It writes JSON diagnostics; `--stills` also captures two camera angles in the real scene.
+This measures the existing torso capsule, not complete mesh collisions.
+Add `--action=ground_elbow` or `--action=bottom_elbow --who=1` to inspect a held contact pose in
+each legal position. The captures hide overhead labels so they do not obscure the joints.
+Use `--motion` instead of `--stills` to also save each strike's windup, contact, recovery and return to
+the hold as 20 fps JPEG sequences, from both camera angles.
+
+    godot --headless --path . --script res://tools/contact_audit.gd -- --out=res://build/contact-audit.json
+    godot --path . --script res://tools/contact_audit.gd -- --stills --out=res://build/contact-audit.json

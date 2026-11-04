@@ -99,6 +99,15 @@ const SPRAWL_SECONDS: float = 0.3
 const LAND_EASE: float = 0.45
 const FENCE_GAP: float = 0.06
 const FENCE_SPOTS: Array[String] = ["head", "back_of_head", "chin", "back", "lower_back", "seat", "chest", "belly"]
+## D422: surface allowances around the final body's joints, in metres. Include toes beyond the ankle.
+const FENCE_BONES := {
+	"Hips": 0.14, "Spine1": 0.18, "Spine2": 0.18, "Head": 0.13,
+	"LeftArm": 0.09, "RightArm": 0.09, "LeftForeArm": 0.07, "RightForeArm": 0.07,
+	"LeftHand": 0.09, "RightHand": 0.09, "LeftUpLeg": 0.11, "RightUpLeg": 0.11,
+	"LeftLeg": 0.09, "RightLeg": 0.09, "LeftFoot": 0.07, "RightFoot": 0.07,
+	"LeftToeBase": 0.07, "RightToeBase": 0.07,
+}
+const FENCE_SOLVE_PASSES: int = 8
 const TAKEDOWN_ENDED := "takedown ended"
 ## The ground positions from the rig (D289): full guard, half guard, side control, mount, the back and the
 ## crucifix are posed by GroundPair on the hidden rigs, laid out as today's figures lay them out (lay_out), with
@@ -133,6 +142,18 @@ const HOLD_EASE: float = 0.35
 const PULL_EASE: float = 0.6
 const DANGER_SPEED: float = 3.0
 const TAP_SECONDS: float = 1.4
+## D424: disengage hands/hooks before separating, within the existing finish hold.
+const RELEASE_GRIP_SECONDS: float = 0.4
+const RELEASE_SPACE_SECONDS: float = 0.65
+const RELEASE_HAND: float = 0.22
+const RELEASE_HOOK: float = 0.24
+const RELEASE_SPACE: float = 0.16
+const RELEASE_OUT: float = 0.1
+const RELEASE_LIFT: float = 0.06
+const RELEASE_LOWER: float = 0.25
+const RELEASE_HEAD_LIFT: float = 0.2
+const RELEASE_FOOT_SPREAD: float = 0.13
+const RELEASE_KNEE_UP: float = 0.6
 ## The finish (D374): a fight won by a knockout, a stoppage or a submission holds on the cage this many seconds,
 ## the referee jumping in and waving it off (and the tap first after a submission), before the result comes up.
 const FINISH_HOLD: float = 3.0
@@ -534,19 +555,68 @@ func _settle_bodies(delta: float) -> void:
 	if figures.size() == 2:  # The first again, against where the second ended up.
 		figures[0].body.avoid = figures[1].body.trunk()
 		figures[0].body.keep_out()
+	_keep_bodies_in_cage()
+
+
+## A single translation preserves both bodies' contact and bone lengths, including between path keys.
+## Apply after easing: an interpolated foot can cross the wire even when both authored poses fit.
+func _keep_bodies_in_cage() -> void:
+	var over: Array[float] = []
+	for normal: Vector2 in Octagon.NORMALS:
+		var furthest: float = -INF
+		for figure in figures:
+			if figure.body == null:
+				continue
+			for bone: String in FENCE_BONES:
+				var at: Vector3 = figure.body._world_at(bone)
+				furthest = maxf(furthest, Vector2(at.x, at.z).dot(normal) + float(FENCE_BONES[bone]) - Octagon.APOTHEM)
+		over.append(furthest)
+	var push := Vector2.ZERO
+	for pass_index in FENCE_SOLVE_PASSES:
+		for i in Octagon.NORMALS.size():
+			var normal: Vector2 = Octagon.NORMALS[i]
+			var excess: float = over[i] + push.dot(normal)
+			if excess > 0.0:
+				push -= normal * excess
+	if push.length_squared() > 0.00000001:
+		for figure in figures:
+			if figure.body != null:
+				figure.body.translate_pose(Vector3(push.x, 0.0, push.y))
 
 
 ## Poses `built` (empty: today's figures) in `frame`, with any strike's limb from today's figure.
 func _pose_built(sim: FightSim, built: Dictionary, frame: Transform3D) -> void:
 	var strikes: Array = [[], []]  # The limbs thrown from the pose, each man's, as follow_joints names them.
+	var held_pose_key: String = "" if built.is_empty() else str(built.pair)
 	if not built.is_empty():
+		built = built.duplicate(true)
 		for i in 2:
 			var action: String = sim.fighters[i].action_id
 			if CLINCH_STRIKES.has(action):
 				var limb: String = FighterFigure.limb_for(action)
 				var letter: String = figures[i].arm_letter(0 if limb.begins_with("lead") else 1)
-				strikes[i] = [("leg_" if limb.ends_with("leg") else "arm_") + letter]
-	var shown: String = "" if built.is_empty() else str(built.pair) + str(strikes)
+				if action in ["elbow", "knee"]:
+					var thrown: Array = strike_blend(sim, sim.fighters[i], driver.alpha())
+					var weight: float = 0.0
+					if not thrown.is_empty():
+						weight = float(thrown[1]) if int(thrown[0]) == 1 else (1.0 - float(thrown[1]) if int(thrown[0]) == 2 else 0.0)
+					var man: String = "a" if i == (1 if bool(built.flip) else 0) else "b"
+					var other: String = "b" if man == "a" else "a"
+					var key: String = ("foot_" if action == "knee" else "hand_") + letter
+					var want: Dictionary = built.pair[man].get(key, {}).duplicate(true)
+					want.joint_to = other + (".belly" if action == "knee" else ".head")
+					want.joint_off = [0, 0, -0.02] if action == "knee" else [0, 0.03, -0.11]
+					want.joint_weight = weight
+					built.pair[man][key] = want
+					if action == "elbow":
+						built.pair[man].bend[1] += (24.0 if letter == "r" else -24.0) * weight
+						var support_key: String = "hand_" + ("l" if letter == "r" else "r")
+						var support: Dictionary = built.pair[man].get(support_key, {})
+						if String(support.get("to", "")).ends_with(".lower_back"):
+							support.off[0] += signf(float(support.off[0])) * 0.05 * weight
+				else:
+					strikes[i] = [("leg_" if limb.ends_with("leg") else "arm_") + letter]
+	var shown: String = "" if built.is_empty() else held_pose_key + str(strikes)
 	if shown != _clinch_shown:  # Into or out of the rig's clinch, or a new grip: ease to it.
 		if _clinch_shown != TAKEDOWN_ENDED:  # Out of a takedown it eases at its own pace (_end_takedown).
 			for figure in figures:
@@ -575,10 +645,19 @@ func _pose_hold(sim: FightSim, delta: float) -> bool:
 		_tap_time += delta
 		if before < TAP_SECONDS and _tap_time >= TAP_SECONDS:
 			tapped.emit()
-		var pair: Dictionary = SubmissionPair.tapping(_hold_pose.built, _tap_time) if _tap_time < TAP_SECONDS \
-			else _hold_pose.built.tight
 		var attacker: int = int(_hold_pose.attacker)
-		FighterRig.pose_pair(_clinch_rigs[attacker], _clinch_rigs[1 - attacker], pair, _hold_pose.frame)
+		if _tap_time < TAP_SECONDS:
+			var pair: Dictionary = SubmissionPair.tapping(_hold_pose.built, _tap_time)
+			FighterRig.pose_pair(_clinch_rigs[attacker], _clinch_rigs[1 - attacker], pair, _hold_pose.frame)
+		else:
+			if not _hold_pose.has("release"):
+				_hold_pose.release = _release_targets(attacker)
+			var release: Dictionary = _hold_pose.release
+			var seconds: float = _tap_time - TAP_SECONDS
+			var opening: bool = seconds < RELEASE_GRIP_SECONDS
+			var t: float = seconds / RELEASE_GRIP_SECONDS if opening else (seconds - RELEASE_GRIP_SECONDS) / RELEASE_SPACE_SECONDS
+			FighterRig.pose_pair(_clinch_rigs[attacker], _clinch_rigs[1 - attacker], release.start if opening else release.loose,
+				_hold_pose.frame, release.loose if opening else release.apart, smoothstep(0.0, 1.0, clampf(t, 0.0, 1.0)))
 		for i in 2:
 			figures[i].body.follow(_clinch_rigs[i])
 		return true
@@ -607,6 +686,69 @@ func _pose_hold(sim: FightSim, delta: float) -> bool:
 	for i in 2:
 		figures[i].body.follow(_clinch_rigs[i])
 	return true
+
+
+## Capture the actual grip, then open it before moving the bodies apart. No live opponent anchors survive.
+func _release_targets(attacker: int) -> Dictionary:
+	var start: Dictionary = (_hold_pose.built.tight as Dictionary).duplicate(true)
+	var loose: Dictionary = start.duplicate(true)
+	var apart: Dictionary = start.duplicate(true)
+	var frame: Transform3D = _hold_pose.frame
+	var inverse: Transform3D = frame.affine_inverse()
+	for man_index in 2:
+		var man: String = "a" if man_index == 0 else "b"
+		var who: int = attacker if man_index == 0 else 1 - attacker
+		var rig: FighterRig = _clinch_rigs[who]
+		var other: FighterRig = _clinch_rigs[1 - who]
+		var away: Vector3 = rig.bones.pelvis.global_position - other.bones.pelvis.global_position
+		away.y = 0.0
+		away = away.normalized() if away.length() > 0.01 else frame.basis.x * (-1.0 if man_index == 0 else 1.0)
+		var local_away: Vector3 = frame.basis.inverse() * away
+		var root: Vector3 = FighterRig._vec(start[man].root) + local_away * RELEASE_SPACE
+		apart[man].root = [root.x, root.y, root.z]
+		for posture: String in ["lean", "bend", "head"]:
+			if _hold_pose.built.loose[man].has(posture):
+				apart[man][posture] = _hold_pose.built.loose[man][posture]
+		for limb: String in ["hand", "foot"]:
+			for side: String in ["l", "r"]:
+				var key: String = limb + "_" + side
+				var point: Vector3 = rig.joints[("wrist_" if limb == "hand" else "ankle_") + side]
+				var at: Vector3 = inverse * point
+				if limb == "foot":
+					at.y -= rig.ankle_up - FighterRig.ANKLE_UP
+				var original: Dictionary = start[man].get(key, {})
+				var target := {"at": [at.x, at.y, at.z]}
+				for kept: String in ["pole", "flat"]:
+					if original.has(kept):
+						target[kept] = original[kept]
+				start[man][key] = target
+				var opened: Vector3 = at
+				var crosses_head: bool = man_index == 0 and String(_hold_pose.built.tap) == "armbar_mount"
+				var unhook: bool = limb == "foot" and (original.has("to") or point.y > 0.3 or crosses_head)
+				if limb == "hand" or unhook:
+					var outward: Vector3 = frame.basis.inverse() * rig.bones.pelvis.global_basis.x * (-1.0 if side == "l" else 1.0)
+					outward.y = 0.0
+					opened += local_away * (RELEASE_HAND if limb == "hand" else RELEASE_HOOK) + outward.normalized() * RELEASE_OUT
+					if unhook:
+						opened.y += RELEASE_LIFT
+				if crosses_head and limb == "foot":
+					# A mounted armbar's feet lie beyond the head. Retract them to the attacker's side first.
+					opened = FighterRig._vec(start[man].root) + local_away * RELEASE_HOOK
+					var spread: Vector3 = frame.basis.inverse() * rig.bones.pelvis.global_basis.x * (-1.0 if side == "l" else 1.0)
+					opened += spread * RELEASE_FOOT_SPREAD
+					opened.y = at.y + RELEASE_HEAD_LIFT
+				loose[man][key] = target.duplicate(true)
+				loose[man][key].at = [opened.x, opened.y, opened.z]
+				var released: Vector3 = opened + local_away * RELEASE_SPACE
+				if unhook:
+					released.y = maxf(FighterRig.ANKLE_UP, released.y - RELEASE_LOWER)
+				apart[man][key] = target.duplicate(true)
+				apart[man][key].at = [released.x, released.y, released.z]
+				if crosses_head and limb == "foot":
+					var pole: Vector3 = rig.bones.pelvis.global_basis.inverse() * (away + Vector3.UP * RELEASE_KNEE_UP)
+					loose[man][key].pole = [pole.x, pole.y, pole.z]
+					apart[man][key].pole = [pole.x, pole.y, pole.z]
+	return {"start": start, "loose": loose, "apart": apart}
 
 
 ## True when a fight that ended with `data` (FIGHT_ENDED's) is held on the cage before the result (D374):
@@ -807,7 +949,7 @@ func _pose_ground(sim: FightSim, delta: float) -> bool:
 	var t: float = 0.0
 	if GroundPair.STRIKES.has(f.action_id) and not posture:
 		var letter: String = figures[top].arm_letter(0 if FighterFigure.limb_for(f.action_id).begins_with("lead") else 1)
-		var keys: Array = GroundPair.strike(pair, f.action_id, letter)
+		var keys: Array = GroundPair.strike(pair, f.action_id, letter, where)
 		var thrown: Array = strike_blend(sim, f, driver.alpha())
 		if not thrown.is_empty():
 			var stage: Array = [pair, keys[0], keys[1], pair]
@@ -817,7 +959,7 @@ func _pose_ground(sim: FightSim, delta: float) -> bool:
 	var under: FighterState = sim.fighters[1 - top]
 	if to.is_empty() and GroundPair.BOTTOM_STRIKES.has(under.action_id):  # Hitting up from his back (D271).
 		var letter_up: String = figures[1 - top].arm_letter(0 if FighterFigure.limb_for(under.action_id).begins_with("lead") else 1)
-		var up: Array = GroundPair.strike_up(pair, under.action_id, letter_up)
+		var up: Array = GroundPair.strike_up(pair, under.action_id, letter_up, where)
 		var thrown_up: Array = strike_blend(sim, under, driver.alpha())
 		if not thrown_up.is_empty():
 			var stage_up: Array = [pair, up[0], up[1], pair]
@@ -1255,8 +1397,12 @@ func _keep_off_fence(path: Array, by: int) -> void:
 		TakedownPair.pose_along(_clinch_rigs[by], _clinch_rigs[1 - by], path, float(k))
 		var push := Vector2.ZERO
 		for rig in _clinch_rigs:
+			var points: Array[Vector3] = []
 			for spot: String in FENCE_SPOTS:
-				var p: Vector3 = rig.point(spot)
+				points.append(rig.point(spot))
+			for joint: String in rig.joints:
+				points.append(Vector3(rig.joints[joint]))
+			for p: Vector3 in points:
 				for normal: Vector2 in Octagon.NORMALS:
 					var over: float = (Vector2(p.x, p.z) + push).dot(normal) - (Octagon.APOTHEM - FENCE_GAP)
 					if over > 0.0:
@@ -1315,6 +1461,7 @@ func _land(result: String) -> void:
 ## The double leg sprawled on: down onto his knees under the sprawl, held there until his move is over.
 func _sprawled() -> void:
 	_takedown.path = TakedownPair.to_sprawl(_takedown.path, float(_takedown.x))
+	_keep_off_fence(_takedown.path, int(_takedown.a))
 	_takedown.state = "sprawl"
 	_takedown.x = 0.0
 	_takedown.left = SPRAWL_SECONDS
