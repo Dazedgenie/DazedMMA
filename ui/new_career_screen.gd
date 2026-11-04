@@ -4,6 +4,8 @@ extends PanelContainer
 ## §11.1), then the fighter's name, nickname, hometown (real cities,
 ## data/names; the country follows the city), stance, his look (D364: skin tone, hair colour, hair and beard; FighterLook)
 ## and one of the 12 backgrounds (data/backgrounds, docs/02 §1.2).
+## One page (D434, docs/06 §6.14): you and him on the left, his full figure big in the middle under a spotlight with
+## his name under him, and where he comes from on the right, the 12 backgrounds as tiles with a picture each.
 ## Roll fills it all at random; the screen opens rolled, so Start career works straight away. With *Play his
 ## childhood* ticked (the default, D312, §11.2) three short scenes pick the background instead of the list: Start
 ## career opens them (ChildhoodScreen); untick it to pick from the list and start straight away.
@@ -24,6 +26,11 @@ const SOUTHPAW_CHANCE: float = 0.2
 const NAME_LENGTH: int = 28
 ## The preview's frame (D430): an average 16-year-old's, until his background or childhood sets his own.
 const PREVIEW_FRAME := { "height_cm": 175, "reach_cm": 177, "build": "average" }
+## The middle of the page (D434): the stage he stands on, its width and colour, and the background tiles' grid.
+const STAGE := Color("#12151a")
+const STAGE_WIDTH: float = 400.0
+const TILE_COLUMNS: int = 3
+const TILE_SIZE := Vector2(0.0, 74.0)
 
 ## False when all the save slots are in use (main.gd sets it): Start career says to delete one first.
 var slot_free: bool = true
@@ -50,7 +57,12 @@ var _skin_picked: int = 2
 var _hair: OptionButton
 var _hair_style: OptionButton
 var _beard: OptionButton
-var _list: ItemList
+## The 12 backgrounds as tiles (D434), and which is picked.
+var _tiles: Array[Button] = []
+var _tile_grid: GridContainer
+var _picked_background: int = 0
+var _plate_name: Label
+var _plate_from: Label
 var _childhood: CheckBox
 ## I know the game (D316): no tips, and every call open from his first fight.
 var _know_the_game: CheckBox
@@ -69,7 +81,7 @@ func _init(p_names: NameLibrary = null, p_backgrounds: BackgroundLibrary = null)
 	_background_ids = _backgrounds.ids()
 
 	set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_theme_stylebox_override("panel", FightHud._panel_style(BACKGROUND))
+	add_theme_stylebox_override("panel", OffCage.hall_panel())  # The dimmed hall shows through (D435).
 	var column := VBoxContainer.new()
 	column.add_theme_constant_override("separation", 16)
 	add_child(column)
@@ -129,7 +141,7 @@ func _init(p_names: NameLibrary = null, p_backgrounds: BackgroundLibrary = null)
 	_stance = OptionButton.new()
 	for entry: Array in STANCES:
 		_stance.add_item(entry[0])
-	_stance.item_selected.connect(func(_i: int) -> void: _show_preview())
+	_stance.item_selected.connect(func(_i: int) -> void: _refresh())
 	who_box.add_child(_stance)
 	_caption(who_box, "His look")
 	var skins := HBoxContainer.new()
@@ -159,6 +171,40 @@ func _init(p_names: NameLibrary = null, p_backgrounds: BackgroundLibrary = null)
 	_hair_style = _look_option(hair_row, FighterLook.HAIR_STYLES.keys())
 	_beard = _look_option(hair_row, FighterLook.BEARDS.keys())
 
+	# Him in the middle (D434, Kyle's card "One page, him big in the middle"): his full figure under a spotlight,
+	# changing as his look is picked, and his name under him.
+	var stage := PanelContainer.new()
+	stage.custom_minimum_size = Vector2(STAGE_WIDTH, 0.0)
+	var stage_style: StyleBoxFlat = FightHud._panel_style(STAGE)
+	stage_style.set_content_margin_all(0)
+	stage.add_theme_stylebox_override("panel", stage_style)
+	body.add_child(stage)
+	var spot := TextureRect.new()
+	spot.texture = spotlight_texture()
+	spot.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	spot.stretch_mode = TextureRect.STRETCH_SCALE
+	spot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stage.add_child(spot)
+	var stage_box := VBoxContainer.new()
+	stage_box.add_theme_constant_override("separation", 2)
+	stage.add_child(stage_box)
+	preview = FighterPortrait.new(FighterPortrait.FULL, 0, -20.0)
+	preview.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	preview.tooltip_text = "Him as you've picked him: his skin, hair and beard, in his stance"
+	stage_box.add_child(preview)
+	_plate_name = Label.new()
+	DisplayFont.apply(_plate_name, 40)
+	_plate_name.add_theme_color_override("font_color", TEXT)
+	_plate_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_plate_name.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	stage_box.add_child(_plate_name)
+	_plate_from = FightNightCard._label(16, DIM)
+	_plate_from.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	stage_box.add_child(_plate_from)
+	var plate_gap := Control.new()
+	plate_gap.custom_minimum_size.y = 14.0
+	stage_box.add_child(plate_gap)
+
 	var bg_card := _card(Vector2(0.0, 0.0))
 	bg_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	body.add_child(bg_card)
@@ -167,30 +213,27 @@ func _init(p_names: NameLibrary = null, p_backgrounds: BackgroundLibrary = null)
 	_childhood = CheckBox.new()
 	_childhood.text = "Play his childhood: three short scenes, at 8, 12 and 15, decide it"
 	_childhood.button_pressed = true
-	_childhood.add_theme_font_size_override("font_size", 18)
+	_childhood.add_theme_font_size_override("font_size", 17)
+	_childhood.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_childhood.toggled.connect(func(_on: bool) -> void: _refresh())
 	bg_box.add_child(_childhood)
-	var bg_row := HBoxContainer.new()
-	bg_row.add_theme_constant_override("separation", 18)
-	bg_row.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	bg_box.add_child(bg_row)
-	_list = ItemList.new()
-	_list.custom_minimum_size = Vector2(300.0, 0.0)
-	_list.add_theme_font_size_override("font_size", 18)
-	for id: String in _background_ids:
-		_list.add_item(String(_backgrounds.get_background(id).name))
-	_list.item_selected.connect(func(_i: int) -> void: _refresh())
-	bg_row.add_child(_list)
+	# The 12 backgrounds as tiles with a picture each (D434, Kyle's card "Tiles with an icon each").
+	_tile_grid = GridContainer.new()
+	_tile_grid.columns = TILE_COLUMNS
+	_tile_grid.add_theme_constant_override("h_separation", 8)
+	_tile_grid.add_theme_constant_override("v_separation", 8)
+	bg_box.add_child(_tile_grid)
+	var group := ButtonGroup.new()
+	for i in _background_ids.size():
+		var id: String = _background_ids[i]
+		_tiles.append(_background_tile(id, String(_backgrounds.get_background(id).name), group, i))
 	_about = RichTextLabel.new()
 	_about.bbcode_enabled = true
-	_about.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_about.add_theme_font_size_override("normal_font_size", 18)
+	_about.fit_content = false
+	_about.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_about.add_theme_font_size_override("normal_font_size", 17)
 	_about.add_theme_color_override("default_color", TEXT)
-	bg_row.add_child(_about)
-	preview = FighterPortrait.new(FighterPortrait.FULL, 0, -20.0)
-	preview.custom_minimum_size = Vector2(300.0, 0.0)
-	preview.tooltip_text = "Him as you've picked him: his skin, hair and beard, in his stance"
-	bg_row.add_child(preview)
+	bg_box.add_child(_about)
 
 	_problem = FightNightCard._label(17, BAD)
 	_problem.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -208,7 +251,8 @@ func _init(p_names: NameLibrary = null, p_backgrounds: BackgroundLibrary = null)
 	CampPlanner.style_fight_button(_start, 34)
 	for edit: LineEdit in [_coach, _name, _nickname]:
 		edit.text_changed.connect(func(_t: String) -> void: _refresh())
-	_list.select(0)
+	_hometown.item_selected.connect(func(_i: int) -> void: _refresh())
+	_pick_tile(0)
 	_refresh()
 
 
@@ -224,7 +268,7 @@ func roll(roll_seed: int) -> void:
 		if _towns[i].city == person.hometown and _towns[i].country_id == person.country_id:
 			_hometown.select(i)
 	_coach.text = _names.random_name(rng)
-	_list.select(rng.randi_range(0, _background_ids.size() - 1))
+	_pick_tile(rng.randi_range(0, _background_ids.size() - 1))
 	_stance.select(1 if rng.randf() < SOUTHPAW_CHANCE else 0)
 	_coach_background.select(rng.randi_range(0, _coach_background_ids.size() - 1))
 	_coach_specialty.select(rng.randi_range(0, _specialty_ids.size() - 1))
@@ -312,13 +356,23 @@ func pick_coach(background: String, specialty: String) -> void:
 
 
 func background_id() -> String:
-	var picked: PackedInt32Array = _list.get_selected_items()
-	return String(_background_ids[picked[0] if not picked.is_empty() else 0])
+	return String(_background_ids[clampi(_picked_background, 0, _background_ids.size() - 1)])
 
 
 func pick_background(id: String) -> void:
-	_list.select(maxi(_background_ids.find(id), 0))
+	_pick_tile(maxi(_background_ids.find(id), 0))
 	_refresh()
+
+
+## The background tiles, for tests: one per background, in the list's order.
+func tiles() -> Array[Button]:
+	return _tiles
+
+
+func _pick_tile(i: int) -> void:
+	_picked_background = i
+	for t in _tiles.size():
+		_tiles[t].set_pressed_no_signal(t == i)
 
 
 ## Why Start career can't go yet ("" when it can).
@@ -356,9 +410,11 @@ func _refresh() -> void:
 	_show_preview()
 	_coach_about.text = "%s %s" % [Coach.background_about(coach_background_id()), Coach.specialty_does(coach_specialty_id())]
 	_start.text = "Play his childhood" if play_childhood() else "Start career"
-	_list.mouse_filter = Control.MOUSE_FILTER_IGNORE if play_childhood() else Control.MOUSE_FILTER_STOP
-	_list.focus_mode = Control.FOCUS_NONE if play_childhood() else Control.FOCUS_ALL
-	_list.modulate.a = 0.35 if play_childhood() else 1.0
+	for tile in _tiles:
+		tile.mouse_filter = Control.MOUSE_FILTER_IGNORE if play_childhood() else Control.MOUSE_FILTER_STOP
+		tile.focus_mode = Control.FOCUS_NONE if play_childhood() else Control.FOCUS_ALL
+	_tile_grid.modulate.a = 0.35 if play_childhood() else 1.0
+	_show_plate()
 	if play_childhood():
 		_about.text = "\n".join([
 			"[font_size=30][b]His childhood decides[/b][/font_size]",
@@ -440,3 +496,71 @@ func _field(parent: Control, label_text: String) -> LineEdit:
 	edit.add_theme_font_size_override("font_size", 20)
 	parent.add_child(edit)
 	return edit
+
+
+## His name under him on the stage, and where he's from.
+func _show_plate() -> void:
+	var nick: String = _nickname.text.strip_edges()
+	var name_text: String = _name.text.strip_edges()
+	_plate_name.text = (name_text if nick == "" else "%s '%s'" % [name_text, nick]).to_upper()
+	var town: Dictionary = _towns[maxi(_hometown.selected, 0)] if not _towns.is_empty() else {}
+	_plate_from.text = "%s · %s, %s · age %d" % [String(STANCES[maxi(_stance.selected, 0)][0]), String(town.get("city", "")),
+		String(town.get("country", "")), BackgroundLibrary.START_AGE]
+
+
+## The stage's spotlight: a soft pool of light from above, fading out to the sides.
+static func spotlight_texture() -> GradientTexture2D:
+	var gradient := Gradient.new()
+	gradient.set_color(0, Color(1.0, 0.95, 0.85, 0.16))
+	gradient.set_color(1, Color(1.0, 0.95, 0.85, 0.0))
+	var texture := GradientTexture2D.new()
+	texture.gradient = gradient
+	texture.fill = GradientTexture2D.FILL_RADIAL
+	texture.fill_from = Vector2(0.5, 0.62)
+	texture.fill_to = Vector2(1.0, 0.62)
+	texture.width = 128
+	texture.height = 128
+	return texture
+
+
+## One background's tile: its picture and its name, lit when picked.
+func _background_tile(id: String, label_text: String, group: ButtonGroup, i: int) -> Button:
+	var tile := Button.new()
+	tile.toggle_mode = true
+	tile.button_group = group
+	tile.custom_minimum_size = TILE_SIZE
+	tile.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tile.tooltip_text = label_text
+	for state: String in ["normal", "hover", "pressed", "hover_pressed", "focus", "disabled"]:
+		var box: StyleBoxFlat = FightHud._panel_style(Color("#232831") if state.begins_with("hover") or state == "pressed" else Color("#1f232b"))
+		box.set_content_margin_all(6)
+		if state.contains("pressed"):
+			box.border_color = BackgroundIcon.colour_of(id)
+			box.set_border_width_all(2)
+		elif state == "focus":
+			box.draw_center = false
+			box.border_color = DIM
+			box.set_border_width_all(1)
+		tile.add_theme_stylebox_override(state, box)
+	var row := HBoxContainer.new()
+	row.set_anchors_preset(Control.PRESET_FULL_RECT)
+	row.offset_left = 8.0
+	row.offset_right = -6.0
+	row.add_theme_constant_override("separation", 8)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tile.add_child(row)
+	var icon := BackgroundIcon.new(id)
+	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(icon)
+	var label := FightNightCard._label(15, TEXT)
+	label.text = label_text
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(label)
+	tile.pressed.connect(func() -> void:
+		_picked_background = i
+		_refresh())
+	_tile_grid.add_child(tile)
+	return tile
