@@ -231,6 +231,22 @@ static func roll_path(from: Dictionary, from_frame: Transform3D, to: Dictionary,
 
 # --- The positions ---------------------------------------------------------------
 
+## The passer posts outside the hips as he frees his knee from half guard.
+static func pass_path(from: Array, to: Dictionary, frame: Transform3D) -> Array:
+	var ends: Array = TakedownPair.chain([[_short_leans(from[0]), from[1]], [_short_leans(to), frame]])
+	var mid: Dictionary = TakedownPair.pose_at(ends, 0.5)
+	var side: float = signf(float(ends[1][0].a.root[0]) - float(ends[1][0].b.root[0]))
+	mid.a.root[0] = float(mid.b.root[0]) + side * 0.38
+	mid.a.root[1] = float(mid.a.root[1]) + 0.12
+	for man: String in ["a", "b"]:
+		for limb: String in ["hand_l", "hand_r", "foot_l", "foot_r"]:
+			mid[man].erase(limb)
+	var post: String = "hand_l" if side < 0.0 else "hand_r"
+	mid.a[post] = {"at": [mid.a.root[0] + side * 0.12, 0.07, mid.a.root[2]], "pole": [side, -0.3, 0.1]}
+	var halfway: Transform3D = Transform3D(ends[0][1]).interpolate_with(ends[1][1], 0.5)
+	return [ends[0], [mid, halfway], ends[1]]
+
+
 ## Side control: blue flat on his back (his feet toward +Z, hips at the origin), red down on his -X side, chest
 ## across blue's chest, one arm round his head and the other at his far hip (the hip throw lands here, D288).
 static func side_control() -> Dictionary:

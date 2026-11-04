@@ -215,6 +215,10 @@ var _ground_far: float = -1.0
 ## The last ground pose shown, [pair, frame, the man on top], and a roll under way ({from: that, left}).
 var _ground_last: Array = []
 var _roll: Dictionary = {}
+var _regrip_path: Array = []
+var _regrip_grips: Array = []
+var _regrip_time: float = 0.0
+var _regrip_frame := Transform3D.IDENTITY
 ## A hold posed from the rig (D366): {action, attacker, built (SubmissionPair.build), frame, danger shown, pulled},
 ## kept after the fight ends in a submission so the tap can play; the tap's seconds so far (-1 none).
 var _hold_pose: Dictionary = {}
@@ -540,7 +544,7 @@ func _pose_clinch(sim: FightSim, delta: float) -> void:
 	if not _turn.is_empty():
 		_pose_turn(sim, built, frame, delta)
 	else:
-		_pose_built(sim, built, frame)
+		_pose_built(sim, built, frame, delta)
 	_pose_downed(sim, delta)
 	_settle_bodies(delta)
 	_bow_fence(held, delta)
@@ -585,7 +589,7 @@ func _keep_bodies_in_cage() -> void:
 
 
 ## Poses `built` (empty: today's figures) in `frame`, with any strike's limb from today's figure.
-func _pose_built(sim: FightSim, built: Dictionary, frame: Transform3D) -> void:
+func _pose_built(sim: FightSim, built: Dictionary, frame: Transform3D, delta: float) -> void:
 	var strikes: Array = [[], []]  # The limbs thrown from the pose, each man's, as follow_joints names them.
 	var held_pose_key: String = "" if built.is_empty() else str(built.pair)
 	if not built.is_empty():
@@ -622,11 +626,39 @@ func _pose_built(sim: FightSim, built: Dictionary, frame: Transform3D) -> void:
 			for figure in figures:
 				figure.body.ease_over(CLINCH_EASE)
 		_clinch_shown = shown
-	_clinch_last = []
 	if built.is_empty():
+		_clinch_last = []
+		_regrip_grips = []
+		_regrip_path = []
 		return
-	ClinchPair.pose(_clinch_rigs[0], _clinch_rigs[1], built, frame)
-	_clinch_last = ClinchPair.effective(built, frame)
+	var target: Array = ClinchPair.effective(built, frame)
+	var striking: bool = CLINCH_STRIKES.has(sim.fighters[0].action_id) or CLINCH_STRIKES.has(sim.fighters[1].action_id)
+	if built.kind in ["tie", "lock"] and not striking:
+		if not _clinch_last.is_empty() and not _regrip_grips.is_empty() and sim.grips() != _regrip_grips:
+			_regrip_path = ClinchPair.regrip_path(_clinch_last, target)
+			_regrip_time = 0.0
+			_regrip_frame = target[1]
+		_regrip_grips = sim.grips().duplicate()
+	else:
+		_regrip_grips = []
+		_regrip_path = []
+	if not _regrip_path.is_empty() and not _clinch_last.is_empty():
+		_regrip_time += delta
+		var share: float = clampf(_regrip_time / (2.0 * CLINCH_EASE), 0.0, 1.0)
+		var move: Transform3D = Transform3D(target[1]) * _regrip_frame.affine_inverse()
+		var path: Array = []
+		for key: Array in _regrip_path:
+			path.append([key[0], move * Transform3D(key[1])])
+		var x: float = 2.0 * share
+		TakedownPair.pose_along(_clinch_rigs[0], _clinch_rigs[1], path, x)
+		var index: int = mini(floori(x), 1)
+		_clinch_last = [TakedownPair.pose_at(path, x), Transform3D(path[index][1]).interpolate_with(path[index + 1][1], x - index)]
+		if share >= 1.0:
+			_regrip_path = []
+	else:
+		_regrip_path = []
+		ClinchPair.pose(_clinch_rigs[0], _clinch_rigs[1], built, frame)
+		_clinch_last = target
 	for i in 2:
 		figures[i].body.follow(_clinch_rigs[i])
 		if not (strikes[i] as Array).is_empty():
@@ -923,6 +955,7 @@ func _pose_ground(sim: FightSim, delta: float) -> bool:
 	var top: int = sim.situation.roles.find(PositionLibrary.TOP)
 	var key: String = "%s %d" % [where, top]
 	var new_position: bool = key != _ground_key
+	var previous_key: String = _ground_key
 	if new_position:
 		var laid: Array = ground_frame(sim, top)
 		_ground_frame = laid[0]
@@ -932,6 +965,11 @@ func _pose_ground(sim: FightSim, delta: float) -> bool:
 	var posture: bool = f.action_id == "posture_up" or (f.action_id == "posture_bomb" and f.phase in ["telegraph", "windup"])
 	var built: Dictionary = GroundPair.build(where, ground_grips_now(sim, top), posture, _ground_far)
 	var shown: String = str(built.pair)
+	if _roll.has("destination") and _roll.destination != key:
+		_roll = {}
+	if new_position and previous_key == "half_guard %d" % top and where == "side_control" and not _ground_last.is_empty():
+		var path: Array = GroundPair.pass_path(_ground_last, built.pair, _ground_frame)
+		_roll = {"from": _ground_last, "path": path, "left": ROLL_SECONDS, "destination": key}
 	if not _roll.is_empty() and new_position:
 		_roll.top = top
 	if not _roll.is_empty() and _roll.has("top"):
@@ -983,7 +1021,7 @@ func _pose_roll(now: Dictionary, top: int, delta: float) -> bool:
 		_roll.path = GroundPair.roll_path(from[0], from[1], to, _ground_frame)
 	_roll.left = float(_roll.left) - delta
 	var t: float = clampf(1.0 - float(_roll.left) / ROLL_SECONDS, 0.0, 1.0)
-	TakedownPair.pose_along(_clinch_rigs[was_top], _clinch_rigs[1 - was_top], _roll.path, smoothstep(0.0, 1.0, t) * 2.0)
+	TakedownPair.pose_along(_clinch_rigs[was_top], _clinch_rigs[1 - was_top], _roll.path, smoothstep(0.0, 1.0, t) * (_roll.path.size() - 1))
 	for i in 2:
 		figures[i].body.follow(_clinch_rigs[i])
 	if t >= 1.0:

@@ -280,6 +280,22 @@ static func effective(built: Dictionary, frame: Transform3D) -> Array:
 	return [built.pair, frame]
 
 
+## Raise the chest and free the hands before swimming to the other side.
+static func regrip_path(from: Array, to: Array) -> Array:
+	var ends: Array = TakedownPair.chain([from, to])
+	var mid: Dictionary = TakedownPair.pose_at(ends, 0.5)
+	for man: String in ["a", "b"]:
+		mid[man].lean = -4.0
+		mid[man].bend = [0, 0, 0]
+		var other: String = "b" if man == "a" else "a"
+		for letter: String in ["l", "r"]:
+			var side: float = -1.0 if letter == "l" else 1.0
+			mid[man]["hand_" + letter] = {"to": other + ".shoulder_" + _other(letter),
+				"off": [-side * 0.08, -0.12, -0.08], "pole": [side, -0.6, 0.1]}
+	var frame: Transform3D = Transform3D(ends[0][1]).interpolate_with(ends[1][1], 0.5)
+	return [ends[0], [mid, frame], ends[1]]
+
+
 ## The same pose written for the pair frame turned half round: every place in the frame turned with it.
 static func half_turn(pair: Dictionary) -> Dictionary:
 	var out := {}

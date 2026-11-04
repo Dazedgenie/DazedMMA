@@ -144,3 +144,19 @@ func test_standing_up_and_the_scramble_are_not_posed_as_a_ground_position() -> v
 	assert_true(view.rig_ground(sim))
 	_put(sim, "scramble", 0)
 	assert_false(view.rig_ground(sim), "the scramble is posed on its own (D368)")
+
+func test_half_guard_pass_keeps_forearms_outside_the_opponent_trunk() -> void:
+	for top in 2:
+		var setup: Array = _ground("half_guard", top)
+		var sim: FightSim = setup[0]
+		var view: ArenaView = setup[1]
+		_put(sim, "side_control", top)
+		var gap: float = INF
+		for frame in 60:
+			view._process(1.0 / 60.0)
+			for i in 2:
+				var body: SkinnedBody = view.figures[i].body
+				for side: String in ["Left", "Right"]:
+					gap = minf(gap, FighterRig.limb_clearance(body._world_at(side + "Arm"), body._world_at(side + "ForeArm"), body._world_at(side + "Hand"), view.figures[1 - i].body.trunk()))
+		assert_gt(gap, FighterRig.TRUNK_RADIUS - 0.005, "both arms stay outside the other torso during the pass")
+		assert_true(view._roll.is_empty(), "the pass finishes in side control")

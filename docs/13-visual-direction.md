@@ -1326,6 +1326,12 @@ were inspected from both sides after the easing correction. All 180 focused asse
 broader local game suite passes 304/305 tests, with only the known baseline speed-threshold failure;
 the GitHub full test suite and playtest build pass. Other contacts and transitions remain tracked.
 
+## Changing grips and passing half guard (D429)
+
+When the underhooks change hands in an open clinch, the fighters rise through a brief shoulder frame before closing the new grip. The route follows the pair as it moves. Strikes, turns and fence drives keep their own poses. A half-guard pass has a middle pose where the passer posts beside the hips and releases the trapped leg before settling into side control. The view discards the route if the destination changes.
+
+The two final-body regression tests sample the fighters at 60 Hz. They cover twelve grip changes across two stances and the guard pass with either fighter on top. Other ground transitions are audited separately.
+
 ## Review and verification
 
 Open `project.godot` in Godot 4.7.2 and run the game normally. Start a fight and check striking,
