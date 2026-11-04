@@ -10,6 +10,10 @@
 	"southpaw_chance": 0.15,
 	"variation": { "stats": 6, "style": 12, "tendencies": 0.2, "personality": 30, "height_cm": 4 },
 	"gameplan": { "approach": "", "target": "", "where": "wrestle_heavy" },
+	"gameplans": [
+		{ "approach": "", "target": "legs", "where": "wrestle_heavy" },
+		{ "approach": "", "target": "", "where": "clinch_work" }
+	],
 	"habits": [
 		{ "trigger": "own_jab_blocked", "action": "double_leg", "chance": 0.5, "within_ms": 1000 },
 		{ "trigger": "own_jab_blocked", "action": "leg_kick", "chance": 0.5, "within_ms": 1000 },

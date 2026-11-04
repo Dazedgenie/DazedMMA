@@ -147,6 +147,32 @@ static func gameplan_of(profile: Dictionary, library: StyleLibrary = null) -> Di
 	return plan if plan is Dictionary else {}
 
 
+## Every plan his corner may give him for a career fight (D404): his style sheet's `gameplan` first, then its
+## `gameplans`. Empty when he has none.
+static func gameplans_of(profile: Dictionary, library: StyleLibrary = null) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	var first: Dictionary = gameplan_of(profile, library)
+	if first.is_empty():
+		return out
+	out.append(first)
+	var styles: StyleLibrary = library if library != null else shared()
+	var id: String = _style_id_of(profile, styles)
+	for plan: Variant in styles.get_style(id).get("gameplans", []) if id != "" else []:
+		if plan is Dictionary:
+			out.append(plan)
+	return out
+
+
+static func _style_id_of(profile: Dictionary, styles: StyleLibrary) -> String:
+	var id: String = String(profile.get("style_id", ""))
+	if id != "" and styles.has(id):
+		return id
+	for style_id: String in styles.ids():
+		if String(styles.get_style(style_id).get("fighter", "")) == String(profile.get("id", "")):
+			return style_id
+	return ""
+
+
 ## Every attribute id (data/enums/stats), sorted so generation rolls them in a fixed order.
 static func stat_ids() -> Array:
 	if _stat_ids.is_empty():

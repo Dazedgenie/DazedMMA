@@ -57,11 +57,13 @@ var _sim: Button
 var sim_allowed: bool = false
 ## Tonight's gameplan (D320): the camp fills it in, the player can change it before Fight!.
 var gameplan: GameplanPicker
+## His camp (D404): his plan, his rule against you and his tank, on one line under yours.
+var _their: Label
 
 
 func _init() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_theme_stylebox_override("panel", FightHud._panel_style(BACKGROUND))
+	add_theme_stylebox_override("panel", OffCage.hall_panel(true))  # Over the camp, so solid (D435).
 	var column := VBoxContainer.new()
 	column.add_theme_constant_override("separation", 18)
 	add_child(column)
@@ -93,6 +95,14 @@ func _init() -> void:
 	gameplan = GameplanPicker.new("GAMEPLAN", true)
 	gameplan.custom_minimum_size.x = 900.0
 	plan_row.add_child(gameplan)
+	_their = _label(18, TEXT)
+	_their.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_their.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_their.custom_minimum_size.x = 1100.0
+	_their.visible = false
+	var their_row := CenterContainer.new()
+	their_row.add_child(_their)
+	column.add_child(their_row)
 
 	var buttons := HBoxContainer.new()
 	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -112,7 +122,7 @@ func _init() -> void:
 
 
 ## Fills the card. `info`: name, age, weeks, opponent, night (TrainingCamp.fight_night), pulled_out, history (the
-## countdown's weeks), gains (stat id → what the camp added), chin and chin_change.
+## countdown's weeks), gains (stat id → what the camp added), chin and chin_change; their_camp (OpponentCamp.lines, D404).
 func show_night(info: Dictionary) -> void:
 	var night: Dictionary = info.night
 	var against: String = " · vs %s" % info.opponent if String(info.get("opponent", "")) != "" else ""
@@ -128,7 +138,9 @@ func show_night(info: Dictionary) -> void:
 	_tank.add_theme_color_override("font_color", tank_colour)
 	_tank_fill.bg_color = tank_colour
 	_tank_bar.value = tank
-	_tank_note.text = "A full tank for the whole fight." if tank >= 0.995 else "The camp's fatigue shrinks the tank for the whole fight."
+	_tank_note.text = "A full tank for the whole fight." if tank >= 0.995 else (
+		"The camp's fatigue and his weight cut shrink the tank for the whole fight." if float(night.get("cut_cost", 0.0)) > 0.0
+		else "The camp's fatigue shrinks the tank for the whole fight.")
 	var fatigue: float = float(night.fatigue)
 	_fatigue.text = "%d" % roundi(fatigue)
 	_fatigue.add_theme_color_override("font_color", GOOD if fatigue < TrainingCamp.FRESH_BELOW else (WARN if fatigue < TrainingCamp.FATIGUE_FREE else BAD))
@@ -170,12 +182,20 @@ func show_night(info: Dictionary) -> void:
 	history.assign(info.get("history", []))
 	_countdown.show_camp(int(info.weeks), history, _fight.disabled)
 	_gains.text = _gains_bbcode(info.get("gains", {}), float(info.get("chin_change", 0.0)), float(info.get("chin", 0.0)))
+	var their: Array = info.get("their_camp", [])
+	_their.visible = not their.is_empty()
+	_their.text = "HIS CAMP:  " + "   ".join(their) if not their.is_empty() else ""
+	var weighed: Array = info.get("weigh_in", [])
+	if not weighed.is_empty():
+		_their.visible = true
+		_their.text = ("WEIGH-IN:  " + "   ".join(weighed)) + ("\n" + _their.text if not their.is_empty() else "")
 
 
 ## The card as text (tests read it).
 func text() -> String:
 	return "\n".join([_subtitle.text, _who.text, "Gas tank " + _tank.text, _tank_note.text, "Fatigue " + _fatigue.text,
-		_fatigue_note.text, "Injury " + _injury.text, _injury_note.text, _stamp.text, _verdict.text, _gains.get_parsed_text()])
+		_fatigue_note.text, "Injury " + _injury.text, _injury_note.text, _stamp.text, _verdict.text, _gains.get_parsed_text(),
+		_their.text])
 
 
 func can_fight() -> bool:
