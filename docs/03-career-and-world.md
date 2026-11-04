@@ -1854,9 +1854,9 @@ and `sim/world/scouting.gd` (`find_chance`); building in `sim/world/career.gd` (
 
 ### 14.3 Hiring coaches (D443)
 
-Kyle (2026-11-04) picked "Retired world fighters, plus others" and "A weekly wage by his level" on the plan; the six cards
-on this piece (which coaches, how much faster, the wages, who comes looking, not being paid, personalities) went out with
-my picks, built here until he answers. You stay his head coach (§11.1, your specialty unchanged). The coaches are the
+Kyle (2026-11-04) picked "Retired world fighters, plus others" and "A weekly wage by his level" on the plan, then on this
+piece "Four trainers and a nutritionist", "5% a level, up to 15%", "$15, $40, $90 a week", "3 to 5 a month, mostly
+ex-fighters", "Two weeks unpaid, then he leaves" and "Yes, three with a small twist", my picks. You stay his head coach (§11.1, your specialty unchanged). The coaches are the
 specialists you pay, on the gym (`Staff`, `sim/world/staff.gd`; `gym.coaches`), so they save with it.
 
 **The roles** (`data/enums/coach_roles.json`), one coach a role:
