@@ -92,7 +92,7 @@ func _init(p_roster: FighterLibrary = null, p_actions: ActionLibrary = null) -> 
 	fighters.append_array(rest)
 
 	set_anchors_preset(Control.PRESET_FULL_RECT)
-	var panel: StyleBoxFlat = FightHud._panel_style(BACKGROUND)
+	var panel: StyleBoxFlat = OffCage.hall_panel()  # The dimmed hall shows through (D435).
 	panel.content_margin_bottom = 40.0  # Room for the version line under it.
 	add_theme_stylebox_override("panel", panel)
 	var column := VBoxContainer.new()
