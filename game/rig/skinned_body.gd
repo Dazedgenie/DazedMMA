@@ -445,6 +445,7 @@ func follow(rig: FighterRig) -> void:
 		pose["chest" if key == "waist" else key] = node.global_basis.orthonormalized()
 	pose.pelvis_at = rig.bones.pelvis.global_position
 	pose.merge(rig.joints)
+	pose.merge(rig.joint_strikes)
 	follow_joints(pose)
 
 
@@ -524,6 +525,9 @@ func follow_joints(pose: Dictionary, only: Array[String] = []) -> void:
 		var strike_key: String = "joint_strike_" + String(limb[4]) + "_" + side
 		if pose.has(strike_key):
 			var strike: Dictionary = pose[strike_key]
+			if arm and bool(strike.get("shoulder_reach", false)):
+				var reach: float = minf(maxf(root.distance_to(strike.target) - first, 0.0), 0.05) * float(strike.weight)
+				root = _reach_with_shoulder(("Left" if side == "l" else "Right") + "Shoulder", root, strike.target, reach, to_skeleton)
 			chain = FighterMotion.strike_joint(root, chain, strike.target, strike.fold, float(strike.weight), first, second)
 		var middle: Vector3 = chain[0]
 		var tip: Vector3 = chain[1]
@@ -645,9 +649,31 @@ func settle(delta: float) -> void:
 		for id in count:
 			skeleton.set_bone_pose(id, _shown[id].interpolate_with(skeleton.get_bone_pose(id), t))
 		_ease_left -= delta
+		_restore_limb_lengths()
 		_lift_off_canvas()
 	_keep_out()
 	_remember_shown()
+
+
+## Interpolating local joint translations can shorten a bent limb even though both endpoint poses have fixed
+## lengths (D427). Restore those lengths along the eased directions before floor and torso clearance.
+func _restore_limb_lengths() -> void:
+	var to_skeleton: Transform3D = skeleton.global_transform.affine_inverse()
+	for limb: Array in LIMBS:
+		var root: Vector3 = _world_at(limb[0])
+		var middle: Vector3 = _world_at(limb[1])
+		var tip: Vector3 = _world_at(limb[2])
+		var middle_turn: Basis = (skeleton.global_transform * skeleton.get_bone_global_pose(_ids[limb[1]])).basis
+		var tip_turn: Basis = (skeleton.global_transform * skeleton.get_bone_global_pose(_ids[limb[2]])).basis
+		var first: float = _at(limb[0]).distance_to(_at(limb[1]))
+		var second: float = _at(limb[1]).distance_to(_at(limb[2]))
+		if limb[4] == "arm":
+			first *= _arm_length
+			second *= _arm_length
+		var bent: Vector3 = root + (middle - root).normalized() * first
+		var end: Vector3 = bent + (tip - middle).normalized() * second
+		_set_world(limb[1], Transform3D(middle_turn, bent), to_skeleton)
+		_set_world(limb[2], Transform3D(tip_turn, end), to_skeleton)
 
 
 ## Keeps this body out of the other man's trunk again (`avoid` set afresh), once he's settled too (D397).
