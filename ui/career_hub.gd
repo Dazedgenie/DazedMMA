@@ -450,7 +450,7 @@ static func stat_rows(trainee: TrainingCamp, groups: Dictionary) -> Array[Dictio
 static func feel_text(trainee: TrainingCamp) -> String:
 	var out: String = TrainingCamp.freshness(trainee.fatigue)
 	if trainee.injured_days > 0:
-		out += ", hurt (%s, %d days to heal)" % [trainee.injury_area, trainee.injured_days]
+		out += ", hurt (%s, %d days to heal)" % [Injuries.name_of(trainee.injury, trainee.injury_area).to_lower(), trainee.injured_days]
 	return out
 
 
@@ -1139,7 +1139,9 @@ static func week_text(c: Career, reports: Array = [], with_news: bool = true) ->
 				String(who.get("name", "")), c.date_text(5, int(c.booked.get("week", c.week))), (" on " + on) if on != "" else "",
 				rules_name(String(c.booked.get("ruleset", "")))])
 	if c.trainee.injured_days > 0:
-		lines.append("[color=%s]Hurt (%s): %d days to heal.[/color]" % [BAD.to_html(false), c.trainee.injury_area, c.trainee.injured_days])
+		var fx: String = Injuries.effects_text(c.trainee.injury)
+		lines.append("[color=%s]%s: %d days to heal%s.[/color]" % [BAD.to_html(false), Injuries.name_of(c.trainee.injury, c.trainee.injury_area),
+			c.trainee.injured_days, (" (" + fx + " until then)") if fx != "" else ""])
 	if c.suspended_days > 0:
 		lines.append("Suspended: %d days until he can fight." % c.suspended_days)
 	var belt: String = Titles.held_by(c.world(), Career.FIGHTER_ID) if c.pro else ""

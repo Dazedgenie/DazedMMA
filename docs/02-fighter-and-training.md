@@ -312,8 +312,10 @@ days out after the fight. The result screen says whether the injury held up (`Tr
 fight's seed so the same fight always says the same). With no career yet, those days out go nowhere; they're there for the
 career calendar.
 
-**Not yet:** the opponent's own camp (they always come in fresh for now; Kyle wants a hidden camp later, with scouting
-hints), hiding an injury, named injuries, and reputation for pulling out.
+Named injuries (what each cuts until it heals, the sessions and fights that cause them, the rare lasting dent) and hiding
+one from the doctor in a career are built: `03` §13.10 (D406). The opponent's own camp is built: `03` §13.8 (D404).
+
+**Not yet:** reputation for pulling out.
 
 **What to change:** `TANK_FREE_FATIGUE`, `TANK_PER_FATIGUE`, `TANK_FLOOR`, `HURT_PER_DAY`, `DOCTOR_MAX_DAYS`,
 `WORSEN_BASE`, `WORSEN_PER_DAY`, `WORSEN_DAYS_MIN`, `WORSEN_DAYS_MAX` at the top of `sim/world/training_camp.gd`; where each

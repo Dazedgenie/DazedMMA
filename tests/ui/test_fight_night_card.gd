@@ -42,7 +42,7 @@ func test_a_hurt_fighter_is_cleared_to_fight_hurt_and_the_figure_shows_where() -
 	var text: String = _planner.night_card.text()
 	assert_string_contains(text, "CLEARED TO FIGHT HURT")
 	assert_string_contains(text, "Gas tank 75%")
-	assert_string_contains(text, "Legs, 3 days to heal")
+	assert_string_contains(text, "Leg injury, 3 days to heal")
 	assert_gt(float(_planner.night_card._figure.hurt.legs), 0.0)
 	assert_true(_planner.night_card.can_fight())
 

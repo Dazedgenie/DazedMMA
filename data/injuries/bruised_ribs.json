@@ -1,0 +1,25 @@
+{
+	"schema": "injury@1",
+	"id": "bruised_ribs",
+	"name": "Bruised ribs",
+	"area": "body",
+	"days": [
+		3,
+		8
+	],
+	"effects": {},
+	"camp": {
+		"kinds": [
+			"sparring",
+			"wrestling",
+			"grappling",
+			"striking"
+		],
+		"weight": 3
+	},
+	"fight": {
+		"cause": "body",
+		"weight": 3
+	},
+	"about": "Sore to breathe: he starts the fight hurt to the body."
+}

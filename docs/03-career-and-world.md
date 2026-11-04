@@ -460,8 +460,7 @@ top, and it doesn't heal.
 the rules, a seed from the career's dice, the camp's condition), played out at once with the sound off and no calls (the
 fighters' own AI fights it), straight to the result screen, which says it was simmed. It counts exactly as a watched fight.
 
-**Not yet:** damage that carries over as named injuries, a doctor's check that can lengthen a
-suspension, and the AI corner coaching a simmed fight for him (D113).
+**Not yet:** a doctor's check that can lengthen a suspension (named injuries from a fight are built: §13.10, D406), and the AI corner coaching a simmed fight for him (D113).
 
 **What to change:** the days and the Chin in `sim/world/aftermath.gd` (`KO_DAYS`, `KO_CHIN`, `TKO_DAYS`, `TKO_CHIN`,
 `HARD_DAYS`, `HARD_HEAD`, `HARD_BODY`, `OTHER_DAYS`); where it's applied in `Career.finish_fight`; Sim the fight in
@@ -1258,7 +1257,7 @@ study" first, my pick):
 | More rules to drill: eight answers to the styles' habits, the answer marked when you've found his habit | D403 | Built (§13.3) |
 | The opponent's camp: a plan against your style, sometimes a rule against your favourite move, his own cut (his cut moves to D405) | D404 | Built (§13.8) |
 | The weight cut and the weigh-in: how hard he cuts in fight week, missing weight (Kyle, 2026-11-02: "One pick now, planner later": light, normal, hard or extreme now, D23's five-day planner later as a minigame) | D405 | Built (§13.9) |
-| Named injuries, and hiding one from the doctor | D406 | Planned |
+| Named injuries, and hiding one from the doctor | D406 | Built (§13.10) |
 | Sparring partners: named men at his gym from the world's local men | D407 | Moved to the gym-owner plan (§14, D444; Kyle, 2026-11-04: "Fold them into this plan") |
 | Coaches: assistants for a weekly fee, the head coach's levels | D408 | Moved to the gym-owner plan (§14, D443 and D447) |
 | Changing gyms: his hometown and the nearest city | D409 | Moved to the gym-owner plan (§14, D448: expanding and moving your own gym) |
@@ -1653,6 +1652,69 @@ look is in `ui/weigh_in_card.gd`, and the camp's box in `ui/camp_planner.gd` (`s
 `tests/sim/world/test_weight_cut.gd` and `tests/game/test_main_scene.gd`. Fights change for the two men's cuts: tank,
 Chin and Strength.
 
+### 13.10 Named injuries, and hiding one (D406)
+
+Phase 4's sixth piece (Kyle, 2026-11-04, picked "Named injuries (D406)" next, my pick). Until now an injury was only
+where it was (head, body or legs) and how many days it had left: 2 to 10 days from a camp session, and fights never hurt
+him beyond the medical suspension. Now every injury has a name, and fights can cause one. Kyle's four cards (2026-11-04,
+all my picks): "Each hurts its own thing", "Yes, by what happened", "Hide it, he may be found out", "Rarely, a small dent".
+
+- **Each hurts its own thing** (my pick). Twelve injuries, one file each in `data/injuries/` (`docs/09` injury@1). Each
+  has where it is, how long it takes to heal, and what it takes off his stats until it has:
+
+  | Injury | Where | Days to heal | Until it heals | From camp | From a fight | Lasting dent |
+  |---|---|---|---|---|---|---|
+  | Cut over the eye | head | 3–10 | nothing | sparring | head | – |
+  | Broken nose | head | 14–28 | Cardio −3 | sparring | head | – |
+  | Orbital fracture | head | 35–70 | Striking defense −6 | – | head (rare) | 25%: Striking defense −2 to −3 |
+  | Bruised ribs | body | 3–8 | nothing | sparring, wrestling, grappling, striking | body | – |
+  | Cracked rib | body | 14–35 | Cardio −5 | sparring, wrestling, grappling (rare) | body | – |
+  | Back strain | body | 3–10 | Takedowns −5, Strength −3 | conditioning, wrestling, grappling | – | – |
+  | Sprained ankle | legs | 4–14 | Footwork −6, Kicking −3 | conditioning, striking, wrestling | – | – |
+  | Bruised shin | legs | 2–7 | Kicking −4 | striking, sparring | legs | – |
+  | Sprained knee | legs | 14–35 | Footwork −5, Takedowns −5 | wrestling, grappling, conditioning (rare) | legs | 15%: Footwork −2 to −3 |
+  | Torn knee ligament | legs | 90–180 | Footwork −10, Takedowns −10, Kicking −6 | wrestling, grappling (very rare) | legs (very rare) | 60%: Footwork −2 to −4 |
+  | Sprained wrist | hands | 4–12 | Power −4, Boxing −3 | striking | – | – |
+  | Broken hand | hands | 28–56 | Power −8, Boxing −5 | striking, sparring (rare) | punches | 20%: Power −2 to −4 |
+
+  In camp, a session that hurts him (the same chance as before, D135) picks one of the injuries its kind of training can
+  cause, by each one's weight, so a cut over the eye comes from sparring and a sprained ankle from roadwork. Slow healer
+  still makes every one take half as long again. A head, body or leg injury still starts the fight hurt there (3% a day
+  left, now never more than 50%). A hand injury doesn't: it only cuts his stats. The cuts count in the fight (the camp's
+  `fight_profile`).
+- **Fights injure him by what happened** (my pick). After a career fight, each area he finished hurt in has a 35% ×
+  how hurt chance (a man who finished 60% hurt in the legs: 21%) of one of that area's fight injuries. His hand has a
+  0.15% chance for every punch he landed (100 landed: about 15%), twice that with the Brittle hands flaw. When more than
+  one happens, the longest counts. Its days run from fight night alongside his medical suspension, so whichever is longer
+  keeps him out. It goes on the fight's record as `injury` and on the result screen ("Hurt in the fight: Broken hand, 40
+  days to heal (Power −8, Boxing −5 until then)."). In a tournament it's rolled when his day is over.
+- **Hide it, he may be found out** (my pick). On a career's fight night, when the doctor won't clear him (more than 7
+  days still to heal), the fight night card has **Hide it from the doctor**. The doctor finds out 15% + 2.5% a day still
+  to heal of the time (8 days: 35%; 20 days: 65%; never more than 90%). Found out, the stamp says CAUGHT HIDING IT and
+  the fight is off, as if he'd not been cleared. If not, the stamp says CLEARED (HIDING IT): he fights hurt, and fighting
+  on it is twice as likely to make it worse. It's seeded on the booking, so trying again gives the same answer.
+- **Rarely, a small dent** (my pick). The worst injuries (orbital fracture, sprained knee, torn knee ligament, broken hand)
+  sometimes take 2 to 4 points off one stat for good when they happen. No injury ends a career yet.
+- **Where you see it.** The injury's name everywhere it showed where he was hurt: the planner's condition card, forecast
+  and fight night summary, the fight night card (with what it cuts until it heals), the hub's card and This week, and the
+  calendar's Hurt line.
+
+Saved as `trainee.injury` (the injury's id), on the camp week's injury report as `injury` (and `dent`), on the fight's
+record as `injury` `{id, days, dent?}`, and on the booking as `hid` (`docs/09` career@1; all optional, so an injury saved
+before D406 loads unnamed and shows as "Leg injury"). Pure and seeded.
+
+**Not yet:** career-ending injuries (D43), surgery and its choices, a doctor's check that lengthens a suspension, the
+world's men getting injured and pulling out, an injury he carries into the fight changing how the AI fights (it only
+changes his stats), and a reputation for hiding injuries.
+
+**What to change:** the injuries themselves (names, days, effects, which sessions and fights cause them, their weights
+and lasting dents) in `data/injuries/`. The fight chances and hiding in the constants at the top of
+`sim/world/injuries.gd` (`FIGHT_CHANCE`, `HAND_PER_PUNCH`, `BRITTLE_HANDS`, `PUNCHES`, `HIDE_BASE`, `HIDE_PER_DAY`,
+`HIDE_MAX`, `HIDDEN_WORSEN`); how hurt a healing injury starts him in `sim/world/training_camp.gd` (`HURT_PER_DAY`,
+`HURT_MAX`). Where they're rolled: `TrainingCamp._run_slot` (camp) and `Career._fight_injury` (fights). Hiding is in
+`ui/camp_planner.gd` (`hide_injury`) and the card in `ui/fight_night_card.gd`. Tested in
+`tests/sim/world/test_injuries.gd`, `tests/ui/test_career_screens.gd` and `tests/data/test_data_files.gd`. Fights don't
+change outside a career (no golden re-pin).
 
 ## 14. You own the gym (D440–D459)
 

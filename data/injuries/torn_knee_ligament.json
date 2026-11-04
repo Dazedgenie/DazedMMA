@@ -1,0 +1,35 @@
+{
+	"schema": "injury@1",
+	"id": "torn_knee_ligament",
+	"name": "Torn knee ligament",
+	"area": "legs",
+	"days": [
+		90,
+		180
+	],
+	"effects": {
+		"footwork": -10,
+		"takedowns": -10,
+		"kicking": -6
+	},
+	"camp": {
+		"kinds": [
+			"wrestling",
+			"grappling"
+		],
+		"weight": 0.1
+	},
+	"fight": {
+		"cause": "legs",
+		"weight": 0.2
+	},
+	"lasting": {
+		"chance": 0.6,
+		"stat": "footwork",
+		"points": [
+			2,
+			4
+		]
+	},
+	"about": "Surgery and months out; the knee may never be quite the same."
+}

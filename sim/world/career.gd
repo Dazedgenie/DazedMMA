@@ -310,7 +310,7 @@ func advance(max_weeks: int = ADVANCE_MAX_WEEKS) -> Array[Dictionary]:
 func calendar(weeks: int = CALENDAR_WEEKS) -> Array[Dictionary]:
 	var ahead: Dictionary = {}  # weeks from now → events
 	if trainee.injured_days > 0:
-		_add_ahead(ahead, ceili(trainee.injured_days / float(DAYS_PER_WEEK)) - 1, { "kind": HEALED, "area": trainee.injury_area })
+		_add_ahead(ahead, ceili(trainee.injured_days / float(DAYS_PER_WEEK)) - 1, { "kind": HEALED, "area": trainee.injury_area, "injury": trainee.injury })
 	if suspended_days > 0:
 		_add_ahead(ahead, ceili(suspended_days / float(DAYS_PER_WEEK)) - 1, { "kind": CLEARED })
 	var to_birthday: int = ceili((age() + 1 - trainee.age_years) * WEEKS_PER_YEAR - 0.001) - 1
@@ -342,7 +342,7 @@ static func _add_ahead(ahead: Dictionary, weeks_from_now: int, event: Dictionary
 func _events_since(before: Dictionary) -> Array:
 	var out: Array = []
 	if int(before.injured_days) == 0 and trainee.injured_days > 0:
-		out.append({ "kind": HURT, "area": trainee.injury_area, "days": trainee.injured_days })
+		out.append({ "kind": HURT, "area": trainee.injury_area, "injury": trainee.injury, "days": trainee.injured_days })
 	elif int(before.injured_days) > 0 and trainee.injured_days == 0:
 		out.append({ "kind": HEALED })
 	if int(before.suspended_days) > 0 and suspended_days == 0:
@@ -365,7 +365,8 @@ func _events_since(before: Dictionary) -> Array:
 static func event_text(event: Dictionary) -> String:
 	match String(event.kind):
 		HURT:
-			return "Hurt in training (%s, %d days)" % [event.get("area", ""), int(event.get("days", 0))]
+			return "Hurt in training (%s, %d days)" % [Injuries.name_of(String(event.get("injury", "")), String(event.get("area", ""))).to_lower(),
+				int(event.get("days", 0))]
 		HEALED:
 			return "Healed"
 		CLEARED:
@@ -613,8 +614,10 @@ func finish_fight(entry: Dictionary) -> int:
 	e.erase("hard")
 	var tank_in: float = float(e.get("tank", 1.0))
 	var hurt_out: Dictionary = e.get("hurt", {}) if e.get("hurt") is Dictionary else {}
+	var punches: int = int(e.get("punches", 0))
 	e.erase("tank")
 	e.erase("hurt")
+	e.erase("punches")
 	e.opponent = String(booked.get("opponent", ""))
 	e.ruleset = String(booked.get("ruleset", ""))
 	var on: String = String(booked.get("card", {}).get("promotion", "")) if booked.get("card") is Dictionary else ""
@@ -703,6 +706,7 @@ func finish_fight(entry: Dictionary) -> int:
 			medals.append({ "medal": String(e.medal), "name": tournament_name(), "week": week, "size": int(t.size) })
 		for id: String in _unmet().slice(1):
 			opponents.erase(id)  # The men after this round he never met.
+	_fight_injury(e, hurt_out, punches)
 	add_fight(e)
 	_pay(e, paid)
 	trainee.stats["chin"] = maxf(0.0, trainee.stat("chin") - float(after.chin))
@@ -720,6 +724,28 @@ func _pay(e: Dictionary, paid: int) -> void:
 		e.gym_cut = cut
 		gym_money += cut
 	money += paid - cut
+
+
+## A fight injury (D406, "Yes, by what happened"): from how hurt he finished in each area and the punches he landed
+## (Injuries.from_fight), rolled once his day is over. Its days run alongside his suspension, from fight night (so the
+## longer keeps him out), and the rare lasting dent comes off for good. Onto the fight as `injury` { id, days, dent? }.
+func _fight_injury(e: Dictionary, hurt_out: Dictionary, punches: int) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash([career_seed, week, fights.size(), "fight injury"])
+	var got: Dictionary = Injuries.from_fight(hurt_out, punches, profile().get("flaws", []), rng)
+	if got.is_empty():
+		return
+	var record: Dictionary = { "id": String(got.id), "days": int(got.days) }
+	var dent: Dictionary = Injuries.lasting(String(got.id), rng.randf(), rng.randf())
+	if not dent.is_empty():
+		trainee.stats[String(dent.stat)] = maxf(1.0, trainee.stat(String(dent.stat)) - float(dent.points))
+		record.dent = dent
+	e.injury = record
+	var left: int = maxi(0, int(got.days) - FIGHT_TO_MONDAY)
+	if left > trainee.injured_days:
+		trainee.injured_days = left
+		trainee.injury_area = String(got.area)
+		trainee.injury = String(got.id)
 
 
 ## The booked fight is off (pulled out, or the doctor wouldn't clear him, D135): the camp's wasted, the fight week's
