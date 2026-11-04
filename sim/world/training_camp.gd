@@ -223,11 +223,11 @@ func run_plan(plan_in: Dictionary, played: Dictionary = {}, fight_week: bool = f
 			week.fatigue_peak = maxf(week.fatigue_peak, fatigue)
 		if fight_week and day == DAYS - 1:
 			break
-		fatigue *= NIGHT_KEEPS
+		fatigue *= NIGHT_KEEPS * Gym.night_share(gym)  # The recovery room clears more overnight (D442).
 		_heal(1)
 	if not fight_week:
 		fatigue *= SUNDAY_KEEPS
-		_heal(1)
+		_heal(1 + Gym.extra_healing(gym))
 	week.fatigue_end = fatigue
 	week.injury_odds = 1.0 - _unhurt
 	week.aged = Ageing.age_a_week(stats, age_years)
@@ -426,7 +426,7 @@ static func freshness(value: float) -> String:
 ## The chance this session injures the fighter, at the fatigue they're doing it at.
 func injury_chance(session: Dictionary) -> float:
 	var tired: float = fatigue / INJURY_FATIGUE
-	return float(session.injury_risk) * (1.0 + tired * tired) * (INJURY_DURABILITY_BASE - stat("durability") / 100.0) * Gym.injury_share(gym)
+	return float(session.injury_risk) * (1.0 + tired * tired) * (INJURY_DURABILITY_BASE - stat("durability") / 100.0) * Gym.injury_share(gym, String(session.get("kind", "")))
 
 
 func skip_chance() -> float:
@@ -471,7 +471,7 @@ func _run_slot(id: String, day: int, quality: float, variety: float, instruction
 			stats[String(dent.stat)] = maxf(1.0, stat(String(dent.stat)) - float(dent.points))  # A lasting dent (D406).
 			hurt_entry.dent = dent
 		week.injuries.append(hurt_entry)
-	var mult: float = clampf(quality, PLAYED_MIN, PLAYED_MAX) * fatigue_factor() * variety * Gym.xp_share(gym, String(session.get("kind", "")))
+	var mult: float = clampf(quality, PLAYED_MIN, PLAYED_MAX) * fatigue_factor() * variety * Gym.xp_share(gym, String(session.get("kind", "")), id)
 	for stat_id: String in session.trains:
 		var points: float = float(session.xp) * float(session.trains[stat_id]) * mult * learning(stat_id) / xp_per_point(stat_id)
 		if _camp_gains.get(stat_id, 0.0) >= CAMP_SOFT_CAP:
@@ -517,15 +517,32 @@ func _push(leaning: String, amount: float, week: Dictionary) -> void:
 
 ## How many attribute groups (Physical, Striking …) the plan's sessions train.
 ## The plan as this week will run it: a copy with the `taken` slots' sessions put in (the plan itself when none are).
+## Then (D442) each session the gym hasn't the room for becomes its stand-in (Gym.stand_in: hard sparring without a
+## ring or cage is light sparring).
 func with_taken(plan: Dictionary) -> Dictionary:
-	if taken.is_empty():
-		return plan
-	var out: Dictionary = plan.duplicate(true)
-	var days: Array = out.get("days", [])
-	for index: Variant in taken:
-		var day: int = int(index) / SLOTS_PER_DAY
-		if day < days.size():
-			days[day][int(index) % SLOTS_PER_DAY] = String(taken[index])
+	var out: Dictionary = plan
+	if not taken.is_empty():
+		out = plan.duplicate(true)
+		var days: Array = out.get("days", [])
+		for index: Variant in taken:
+			var day: int = int(index) / SLOTS_PER_DAY
+			if day < days.size():
+				days[day][int(index) % SLOTS_PER_DAY] = String(taken[index])
+	return with_rooms(out)
+
+
+## The plan with each session this gym hasn't the room for swapped for its stand-in (the plan itself when none is).
+func with_rooms(plan: Dictionary) -> Dictionary:
+	var out: Dictionary = plan
+	var days: Array = plan.get("days", [])
+	for day in days.size():
+		for slot in (days[day] as Array).size():
+			var id: String = String(days[day][slot])
+			var swap: String = Gym.stand_in(gym, _library.session(id))
+			if swap != id:
+				if out == plan:
+					out = plan.duplicate(true)
+				out.days[day][slot] = swap
 	return out
 
 

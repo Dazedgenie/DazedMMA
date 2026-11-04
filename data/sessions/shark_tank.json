@@ -11,5 +11,7 @@
 	"light": false,
 	"leanings": { "range": 0.05, "pace": 0.05 },
 	"chin_wear": 0,
-	"minigame": null
+	"minigame": null,
+	"needs": ["cage"],
+	"instead": "boxing_drill"
 }

@@ -1,0 +1,76 @@
+{
+	"schema": "enum@1",
+	"id": "gym_rooms",
+	"values": {
+		"mats": {
+			"name": "Mats",
+			"about": "Wall-to-wall mats for rolling and wrestling.",
+			"size": 2,
+			"kinds": {
+				"grappling": 0.08,
+				"wrestling": 0.08
+			}
+		},
+		"bags": {
+			"name": "Bag and pad area",
+			"about": "Heavy bags on chains and a space to hold pads.",
+			"size": 1,
+			"kinds": {
+				"striking": 0.08
+			}
+		},
+		"ring": {
+			"name": "Ring",
+			"about": "Ropes, corners and a canvas to spar on.",
+			"size": 2,
+			"kinds": {
+				"sparring": 0.08
+			},
+			"injury": {
+				"sparring": 0.1
+			}
+		},
+		"cage": {
+			"name": "Cage",
+			"about": "A fenced octagon: fence work, clinch work and cutting a man off.",
+			"size": 2,
+			"sessions": {
+				"clinch_work": 0.1,
+				"shark_tank": 0.1
+			}
+		},
+		"weights": {
+			"name": "Weights room",
+			"about": "Racks, bars and a sled for the car park.",
+			"size": 1,
+			"kinds": {
+				"conditioning": 0.06
+			},
+			"sessions": {
+				"strength_conditioning": 0.04
+			}
+		},
+		"recovery": {
+			"name": "Recovery room",
+			"about": "An ice bath, a sauna and a physio's table.",
+			"size": 1,
+			"night": 0.05,
+			"heals": 1
+		},
+		"video": {
+			"name": "Video room",
+			"about": "A screen, a sofa and every fight you can find.",
+			"size": 1,
+			"sessions": {
+				"film_study": 0.08
+			},
+			"finds": 0.05
+		},
+		"changing": {
+			"name": "Changing rooms",
+			"about": "Lockers and showers that work: members stay longer.",
+			"size": 1,
+			"cap": 5
+		}
+	}
+}

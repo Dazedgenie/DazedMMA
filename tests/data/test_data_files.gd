@@ -1086,6 +1086,7 @@ func test_gyms_train_real_session_kinds_and_every_background_has_one_that_suits_
 			if not c.get(field) is float or float(c[field]) < 0.25 or float(c[field]) > 2.0:
 				problems.append("gym culture '%s': %s must be a number from 0.25 to 2" % [id, field])
 	var places: Dictionary = _items("enums").get("gym_places", {}).get("values", {})
+	var rooms: Dictionary = _items("enums").get("gym_rooms", {}).get("values", {})
 	if places.size() != 3:
 		problems.append("data/enums/gym_places.json needs three places, one for each gym on offer (D441)")
 	for id: String in places:
@@ -1098,6 +1099,40 @@ func test_gyms_train_real_session_kinds_and_every_background_has_one_that_suits_
 			problems.append("gym place '%s': members must be [low, high], at least 1" % id)
 		elif not pl.get("cap") is float or float(pl.cap) < float(span[1]):
 			problems.append("gym place '%s': cap must be at least its most members" % id)
+		if not pl.get("floor") is float or float(pl.floor) < 3.0:
+			problems.append("gym place '%s': floor must be 3 squares or more (D442)" % id)
+		for room_id: Variant in pl.get("rooms", null) if pl.get("rooms") is Array else ["missing"]:
+			if not rooms.has(String(room_id)):
+				problems.append("gym place '%s': rooms must be gym_rooms ids (D442)" % id)
+	# Rooms (D442, docs/03 §14.2): a name, a size, and something each level does.
+	if rooms.size() < 3:
+		problems.append("data/enums/gym_rooms.json is missing or nearly empty (D442)")
+	var effects: Array[String] = ["kinds", "sessions", "injury", "night", "heals", "finds", "cap"]
+	for id: String in rooms:
+		var r: Variant = rooms[id]
+		if not r is Dictionary or not r.get("name") is String or not r.get("about") is String:
+			problems.append("gym room '%s': needs a name and an about line" % id)
+			continue
+		if not r.get("size") is float or not float(r.size) in [1.0, 2.0]:
+			problems.append("gym room '%s': size must be 1 or 2 floor squares" % id)
+		if not effects.any(func(f: String) -> bool: return r.has(f)):
+			problems.append("gym room '%s': does nothing (one of %s)" % [id, ", ".join(effects)])
+		_expect_numbers(problems, "gym room '%s'" % id, "kinds", r.get("kinds", {}), kinds, 0.0, 0.2)
+		_expect_numbers(problems, "gym room '%s'" % id, "sessions", r.get("sessions", {}), _items("sessions").keys(), 0.0, 0.2)
+		_expect_numbers(problems, "gym room '%s'" % id, "injury", r.get("injury", {}), kinds, 0.0, 0.3)
+	for id: String in _items("gyms"):
+		var gym_rooms: Variant = _items("gyms")[id].get("rooms")
+		if not gym_rooms is Array or (gym_rooms as Array).is_empty() or (gym_rooms as Array).any(func(r: Variant) -> bool: return not rooms.has(String(r))):
+			problems.append("gym '%s': rooms must be a list of gym_rooms ids it opens with (D442)" % id)
+	for id: String in _items("sessions"):
+		var session: Dictionary = _items("sessions")[id]
+		if session.has("needs") or session.has("instead"):
+			var needs: Variant = session.get("needs")
+			if not needs is Array or (needs as Array).is_empty() or (needs as Array).any(func(r: Variant) -> bool: return not rooms.has(String(r))):
+				problems.append("session '%s': needs must be a list of gym_rooms ids (D442)" % id)
+			var instead: String = String(session.get("instead", ""))
+			if not _items("sessions").has(instead) or _items("sessions")[instead].has("needs"):
+				problems.append("session '%s': instead must be a session that needs no room (D442)" % id)
 	_report(problems)
 
 

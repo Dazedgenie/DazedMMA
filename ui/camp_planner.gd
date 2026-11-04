@@ -328,7 +328,7 @@ func pick_preset(plan_id: String) -> void:
 	_preset.selected = _plan_ids.find(plan_id)
 	for day in TrainingCamp.DAYS:
 		for slot in TrainingCamp.SLOTS_PER_DAY:
-			_slot_ids[day * TrainingCamp.SLOTS_PER_DAY + slot] = String(plan.days[day][slot])
+			_slot_ids[day * TrainingCamp.SLOTS_PER_DAY + slot] = at_gym(String(plan.days[day][slot]))
 	var instruction: Variant = plan.get("instruction")
 	_instruction.selected = maxi(0, _instruction_ids.find("" if instruction == null else String(instruction)))
 	_filling = false
@@ -336,9 +336,15 @@ func pick_preset(plan_id: String) -> void:
 
 
 ## Puts a session in one slot (0–11: day × 2 + slot), by hand: the week becomes a custom week.
+## A session the gym hasn't the room for goes in as its stand-in (D442).
 func set_slot(index: int, session_id: String) -> void:
-	_slot_ids[index] = session_id
+	_slot_ids[index] = at_gym(session_id)
 	_on_changed_by_hand()
+
+
+## The session he'd do for this one at his gym (D442): itself, or its stand-in when the gym hasn't its room.
+func at_gym(session_id: String) -> String:
+	return Gym.stand_in(camp.gym if camp != null else {}, _library.session(session_id))
 
 
 ## The week as it stands on screen, as a week_plan@1 Dictionary.
@@ -872,7 +878,10 @@ func _build_session_menu() -> void:
 		var icon := ImageTexture.create_from_image(image)
 		for id in ids:
 			var session: Dictionary = _library.session(id)
-			_session_menu.add_icon_item(icon, "%s   (fatigue %+d)" % [session.name, roundi(float(session.fatigue))], _session_ids.find(id))
+			var needs: String = Gym.needs_text(camp.gym if camp != null else {}, session)  # Not at this gym (D442).
+			_session_menu.add_icon_item(icon, "%s   (%s)" % [session.name, "fatigue %+d" % roundi(float(session.fatigue)) if needs == "" else needs.to_lower()],
+				_session_ids.find(id))
+			_session_menu.set_item_disabled(_session_menu.item_count - 1, needs != "")
 	_session_menu.id_pressed.connect(func(id: int) -> void: choose_session(_session_ids[id]))
 
 

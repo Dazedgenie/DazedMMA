@@ -28,5 +28,8 @@
 		"jiu_jitsu_prodigy",
 		"judo_sambo_household",
 		"bullied_underdog"
+	],
+	"rooms": [
+		"mats"
 	]
 }

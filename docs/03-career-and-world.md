@@ -1727,7 +1727,7 @@ doc (https://claude.ai/artifact/BrEV5jejZtpFWMJiT9HuYC). The pieces, in this ord
 | Piece | Decision | Status |
 |---|---|---|
 | You own the gym, and its money: three run-down places to open, the gym's own money from members' dues and 15% of his purses, rent; his fee and shifts gone | D441 | Built (§14.1) |
-| Rooms and upgrades: mats, bag area, ring, cage, weights, recovery, video and changing rooms at three levels inside the building's floor space, 1 to 4 weeks to build with the room shut; faster training and a few sessions opened; the gym page as a drawn floor plan | D442 | Planned |
+| Rooms and upgrades: mats, bag area, ring, cage, weights, recovery, video and changing rooms at three levels inside the building's floor space, 1 to 4 weeks to build with the room shut; faster training and a few sessions opened; the gym page as a drawn floor plan | D442 | Built (§14.2) |
 | Hiring coaches: specialists for a weekly wage by level, mostly the world's retired fighters | D443 | Planned |
 | The gym's other fighters: named lads training there as sparring partners, walk-ins as it grows (was D407) | D444 | Planned |
 | Recruiting and the stable: signing the world's men, 2 fighters at first and up to 8, plans set once, each fight played or simmed, men who leave when unhappy | D445 | Planned |
@@ -1788,3 +1788,67 @@ money numbers at the top of `sim/world/gym.gd` (`START_MONEY`, `PURSE_CUT`, `REN
 `money_text`, `place_line`, `walk_in_text`); the hub in `ui/career_hub.gd` (`gym_text`, `month_text`); the result's purse
 row in `ui/result_card.gd`; the tip in `data/tips/gym_behind.json`. Tests: `tests/sim/world/test_gym.gd`,
 `tests/ui/test_career_screens.gd`, `tests/data/test_data_files.gd`. Then update this section and D441.
+
+### 14.2 Rooms and upgrades (D442)
+
+Kyle (2026-11-04) picked "Faster learning, a few open sessions", "3 levels each, floor space limits", "1 to 4 weeks, room
+shut", "A drawn floor plan from above", then "Only three need a room", "$300, $1,000, $2,500", "Yes, 1 more member a
+level", "Its kind's rooms at level 1" and "Yes, a quarter back", all my picks.
+
+**The rooms** (`data/enums/gym_rooms.json`, `sim/world/gym.gd`). Each is built at level 1 to 3 and takes 1 or 2 squares of
+the place's floor (`floor` in `data/enums/gym_places.json`: a garage 4, a unit 6, the old hall 9, so even the hall can't
+hold all eight, 11 squares; expanding is D448):
+
+| Room | Squares | Each level | Needed for |
+|---|---|---|---|
+| Mats | 2 | Grappling and wrestling sessions +8% XP | |
+| Bag and pad area | 1 | Striking sessions +8% | |
+| Ring | 2 | Sparring +8%, sparring injuries 10% less likely | Hard sparring (or the cage) |
+| Cage | 2 | Clinch work and Shark tank +10% | Shark tank, hard sparring (or the ring) |
+| Weights room | 1 | Conditioning +6%, S&C a further +4% | |
+| Recovery room | 1 | 5% less fatigue kept each night, injuries heal a day more each Sunday | |
+| Video room | 1 | Film study +8%, 5% likelier to find one of his habits (§13.1) | Film study |
+| Changing rooms | 1 | Room for 5 more members | |
+
+A room's share adds to the gym kind's (§11.3): XP × kind × (1 + level × share). A full gym adds at most +24% to a kind
+(clinch work, from the mats and the cage, +54%); a test holds it there.
+
+**Sessions that need a room** (data/sessions `needs`, `instead`): hard sparring needs a ring or a cage, Shark tank the cage,
+film study the video room. Without it the session's stand-in runs in its slot (light sparring, boxing drills, meditation):
+a week plan's slots swap as the week runs (`TrainingCamp.with_rooms`), and in the camp planner they're greyed out with
+"needs the video room" and a slot set to one takes the stand-in. A camp with no gym (the fight setup's) has everything.
+
+**What a gym opens with.** Its kind's `rooms` (data/gyms) at level 1, then the place's (the old hall's tired ring), each
+that still fits: a boxing gym or Muay Thai camp has bags and a ring, an MMA gym mats, bags and a cage (no cage in a garage),
+a wrestling club mats and weights, a BJJ academy mats.
+
+**Building.** On the gym's page click a room to upgrade it, or pick one to build from the list. A level costs **$300,
+$1,000 or $2,500** (`ROOM_COSTS`) from the gym's money, straight away. It takes its level in weeks, one more for a 2-square
+room, at most 4 (`build_weeks`: bags 1, a new ring 2, the cage to level 3 4), and the room is **shut** meanwhile (its
+sessions stand in, its effects stop). One job at a time. When it's done it's news (*New in the gym: the video room*, *The
+ring is level 2 now*; Advance stops on it) and the calendar shows the week. **Each level you build brings one more
+member**: the members drift towards one more (§14.1), the rooms it opened with not counted. **Tearing a room down** takes a
+week, frees its floor and gives a quarter of what you spent on it back now.
+
+**The gym's page** (`ui/gym_page.gd`, `ui/floor_plan.gd`), from the hub's *Your gym* tab: the place drawn from above, its
+squares inside the walls with the door at the bottom, each room drawn on its squares (blue mat tiles, red bags, a ring with
+its ropes, the cage's octagon, bars and plates, an ice bath, a screen and sofa, lockers) with its name and three level
+pips, a room being worked on striped yellow with its weeks to go, free squares dashed. A room stays on the squares it
+was built on (`Gym.spots`); only when a new 2-square room can't fit round the others are they all laid out again. Along the top the gym's money and
+month. Down the side the room you clicked: what it does at its level and the next, the next level's cost and weeks,
+*Build level 2 · $1000* and *Tear it down · $75 back*; with nothing picked, every room you could build with its squares,
+cost, weeks and what it does, each with *Build it* or why not. A tip the first time. The hub's *This week* says what's
+being built.
+
+**Old saves.** A gym from before D442 gets its kind's starting rooms. Fights don't change (no golden re-pin).
+
+**What to change:** the rooms in `data/enums/gym_rooms.json` (`size`, the shares in `kinds` and `sessions` a level,
+`injury`, `night`, `heals`, `finds`, `cap`); each place's `floor` and `rooms` in `data/enums/gym_places.json`; each kind's
+`rooms` in `data/gyms/`; a session's `needs` and `instead` in `data/sessions/`; the costs and weeks at the top of
+`sim/world/gym.gd` (`ROOM_COSTS`, `ROOM_LEVELS`, `BIG_ROOM`, `BUILD_WEEKS_MAX`, `TEAR_DOWN_WEEKS`, `TEAR_DOWN_BACK`,
+`MEMBERS_PER_ROOM_LEVEL`); where training uses them in `sim/world/training_camp.gd` (`with_rooms`, the XP and the night)
+and `sim/world/scouting.gd` (`find_chance`); building in `sim/world/career.gd` (`build_room`, `tear_down_room`, `end_week`,
+`ROOM_DONE`); the page in `ui/gym_page.gd` and the drawing in `ui/floor_plan.gd`; the planner's list in
+`ui/camp_planner.gd` (`at_gym`); the tip in `data/tips/gym_page.json`. Tests: `tests/sim/world/test_gym_rooms.gd`,
+`tests/ui/test_gym_page.gd`, `tests/data/test_data_files.gd`. Then update this section and D442.
+

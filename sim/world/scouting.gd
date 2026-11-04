@@ -28,7 +28,8 @@ const MET: float = 0.5
 const STUDY_GAIN: float = 0.2
 const STUDY_IQ: float = 0.5
 ## The chance a film study session finds one of his habits: FIND_BASE, + FIND_PER_IQ × Fight IQ / 100,
-## + FIND_PER_FIGHT a fight of his on film (at most FIND_FILM_MAX), + FIND_TACTICIAN with a Tactician head coach.
+## + FIND_PER_FIGHT a fight of his on film (at most FIND_FILM_MAX), + FIND_TACTICIAN with a Tactician head coach,
+## + the video room's `finds` a level (Gym.finds_bonus, D442).
 const FIND_BASE: float = 0.25
 const FIND_PER_IQ: float = 0.3
 const FIND_PER_FIGHT: float = 0.01
@@ -140,6 +141,7 @@ static func find_chance(c: Career, id: String) -> float:
 	chance += minf(FIND_FILM_MAX, FIND_PER_FIGHT * fights_on_film(c, id))
 	if c.coach_specialty == Coach.TACTICIAN:
 		chance += FIND_TACTICIAN
+	chance += Gym.finds_bonus(c.gym)
 	return clampf(chance, 0.0, 1.0)
 
 

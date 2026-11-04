@@ -32,6 +32,8 @@ signal rankings_pressed
 signal ask_pressed
 ## The history page (D358): each belt's champions in his division and the legends.
 signal history_pressed
+## The Your gym tab (D442): the gym's page with its floor plan.
+signal gym_pressed
 
 ## Around his division (D353, news_text): at most NEWS_MAX lines; a winner who had under UPSET_CHANCE is an upset; a man
 ## averaging NEWS_BEST or more is one of the best.
@@ -115,6 +117,9 @@ var _fight_lines: Array[String] = []
 var _calendar_lines: Array[String] = []
 var _plan_row: HBoxContainer
 var _about_tab: Button
+var gym_tab: Button
+## The reports the hub was last shown with, for refresh().
+var _reports: Array = []
 var _stats_tab: Button
 var _about_scroll: ScrollContainer
 var _stats_scroll: ScrollContainer
@@ -166,6 +171,8 @@ func _init() -> void:
 	var hub_tab: Button = _tab(tabs, "Hub", "This week, his next fight and the calendar")
 	hub_tab.set_pressed_no_signal(true)
 	hub_tab.pressed.connect(func() -> void: hub_tab.set_pressed_no_signal(true))
+	gym_tab = _tab(tabs, "Your gym", "Your gym from above: build and upgrade its rooms")
+	gym_tab.pressed.connect(func() -> void: _tab_back(gym_tab); gym_pressed.emit())
 	_division = _tab(tabs, "His division", "The men in his division this week")
 	_division.pressed.connect(func() -> void: _tab_back(_division); division_pressed.emit())
 	_rankings = _tab(tabs, "Rankings", "Each promotion's rankings in his division, and who moved and why")
@@ -306,6 +313,8 @@ func _init() -> void:
 ## Shows the career. `reports`: what the last Run this week or Advance did (Career.run_week()'s reports, oldest first).
 func show_career(p_career: Career, reports: Array = []) -> void:
 	career = p_career
+	_reports = reports
+	gym_tab.visible = not career.gym.is_empty()
 	var nick: String = String(career.about.get("nickname", ""))
 	_who.text = career.fighter_name().to_upper() + (" '%s'" % nick.to_upper() if nick != "" else "")
 	var records: String = "Amateur %s" % career.record_text(false)
@@ -354,6 +363,12 @@ func show_career(p_career: Career, reports: Array = []) -> void:
 	_show_calendar(career.calendar())
 	for scroll in _scrolls:
 		scroll.scroll_vertical = 0
+
+
+## Shows the career again as it was last shown (after the gym's page changed it, D442).
+func refresh() -> void:
+	if career != null:
+		show_career(career, _reports)
 
 
 ## His card's About (false) or Stats (true) tab.
@@ -1384,7 +1399,13 @@ static func gym_text(c: Career) -> String:
 	var money: String = "$%d" % c.gym_money
 	if c.gym_money < 0:
 		money = "[color=%s]$%d, behind on the rent[/color]" % [WARN.to_html(false), c.gym_money]
-	return "Your gym: %s · %s · %s%d a month" % [money, Gym.money_line(c.gym), "+$" if net >= 0 else "−$", absi(net)]
+	var out: String = "Your gym: %s · %s · %s%d a month" % [money, Gym.money_line(c.gym), "+$" if net >= 0 else "−$", absi(net)]
+	var building: Dictionary = c.gym.get("building", {})
+	if not building.is_empty():  # A room being built (D442).
+		var left: int = maxi(1, int(building.get("done", c.week)) - c.week)
+		out += "\n%s the %s: %d week%s to go" % ["Tearing out" if int(building.level) == 0 else "Building", String(Gym.room(String(building.room)).get("name", "")).to_lower(),
+			left, "" if left == 1 else "s"]
+	return out
 
 
 ## A month of the gym as it turned (Gym.month): "The gym's month: dues $640, rent $540 (+$100), 16 members (+1)."

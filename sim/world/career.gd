@@ -57,6 +57,8 @@ const WORN_DOWN := "worn_down"
 const OFFERS := "offers"
 ## The gym's money went below nothing as the month turned: it's behind on the rent (D441): { kind, money }.
 const GYM_BEHIND := "gym_behind"
+## A room built, upgraded or torn out at your gym (D442): { kind, room, level }.
+const ROOM_DONE := "room_done"
 ## School (D314, School): the summer holidays start (every session is his until September), school starts again, and
 ## he's left school for good (LEAVES_AT): { kind }.
 const SCHOOL_OUT := "school_out"
@@ -97,6 +99,8 @@ var gym: Dictionary = {}
 var gym_money: int = 0
 ## The gym's last month as it turned (Gym.month): { dues, rent, net, members, joined, week }, or {} before the first.
 var gym_last_month: Dictionary = {}
+## The room build that finished as this week began ({ room, level }; {} when none), for run_week's news (D442).
+var room_done: Dictionary = {}
 var trainee: TrainingCamp
 ## The day (days since 1 Jan 1970) of the Monday that starts week 0, and the week it is now.
 var first_monday: int = 0
@@ -282,6 +286,8 @@ func run_week(plan: Variant = null, played: Dictionary = {}) -> Dictionary:
 	report.events = _events_since(before)
 	if money_before >= 0 and gym_money < 0:
 		report.events.append({ "kind": GYM_BEHIND, "money": gym_money })
+	if not room_done.is_empty():
+		report.events.append({ "kind": ROOM_DONE, "room": String(room_done.room), "level": int(room_done.level) })
 	var worn: bool = float(report.get("fatigue_peak", 0.0)) >= TrainingCamp.FATIGUE_FREE
 	if worn and not worn_last_week:
 		report.events.append({ "kind": WORN_DOWN })
@@ -317,6 +323,9 @@ func calendar(weeks: int = CALENDAR_WEEKS) -> Array[Dictionary]:
 	_add_ahead(ahead, to_birthday, { "kind": BIRTHDAY, "age": age() + 1 })
 	if not booked.is_empty() and booked.has("week"):
 		_add_ahead(ahead, int(booked.week) - week, { "kind": FIGHT_NIGHT, "opponent": String(booked.get("opponent", "")) })
+	var build: Dictionary = gym.get("building", {})
+	if not build.is_empty():  # A room being built (D442): the week it opens.
+		_add_ahead(ahead, int(build.get("done", week)) - week - 1, { "kind": ROOM_DONE, "room": String(build.room), "level": int(build.level) })
 	for i in range(1, weeks):  # School (D314): the week before each change, as run_week() reports it.
 		if not School.at_school(self, week + i - 1):
 			break
@@ -381,6 +390,8 @@ static func event_text(event: Dictionary) -> String:
 			return "Fight night"
 		GYM_BEHIND:
 			return "The gym's behind on the rent ($%d)" % int(event.get("money", 0))
+		ROOM_DONE:
+			return Gym.built_text(event)
 		SCHOOL_OUT:
 			return "School's out for the summer: every session is his until September"
 		BACK_TO_SCHOOL:
@@ -844,6 +855,7 @@ func end_week() -> Dictionary:
 	week += 1
 	suspended_days = maxi(0, suspended_days - DAYS_PER_WEEK)
 	_school_week()
+	room_done = Gym.finish_build(gym, week)  # A room built this week opens on Monday (D442).
 	if gym.is_empty() or int(date(0, week).month) == int(date(0, week - 1).month):
 		return {}
 	var dice := RandomNumberGenerator.new()
@@ -854,6 +866,23 @@ func end_week() -> Dictionary:
 	out.week = week
 	gym_last_month = out.duplicate()
 	return out
+
+
+## Builds the next level of a room at your gym (D442) with the gym's money: "" when it's started, else why not
+## (Gym.cant_build). The room is shut until it's done.
+func build_room(id: String) -> String:
+	var why: String = Gym.cant_build(gym, id, gym_money)
+	if why == "":
+		gym_money -= Gym.start_build(gym, id, week)
+	return why
+
+
+## Tears a room down (D442): shut a week, then gone, a quarter of what it cost back now. "" or why not.
+func tear_down_room(id: String) -> String:
+	var why: String = Gym.cant_tear_down(gym, id)
+	if why == "":
+		gym_money += Gym.start_tear_down(gym, id, week)
+	return why
 
 
 ## Hands the new week's school slots (School.taken, D314) to his TrainingCamp, so the hub's weeks and a fight camp's
@@ -1060,9 +1089,17 @@ static func from_dict(data: Dictionary, library: TrainingLibrary = null) -> Care
 			c.booked.tournament[key] = int(c.booked.tournament.get(key, 0))
 	c.offers = d.get("offers", []).duplicate(true)
 	c.gym = d.get("gym", {}).duplicate(true) if d.get("gym") is Dictionary else {}
-	for key: String in ["fee", "dues", "members", "members_start", "rent"]:
+	for key: String in ["fee", "dues", "members", "members_start", "rent", "levels_start"]:
 		if c.gym.has(key):
 			c.gym[key] = int(c.gym[key])
+	for key: String in ["rooms", "spent"]:  # Room levels and what each cost, whole numbers (D442).
+		if c.gym.get(key) is Dictionary:
+			for id: Variant in c.gym[key]:
+				c.gym[key][id] = int(c.gym[key][id])
+	if c.gym.get("building") is Dictionary:
+		for key: String in ["level", "done"]:
+			if c.gym.building.has(key):
+				c.gym.building[key] = int(c.gym.building[key])
 	var was_theirs: bool = not c.gym.is_empty() and not c.gym.has("place")
 	c.gym = Gym.made_yours(c.gym)  # A save from before D441, when he paid a fee at someone else's: it's yours now.
 	c.gym_money = int(d.get("gym_money", Gym.START_MONEY if was_theirs else 0))
