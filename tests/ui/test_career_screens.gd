@@ -249,11 +249,11 @@ func test_play_his_childhood_is_on_by_default_and_greys_out_the_list() -> void:
 	assert_string_contains(screen.text(), "Strong:")
 
 
-func test_where_you_coach_offers_three_gyms_then_the_walk_in() -> void:
+func test_where_you_open_your_gym_offers_three_places_then_the_walk_in() -> void:
 	var screen: GymScreen = add_child_autofree(GymScreen.new())
 	screen.begin({ "coach": "Sam Reed", "name": "Danny Hill", "hometown": "Leeds", "country_id": "england", "background": "farm_kid" }, 5)
 	assert_eq(screen.gyms.size(), 3)
-	assert_string_contains(screen.text(), "WHERE YOU COACH")
+	assert_string_contains(screen.text(), "WHERE YOU OPEN YOUR GYM")
 	assert_string_contains(screen.text(), "a month")
 	watch_signals(screen)
 	screen.press_start()

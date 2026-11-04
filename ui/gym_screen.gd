@@ -1,8 +1,9 @@
 class_name GymScreen
 extends PanelContainer
-## Your gym and the walk-in (docs/03 §11.3, D313): the last step of a new career. *Where you coach* shows three gyms in
-## his hometown (Gym.offers) side by side: the name, the kind and its culture, what it trains better and worse, the owner
-## and the monthly fee. Pick one, then *The walk-in*: the January morning he walks through its door and you meet him.
+## Your gym and the walk-in (docs/03 §11.3 and §14.1, D313, D441): the last step of a new career. *Where you open your
+## gym* shows three run-down places in his hometown (Gym.offers) side by side: the name, the place, the kind and its
+## culture, what it trains better and worse, the man you take it over from, and its money (members, dues and rent).
+## Pick one, then *The walk-in*: the January morning he walks through your door and you meet him.
 ## Since D434 (docs/06 §6.14) each gym is a card topped in its kind's colour with its picture, the owner's face, what it
 ## trains as green and red chips and the fee big; the walk-in shows him standing in a lit doorway beside the words.
 ## Start career sends the gym on (finished).
@@ -166,15 +167,29 @@ func text() -> String:
 	return "\n".join(lines)
 
 
-## A gym as its card says it: its name, kind and culture, what it trains, the owner and the fee.
+## A gym as its card says it: its name, place, kind and culture, what it trains, who you take it over from and its money.
 static func gym_text(gym: Dictionary) -> String:
 	var lines: Array[String] = [String(gym.get("name", "")), Gym.kind_line(gym)]
+	lines.append(place_line(gym))
 	lines.append(String(Gym.kind(String(gym.get("kind", ""))).get("about", "")))
 	lines.append(String(Gym.culture(String(gym.get("culture", ""))).get("about", "")))
 	lines.append(Gym.trains_line(gym))
-	lines.append("Owner: %s. %s" % [String(gym.get("owner_name", "")), String(gym.get("owner", ""))])
-	lines.append("$%d a month" % int(gym.get("fee", 0)))
+	lines.append("Taken over from %s. %s" % [String(gym.get("owner_name", "")), String(gym.get("owner", ""))])
+	lines.append(money_text(gym))
 	return "\n".join(lines)
+
+
+## "An old hall: a gym that's closing, sold to you as it stands." (the place's name and line).
+static func place_line(gym: Dictionary) -> String:
+	var where: Dictionary = Gym.place(String(gym.get("place", "")))
+	return "%s. %s" % [String(where.get("name", "")), String(where.get("about", ""))] if not where.is_empty() else ""
+
+
+## "14 members at $40 a month, rent $480: +$80 a month".
+static func money_text(gym: Dictionary) -> String:
+	var net: int = Gym.month_net(gym)
+	return "%d members at $%d a month, rent $%d: %s%d a month" % [int(gym.get("members", 0)), int(gym.get("dues", 0)),
+		int(gym.get("rent", 0)), "+$" if net >= 0 else "−$", absi(net)]
 
 
 ## The walk-in: the morning he comes through the door of `gym`, from the new career's choices (his name, his
@@ -190,7 +205,7 @@ static func walk_in_text(gym: Dictionary, choices: Dictionary, coach: String) ->
 	if not people.is_empty() and people[0] is Dictionary:
 		lines.append("%s told him to come here." % _who(people[0]))
 	lines.append("\"I'm %s,\" he says. \"I want to fight.\"" % his_name)
-	lines.append("%s nods at you from the office door. You're %s, you coach here, and from today he's yours." % [String(gym.get("owner_name", "The owner")), coach if coach != "" else "the coach"])
+	lines.append("The paint on the sign over the door is still wet. You're %s, this place is yours, and from today so is he." % (coach if coach != "" else "the coach"))
 	return "\n\n".join(lines)
 
 
@@ -201,8 +216,8 @@ static func _who(person: Dictionary) -> String:
 
 
 func _show_gyms() -> void:
-	_title.text = "WHERE YOU COACH"
-	_sub.text = "Three gyms in %s would have you. Pick the one you coach at: it's where he trains, and its fee comes out of his savings every month." % String(_choices.get("hometown", "his hometown"))
+	_title.text = "WHERE YOU OPEN YOUR GYM"
+	_sub.text = "Three run-down places in %s you could take on. Pick one and it's yours: he trains there, its members' dues pay the rent, and it takes %d%% of his purses." % [String(_choices.get("hometown", "his hometown")), roundi(Gym.PURSE_CUT * 100.0)]
 	for card: Node in _cards.get_children():
 		_cards.remove_child(card)
 		card.queue_free()
@@ -223,7 +238,7 @@ func _show_walk_in() -> void:
 	_walk_in.text = walk_in_text(gyms[picked], _choices, String(_choices.get("coach", "")))
 	doorway.show_fighter(his_profile(_choices, _seed))
 	owner_face.show_fighter(owner_profile(gyms[picked], _choices))
-	_owner_line.text = "%s, who owns %s. %s" % [String(gyms[picked].get("owner_name", "")), String(gyms[picked].get("name", "")),
+	_owner_line.text = "%s, who let you %s. %s" % [String(gyms[picked].get("owner_name", "")), String(gyms[picked].get("name", "")),
 		String(gyms[picked].get("owner", ""))]
 	_cards.visible = false
 	_walk_row.visible = true
@@ -281,7 +296,7 @@ static func his_profile(choices: Dictionary, career_seed: int, roster: FighterLi
 
 
 ## One gym's card: a band in its kind's colour with its picture, name and kind; the owner's face and words; what it
-## trains as chips; the kind and culture in a line each; the fee big; Coach here.
+## trains as chips; the place, the kind and culture in a line each; the money a month big; Open it here.
 func _gym_card(gym: Dictionary, n: int) -> PanelContainer:
 	var colour: Color = BackgroundIcon.colour_of(String(gym.get("kind", "")))
 	var card := PanelContainer.new()
@@ -335,7 +350,7 @@ func _gym_card(gym: Dictionary, n: int) -> PanelContainer:
 	owner_words.alignment = BoxContainer.ALIGNMENT_CENTER
 	owner_row.add_child(owner_words)
 	var owner_name := FightNightCard._label(18, TEXT)
-	owner_name.text = String(gym.get("owner_name", ""))
+	owner_name.text = "Taken over from %s" % String(gym.get("owner_name", ""))
 	owner_words.add_child(owner_name)
 	var owner_about := FightNightCard._label(15, DIM)
 	owner_about.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -349,7 +364,7 @@ func _gym_card(gym: Dictionary, n: int) -> PanelContainer:
 		chip_row.add_child(_chip(String(chip[0]), bool(chip[1])))
 	var about := FightNightCard._label(15, DIM)
 	about.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	about.text = "%s\n%s" % [String(Gym.kind(String(gym.get("kind", ""))).get("about", "")),
+	about.text = "%s\n%s\n%s" % [place_line(gym), String(Gym.kind(String(gym.get("kind", ""))).get("about", "")),
 		String(Gym.culture(String(gym.get("culture", ""))).get("about", ""))]
 	box.add_child(about)
 	var spacer := Control.new()
@@ -361,13 +376,14 @@ func _gym_card(gym: Dictionary, n: int) -> PanelContainer:
 	var fee := Label.new()
 	DisplayFont.apply(fee, 40)
 	fee.add_theme_color_override("font_color", TEXT)
-	fee.text = "$%d" % int(gym.get("fee", 0))
+	var net: int = Gym.month_net(gym)
+	fee.text = "%s%d" % ["+$" if net >= 0 else "−$", absi(net)]
 	fee_row.add_child(fee)
 	var month := FightNightCard._label(16, DIM)
-	month.text = "a month"
+	month.text = "a month: %d members at $%d, rent $%d" % [int(gym.get("members", 0)), int(gym.get("dues", 0)), int(gym.get("rent", 0))]
 	month.size_flags_vertical = Control.SIZE_SHRINK_END
 	fee_row.add_child(month)
-	_pick_buttons.append(CampPlanner._button(box, "Coach here", pick.bind(n)))
+	_pick_buttons.append(CampPlanner._button(box, "Open it here", pick.bind(n)))
 	return card
 
 

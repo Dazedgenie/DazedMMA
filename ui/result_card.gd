@@ -208,7 +208,9 @@ static func meaning_rows(before: Dictionary, after: Dictionary, fight: Dictionar
 			"Called up" if moved == "up" else "Let go, down", after.promotion]])
 	var paid: int = int(fight.get("purse", 0))
 	if paid > 0:
-		rows.append(["Purse", "[b]$%d[/b] [color=#%s](savings $%d)[/color]" % [paid, DIM.to_html(false), int(after.get("money", 0))]])
+		var cut: int = int(fight.get("gym_cut", 0))
+		var gym: String = ", the gym's %d%%: $%d" % [roundi(Gym.PURSE_CUT * 100.0), cut] if cut > 0 else ""
+		rows.append(["Purse", "[b]$%d[/b] [color=#%s](savings $%d%s)[/color]" % [paid, DIM.to_html(false), int(after.get("money", 0)), gym]])
 	if aftermath != "":
 		rows.append(["After", aftermath])
 	return rows
