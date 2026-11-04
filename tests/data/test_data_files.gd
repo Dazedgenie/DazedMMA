@@ -1085,6 +1085,19 @@ func test_gyms_train_real_session_kinds_and_every_background_has_one_that_suits_
 		for field: String in ["skips", "injury", "sparring_xp"]:
 			if not c.get(field) is float or float(c[field]) < 0.25 or float(c[field]) > 2.0:
 				problems.append("gym culture '%s': %s must be a number from 0.25 to 2" % [id, field])
+	var places: Dictionary = _items("enums").get("gym_places", {}).get("values", {})
+	if places.size() != 3:
+		problems.append("data/enums/gym_places.json needs three places, one for each gym on offer (D441)")
+	for id: String in places:
+		var pl: Variant = places[id]
+		if not pl is Dictionary or not pl.get("name") is String or not pl.get("about") is String:
+			problems.append("gym place '%s': needs a name and an about line (D441)" % id)
+			continue
+		var span: Variant = pl.get("members")
+		if not (span is Array and span.size() == 2 and float(span[0]) >= 1.0 and float(span[0]) <= float(span[1])):
+			problems.append("gym place '%s': members must be [low, high], at least 1" % id)
+		elif not pl.get("cap") is float or float(pl.cap) < float(span[1]):
+			problems.append("gym place '%s': cap must be at least its most members" % id)
 	_report(problems)
 
 

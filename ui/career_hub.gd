@@ -394,7 +394,7 @@ static func fighter_card_text(c: Career, gift_names: Dictionary = {}, flaw_names
 	if town != "":
 		lines.append("From %s" % town)
 	if not c.gym.is_empty():
-		lines.append("Trains at %s (%s)" % [String(c.gym.get("name", "")), Gym.kind_line(c.gym)])
+		lines.append("Trains at your gym, %s (%s)" % [String(c.gym.get("name", "")), Gym.kind_line(c.gym)])
 	var medals: String = medals_text(c)
 	if medals != "":
 		lines.append(medals)
@@ -1166,9 +1166,10 @@ static func week_text(c: Career, reports: Array = [], with_news: bool = true) ->
 	if not advice.is_empty():
 		var colour: Color = GOOD if String(advice.word) in [Matchmaker.PRO_WISE, Matchmaker.PRO_LATE] else (WARN if String(advice.word) == Matchmaker.PRO_RISKY else DIM)
 		lines.append("[color=%s]%s[/color]" % [colour.to_html(false), String(advice.text)])
-	if c.gym_owed > 0:
-		lines.append("[color=%s]Owes the gym $%d: he works Saturdays there ($%d a week) until it's paid.[/color]" % [WARN.to_html(false), c.gym_owed, Gym.shift_week_pay()])
-	lines.append("Savings: $%d" % c.money + (" · the gym is $%d a month" % int(c.gym.get("fee", 0)) if not c.gym.is_empty() else ""))
+	var gym: String = gym_text(c)
+	if gym != "":
+		lines.append(gym)
+	lines.append("His savings: $%d" % c.money)
 	if not reports.is_empty():
 		lines.append("")
 		lines.append(last_text(c, reports))
@@ -1374,6 +1375,27 @@ static func _met_words(result: String, after_name: bool = false) -> String:
 	return ("is the man " + words) if after_name else words
 
 
+## Your gym's money (D441): "Your gym: $620 · 16 members at $40 a month · rent $540 · +$100 a month", the money in
+## red when it's behind on the rent. "" with no gym (a career before D313).
+static func gym_text(c: Career) -> String:
+	if c.gym.is_empty():
+		return ""
+	var net: int = Gym.month_net(c.gym)
+	var money: String = "$%d" % c.gym_money
+	if c.gym_money < 0:
+		money = "[color=%s]$%d, behind on the rent[/color]" % [WARN.to_html(false), c.gym_money]
+	return "Your gym: %s · %s · %s%d a month" % [money, Gym.money_line(c.gym), "+$" if net >= 0 else "−$", absi(net)]
+
+
+## A month of the gym as it turned (Gym.month): "The gym's month: dues $640, rent $540 (+$100), 16 members (+1)."
+static func month_text(month: Dictionary) -> String:
+	var net: int = int(month.get("net", 0))
+	var joined: int = int(month.get("joined", 0))
+	return "The gym's month: dues $%d, rent $%d (%s%d), %d members%s." % [int(month.get("dues", 0)), int(month.get("rent", 0)),
+		"+$" if net >= 0 else "−$", absi(net), int(month.get("members", 0)),
+		" (%s%d)" % ["+" if joined > 0 else "−", absi(joined)] if joined != 0 else ""]
+
+
 ## What the last Run this week or Advance did: how many weeks, the biggest gains and what happened.
 static func last_text(c: Career, reports: Array) -> String:
 	var gains: Dictionary = {}
@@ -1385,16 +1407,10 @@ static func last_text(c: Career, reports: Array) -> String:
 			events.append("%s (%s)" % [Career.event_text(event), c.short_date(int(report.get("week", 0)))])
 	var head: String = "Last week" if reports.size() == 1 else "The last %d weeks" % reports.size()
 	var out: String = "[color=%s]%s:[/color] %s" % [DIM.to_html(false), head, _gains_line(gains)]
-	var fees: int = 0
 	for report: Dictionary in reports:
-		fees += int(report.get("gym_fee", 0))
-	var worked: int = 0
-	for report: Dictionary in reports:
-		worked += int(report.get("gym_worked", 0))
-	if fees > 0:
-		out += ("" if out.ends_with(".") else ".") + " Paid the gym $%d." % fees
-	if worked > 0:
-		out += ("" if out.ends_with(".") else ".") + " Worked $%d off at the gym." % worked
+		var month: Dictionary = report.get("gym_month", {}) if report.get("gym_month") is Dictionary else {}
+		if not month.is_empty():
+			out += ("" if out.ends_with(".") else ".") + " " + month_text(month)
 	if not events.is_empty():
 		out += "\n[color=%s]%s.[/color]" % [WARN.to_html(false), ". ".join(events)]
 	return out

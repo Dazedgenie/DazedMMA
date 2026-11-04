@@ -375,8 +375,8 @@ func show_hub(reports: Array = []) -> void:
 		places.append("tournament")
 	if career.suspended_days > 0:
 		places.append("suspended")
-	if career.gym_owed > 0:
-		places.append("gym_shifts")
+	if career.gym_money < 0:
+		places.append("gym_behind")
 	show_career_tips(places)
 
 

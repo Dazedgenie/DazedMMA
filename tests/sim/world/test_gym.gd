@@ -1,6 +1,6 @@
 extends GutTest
-## Your gym (sim/world/gym.gd, docs/03 §11.3, D313): three gyms in his hometown, what the one you pick does to his
-## training, and its monthly fee.
+## Your gym (sim/world/gym.gd, docs/03 §11.3 and §14.1, D313, D441): three run-down places in his hometown, what the one
+## you open does to his training, and its money: members' dues, rent and a cut of his purses.
 
 
 func _career(gym: Dictionary = {}, money: int = 500) -> Career:
@@ -13,8 +13,9 @@ func _career(gym: Dictionary = {}, money: int = 500) -> Career:
 	return c
 
 
-func _gym(kind: String, culture: String = "family", fee: int = 50) -> Dictionary:
-	return { "kind": kind, "culture": culture, "name": "Test Gym", "owner_name": "Frank Doyle", "owner": "Owns it.", "fee": fee }
+func _gym(kind: String, culture: String = "family", dues: int = 40) -> Dictionary:
+	return { "kind": kind, "culture": culture, "place": "unit", "name": "Test Gym", "owner_name": "Frank Doyle",
+		"owner": "Owns it.", "dues": dues, "members": 16, "members_start": 16, "rent": Gym.rent_for(16, dues) }
 
 
 func test_a_new_career_is_offered_three_different_gyms_and_the_first_suits_him() -> void:
@@ -29,7 +30,7 @@ func test_a_new_career_is_offered_three_different_gyms_and_the_first_suits_him()
 		assert_false(String(g.name).contains("{"), "the name's filled in")
 		assert_true(Gym.cultures().has(String(g.culture)))
 		var fee: Array = Gym.kind(String(g.kind)).fee
-		assert_between(int(g.fee), int(fee[0]), int(fee[1]))
+		assert_between(int(g.dues), int(fee[0]), int(fee[1]))
 	assert_eq(Gym.offers("Leeds", "england", "boxing_gym_kid", 7), offers, "seeded by the career")
 
 
@@ -55,40 +56,110 @@ func test_the_culture_changes_skips_and_injuries() -> void:
 	assert_gt(rough.trainee.injury_chance(sparring), calm.trainee.injury_chance(sparring))
 
 
-func test_the_fee_comes_out_of_his_savings_on_the_first_monday_of_each_month() -> void:
-	var c: Career = _career(_gym("boxing_gym", "family", 50), 120)
-	var paid: Array = []
+func test_each_place_on_offer_is_a_different_run_down_place_with_members_and_rent() -> void:
+	var offers: Array = Gym.offers("Leeds", "england", "farm_kid", 11)
+	var places: Array = offers.map(func(g: Dictionary) -> String: return String(g.place))
+	places.sort()
+	var all: Array = Gym.places().keys()
+	all.sort()
+	assert_eq(places, all, "a garage, a unit and a hall, one of each")
+	for g: Dictionary in offers:
+		var span: Array = Gym.place(String(g.place)).members
+		assert_between(int(g.members), int(span[0]), int(span[1]))
+		assert_eq(int(g.members_start), int(g.members))
+		var fee: Array = Gym.kind(String(g.kind)).fee
+		assert_between(int(g.dues), int(fee[0]), int(fee[1]), "a member pays the kind's monthly fee")
+		assert_eq(int(g.rent), Gym.rent_for(int(g.members), int(g.dues)))
+		assert_gt(Gym.month_net(g), 0, "tight: the first members just cover the rent")
+		assert_lt(Gym.month_net(g), Gym.dues_in(g) / 4, "and not much more")
+
+
+func test_the_gym_has_its_own_money_apart_from_his_savings() -> void:
+	var c: Career = _career(_gym("boxing_gym"), 120)
+	assert_eq(c.gym_money, Gym.START_MONEY, "what you put in to open it")
+	assert_eq(c.money, 120, "his savings are his")
+	assert_eq(_career({}, 120).gym_money, 0, "no gym, no gym money")
+
+
+func test_members_pay_and_the_rent_goes_out_on_the_first_monday_of_each_month() -> void:
+	var c: Career = _career(_gym("boxing_gym"), 120)
+	var months: Array = []
+	var money: Array = []
 	for i in 9:
-		paid.append(c.run_week("time_off").gym_fee)
+		var report: Dictionary = c.run_week("time_off")
+		months.append(not (report.gym_month as Dictionary).is_empty())
+		money.append(c.gym_money)
 	# Week 0 is Mon 4 Jan 2027; Mon 1 Feb is week 4 and Mon 1 Mar week 8.
-	assert_eq(paid, [0, 0, 0, 50, 0, 0, 0, 50, 0])
-	assert_eq(c.money, 20)
-	var april: Dictionary = {}
+	assert_eq(months, [false, false, false, true, false, false, false, true, false])
+	var g: Dictionary = _gym("boxing_gym")
+	assert_eq(money[3], Gym.START_MONEY + Gym.dues_in(g) - int(g.rent), "February: 16 members' dues less the rent")
+	assert_eq(c.money, 120, "he pays nothing: it's your gym")
+	assert_eq(int(c.gym_last_month.week), c.week - 1, "the last month kept for the hub")
+	assert_eq(_career({}, 120).end_week(), {}, "no gym, no month")
+
+
+func test_members_come_with_his_wins_up_to_what_the_place_holds() -> void:
+	var g: Dictionary = _gym("boxing_gym")
+	var dice := RandomNumberGenerator.new()
+	assert_eq(Gym.members_target(g, 0), 16)
+	assert_eq(Gym.members_target(g, 3), 16 + 3 * Gym.MEMBERS_PER_WIN)
+	assert_eq(Gym.members_target(g, 100), int(Gym.place("unit").cap), "never more than the place holds")
+	var grown: Array = []
+	for i in 12:
+		grown.append(int(Gym.month(g, 10, dice).members))
+	assert_gt(grown[-1], 16, "members join as he wins")
+	assert_lte(grown.max(), Gym.members_target(g, 10))
+	var quiet: Dictionary = _gym("boxing_gym")
+	for i in 12:
+		Gym.month(quiet, 0, dice)
+	assert_lte(int(quiet.members), 16, "with no wins they only drift off")
+
+
+func test_the_gym_takes_its_cut_of_every_purse_he_is_paid() -> void:
+	assert_eq(Gym.purse_cut(2000), 300, "15% of a $2,000 purse")
+	assert_eq(Gym.purse_cut(0), 0)
+	var c: Career = _career(_gym("boxing_gym"), 0)
+	var fight: Dictionary = { "result": "win" }
+	c._pay(fight, 2000)
+	assert_eq(c.money, 1700, "his 85%")
+	assert_eq(c.gym_money, Gym.START_MONEY + 300, "the gym's 15%")
+	assert_eq(int(fight.gym_cut), 300, "on the fight's entry")
+	fight.purse = 2000
+	var rows: Array = FightResultCard.meaning_rows(c.standing(), c.standing(), fight, "")
+	var purse: Array = rows.filter(func(r: Array) -> bool: return String(r[0]) == "Purse")
+	assert_string_contains(String(purse[0][1]), "the gym's 15%: $300")
+	var none: Career = _career({}, 0)
+	none._pay({}, 2000)
+	assert_eq(none.money, 2000, "a career with no gym keeps it all")
+
+
+func test_behind_on_the_rent_is_news() -> void:
+	var c: Career = _career(_gym("boxing_gym"), 0)
+	c.gym_money = 10
+	c.gym.members = 1
+	var events: Array = []
 	for i in 4:
-		april = c.run_week("time_off")
-	assert_eq(c.money, 0, "as much as he has, never below nothing")
-	assert_eq(c.gym_owed, 30, "the rest he owes")
-	assert_eq(april.events.map(func(e: Dictionary) -> String: return String(e.kind)), [Career.GYM_SHIFTS], "the owner offers him shifts")
-	var shifts: Dictionary = c.run_week("time_off")
-	assert_eq(int(shifts.gym_worked), 30, "a Saturday's shifts pay it off")
-	assert_eq(c.gym_owed, 0)
-	assert_eq(_career({}, 120).end_week(), 0, "no gym, no fee")
+		for e: Dictionary in c.run_week("time_off").events:
+			events.append(String(e.kind))
+	assert_lt(c.gym_money, 0)
+	assert_true(Career.GYM_BEHIND in events, "Advance stops on it")
+	assert_string_contains(CareerHub.week_text(c), "behind on the rent")
 
 
-func test_working_off_the_fee_takes_his_saturday() -> void:
-	var plan: Dictionary = TrainingLibrary.shared().plan("striker")
-	var shifts: Dictionary = Gym.with_shifts(plan)
-	assert_eq(shifts.days[Gym.SHIFT_DAY], [Gym.SHIFT_SESSION, Gym.SHIFT_SESSION])
-	assert_ne(plan.days[Gym.SHIFT_DAY], shifts.days[Gym.SHIFT_DAY], "a copy: the plan itself doesn't change")
-	assert_eq(Gym.shift_week_pay(), Gym.SHIFT_PAY * 2)
-	var c: Career = _career(_gym("boxing_gym", "family", 50), 0)
-	c.gym_owed = 100
-	assert_string_contains(CareerHub.week_text(c), "Owes the gym $100")
-	var report: Dictionary = c.run_week("striker")
-	assert_eq(int(report.gym_worked), Gym.shift_week_pay())
-	assert_eq(c.gym_owed, 100 - Gym.shift_week_pay())
-	assert_string_contains(CareerHub.last_text(c, [report]), "Worked $%d off at the gym." % Gym.shift_week_pay())
-	assert_eq(Career.from_dict(JSON.parse_string(JSON.stringify(c.to_dict()))).gym_owed, c.gym_owed, "saved")
+func test_a_save_from_when_he_paid_a_fee_becomes_your_gym() -> void:
+	var c: Career = _career(_gym("bjj_academy"))
+	var old: Dictionary = c.to_dict()
+	old.gym = { "kind": "bjj_academy", "culture": "party", "name": "Old Gym", "owner_name": "Frank Doyle", "owner": "Owns it.", "fee": 75 }
+	old.erase("gym_money")
+	old.erase("gym_last_month")
+	old.gym_owed = 30
+	var back: Career = Career.from_dict(JSON.parse_string(JSON.stringify(old)))
+	assert_eq(String(back.gym.place), Gym.OLD_SAVE_PLACE)
+	assert_eq(int(back.gym.dues), 75, "his fee is what a member pays")
+	assert_eq(int(back.gym.members), Gym.OLD_SAVE_MEMBERS)
+	assert_false(back.gym.has("fee"))
+	assert_eq(back.gym_money, Gym.START_MONEY)
+	assert_eq(back.trainee.gym, back.gym, "trains him as before")
 
 
 func test_the_gym_saves_with_the_career() -> void:
@@ -103,8 +174,8 @@ func test_the_gym_saves_with_the_career() -> void:
 
 func test_the_hub_says_where_he_trains_and_the_walk_in_names_him() -> void:
 	var c: Career = _career(_gym("muay_thai_camp", "hard_sparring", 60))
-	assert_string_contains(CareerHub.fighter_card_text(c), "Trains at Test Gym (Muay Thai camp · Hard sparring)")
-	assert_string_contains(CareerHub.week_text(c), "the gym is $60 a month")
+	assert_string_contains(CareerHub.fighter_card_text(c), "Trains at your gym, Test Gym (Muay Thai camp · Hard sparring)")
+	assert_string_contains(CareerHub.week_text(c), "Your gym: $%d · A unit on the estate · 16 members at $60 a month" % Gym.START_MONEY)
 	var walk_in: String = GymScreen.walk_in_text(c.gym, { "name": "Danny Hill", "background": "street_kid",
 		"people": [{ "role": "Dad", "name": "Gary Hill" }] }, "Sam Reed")
 	assert_string_contains(walk_in, "\"I'm Danny Hill,\"")
