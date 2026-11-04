@@ -252,3 +252,10 @@ the hold as 20 fps JPEG sequences, from both camera angles.
 
     godot --headless --path . --script res://tools/contact_audit.gd -- --out=res://build/contact-audit.json
     godot --path . --script res://tools/contact_audit.gd -- --stills --out=res://build/contact-audit.json
+
+
+`godot --path . --script res://tools/defence_preview.gd -- --out=res://build/defence --motion`
+captures blocked crosses, staged body-kick covers and checked leg kicks in the final fight view from
+two angles (D428). `--motion` adds 20 fps JPEG sequences from 60 Hz updates, including wind-up and
+return to guard; outcomes are revealed at contact. Body cover is an explicitly arranged preview:
+live simulation currently marks only head shots as covered. The tool does not change those rules.
