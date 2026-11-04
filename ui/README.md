@@ -15,6 +15,11 @@ HUD, menus, minigame UI and themes (docs/06-fight-hud.md). Presentation only: no
 - `fight_night_card.gd`: the fight night card (docs/02 §3.11, D171), opened over the planner when the camp is over.
 - `mitt_work_screen.gd`: the mitt work minigame (docs/02 §3.9, D137), opened by the planner for each Boxing drills session ticked to Play; the judging is `sim/world/mitt_work.gd`.
 - `film_study_screen.gd`: the film study minigame (docs/03 §13.4, D410), opened by the planner for each Film study session ticked to Play: the tape in a 3D view of its own, Space to mark, his habit named from three; the judging is `sim/world/film_study.gd`.
+- `heavy_bag_screen.gd`: the heavy bag minigame (docs/03 §13.6, D412), opened by the planner for each Heavy bag session ticked to Play: the bag drawn swinging, his glove and the power meter, Space held and let go; the judging is `sim/world/heavy_bag.gd`.
+- `thai_pads_screen.gd`: the Thai pads minigame (docs/03 §13.7, D413), opened by the planner for each Thai pads session ticked to Play: the pad holder drawn facing him, his pads moving to each target with a ring running down, keys 1–5 and Space; the judging is `sim/world/thai_pads.gd`.
 - `sprawl_reflex_screen.gd`: the sprawl reflex minigame (docs/03 §13.5, D411), opened by the planner for each Sprawl drills session ticked to Play: the drill in a 3D view of its own (`ArenaView.drill`: no move names, range tag or referee), Space to sprawl; the judging is `sim/world/sprawl_reflex.gd`.
 - `debug_overlay.gd`: F3 on the fight screen, the raw numbers behind what's on screen.
 - `debug_console.gd`: developer console (toggle with the ` key). "Run test fight" runs `game/sim_check.gd` and prints pass/fail; the fight on screen is logged here with every odds breakdown. Lines are formatted by `fight_log_formatter.gd`.
+- `background_icon.gd`: a picture for each of the 12 backgrounds and the five gym kinds, drawn in code (docs/06 §6.14, D434): the new-career tiles and the gym cards.
+- `off_cage.gd`: one look for the screens off the fight (docs/06 §6.15, D435): the see-through backing over the dimmed hall, the dark buttons edged in red and the theme every off-fight screen carries.
+- `verdict_banner.gd`: the verdict read out over the cage before the result's sheet (docs/06 §6.16, D436): how and when, the judges one at a time, the winner.

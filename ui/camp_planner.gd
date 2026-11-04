@@ -6,7 +6,7 @@ extends PanelContainer
 ## what the week will probably do before it's run (TrainingCamp.forecast), and the log
 ## says what it did. On fight night it says how the camp sends the fighter in (tired, hurt,
 ## what the doctor says, D135) and offers Fight! or Pull out. Up to PLAY_MAX sessions a week with a
-## minigame built so far (mitt work, D137; film study, D410; sprawl reflex, D411) can be ticked to Play: running the week plays them first and their
+## minigame built so far (mitt work, D137; film study, D410; sprawl reflex, D411; heavy bag, D412; Thai pads, D413) can be ticked to Play: running the week plays them first and their
 ## scores count in the camp. Laid out as the camp week HUD (D170, docs/02 §3.10): the camp's weeks counting down
 ## to the fight along the top, the fighter's condition on the left, the week as coloured session tiles over a
 ## fatigue line in the middle, and the stats as bars on the right. Presentation only: TrainingCamp does the training.
@@ -32,7 +32,7 @@ const GROUPS: Array[String] = ["Physical", "Striking", "Wrestling", "Grappling",
 ## Forecast gains this small aren't worth a line.
 const SHOWN_GAIN: float = 0.005
 ## The minigames that can be played so far (D137), and how many sessions a week the player can play (docs/02 §3.1).
-const PLAYABLE: Array[String] = ["mitt_work", "film_study", "sprawl_reflex"]
+const PLAYABLE: Array[String] = ["mitt_work", "film_study", "sprawl_reflex", "heavy_bag", "thai_pads"]
 const PLAY_MAX: int = 3
 ## The fight is on the last week's Saturday evening (D135): this many days after that week's Monday.
 const FIGHT_DAY: int = 5
@@ -40,7 +40,7 @@ const DIM := "#8a8f98"
 const GAIN := "#69db7c"
 const LOSS := "#ff8787"
 ## The HUD's colours (D170): the screen behind, the cards on it, and the red corner's.
-const BACKGROUND := Color(0.08, 0.09, 0.11, 0.97)
+const BACKGROUND := Color(0.08, 0.09, 0.11, 0.88)  # The dimmed hall shows through a little (D435).
 const CARD := Color("#1b1f26")
 const RED_CORNER := Color("#ff6b6b")
 ## Fatigue and injury gauges: green under the first number, yellow under the second, red past it.
@@ -106,6 +106,10 @@ var minigame: MittWorkScreen
 var film: FilmStudyScreen
 ## The sprawl reflex minigame on screen (D411), else null.
 var sprawl: SprawlReflexScreen
+## The heavy bag minigame on screen (D412), else null.
+var bag: HeavyBagScreen
+## The Thai pads minigame on screen (D413), else null.
+var pads: ThaiPadsScreen
 ## slot → the habit's key a played film study found this week (D410), for Career.scout_week.
 var _film_found: Dictionary = {}
 var _to_play: Array[int] = []
@@ -139,6 +143,12 @@ var _rules_heading: Label
 var rule_slots: RuleSlots
 var _rules_text: Label
 var _scouting: RichTextLabel
+## In a pro career fight (D405): how hard he cuts, its line, and the weigh-in card shown before the fight night card.
+var cut_picker: OptionButton
+var _cut_heading: Label
+var _cut_text: Label
+var weigh_in_card: WeighInCard
+var _weighed: bool = false
 
 
 func _init(profile: Dictionary, camp_seed: int = 1, library: TrainingLibrary = null) -> void:
@@ -196,6 +206,12 @@ func _init(profile: Dictionary, camp_seed: int = 1, library: TrainingLibrary = n
 	night_card.pull_out_pressed.connect(pull_out)
 	night_card.back_pressed.connect(func() -> void: show_night_card(false))
 	add_child(night_card)
+	weigh_in_card = WeighInCard.new()
+	weigh_in_card.visible = false
+	weigh_in_card.continue_pressed.connect(func() -> void:
+		_weighed = true
+		_refresh())
+	add_child(weigh_in_card)
 	_new_camp()
 	pick_preset(START_PLAN if _plan_ids.has(START_PLAN) else _plan_ids[0])
 
@@ -245,6 +261,36 @@ func use_career(c: Career) -> void:
 	_rules_text.get_parent().move_child(rule_slots, _rules_text.get_index())
 	_rules_heading.visible = true
 	_rules_text.visible = true
+	_weighed = false
+	if not WeightCut.of(c).is_empty() and cut_picker == null:
+		# A pro fight (D405): how hard he cuts in fight week.
+		var box: Node = _rules_text.get_parent()
+		_cut_heading = _heading("Weight cut")
+		box.add_child(_cut_heading)
+		box.move_child(_cut_heading, _rules_text.get_index() + 1)
+		cut_picker = OptionButton.new()
+		for level: String in WeightCut.LEVELS:
+			cut_picker.add_item(String(WeightCut.NAMES[level]))
+		cut_picker.tooltip_text = "How much water he sheds in fight week: a harder cut makes him heavier on fight night but drains him and risks missing weight"
+		cut_picker.item_selected.connect(func(i: int) -> void: set_cut(WeightCut.LEVELS[i]))
+		box.add_child(cut_picker)
+		box.move_child(cut_picker, _cut_heading.get_index() + 1)
+		_cut_text = _dim_label(14)
+		_cut_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		box.add_child(_cut_text)
+		box.move_child(_cut_text, cut_picker.get_index() + 1)
+	if cut_picker != null:
+		cut_picker.selected = WeightCut.LEVELS.find(WeightCut.level_of(c))
+	_refresh()
+
+
+## How hard he cuts for the booked fight (D405): light, normal, hard or extreme. Fixed once the camp is over.
+func set_cut(level: String) -> void:
+	if career == null or done() or not level in WeightCut.LEVELS:
+		return
+	career.booked.cut = level
+	if cut_picker != null:
+		cut_picker.selected = WeightCut.LEVELS.find(level)
 	_refresh()
 
 
@@ -308,7 +354,7 @@ func week_plan() -> Dictionary:
 ## Runs the week on screen (the next week of the camp). Sessions ticked to Play are played first, one
 ## minigame after another, and the week runs when the last one is done.
 func run_week() -> void:
-	if done() or minigame != null or film != null or sprawl != null:
+	if done() or minigame != null or film != null or sprawl != null or bag != null or pads != null:
 		return
 	_to_play = played_slots()
 	_played = {}
@@ -348,6 +394,12 @@ func _play_next() -> void:
 	var fatigue: float = float(forecast.slots[index].fatigue_before) if index < forecast.slots.size() else camp.fatigue
 	if String(_library.session(_slot_ids[index]).get("minigame", "")) == "sprawl_reflex":
 		_play_sprawl(index, fatigue)
+		return
+	if String(_library.session(_slot_ids[index]).get("minigame", "")) == "heavy_bag":
+		_play_bag(index, fatigue)
+		return
+	if String(_library.session(_slot_ids[index]).get("minigame", "")) == "thai_pads":
+		_play_pads(index, fatigue)
 		return
 	var drill := MittWork.new(camp.stat("boxing"), fatigue, hash([_camp_seed, reports.size(), index]))
 	var day: int = index / TrainingCamp.SLOTS_PER_DAY
@@ -406,6 +458,35 @@ func _play_sprawl(index: int, fatigue: float) -> void:
 	add_child(sprawl)
 
 
+## A heavy bag session played (D412): at his Power and how tired he is.
+func _play_bag(index: int, fatigue: float) -> void:
+	var day: int = index / TrainingCamp.SLOTS_PER_DAY
+	bag = HeavyBagScreen.new(HeavyBag.new(camp.stat("power"), fatigue), "Heavy bag · week %d, %s %s · fatigue %d" % [
+		reports.size() + 1, TrainingCamp.DAY_NAMES[day], SLOT_NAMES[index % TrainingCamp.SLOTS_PER_DAY].to_lower(), roundi(fatigue)])
+	bag.finished.connect(func(quality: float, played: bool) -> void:
+		if played:
+			_played[index] = quality
+		bag.queue_free()
+		bag = null
+		_play_next())
+	add_child(bag)
+
+
+## A Thai pads session played (D413): at his Kicking and how tired he is.
+func _play_pads(index: int, fatigue: float) -> void:
+	var day: int = index / TrainingCamp.SLOTS_PER_DAY
+	var drill := ThaiPads.new(camp.stat("kicking"), fatigue, hash([_camp_seed, reports.size(), index, "pads"]))
+	pads = ThaiPadsScreen.new(drill, "Thai pads · week %d, %s %s · fatigue %d" % [reports.size() + 1,
+		TrainingCamp.DAY_NAMES[day], SLOT_NAMES[index % TrainingCamp.SLOTS_PER_DAY].to_lower(), roundi(fatigue)])
+	pads.finished.connect(func(quality: float, played: bool) -> void:
+		if played:
+			_played[index] = quality
+		pads.queue_free()
+		pads = null
+		_play_next())
+	add_child(pads)
+
+
 ## The week on screen is the last one: the fight is on its Saturday evening (D135).
 func fight_week() -> bool:
 	return reports.size() == weeks - 1
@@ -418,7 +499,7 @@ func days_to_fight() -> int:
 
 ## Runs every week left with the week on screen.
 func run_rest() -> void:
-	if minigame != null or film != null or sprawl != null:
+	if minigame != null or film != null or sprawl != null or bag != null or pads != null:
 		return
 	while not done():
 		var report: Dictionary = camp.run_plan(week_plan(), {}, fight_week())
@@ -877,6 +958,7 @@ static func _button(parent: Control, text: String, pressed: Callable) -> Button:
 	var b := Button.new()
 	b.text = text
 	b.custom_minimum_size = Vector2(0.0, 48.0)
+	OffCage.style_button(b)  # One look off the fight (D435).
 	b.pressed.connect(pressed)
 	parent.add_child(b)
 	return b
@@ -965,6 +1047,9 @@ func _refresh() -> void:
 	_scouting.visible = scouting
 	if scouting:
 		_scouting.text = Scouting.report_text(career, career.booked_opponent(), _groups, CareerHub.SCOUTED_GROUPS)
+		if OpponentCamp.known_early(career) and not OpponentCamp.of(career).is_empty():
+			# Known well enough, his camp shows from fight week (D404).
+			_scouting.text += "\n[b]His camp[/b] (you know him well enough to hear it early):\n" + "\n".join(OpponentCamp.lines(OpponentCamp.of(career)))
 	var phase: String = career.camp_phase() if career != null and not done() else ""
 	_phase.visible = phase != ""
 	_phase.text = String(Career.CAMP_PHASE_TIPS.get(phase, ""))
@@ -974,7 +1059,15 @@ func _refresh() -> void:
 		_rules_text.text = RuleDrilling.slots_text(career)
 	_refresh_stats(forecast.get("gains", {}))
 	_night_button.visible = done()
-	night_card.visible = done() and _night_open
+	var weighed: Dictionary = WeightCut.of(career) if career != null else {}
+	if cut_picker != null:
+		cut_picker.disabled = done()
+		_cut_text.text = WeightCut.plan_text(weighed.get("him", {}))
+	weigh_in_card.visible = done() and _night_open and not weighed.is_empty() and not _weighed
+	if weigh_in_card.visible:
+		weigh_in_card.show_weigh_in(weighed, [_start, career.booked_opponent()], [String(_start.get("name", "Fighter")), opponent_name],
+			Weight.name_of(career.division_now()), String(career.booked.get("title", "")) != "")
+	night_card.visible = done() and _night_open and not weigh_in_card.visible
 	if done() and not _plan_filled:
 		_plan_filled = true
 		night_card.gameplan.show_plan(camp_plan())
@@ -987,10 +1080,17 @@ func _refresh() -> void:
 ## What the fight night card shows (FightNightCard.show_night).
 func _night_info() -> Dictionary:
 	var start_chin: float = float(_start.get("stats", {}).get("chin", FighterState.DEFAULT_STAT))
+	var night: Dictionary = camp.fight_night()
+	var weighed: Dictionary = WeightCut.of(career) if career != null else {}
+	if not weighed.is_empty():
+		night.tank = float(night.tank) * (1.0 - float(weighed.him.tank_cost))  # What his cut costs him (D405).
+		night.cut_cost = float(weighed.him.tank_cost)
 	return { "name": String(_start.get("name", "Fighter")), "age": camp.age, "weeks": weeks, "opponent": opponent_name,
 		"profile": _start,
-		"night": camp.fight_night(), "pulled_out": pulled_out, "history": _history(), "gains": camp.camp_gains(),
-		"chin": camp.stat("chin"), "chin_change": camp.stat("chin") - start_chin }
+		"weigh_in": WeightCut.lines(weighed, String(_start.get("name", "Fighter")), opponent_name),
+		"night": night, "pulled_out": pulled_out, "history": _history(), "gains": camp.camp_gains(),
+		"chin": camp.stat("chin"), "chin_change": camp.stat("chin") - start_chin,
+		"their_camp": OpponentCamp.lines(OpponentCamp.of(career)) if career != null else [] }
 
 
 ## The weeks run so far, for the countdowns (CampCountdown.show_camp).

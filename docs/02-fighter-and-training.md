@@ -101,8 +101,8 @@ Tags appear when an attribute crosses a threshold or is shown in fights.
 | Minigame | Mechanic | Trains |
 |---|---|---|
 | **Mitt work** | Rhythm game: the coach calls combos and you hit them on the beat | Boxing, Speed |
-| **Heavy bag** | Power-timing meter with combo chaining | Power, Strength |
-| **Thai pads** | Aim + timing; the pad holder feeds kicks/knees/elbows | Kicking, Clinch striking |
+| **Heavy bag** | Power-timing meter with combo chaining (built: `03` §13.6, D412) | Power, Strength |
+| **Thai pads** | Aim + timing; the pad holder feeds kicks/knees/elbows (built: `03` §13.7, D413) | Kicking, Clinch striking |
 | **Wrestling chain** | Directional input sequences under time pressure (shot → finish → chain) | Takedowns, Scrambles |
 | **Sprawl reflex** | React to incoming shots with feints mixed in (built: `03` §13.5, D411) | Takedown defense, Speed |
 | **Rolling puzzle** | Turn-based positional puzzle: pick transitions, chess-like | Top control, Guard, Submissions |
@@ -524,6 +524,8 @@ Then update this section and D171.
   - Hidden risk: too aggressive → you make weight but start the fight with stamina/chin penalties. Too soft → miss weight.
   - Missing weight: fine (% of purse), reputation loss, and the opponent might refuse the fight.
   - Rehydration after weigh-ins gives a size advantage in the fight.
+  - Built so far as one pick (D405, `03` §13.9): light, normal, hard or extreme in the camp, the weigh-in card, missing
+    weight fined with the fight going ahead. The five-day planner is still to come.
 
 ---
 

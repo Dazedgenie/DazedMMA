@@ -135,7 +135,7 @@ func _init() -> void:
 	_gift_names = _enum("gifts")
 	_flaw_names = _enum("flaws")
 	set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_theme_stylebox_override("panel", FightHud._panel_style(BACKGROUND))
+	add_theme_stylebox_override("panel", OffCage.hall_panel())  # The dimmed hall shows through (D435).
 	var column := VBoxContainer.new()
 	column.add_theme_constant_override("separation", 12)
 	add_child(column)
@@ -815,7 +815,7 @@ static func _reign_line(c: Career, w: World, id: String, r: Array) -> String:
 	var won: int = c.year_of(int(r[1]))
 	var lost: int = c.year_of(int(r[2]))
 	var when: String = ("since %d" % won) if int(r[2]) < 0 else (str(won) if lost == won else "%d–%d" % [won, lost])
-	var how: String = { "lost": "lost it", "retired": "retired", "stripped": "stripped", "called up": "called up", "left": "moved on" }.get(String(r[4]), "")
+	var how: String = { "lost": "lost it", "retired": "retired", "stripped": "stripped", "called up": "called up", "left": "moved on", "missed weight": "stripped for missing weight" }.get(String(r[4]), "")
 	var defences: int = int(r[3])
 	return "%s %s (%s) · %d defence%s%s" % [when, name, country, defences, "" if defences == 1 else "s", (" · " + how) if how != "" else ""]
 
@@ -1327,7 +1327,7 @@ static func _title_news(c: Career, w: World, r: Dictionary, met: Dictionary) -> 
 			return [8.0, "%s has won %s!" % [name, Titles.title_name(w, k)]]
 		return []  # The world's title wins are on their fights' lines.
 	var why: String = { "retired": "%s has retired", "called up": "%s has been called up", "stripped": "%s has been stripped of it after a year without a defence",
-		"left": "%s has moved on" }.get(how, "%s has gone") % name
+		"left": "%s has moved on", "missed weight": "%s was stripped at the scale for missing weight" }.get(how, "%s has gone") % name
 	var score: float = 2.0 + (1.0 if k.begins_with("org_0") else 0.0) + (4.0 if met.has(id) else 0.0) + (4.0 if id == Career.FIGHTER_ID else 0.0)
 	return [score, "%s is vacant: %s." % [Titles.title_name(w, k).capitalize().substr(0, 1) + Titles.title_name(w, k).substr(1), why]]
 
