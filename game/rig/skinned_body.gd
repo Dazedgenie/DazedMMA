@@ -688,7 +688,7 @@ func _lift_off_canvas() -> void:
 
 
 ## The other man's trunk, the line from his hips to his chest in the world (set each frame before settle; empty
-## when there's no one to keep out of): no hand, foot, elbow or knee of this body is shown inside it (D397).
+## when there's no one to keep out of). Used to route complete limb segments around it (D397, D425).
 var avoid: Array[Vector3] = []
 
 
@@ -697,7 +697,7 @@ func trunk() -> Array[Vector3]:
 	return [_world_at("Hips"), _world_at("Spine2")]
 
 
-## Any limb with its hand or foot, elbow or knee inside the other man's trunk (`avoid`) is posed again, the hand or
+## Any limb segment crossing the other man's trunk (`avoid`) is posed again, the hand or
 ## foot put on him and the elbow or knee turned round the limb out of him (FighterRig.out_of, clear_of; D397). The
 ## rig keeps its poses out of him already; this catches what the body adds: easing between two poses (a sweep turning
 ## them over, getting up from underneath), its own lengths and the pieces' strikes.
@@ -712,7 +712,7 @@ func _keep_out() -> void:
 		var root: Vector3 = _world_at(upper)
 		var middle: Vector3 = _world_at(lower)
 		var tip: Vector3 = _world_at(end)
-		if _out_by(middle) >= FighterRig.TRUNK_RADIUS and _out_by(tip) >= FighterRig.TRUNK_RADIUS:
+		if FighterRig.limb_clearance(root, middle, tip, avoid) >= FighterRig.TRUNK_RADIUS:
 			continue
 		var tip_turn: Basis = (skeleton.global_transform.basis * skeleton.get_bone_global_pose(_ids[end]).basis).orthonormalized()
 		var to: Vector3 = FighterRig.out_of(tip, avoid[0], avoid[1])
@@ -724,11 +724,6 @@ func _keep_out() -> void:
 		_aim_bone(upper, lower, root, bent_at, bend, arm, to_skeleton)
 		_aim_bone(lower, end, bent_at, chain[1], bend, arm, to_skeleton)
 		_set_world(end, Transform3D(tip_turn, chain[1]), to_skeleton)
-
-
-## How far `point` is from the middle line of the other man's trunk.
-func _out_by(point: Vector3) -> float:
-	return point.distance_to(FighterRig.closest_on(point, avoid[0], avoid[1]))
 
 
 ## The lowest a joint's middle may be shown while easing (metres above the canvas).
