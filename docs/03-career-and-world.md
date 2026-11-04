@@ -1600,8 +1600,8 @@ fights counted, the tired share and tank range and how well you must know him to
 Phase 4's fifth piece (Kyle, 2026-11-04, picked "Weight cut and weigh-in (D405)" next, my pick). Until now a pro made his
 division's limit without it costing or winning him anything. Now he cuts weight, and so does the other man. As Kyle
 picked on 2026-11-02 ("One pick now, planner later"), it's one choice for now: light, normal, hard or extreme. D23's
-five-day planner can come later as a minigame. Kyle's four cards (2026-11-04): *[to fill in when answered: my picks below
-are built]*.
+five-day planner can come later as a minigame. Kyle's four cards (2026-11-04, all my picks): "Heavier on the night: Strength", "Gas tank and Chin, worse harder",
+"Fined, the fight goes ahead", "Pick in camp, a weigh-in card".
 
 - **The cut.** A pro weighs in the day before (`docs/08`), so in fight week he sheds water to make the limit and puts
   most of it back by fight night. What he walks around at over the limit has to come off. Each level sets how much of
