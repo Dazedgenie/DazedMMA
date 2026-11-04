@@ -10,6 +10,10 @@
 	"southpaw_chance": 0.15,
 	"variation": { "stats": 6, "style": 12, "tendencies": 0.2, "personality": 30, "height_cm": 4 },
 	"gameplan": { "approach": "", "target": "", "where": "wrestle_heavy" },
+	"gameplans": [
+		{ "approach": "counter", "target": "", "where": "wrestle_heavy" },
+		{ "approach": "", "target": "", "where": "clinch_work" }
+	],
 	"habits": [
 		{ "trigger": "own_jab_blocked", "action": "cross", "chance": 0.5, "within_ms": 1000 },
 		{ "trigger": "own_jab_blocked", "action": "guard_pull", "chance": 0.4, "within_ms": 1200 }

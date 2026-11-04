@@ -1,7 +1,7 @@
 class_name LoadScreen
 extends PanelContainer
-## Load career (docs/03 §10.2, D302): the three save slots (CareerSaves, D301) side by side, each with the fighter's
-## name, age, record, the career's date and when it was saved; Load, and Delete (pressed twice, since it can't be
+## Load career (docs/03 §10.2, D302): the three save slots (CareerSaves, D301) side by side, each with his head and
+## chest (D434, docs/06 §6.14), the fighter's name, age, record, division and belt, the career's date and when it was saved; Load, and Delete (pressed twice, since it can't be
 ## undone). A slot that only its backup could read says so.
 
 signal load_pressed(slot: int)
@@ -15,6 +15,9 @@ const DIM := Color("#8a8f98")
 const WARN := Color("#fcc419")
 const SLOT_W: float = 380.0
 const DELETE_SURE := "Really delete? Press again"
+## His head and chest at the top of his slot (D434, Kyle's card "Cards with his portrait").
+const FACE := Vector2(0.0, 230.0)
+const GOLD := Color("#d6a531")
 
 var save_dir: String = CareerSaves.DIR
 
@@ -24,7 +27,7 @@ var _back: Button
 
 func _init() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_theme_stylebox_override("panel", FightHud._panel_style(BACKGROUND))
+	add_theme_stylebox_override("panel", OffCage.hall_panel())  # The dimmed hall shows through (D435).
 	var column := VBoxContainer.new()
 	column.add_theme_constant_override("separation", 24)
 	add_child(column)
@@ -54,6 +57,10 @@ func _init() -> void:
 		DisplayFont.apply(heading, 20)
 		heading.text = "SLOT %d" % (slot + 1)
 		box.add_child(heading)
+		var face := FighterPortrait.new(FighterPortrait.BUST, 0, -15.0)
+		face.custom_minimum_size = FACE
+		face.visible = false
+		box.add_child(face)
 		var label := RichTextLabel.new()
 		label.bbcode_enabled = true
 		label.fit_content = true
@@ -63,7 +70,7 @@ func _init() -> void:
 		box.add_child(label)
 		var load_button: Button = CampPlanner._button(box, "Load", func() -> void: load_pressed.emit(slot))
 		var delete_button: Button = CampPlanner._button(box, "Delete", func() -> void: _delete(slot))
-		_slots.append({ "info": {}, "text": label, "load": load_button, "delete": delete_button })
+		_slots.append({ "info": {}, "text": label, "load": load_button, "delete": delete_button, "face": face })
 
 	var buttons := HBoxContainer.new()
 	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -81,6 +88,11 @@ func refresh() -> void:
 		(entry.load as Button).disabled = entry.info.is_empty()
 		(entry.delete as Button).visible = not entry.info.is_empty()
 		(entry.delete as Button).text = "Delete"
+		var face: FighterPortrait = entry.face
+		var drawn: Dictionary = portrait_of(entry.info, slot)
+		face.visible = not drawn.is_empty()
+		if face.visible:
+			face.show_fighter(drawn)
 
 
 func focus_first() -> void:
@@ -89,6 +101,18 @@ func focus_first() -> void:
 			FightHud.focus_later(entry.load as Button)
 			return
 	FightHud.focus_later(_back)
+
+
+## Him as his slot draws him (D434): his look, frame and stance from the save's summary; {} for an empty slot or a
+## career saved before D434, which shows without a face.
+static func portrait_of(slot_info: Dictionary, slot: int) -> Dictionary:
+	var drawn: Variant = slot_info.get("portrait", null)
+	if not drawn is Dictionary or (drawn as Dictionary).is_empty():
+		return {}
+	var out: Dictionary = (drawn as Dictionary).duplicate(true)
+	out.id = "slot_%d_%s" % [slot, String(slot_info.get("name", "")).to_snake_case()]
+	out.name = String(slot_info.get("name", ""))
+	return out
 
 
 ## What a slot's card says, from CareerSaves.info().
@@ -101,7 +125,11 @@ static func slot_text(slot_info: Dictionary) -> String:
 		lines.append("'%s'" % slot_info.nickname)
 	lines.append("Age %d · %s" % [int(slot_info.get("age", 0)), String(slot_info.get("date", ""))])
 	var record: String = "Pro %s" % slot_info.get("pro_record", "") if bool(slot_info.get("pro", false)) else "Amateur %s" % slot_info.get("amateur_record", "")
+	if String(slot_info.get("division", "")) != "":
+		record += " · %s" % Weight.name_of(String(slot_info.division))
 	lines.append(record)
+	if String(slot_info.get("belt", "")) != "":
+		lines.append("[color=%s][b]Champion:[/b] %s[/color]" % [GOLD.to_html(false), String(slot_info.belt).trim_prefix("the ")])
 	lines.append("[color=%s]Coach %s[/color]" % [DIM.to_html(false), String(slot_info.get("coach", ""))])
 	lines.append("[color=%s]Saved %s[/color]" % [DIM.to_html(false), saved_text(String(slot_info.get("saved_at", "")))])
 	if bool(slot_info.get("backup", false)):

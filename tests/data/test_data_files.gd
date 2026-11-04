@@ -776,6 +776,19 @@ func test_style_sheets_build_on_a_real_fighter_and_carry_a_scouting_card() -> vo
 				problems.append("%s: gameplan is {approach, target, where} (D324)" % where)
 			elif Gameplan.check(plan) != "":
 				problems.append("%s: gameplan: %s" % [where, Gameplan.check(plan)])
+		if s.has("gameplans"):
+			# The other plans his corner may roll for a career fight (D404).
+			if not s.gameplans is Array or not s.has("gameplan"):
+				problems.append("%s: gameplans is a list of {approach, target, where}, beside gameplan (D404)" % where)
+			else:
+				for plan: Variant in s.gameplans:
+					if not plan is Dictionary or plan.keys().size() != 3 \
+							or not plan.keys().all(func(k: String) -> bool: return Gameplan.PARTS.has(k)):
+						problems.append("%s: each of gameplans is {approach, target, where} (D404)" % where)
+					elif Gameplan.check(plan) != "":
+						problems.append("%s: gameplans: %s" % [where, Gameplan.check(plan)])
+					elif plan == s.gameplan or s.gameplans.count(plan) > 1:
+						problems.append("%s: gameplans repeats a plan (D404)" % where)
 	_report(problems)
 
 

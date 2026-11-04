@@ -285,6 +285,8 @@ The title screen and the slots on screen came with D302 (§10.2); the hub saves 
 
 ### 10.2 The title screen and a new career (D302)
 
+*Its look was rebuilt in D434 (`06` §6.14): the title over a real fight with the menu down the left, the new-career page with him in the middle and the backgrounds as tiles, and the load slots with his face. What's on each screen is as below; §6.14 is how it looks.*
+
 **The title screen** (`ui/title_screen.gd`) is the first thing the game shows, in the corner-board look of the screens off
 the cage (D170): CHIN CHECK in the display font, Lampsmoke Games under it (D242), then:
 
@@ -428,7 +430,8 @@ camp's wasted, the week's over).
 **The fight.** *Fight!* saves the career, then starts the fight against the booked man under the booked rules, with a seed
 from the career's dice. A career fight can't be restarted from the pause menu. When it ends it goes on his record
 (`Career.finish_fight`: result, how, the round, the rules, the purse), he's paid, an injury fighting hurt made worse (D135)
-carries on, the fight week ends and the career saves. The result screen says what it did to his record and his money, and
+carries on, the fight week ends and the career saves. The result screen says what it did to his record and his money (since
+D436 on its own *What it means* card with his rank, a belt, a promotion move and the suspension: `docs/06` §6.16), and
 *Back to the hub* goes home.
 
 **Not yet:** short-notice offers, a rematch, an opponent's own record and camp, and reputation for turning fights down.
@@ -518,6 +521,8 @@ visual work).
 
 ### 11.2 His childhood (D312)
 
+*Since D434 (`06` §6.14): him at that age beside each scene.*
+
 Before he's 16 he's a boy (D8, D83, `02` §1.1). A new career now plays three short scenes from his childhood, at about 8, 12
 and 15, and what he chose in them makes him. *Play his childhood* on the new-career screen is ticked by default; *Start
 career* becomes *Play his childhood* and opens the scenes (`ui/childhood_screen.gd`). Untick it to pick his background from
@@ -568,6 +573,8 @@ that age's pool); the flavour, the height lean and the ages in `sim/world/childh
 section and D312.
 
 ### 11.3 Your gym and the walk-in (D313)
+
+*Since D434 (`06` §6.14): each gym a card with its owner's face and what it trains as chips, and him in a lit doorway at the walk-in.*
 
 You coach at a gym, and that's where he walks in at 16 (D37). Kyle (2026-11-01) picked **Yours** on the plan's card ("Whose
 gym does he walk into at 16?"): you coach at a gym, picked from three in his hometown when he walks in, and the walk-in is
@@ -1247,13 +1254,13 @@ study" first, my pick):
 | Scouting and film study: grades as a range until he's scouted, film study finding his habits, only found habits cued, each man's own habits from his style | D401 | Built (§13.1) |
 | Drilling rules in camp: a session that drills one of his two rule slots, the slots in career fights, the camp's early, middle and taper weeks marked | D402 | Built (§13.2) |
 | More rules to drill: eight answers to the styles' habits, the answer marked when you've found his habit | D403 | Built (§13.3) |
-| The opponent's camp: a plan against your style, sometimes a rule against your favourite move, his own cut | D404 | Planned |
-| The weight cut and the weigh-in: how hard he cuts in fight week, missing weight (Kyle, 2026-11-02: "One pick now, planner later": light, normal, hard or extreme now, D23's five-day planner later as a minigame) | D405 | Planned |
+| The opponent's camp: a plan against your style, sometimes a rule against your favourite move, his own cut (his cut moves to D405) | D404 | Built (§13.8) |
+| The weight cut and the weigh-in: how hard he cuts in fight week, missing weight (Kyle, 2026-11-02: "One pick now, planner later": light, normal, hard or extreme now, D23's five-day planner later as a minigame) | D405 | Built (§13.9) |
 | Named injuries, and hiding one from the doctor | D406 | Planned |
 | Sparring partners: named men at his gym from the world's local men | D407 | Planned |
 | Coaches: assistants for a weekly fee, the head coach's levels | D408 | Planned |
 | Changing gyms: his hometown and the nearest city | D409 | Planned |
-| Minigames, one a PR: film study, heavy bag, sprawl reflex, Thai pads first (Kyle, 2026-11-03: "Minigames first", next after D403, before the opponent's camp) | D410 on | Film study built (§13.4, D410); sprawl reflex built (§13.5, D411) |
+| Minigames, one a PR: film study, heavy bag, sprawl reflex, Thai pads first (Kyle, 2026-11-03: "Minigames first", next after D403, before the opponent's camp) | D410 on | Film study built (§13.4, D410); sprawl reflex built (§13.5, D411); heavy bag built (§13.6, D412); Thai pads built (§13.7, D413): all four built |
 | Your corner naming the habits you found at each round break (Kyle's ask after D401) | D419 | Built (§13.1) |
 
 ### 13.1 Scouting and film study (D401)
@@ -1296,7 +1303,7 @@ Saved on the career as `scouting` (`docs/09` career@1; optional, so a career sav
 anyone). A man who was already in the career's opponents keeps the habits he was made with.
 
 **Not yet:** a scout's report you pay for, the head coach's Reading making the cue come earlier (D66, with the coach levels,
-D408), the film study minigame (spot the tell, D410), and the opponent studying you (D404).
+D408), and the film study minigame (spot the tell, D410; built, §13.4). The opponent studying you is built (§13.8, D404).
 
 **What to change:** the numbers at the top of `sim/world/scouting.gd` (`SPREAD`, `OFFSET`, `FILM_PER_FIGHT`, `FILM_MAX`,
 `MET`, `STUDY_GAIN`, `STUDY_IQ`, `FIND_BASE`, `FIND_PER_IQ`, `FIND_PER_FIGHT`, `FIND_FILM_MAX`, `FIND_TACTICIAN`,
@@ -1336,8 +1343,8 @@ five).
 
 Saved on the career as `rules` (`docs/09` career@1; optional, so a career saved before D402 loads with no rules).
 
-**Not yet:** a drilling minigame, the opponent
-drilling a rule against you (D404), and a third slot with a coach (D408).
+**Not yet:** a drilling minigame and a third slot with a coach (D408). The opponent drilling a rule against you is built
+(§13.8, D404).
 
 **What to change:** `SCALE`, `FADE_PER_WEEK` and `KEEPS` at the top of `sim/world/rule_drilling.gd`; the sessions in
 `data/sessions/drill_rule_*.json`; the camp's parts and their tips in `Career.camp_phase()` and `CAMP_PHASE_TIPS`
@@ -1373,8 +1380,8 @@ knows", "Mark the answer" and "At least break even" (my picks), then "Keep all e
   the lean back and the two hands-up rules cost 2 to 4%. They're kept as the weaker picks; the fix belongs in the lean back
   and the high guard themselves.
 
-**Not yet:** an answer of its own to a body kick, a body hook or an overhand (the overhand comes over a roll and no defence stops a body shot yet), rules that fire on a position or a grip,
-and the opponent drilling a rule against you (D404).
+**Not yet:** an answer of its own to a body kick, a body hook or an overhand (the overhand comes over a roll and no defence stops a body shot yet), rules that fire on a position or a grip.
+The opponent drilling one of these against your favourite move is built (§13.8, D404).
 
 **What to change:** a rule's trigger, move and cooldown in `data/rules/`; what sets a trigger off in `data/triggers/`;
 which rule answers which habit in `RuleDrilling.answers()` (`sim/world/rule_drilling.gd`); how a defence rule is timed and
@@ -1408,7 +1415,7 @@ it", "The habit for sure, plus Fight IQ" and "Study a man of his style" (my pick
   style with habits, in a quick camp), made the way the world makes men: Fight IQ only.
 
 **Not yet:** a tape of his real past fights (the world's fights are quick results, not fights), the opponent's habits
-shown as film to a corner, and the other minigames (sprawl reflex built next, §13.5; heavy bag and Thai pads to come).
+shown as film to a corner, and the other minigames (sprawl reflex built next, §13.5; heavy bag, §13.6; Thai pads, §13.7).
 
 **What to change:** the clip, speed, windows and score in the constants at the top of `sim/world/film_study.gd`
 (`CLIP_SECONDS`, `SPEED`, `WINDOW_BEFORE`, `WINDOW_AFTER`, `WINDOW_PER_IQ`, `STRAY_COST`, `MARK_SHARE`, `CHOICES`,
@@ -1454,3 +1461,192 @@ gym's own look (a mat, not the cage).
 `ui/sprawl_reflex_screen.gd`; which sessions can be played in `CampPlanner.PLAYABLE`. To see it:
 `godot --path . --script res://tools/sprawl_preview.gd -- --level=50 --sprawl` (with `--write-movie` to save frames).
 Tested in `tests/sim/world/test_sprawl_reflex.gd` and `tests/ui/test_camp_planner.gd`.
+
+### 13.6 Heavy bag, the minigame (D412)
+
+The third phase 4 minigame (Kyle, 2026-11-03, picked "Heavy bag" next, my pick: strikers get a session to play, after a
+mind drill and a wrestling drill). It's `docs/02` §3.2's power timing with chaining. A Heavy bag session ticked to **Play**
+in the camp planner opens a minute on the bag before the week runs. Kyle's three cards (2026-11-03, all my picks): "2D drawn
+bag and meter", "Load, release, meet the swing", "Quicker meter, smaller green".
+
+- **The screen**: the bag drawn swinging on its chain, his glove, and a power meter beside it (green at the top, good
+  below it, weak under that), like mitt work's drawn mitts. A thud on every shot that lands, a whoosh on one that finds
+  nothing (made in code).
+- **A shot**: hold **Space** to load it. The meter climbs to the top and back down, over and over, while it's held; let
+  go with it in the green. The green is a full shot, the band below it good (worth 0.6), lower weak (0.15).
+- **The swing**: the bag swings away and back to him 1.4 s after a shot lands, however hard it was hit (a pendulum's
+  pace). Let go within 0.15 s of it coming back and the shot **meets** it: it counts in full and the chain grows. Let go
+  after it's back and the shot lands but misses the swing (× 0.6) and the chain ends. Let go while it's still swinging
+  away and the shot finds nothing: a whiff, a quarter of a shot off, and the chain ends. A ring over the meter fills as
+  the bag swings in and turns green as it meets you. The first shot meets a still bag.
+- **The skill**: start loading while the bag is still swinging away, so the meter tops out just as it comes back.
+- **The score**: what the shots were worth, less the whiffs, over a perfect round's shots (one each swing, 42). It's
+  the session's quality, ×0.8 for nothing up to ×1.5 for a perfect round, on what Heavy bag trains (Power 50%, Boxing
+  30%, Strength 20%). **Skip it** lets the session auto-resolve (×1.0), as before.
+- **Harder as he gets better**, by his Power from 20 to 90 (as mitt work by Boxing): the meter tops out in 1.0 s down to
+  0.6 s, and the green shrinks from 20% of the meter to 10%. **Tired arms:** from fatigue 40 at that point of the week the
+  green shrinks in a line to 60% of itself at fatigue 100, as mitt work's windows do.
+
+**Not yet:** kicks and knees on the bag (Thai pads will have them), the bag in a gym's own look, and a 3D view of his
+fighter on it.
+
+**What to change:** the round, the swing, the meter and the score in the constants at the top of
+`sim/world/heavy_bag.gd` (`ROUND_SECONDS`, `SWING_SECONDS`, `MEET_WINDOW`, `LOAD_SLOW`, `LOAD_FAST`, `GREEN_WIDE`,
+`GREEN_NARROW`, `GOOD_BAND`, `LEVEL_LOW`, `LEVEL_HIGH`, `TIRED_FROM`, `TIRED_FLOOR`, `MISSED_SWING`, `GOOD_CREDIT`,
+`WEAK_CREDIT`, `WHIFF_COST`); the drawing, colours and sounds in `ui/heavy_bag_screen.gd`; which sessions can be played in
+`CampPlanner.PLAYABLE`. To see it: `godot --path . --script res://tools/bag_preview.gd -- --power=50` (with
+`--write-movie` to save frames). Tested in `tests/sim/world/test_heavy_bag.gd` and `tests/ui/test_camp_planner.gd`.
+Fights don't change.
+
+### 13.7 Thai pads, the minigame (D413)
+
+The fourth phase 4 minigame and the last of the four (Kyle, 2026-11-03, picked "Thai pads minigame" next, my pick: the
+kicking styles were the only strikers without a session to play). It's `docs/02` §3.2's aim and timing, the pad holder
+feeding kicks, knees and elbows. A Thai pads session ticked to **Play** in the camp planner opens a minute on the pads
+before the week runs. Kyle's three cards (2026-11-03, all my picks): "Read the pads, throw the strike", "2D drawn pad
+holder", "Quicker pads, then combinations".
+
+- **The screen**: the pad holder drawn facing him, like the heavy bag, his pads held at his chest between strikes. A
+  smack on every strike that lands, a whoosh on one that doesn't (made in code).
+- **Reading the pads**: he sets a pad where he wants a strike and you throw it before he drops it. Pad high beside his
+  head: **1** head kick. Pad flat in front of his face: **2** elbow. Pad on his ribs: **3** body kick. Both pads at his
+  belly: **4** knee. The thigh pad on his lead leg: **5** low kick. Now and then (15% of single pads) his rear leg comes
+  up as he kicks back: **Space** checks it. Each key is drawn faintly beside its pad's place.
+- **Timing**: a ring round the pad runs down until he drops it. A strike while it's gold (the first 45% of the pad's
+  time) is perfect, a later one good (worth 0.6). The wrong strike misses that pad, and a pad he drops unhit is missed
+  ("Too slow"). A strike with no pad up, or at one already hit, finds nothing and takes a quarter of a strike off.
+- **The score**: perfect strikes, plus good ones at 0.6, less the strikes at nothing, over every pad he held. It's the
+  session's quality, ×0.8 for nothing up to ×1.5 for a perfect round, on what Thai pads trains (Kicking 50%, Clinch
+  striking 30%, Power 20%). **Skip it** lets the session auto-resolve (×1.0), as before.
+- **Harder as he gets better**, by his Kicking from 20 to 90 (as mitt work by Boxing): a pad stays up 1.2 s down to
+  0.65 s, and the next one comes after 1.1 s down to 0.5 s. **Combinations:** from Kicking 60 half the sets are two pads
+  in a row, and from 80 half of those are three; each pad in a combination is up for three quarters of a single pad's
+  time and the next goes up as it drops, never the same pad twice running. **Tired legs:** from fatigue 40 at that
+  point of the week a pad's time shrinks in a line to 60% of itself at fatigue 100, as mitt work's windows do.
+
+**Not yet:** fake-outs (a pad shown and pulled), the plum and knees from it, teeps, harder pads at a Muay Thai gym or a
+camp abroad (`docs/02` §6, Bangkok), and a 3D view of him and the holder.
+
+**What to change:** the round, the pads' times, the combinations and the score in the constants at the top of
+`sim/world/thai_pads.gd` (`ROUND_SECONDS`, `COUNT_IN`, `OPEN_SLOW`, `OPEN_FAST`, `GAP_SLOW`, `GAP_FAST`, `LEVEL_LOW`,
+`LEVEL_HIGH`, `PERFECT_SHARE`, `COMBO_FROM`, `TRIPLE_FROM`, `COMBO_CHANCE`, `TRIPLE_CHANCE`, `COMBO_SHARE`, `CHECK_CHANCE`,
+`TIRED_FROM`, `TIRED_FLOOR`, `GOOD_CREDIT`, `STRAY_COST`); the drawing, keys, colours and sounds in
+`ui/thai_pads_screen.gd`; which sessions can be played in `CampPlanner.PLAYABLE`. To see it:
+`godot --path . --script res://tools/pads_preview.gd -- --kicking=70` (with `--write-movie` to save frames). Tested in
+`tests/sim/world/test_thai_pads.gd` and `tests/ui/test_camp_planner.gd`. Fights don't change.
+
+### 13.8 The opponent's camp (D404)
+
+Phase 4's fourth piece (Kyle, 2026-11-03, picked "Opponent's camp (D404)" next, my pick). Until now the man he was booked
+against walked in the same whoever he was fighting: his style sheet's one plan, no rules, a full tank. Now he has a camp
+of his own. Kyle's four cards (2026-11-03):
+
+- **His plan: one of a few, rolled** (Kyle's pick; I'd suggested a plan picked against your style). Every style sheet
+  lists two or three plans that suit it (style@1 `gameplan` and `gameplans`, `docs/09`), and his corner rolls one for the
+  fight. The scouting report still shows the style's usual plan; which one he's really bringing you learn on fight night,
+  or earlier if you know him well (below). This replaces D324's "his corner sticks to one plan".
+
+  | Style | His plans |
+  |---|---|
+  | Pressure boxer | Pressure · Head · standing; Counter · Head · standing; Pressure · Body · standing |
+  | Brawler | Pressure · Head; Pressure · Body; Head · standing |
+  | Counter-striker | Counter · Head · standing; Range · Head · standing; Counter · Legs · standing |
+  | Dirty boxer | Pressure · Body · clinch; Pressure · Head · clinch; Pressure · Body · standing |
+  | Karate point fighter | Range · Head · standing; Counter · Head · standing; Range · Body · standing |
+  | Range kicker | Legs; Body; Range · Head · standing |
+  | Leg-kick specialist | Legs; Range · Legs · standing; Counter · Legs |
+  | Muay Thai clinch fighter | Body · clinch; Legs · clinch; Pressure · Body |
+  | Sprawl-and-brawl | Head · standing; Counter · Head · standing; Pressure · Body · standing |
+  | Pressure wrestler | Pressure · take him down; Pressure · clinch; Conserve · take him down |
+  | Ground-and-pound wrestler | Pressure · take him down; clinch; Pressure · Head · take him down |
+  | Wrestle-boxer | Take him down; Pressure · take him down; clinch |
+  | Judo thrower | Clinch; take him down; Counter · clinch |
+  | Submission grappler | Take him down; Counter · take him down; clinch |
+  | Sambo leg-locker | Take him down; Legs · take him down; clinch |
+
+- **A rule against your favourite move, more often higher up** (my pick). Your favourite move is the one you threw most
+  in your last 3 fights that a rule can answer (each fight's `moves` on your record, counted from every move you started).
+  A third of amateur opponents drill a rule against it, half of pros, and every title fight's. He drills one he knows (a
+  rule whose move is in his techniques), 50 to 80%, in his first rule slot, and it works exactly as yours do (`docs/01`
+  §23). Throw a lot of leg kicks and a pro will often come in checking them; jab a lot and he may have drilled the slip.
+  Before your first fight he has no film of you, and some moves no rule answers yet (the uppercut, for one), so he
+  drills nothing.
+- **Seen on fight night, or early if scouted** (my pick). The fight night card has a *His camp* line under the gameplan:
+  *His plan: Pressure · Body. He's drilled When he leg kicks → check it (64%) for your leg kick. He overtrained: 90% of his
+  gas tank.* In fight week the camp's scouting box shows the same lines when you know him 60% or better (§13.1), so you
+  can still drill your own rules or change your plan for it.
+- **Usually fresh, sometimes not** (my pick). A quarter of opponents overtrained or cut badly and start with 85 to 95% of
+  their gas tank (the same `condition` your own camp gives you, `docs/09` fighter@1); the rest come in fresh. His own
+  weight cut, and seeing it at the weigh-in, is built: §13.9 (D405).
+
+Not in a one-day tournament (nobody prepared for one man) or the tutorial's lesson fights before the gameplan opens
+(§11.6). It's worked out from the career's seed, the man and the week of the booking, so the same booking always gives
+the same camp and nothing new is saved but each fight's `moves` (optional: a career saved before D404 has no moves on its
+old fights, so its next man has no film of you).
+
+**Not yet:** a plan picked to beat your style (Kyle chose the roll), the world's men drilling
+rules against each other, a rule against your favourite takedown or submission (rules answer strikes and shots only), and
+the hub telling you what your favourite move is before a camp.
+
+**What to change:** each style's plans in `data/styles/*.json` (`gameplan` and `gameplans`); the chances, drill range,
+fights counted, the tired share and tank range and how well you must know him to see it early in the constants at the top of
+`sim/world/opponent_camp.gd` (`RULE_CHANCE_AMATEUR`, `RULE_CHANCE_PRO`, `RULE_CHANCE_TITLE`, `DRILLED_MIN`, `DRILLED_MAX`,
+`MOVES_FIGHTS`, `TIRED_CHANCE`, `TANK_LOW`, `TANK_HIGH`, `SCOUTED_EARLY`); which rule answers which move in
+`RuleDrilling.answers()`. Tested in `tests/sim/world/test_opponent_camp.gd`, `tests/data/test_data_files.gd` and
+`tests/game/test_main_scene.gd`. Fights against the booked man change: his plan, his rule and his tank.
+
+### 13.9 The weight cut and the weigh-in (D405)
+
+Phase 4's fifth piece (Kyle, 2026-11-04, picked "Weight cut and weigh-in (D405)" next, my pick). Until now a pro made his
+division's limit without it costing or winning him anything. Now he cuts weight, and so does the other man. As Kyle
+picked on 2026-11-02 ("One pick now, planner later"), it's one choice for now: light, normal, hard or extreme. D23's
+five-day planner can come later as a minigame. Kyle's four cards (2026-11-04, all my picks): "Heavier on the night: Strength", "Gas tank and Chin, worse harder",
+"Fined, the fight goes ahead", "Pick in camp, a weigh-in card".
+
+- **The cut.** A pro weighs in the day before (`docs/08`), so in fight week he sheds water to make the limit and puts
+  most of it back by fight night. What he walks around at over the limit has to come off. Each level sets how much of
+  that comes off as water in fight week; the rest is dieted off in camp.
+
+  | Level | Water he sheds | Gas tank cost | Chin cost | Chance he misses weight |
+  |---|---|---|---|---|
+  | Light | up to 3% of his weight | none | none | none |
+  | Normal (to start with) | up to 6% | 3% | none | 2% |
+  | Hard | up to 9% | 8% | 3 | 6% |
+  | Extreme | up to 12% | 15% | 8 | 15% |
+
+  He gets 90% of the water back by fight night, so a harder cut makes him heavier on the night. A man with less to lose
+  than the level's share sheds only what he has, and pays that share of the cost. A man already under the limit has
+  nothing to cut: no cost and no miss. The Hard cut flaw (`docs/11`) makes a miss half as likely again. Amateurs weigh in on
+  the day at what they walk around at (`docs/08`), so amateur fights and tournaments have no cut.
+- **What it wins: the bigger man on the night** (my pick). Whoever is heavier on fight night gets +1 Strength for each
+  whole kg he outweighs the other man, up to +6. Strength drives damage and the clinch.
+- **What it costs: gas tank and Chin, worse the harder** (my pick). The costs are in the table. The tank cost multiplies
+  what the camp left him (the fight night card's gas tank shows both), and the Chin is lost for that fight only.
+- **Missing weight: fined, and the fight goes ahead** (my pick). A man who misses is over the limit by 0.3 to 1.5 kg. 20%
+  of his purse goes to the other man; when it's the other man who misses, you get 20% of your show money from him. It
+  goes on the fight's record, and in a title fight the man who missed can't win the belt. A champion who misses is
+  stripped at the scale, so only the other man can win it.
+- **The other man cuts too.** His corner picks light 15% of the time, normal 50%, hard 25% and extreme 10%. It's rolled
+  on the booking, so your own pick never changes his.
+- **Where you see it: picked in camp, then a weigh-in card** (my pick). A *Weight cut* box in the camp planner, under
+  the rules, picks the level. Its line says what he walks around at, the limit, the water he'll shed, about what he'll
+  weigh on fight night, what it costs and the chance he misses. The pick is fixed once the camp is over. When the last
+  week has run, *The weigh-in* card comes before the fight night card. It shows both men on the scale (kg and lb), MADE
+  WEIGHT or MISSED WEIGHT, each man's cut and what it cost him, what each will weigh on the night, who's the bigger man,
+  and any fine. *On to fight night* goes on. The fight night card then has a *Weigh-in* line, and its gas tank includes
+  the cut.
+
+Saved on the booking as `cut`, and on the fight's record as `weigh_in`, `fine` and `fine_got` (`docs/09` career@1; all
+optional, so a career saved before D405 loads on a normal cut). Pure and seeded on the booking: the same booking and
+pick always give the same weigh-in.
+
+**Not yet:** D23's five-day planner (water loading, sodium, sauna, food) as a minigame, the other man refusing the fight
+when you miss, reputation for missing weight, catchweights, moving divisions after a bad cut, and the world's men cutting
+in their own fights.
+
+**What to change:** the levels, water, regain, costs, miss chances, size edge, fine and the other man's odds in the
+constants at the top of `sim/world/weight_cut.gd` (`WATER`, `REGAIN`, `TANK_COST`, `CHIN_COST`, `MISS_CHANCE`,
+`HARD_CUT_MISS`, `MISS_BY`, `STRENGTH_PER_KG`, `STRENGTH_MAX`, `FINE`, `OPP_LEVEL_ODDS`, `DEFAULT`). The weigh-in card's
+look is in `ui/weigh_in_card.gd`, and the camp's box in `ui/camp_planner.gd` (`set_cut`). Tested in
+`tests/sim/world/test_weight_cut.gd` and `tests/game/test_main_scene.gd`. Fights change for the two men's cuts: tank,
+Chin and Strength.

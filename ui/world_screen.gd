@@ -77,7 +77,7 @@ static var _belt: ImageTexture
 
 func _init() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
-	var style: StyleBoxFlat = FightHud._panel_style(BACKGROUND)
+	var style: StyleBoxFlat = OffCage.hall_panel(true)  # Over the hub, so solid (D435).
 	style.set_content_margin_all(24)
 	add_theme_stylebox_override("panel", style)
 	var column := VBoxContainer.new()
@@ -710,7 +710,7 @@ static func reigns(c: Career, promotion: String) -> Array:
 	var out: Array = []
 	for r: Array in History.line_of(w, Rankings.key(promotion, c.division_now())):
 		var id: String = String(r[0])
-		var how: String = { "lost": "lost it", "retired": "retired", "stripped": "stripped", "called up": "called up", "left": "moved on" }.get(String(r[4]), "")
+		var how: String = { "lost": "lost it", "retired": "retired", "stripped": "stripped", "called up": "called up", "left": "moved on", "missed weight": "stripped for missing weight" }.get(String(r[4]), "")
 		out.append([id, c.fighter_name() if id == Career.FIGHTER_ID else String(w.man(id).get("name", "")), int(r[1]), int(r[2]), int(r[3]), how])
 	return out
 

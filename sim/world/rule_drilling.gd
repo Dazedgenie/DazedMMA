@@ -88,6 +88,11 @@ static func available(c: Career) -> Array[String]:
 
 ## Whether he knows rule `rule_id`'s move (a basic move, or one of his techniques with its technique).
 static func knows(c: Career, rule_id: String) -> bool:
+	return knows_profile(c.profile(), rule_id)
+
+
+## Whether a fighter@1 profile knows rule `rule_id`'s move (the booked man drilling one against you, D404, too).
+static func knows_profile(profile: Dictionary, rule_id: String) -> bool:
 	if not RuleLibrary.shared().has(rule_id):
 		return false
 	if _actions == null:
@@ -96,7 +101,7 @@ static func knows(c: Career, rule_id: String) -> bool:
 	if not _actions.has(move):
 		return false
 	var action: Dictionary = _actions.get_action(move)
-	var techniques: Array = c.profile().get("techniques", [])
+	var techniques: Array = profile.get("techniques", [])
 	var technique: Variant = action.get("requires_technique")
 	return (technique == null or technique in techniques) and (bool(action.get("basic", false)) or move in techniques)
 

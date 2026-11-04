@@ -225,7 +225,7 @@ Each fighter rolls **0–2 gifts and 0–1 flaw**, weighted by frame and backgro
 | Freak athlete (higher Speed and Strength ceilings) | Brittle hands (hand injuries from power shots) |
 | Ice in the veins (Composure drops slower) | Fragile (Composure breaks faster) |
 | Fast learner (training XP bonus) | Slow healer (longer injury layoffs) |
-| Natural southpaw / Long limbs | Hard cut (weight cuts are riskier) *discovered* |
+| Natural southpaw / Long limbs | Hard cut (weight cuts are riskier: half as likely again to miss weight, D405, `03` §13.9) *discovered* |
 
 ---
 
