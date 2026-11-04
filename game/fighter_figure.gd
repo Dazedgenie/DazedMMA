@@ -318,6 +318,10 @@ func show_state(sim: FightSim, i: int, at: Vector2, toward: Vector2, delta: floa
 		rotation.y = atan2(-facing.x, -facing.y)
 	_stance = stance_for(f) if sim.situation.is_standing() and not f.is_down() else {}
 	var target: Dictionary = pose_for(sim, i, _tick_fraction)
+	# A confirmed body block brings the forearms down smoothly; high guard alone still leaves the ribs open.
+	target.body_cover = 0.0
+	if opponent != null and opponent._outcome == "covered" and AIMS.has(opponent._outcome_action) and String(AIMS[opponent._outcome_action].point) == "body":
+		target.body_cover = 1.0
 	var response: float = 45.0 if f.phase == "active" or f.phase == "windup" else POSE_SPEED
 	var k: float = 1.0 - exp(-response * delta)
 	for key: String in target:
@@ -1339,7 +1343,27 @@ func strike_point(point: String) -> Vector3:
 func guard_point(from: Vector3) -> Vector3:
 	var a: Vector3 = _gloves[0].global_position
 	var b: Vector3 = _gloves[1].global_position
+	if body != null:
+		a = body._world_at("LeftHand")
+		b = body._world_at("RightHand")
 	return a if a.distance_to(from) < b.distance_to(from) else b
+
+
+## D428: aim at the final blocking segment, not the protected ribs or a point above the knee.
+func blocking_point(from: Vector3, checked: bool) -> Vector3:
+	var nearest := Vector3.INF
+	for i in (1 if checked else 2):
+		var side: String = arm_letter(i)
+		var a: Vector3 = _shins[i].global_position if checked else _forearms[i].global_position
+		var b: Vector3 = _shins[i].global_transform * Vector3(0, -FighterMotion.SHIN, 0) if checked else _gloves[i].global_position
+		if body != null:
+			var prefix: String = "Left" if side == "l" else "Right"
+			a = body._world_at(prefix + ("Leg" if checked else "ForeArm"))
+			b = body._world_at(prefix + ("Foot" if checked else "Hand"))
+		var point: Vector3 = a.lerp(b, 0.45 if checked else 0.35)
+		if not nearest.is_finite() or point.distance_squared_to(from) < nearest.distance_squared_to(from):
+			nearest = point
+	return nearest
 
 
 ## The way the striking limb's side points (lead or rear), in the world.
@@ -1361,11 +1385,13 @@ func aim_point(action_id: String, root: Vector3) -> Vector3:
 	var toward: Vector3 = approach.normalized() if approach.length() > 0.01 else -global_basis.z
 	point -= toward * float(STANDOFF.get(aim.point, 0.15))
 	if _outcome == "covered" and String(aim.point) == "head":  # Into his gloves.
-		point = opponent.guard_point(root) - toward * 0.07
+		point = opponent.guard_point(root) - toward * 0.12
 	elif _outcome == "covered":  # Into his elbow, just short of the ribs.
-		point -= toward * 0.06
+		point = opponent.blocking_point(root, false)
+		point += (root - point).normalized() * 0.12
 	elif _outcome == "checked":
-		point = opponent.strike_point("legs") - toward * 0.08  # Into the raised shin.
+		point = opponent.blocking_point(root, true)
+		point += (root - point).normalized() * 0.12
 	elif _outcome == "landed":  # On through him, as far as he drives it (D363).
 		point += toward * DRIVE_THROUGH * float(_pose.get("through", 0.0))
 	var past: float = MISS_PAST
@@ -1498,6 +1524,11 @@ func _pose_arm(side: int, reach: float, angle: float) -> void:
 		var frame: Basis = global_basis if float(_pose.lie) < 0.5 else _hips.global_basis.orthonormalized()  # Lying down (D282): over his face.
 		var temple: Vector3 = _head.global_position + frame * Vector3(lateral * 0.12, 0.02, -0.06)
 		var tucked: Vector3 = _head.global_position + frame * Vector3(lateral * 0.1, -0.32, -0.12)
+		if float(_pose.lie) < 0.1:
+			# Close both forearms over the ribs for a body block; do not leave them at the temples.
+			var lowered: Vector3 = frame * Vector3(0.0, -0.28, -0.05) * float(_pose.get("body_cover", 0.0))
+			temple += lowered
+			tucked += lowered
 		hand = hand.lerp(pivot.to_local(temple), float(_pose.cover))
 		elbow = elbow.lerp(pivot.to_local(tucked), float(_pose.cover))
 	var pole: Vector3 = elbow
