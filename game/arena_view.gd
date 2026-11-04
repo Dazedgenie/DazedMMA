@@ -970,6 +970,9 @@ func _pose_ground(sim: FightSim, delta: float) -> bool:
 	if new_position and previous_key == "half_guard %d" % top and where == "side_control" and not _ground_last.is_empty():
 		var path: Array = GroundPair.pass_path(_ground_last, built.pair, _ground_frame)
 		_roll = {"from": _ground_last, "path": path, "left": ROLL_SECONDS, "destination": key}
+	elif new_position and previous_key == "mount %d" % top and where == "back_control" and not _ground_last.is_empty():
+		var path: Array = GroundPair.back_take_path(_ground_last, built.pair, _ground_frame)
+		_roll = {"from": _ground_last, "path": path, "left": 1.1, "duration": 1.1, "destination": key}
 	if not _roll.is_empty() and new_position:
 		_roll.top = top
 	if not _roll.is_empty() and _roll.has("top"):
@@ -1020,7 +1023,7 @@ func _pose_roll(now: Dictionary, top: int, delta: float) -> bool:
 		var to: Dictionary = ClinchPair.swap(now) if top != was_top else now
 		_roll.path = GroundPair.roll_path(from[0], from[1], to, _ground_frame)
 	_roll.left = float(_roll.left) - delta
-	var t: float = clampf(1.0 - float(_roll.left) / ROLL_SECONDS, 0.0, 1.0)
+	var t: float = clampf(1.0 - float(_roll.left) / float(_roll.get("duration", ROLL_SECONDS)), 0.0, 1.0)
 	TakedownPair.pose_along(_clinch_rigs[was_top], _clinch_rigs[1 - was_top], _roll.path, smoothstep(0.0, 1.0, t) * (_roll.path.size() - 1))
 	for i in 2:
 		figures[i].body.follow(_clinch_rigs[i])

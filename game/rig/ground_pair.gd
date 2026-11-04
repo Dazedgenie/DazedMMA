@@ -247,6 +247,26 @@ static func pass_path(from: Array, to: Dictionary, frame: Transform3D) -> Array:
 	return [ends[0], [mid, halfway], ends[1]]
 
 
+## The rider leaves mount beside the hips, then comes behind as the defender sits up.
+static func back_take_path(from: Array, to: Dictionary, frame: Transform3D) -> Array:
+	var ends: Array = TakedownPair.chain([[_short_leans(from[0]), from[1]], [_short_leans(to), frame]])
+	var first: Dictionary = ends[0][0].duplicate(true)
+	var behind: Dictionary = ends[1][0].duplicate(true)
+	var back: float = signf(float(behind.a.root[2]) - float(behind.b.root[2]))
+	for key: Dictionary in [first, behind]:
+		key.a.root[0] = float(key.b.root[0]) - back * 0.5
+		key.a.root[1] = 0.42
+		key.a.lean = 0.0
+		for limb: String in ["hand_l", "hand_r", "foot_l", "foot_r"]:
+			key.a.erase(limb)
+			key.b.erase(limb)
+	behind.a.root[2] += back * 0.5
+	for letter: String in ["l", "r"]:
+		var side: float = -1.0 if letter == "l" else 1.0
+		behind.a["hand_" + letter] = {"to": "b.shoulder_" + letter, "off": [side * 0.14, -0.08, 0.04], "pole": [side, -0.5, 0.1]}
+	return [ends[0], [first, ends[0][1]], [behind, ends[1][1]], ends[1]]
+
+
 ## Side control: blue flat on his back (his feet toward +Z, hips at the origin), red down on his -X side, chest
 ## across blue's chest, one arm round his head and the other at his far hip (the hip throw lands here, D288).
 static func side_control() -> Dictionary:

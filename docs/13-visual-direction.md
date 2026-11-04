@@ -1348,7 +1348,7 @@ complete swept-mesh guarantee; missed-strike trajectories and punch wind-up cont
 
 When the underhooks change hands in an open clinch, the fighters rise through a brief shoulder frame before closing the new grip. The route follows the pair as it moves. Strikes, turns and fence drives keep their own poses. A half-guard pass has a middle pose where the passer posts beside the hips and releases the trapped leg before settling into side control. The view discards the route if the destination changes.
 
-The two final-body regression tests sample the fighters at 60 Hz. They cover twelve grip changes across two stances and the guard pass with either fighter on top. Other ground transitions are audited separately.
+The two final-body regression tests sample the fighters at 60 Hz. They cover twelve grip changes across two stances and the guard pass with either fighter on top. For mount to back control, the rider moves beside the hips, gets behind the rising defender and reaches around the shoulders before closing the hooks. An additional 96-frame check for either top fighter measures head, trunk, arm and leg clearance through that path.
 
 ## Review and verification
 

@@ -160,3 +160,35 @@ func test_half_guard_pass_keeps_forearms_outside_the_opponent_trunk() -> void:
 					gap = minf(gap, FighterRig.limb_clearance(body._world_at(side + "Arm"), body._world_at(side + "ForeArm"), body._world_at(side + "Hand"), view.figures[1 - i].body.trunk()))
 		assert_gt(gap, FighterRig.TRUNK_RADIUS - 0.005, "both arms stay outside the other torso during the pass")
 		assert_true(view._roll.is_empty(), "the pass finishes in side control")
+
+func test_back_take_circles_around_the_rising_defender() -> void:
+	for top in 2:
+		var setup: Array = _ground("mount", top)
+		var sim: FightSim = setup[0]
+		var view: ArenaView = setup[1]
+		_put(sim, "back_control", top)
+		var heads: float = INF
+		var limbs: float = INF
+		var worst: String = ""
+		var trunks: float = INF
+		for frame in 96:
+			view._process(1.0 / 60.0)
+			var a: SkinnedBody = view.figures[0].body
+			var b: SkinnedBody = view.figures[1].body
+			heads = minf(heads, a._world_at("Head").distance_to(b._world_at("Head")))
+			var ta := a.trunk()
+			var tb := b.trunk()
+			var near := Geometry3D.get_closest_points_between_segments(ta[0], ta[1], tb[0], tb[1])
+			trunks = minf(trunks, near[0].distance_to(near[1]))
+			for i in 2:
+				var body: SkinnedBody = view.figures[i].body
+				for side: String in ["Left", "Right"]:
+					for bones: Array in [["Arm", "ForeArm", "Hand"], ["UpLeg", "Leg", "Foot"]]:
+						var gap: float = FighterRig.limb_clearance(body._world_at(side + bones[0]), body._world_at(side + bones[1]), body._world_at(side + bones[2]), view.figures[1 - i].body.trunk())
+						if gap < limbs:
+							limbs = gap
+							worst = "%d %s%s frame %d" % [i, side, bones[0], frame]
+		assert_gt(heads, 0.22, "heads clear as the defender sits up")
+		assert_gt(trunks, 0.21, "rider circles outside the defender")
+		assert_gt(limbs, FighterRig.TRUNK_RADIUS - 0.005, "top %d, %s passes around the torso" % [top, worst])
+		assert_true(view._roll.is_empty(), "back take completes")
