@@ -35,6 +35,9 @@ const OVER := "over"
 ## A moment before the bell or walking out of the corners (D390, D391): the fight is held while it plays.
 const MOMENT := "moment"
 
+## The verdict over the cage has been read out (or skipped) and the sheet can come up (D436).
+signal verdict_read
+
 var arena: ArenaView
 var hud: FightHud
 var setup: FightSetup
@@ -79,6 +82,20 @@ var _console: DebugConsole
 ## option): the bodies and the referee are drawn and it isn't headless (or a test asked, moments_in_headless).
 var _moments: bool = false
 var moments_in_headless: bool = false
+## The fight behind the title screen (D434): not in headless runs unless a test asks (backdrop_in_headless).
+var backdrop: TitleBackdrop
+var backdrop_in_headless: bool = false
+## The fade between screens off the fight (D435): the next screen comes up out of the dark.
+var _veil: ColorRect
+var _snap: TextureRect
+## The verdict read out over the cage before the result's sheet, and the finish again behind it (D436). Headless runs
+## (the tests) go straight to the sheet unless a test asks.
+var verdict: VerdictBanner
+var replay: FinishReplay
+var verdict_in_headless: bool = false
+## The career fight's "what it means" rows for the result (D436), made as the fight goes onto his record.
+var _meaning: Array = []
+var _fade: Tween
 var _break_rules: RuleSlots
 ## The gameplan pickers on the between-rounds panel (D320).
 var _break_plan: GameplanPicker
@@ -94,12 +111,18 @@ func _ready() -> void:
 	_roster = FighterLibrary.load_dir()
 	arena = ArenaView.new()
 	add_child(arena)
+	backdrop = TitleBackdrop.new(_roster, _actions)
 	sounds = StrikeSounds.new()
 	add_child(sounds)
 	sounds.build_in_background()
-	arena.fence_slammed.connect(sounds.play_rattle)  # The fence rattles (D287).
+	# The fence rattles (D287) and a takedown thuds onto the canvas (D288); the title's fight is silent (D434).
+	arena.fence_slammed.connect(func(strength: float) -> void:
+		if not backdrop.running():
+			sounds.play_rattle(strength))
 	arena.tell_spotted.connect(_on_tell_spotted)
-	arena.takedown_landed.connect(sounds.play_thud)  # A takedown thuds onto the canvas (D288).
+	arena.takedown_landed.connect(func(strength: float) -> void:
+		if not backdrop.running():
+			sounds.play_thud(strength))
 	var ui: CanvasLayer = $UI
 	hud = FightHud.new()
 	hud.visible = false
@@ -160,10 +183,27 @@ func _ready() -> void:
 	result = FightResultCard.new()
 	result.visible = false
 	ui.add_child(result)
+	verdict = VerdictBanner.new()
+	verdict.finished.connect(func() -> void: verdict_read.emit())
+	ui.add_child(verdict)
 	world_page = WorldScreen.new()
 	ui.add_child(world_page)
+	_veil = ColorRect.new()
+	_veil.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_veil.color = Color(OffCage.HALL, 0.0)
+	_veil.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ui.add_child(_veil)  # Over the screens, under the tips and the console: the fade between screens (D435).
+	_snap = TextureRect.new()
+	_snap.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_snap.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_snap.stretch_mode = TextureRect.STRETCH_SCALE
+	_snap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_snap.visible = false
+	ui.add_child(_snap)  # The old screen as it last looked, fading out over the veil.
 	tips = TipCard.new()
 	ui.add_child(tips)
+	for screen: Control in [setup, title, new_career, childhood, gym_screen, load_screen, hub, result, world_page, tips]:
+		screen.theme = OffCage.theme()  # One look off the fight (D435): the buttons no screen styled itself.
 	ui.move_child($UI/Version, -1)  # Over the full-screen setup.
 	_console = $UI/DebugConsole
 	ui.move_child(_console, -1)
@@ -182,6 +222,8 @@ func show_title() -> void:
 	title.visible = true
 	$UI/Version.visible = true
 	state = TITLE
+	if DisplayServer.get_name() != "headless" or backdrop_in_headless:
+		backdrop.start(arena)  # A real fight behind the menu (D434).
 	title.focus_first()
 
 
@@ -448,7 +490,9 @@ func open_career_camp() -> void:
 	planner.back_pressed.connect(_career_camp_back)
 	# The gameplan opens with his third fight (D316).
 	planner.night_card.gameplan.visible = Tutorial.plan_open(Tutorial.lesson(career))
+	planner.theme = OffCage.theme()
 	$UI.add_child(planner)
+	_veil_on_top()  # The camp fades up too (D435).
 	$UI.move_child(_console, -1)
 	$UI.move_child(tips, -1)
 	state = CAREER
@@ -504,12 +548,22 @@ func sim_career_fight(profile: Dictionary) -> void:
 ## The tutorial (D316): a lesson fight opens only its calls, the tell cue from lesson 2, rules and the gameplan from
 ## lesson 3, and starts on its tip card (not when simmed: nobody's watching).
 func _career_settings(profile: Dictionary, simmed: bool = false) -> Dictionary:
-	var opponent: Dictionary = career.booked_opponent()
-	_roster.add(opponent)
+	var opponent: Dictionary = career.booked_opponent().duplicate(true)
+	# His own camp (D404): the plan his corner rolled, a rule against your favourite move, and how fresh he is.
+	var their_camp: Dictionary = OpponentCamp.of(career)
+	if float(their_camp.get("tank", 1.0)) < 1.0:
+		opponent.condition = { "tank": float(their_camp.tank) }
 	var camp: Dictionary = planner.summary() if planner != null else {}
 	if career.tournament_stage() > 0:
 		profile = career.round_profile()
 		camp = {}
+	# The weigh-in (D405): what each man's cut cost him, and the bigger man's Strength on the night.
+	var weighed: Dictionary = WeightCut.of(career)
+	if not weighed.is_empty():
+		profile = profile.duplicate(true)
+		WeightCut.apply(profile, weighed.him, float(weighed.edge))
+		WeightCut.apply(opponent, weighed.opp, float(weighed.opp_edge))
+	_roster.add(opponent)
 	var s: Dictionary = {
 		"career": true,
 		"label": "%s vs %s" % [career.fighter_name(), String(opponent.get("name", ""))],
@@ -525,6 +579,8 @@ func _career_settings(profile: Dictionary, simmed: bool = false) -> Dictionary:
 		# Tonight's plan from the fight night card; a tournament's later rounds keep the last round's (D320).
 		"gameplan": planner.night_card.gameplan.picked() if planner != null else Dictionary(settings.get("gameplan", {})),
 		"camp": camp,
+		"their_camp": their_camp,
+		"weigh_in": WeightCut.record(weighed),
 	}
 	var lesson: int = Tutorial.lesson(career)
 	if lesson > 0:
@@ -575,19 +631,24 @@ func _finish_career_fight(sim: FightSim, record: Dictionary, injury: Dictionary)
 	var me: FighterState = sim.fighters[driver.player]
 	var condition: Variant = settings.get("red_profile", {}).get("condition", {})
 	var tank_in: float = float(condition.get("tank", 1.0)) if condition is Dictionary else 1.0
-	var paid: int = career.finish_fight({ "result": result, "method": method_text(String(ended.get("result", ""))),
+	var before: Dictionary = career.standing()
+	career.finish_fight({ "result": result, "method": method_text(String(ended.get("result", ""))),
 		"round": sim.clock.current_round, "seed": sim.fight_seed, "simmed": bool(settings.get("sim", false)),
 		"hard": Aftermath.is_hard(me.hurt("head"), me.hurt("body"), me.knockdowns),
-		"tank": tank_in, "hurt": { "head": me.hurt("head"), "body": me.hurt("body"), "legs": me.hurt("legs") } })
+		"tank": tank_in, "hurt": { "head": me.hurt("head"), "body": me.hurt("body"), "legs": me.hurt("legs") },
+		"moves": OpponentCamp.moves_of(sim, driver.player) })  # What he threw, for the next man's camp (D404).
 	save_career()
 	var lines: Array[String] = []
 	if bool(settings.get("sim", false)):
 		lines.append("Simmed: the fighters' own AI fought it.")
-	lines.append("%s: %s on his %s record, now %s." % [career.fighter_name(), result.to_upper(), "pro" if career.pro else "amateur",
-		career.record_text(career.pro)])
-	if paid > 0:
-		lines.append("Paid $%d. Savings: $%d." % [paid, career.money])
+	if int(career.fights[-1].get("fine", 0)) > 0:
+		lines.append("[color=#ff8787]He missed weight: $%d of his purse went to the other man.[/color]" % int(career.fights[-1].fine))
+	elif int(career.fights[-1].get("fine_got", 0)) > 0:
+		lines.append("[color=#69db7c]The other man missed weight: $%d of his purse came to you.[/color]" % int(career.fights[-1].fine_got))
+	# What it did to his career goes on its own panel (D436): record, rank, belt, promotion, purse, suspension.
 	var through: String = tournament_text(career)
+	_meaning = FightResultCard.meaning_rows(before, career.standing(), career.fights[-1],
+		"" if through != "" else aftermath_text(career.fights[-1]))
 	if through != "":
 		lines.append(through)
 		return lines  # The suspension comes at the end of his day.
@@ -597,7 +658,6 @@ func _finish_career_fight(sim: FightSim, record: Dictionary, injury: Dictionary)
 	elif career.fights[-1].get("tournament") is Dictionary:
 		lines.append("Out of the %s in the %s." % [String(career.fights[-1].tournament.name),
 			Tournament.stage_name(int(career.fights[-1].tournament.size), int(career.fights[-1].tournament.stage)).to_lower()])
-	lines.append(aftermath_text(career.fights[-1]))
 	return lines
 
 
@@ -684,7 +744,40 @@ func _hide_screens() -> void:
 		hud.hide_dialog()
 	if driver != null:
 		driver.held = true
+	backdrop.stop(arena)
+	_stop_replay()
+	arena.watch(null)  # The empty hall behind the screens off the fight, the camera drifting round it (D435).
+	arena.hall_drift = true
+	_fade_up()
 	$UI/Version.visible = false  # Only the title and load screens show it: elsewhere it sat on buttons (D431).
+
+
+## The change of screen (D435, Kyle's pick "A quick fade"): the old screen fades out into the dark over
+## OffCage.FADE_SECONDS (a picture of its last frame, so the game has already moved on underneath) and the new one
+## comes up out of it over the same again. With no picture to take (headless) only the second half runs.
+func _fade_up() -> void:
+	if _veil == null:
+		return
+	if _fade != null and _fade.is_valid():
+		_fade.kill()
+	_snap.visible = false
+	_veil.color = Color(OffCage.HALL, 1.0)
+	_fade = create_tween()
+	if DisplayServer.get_name() != "headless":
+		var shot: Image = get_viewport().get_texture().get_image()
+		if shot != null and not shot.is_empty():
+			_snap.texture = ImageTexture.create_from_image(shot)
+			_snap.modulate.a = 1.0
+			_snap.visible = true
+			_fade.tween_property(_snap, "modulate:a", 0.0, OffCage.FADE_SECONDS)
+			_fade.tween_callback(func() -> void: _snap.visible = false)
+	_fade.tween_property(_veil, "color:a", 0.0, OffCage.FADE_SECONDS)
+
+
+## Keeps the fade over a screen added after the others (the camp).
+func _veil_on_top() -> void:
+	$UI.move_child(_veil, -1)
+	$UI.move_child(_snap, -1)
 
 
 ## Starts a fight with these settings (FightSetup.settings()). With `red_profile` (a fighter@1
@@ -713,11 +806,18 @@ func start_fight(p_settings: Dictionary) -> void:
 	var plan: Dictionary = settings.get("gameplan", {})
 	if Gameplan.check(plan) == "" and Gameplan.describe(plan) != Gameplan.OWN_GAME:
 		driver.set_gameplan(plan)
+	var their_camp: Dictionary = settings.get("their_camp", {}) if settings.get("their_camp") is Dictionary else {}
 	var their_plan: Dictionary = StyleLibrary.gameplan_of(sim.fighters[1].profile)
+	if their_camp.get("plan") is Dictionary and not (their_camp.plan as Dictionary).is_empty():
+		their_plan = their_camp.plan  # The plan his corner rolled for this fight (D404).
 	if not their_plan.is_empty():
 		sim.submit(FightCommand.set_gameplan(0, 1, their_plan))  # His corner's plan (D324).
+	if String(their_camp.get("rule", "")) != "":
+		sim.submit(FightCommand.set_rule(0, 1, 1, String(their_camp.rule), float(their_camp.drilled)))  # His rule against you (D404).
 	driver.round_over.connect(_on_round_over)
 	driver.fight_over.connect(_on_fight_over)
+	backdrop.stop(arena)  # The title's fight gives the cage up (D434; the tools start a fight from the title).
+	_stop_replay()
 	arena.tell_cues = bool(settings.get("tell_cues", true))
 	arena.tell_watch = Scouting.Watch.new(settings.known_tells) if settings.get("known_tells") is Array else null
 	arena.watch(driver)
@@ -767,6 +867,13 @@ func _first_bell() -> void:
 func _process(delta: float) -> void:
 	if driver != null and state == FIGHT:
 		driver.advance(delta)
+	elif state == TITLE and backdrop.running():
+		backdrop.advance(arena, delta)
+	elif replay != null and replay.running():
+		var was: FightDriver = replay.driver
+		replay.advance(arena, delta)
+		if replay.driver != was:
+			sounds.watch(replay.driver.sim)  # Each time it plays again, its own sounds.
 
 
 ## True when `event` is a key or click that skips the moment playing (D394; not F3, the debug overlay).
@@ -1036,6 +1143,11 @@ func _on_fight_over(event: FightEvent) -> void:
 		await arena.ceremony.moment_done
 		if driver == null or driver.sim != sim:
 			return
+	if (DisplayServer.get_name() != "headless" or verdict_in_headless) and not bool(settings.get("sim", false)):
+		_read_the_verdict(sim)  # Not a simmed fight: that goes straight to the result (D305).
+		await verdict_read
+		if driver == null or driver.sim != sim:
+			return
 	var record: Dictionary = FightRecord.build(sim, settings, driver.player)
 	if record_dir != "":
 		last_record_path = FightRecord.save(record, record_dir)
@@ -1054,6 +1166,7 @@ func _on_fight_over(event: FightEvent) -> void:
 				[["On to the %s" % stage.to_lower(), next_tournament_fight], ["Pull out", withdraw_from_tournament]])
 		else:
 			result.show_result(sim, driver.player, record.stats, notes, [["Back to the hub", _career_after_fight]])
+		result.show_meaning(_meaning)
 		if not career.fights.is_empty() and String(career.fights[-1].get("result", "")) == "loss":
 			show_career_tips(["loss"])  # His first loss, while he's learning (D316).
 		return
@@ -1070,6 +1183,29 @@ func _on_fight_over(event: FightEvent) -> void:
 		buttons.append(["Open saved fights", func() -> void: OS.shell_open(ProjectSettings.globalize_path(record_dir))])
 	hud.hide_dialog()
 	result.show_result(sim, driver.player, record.stats, notes, buttons)
+
+
+## The verdict over the cage (D436): the HUD away, a finish playing again slowly behind it, the lines read out.
+func _read_the_verdict(sim: FightSim) -> void:
+	hud.visible = false
+	_stop_replay()
+	arena.backdrop = true  # No range tag or move names showing through the band.
+	if FinishReplay.wanted(sim):
+		var ids: Array[String] = [sim.fighters[0].id, sim.fighters[1].id]
+		replay = FinishReplay.new(sim, func() -> Array[FighterState]: return _roster.make_pair(ids[0], ids[1]), _actions, driver.player)
+		replay.start(arena)
+		sounds.watch(replay.driver.sim)
+	verdict.begin(sim, replay != null)
+
+
+func _stop_replay() -> void:
+	if replay != null:
+		replay.stop(arena)
+		replay = null
+	if arena != null:
+		arena.backdrop = false
+	if verdict != null:
+		verdict.visible = false
 
 
 ## `-- --self-check`: the self-check fight from the debug console, printed, then quit with
@@ -1092,7 +1228,9 @@ func open_camp(p_settings: Dictionary) -> void:
 	planner.plan_start = settings.get("gameplan", {})
 	planner.fight_pressed.connect(_fight_after_camp)
 	planner.back_pressed.connect(_back_to_setup)
+	planner.theme = OffCage.theme()
 	$UI.add_child(planner)
+	_veil_on_top()  # The camp fades up too (D435).
 	$UI.move_child(_console, -1)
 	setup.visible = false
 	planner.focus_run()
