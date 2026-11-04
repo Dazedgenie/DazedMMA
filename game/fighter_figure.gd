@@ -145,6 +145,11 @@ const KICK_LIFT_SHARE: float = 0.45
 const KICK_RECHAMBER: float = 0.7
 ## The kicking side's arm swings down and back as the kick goes out (radians off its guard at full extension).
 const KICK_ARM_SWING: float = -1.1
+## Round-kick counterbalance (D420): hand offset from its shoulder in the chest frame, metres.
+## Outward and behind the thigh rather than down through the raised leg; the lead hand keeps guarding.
+const KICK_HAND_OUT: float = 0.32
+const KICK_HAND_DOWN: float = 0.30
+const KICK_HAND_BACK: float = 0.20
 ## Stances by style (D362): standing, each man's stance comes from how he fights (his leanings) and what he
 ## throws (Boxing against Kicking), so any fighter, made or generated, stands like himself. Each STANCE_PULLS
 ## entry is what all the way along that line adds to today's stance: "grappler" (Base +100: low, hands low
@@ -1472,6 +1477,14 @@ func _pose_arm(side: int, reach: float, angle: float) -> void:
 	var pole: Vector3 = elbow
 	var aim: float = float(_pose.aim)
 	var action: String = _outcome_action
+	if side == 1 and not _clinch_grip and float(_pose.lie) < 0.1 and KICK_CHAMBER.has(action) and String(AIMS[action].bend) == "round":
+		# Keep the counterbalancing hand outside the lifting leg through extension and rechambering.
+		var swing: float = maxf(aim, float(_pose.knee_short))
+		var out: Vector3 = _torso.global_basis.orthonormalized().x * -lead
+		var back: Vector3 = _torso.global_basis.orthonormalized().z
+		var counter: Vector3 = pivot.global_position + out * KICK_HAND_OUT + Vector3.DOWN * KICK_HAND_DOWN + back * KICK_HAND_BACK
+		hand = hand.lerp(pivot.to_local(counter), swing)
+		pole = pole.lerp(pivot.global_basis.inverse() * (out + Vector3.DOWN), swing)
 	if aim > 0.001 and AIMS.has(action) and String(AIMS[action].limb) == ("lead_arm" if side == 0 else "rear_arm"):
 		var target: Vector3 = aim_point(action, pivot.global_position)
 		if target.is_finite():
