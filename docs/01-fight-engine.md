@@ -3944,7 +3944,9 @@ A style sheet (`09` style@1) can carry a `gameplan`: generated opponents and the
 (`StyleLibrary.gameplan_of`), in quick fights and the career. Scouting cards (the tale of the tape, fight offers on the hub) say
 *Expect his corner's plan: Pressure · Head · Keep it standing*. The plans fit how each style fights: the Pressure boxer Pressure ·
 Head · Keep it standing, the wrestlers Take him down, the Kicker and the Leg-kick specialist Legs, the Muay Thai fighter Body · Clinch
-work, and so on. The opponent's corner doesn't change its plan between rounds yet.
+work, and so on. The opponent's corner doesn't change its plan between rounds yet. In a career fight against the man he's
+booked against, his corner rolls one of the two or three plans the sheet lists (`gameplans`), and may drill a rule against your
+favourite move: the opponent's camp, `docs/03` §13.8 (D404). Quick fights still use the sheet's `gameplan`.
 
 ### 42.5 On the screens
 - **Fight setup:** *Gameplan for your fighter* under the drilled rules, with a line a part saying what it tells him.
