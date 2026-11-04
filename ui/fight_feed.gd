@@ -1,9 +1,11 @@
 class_name FightFeed
 extends PanelContainer
 ## The fight screen's event feed (docs/06 §2): play-by-play, key moments, and the
-## explanation lines that say why a move or call worked or didn't (A16), with a
-## filter: all / key moments / explanations only. Lines are FightLogFormatter's,
+## explanation lines that say why a move or call worked or didn't (A16). Lines are FightLogFormatter's,
 ## stamped with the round clock as the top bar shows it ("3:44").
+##
+## Two ways to read it (D464, Kyle's pick): the key moments in plain words while you watch, and everything with the
+## odds behind each move ("55% (base 50 · stats +5)") while Tab is held or the header's button is down (`details`).
 
 const ALL := 0
 const KEY := 1
@@ -15,37 +17,60 @@ const NONE := ""
 const PLAY := "play"
 const KEY_MOMENT := "key"
 const EXPLANATION := "explain"
+## A line the screen adds for you ("Can't call Pass! now", "Sound off"): shows whatever the filter.
+const NOTE := "note"
 
 const MAX_LINES: int = 200
 ## A landed strike this heavy (or any counter) is a key moment.
 const KEY_DAMAGE: int = 10
+## The odds FightLogFormatter puts after a move, in its dim colour: " 55% (base 50 · stats +5)".
+const ODDS_PATTERN := " \\[color=%s\\]\\d+%%[^\\[]*\\[/color\\]"
 
-var filter: int = ALL:
+var filter: int = KEY:
 	set(value):
 		filter = value
 		_redraw()
 
+## Everything with the odds (true), or the key moments in plain words (false).
+var details: bool = false:
+	set(value):
+		if value == details:
+			return
+		details = value
+		filter = ALL if details else KEY
+		_title.text = "EVERYTHING" if details else "KEY MOMENTS"
+## The header's button is down: details stay up without Tab.
+var pinned: bool = false
+
 var _lines: Array[Dictionary] = []  # {kind, text}
 var _log: RichTextLabel
-var _picker: OptionButton
+var _title: Label
+var _pin: Button
+static var _odds: RegEx
 
 
 func _init() -> void:
-	custom_minimum_size = Vector2(460.0, 0.0)
+	custom_minimum_size = Vector2(400.0, 0.0)
 	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 6)
 	add_child(column)
 	var head := HBoxContainer.new()
 	column.add_child(head)
-	var title := Label.new()
-	title.text = "FEED"
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	head.add_child(title)
-	_picker = OptionButton.new()
-	_picker.focus_mode = Control.FOCUS_NONE
-	for n in FILTER_NAMES:
-		_picker.add_item(n)
-	_picker.item_selected.connect(func(index: int) -> void: filter = index)
-	head.add_child(_picker)
+	_title = Label.new()
+	_title.text = "KEY MOMENTS"
+	DisplayFont.apply(_title, 16)
+	_title.add_theme_color_override("font_color", FightHud.MUTED)
+	_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(_title)
+	_pin = Button.new()
+	_pin.text = "ALL · TAB"
+	_pin.toggle_mode = true
+	_pin.focus_mode = Control.FOCUS_NONE
+	_pin.tooltip_text = "Hold Tab (or press this) for every line, the odds behind each move and the damage numbers"
+	OffCage.style_button(_pin)
+	DisplayFont.apply(_pin, 15)
+	_pin.toggled.connect(func(on: bool) -> void: pinned = on)
+	head.add_child(_pin)
 	_log = RichTextLabel.new()
 	_log.bbcode_enabled = true
 	_log.scroll_following = true
@@ -54,6 +79,13 @@ func _init() -> void:
 	_log.add_theme_font_size_override("bold_font_size", 17)
 	_log.focus_mode = Control.FOCUS_NONE
 	column.add_child(_log)
+
+
+## A feed line without the odds after its move: what the key moments show.
+static func strip_odds(text: String) -> String:
+	if _odds == null:
+		_odds = RegEx.create_from_string(ODDS_PATTERN % FightLogFormatter.DIM_COLOUR)
+	return _odds.sub(text, "", true)
 
 
 ## Which kind of line this event makes, or NONE when the feed skips it (move phases,
@@ -101,6 +133,8 @@ static func kind_of(event: FightEvent) -> String:
 
 ## Does a line of this kind show under the current filter?
 static func shows(kind: String, p_filter: int) -> bool:
+	if kind == NOTE:
+		return true
 	match p_filter:
 		KEY:
 			return kind == KEY_MOMENT
@@ -130,7 +164,7 @@ func add_line(kind: String, text: String) -> void:
 		_lines.pop_front()
 		_redraw()
 	elif shows(kind, filter):
-		_log.append_text(text + "\n")
+		_log.append_text(_shown(text) + "\n")
 
 
 func clear() -> void:
@@ -149,4 +183,8 @@ func _redraw() -> void:
 	_log.clear()
 	for line: Dictionary in _lines:
 		if shows(line.kind, filter):
-			_log.append_text(line.text + "\n")
+			_log.append_text(_shown(String(line.text)) + "\n")
+
+
+func _shown(text: String) -> String:
+	return text if details else strip_odds(text)

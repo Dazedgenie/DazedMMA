@@ -414,7 +414,8 @@ func _process(delta: float) -> void:
 	if _venue != null:
 		_venue.show_near_fence(shown, delta)
 	_show_tag(sim, middle, delta)
-	_tag.visible = not drill and not backdrop
+	# While a hold is locked in, the HUD's danger meter names it, just where the words would sit (D466).
+	_tag.visible = not drill and not backdrop and (not hud_names_holds or sim.hold().is_empty())
 	_place_camera(delta, middle, sim, shown)
 	if debug_marks:
 		for i in _want_rings.size():
@@ -1612,6 +1613,11 @@ func _show_tag(sim: FightSim, middle: Vector2, delta: float) -> void:
 	_tag.scale = Vector3.ONE * _tag_scale * zoom_share()
 	# Just in front of the fighters as the camera sees them, on the canvas.
 	_tag.position = Vector3(middle.x, 0.05, middle.y) + Vector3(0.9, 0.0, 0.9).rotated(Vector3.UP, camera_swing)
+
+
+## The fight screen's HUD names a locked-in hold on its danger meter, so the words under the fighters step aside for
+## it (D466). Off for the tools that draw the cage without the HUD.
+var hud_names_holds: bool = false
 
 
 ## How far round from CAMERA_FROM the camera is turned now (radians about the vertical, D361).

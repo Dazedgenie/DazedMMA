@@ -47,3 +47,18 @@ func test_lines_carry_the_round_clock_as_the_top_bar_shows_it() -> void:
 	assert_eq(FightFeed.clock_label(_event(FightEvent.ROCKED, {}, 1, 562), sim), "4:04")
 	feed.add_event(_event(FightEvent.ROCKED, { "by": 0 }, 1, 562), sim)
 	assert_string_contains(feed.text(), "4:04  Kicker is ROCKED!")
+
+
+func test_the_key_moments_drop_the_odds_and_the_details_show_everything_with_them() -> void:
+	var feed := FightFeed.new()
+	add_child_autofree(feed)
+	assert_eq(feed.filter, FightFeed.KEY, "key moments while you watch (D464)")
+	var odds := " [color=%s]55%% (base 50 · stats +5)[/color]" % FightLogFormatter.DIM_COLOUR
+	assert_eq(FightFeed.strip_odds("Kicker's Body kick LANDS (body, 12 damage)" + odds), "Kicker's Body kick LANDS (body, 12 damage)")
+	feed.add_line(FightFeed.KEY_MOMENT, "a knee lands" + odds)
+	feed.add_line(FightFeed.PLAY, "a jab lands")
+	feed.add_line(FightFeed.NOTE, "Can't call Pass! now")
+	assert_eq(feed.text().strip_edges(), "a knee lands\nCan't call Pass! now", "no odds, no play-by-play; your notes always")
+	feed.details = true
+	assert_string_contains(feed.text(), "a jab lands")
+	assert_string_contains(feed.text(), "55% (base 50 · stats +5)")
