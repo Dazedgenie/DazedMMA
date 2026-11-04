@@ -548,7 +548,11 @@ func sim_career_fight(profile: Dictionary) -> void:
 ## The tutorial (D316): a lesson fight opens only its calls, the tell cue from lesson 2, rules and the gameplan from
 ## lesson 3, and starts on its tip card (not when simmed: nobody's watching).
 func _career_settings(profile: Dictionary, simmed: bool = false) -> Dictionary:
-	var opponent: Dictionary = career.booked_opponent()
+	var opponent: Dictionary = career.booked_opponent().duplicate(true)
+	# His own camp (D404): the plan his corner rolled, a rule against your favourite move, and how fresh he is.
+	var their_camp: Dictionary = OpponentCamp.of(career)
+	if float(their_camp.get("tank", 1.0)) < 1.0:
+		opponent.condition = { "tank": float(their_camp.tank) }
 	_roster.add(opponent)
 	var camp: Dictionary = planner.summary() if planner != null else {}
 	if career.tournament_stage() > 0:
@@ -569,6 +573,7 @@ func _career_settings(profile: Dictionary, simmed: bool = false) -> Dictionary:
 		# Tonight's plan from the fight night card; a tournament's later rounds keep the last round's (D320).
 		"gameplan": planner.night_card.gameplan.picked() if planner != null else Dictionary(settings.get("gameplan", {})),
 		"camp": camp,
+		"their_camp": their_camp,
 	}
 	var lesson: int = Tutorial.lesson(career)
 	if lesson > 0:
@@ -623,7 +628,8 @@ func _finish_career_fight(sim: FightSim, record: Dictionary, injury: Dictionary)
 	career.finish_fight({ "result": result, "method": method_text(String(ended.get("result", ""))),
 		"round": sim.clock.current_round, "seed": sim.fight_seed, "simmed": bool(settings.get("sim", false)),
 		"hard": Aftermath.is_hard(me.hurt("head"), me.hurt("body"), me.knockdowns),
-		"tank": tank_in, "hurt": { "head": me.hurt("head"), "body": me.hurt("body"), "legs": me.hurt("legs") } })
+		"tank": tank_in, "hurt": { "head": me.hurt("head"), "body": me.hurt("body"), "legs": me.hurt("legs") },
+		"moves": OpponentCamp.moves_of(sim, driver.player) })  # What he threw, for the next man's camp (D404).
 	save_career()
 	var lines: Array[String] = []
 	if bool(settings.get("sim", false)):
@@ -789,9 +795,14 @@ func start_fight(p_settings: Dictionary) -> void:
 	var plan: Dictionary = settings.get("gameplan", {})
 	if Gameplan.check(plan) == "" and Gameplan.describe(plan) != Gameplan.OWN_GAME:
 		driver.set_gameplan(plan)
+	var their_camp: Dictionary = settings.get("their_camp", {}) if settings.get("their_camp") is Dictionary else {}
 	var their_plan: Dictionary = StyleLibrary.gameplan_of(sim.fighters[1].profile)
+	if their_camp.get("plan") is Dictionary and not (their_camp.plan as Dictionary).is_empty():
+		their_plan = their_camp.plan  # The plan his corner rolled for this fight (D404).
 	if not their_plan.is_empty():
 		sim.submit(FightCommand.set_gameplan(0, 1, their_plan))  # His corner's plan (D324).
+	if String(their_camp.get("rule", "")) != "":
+		sim.submit(FightCommand.set_rule(0, 1, 1, String(their_camp.rule), float(their_camp.drilled)))  # His rule against you (D404).
 	driver.round_over.connect(_on_round_over)
 	driver.fight_over.connect(_on_fight_over)
 	backdrop.stop(arena)  # The title's fight gives the cage up (D434; the tools start a fight from the title).

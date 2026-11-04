@@ -1254,7 +1254,7 @@ study" first, my pick):
 | Scouting and film study: grades as a range until he's scouted, film study finding his habits, only found habits cued, each man's own habits from his style | D401 | Built (§13.1) |
 | Drilling rules in camp: a session that drills one of his two rule slots, the slots in career fights, the camp's early, middle and taper weeks marked | D402 | Built (§13.2) |
 | More rules to drill: eight answers to the styles' habits, the answer marked when you've found his habit | D403 | Built (§13.3) |
-| The opponent's camp: a plan against your style, sometimes a rule against your favourite move, his own cut | D404 | Planned |
+| The opponent's camp: a plan against your style, sometimes a rule against your favourite move, his own cut (his cut moves to D405) | D404 | Built (§13.8) |
 | The weight cut and the weigh-in: how hard he cuts in fight week, missing weight (Kyle, 2026-11-02: "One pick now, planner later": light, normal, hard or extreme now, D23's five-day planner later as a minigame) | D405 | Planned |
 | Named injuries, and hiding one from the doctor | D406 | Planned |
 | Sparring partners: named men at his gym from the world's local men | D407 | Planned |
@@ -1303,7 +1303,7 @@ Saved on the career as `scouting` (`docs/09` career@1; optional, so a career sav
 anyone). A man who was already in the career's opponents keeps the habits he was made with.
 
 **Not yet:** a scout's report you pay for, the head coach's Reading making the cue come earlier (D66, with the coach levels,
-D408), the film study minigame (spot the tell, D410), and the opponent studying you (D404).
+D408), and the film study minigame (spot the tell, D410; built, §13.4). The opponent studying you is built (§13.8, D404).
 
 **What to change:** the numbers at the top of `sim/world/scouting.gd` (`SPREAD`, `OFFSET`, `FILM_PER_FIGHT`, `FILM_MAX`,
 `MET`, `STUDY_GAIN`, `STUDY_IQ`, `FIND_BASE`, `FIND_PER_IQ`, `FIND_PER_FIGHT`, `FIND_FILM_MAX`, `FIND_TACTICIAN`,
@@ -1343,8 +1343,8 @@ five).
 
 Saved on the career as `rules` (`docs/09` career@1; optional, so a career saved before D402 loads with no rules).
 
-**Not yet:** a drilling minigame, the opponent
-drilling a rule against you (D404), and a third slot with a coach (D408).
+**Not yet:** a drilling minigame and a third slot with a coach (D408). The opponent drilling a rule against you is built
+(§13.8, D404).
 
 **What to change:** `SCALE`, `FADE_PER_WEEK` and `KEEPS` at the top of `sim/world/rule_drilling.gd`; the sessions in
 `data/sessions/drill_rule_*.json`; the camp's parts and their tips in `Career.camp_phase()` and `CAMP_PHASE_TIPS`
@@ -1380,8 +1380,8 @@ knows", "Mark the answer" and "At least break even" (my picks), then "Keep all e
   the lean back and the two hands-up rules cost 2 to 4%. They're kept as the weaker picks; the fix belongs in the lean back
   and the high guard themselves.
 
-**Not yet:** an answer of its own to a body kick, a body hook or an overhand (the overhand comes over a roll and no defence stops a body shot yet), rules that fire on a position or a grip,
-and the opponent drilling a rule against you (D404).
+**Not yet:** an answer of its own to a body kick, a body hook or an overhand (the overhand comes over a roll and no defence stops a body shot yet), rules that fire on a position or a grip.
+The opponent drilling one of these against your favourite move is built (§13.8, D404).
 
 **What to change:** a rule's trigger, move and cooldown in `data/rules/`; what sets a trigger off in `data/triggers/`;
 which rule answers which habit in `RuleDrilling.answers()` (`sim/world/rule_drilling.gd`); how a defence rule is timed and
@@ -1534,3 +1534,63 @@ camp abroad (`docs/02` §6, Bangkok), and a 3D view of him and the holder.
 `ui/thai_pads_screen.gd`; which sessions can be played in `CampPlanner.PLAYABLE`. To see it:
 `godot --path . --script res://tools/pads_preview.gd -- --kicking=70` (with `--write-movie` to save frames). Tested in
 `tests/sim/world/test_thai_pads.gd` and `tests/ui/test_camp_planner.gd`. Fights don't change.
+
+### 13.8 The opponent's camp (D404)
+
+Phase 4's fourth piece (Kyle, 2026-11-03, picked "Opponent's camp (D404)" next, my pick). Until now the man he was booked
+against walked in the same whoever he was fighting: his style sheet's one plan, no rules, a full tank. Now he has a camp
+of his own. Kyle's four cards (2026-11-03):
+
+- **His plan: one of a few, rolled** (Kyle's pick; I'd suggested a plan picked against your style). Every style sheet
+  lists two or three plans that suit it (style@1 `gameplan` and `gameplans`, `docs/09`), and his corner rolls one for the
+  fight. The scouting report still shows the style's usual plan; which one he's really bringing you learn on fight night,
+  or earlier if you know him well (below). This replaces D324's "his corner sticks to one plan".
+
+  | Style | His plans |
+  |---|---|
+  | Pressure boxer | Pressure · Head · standing; Counter · Head · standing; Pressure · Body · standing |
+  | Brawler | Pressure · Head; Pressure · Body; Head · standing |
+  | Counter-striker | Counter · Head · standing; Range · Head · standing; Counter · Legs · standing |
+  | Dirty boxer | Pressure · Body · clinch; Pressure · Head · clinch; Pressure · Body · standing |
+  | Karate point fighter | Range · Head · standing; Counter · Head · standing; Range · Body · standing |
+  | Range kicker | Legs; Body; Range · Head · standing |
+  | Leg-kick specialist | Legs; Range · Legs · standing; Counter · Legs |
+  | Muay Thai clinch fighter | Body · clinch; Legs · clinch; Pressure · Body |
+  | Sprawl-and-brawl | Head · standing; Counter · Head · standing; Pressure · Body · standing |
+  | Pressure wrestler | Pressure · take him down; Pressure · clinch; Conserve · take him down |
+  | Ground-and-pound wrestler | Pressure · take him down; clinch; Pressure · Head · take him down |
+  | Wrestle-boxer | Take him down; Pressure · take him down; clinch |
+  | Judo thrower | Clinch; take him down; Counter · clinch |
+  | Submission grappler | Take him down; Counter · take him down; clinch |
+  | Sambo leg-locker | Take him down; Legs · take him down; clinch |
+
+- **A rule against your favourite move, more often higher up** (my pick). Your favourite move is the one you threw most
+  in your last 3 fights that a rule can answer (each fight's `moves` on your record, counted from every move you started).
+  A third of amateur opponents drill a rule against it, half of pros, and every title fight's. He drills one he knows (a
+  rule whose move is in his techniques), 50 to 80%, in his first rule slot, and it works exactly as yours do (`docs/01`
+  §23). Throw a lot of leg kicks and a pro will often come in checking them; jab a lot and he may have drilled the slip.
+  Before your first fight he has no film of you, and some moves no rule answers yet (the uppercut, for one), so he
+  drills nothing.
+- **Seen on fight night, or early if scouted** (my pick). The fight night card has a *His camp* line under the gameplan:
+  *His plan: Pressure · Body. He's drilled When he leg kicks → check it (64%) for your leg kick. He overtrained: 90% of his
+  gas tank.* In fight week the camp's scouting box shows the same lines when you know him 60% or better (§13.1), so you
+  can still drill your own rules or change your plan for it.
+- **Usually fresh, sometimes not** (my pick). A quarter of opponents overtrained or cut badly and start with 85 to 95% of
+  their gas tank (the same `condition` your own camp gives you, `docs/09` fighter@1); the rest come in fresh. His own
+  weight cut, and seeing it at the weigh-in, comes with D405.
+
+Not in a one-day tournament (nobody prepared for one man) or the tutorial's lesson fights before the gameplan opens
+(§11.6). It's worked out from the career's seed, the man and the week of the booking, so the same booking always gives
+the same camp and nothing new is saved but each fight's `moves` (optional: a career saved before D404 has no moves on its
+old fights, so its next man has no film of you).
+
+**Not yet:** a plan picked to beat your style (Kyle chose the roll), his own weight cut (D405), the world's men drilling
+rules against each other, a rule against your favourite takedown or submission (rules answer strikes and shots only), and
+the hub telling you what your favourite move is before a camp.
+
+**What to change:** each style's plans in `data/styles/*.json` (`gameplan` and `gameplans`); the chances, drill range,
+fights counted, the tired share and tank range and how well you must know him to see it early in the constants at the top of
+`sim/world/opponent_camp.gd` (`RULE_CHANCE_AMATEUR`, `RULE_CHANCE_PRO`, `RULE_CHANCE_TITLE`, `DRILLED_MIN`, `DRILLED_MAX`,
+`MOVES_FIGHTS`, `TIRED_CHANCE`, `TANK_LOW`, `TANK_HIGH`, `SCOUTED_EARLY`); which rule answers which move in
+`RuleDrilling.answers()`. Tested in `tests/sim/world/test_opponent_camp.gd`, `tests/data/test_data_files.gd` and
+`tests/game/test_main_scene.gd`. Fights against the booked man change: his plan, his rule and his tank.

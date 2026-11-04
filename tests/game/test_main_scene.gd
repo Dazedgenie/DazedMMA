@@ -522,6 +522,43 @@ func test_drilling_a_rule_in_a_career_camp_takes_it_into_the_fight_as_sharp_as_c
 	assert_eq(_main.state, _main.OVER)
 
 
+func test_the_booked_man_comes_in_with_his_camp_and_your_moves_go_on_your_record_for_the_next_one() -> void:
+	_main.open_new_career()
+	_main.new_career.set_play_childhood(false)
+	_main.new_career.set_know_the_game(true)
+	_main.new_career.press_start()
+	_main.gym_screen.pick(0)
+	_main.gym_screen.press_start()
+	_main.career.week_plan = "time_off"
+	_main.hub.press_week()
+	_main.hub.press_accept(_main.hub.offer_ids()[0])
+	for i in 3:
+		_main.career.fights.append({ "opponent": "old_%d" % i, "result": "win", "week": 0, "moves": { "leg_kick": 15 } })
+	_main.career.booked.title = "test_belt"  # Every title fight's man drills a rule against you (D404).
+	var camp: Dictionary = OpponentCamp.of(_main.career)
+	assert_eq(String(camp.rule), "check_the_leg_kick", "your leg kick, checked")
+	_main.hub.press_camp()
+	var planner: CampPlanner = _main.planner
+	planner.pick_preset("time_off")
+	planner.run_rest()
+	planner.show_night_card(true)
+	assert_string_contains(planner.night_card.text(), "HIS CAMP", "on the fight night card")
+	assert_string_contains(planner.night_card.text(), "for your leg kick")
+	planner.fight_pressed.emit(planner.trained_profile())
+	assert_eq(_main.state, _main.FIGHT)
+	assert_eq(_main.settings.their_camp, camp)
+	_main.driver.step()  # His plan and rule go in with the first tick's commands.
+	var his: DecisionLayer = _main.driver.sim.decisions[1]
+	assert_eq(String(his.rules.slots[0].get("rule", {}).get("id", "")), "check_the_leg_kick", "his rule, in the fight")
+	assert_eq(Gameplan.describe(camp.plan), Gameplan.describe(his.gameplan.parts) if his.gameplan != null else Gameplan.OWN_GAME)
+	_main.driver.throw_towel()
+	var frames: int = 0
+	while _main.state != _main.OVER and frames < 100:
+		frames += 1
+		_main._process(FRAME)
+	assert_eq(_main.state, _main.OVER)
+	assert_true(_main.career.fights[-1].get("moves") is Dictionary, "what he threw, kept for the next man's camp")
+
 func test_his_corner_names_the_habits_you_found_and_how_often_he_has_done_them_at_the_break() -> void:
 	var kick := { "trigger": "own_jab_blocked", "action": "body_kick", "chance": 0.7, "within_ms": 1500 }
 	var overhand := { "trigger": "opp_strike_misses", "action": "overhand", "chance": 0.5, "within_ms": 800 }
