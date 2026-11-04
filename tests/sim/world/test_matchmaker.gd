@@ -173,7 +173,10 @@ func test_he_can_turn_pro_at_18_after_four_amateur_fights_and_gets_paid() -> voi
 	assert_eq(o.purse, Promotions.purse(promotion), "at its pay")
 	var money: int = c.money
 	c.accept(String(o.id))
+	c.booked.cut = WeightCut.LIGHT  # He can't miss weight on a light cut (D405); the other man might.
 	var pay: int = int(o.purse.show) + int(o.purse.win)
+	if not bool(WeightCut.of(c).opp.made):
+		pay += roundi(WeightCut.FINE * int(o.purse.show))  # His fine comes to you.
 	assert_eq(c.finish_fight({ "result": "win", "method": "KO", "round": 1 }), pay, "show and win")
 	assert_eq(c.money, money + pay)
 	assert_eq(c.record_text(true), "1-0-0")

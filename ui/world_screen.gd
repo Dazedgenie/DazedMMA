@@ -710,7 +710,7 @@ static func reigns(c: Career, promotion: String) -> Array:
 	var out: Array = []
 	for r: Array in History.line_of(w, Rankings.key(promotion, c.division_now())):
 		var id: String = String(r[0])
-		var how: String = { "lost": "lost it", "retired": "retired", "stripped": "stripped", "called up": "called up", "left": "moved on" }.get(String(r[4]), "")
+		var how: String = { "lost": "lost it", "retired": "retired", "stripped": "stripped", "called up": "called up", "left": "moved on", "missed weight": "stripped for missing weight" }.get(String(r[4]), "")
 		out.append([id, c.fighter_name() if id == Career.FIGHTER_ID else String(w.man(id).get("name", "")), int(r[1]), int(r[2]), int(r[3]), how])
 	return out
 

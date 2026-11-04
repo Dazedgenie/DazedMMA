@@ -1255,7 +1255,7 @@ study" first, my pick):
 | Drilling rules in camp: a session that drills one of his two rule slots, the slots in career fights, the camp's early, middle and taper weeks marked | D402 | Built (§13.2) |
 | More rules to drill: eight answers to the styles' habits, the answer marked when you've found his habit | D403 | Built (§13.3) |
 | The opponent's camp: a plan against your style, sometimes a rule against your favourite move, his own cut (his cut moves to D405) | D404 | Built (§13.8) |
-| The weight cut and the weigh-in: how hard he cuts in fight week, missing weight (Kyle, 2026-11-02: "One pick now, planner later": light, normal, hard or extreme now, D23's five-day planner later as a minigame) | D405 | Planned |
+| The weight cut and the weigh-in: how hard he cuts in fight week, missing weight (Kyle, 2026-11-02: "One pick now, planner later": light, normal, hard or extreme now, D23's five-day planner later as a minigame) | D405 | Built (§13.9) |
 | Named injuries, and hiding one from the doctor | D406 | Planned |
 | Sparring partners: named men at his gym from the world's local men | D407 | Planned |
 | Coaches: assistants for a weekly fee, the head coach's levels | D408 | Planned |
@@ -1577,14 +1577,14 @@ of his own. Kyle's four cards (2026-11-03):
   can still drill your own rules or change your plan for it.
 - **Usually fresh, sometimes not** (my pick). A quarter of opponents overtrained or cut badly and start with 85 to 95% of
   their gas tank (the same `condition` your own camp gives you, `docs/09` fighter@1); the rest come in fresh. His own
-  weight cut, and seeing it at the weigh-in, comes with D405.
+  weight cut, and seeing it at the weigh-in, is built: §13.9 (D405).
 
 Not in a one-day tournament (nobody prepared for one man) or the tutorial's lesson fights before the gameplan opens
 (§11.6). It's worked out from the career's seed, the man and the week of the booking, so the same booking always gives
 the same camp and nothing new is saved but each fight's `moves` (optional: a career saved before D404 has no moves on its
 old fights, so its next man has no film of you).
 
-**Not yet:** a plan picked to beat your style (Kyle chose the roll), his own weight cut (D405), the world's men drilling
+**Not yet:** a plan picked to beat your style (Kyle chose the roll), the world's men drilling
 rules against each other, a rule against your favourite takedown or submission (rules answer strikes and shots only), and
 the hub telling you what your favourite move is before a camp.
 
@@ -1594,3 +1594,59 @@ fights counted, the tired share and tank range and how well you must know him to
 `MOVES_FIGHTS`, `TIRED_CHANCE`, `TANK_LOW`, `TANK_HIGH`, `SCOUTED_EARLY`); which rule answers which move in
 `RuleDrilling.answers()`. Tested in `tests/sim/world/test_opponent_camp.gd`, `tests/data/test_data_files.gd` and
 `tests/game/test_main_scene.gd`. Fights against the booked man change: his plan, his rule and his tank.
+
+### 13.9 The weight cut and the weigh-in (D405)
+
+Phase 4's fifth piece (Kyle, 2026-11-04, picked "Weight cut and weigh-in (D405)" next, my pick). Until now a pro made his
+division's limit without it costing or winning him anything. Now he cuts weight, and so does the other man. As Kyle
+picked on 2026-11-02 ("One pick now, planner later"), it's one choice for now: light, normal, hard or extreme. D23's
+five-day planner can come later as a minigame. Kyle's four cards (2026-11-04): *[to fill in when answered: my picks below
+are built]*.
+
+- **The cut.** A pro weighs in the day before (`docs/08`), so in fight week he sheds water to make the limit and puts
+  most of it back by fight night. What he walks around at over the limit has to come off. Each level sets how much of
+  that comes off as water in fight week; the rest is dieted off in camp.
+
+  | Level | Water he sheds | Gas tank cost | Chin cost | Chance he misses weight |
+  |---|---|---|---|---|
+  | Light | up to 3% of his weight | none | none | none |
+  | Normal (to start with) | up to 6% | 3% | none | 2% |
+  | Hard | up to 9% | 8% | 3 | 6% |
+  | Extreme | up to 12% | 15% | 8 | 15% |
+
+  He gets 90% of the water back by fight night, so a harder cut makes him heavier on the night. A man with less to lose
+  than the level's share sheds only what he has, and pays that share of the cost. A man already under the limit has
+  nothing to cut: no cost and no miss. The Hard cut flaw (`docs/11`) makes a miss half as likely again. Amateurs weigh in on
+  the day at what they walk around at (`docs/08`), so amateur fights and tournaments have no cut.
+- **What it wins: the bigger man on the night** (my pick). Whoever is heavier on fight night gets +1 Strength for each
+  whole kg he outweighs the other man, up to +6. Strength drives damage and the clinch.
+- **What it costs: gas tank and Chin, worse the harder** (my pick). The costs are in the table. The tank cost multiplies
+  what the camp left him (the fight night card's gas tank shows both), and the Chin is lost for that fight only.
+- **Missing weight: fined, and the fight goes ahead** (my pick). A man who misses is over the limit by 0.3 to 1.5 kg. 20%
+  of his purse goes to the other man; when it's the other man who misses, you get 20% of your show money from him. It
+  goes on the fight's record, and in a title fight the man who missed can't win the belt. A champion who misses is
+  stripped at the scale, so only the other man can win it.
+- **The other man cuts too.** His corner picks light 15% of the time, normal 50%, hard 25% and extreme 10%. It's rolled
+  on the booking, so your own pick never changes his.
+- **Where you see it: picked in camp, then a weigh-in card** (my pick). A *Weight cut* box in the camp planner, under
+  the rules, picks the level. Its line says what he walks around at, the limit, the water he'll shed, about what he'll
+  weigh on fight night, what it costs and the chance he misses. The pick is fixed once the camp is over. When the last
+  week has run, *The weigh-in* card comes before the fight night card. It shows both men on the scale (kg and lb), MADE
+  WEIGHT or MISSED WEIGHT, each man's cut and what it cost him, what each will weigh on the night, who's the bigger man,
+  and any fine. *On to fight night* goes on. The fight night card then has a *Weigh-in* line, and its gas tank includes
+  the cut.
+
+Saved on the booking as `cut`, and on the fight's record as `weigh_in`, `fine` and `fine_got` (`docs/09` career@1; all
+optional, so a career saved before D405 loads on a normal cut). Pure and seeded on the booking: the same booking and
+pick always give the same weigh-in.
+
+**Not yet:** D23's five-day planner (water loading, sodium, sauna, food) as a minigame, the other man refusing the fight
+when you miss, reputation for missing weight, catchweights, moving divisions after a bad cut, and the world's men cutting
+in their own fights.
+
+**What to change:** the levels, water, regain, costs, miss chances, size edge, fine and the other man's odds in the
+constants at the top of `sim/world/weight_cut.gd` (`WATER`, `REGAIN`, `TANK_COST`, `CHIN_COST`, `MISS_CHANCE`,
+`HARD_CUT_MISS`, `MISS_BY`, `STRENGTH_PER_KG`, `STRENGTH_MAX`, `FINE`, `OPP_LEVEL_ODDS`, `DEFAULT`). The weigh-in card's
+look is in `ui/weigh_in_card.gd`, and the camp's box in `ui/camp_planner.gd` (`set_cut`). Tested in
+`tests/sim/world/test_weight_cut.gd` and `tests/game/test_main_scene.gd`. Fights change for the two men's cuts: tank,
+Chin and Strength.

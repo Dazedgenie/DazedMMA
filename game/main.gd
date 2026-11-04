@@ -553,11 +553,17 @@ func _career_settings(profile: Dictionary, simmed: bool = false) -> Dictionary:
 	var their_camp: Dictionary = OpponentCamp.of(career)
 	if float(their_camp.get("tank", 1.0)) < 1.0:
 		opponent.condition = { "tank": float(their_camp.tank) }
-	_roster.add(opponent)
 	var camp: Dictionary = planner.summary() if planner != null else {}
 	if career.tournament_stage() > 0:
 		profile = career.round_profile()
 		camp = {}
+	# The weigh-in (D405): what each man's cut cost him, and the bigger man's Strength on the night.
+	var weighed: Dictionary = WeightCut.of(career)
+	if not weighed.is_empty():
+		profile = profile.duplicate(true)
+		WeightCut.apply(profile, weighed.him, float(weighed.edge))
+		WeightCut.apply(opponent, weighed.opp, float(weighed.opp_edge))
+	_roster.add(opponent)
 	var s: Dictionary = {
 		"career": true,
 		"label": "%s vs %s" % [career.fighter_name(), String(opponent.get("name", ""))],
@@ -574,6 +580,7 @@ func _career_settings(profile: Dictionary, simmed: bool = false) -> Dictionary:
 		"gameplan": planner.night_card.gameplan.picked() if planner != null else Dictionary(settings.get("gameplan", {})),
 		"camp": camp,
 		"their_camp": their_camp,
+		"weigh_in": WeightCut.record(weighed),
 	}
 	var lesson: int = Tutorial.lesson(career)
 	if lesson > 0:
@@ -634,6 +641,10 @@ func _finish_career_fight(sim: FightSim, record: Dictionary, injury: Dictionary)
 	var lines: Array[String] = []
 	if bool(settings.get("sim", false)):
 		lines.append("Simmed: the fighters' own AI fought it.")
+	if int(career.fights[-1].get("fine", 0)) > 0:
+		lines.append("[color=#ff8787]He missed weight: $%d of his purse went to the other man.[/color]" % int(career.fights[-1].fine))
+	elif int(career.fights[-1].get("fine_got", 0)) > 0:
+		lines.append("[color=#69db7c]The other man missed weight: $%d of his purse came to you.[/color]" % int(career.fights[-1].fine_got))
 	# What it did to his career goes on its own panel (D436): record, rank, belt, promotion, purse, suspension.
 	var through: String = tournament_text(career)
 	_meaning = FightResultCard.meaning_rows(before, career.standing(), career.fights[-1],

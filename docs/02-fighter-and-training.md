@@ -524,6 +524,8 @@ Then update this section and D171.
   - Hidden risk: too aggressive → you make weight but start the fight with stamina/chin penalties. Too soft → miss weight.
   - Missing weight: fine (% of purse), reputation loss, and the opponent might refuse the fight.
   - Rehydration after weigh-ins gives a size advantage in the fight.
+  - Built so far as one pick (D405, `03` §13.9): light, normal, hard or extreme in the camp, the weigh-in card, missing
+    weight fined with the fight going ahead. The five-day planner is still to come.
 
 ---
 

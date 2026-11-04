@@ -138,7 +138,9 @@ func show_night(info: Dictionary) -> void:
 	_tank.add_theme_color_override("font_color", tank_colour)
 	_tank_fill.bg_color = tank_colour
 	_tank_bar.value = tank
-	_tank_note.text = "A full tank for the whole fight." if tank >= 0.995 else "The camp's fatigue shrinks the tank for the whole fight."
+	_tank_note.text = "A full tank for the whole fight." if tank >= 0.995 else (
+		"The camp's fatigue and his weight cut shrink the tank for the whole fight." if float(night.get("cut_cost", 0.0)) > 0.0
+		else "The camp's fatigue shrinks the tank for the whole fight.")
 	var fatigue: float = float(night.fatigue)
 	_fatigue.text = "%d" % roundi(fatigue)
 	_fatigue.add_theme_color_override("font_color", GOOD if fatigue < TrainingCamp.FRESH_BELOW else (WARN if fatigue < TrainingCamp.FATIGUE_FREE else BAD))
@@ -183,6 +185,10 @@ func show_night(info: Dictionary) -> void:
 	var their: Array = info.get("their_camp", [])
 	_their.visible = not their.is_empty()
 	_their.text = "HIS CAMP:  " + "   ".join(their) if not their.is_empty() else ""
+	var weighed: Array = info.get("weigh_in", [])
+	if not weighed.is_empty():
+		_their.visible = true
+		_their.text = ("WEIGH-IN:  " + "   ".join(weighed)) + ("\n" + _their.text if not their.is_empty() else "")
 
 
 ## The card as text (tests read it).
