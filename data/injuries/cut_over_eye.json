@@ -1,0 +1,22 @@
+{
+	"schema": "injury@1",
+	"id": "cut_over_eye",
+	"name": "Cut over the eye",
+	"area": "head",
+	"days": [
+		3,
+		10
+	],
+	"effects": {},
+	"camp": {
+		"kinds": [
+			"sparring"
+		],
+		"weight": 3
+	},
+	"fight": {
+		"cause": "head",
+		"weight": 3
+	},
+	"about": "Stitches over the eyebrow: it opens up again if he's hit there."
+}

@@ -1,0 +1,25 @@
+{
+	"schema": "injury@1",
+	"id": "bruised_shin",
+	"name": "Bruised shin",
+	"area": "legs",
+	"days": [
+		2,
+		7
+	],
+	"effects": {
+		"kicking": -4
+	},
+	"camp": {
+		"kinds": [
+			"striking",
+			"sparring"
+		],
+		"weight": 2
+	},
+	"fight": {
+		"cause": "legs",
+		"weight": 3
+	},
+	"about": "Every kick he throws hurts him too."
+}

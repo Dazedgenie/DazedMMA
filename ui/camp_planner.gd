@@ -49,6 +49,9 @@ const INJURY_BANDS: Array[float] = [0.03, 0.06]
 ## The injury gauge is full at this chance in a week.
 const INJURY_FULL: float = 0.1
 ## What a hurt area does to the fighter in the fight (FighterState: head and legs hurt slow stats down, body hurt shrinks the tank).
+## The doctor's word when he hid an injury (D406): he didn't find out, or he did.
+const HIDDEN := "hidden"
+const CAUGHT := "caught"
 const HURT_EFFECTS := {
 	"head": "a lower health bar, slower hands and reads",
 	"body": "a smaller gas tank",
@@ -204,6 +207,7 @@ func _init(profile: Dictionary, camp_seed: int = 1, library: TrainingLibrary = n
 	night_card.visible = false
 	night_card.fight_pressed.connect(func() -> void: fight_pressed.emit(trained_profile()))
 	night_card.pull_out_pressed.connect(pull_out)
+	night_card.hide_pressed.connect(hide_injury)
 	night_card.back_pressed.connect(func() -> void: show_night_card(false))
 	add_child(night_card)
 	weigh_in_card = WeighInCard.new()
@@ -514,7 +518,32 @@ func done() -> bool:
 
 ## Whether Fight! is on: the camp is over, the player hasn't pulled out and the doctor clears the fighter.
 func can_fight() -> bool:
-	return done() and not pulled_out and camp.fight_night().doctor != TrainingCamp.NOT_CLEARED
+	if not done() or pulled_out:
+		return false
+	return camp.fight_night().doctor != TrainingCamp.NOT_CLEARED or (hiding() and not caught())
+
+
+## Whether he can hide his injury from the doctor (D406): a career fight night the doctor won't clear him for, not hidden yet.
+func can_hide() -> bool:
+	return career != null and done() and not pulled_out and not hiding() and camp.fight_night().doctor == TrainingCamp.NOT_CLEARED
+
+
+## Hides the injury from the doctor (D406, "Hide it, he may be found out"): the chance he's found out grows with the days
+## still to heal (Injuries.found_chance); found out, the fight is off; if not, he fights hurt.
+func hide_injury() -> void:
+	if can_hide():
+		career.booked.hid = true
+		_refresh()
+
+
+## Whether he's hiding the injury the doctor wouldn't clear (D406).
+func hiding() -> bool:
+	return career != null and bool(career.booked.get("hid", false)) and camp.fight_night().doctor == TrainingCamp.NOT_CLEARED
+
+
+## Whether the doctor found out he's hiding it (seeded on the booking: the same every time).
+func caught() -> bool:
+	return hiding() and Injuries.found_out(career)
 
 
 ## Pulls the fighter out of the fight (fight night only): the fight is off and the camp is wasted.
@@ -549,7 +578,14 @@ func summary() -> Dictionary:
 	var night: Dictionary = camp.fight_night()
 	return { "weeks": reports.map(func(r: Dictionary) -> String: return String(r.plan)),
 		"fatigue": snappedf(night.fatigue, 0.1), "tank": snappedf(night.tank, 0.001), "injury_area": night.injury_area,
-		"injured_days": night.injured_days, "doctor": night.doctor, "worsen_chance": snappedf(night.worsen_chance, 0.001) }
+		"injury": night.injury, "injured_days": night.injured_days,
+		"doctor": (CAUGHT if caught() else HIDDEN) if hiding() else night.doctor,
+		"worsen_chance": snappedf(_worsen_chance(night), 0.001) }
+
+
+## The chance fighting on it makes it worse: × Injuries.HIDDEN_WORSEN when he's hiding it (D406).
+func _worsen_chance(night: Dictionary) -> float:
+	return minf(1.0, float(night.worsen_chance) * Injuries.HIDDEN_WORSEN) if hiding() else float(night.worsen_chance)
 
 
 ## The forecast, log, stats and condition card as text (tests read them).
@@ -1081,6 +1117,9 @@ func _refresh() -> void:
 func _night_info() -> Dictionary:
 	var start_chin: float = float(_start.get("stats", {}).get("chin", FighterState.DEFAULT_STAT))
 	var night: Dictionary = camp.fight_night()
+	if hiding():
+		night.worsen_chance = _worsen_chance(night)
+		night.doctor = CAUGHT if caught() else HIDDEN
 	var weighed: Dictionary = WeightCut.of(career) if career != null else {}
 	if not weighed.is_empty():
 		night.tank = float(night.tank) * (1.0 - float(weighed.him.tank_cost))  # What his cut costs him (D405).
@@ -1089,6 +1128,7 @@ func _night_info() -> Dictionary:
 		"profile": _start,
 		"weigh_in": WeightCut.lines(weighed, String(_start.get("name", "Fighter")), opponent_name),
 		"night": night, "pulled_out": pulled_out, "history": _history(), "gains": camp.camp_gains(),
+		"can_hide": can_hide(), "hidden": hiding() and not caught(), "caught": caught(),
 		"chin": camp.stat("chin"), "chin_change": camp.stat("chin") - start_chin,
 		"their_camp": OpponentCamp.lines(OpponentCamp.of(career)) if career != null else [] }
 
@@ -1154,7 +1194,9 @@ func _refresh_condition(forecast: Dictionary) -> void:
 	_figure.queue_redraw()
 	var lines: Array[String] = []
 	if camp.injured_days > 0:
-		lines.append("[color=%s]Hurt (%s): %d more days to heal[/color]" % [LOSS, camp.injury_area, camp.injured_days])
+		lines.append("[color=%s]%s: %d more days to heal[/color]" % [LOSS, Injuries.name_of(camp.injury, camp.injury_area), camp.injured_days])
+		if Injuries.effects_text(camp.injury) != "":
+			lines.append("[color=%s]Until it heals: %s[/color]" % [LOSS, Injuries.effects_text(camp.injury)])
 	else:
 		lines.append("[color=%s]%s, no injuries[/color]" % [GAIN, _sentence(TrainingCamp.freshness(camp.fatigue))])
 	lines.append("[color=%s]Chin %d %s · gas tank %d%%[/color]" % [DIM, roundi(camp.stat("chin")), TrainingCamp.grade(camp.stat("chin")),
@@ -1198,8 +1240,8 @@ func _forecast_bbcode(forecast: Dictionary) -> String:
 	if forecast.fight_week:
 		lines.append("[b]Fight week:[/b] the fight is Saturday evening, so that slot is the fight and nothing after it heals.")
 	if camp.injured_days > 0:
-		lines.append("[color=%s]Hurt (%s) for %d more days: light sessions (film study, meditation, rehab, recovery, rest) still go ahead, the rest become rest. Rehab heals a day faster.[/color]" % [
-			LOSS, camp.injury_area, camp.injured_days])
+		lines.append("[color=%s]%s for %d more days: light sessions (film study, meditation, rehab, recovery, rest) still go ahead, the rest become rest. Rehab heals a day faster.[/color]" % [
+			LOSS, Injuries.name_of(camp.injury, camp.injury_area), camp.injured_days])
 	lines.append("Fatigue: starts at %d, peaks at %d, %s %d (%s)" % [roundi(forecast.fatigue_start),
 		roundi(forecast.fatigue_peak), "at the fight" if forecast.fight_week else "Sunday night", roundi(forecast.fatigue_end),
 		TrainingCamp.freshness(forecast.fatigue_end)])
@@ -1236,10 +1278,25 @@ func _fight_night_bbcode() -> String:
 		"a full gas tank for the fight." if tank >= 100 else "[color=%s]%d%% of the gas tank for the whole fight.[/color]" % [LOSS, tank]])
 	if night.injured_days > 0:
 		var area: String = night.injury_area
-		lines.append("[color=%s]Still hurt (%s), %d more days to heal: he starts the fight %d%% hurt there (%s).[/color]" % [LOSS,
-			area, night.injured_days, roundi(100.0 * float(night.hurt[area])), HURT_EFFECTS.get(area, "")])
+		var hurt_name: String = Injuries.name_of(String(night.injury), area)
+		if night.hurt.has(area):
+			lines.append("[color=%s]%s, %d more days to heal: he starts the fight %d%% hurt there (%s).[/color]" % [LOSS,
+				hurt_name, night.injured_days, roundi(100.0 * float(night.hurt[area])), HURT_EFFECTS.get(area, "")])
+		else:
+			lines.append("[color=%s]%s, %d more days to heal.[/color]" % [LOSS, hurt_name, night.injured_days])
+		if Injuries.effects_text(String(night.injury)) != "":
+			lines.append("[color=%s]Until it heals: %s.[/color]" % [LOSS, Injuries.effects_text(String(night.injury))])
+	var hidden_word: String = (CAUGHT if caught() else HIDDEN) if hiding() else ""
 	if pulled_out:
 		lines.append("[color=%s]You pulled him out. The fight is off and the camp is wasted.[/color]" % LOSS)
+	elif hidden_word == CAUGHT:
+		lines.append("[color=%s]You tried to hide it and the doctor found out. The fight is off and the camp is wasted.[/color]" % LOSS)
+	elif hidden_word == HIDDEN:
+		lines.append("[color=%s]You hid it and the doctor didn't find out. He fights hurt: a %d%% chance it gets worse.[/color]" % [LOSS,
+			roundi(100.0 * _worsen_chance(night))])
+	elif night.doctor == TrainingCamp.NOT_CLEARED and can_hide():
+		lines.append("[color=%s]The doctor won't clear him (more than %d days still to heal). Pull out, or hide it from him: a %d%% chance he finds out.[/color]" % [
+			LOSS, TrainingCamp.DOCTOR_MAX_DAYS, roundi(100.0 * Injuries.found_chance(int(night.injured_days)))])
 	elif night.doctor == TrainingCamp.NOT_CLEARED:
 		lines.append("[color=%s]The doctor won't clear him (more than %d days still to heal). The fight is off and the camp is wasted.[/color]" % [
 			LOSS, TrainingCamp.DOCTOR_MAX_DAYS])

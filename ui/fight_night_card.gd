@@ -7,6 +7,8 @@ extends PanelContainer
 
 signal fight_pressed
 signal pull_out_pressed
+## Hide it from the doctor (a career's fight night he won't clear him for, D406).
+signal hide_pressed
 signal back_pressed
 ## Sim the fight (a career's fight night, D305): the fight plays out at once and goes straight to the result.
 signal sim_pressed
@@ -25,6 +27,8 @@ const STAMPS := {
 	TrainingCamp.CLEARED_HURT: ["CLEARED TO FIGHT HURT", WARN],
 	TrainingCamp.NOT_CLEARED: ["NOT CLEARED", BAD],
 	"pulled_out": ["PULLED OUT", DIM],
+	CampPlanner.HIDDEN: ["CLEARED (HIDING IT)", WARN],
+	CampPlanner.CAUGHT: ["CAUGHT HIDING IT", BAD],
 }
 ## The stamp's tilt, in degrees.
 const STAMP_TILT: float = -7.0
@@ -52,6 +56,7 @@ var _countdown: CampCountdown
 var _gains: RichTextLabel
 var _fight: Button
 var _pull_out: Button
+var _hide: Button
 var _sim: Button
 ## Shows Sim the fight (a career's fight night, D305).
 var sim_allowed: bool = false
@@ -112,6 +117,9 @@ func _init() -> void:
 	back.custom_minimum_size.x = 220.0
 	_pull_out = CampPlanner._button(buttons, "Pull out of the fight", func() -> void: pull_out_pressed.emit())
 	_pull_out.custom_minimum_size.x = 260.0
+	_hide = CampPlanner._button(buttons, "Hide it from the doctor", func() -> void: hide_pressed.emit())
+	_hide.custom_minimum_size.x = 280.0
+	_hide.visible = false
 	_sim = CampPlanner._button(buttons, "Sim the fight", func() -> void: sim_pressed.emit())
 	_sim.custom_minimum_size.x = 220.0
 	_sim.tooltip_text = "Plays the fight out at once, without watching or calling it, and goes to the result"
@@ -148,9 +156,15 @@ func show_night(info: Dictionary) -> void:
 	var days: int = int(night.injured_days)
 	if days > 0:
 		var area: String = night.injury_area
-		_injury.text = "%s, %d days to heal" % [area.capitalize(), days]
+		var id: String = String(night.get("injury", ""))
+		_injury.text = "%s, %d days to heal" % [Injuries.name_of(id, area), days]
 		_injury.add_theme_color_override("font_color", BAD)
-		_injury_note.text = "Starts the fight %d%% hurt there: %s." % [roundi(100.0 * float(night.hurt[area])), CampPlanner.HURT_EFFECTS.get(area, "")]
+		var notes: Array[String] = []
+		if night.hurt.has(area):
+			notes.append("Starts the fight %d%% hurt there: %s." % [roundi(100.0 * float(night.hurt[area])), CampPlanner.HURT_EFFECTS.get(area, "")])
+		if Injuries.effects_text(id) != "":
+			notes.append("Until it heals: %s." % Injuries.effects_text(id))
+		_injury_note.text = " ".join(notes) if not notes.is_empty() else "Healing."
 	else:
 		_injury.text = "None"
 		_injury.add_theme_color_override("font_color", GOOD)
@@ -167,11 +181,22 @@ func show_night(info: Dictionary) -> void:
 			_verdict.text = "You pulled him out. The fight is off and the camp is wasted."
 		TrainingCamp.NOT_CLEARED:
 			_verdict.text = "More than %d days still to heal. The fight is off and the camp is wasted." % TrainingCamp.DOCTOR_MAX_DAYS
+			if bool(info.get("can_hide", false)):
+				_verdict.text = "More than %d days still to heal. The fight is off, unless you hide it from him: a %d%% chance he finds out." % [
+					TrainingCamp.DOCTOR_MAX_DAYS, roundi(100.0 * Injuries.found_chance(days))]
+		CampPlanner.HIDDEN:
+			_verdict.text = "You hid it and the doctor didn't find out. He fights hurt: a %d%% chance it gets worse (a longer layoff after). You can still pull out." % roundi(100.0 * float(night.worsen_chance))
+		CampPlanner.CAUGHT:
+			_verdict.text = "You tried to hide it and the doctor found out. The fight is off and the camp is wasted."
 		TrainingCamp.CLEARED_HURT:
 			_verdict.text = "He can fight hurt. Fighting on it has a %d%% chance of making it worse (a longer layoff after). You can pull out instead." % roundi(100.0 * float(night.worsen_chance))
 		_:
 			_verdict.text = "Fit to fight."
-	_fight.disabled = verdict != TrainingCamp.FIT and verdict != TrainingCamp.CLEARED_HURT
+	_fight.disabled = not verdict in [TrainingCamp.FIT, TrainingCamp.CLEARED_HURT, CampPlanner.HIDDEN]
+	_hide.visible = bool(info.get("can_hide", false))
+	if _hide.visible:
+		_hide.tooltip_text = "Keep it from the doctor: a %d%% chance he finds out and the fight is off; if not, he fights hurt and it's %s times as likely to get worse" % [
+			roundi(100.0 * Injuries.found_chance(days)), WeightCut._num(Injuries.HIDDEN_WORSEN)]
 	_pull_out.disabled = _fight.disabled
 	_sim.visible = sim_allowed
 	_sim.disabled = _fight.disabled
@@ -200,6 +225,15 @@ func text() -> String:
 
 func can_fight() -> bool:
 	return not _fight.disabled
+
+
+## Whether Hide it from the doctor shows (D406), and pressing it (tests).
+func can_hide() -> bool:
+	return _hide.visible
+
+
+func press_hide() -> void:
+	_hide.pressed.emit()
 
 
 func press_fight() -> void:

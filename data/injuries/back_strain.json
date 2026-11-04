@@ -1,0 +1,23 @@
+{
+	"schema": "injury@1",
+	"id": "back_strain",
+	"name": "Strained back",
+	"area": "body",
+	"days": [
+		3,
+		10
+	],
+	"effects": {
+		"takedowns": -5,
+		"strength": -3
+	},
+	"camp": {
+		"kinds": [
+			"conditioning",
+			"wrestling",
+			"grappling"
+		],
+		"weight": 2
+	},
+	"about": "He can't drop his level or lift a man as he should."
+}
