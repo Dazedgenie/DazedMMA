@@ -1136,6 +1136,47 @@ func test_gyms_train_real_session_kinds_and_every_background_has_one_that_suits_
 	_report(problems)
 
 
+func test_coach_roles_train_a_real_stat_group_or_the_cut_and_come_from_real_styles() -> void:
+	var problems: Array[String] = []
+	var roles: Dictionary = _items("enums").get("coach_roles", {}).get("values", {})
+	var personalities: Dictionary = _items("enums").get("coach_personalities", {}).get("values", {})
+	var groups: Array = (_items("enums").get("stats", {}).get("values", {}) as Dictionary).values()
+	if roles.size() < 3:
+		problems.append("data/enums/coach_roles.json is missing or nearly empty (D443)")
+	var claimed: Dictionary = {}
+	for id: String in roles:
+		var r: Dictionary = roles[id]
+		if String(r.get("name", "")) == "" or String(r.get("about", "")) == "":
+			problems.append("coach role '%s': needs a name and an about (D443)" % id)
+		if r.has("group") == r.has("cut"):
+			problems.append("coach role '%s': needs a stat group (with xp) or a cut, not both (D443)" % id)
+		if r.has("group") and (not String(r.group) in groups or not (r.get("xp") is float and float(r.xp) > 0.0)):
+			problems.append("coach role '%s': group must be a data/enums/stats group and xp a share above 0 (D443)" % id)
+		if r.has("cut") and not (r.cut is float and float(r.cut) > 0.0 and float(r.cut) * 3.0 <= 1.0):
+			problems.append("coach role '%s': cut must be a share above 0, at most a third (D443)" % id)
+		for style: Variant in r.get("styles", []):
+			if not _items("styles").has(String(style)):
+				problems.append("coach role '%s': style '%s' isn't in data/styles (D443)" % [id, style])
+			if claimed.has(String(style)):
+				problems.append("style '%s' coaches two roles (D443)" % style)
+			claimed[String(style)] = true
+		if not r.get("career") is Array or (r.career as Array).is_empty():
+			problems.append("coach role '%s': career must be a list of lines for coaches who never fought (D443)" % id)
+	for id: String in _items("styles"):
+		if not claimed.has(id):
+			problems.append("style '%s' coaches no role in data/enums/coach_roles.json (D443)" % id)
+	if personalities.size() < 2:
+		problems.append("data/enums/coach_personalities.json is missing or nearly empty (D443)")
+	for id: String in personalities:
+		var pe: Dictionary = personalities[id]
+		if String(pe.get("name", "")) == "" or String(pe.get("about", "")) == "":
+			problems.append("coach personality '%s': needs a name and an about (D443)" % id)
+		for field: String in ["xp", "injury", "skips"]:
+			if pe.has(field) and not (pe[field] is float and float(pe[field]) > 0.0):
+				problems.append("coach personality '%s': %s must be a number above 0 (D443)" % [id, field])
+	_report(problems)
+
+
 func test_local_cards_and_tournaments_name_a_city_and_a_venue() -> void:
 	var problems: Array[String] = []
 	var cards: Dictionary = _items("cards")

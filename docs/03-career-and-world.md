@@ -1728,7 +1728,7 @@ doc (https://claude.ai/artifact/BrEV5jejZtpFWMJiT9HuYC). The pieces, in this ord
 |---|---|---|
 | You own the gym, and its money: three run-down places to open, the gym's own money from members' dues and 15% of his purses, rent; his fee and shifts gone | D441 | Built (§14.1) |
 | Rooms and upgrades: mats, bag area, ring, cage, weights, recovery, video and changing rooms at three levels inside the building's floor space, 1 to 4 weeks to build with the room shut; faster training and a few sessions opened; the gym page as a drawn floor plan | D442 | Built (§14.2) |
-| Hiring coaches: specialists for a weekly wage by level, mostly the world's retired fighters | D443 | Planned |
+| Hiring coaches: specialists for a weekly wage by level, mostly the world's retired fighters | D443 | Built (§14.3) |
 | The gym's other fighters: named lads training there as sparring partners, walk-ins as it grows (was D407) | D444 | Planned |
 | Recruiting and the stable: signing the world's men, 2 fighters at first and up to 8, plans set once, each fight played or simmed, men who leave when unhappy | D445 | Planned |
 | The gym's name: members, who'll sign, which coaches come, news | D446 | Planned |
@@ -1851,4 +1851,61 @@ and `sim/world/scouting.gd` (`find_chance`); building in `sim/world/career.gd` (
 `ROOM_DONE`); the page in `ui/gym_page.gd` and the drawing in `ui/floor_plan.gd`; the planner's list in
 `ui/camp_planner.gd` (`at_gym`); the tip in `data/tips/gym_page.json`. Tests: `tests/sim/world/test_gym_rooms.gd`,
 `tests/ui/test_gym_page.gd`, `tests/data/test_data_files.gd`. Then update this section and D442.
+
+### 14.3 Hiring coaches (D443)
+
+Kyle (2026-11-04) picked "Retired world fighters, plus others" and "A weekly wage by his level" on the plan; the six cards
+on this piece (which coaches, how much faster, the wages, who comes looking, not being paid, personalities) went out with
+my picks, built here until he answers. You stay his head coach (§11.1, your specialty unchanged). The coaches are the
+specialists you pay, on the gym (`Staff`, `sim/world/staff.gd`; `gym.coaches`), so they save with it.
+
+**The roles** (`data/enums/coach_roles.json`), one coach a role:
+
+| Role | What he does a level | Who he was |
+|---|---|---|
+| Striking coach | Striking stats learn 5% faster | A retired boxer, brawler, counter-striker, dirty boxer, karate man, kicker, leg-kicker, Muay Thai man or sprawl-and-brawler |
+| Wrestling coach | Wrestling stats learn 5% faster | A retired wrestler (any of the three wrestling styles) |
+| BJJ coach | Grappling stats learn 5% faster | A retired BJJ man, judoka or Sambo man |
+| Strength coach | Physical stats learn 5% faster | A career coach (never fought) |
+| Nutritionist | The weight cut costs 20% less: its gas tank, its Chin and the chance of missing weight (§13.9) | A career coach |
+
+A coach's stats are his attribute group's (`data/enums/stats`), from any session, on top of the gym's kind, its rooms and
+your specialty. **His level** is what he did: a man who held a belt is level 3, a national or world-class pro level 2, the
+rest level 1; a career coach's is rolled (60% level 1, 30% level 2, 10% level 3). **His personality**
+(`data/enums/coach_personalities.json`): *Hard* (5% more in his group, injuries in training 15% likelier), *Patient*
+(injuries 15% less likely) or *Fiery* (a party animal skips 30% fewer sessions).
+
+**Wages:** **$15, $40 or $90 a week** by level (`WAGES`), from the gym's money every Monday after the month's dues are in.
+A coach the gym can't pay that Monday coaches on unpaid (news each week: *Couldn't pay Joe Hart, your striking coach, this
+week*); after **2 weeks unpaid** he walks out on the third (*Joe Hart has walked out: 3 weeks without pay*). A week paid
+clears it; missed wages aren't owed. **Each coach's level brings a member** (the members drift towards one more a level,
+as a room's does, §14.2). Letting a coach go costs nothing.
+
+**Who's looking for work** (`Career.coaches_looking`, `Staff.looking`) changes on the first of every month: 3 to 5 men,
+one or two career coaches and the rest the world's retired fighters from his country (§12.3, the 10 years of history
+included), his style deciding his role, none already on your staff. A former champion says so (*Former BFL champion,
+13-8-1*); a career coach has a line from his role's `career` (*Ran the weights room at a rugby club*). The list is made the
+first time it's looked at in a month and kept on the gym (`looking`, `looking_at`).
+
+**The gym's page** has two tabs, *Rooms* (§14.2) and *Coaches* (`ui/coaches_view.gd`): your coaches down the left, one
+row a role, each with his face (drawn from his name, as the old owner is), name and age, role, level, personality and
+wage, who he was, what he does, a warning when he's unpaid and *Let him go*; down the side the men looking for work, each
+with *Hire him · $40 a week* or *You have one*. The money line adds the week's wages, and the hub's gym line names them
+(*Coaching with you: Reece Wright (striking) and Ann Lee (nutritionist) · $105 a week in wages*).
+
+**Not yet:** coaches teaching moves (D40's catalogue), a cutman (cuts don't change fights yet, D375), coaches in your
+corner on fight night, poaching (D26), coaches getting better, and the gym's name deciding who comes (D446). The coaches
+are drawn in fight shorts, like the old owner, until people off the fight screen get clothes.
+
+**Old saves.** A gym from before D443 has no coaches. Fights outside a career don't change (no golden re-pin).
+
+**What to change:** the roles (`group`, `xp`, `cut`, `styles`, `career`) in `data/enums/coach_roles.json`; the
+personalities (`xp`, `injury`, `skips`) in `data/enums/coach_personalities.json`; the wages, levels, members, unpaid weeks
+and who comes looking at the top of `sim/world/staff.gd` (`WAGES`, `MEMBERS_PER_LEVEL`, `UNPAID_WEEKS`, `LOOKING`,
+`CAREER_COACHES`, `CAREER_LEVEL_ODDS`, `OLDEST`, `LEVEL_TWO_TIERS`); where they act in `sim/world/training_camp.gd`
+(`learning`), `sim/world/gym.gd` (`skip_share`, `injury_share`, `members_target`) and `sim/world/weight_cut.gd` (`side`'s
+`ease`); the wages in `sim/world/career.gd` (`end_week`, `COACH_UNPAID`, `COACH_LEFT`, `coaches_looking`, `hire_coach`,
+`let_go_coach`); the tab in `ui/coaches_view.gd` and `ui/gym_page.gd`, the hub's line in `ui/career_hub.gd`
+(`coaches_line`). Tests: `tests/sim/world/test_staff.gd`, `tests/ui/test_gym_page.gd`, `tests/data/test_data_files.gd`.
+Then update this section and D443.
 

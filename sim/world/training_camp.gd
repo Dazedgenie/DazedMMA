@@ -385,8 +385,8 @@ func ceiling(id: String) -> float:
 	return out
 
 
-## Training XP × this, from age, Coachable and the Fast learner gift. A stat that ages (Speed, Strength …) uses the
-## body's age curve, BODY_AGE_LEARNING.
+## Training XP × this, from age, Coachable and the Fast learner gift, your specialty (D311) and the gym's coaches
+## (Staff, D443). A stat that ages (Speed, Strength …) uses the body's age curve, BODY_AGE_LEARNING.
 func learning(stat_id: String = "") -> float:
 	var out: float = 1.0 + float(_profile.get("personality", {}).get("coachable", 0.0)) * COACHABLE_PER_POINT
 	for entry: Array in (BODY_AGE_LEARNING if Ageing.ages(stat_id) else AGE_LEARNING):
@@ -395,7 +395,8 @@ func learning(stat_id: String = "") -> float:
 			break
 	if "fast_learner" in _profile.get("gifts", []):
 		out *= FAST_LEARNER
-	return out * Coach.xp_share(coach_specialty, String(_groups.get(stat_id, "")))
+	var group: String = String(_groups.get(stat_id, ""))
+	return out * Coach.xp_share(coach_specialty, group) * Staff.xp_share(gym, group)
 
 
 ## Style pushes × this, from Coachable and age.

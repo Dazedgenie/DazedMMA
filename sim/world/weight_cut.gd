@@ -67,7 +67,7 @@ static func of(c: Career) -> Dictionary:
 	var his_level: float = rng.randf()
 	var his_miss: float = rng.randf()
 	var his_by: float = rng.randf()
-	var mine: Dictionary = side(c.weight_kg(), limit, level_of(c), _flawed(c.profile()), my_miss, my_by)
+	var mine: Dictionary = side(c.weight_kg(), limit, level_of(c), _flawed(c.profile()), my_miss, my_by, Staff.cut_share(c.gym))
 	var his_walk: float = Weight.walk_kg(him.get("frame", {}), float(him.get("age", 25)))
 	var theirs: Dictionary = side(his_walk, limit, opponent_level(his_level), _flawed(him), his_miss, his_by)
 	return { "him": mine, "opp": theirs, "edge": edge(float(mine.night_kg), float(theirs.night_kg)),
@@ -81,19 +81,20 @@ static func level_of(c: Career) -> String:
 
 
 ## One man's cut and weigh-in: walking at `walk` kg to a `limit` kg limit at `level`, with the two 0–1 rolls for missing
-## weight and by how much.
-static func side(walk: float, limit: float, level: String, flawed: bool, miss_roll: float, by_roll: float) -> Dictionary:
+## weight and by how much. `ease` × the tank and Chin it costs and the chance of missing (a nutritionist, Staff.cut_share,
+## D443).
+static func side(walk: float, limit: float, level: String, flawed: bool, miss_roll: float, by_roll: float, ease: float = 1.0) -> Dictionary:
 	var over: float = maxf(0.0, walk - limit)
 	var water: float = minf(over, walk * float(WATER[level]))
 	var full: float = walk * float(WATER[level])
 	var used: float = water / full if full > 0.0 else 0.0  # How much of the level's share he really shed.
-	var chance: float = float(MISS_CHANCE[level]) * (HARD_CUT_MISS if flawed else 1.0) if water > 0.0 else 0.0
+	var chance: float = float(MISS_CHANCE[level]) * (HARD_CUT_MISS if flawed else 1.0) * ease if water > 0.0 else 0.0
 	var made: bool = miss_roll >= chance
 	var scale: float = limit if made else limit + lerpf(MISS_BY[0], MISS_BY[1], by_roll)
 	return { "cut": level, "walk_kg": snappedf(walk, 0.1), "limit_kg": limit, "water_kg": snappedf(water, 0.1),
 		"scale_kg": snappedf(minf(walk, scale), 0.1), "made": made,
 		"night_kg": snappedf(minf(walk, scale + water * REGAIN), 0.1),
-		"tank_cost": snappedf(float(TANK_COST[level]) * used, 0.001), "chin_cost": snappedf(float(CHIN_COST[level]) * used, 0.1),
+		"tank_cost": snappedf(float(TANK_COST[level]) * used * ease, 0.001), "chin_cost": snappedf(float(CHIN_COST[level]) * used * ease, 0.1),
 		"miss_chance": snappedf(chance, 0.001) }
 
 
