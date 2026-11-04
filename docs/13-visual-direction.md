@@ -1304,7 +1304,7 @@ Existing target reach, body pressure, grip identity, mirror, clinch, fence and t
 Both camera angles from `contact_audit.gd --stills` were reviewed; the seven canonical torso-capsule
 samples now report zero crossings. This does not certify every clinch strike or full mesh contact.
 
-## Paired short strikes — review checkpoint (D427)
+## Paired short strikes (D427)
 
 Ground elbows previously targeted the glove, leaving the elbow 32–61 cm from the opponent's head.
 Paired limb specs can now carry a separate `joint_to`/`joint_off` contact and optional `joint_weight`.
@@ -1321,8 +1321,10 @@ not introduce artificial simulation-tick jumps.
 `tests/game/test_paired_short_strikes.gd` covers legal ground positions, both corners/leads and both
 body-lock owners, then samples windup through recovery and checks the return to the hold. Extend
 `tools/contact_audit.gd --stills` with `--action=ground_elbow` or `--action=bottom_elbow --who=1` to
-inspect the action. This is a work-in-progress checkpoint requested by Kyle: broader regression and
-final visual rechecking after the easing correction remain pending. Do not treat it as merge-ready.
+inspect the action; `--motion` also captures windup through recovery at 20 fps. Final motion samples
+were inspected from both sides after the easing correction. All 180 focused assertions pass. The
+broader local game suite passes 304/305 tests, with only the known baseline speed-threshold failure;
+the GitHub full test suite and playtest build pass. Other contacts and transitions remain tracked.
 
 ## Review and verification
 

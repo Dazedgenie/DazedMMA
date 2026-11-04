@@ -237,6 +237,8 @@ poses. It writes JSON diagnostics; `--stills` also captures two camera angles in
 This measures the existing torso capsule, not complete mesh collisions.
 Add `--action=ground_elbow` or `--action=bottom_elbow --who=1` to inspect a held contact pose in
 each legal position. The captures hide overhead labels so they do not obscure the joints.
+Use `--motion` instead of `--stills` to also save each strike's windup, contact, recovery and return to
+the hold as 20 fps JPEG sequences, from both camera angles.
 
     godot --headless --path . --script res://tools/contact_audit.gd -- --out=res://build/contact-audit.json
     godot --path . --script res://tools/contact_audit.gd -- --stills --out=res://build/contact-audit.json

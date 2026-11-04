@@ -7,6 +7,7 @@ var _out: String = "res://build/contact-audit.json"
 var _stills: bool = false
 var _action: String = ""
 var _who: int = 0
+var _motion: bool = false
 
 func _initialize() -> void:
 	for arg in OS.get_cmdline_user_args():
@@ -18,6 +19,9 @@ func _initialize() -> void:
 			_action = arg.trim_prefix("--action=")
 		elif arg.begins_with("--who="):
 			_who = int(arg.trim_prefix("--who="))
+		elif arg == "--motion":
+			_motion = true
+			_stills = true
 	_audit.call_deferred()
 
 
@@ -86,14 +90,65 @@ func _audit() -> void:
 			view._tag.visible = false
 			var focus: Vector3 = (view.figures[0].body.hips_at() + view.figures[1].body.hips_at()) / 2.0 + Vector3.UP * 0.3
 			for side in 2:
+				if _motion and side > 0 and _action != "":
+					sim.fighters[_who].action_id = _action
+					sim.fighters[_who].phase = "active"
+					sim.fighters[_who].phase_ticks_left = 1
+					for frame in 60:
+						view._process(1.0 / 60.0)
+					for figure: FighterFigure in view.figures:
+						figure.hide_overhead()
+					view._tag.visible = false
 				view.camera.fov = 42.0
 				view.camera.global_position = focus + (Vector3(2.4, 1.7, 2.8) if side == 0 else Vector3(-2.4, 1.7, 2.8))
 				view.camera.look_at(focus)
 				await process_frame
 				await RenderingServer.frame_post_draw
 				root.get_texture().get_image().save_png(_out.get_basename() + "-%s-%d.png" % [where, side])
+				if _motion and _action != "":
+					await _capture_motion(view, where, side)
 		else:
 			view.free()
 	var file: FileAccess = FileAccess.open(_out, FileAccess.WRITE)
 	file.store_string(JSON.stringify(report, "\t"))
 	quit()
+
+
+## One-times fight speed, sampled at 20 fps from a 60 Hz view update, including the full return to the hold.
+func _capture_motion(view: ArenaView, where: String, side: int) -> void:
+	var folder: String = _out.get_basename() + "-%s-%d-motion" % [where, side]
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(folder))
+	var sim: FightSim = view.driver.sim
+	var fighter: FighterState = sim.fighters[_who]
+	view.driver.normal_rate = 1.0
+	fighter.clear_action()
+	view.driver._budget = 0.0
+	for frame in 60:
+		view._process(1.0 / 60.0)
+	var focus: Vector3 = (view.figures[0].body.hips_at() + view.figures[1].body.hips_at()) / 2.0 + Vector3.UP * 0.3
+	view.camera.global_position = focus + (Vector3(2.4, 1.7, 2.8) if side == 0 else Vector3(-2.4, 1.7, 2.8))
+	view.camera.look_at(focus)
+	var camera_pose: Transform3D = view.camera.global_transform
+	var index: int = 0
+	for phase: String in ["telegraph", "windup", "active", "recovery", "idle"]:
+		var ticks: int = 5 if phase == "idle" else sim.phase_ticks(fighter, _action, phase)
+		for tick in ticks:
+			fighter.action_id = _action
+			fighter.phase = phase
+			fighter.phase_ticks_left = ticks - tick
+			if phase == "idle":
+				fighter.clear_action()
+			for frame in 6:
+				view.driver._budget = float(frame) / 6.0
+				view._process(1.0 / 60.0)
+				view.camera.global_transform = camera_pose
+				view.camera.fov = 42.0
+				for figure: FighterFigure in view.figures:
+					figure.hide_overhead()
+				view._tag.visible = false
+				if frame % 3 == 0:
+					await process_frame
+					await RenderingServer.frame_post_draw
+					root.get_texture().get_image().save_jpg("%s/frame-%03d.jpg" % [folder, index], 0.92)
+					index += 1
+	view.driver._budget = 0.0
