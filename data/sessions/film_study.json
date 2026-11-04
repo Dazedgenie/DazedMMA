@@ -11,5 +11,7 @@
 	"light": true,
 	"leanings": {},
 	"chin_wear": 0,
-	"minigame": "film_study"
+	"minigame": "film_study",
+	"needs": ["video"],
+	"instead": "meditation"
 }

@@ -1,0 +1,8 @@
+{
+	"schema": "tip@1",
+	"id": "gym_page",
+	"title": "Your gym's rooms",
+	"text": "Each room makes its kind of training count for more, and hard sparring, Shark tank and film study each need theirs (a ring or cage, the cage, the video room). Click a room to upgrade it or build on free floor: the work takes 1 to 4 weeks with the room shut, and each level brings a member in.",
+	"where": "gym_page",
+	"order": 135
+}

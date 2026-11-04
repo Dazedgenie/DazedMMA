@@ -1,0 +1,8 @@
+{
+	"schema": "tip@1",
+	"id": "gym_behind",
+	"title": "Behind on the rent",
+	"text": "Your gym spent more than it took in, so it's behind on the rent. More members come as he wins, and the gym takes 15% of every purse he's paid.",
+	"where": "gym_behind",
+	"order": 130
+}

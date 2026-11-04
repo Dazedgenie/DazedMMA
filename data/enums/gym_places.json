@@ -1,0 +1,41 @@
+{
+	"schema": "enum@1",
+	"id": "gym_places",
+	"values": {
+		"garage": {
+			"name": "A lock-up garage",
+			"about": "One bare bulb, a roll-up door and room for a mat and two bags. Cold in winter, cheap all year.",
+			"members": [
+				10,
+				14
+			],
+			"cap": 20,
+			"floor": 4,
+			"rooms": []
+		},
+		"unit": {
+			"name": "A unit on the estate",
+			"about": "An old print shop with a leaking skylight. Room for mats, bags and a corner for weights.",
+			"members": [
+				14,
+				18
+			],
+			"cap": 35,
+			"floor": 6,
+			"rooms": []
+		},
+		"hall": {
+			"name": "An old hall",
+			"about": "A gym that's closing, sold to you as it stands: high ceilings, a tired ring and members who stayed.",
+			"members": [
+				20,
+				26
+			],
+			"cap": 50,
+			"floor": 9,
+			"rooms": [
+				"ring"
+			]
+		}
+	}
+}

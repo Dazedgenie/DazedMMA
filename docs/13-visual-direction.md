@@ -1326,6 +1326,24 @@ were inspected from both sides after the easing correction. All 180 focused asse
 broader local game suite passes 304/305 tests, with only the known baseline speed-threshold failure;
 the GitHub full test suite and playtest build pass. Other contacts and transitions remain tracked.
 
+## Defence contact (D428)
+
+Blocked head strikes now aim at the visible body's nearer glove rather than the hidden driver's
+hand. Checked leg/calf kicks aim partway down the final raised lead shin rather than above its knee.
+Explicitly covered body shots target the nearer blocking forearm and ease the guard down over the
+ribs. Each target has a surface margin; the procedural-body fallback remains available.
+
+The simulation currently marks only head strikes as covered. The supplied body-cover preview is a
+staged outcome, not a change to live blocking rules. A landed body shot against a high guard keeps
+the ribs exposed; this repair does not grant body protection or change damage/results.
+
+`tests/game/test_defence_contact.gd` checks 32 final-view combinations across both corners and both
+lead assignments, protected-torso/thigh separation, fixed limb lengths throughout the motion, the
+block/release step and the return to guard (90 assertions). The 45 existing strike, motion, body,
+kick-clearance and paired-strike tests pass. `tools/defence_preview.gd --motion` captures two angles
+at 20 fps from 60 Hz updates, revealing the outcome at contact. These are contact repairs, not a
+complete swept-mesh guarantee; missed-strike trajectories and punch wind-up continuity remain open.
+
 ## Changing grips and passing half guard (D429)
 
 When the underhooks change hands in an open clinch, the fighters rise through a brief shoulder frame before closing the new grip. The route follows the pair as it moves. Strikes, turns and fence drives keep their own poses. A half-guard pass has a middle pose where the passer posts beside the hips and releases the trapped leg before settling into side control. The view discards the route if the destination changes.

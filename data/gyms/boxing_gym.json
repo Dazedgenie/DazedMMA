@@ -28,5 +28,9 @@
 	"backgrounds": [
 		"boxing_gym_kid",
 		"street_kid"
+	],
+	"rooms": [
+		"bags",
+		"ring"
 	]
 }

@@ -28,5 +28,9 @@
 		"wrestling_family",
 		"college_football",
 		"farm_kid"
+	],
+	"rooms": [
+		"mats",
+		"weights"
 	]
 }

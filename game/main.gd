@@ -63,6 +63,8 @@ var career: Career
 var tips: TipCard
 ## The world pages (D432): his division, the rankings, the promotions and the history, full-screen over the hub.
 var world_page: WorldScreen
+## Your gym's page over the hub (D442).
+var gym_page: GymPage
 var career_slot: int = -1
 ## Where careers are saved (tests use their own folder).
 var save_dir: String = CareerSaves.DIR
@@ -179,6 +181,7 @@ func _ready() -> void:
 	hub.rankings_pressed.connect(open_rankings)
 	hub.ask_pressed.connect(ask_step_up)
 	hub.history_pressed.connect(open_history)
+	hub.gym_pressed.connect(open_gym_page)
 	ui.add_child(hub)
 	result = FightResultCard.new()
 	result.visible = false
@@ -188,6 +191,10 @@ func _ready() -> void:
 	ui.add_child(verdict)
 	world_page = WorldScreen.new()
 	ui.add_child(world_page)
+	gym_page = GymPage.new()
+	gym_page.changed.connect(func() -> void: save_career())
+	gym_page.closed.connect(func() -> void: hub.refresh())
+	ui.add_child(gym_page)
 	_veil = ColorRect.new()
 	_veil.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_veil.color = Color(OffCage.HALL, 0.0)
@@ -202,7 +209,7 @@ func _ready() -> void:
 	ui.add_child(_snap)  # The old screen as it last looked, fading out over the veil.
 	tips = TipCard.new()
 	ui.add_child(tips)
-	for screen: Control in [setup, title, new_career, childhood, gym_screen, load_screen, hub, result, world_page, tips]:
+	for screen: Control in [setup, title, new_career, childhood, gym_screen, load_screen, hub, result, world_page, gym_page, tips]:
 		screen.theme = OffCage.theme()  # One look off the fight (D435): the buttons no screen styled itself.
 	ui.move_child($UI/Version, -1)  # Over the full-screen setup.
 	_console = $UI/DebugConsole
@@ -375,8 +382,8 @@ func show_hub(reports: Array = []) -> void:
 		places.append("tournament")
 	if career.suspended_days > 0:
 		places.append("suspended")
-	if career.gym_owed > 0:
-		places.append("gym_shifts")
+	if career.gym_money < 0:
+		places.append("gym_behind")
 	show_career_tips(places)
 
 
@@ -418,6 +425,17 @@ func open_rankings() -> void:
 ## The history page (D358): each belt's champions in his division and the legends.
 func open_history() -> void:
 	_open_world(WorldScreen.HISTORY)
+
+
+## Your gym's page (D442) over the hub: its floor plan, building and upgrading rooms.
+func open_gym_page() -> void:
+	if career == null or career.gym.is_empty():
+		return
+	gym_page.show_gym(career)
+	$UI.move_child(gym_page, -1)
+	$UI.move_child(tips, -1)
+	$UI.move_child(_console, -1)
+	show_career_tips(["gym_page"])
 
 
 ## The world pages (D432) on this tab, over the hub. A career saved before D352–D355 makes its world, promotions and
@@ -738,7 +756,7 @@ func _hub_to_title() -> void:
 
 func _hide_screens() -> void:
 	_close_camp()
-	for screen: Control in [title, new_career, childhood, gym_screen, load_screen, hub, world_page, setup, result, hud]:
+	for screen: Control in [title, new_career, childhood, gym_screen, load_screen, hub, world_page, gym_page, setup, result, hud]:
 		screen.visible = false
 	if hud.dialog_open():
 		hud.hide_dialog()

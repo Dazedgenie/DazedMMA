@@ -430,6 +430,7 @@ func test_film_study_in_a_career_camp_finds_his_habit_and_only_found_habits_are_
 		{ "trigger": "opp_strike_misses", "action": "overhand", "chance": 0.5, "within_ms": 800 }]
 	_main.career.trainee.stats.fight_iq = 100.0
 	_main.career.coach_specialty = Coach.TACTICIAN  # Film study finds a habit 70% a session.
+	_main.career.gym.rooms.video = 1  # Film study needs the video room (D442).
 	_main.hub.press_camp()
 	var planner: CampPlanner = _main.planner
 	assert_string_contains(planner.scouting_text(), "Known:", "the scouting box (D401)")
@@ -465,6 +466,7 @@ func test_playing_film_study_on_the_booked_man_and_naming_his_habit_finds_it_for
 	_main.hub.press_accept(_main.hub.offer_ids()[0])
 	var him: Dictionary = _main.career.booked_opponent()
 	him.tells = [{ "trigger": "own_jab_blocked", "action": "body_kick", "chance": 0.7, "within_ms": 1500 }]
+	_main.career.gym.rooms.video = 1  # Film study needs the video room (D442).
 	_main.hub.press_camp()
 	var planner: CampPlanner = _main.planner
 	planner.pick_preset("time_off")

@@ -37,7 +37,7 @@ const LESSONS: Array[Dictionary] = [
 const KICKER_STYLES: Array[String] = ["kicker", "leg_kicker"]
 ## Where tips show (tip@1 `where`).
 const PLACES: Array[String] = ["hub", "offers", "tournament", "camp", "mitt_work", "fight_night", "fight",
-	"round_break", "loss", "suspended", "gym_shifts"]
+	"round_break", "loss", "suspended", "gym_behind", "gym_page"]
 const TIPS_DIR := "res://data/tips/"
 
 static var _tips: Array[Dictionary] = []
