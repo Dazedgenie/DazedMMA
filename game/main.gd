@@ -35,6 +35,9 @@ const OVER := "over"
 ## A moment before the bell or walking out of the corners (D390, D391): the fight is held while it plays.
 const MOMENT := "moment"
 
+## The verdict over the cage has been read out (or skipped) and the sheet can come up (D436).
+signal verdict_read
+
 var arena: ArenaView
 var hud: FightHud
 var setup: FightSetup
@@ -85,6 +88,13 @@ var backdrop_in_headless: bool = false
 ## The fade between screens off the fight (D435): the next screen comes up out of the dark.
 var _veil: ColorRect
 var _snap: TextureRect
+## The verdict read out over the cage before the result's sheet, and the finish again behind it (D436). Headless runs
+## (the tests) go straight to the sheet unless a test asks.
+var verdict: VerdictBanner
+var replay: FinishReplay
+var verdict_in_headless: bool = false
+## The career fight's "what it means" rows for the result (D436), made as the fight goes onto his record.
+var _meaning: Array = []
 var _fade: Tween
 var _break_rules: RuleSlots
 ## The gameplan pickers on the between-rounds panel (D320).
@@ -173,6 +183,9 @@ func _ready() -> void:
 	result = FightResultCard.new()
 	result.visible = false
 	ui.add_child(result)
+	verdict = VerdictBanner.new()
+	verdict.finished.connect(func() -> void: verdict_read.emit())
+	ui.add_child(verdict)
 	world_page = WorldScreen.new()
 	ui.add_child(world_page)
 	_veil = ColorRect.new()
@@ -611,7 +624,8 @@ func _finish_career_fight(sim: FightSim, record: Dictionary, injury: Dictionary)
 	var me: FighterState = sim.fighters[driver.player]
 	var condition: Variant = settings.get("red_profile", {}).get("condition", {})
 	var tank_in: float = float(condition.get("tank", 1.0)) if condition is Dictionary else 1.0
-	var paid: int = career.finish_fight({ "result": result, "method": method_text(String(ended.get("result", ""))),
+	var before: Dictionary = career.standing()
+	career.finish_fight({ "result": result, "method": method_text(String(ended.get("result", ""))),
 		"round": sim.clock.current_round, "seed": sim.fight_seed, "simmed": bool(settings.get("sim", false)),
 		"hard": Aftermath.is_hard(me.hurt("head"), me.hurt("body"), me.knockdowns),
 		"tank": tank_in, "hurt": { "head": me.hurt("head"), "body": me.hurt("body"), "legs": me.hurt("legs") },
@@ -620,11 +634,10 @@ func _finish_career_fight(sim: FightSim, record: Dictionary, injury: Dictionary)
 	var lines: Array[String] = []
 	if bool(settings.get("sim", false)):
 		lines.append("Simmed: the fighters' own AI fought it.")
-	lines.append("%s: %s on his %s record, now %s." % [career.fighter_name(), result.to_upper(), "pro" if career.pro else "amateur",
-		career.record_text(career.pro)])
-	if paid > 0:
-		lines.append("Paid $%d. Savings: $%d." % [paid, career.money])
+	# What it did to his career goes on its own panel (D436): record, rank, belt, promotion, purse, suspension.
 	var through: String = tournament_text(career)
+	_meaning = FightResultCard.meaning_rows(before, career.standing(), career.fights[-1],
+		"" if through != "" else aftermath_text(career.fights[-1]))
 	if through != "":
 		lines.append(through)
 		return lines  # The suspension comes at the end of his day.
@@ -634,7 +647,6 @@ func _finish_career_fight(sim: FightSim, record: Dictionary, injury: Dictionary)
 	elif career.fights[-1].get("tournament") is Dictionary:
 		lines.append("Out of the %s in the %s." % [String(career.fights[-1].tournament.name),
 			Tournament.stage_name(int(career.fights[-1].tournament.size), int(career.fights[-1].tournament.stage)).to_lower()])
-	lines.append(aftermath_text(career.fights[-1]))
 	return lines
 
 
@@ -722,6 +734,7 @@ func _hide_screens() -> void:
 	if driver != null:
 		driver.held = true
 	backdrop.stop(arena)
+	_stop_replay()
 	arena.watch(null)  # The empty hall behind the screens off the fight, the camera drifting round it (D435).
 	arena.hall_drift = true
 	_fade_up()
@@ -793,6 +806,7 @@ func start_fight(p_settings: Dictionary) -> void:
 	driver.round_over.connect(_on_round_over)
 	driver.fight_over.connect(_on_fight_over)
 	backdrop.stop(arena)  # The title's fight gives the cage up (D434; the tools start a fight from the title).
+	_stop_replay()
 	arena.tell_cues = bool(settings.get("tell_cues", true))
 	arena.tell_watch = Scouting.Watch.new(settings.known_tells) if settings.get("known_tells") is Array else null
 	arena.watch(driver)
@@ -844,6 +858,11 @@ func _process(delta: float) -> void:
 		driver.advance(delta)
 	elif state == TITLE and backdrop.running():
 		backdrop.advance(arena, delta)
+	elif replay != null and replay.running():
+		var was: FightDriver = replay.driver
+		replay.advance(arena, delta)
+		if replay.driver != was:
+			sounds.watch(replay.driver.sim)  # Each time it plays again, its own sounds.
 
 
 ## True when `event` is a key or click that skips the moment playing (D394; not F3, the debug overlay).
@@ -1113,6 +1132,11 @@ func _on_fight_over(event: FightEvent) -> void:
 		await arena.ceremony.moment_done
 		if driver == null or driver.sim != sim:
 			return
+	if (DisplayServer.get_name() != "headless" or verdict_in_headless) and not bool(settings.get("sim", false)):
+		_read_the_verdict(sim)  # Not a simmed fight: that goes straight to the result (D305).
+		await verdict_read
+		if driver == null or driver.sim != sim:
+			return
 	var record: Dictionary = FightRecord.build(sim, settings, driver.player)
 	if record_dir != "":
 		last_record_path = FightRecord.save(record, record_dir)
@@ -1131,6 +1155,7 @@ func _on_fight_over(event: FightEvent) -> void:
 				[["On to the %s" % stage.to_lower(), next_tournament_fight], ["Pull out", withdraw_from_tournament]])
 		else:
 			result.show_result(sim, driver.player, record.stats, notes, [["Back to the hub", _career_after_fight]])
+		result.show_meaning(_meaning)
 		if not career.fights.is_empty() and String(career.fights[-1].get("result", "")) == "loss":
 			show_career_tips(["loss"])  # His first loss, while he's learning (D316).
 		return
@@ -1147,6 +1172,29 @@ func _on_fight_over(event: FightEvent) -> void:
 		buttons.append(["Open saved fights", func() -> void: OS.shell_open(ProjectSettings.globalize_path(record_dir))])
 	hud.hide_dialog()
 	result.show_result(sim, driver.player, record.stats, notes, buttons)
+
+
+## The verdict over the cage (D436): the HUD away, a finish playing again slowly behind it, the lines read out.
+func _read_the_verdict(sim: FightSim) -> void:
+	hud.visible = false
+	_stop_replay()
+	arena.backdrop = true  # No range tag or move names showing through the band.
+	if FinishReplay.wanted(sim):
+		var ids: Array[String] = [sim.fighters[0].id, sim.fighters[1].id]
+		replay = FinishReplay.new(sim, func() -> Array[FighterState]: return _roster.make_pair(ids[0], ids[1]), _actions, driver.player)
+		replay.start(arena)
+		sounds.watch(replay.driver.sim)
+	verdict.begin(sim, replay != null)
+
+
+func _stop_replay() -> void:
+	if replay != null:
+		replay.stop(arena)
+		replay = null
+	if arena != null:
+		arena.backdrop = false
+	if verdict != null:
+		verdict.visible = false
 
 
 ## `-- --self-check`: the self-check fight from the debug console, printed, then quit with

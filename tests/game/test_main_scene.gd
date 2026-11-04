@@ -407,7 +407,7 @@ func test_a_career_fight_goes_from_the_offer_through_the_camp_to_his_record() ->
 	assert_eq(String(_main.career.fights[0].method), "TKO")
 	assert_eq(_main.career.week, fight_week + 1)
 	assert_eq(CareerSaves.load_slot(0, SAVE_DIR).fights.size(), 1, "saved")
-	assert_string_contains(_main.result.text(), "LOSS on his amateur record")
+	assert_string_contains(_main.result.text(), "0-0-0 → 0-1-0 amateur", "what it means (D436): his record before and after")
 	assert_string_contains(_main.result.text(), "Medical suspension: 30 days (a TKO loss)", "the aftermath (D305)")
 	assert_eq(_main.career.suspended_days, Aftermath.TKO_DAYS - Career.FIGHT_TO_MONDAY)
 	_main._career_after_fight()
