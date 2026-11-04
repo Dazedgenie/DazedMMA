@@ -1,6 +1,6 @@
 # 03 — Career, World & Life
 
-> Related decisions: D7, D16–D19, D21, D22, D25, D35, D41–D45, D55–D57, D160, D300–D316, D350–D359, D400–D419. Status: **design draft**; §7.1 and §10.1–§10.5, §11 and §12 (D350–D359) are built; §13 (phase 4) is being built (§13.1 and §13.2 so far).
+> Related decisions: D7, D16–D19, D21, D22, D25, D35, D41–D45, D55–D57, D160, D300–D316, D350–D359, D400–D419, D440–D459. Status: **design draft**; §7.1 and §10.1–§10.5, §11 and §12 (D350–D359) are built; §13 (phase 4) is being built (§13.1 and §13.2 so far).
 
 ---
 
@@ -574,6 +574,8 @@ section and D312.
 ### 11.3 Your gym and the walk-in (D313)
 
 *Since D434 (`06` §6.14): each gym a card with its owner's face and what it trains as chips, and him in a lit doorway at the walk-in.*
+
+*Since D441 (§14.1): the gym is yours. The three gyms are three run-down places you could open, the owner is the man you take it over from, the gym has its own money from members' dues and 15% of his purses, and his monthly fee and the Saturday shifts are gone. What follows is how it worked before that, apart from the kinds and cultures, which still work as written.*
 
 You coach at a gym, and that's where he walks in at 16 (D37). Kyle (2026-11-01) picked **Yours** on the plan's card ("Whose
 gym does he walk into at 16?"): you coach at a gym, picked from three in his hometown when he walks in, and the walk-in is
@@ -1256,9 +1258,9 @@ study" first, my pick):
 | The opponent's camp: a plan against your style, sometimes a rule against your favourite move, his own cut (his cut moves to D405) | D404 | Built (§13.8) |
 | The weight cut and the weigh-in: how hard he cuts in fight week, missing weight (Kyle, 2026-11-02: "One pick now, planner later": light, normal, hard or extreme now, D23's five-day planner later as a minigame) | D405 | Built (§13.9) |
 | Named injuries, and hiding one from the doctor | D406 | Built (§13.10) |
-| Sparring partners: named men at his gym from the world's local men | D407 | Planned |
-| Coaches: assistants for a weekly fee, the head coach's levels | D408 | Planned |
-| Changing gyms: his hometown and the nearest city | D409 | Planned |
+| Sparring partners: named men at his gym from the world's local men | D407 | Moved to the gym-owner plan (§14, D444; Kyle, 2026-11-04: "Fold them into this plan") |
+| Coaches: assistants for a weekly fee, the head coach's levels | D408 | Moved to the gym-owner plan (§14, D443 and D447) |
+| Changing gyms: his hometown and the nearest city | D409 | Moved to the gym-owner plan (§14, D448: expanding and moving your own gym) |
 | Minigames, one a PR: film study, heavy bag, sprawl reflex, Thai pads first (Kyle, 2026-11-03: "Minigames first", next after D403, before the opponent's camp) | D410 on | Film study built (§13.4, D410); sprawl reflex built (§13.5, D411); heavy bag built (§13.6, D412); Thai pads built (§13.7, D413): all four built |
 | Your corner naming the habits you found at each round break (Kyle's ask after D401) | D419 | Built (§13.1) |
 
@@ -1713,3 +1715,76 @@ and lasting dents) in `data/injuries/`. The fight chances and hiding in the cons
 `ui/camp_planner.gd` (`hide_injury`) and the card in `ui/fight_night_card.gd`. Tested in
 `tests/sim/world/test_injuries.gd`, `tests/ui/test_career_screens.gd` and `tests/data/test_data_files.gd`. Fights don't
 change outside a career (no golden re-pin).
+
+## 14. You own the gym (D440–D459)
+
+Kyle (2026-11-04): "currently we are playing the middle with if we are the fighter or the coach. I think we need to really
+focus on the fact we are the coach/gym owner." You own a small run-down gym from day one and grow it; the lad you raised
+from 8 stays the main story, with a small stable of other fighters round him; when he retires the gym carries on. This
+supersedes D26's "we stay single-fighter". The plan, its twenty questions and Kyle's answers (all my picks) are in the plan
+doc (https://claude.ai/artifact/BrEV5jejZtpFWMJiT9HuYC). The pieces, in this order (D440):
+
+| Piece | Decision | Status |
+|---|---|---|
+| You own the gym, and its money: three run-down places to open, the gym's own money from members' dues and 15% of his purses, rent; his fee and shifts gone | D441 | Built (§14.1) |
+| Rooms and upgrades: mats, bag area, ring, cage, weights, recovery, video and changing rooms at three levels inside the building's floor space, 1 to 4 weeks to build with the room shut; faster training and a few sessions opened; the gym page as a drawn floor plan | D442 | Planned |
+| Hiring coaches: specialists for a weekly wage by level, mostly the world's retired fighters | D443 | Planned |
+| The gym's other fighters: named lads training there as sparring partners, walk-ins as it grows (was D407) | D444 | Planned |
+| Recruiting and the stable: signing the world's men, 2 fighters at first and up to 8, plans set once, each fight played or simmed, men who leave when unhappy | D445 | Planned |
+| The gym's name: members, who'll sign, which coaches come, news | D446 | Planned |
+| Your own levels as head coach (was D408) | D447 | Planned |
+| Expanding and moving: the unit next door, a bigger building (was D409) | D448 | Planned |
+| When he retires: the gym carries on | D449 | Planned |
+
+### 14.1 You own the gym, and its money (D441)
+
+Kyle (2026-11-04) picked "Yes, a small run-down place", "Members plus a cut of purses", "Pick 1 of 3 run-down places",
+"15%" and "Tight: members just cover rent", my picks.
+
+**Where you open your gym** (`ui/gym_screen.gd`) is still the last step of a new career, with three cards side by side
+(`Gym.offers`): three different kinds, the first suiting where he comes from, each a different run-down place
+(`data/enums/gym_places.json`):
+
+| Place | What it is | Members at first | Most it holds |
+|---|---|---|---|
+| A lock-up garage | One bulb, a roll-up door, a mat and two bags | 10–14 | 20 |
+| A unit on the estate | An old print shop: mats, bags, a corner for weights | 14–18 | 35 |
+| An old hall | A gym that's closing, sold as it stands | 20–26 | 50 |
+
+Each card has the gym's name, the place, its kind and culture (they train as before, §11.3), the man you take it over from
+(his face and a line, where the owner used to be) and its month: members × dues, the rent, and what's left big (*+$80 a
+month*). *Open it here* picks it. At the walk-in the sign's paint is still wet: "this place is yours, and from today so is
+he."
+
+**The gym's money** (`Career.gym_money`, `sim/world/gym.gd`) is apart from his savings:
+
+- **$500** to start (`START_MONEY`): what you put in.
+- On the **first Monday of each month** (`Gym.month`) the members pay their **dues** (a member pays the kind's `fee`: a
+  wrestling club $25–45, an MMA gym $70–110) and the **rent** goes out. The rent is 85% of what its first members pay, to
+  the nearest $10 (`RENT_SHARE`), so the first year is tight: a garage of 12 at $40 is $480 in and $410 rent.
+- **Members** then move one towards a number (two when they're five or more off): its first members plus **2 for each of
+  his wins** (`MEMBERS_PER_WIN`), never more than the place holds. One may drift off in a month (25%, `LEAVE_CHANCE`), so
+  with no wins it slowly empties. The drift rolls on its own dice, so nothing else in the career changes.
+- The gym takes **15% of every purse** he's paid (`PURSE_CUT`): a $2,000 win pays the gym $300 and him $1,700. The
+  fight's entry keeps it (`gym_cut`) and the result says so (*Purse $2000 (savings $1700, the gym's 15%: $300)*).
+- Below $0 it's **behind on the rent**: news (*Advance* stops on it, the money shows red, a tip explains it). Nothing else
+  happens yet; going under is for later (D43).
+
+His **monthly fee and the Saturday gym shifts are gone**: it's your gym. His savings are only his purses and his background's
+money now.
+
+**The hub** says *Trains at your gym, …* on his card, and in *This week* "Your gym: $620 · A unit on the estate · 16
+members at $40 a month · rent $540 · +$100 a month" above *His savings*. *Last week* says the gym's month when one turned
+("The gym's month: dues $640, rent $540 (+$100), 16 members (+1).").
+
+**Old saves.** A career saved before D441 (when he paid a fee at someone else's gym) loads with that gym as yours: a unit
+with 16 members, its fee now what a member pays, and $500 (`Gym.made_yours`). What he owed is forgotten. A career from
+before D313 still has no gym. Fights don't change (no golden re-pin).
+
+**What to change:** the places in `data/enums/gym_places.json`; what members pay in each kind's `fee` in `data/gyms/`; the
+money numbers at the top of `sim/world/gym.gd` (`START_MONEY`, `PURSE_CUT`, `RENT_SHARE`, `MEMBERS_PER_WIN`,
+`LEAVE_CHANCE`, `OLD_SAVE_PLACE`, `OLD_SAVE_MEMBERS`) and the month in `Gym.month`; where the career turns it in
+`sim/world/career.gd` (`end_week`, `_pay`, `GYM_BEHIND`); the cards and the walk-in in `ui/gym_screen.gd` (`gym_text`,
+`money_text`, `place_line`, `walk_in_text`); the hub in `ui/career_hub.gd` (`gym_text`, `month_text`); the result's purse
+row in `ui/result_card.gd`; the tip in `data/tips/gym_behind.json`. Tests: `tests/sim/world/test_gym.gd`,
+`tests/ui/test_career_screens.gd`, `tests/data/test_data_files.gd`. Then update this section and D441.

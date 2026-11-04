@@ -11,7 +11,7 @@ const COLOURS := {
 	Career.FIGHT_NIGHT: Color("#ff6b6b"), Career.HURT: Color("#ff8787"), Career.HEALED: Color("#69db7c"),
 	Career.CLEARED: Color("#69db7c"), Career.BIRTHDAY: Color("#f783ac"), Career.BACK_TO_SCHOOL: Color("#74c0fc"),
 	Career.LEFT_SCHOOL: Color("#74c0fc"), Career.SCHOOL_OUT: Color("#ffd43b"), Career.OFFERS: Color("#fcc419"),
-	Career.GYM_SHIFTS: Color("#fcc419"), Career.WORN_DOWN: Color("#ffa94d"),
+	Career.GYM_BEHIND: Color("#fcc419"), Career.WORN_DOWN: Color("#ffa94d"),
 }
 
 var kind: String = ""
@@ -69,7 +69,7 @@ func _draw() -> void:
 			draw_rect(r, c)
 			draw_polyline(PackedVector2Array([r.position, r.position + Vector2(r.size.x * 0.5, r.size.y * 0.55), r.position + Vector2(r.size.x, 0.0)]),
 				ink, 1.5)
-		Career.GYM_SHIFTS:
+		Career.GYM_BEHIND:
 			draw_circle(o + Vector2(s, s) * 0.5, s * 0.4, c)
 			draw_string(DisplayFont.font(), o + Vector2(s * 0.36, s * 0.7), "$", HORIZONTAL_ALIGNMENT_LEFT, -1, int(s * 0.55), ink)
 		Career.WORN_DOWN:
