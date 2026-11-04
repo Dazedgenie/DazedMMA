@@ -20,7 +20,7 @@ Rules:
 
 | Folder | Schema | What it is |
 |---|---|---|
-| `data/enums/` | `enum@1` | Fixed vocabularies: `flags` (state flags, `docs/01` §5), `stats` (attributes, `docs/02` §2), `gifts` and `flaws` (`docs/11` §4.3), `nicknames` (what *Roll* picks from on the new-career screen, D302), `coach_backgrounds` (who the head coach was before him: id → `{name, about}`, D311), `gym_cultures` (a gym's culture: id → `{name, about, skips, injury, sparring_xp}`, the shares it changes those by, D313), `gym_places` (the run-down places you can open in: id → `{name, about, members: [low, high], cap}`, members at first and the most it holds, D441) |
+| `data/enums/` | `enum@1` | Fixed vocabularies: `flags` (state flags, `docs/01` §5), `stats` (attributes, `docs/02` §2), `gifts` and `flaws` (`docs/11` §4.3), `nicknames` (what *Roll* picks from on the new-career screen, D302), `coach_backgrounds` (who the head coach was before him: id → `{name, about}`, D311), `gym_cultures` (a gym's culture: id → `{name, about, skips, injury, sparring_xp}`, the shares it changes those by, D313), `gym_places` (the run-down places you can open in: id → `{name, about, members: [low, high], cap, floor, rooms}`, members at first, the most it holds, its floor squares and the rooms it comes with, D441, D442), `gym_rooms` (the rooms you can build at your gym: id → `{name, about, size (1–2 floor squares), kinds?: {session kind: XP share a level}, sessions?: {session id: XP share a level}, injury?: {session kind: share less a level}, night? (share less fatigue kept overnight a level), heals? (days more healing each Sunday a level), finds? (film study's habit chance a level), cap? (members a level)}`, D442, `docs/03` §14.2) |
 | `data/actions/` | `action@2` | Everything a fighter can do: strikes, takedowns, defenses, ground moves |
 | `data/positions/` | `position@2` | Standing, clinch and ground positions (`docs/01` §4) |
 | `data/calls/` | `call@2` | Coach calls: now/read, intent/technique (`docs/01` §6, §22) |
@@ -215,6 +215,7 @@ seed)` rolls the three gyms a new career offers.
 | `names` | strings | Names for a gym of this kind; `{city}` is his hometown and `{surname}` the owner's surname |
 | `owners` | strings | A line about the owner, one picked per gym |
 | `backgrounds` | background ids | The backgrounds it suits: the first gym on offer is a kind that suits his (every background must have one) |
+| `rooms` | gym_rooms ids | The rooms a gym of this kind opens with at level 1, those that fit its place's floor (D442) |
 
 ### vignette@1 (examples: `age8_flyer.json`, `age15_trip.json`)
 One childhood scene (D312, `docs/03` §11.2). Loaded by `Childhood` (`sim/world/childhood.gd`), which draws one scene per age
@@ -260,7 +261,7 @@ Coach's Notebook. Loaded by `Tutorial` (`sim/world/tutorial.gd`).
 | Field | Type | Meaning |
 |---|---|---|
 | `title`, `text` | strings | The card: `text` is one or two sentences (the validator counts them) |
-| `where` | string | When it shows (`Tutorial.PLACES`): `hub`, `offers`, `tournament` (a tournament offer), `camp`, `mitt_work` (with the camp), `fight_night`, `fight` (a lesson fight's opening card), `round_break`, `loss`, `suspended`, `gym_behind` (your gym's money below $0, D441) |
+| `where` | string | When it shows (`Tutorial.PLACES`): `hub`, `offers`, `tournament` (a tournament offer), `camp`, `mitt_work` (with the camp), `fight_night`, `fight` (a lesson fight's opening card), `round_break`, `loss`, `suspended`, `gym_behind` (your gym's money below $0, D441), `gym_page` (the gym's page first opened, D442) |
 | `order` | number | Its place in the Notebook and when several are due at once |
 | `lesson` | 1–3 | Optional: only before that lesson fight (each lesson has one `fight` tip) |
 
@@ -296,6 +297,8 @@ One kind of training session (`docs/02` §3.5, D125). Loaded by `TrainingLibrary
 | `minigame` | minigame id or null | The minigame that will play it (D38; built so far: `mitt_work`, D137; `film_study`, D410; `sprawl_reflex`, D411; `heavy_bag`, D412; `thai_pads`, D413): `mitt_work`, `heavy_bag`, `thai_pads`, `wrestling_chain`, `sprawl_reflex`, `rolling_puzzle`, `roadwork`, `film_study`, `hard_sparring`, `meditation` |
 | `drills_rule` (optional) | 1 or 2 | The rule slot it drills (D402, `docs/03` §13.2): each one done sharpens the career's rule in that slot. Only a career's planner offers it. `drill_rule_1.json`, `drill_rule_2.json` |
 | `career_only` (optional) | bool | Put in by the career, never planned: the camp planner doesn't offer it (school and homework, D314; the gym shift until D441) |
+| `needs` (optional) | gym_rooms ids | At your gym it needs one of these rooms built and open (D442, `docs/03` §14.2): hard sparring a ring or cage, Shark tank the cage, film study the video room. A camp with no gym needs nothing |
+| `instead` (optional) | session id | What runs in its slot when the gym hasn't the room (needed with `needs`) |
 
 ### injury@1 (examples: `sprained_ankle.json`, `broken_hand.json`)
 One named injury (D406, `docs/03` §13.10). Loaded by `Injuries` (`sim/world/injuries.gd`).
@@ -383,7 +386,7 @@ each with a `.backup.json` of the save before it). Written by `CareerSaves` (`ga
 | `coach` | `{name, background?, specialty?}`: the head coach, the player. `background` is a `data/enums/coach_backgrounds` id and `specialty` one of `striking`, `wrestling`, `bjj`, `motivator`, `tactician` (D311, `docs/03` §11.1); a career saved before D311 has neither and loads with none |
 | `fighter` | The fighter@1 profile he started with (id `career_fighter`); what changes with training is in `trainee`. A career made on the new-career screen adds `background`, `age` and `potential` (D302) |
 | `about` | `nickname`, `hometown`, `country`, `background`: shown on screens, not used by fights. `look` (D365): his look as picked on the new-career screen (fighter@1 `look`, every field), drawn in his fights; missing in a career saved before, when it's rolled for his hometown's country |
-| `gym` | Your gym, where he trains and that you own (D313, D441, `docs/03` §11.3 and §14.1): `{kind (a data/gyms id), culture (a gym_cultures id), place (a gym_places id), name, owner_name, owner (the man you took it over from), dues (what a member pays a month), members, members_start, rent}`. Optional: `{}` (or missing) for a career before D313. A gym saved before D441 (`fee` and no `place`) loads as a unit with 16 members whose dues are the old fee |
+| `gym` | Your gym, where he trains and that you own (D313, D441, `docs/03` §11.3 and §14.1): `{kind (a data/gyms id), culture (a gym_cultures id), place (a gym_places id), name, owner_name, owner (the man you took it over from), dues (what a member pays a month), members, members_start, rent}`. Optional: `{}` (or missing) for a career before D313. A gym saved before D441 (`fee` and no `place`) loads as a unit with 16 members whose dues are the old fee. Since D442 also `rooms` (gym_rooms id → level 1–3), `levels_start` (the levels it opened with, which bring no members), `spent` (room id → $ spent on it, a quarter back when torn down) and `building` (`{room, level (0 = tearing it down), done (the week it opens)}` or `{}`), `spots` (room id → its floor squares as `[[x, y], …]` on the floor plan, kept where it was built); a gym saved before D442 gets its kind's starting rooms |
 | `gym_money` | Your gym's own money in dollars, apart from his `money`; below 0 when it's behind on the rent (D441; optional: a save with a gym but none starts at $500, one with no gym 0). A save's `gym_owed` (D313's shifts) is ignored |
 | `gym_last_month` | The gym's last month as it turned: `{dues, rent, net, members, joined, week}`, `{}` before the first (D441; optional) |
 | `childhood` | His childhood scenes (D312, `docs/03` §11.2): `{picks: [{scene, choice}], second (the runner-up background), people: [{role, name, about, age}]}`. Optional: `{}` (or missing) when his background was picked from the list or the career predates D312 |

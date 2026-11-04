@@ -9,7 +9,9 @@
 				10,
 				14
 			],
-			"cap": 20
+			"cap": 20,
+			"floor": 4,
+			"rooms": []
 		},
 		"unit": {
 			"name": "A unit on the estate",
@@ -18,7 +20,9 @@
 				14,
 				18
 			],
-			"cap": 35
+			"cap": 35,
+			"floor": 6,
+			"rooms": []
 		},
 		"hall": {
 			"name": "An old hall",
@@ -27,7 +31,11 @@
 				20,
 				26
 			],
-			"cap": 50
+			"cap": 50,
+			"floor": 9,
+			"rooms": [
+				"ring"
+			]
 		}
 	}
 }

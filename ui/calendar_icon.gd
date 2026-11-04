@@ -3,7 +3,8 @@ extends Control
 ## A small icon for a calendar event on the hub, drawn in code (docs/06 §6.13, D433; Kyle's picks "Drawn in code" on the
 ## D430 cards and "Icons drawn in code" on the D433 cards): crossed gloves for fight night, a red cross for hurt, a green
 ## cross for healed, a tick for cleared to fight, a candle for a birthday, a book for school, a sun for the summer
-## holidays, an envelope for offers, a coin for the gym shifts and a low battery for worn down.
+## holidays, an envelope for offers, a coin for the gym behind on its rent, a low battery for worn down and a little
+## building for a room built at your gym (D442).
 
 const SIZE := Vector2(26.0, 26.0)
 ## Each kind's colour.
@@ -11,7 +12,7 @@ const COLOURS := {
 	Career.FIGHT_NIGHT: Color("#ff6b6b"), Career.HURT: Color("#ff8787"), Career.HEALED: Color("#69db7c"),
 	Career.CLEARED: Color("#69db7c"), Career.BIRTHDAY: Color("#f783ac"), Career.BACK_TO_SCHOOL: Color("#74c0fc"),
 	Career.LEFT_SCHOOL: Color("#74c0fc"), Career.SCHOOL_OUT: Color("#ffd43b"), Career.OFFERS: Color("#fcc419"),
-	Career.GYM_BEHIND: Color("#fcc419"), Career.WORN_DOWN: Color("#ffa94d"),
+	Career.GYM_BEHIND: Color("#fcc419"), Career.WORN_DOWN: Color("#ffa94d"), Career.ROOM_DONE: Color("#4dabf7"),
 }
 
 var kind: String = ""
@@ -72,6 +73,10 @@ func _draw() -> void:
 		Career.GYM_BEHIND:
 			draw_circle(o + Vector2(s, s) * 0.5, s * 0.4, c)
 			draw_string(DisplayFont.font(), o + Vector2(s * 0.36, s * 0.7), "$", HORIZONTAL_ALIGNMENT_LEFT, -1, int(s * 0.55), ink)
+		Career.ROOM_DONE:
+			draw_colored_polygon(PackedVector2Array([o + Vector2(s * 0.1, s * 0.45), o + Vector2(s * 0.5, s * 0.12), o + Vector2(s * 0.9, s * 0.45)]), c)
+			draw_rect(Rect2(o + Vector2(s * 0.2, s * 0.45), Vector2(s * 0.6, s * 0.43)), c)
+			draw_rect(Rect2(o + Vector2(s * 0.42, s * 0.6), Vector2(s * 0.16, s * 0.28)), ink)
 		Career.WORN_DOWN:
 			draw_rect(Rect2(o + Vector2(s * 0.1, s * 0.3), Vector2(s * 0.7, s * 0.4)), c, false, line * 0.7)
 			draw_rect(Rect2(o + Vector2(s * 0.8, s * 0.42), Vector2(s * 0.1, s * 0.16)), c)

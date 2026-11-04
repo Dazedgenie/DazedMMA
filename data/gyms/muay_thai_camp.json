@@ -28,5 +28,9 @@
 		"muay_thai_abroad",
 		"traditional_martial_arts",
 		"track_star"
+	],
+	"rooms": [
+		"bags",
+		"ring"
 	]
 }

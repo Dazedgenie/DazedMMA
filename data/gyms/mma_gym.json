@@ -27,5 +27,10 @@
 		"late_starter",
 		"college_football",
 		"street_kid"
+	],
+	"rooms": [
+		"mats",
+		"bags",
+		"cage"
 	]
 }
