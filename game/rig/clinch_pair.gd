@@ -360,12 +360,12 @@ static func _mirror_limb(want: Dictionary) -> Dictionary:
 	var m := {}
 	for key: String in want:
 		var value: Variant = want[key]
-		if key == "to":
+		if key in ["to", "joint_to"]:
 			var point_name: String = String(value)
 			if point_name.ends_with("_l") or point_name.ends_with("_r"):
 				point_name = point_name.left(-1) + _other(point_name.right(1))
 			m[key] = point_name
-		elif key in ["at", "off", "pole"]:
+		elif key in ["at", "off", "pole", "joint_off"]:
 			m[key] = [-value[0], value[1], value[2]]
 		else:
 			m[key] = value
@@ -376,10 +376,12 @@ static func _relabel(spec: Dictionary) -> Dictionary:
 	var out := {}
 	for key: String in spec:
 		var value: Variant = spec[key]
-		if value is Dictionary and (value as Dictionary).has("to"):
+		if value is Dictionary:
 			var want: Dictionary = (value as Dictionary).duplicate()
-			var point_name: String = String(want.to)
-			want.to = ("b" if point_name.begins_with("a.") else "a") + point_name.substr(1)
+			for target_key: String in ["to", "joint_to"]:
+				if want.has(target_key):
+					var point_name: String = String(want[target_key])
+					want[target_key] = ("b" if point_name.begins_with("a.") else "a") + point_name.substr(1)
 			out[key] = want
 		else:
 			out[key] = value

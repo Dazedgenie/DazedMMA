@@ -235,6 +235,8 @@ checked. Needs a display:
 `contact_audit.gd` checks final limb segments against the other torso in seven canonical ground/clinch
 poses. It writes JSON diagnostics; `--stills` also captures two camera angles in the real scene.
 This measures the existing torso capsule, not complete mesh collisions.
+Add `--action=ground_elbow` or `--action=bottom_elbow --who=1` to inspect a held contact pose in
+each legal position. The captures hide overhead labels so they do not obscure the joints.
 
     godot --headless --path . --script res://tools/contact_audit.gd -- --out=res://build/contact-audit.json
     godot --path . --script res://tools/contact_audit.gd -- --stills --out=res://build/contact-audit.json

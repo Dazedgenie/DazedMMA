@@ -160,7 +160,7 @@ static func examples() -> Dictionary:
 ## A ground strike thrown from `pair` (built, the man on top "a") with his `letter` arm ("l" or "r"): the pair
 ## with that hand cocked by his ear and the pair with it landed on the man underneath (STRIKES), for posing
 ## the one blended toward the other. [cocked, landed].
-static func strike(pair: Dictionary, action: String, letter: String) -> Array:
+static func strike(pair: Dictionary, action: String, letter: String, where: String = "") -> Array:
 	var aim: Dictionary = STRIKES.get(action, STRIKES.ground_punch)
 	var side: float = -1.0 if letter == "l" else 1.0
 	var key: String = "hand_" + letter
@@ -169,13 +169,28 @@ static func strike(pair: Dictionary, action: String, letter: String) -> Array:
 	var landed: Dictionary = pair.duplicate(true)
 	var pole: Array = aim.get("pole", [1.0, 0.6, 0.2])  # Out to his striking side.
 	landed.a[key] = {"to": "b." + String(aim.to), "off": aim.off, "pole": [side * float(pole[0]), pole[1], pole[2]]}
+	if action == "ground_elbow":
+		landed.a[key] = cocked.a[key].duplicate(true)
+		landed.a[key].joint_to = "b.head"
+		landed.a[key].joint_off = aim.off
 	landed.a.lean = float(landed.a.get("lean", 0.0)) + STRIKE_LEAN
+	if action == "ground_elbow":
+		# A short upper arm needs the shoulder over the target, not a punch's distant posture.
+		match where:
+			"full_guard":
+				landed.a.lean = 62.0
+				landed.a.root[2] -= 0.16
+			"mount":
+				landed.a.root[2] -= 0.10
+				landed.a.lean = 78.0
+			"side_control", "crucifix":
+				landed.a.root[2] -= 0.28
 	return [cocked, landed]
 
 
 ## A strike from the bottom (BOTTOM_STRIKES, D271) thrown from `pair` (the man underneath "b") with his `letter`
 ## arm: [cocked by his face, landed on the man on top's head], like `strike`.
-static func strike_up(pair: Dictionary, action: String, letter: String) -> Array:
+static func strike_up(pair: Dictionary, action: String, letter: String, where: String = "") -> Array:
 	var aim: Dictionary = BOTTOM_STRIKES.get(action, BOTTOM_STRIKES.bottom_punch)
 	var side: float = -1.0 if letter == "l" else 1.0
 	var key: String = "hand_" + letter
@@ -185,7 +200,16 @@ static func strike_up(pair: Dictionary, action: String, letter: String) -> Array
 	var pole: Array = aim.get("pole", [1.0, -0.4, 0.4])
 	var off: Array = aim.off
 	landed.b[key] = {"to": "a." + String(aim.to), "off": [float(off[0]) * side, off[1], off[2]], "pole": [side * float(pole[0]), pole[1], pole[2]]}
-	landed.b.lean = float(landed.b.get("lean", 0.0)) - BOTTOM_LIFT
+	if action == "bottom_elbow":
+		landed.b[key] = cocked.b[key].duplicate(true)
+		landed.b[key].joint_to = "a.head"
+		landed.b[key].joint_off = [float(off[0]) * side, off[1], off[2]]
+	landed.b.lean = float(landed.b.get("lean", 0.0)) + BOTTOM_LIFT
+	if action == "bottom_elbow" and where == "full_guard":
+		landed.b.lean = float(pair.b.lean) + 30.0
+		landed.a.lean = float(pair.a.lean) + 12.0
+	elif action == "bottom_elbow":
+		landed.b.lean = float(pair.b.lean) + 16.0
 	return [cocked, landed]
 
 

@@ -1304,6 +1304,26 @@ Existing target reach, body pressure, grip identity, mirror, clinch, fence and t
 Both camera angles from `contact_audit.gd --stills` were reviewed; the seven canonical torso-capsule
 samples now report zero crossings. This does not certify every clinch strike or full mesh contact.
 
+## Paired short strikes — review checkpoint (D427)
+
+Ground elbows previously targeted the glove, leaving the elbow 32–61 cm from the opponent's head.
+Paired limb specs can now carry a separate `joint_to`/`joint_off` contact and optional `joint_weight`.
+The rig and final body aim the elbow or knee there while folding the distal limb back. Mirroring and
+role swaps preserve those targets. Ground elbows shift the shoulder over the target; bottom strikes
+lift the torso toward the opponent. Clinch elbows turn the striking shoulder forward while the
+supporting body-lock hand moves slightly wider; knees retain the held body pose and target the belly.
+
+The final body can turn its shoulder blade for a short elbow reach. During easing, limb lengths are
+restored along the interpolated directions before floor/torso correction, preserving the fighter's
+individual arm-length setting. The motion check also samples the driver's fractional tick so it does
+not introduce artificial simulation-tick jumps.
+
+`tests/game/test_paired_short_strikes.gd` covers legal ground positions, both corners/leads and both
+body-lock owners, then samples windup through recovery and checks the return to the hold. Extend
+`tools/contact_audit.gd --stills` with `--action=ground_elbow` or `--action=bottom_elbow --who=1` to
+inspect the action. This is a work-in-progress checkpoint requested by Kyle: broader regression and
+final visual rechecking after the easing correction remain pending. Do not treat it as merge-ready.
+
 ## Review and verification
 
 Open `project.godot` in Godot 4.7.2 and run the game normally. Start a fight and check striking,

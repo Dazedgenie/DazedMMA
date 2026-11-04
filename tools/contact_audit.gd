@@ -5,6 +5,8 @@ extends SceneTree
 
 var _out: String = "res://build/contact-audit.json"
 var _stills: bool = false
+var _action: String = ""
+var _who: int = 0
 
 func _initialize() -> void:
 	for arg in OS.get_cmdline_user_args():
@@ -12,6 +14,10 @@ func _initialize() -> void:
 			_out = arg.trim_prefix("--out=")
 		elif arg == "--stills":
 			_stills = true
+		elif arg.begins_with("--action="):
+			_action = arg.trim_prefix("--action=")
+		elif arg.begins_with("--who="):
+			_who = int(arg.trim_prefix("--who="))
 	_audit.call_deferred()
 
 
@@ -26,6 +32,8 @@ func _audit() -> void:
 		main = load("res://game/main.tscn").instantiate()
 		root.add_child(main)
 	for where: String in ["full_guard", "half_guard", "side_control", "mount", "back_control", "crucifix", "clinch"]:
+		if _action != "" and not actions.get_action(_action).positions.has(where):
+			continue
 		var sim := FightSim.new(3, roster.make_pair("wrestler", "bjj"), actions)
 		var roles: Array[String] = [PositionLibrary.TOP, PositionLibrary.BOTTOM]
 		var grips: Array[int] = [FightSim.NO_GRIP, FightSim.NO_GRIP]
@@ -51,6 +59,12 @@ func _audit() -> void:
 		view.watch(FightDriver.new(sim))
 		for frame in 60:
 			view._process(1.0 / 30.0)
+		if _action != "":
+			sim.fighters[_who].action_id = _action
+			sim.fighters[_who].phase = "active"
+			sim.fighters[_who].phase_ticks_left = 1
+			for frame in 60:
+				view._process(1.0 / 30.0)
 		var failures: Array[Dictionary] = []
 		for i in 2:
 			var body: SkinnedBody = view.figures[i].body
@@ -67,6 +81,9 @@ func _audit() -> void:
 		report.append({"position": where, "crossings": failures})
 		print(where, ": ", failures.size(), " segment crossings")
 		if _stills:
+			for figure: FighterFigure in view.figures:
+				figure.hide_overhead()
+			view._tag.visible = false
 			var focus: Vector3 = (view.figures[0].body.hips_at() + view.figures[1].body.hips_at()) / 2.0 + Vector3.UP * 0.3
 			for side in 2:
 				view.camera.fov = 42.0

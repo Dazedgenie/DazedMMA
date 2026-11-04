@@ -572,14 +572,36 @@ func _keep_bodies_in_cage() -> void:
 ## Poses `built` (empty: today's figures) in `frame`, with any strike's limb from today's figure.
 func _pose_built(sim: FightSim, built: Dictionary, frame: Transform3D) -> void:
 	var strikes: Array = [[], []]  # The limbs thrown from the pose, each man's, as follow_joints names them.
+	var held_pose_key: String = "" if built.is_empty() else str(built.pair)
 	if not built.is_empty():
+		built = built.duplicate(true)
 		for i in 2:
 			var action: String = sim.fighters[i].action_id
 			if CLINCH_STRIKES.has(action):
 				var limb: String = FighterFigure.limb_for(action)
 				var letter: String = figures[i].arm_letter(0 if limb.begins_with("lead") else 1)
-				strikes[i] = [("leg_" if limb.ends_with("leg") else "arm_") + letter]
-	var shown: String = "" if built.is_empty() else str(built.pair) + str(strikes)
+				if action in ["elbow", "knee"]:
+					var thrown: Array = strike_blend(sim, sim.fighters[i], driver.alpha())
+					var weight: float = 0.0
+					if not thrown.is_empty():
+						weight = float(thrown[1]) if int(thrown[0]) == 1 else (1.0 - float(thrown[1]) if int(thrown[0]) == 2 else 0.0)
+					var man: String = "a" if i == (1 if bool(built.flip) else 0) else "b"
+					var other: String = "b" if man == "a" else "a"
+					var key: String = ("foot_" if action == "knee" else "hand_") + letter
+					var want: Dictionary = built.pair[man].get(key, {}).duplicate(true)
+					want.joint_to = other + (".belly" if action == "knee" else ".head")
+					want.joint_off = [0, 0, -0.02] if action == "knee" else [0, 0.03, -0.11]
+					want.joint_weight = weight
+					built.pair[man][key] = want
+					if action == "elbow":
+						built.pair[man].bend[1] += (24.0 if letter == "r" else -24.0) * weight
+						var support_key: String = "hand_" + ("l" if letter == "r" else "r")
+						var support: Dictionary = built.pair[man].get(support_key, {})
+						if String(support.get("to", "")).ends_with(".lower_back"):
+							support.off[0] += signf(float(support.off[0])) * 0.05 * weight
+				else:
+					strikes[i] = [("leg_" if limb.ends_with("leg") else "arm_") + letter]
+	var shown: String = "" if built.is_empty() else held_pose_key + str(strikes)
 	if shown != _clinch_shown:  # Into or out of the rig's clinch, or a new grip: ease to it.
 		if _clinch_shown != TAKEDOWN_ENDED:  # Out of a takedown it eases at its own pace (_end_takedown).
 			for figure in figures:
@@ -912,7 +934,7 @@ func _pose_ground(sim: FightSim, delta: float) -> bool:
 	var t: float = 0.0
 	if GroundPair.STRIKES.has(f.action_id) and not posture:
 		var letter: String = figures[top].arm_letter(0 if FighterFigure.limb_for(f.action_id).begins_with("lead") else 1)
-		var keys: Array = GroundPair.strike(pair, f.action_id, letter)
+		var keys: Array = GroundPair.strike(pair, f.action_id, letter, where)
 		var thrown: Array = strike_blend(sim, f, driver.alpha())
 		if not thrown.is_empty():
 			var stage: Array = [pair, keys[0], keys[1], pair]
@@ -922,7 +944,7 @@ func _pose_ground(sim: FightSim, delta: float) -> bool:
 	var under: FighterState = sim.fighters[1 - top]
 	if to.is_empty() and GroundPair.BOTTOM_STRIKES.has(under.action_id):  # Hitting up from his back (D271).
 		var letter_up: String = figures[1 - top].arm_letter(0 if FighterFigure.limb_for(under.action_id).begins_with("lead") else 1)
-		var up: Array = GroundPair.strike_up(pair, under.action_id, letter_up)
+		var up: Array = GroundPair.strike_up(pair, under.action_id, letter_up, where)
 		var thrown_up: Array = strike_blend(sim, under, driver.alpha())
 		if not thrown_up.is_empty():
 			var stage_up: Array = [pair, up[0], up[1], pair]
