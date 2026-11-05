@@ -171,7 +171,7 @@ func _init() -> void:
 	var hub_tab: Button = _tab(tabs, "Hub", "This week, his next fight and the calendar")
 	hub_tab.set_pressed_no_signal(true)
 	hub_tab.pressed.connect(func() -> void: hub_tab.set_pressed_no_signal(true))
-	gym_tab = _tab(tabs, "Your gym", "Your gym: build and upgrade its rooms, hire its coaches")
+	gym_tab = _tab(tabs, "Your gym", "Your gym: its rooms, its coaches and the lads who train there")
 	gym_tab.pressed.connect(func() -> void: _tab_back(gym_tab); gym_pressed.emit())
 	_division = _tab(tabs, "His division", "The men in his division this week")
 	_division.pressed.connect(func() -> void: _tab_back(_division); division_pressed.emit())
@@ -529,6 +529,8 @@ static func offer_text(c: Career, o: Dictionary, groups: Dictionary = {}) -> Str
 	var ranked: String = opponent_rank_text(c, String(p.get("id", "")))
 	if ranked != "":
 		lines.append(ranked)
+	if bool(o.get("former_mate", false)):  # He used to train at your gym (D444).
+		lines.append("[color=%s][b]He used to train at %s[/b][/color]" % [WARN.to_html(false), String(c.gym.get("name", "your gym"))])
 	var card: String = Matchmaker.card_text(o.get("card", {}) if o.get("card") is Dictionary else {})
 	if card != "":
 		lines.append("On %s" % card)
@@ -1408,7 +1410,23 @@ static func gym_text(c: Career) -> String:
 	var staff: Array = Staff.coaches(c.gym)
 	if not staff.is_empty():  # The coaches you've hired (D443).
 		out += "\n%s · $%d a week in wages" % [coaches_line(staff), Staff.wages(c.gym)]
+	var lads: Array = Lads.lads(c.gym)
+	if not lads.is_empty():  # The gym's other lads (D444).
+		out += "\n%d other lad%s train%s here · best sparring partner: %s" % [lads.size(), "" if lads.size() == 1 else "s",
+			"s" if lads.size() == 1 else "", best_partner_text(c)]
 	return out
+
+
+## "Jake Moss (about even)": the gym's best lad and how he compares with him (D444).
+static func best_partner_text(c: Career) -> String:
+	var his: float = Matchmaker.average_stat(c.profile().get("stats", {}))
+	var best: Dictionary = {}
+	for lad: Dictionary in Lads.lads(c.gym):
+		if best.is_empty() or float(lad.get("avg", 0.0)) > float(best.get("avg", 0.0)):
+			best = lad
+	if best.is_empty():
+		return "nobody"
+	return "%s (%s)" % [String(best.get("name", "")), Lads.compare_text(best, his).to_lower()]
 
 
 ## "Coached by Joe Hart (striking) and Ann Lee (nutritionist)": the gym's coaches by name and what they do.

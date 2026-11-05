@@ -14,6 +14,7 @@ const COLOURS := {
 	Career.LEFT_SCHOOL: Color("#74c0fc"), Career.SCHOOL_OUT: Color("#ffd43b"), Career.OFFERS: Color("#fcc419"),
 	Career.GYM_BEHIND: Color("#fcc419"), Career.WORN_DOWN: Color("#ffa94d"), Career.ROOM_DONE: Color("#4dabf7"),
 	Career.COACH_UNPAID: Color("#fcc419"), Career.COACH_LEFT: Color("#ff8787"),
+	Career.LAD_IN: Color("#69db7c"), Career.LAD_LEFT: Color("#adb5bd"),
 }
 
 var kind: String = ""

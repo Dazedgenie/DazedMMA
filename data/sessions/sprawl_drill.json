@@ -9,6 +9,7 @@
 	"injury_risk": 0.001,
 	"injury_area": "legs",
 	"light": false,
+	"partner": true,
 	"leanings": { "base": -0.05 },
 	"chin_wear": 0,
 	"minigame": "sprawl_reflex"

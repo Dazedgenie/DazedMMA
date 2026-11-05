@@ -62,6 +62,9 @@ const ROOM_DONE := "room_done"
 ## A coach at your gym the gym couldn't pay this week, and one who walked out unpaid (D443): { kind, name, role, weeks }.
 const COACH_UNPAID := "coach_unpaid"
 const COACH_LEFT := "coach_left"
+## A lad walked in to train at your gym, or left it (D444): { kind, name, retired? }.
+const LAD_IN := Lads.WALKED_IN
+const LAD_LEFT := Lads.LEFT
 ## School (D314, School): the summer holidays start (every session is his until September), school starts again, and
 ## he's left school for good (LEAVES_AT): { kind }.
 const SCHOOL_OUT := "school_out"
@@ -106,6 +109,8 @@ var gym_last_month: Dictionary = {}
 var room_done: Dictionary = {}
 ## The coaches' wages as this week began (Staff.pay_week: { paid, unpaid, left }), for run_week's news (D443).
 var coach_week: Dictionary = {}
+## The gym's lads who walked in or left as this month began (Lads.month), for run_week's news (D444).
+var lad_news: Array = []
 var trainee: TrainingCamp
 ## The day (days since 1 Jan 1970) of the Monday that starts week 0, and the week it is now.
 var first_monday: int = 0
@@ -283,6 +288,7 @@ func run_week(plan: Variant = null, played: Dictionary = {}) -> Dictionary:
 		plan_data = _library.plan(week_plan if plan == null else String(plan))
 	var before := { "injured_days": trainee.injured_days, "suspended_days": suspended_days, "age": age(),
 		"at_school": School.at_school(self), "holiday": School.on_holiday(self) }
+	_first_lads()
 	var report: Dictionary = trainee.run_plan(plan_data, played)
 	drill_week(report)
 	var money_before: int = gym_money
@@ -297,6 +303,7 @@ func run_week(plan: Variant = null, played: Dictionary = {}) -> Dictionary:
 		report.events.append({ "kind": COACH_UNPAID, "name": String(coach.name), "role": String(coach.role), "weeks": int(coach.unpaid) })
 	for coach: Dictionary in coach_week.get("left", []):
 		report.events.append({ "kind": COACH_LEFT, "name": String(coach.name), "role": String(coach.role), "weeks": int(coach.unpaid) })
+	report.events.append_array(lad_news)
 	var worn: bool = float(report.get("fatigue_peak", 0.0)) >= TrainingCamp.FATIGUE_FREE
 	if worn and not worn_last_week:
 		report.events.append({ "kind": WORN_DOWN })
@@ -407,6 +414,8 @@ static func event_text(event: Dictionary) -> String:
 		COACH_LEFT:
 			return "%s, your %s, has walked out: %d weeks without pay" % [String(event.get("name", "")),
 				Staff.role_words(String(event.get("role", ""))), int(event.get("weeks", 0))]
+		LAD_IN, LAD_LEFT:
+			return Lads.news_text(event)
 		SCHOOL_OUT:
 			return "School's out for the summer: every session is his until September"
 		BACK_TO_SCHOOL:
@@ -872,6 +881,7 @@ func end_week() -> Dictionary:
 	suspended_days = maxi(0, suspended_days - DAYS_PER_WEEK)
 	_school_week()
 	room_done = Gym.finish_build(gym, week)  # A room built this week opens on Monday (D442).
+	lad_news = []
 	var out: Dictionary = {}
 	if not gym.is_empty() and int(date(0, week).month) != int(date(0, week - 1).month):
 		var dice := RandomNumberGenerator.new()
@@ -881,6 +891,10 @@ func end_week() -> Dictionary:
 		gym_money += int(out.net)
 		out.week = week
 		gym_last_month = out.duplicate()
+		if _world != null:  # The gym's lads come and go (D444), from the world as it stands.
+			var lad_dice := RandomNumberGenerator.new()
+			lad_dice.seed = hash([career_seed, week, "gym lads"])
+			lad_news = Lads.month(_world, gym, week, lad_dice)
 	coach_week = Staff.pay_week(gym, gym_money)  # Monday's wages, after the month's dues are in (D443).
 	gym_money -= int(coach_week.paid)
 	return out
@@ -901,6 +915,20 @@ func tear_down_room(id: String) -> String:
 	if why == "":
 		gym_money += Gym.start_tear_down(gym, id, week)
 	return why
+
+
+## The gym's lads (D444), the first two walking in the first time they're asked for. Each is Lads.snapshot.
+func gym_lads() -> Array:
+	_first_lads()
+	return Lads.lads(gym)
+
+
+func _first_lads() -> void:
+	if gym.is_empty() or gym.has("lads"):
+		return
+	var dice := RandomNumberGenerator.new()
+	dice.seed = hash([career_seed, "first lads"])
+	Lads.first_lads(world(), gym, week, dice)
 
 
 ## Who's looking for coaching work at your gym this month (Staff.looking, D443): made the first time it's asked for in a
@@ -1150,6 +1178,12 @@ static func from_dict(data: Dictionary, library: TrainingLibrary = null) -> Care
 							coach[key] = int(coach[key])
 	if c.gym.has("looking_at"):
 		c.gym.looking_at = int(c.gym.looking_at)
+	if c.gym.get("lads") is Array:  # The gym's lads (D444).
+		for lad: Variant in c.gym.lads:
+			if lad is Dictionary:
+				lad.since = int(lad.get("since", 0))
+				lad.avg = float(lad.get("avg", 0.0))
+				lad.born = float(lad.get("born", 0.0))
 	var was_theirs: bool = not c.gym.is_empty() and not c.gym.has("place")
 	c.gym = Gym.made_yours(c.gym)  # A save from before D441, when he paid a fee at someone else's: it's yours now.
 	c.gym_money = int(d.get("gym_money", Gym.START_MONEY if was_theirs else 0))

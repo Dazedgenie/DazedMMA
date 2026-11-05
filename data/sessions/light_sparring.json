@@ -9,6 +9,7 @@
 	"injury_risk": 0.0015,
 	"injury_area": "head",
 	"light": false,
+	"partner": true,
 	"leanings": {},
 	"chin_wear": 0,
 	"minigame": null

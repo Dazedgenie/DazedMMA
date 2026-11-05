@@ -1729,7 +1729,7 @@ doc (https://claude.ai/artifact/BrEV5jejZtpFWMJiT9HuYC). The pieces, in this ord
 | You own the gym, and its money: three run-down places to open, the gym's own money from members' dues and 15% of his purses, rent; his fee and shifts gone | D441 | Built (§14.1) |
 | Rooms and upgrades: mats, bag area, ring, cage, weights, recovery, video and changing rooms at three levels inside the building's floor space, 1 to 4 weeks to build with the room shut; faster training and a few sessions opened; the gym page as a drawn floor plan | D442 | Built (§14.2) |
 | Hiring coaches: specialists for a weekly wage by level, mostly the world's retired fighters | D443 | Built (§14.3) |
-| The gym's other fighters: named lads training there as sparring partners, walk-ins as it grows (was D407) | D444 | Planned |
+| The gym's other fighters: named lads training there as sparring partners, walk-ins as it grows (was D407) | D444 | Built (§14.4) |
 | Recruiting and the stable: signing the world's men, 2 fighters at first and up to 8, plans set once, each fight played or simmed, men who leave when unhappy | D445 | Planned |
 | The gym's name: members, who'll sign, which coaches come, news | D446 | Planned |
 | Your own levels as head coach (was D408) | D447 | Planned |
@@ -1908,4 +1908,51 @@ and who comes looking at the top of `sim/world/staff.gd` (`WAGES`, `MEMBERS_PER_
 `let_go_coach`); the tab in `ui/coaches_view.gd` and `ui/gym_page.gd`, the hub's line in `ui/career_hub.gd`
 (`coaches_line`). Tests: `tests/sim/world/test_staff.gd`, `tests/ui/test_gym_page.gd`, `tests/data/test_data_files.gd`.
 Then update this section and D443.
+
+### 14.4 The gym's other fighters (D444)
+
+Kyle (2026-11-05) said "you can start now"; six cards went to him on this piece and it's built on my recommendations
+until he picks (then this section and D444 change to his answers). These are phase 4's sparring partners (D407). The lads
+are **real men from the world** (§12.2), not made-up partners: they keep fighting on the world's cards and their records
+grow. They're on the gym (`Lads`, `sim/world/lads.gd`; `gym.lads`, a snapshot of each: id, name, style, born, average
+stat, record, pro, country, the week he came), so they save with it; the world's own man is the truth and the snapshot is
+refreshed each month.
+
+**Who walks in** (`Lads.candidates`): a man still fighting, **15 to 30**, an amateur or a local or regional pro, from
+his country, not at the gym and never left it; **his town's men first**, then the rest by id, one of the first dozen
+picked. The first time the gym is looked at (a new career, or an old save) **two** walk in.
+
+**How many:** the gym has **room for one lad for every 8 members, 2 to 8** (`room`). On the first of each month every lad's
+snapshot is refreshed; a man who's retired goes (*Jake Moss has retired and left the gym*); each lad **leaves at 5%**
+(*Jake Moss has left the gym to train somewhere else*); then, while there's room, **one walks in at 35%** (*Jake Moss
+walked in to train at Hill's Gym*). The news goes on the hub and the calendar. Seeded: the same month brings the same men.
+
+**What they do for him.** A session with a partner (`partner: true` in `data/sessions/`: hard and light sparring, rolling,
+wrestling drills, clinch work, the sprawl drill, Shark tank) **learns faster with a better partner**: his best lad's
+average stat against his own, **up to 15% more at 10 points better, down to 10% less** when they're all that much worse
+or there's nobody (`partner_share`), on top of the gym, its rooms and coaches. So a lad who outgrows his gym trains
+slower until better men walk in, and a growing gym (more members) has room for more.
+
+**Fights.** A gym-mate is **never offered against him** (`Matchmaker.pick_man`); a man who's left (`gym.former`) can be,
+and the offer says *He used to train at Hill's Gym*.
+
+**The gym's page** has a third tab, *Fighters* (`ui/lads_view.gd`): him first (*your lad*, his record and average stat),
+then each lad with his face, name and age, style, record, how he compares (*Well ahead of him*, *Better than him*,
+*About even*, *Still learning*, *Well behind him*) and how long he's trained there; down the side the best partner and
+what he does to the partner sessions now, the room the members make, and the men who used to train there. The hub's gym
+line adds *2 other lads train here · best sparring partner: Jake Moss (about even)*.
+
+**Not yet:** signing them to your stable (D445), training them yourself, sparring a named lad in a session, lads getting
+hurt in sparring, and the gym's name deciding who comes (D446).
+
+**Old saves.** A gym from before D444 trains as before until it's next played, when its first two lads walk in. Fights
+outside a career don't change (no golden re-pin); a career's partner sessions do.
+
+**What to change:** the numbers at the top of `sim/world/lads.gd` (`MEMBERS_PER_LAD`, `MIN_LADS`, `MAX_LADS`,
+`WALK_IN_CHANCE`, `LEAVE_CHANCE`, `PARTNER_UP`, `PARTNER_DOWN`, `PARTNER_SPREAD`, `AGES`, `TIERS`); which sessions have a
+partner (`partner` in `data/sessions/`); where it acts in `sim/world/training_camp.gd` (`_run_slot`), `sim/world/career.gd`
+(`end_week`, `gym_lads`, `LAD_IN`, `LAD_LEFT`) and `sim/world/matchmaker.gd` (`pick_man`, `_offer`); the tab in
+`ui/lads_view.gd` and `ui/gym_page.gd`, the hub's line in `ui/career_hub.gd` (`gym_text`, `best_partner_text`). Tests:
+`tests/sim/world/test_lads.gd`, `tests/ui/test_gym_page.gd`, `tests/data/test_data_files.gd`. Then update this section
+and D444.
 
