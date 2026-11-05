@@ -974,12 +974,20 @@ func _pose_ground(sim: FightSim, delta: float) -> bool:
 	var shown: String = str(built.pair)
 	if _roll.has("destination") and _roll.destination != key:
 		_roll = {}
-	if new_position and previous_key == "half_guard %d" % top and where == "side_control" and not _ground_last.is_empty():
-		var path: Array = GroundPair.pass_path(_ground_last, built.pair, _ground_frame)
-		_roll = {"from": _ground_last, "path": path, "left": ROLL_SECONDS, "destination": key}
+	var passing := previous_key == "half_guard %d" % top and where == "side_control"
+	var recovering := previous_key == "side_control %d" % top and where == "half_guard"
+	if new_position and (passing or recovering) and not _ground_last.is_empty():
+		var path: Array
+		if recovering:
+			path = GroundPair.pass_path([built.pair, _ground_frame], _ground_last[0], _ground_last[1])
+			path.reverse()
+		else:
+			path = GroundPair.pass_path(_ground_last, built.pair, _ground_frame)
+		var duration := 1.25 if recovering else 0.95
+		_roll = {"from": _ground_last, "path": path, "left": duration, "duration": duration, "destination": key}
 	elif new_position and previous_key == "mount %d" % top and where == "back_control" and not _ground_last.is_empty():
 		var path: Array = GroundPair.back_take_path(_ground_last, built.pair, _ground_frame)
-		_roll = {"from": _ground_last, "path": path, "left": 1.1, "duration": 1.1, "destination": key}
+		_roll = {"from": _ground_last, "path": path, "left": 1.5, "duration": 1.5, "destination": key}
 	if not _roll.is_empty() and new_position:
 		_roll.top = top
 	if not _roll.is_empty() and _roll.has("top"):

@@ -243,8 +243,24 @@ static func pass_path(from: Array, to: Dictionary, frame: Transform3D) -> Array:
 			mid[man].erase(limb)
 	var post: String = "hand_l" if side < 0.0 else "hand_r"
 	mid.a[post] = {"at": [mid.a.root[0] + side * 0.12, 0.07, mid.a.root[2]], "pole": [side, -0.3, 0.1]}
+	# Open the hooks while the passer is still above the hips. He can now lift the
+	# captured shin before turning it across the defender's legs.
+	var release: Dictionary = ends[0][0].duplicate(true)
+	var outside: float = signf(float(release.a.root[0]) - float(release.b.root[0]))
+	var trapped := "foot_r" if outside < 0.0 else "foot_l"
+	var free := "foot_l" if outside < 0.0 else "foot_r"
+	for foot: String in ["foot_l", "foot_r"]:
+		var outward := 1.0 if foot == "foot_l" else -1.0
+		var open := {"at": [outward * 0.7, ANKLE, 0.75], "pole": [-outward, 0.25, 0.3]}
+		release.b[foot] = open
+		mid.b[foot] = open
+	var lift: Dictionary = release.duplicate(true)
+	lift.a.root[1] += 0.12
+	lift.a[trapped] = {"at": [-outside * 0.075, 0.58, 0.42], "pole": [outside * 0.5, -0.1, -1]}
+	mid.a[trapped] = {"at": [outside * 0.22, 0.58, -0.06], "pole": [outside, -0.2, -1]}
+	mid.a[free] = {"at": [outside * 0.76, ANKLE, -0.2], "pole": [outside, -0.3, -1]}
 	var halfway: Transform3D = Transform3D(ends[0][1]).interpolate_with(ends[1][1], 0.5)
-	return [ends[0], [mid, halfway], ends[1]]
+	return [ends[0], [release, ends[0][1]], [lift, ends[0][1]], [mid, halfway], ends[1]]
 
 
 ## The rider leaves mount beside the hips, then comes behind as the defender sits up.
@@ -261,10 +277,28 @@ static func back_take_path(from: Array, to: Dictionary, frame: Transform3D) -> A
 			key.a.erase(limb)
 			key.b.erase(limb)
 	behind.a.root[2] += back * 0.5
+	var outside := signf(float(first.a.root[0]) - float(first.b.root[0]))
+	var inner := "foot_r" if outside < 0.0 else "foot_l"
+	var outer := "foot_l" if outside < 0.0 else "foot_r"
+	var lift: Dictionary = ends[0][0].duplicate(true)
+	lift.a.root[1] += 0.08
+	lift.a[inner] = {"at": [-outside * 0.34, 0.62, -0.30], "pole": [-outside * 0.6, -0.4, -1]}
+	first.a[outer] = {"at": [outside * 0.77, ANKLE, -0.05], "pole": [outside, -0.2, -1]}
+	first.a[inner] = {"at": [outside * 0.2, 0.62, -0.30], "pole": [outside * 0.45, -0.4, -1]}
+	var close: Dictionary = ends[1][0].duplicate(true)
+	close.a.root[1] += 0.10
+	close.a.root[2] += signf(float(close.a.root[2])) * 0.15
 	for letter: String in ["l", "r"]:
 		var side: float = -1.0 if letter == "l" else 1.0
+		var foot := "foot_" + letter
+		first.b[foot] = ends[0][0].b[foot]
+		behind.b[foot] = ends[1][0].b[foot].duplicate(true)
+		behind.b[foot].at[2] = signf(float(behind.b[foot].at[2])) * 0.65
+		behind.a[foot] = {"at": [behind.a.root[0] - side * 0.34, ANKLE, behind.a.root[2] + 0.13], "pole": [side, -0.2, -1]}
+		close.a[foot].off[0] += signf(float(close.a[foot].off[0])) * 0.15
+		close.a[foot].off[1] += 0.08
 		behind.a["hand_" + letter] = {"to": "b.shoulder_" + letter, "off": [side * 0.14, -0.08, 0.04], "pole": [side, -0.5, 0.1]}
-	return [ends[0], [first, ends[0][1]], [behind, ends[1][1]], ends[1]]
+	return [ends[0], [lift, ends[0][1]], [first, ends[0][1]], [behind, ends[1][1]], [close, ends[1][1]], ends[1]]
 
 
 ## Side control: blue flat on his back (his feet toward +Z, hips at the origin), red down on his -X side, chest
@@ -320,15 +354,15 @@ static func _mount() -> Dictionary:
 			"root": [0.0, 0.42, -0.14], "lean": 52, "bend": [10, 0, 0], "head": [-14, 0],
 			"hand_l": {"to": "b.sternum", "off": [-0.1, 0.0, -0.02], "pole": [-0.8, -0.4, 0.2]},
 			"hand_r": {"to": "b.sternum", "off": [0.1, 0.0, -0.02], "pole": [0.8, -0.4, 0.2]},
-			"foot_l": _with(kneel, {"at": [-0.26, ANKLE, 0.32]}),
-			"foot_r": _with(kneel, {"at": [0.26, ANKLE, 0.32]}),
+			"foot_l": _with(kneel, {"at": [-0.32, ANKLE, 0.32]}),
+			"foot_r": _with(kneel, {"at": [0.32, ANKLE, 0.32]}),
 		},
 		"b": {
 			"root": [0.0, 0.13, 0.0], "turn": 180, "lean": 270, "bend": [-2, 0, 0], "head": [14, 0],
 			"hand_l": {"to": "a.hip_r", "off": [0.0, 0.04, -0.04], "pole": [1, -0.4, 0.2]},
 			"hand_r": {"to": "a.hip_l", "off": [0.0, 0.04, -0.04], "pole": [-1, -0.4, 0.2]},
-			"foot_l": {"at": [0.2, ANKLE, 0.56], "pole": [0.3, 1, 0.2]},
-			"foot_r": {"at": [-0.2, ANKLE, 0.56], "pole": [-0.3, 1, 0.2]},
+			"foot_l": {"at": [0.2, ANKLE, 0.65], "pole": [-0.05, 0.3, -1]},
+			"foot_r": {"at": [-0.2, ANKLE, 0.65], "pole": [0.05, 0.3, -1]},
 		},
 	}
 

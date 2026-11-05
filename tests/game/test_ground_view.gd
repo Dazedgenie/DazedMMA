@@ -145,21 +145,28 @@ func test_standing_up_and_the_scramble_are_not_posed_as_a_ground_position() -> v
 	_put(sim, "scramble", 0)
 	assert_false(view.rig_ground(sim), "the scramble is posed on its own (D368)")
 
-func test_half_guard_pass_keeps_forearms_outside_the_opponent_trunk() -> void:
+func test_half_guard_pass_and_recovery_clear_the_arms_and_legs() -> void:
 	for top in 2:
-		var setup: Array = _ground("half_guard", top)
-		var sim: FightSim = setup[0]
-		var view: ArenaView = setup[1]
-		_put(sim, "side_control", top)
-		var gap: float = INF
-		for frame in 60:
-			view._process(1.0 / 60.0)
-			for i in 2:
-				var body: SkinnedBody = view.figures[i].body
-				for side: String in ["Left", "Right"]:
-					gap = minf(gap, FighterRig.limb_clearance(body._world_at(side + "Arm"), body._world_at(side + "ForeArm"), body._world_at(side + "Hand"), view.figures[1 - i].body.trunk()))
-		assert_gt(gap, FighterRig.TRUNK_RADIUS - 0.005, "both arms stay outside the other torso during the pass")
-		assert_true(view._roll.is_empty(), "the pass finishes in side control")
+		for route: Array in [["half_guard", "side_control"], ["side_control", "half_guard"]]:
+			for rate: int in [30, 60]:
+				var setup: Array = _ground(route[0], top)
+				var sim: FightSim = setup[0]
+				var view: ArenaView = setup[1]
+				_put(sim, route[1], top)
+				var arms := INF
+				var legs := INF
+				for frame in ceili(1.4 * rate):
+					view._process(1.0 / rate)
+					legs = minf(legs, _closest_legs(view.figures[0].body, view.figures[1].body))
+					for i in 2:
+						var body: SkinnedBody = view.figures[i].body
+						for side: String in ["Left", "Right"]:
+							arms = minf(arms, FighterRig.limb_clearance(body._world_at(side + "Arm"), body._world_at(side + "ForeArm"), body._world_at(side + "Hand"), view.figures[1 - i].body.trunk()))
+				var label := "%s to %s, top %d at %d Hz" % [route[0], route[1], top, rate]
+				assert_gt(arms, FighterRig.TRUNK_RADIUS - 0.005, label + " arms stay outside the other torso")
+				assert_gt(legs, 0.105, label + " the passer clears the hooked legs")
+				assert_true(view._roll.is_empty(), label + " reaches the destination")
+
 
 func test_back_take_circles_around_the_rising_defender() -> void:
 	for top in 2:
@@ -168,6 +175,7 @@ func test_back_take_circles_around_the_rising_defender() -> void:
 		var view: ArenaView = setup[1]
 		_put(sim, "back_control", top)
 		var heads: float = INF
+		var legs: float = INF
 		var limbs: float = INF
 		var worst: String = ""
 		var trunks: float = INF
@@ -176,6 +184,7 @@ func test_back_take_circles_around_the_rising_defender() -> void:
 			var a: SkinnedBody = view.figures[0].body
 			var b: SkinnedBody = view.figures[1].body
 			heads = minf(heads, a._world_at("Head").distance_to(b._world_at("Head")))
+			legs = minf(legs, _closest_legs(a, b))
 			var ta := a.trunk()
 			var tb := b.trunk()
 			var near := Geometry3D.get_closest_points_between_segments(ta[0], ta[1], tb[0], tb[1])
@@ -189,6 +198,7 @@ func test_back_take_circles_around_the_rising_defender() -> void:
 							limbs = gap
 							worst = "%d %s%s frame %d" % [i, side, bones[0], frame]
 		assert_gt(heads, 0.22, "heads clear as the defender sits up")
+		assert_gt(legs, 0.10, "rider steps around the legs before closing the hooks")
 		assert_gt(trunks, 0.21, "rider circles outside the defender")
 		assert_gt(limbs, FighterRig.TRUNK_RADIUS - 0.005, "top %d, %s passes around the torso" % [top, worst])
 		assert_true(view._roll.is_empty(), "back take completes")
@@ -234,3 +244,14 @@ func _closest_legs(a: SkinnedBody, b: SkinnedBody) -> float:
 				var other: Array[Vector3] = [b._world_at(right + bones[0]), b._world_at(right + bones[1])]
 				gap = minf(gap, FighterRig.limb_clearance(a._world_at(left + "UpLeg"), a._world_at(left + "Leg"), a._world_at(left + "Foot"), other))
 	return gap
+
+
+func test_mount_keeps_the_defenders_knees_between_the_riders_knees() -> void:
+	for top in 2:
+		var view: ArenaView = _ground("mount", top)[1]
+		var body: SkinnedBody = view.figures[1 - top].body
+		var left := body._world_at("LeftUpLeg")
+		var right := body._world_at("RightUpLeg")
+		var across := right.direction_to(left)
+		assert_gt((body._world_at("LeftLeg") - body._world_at("RightLeg")).dot(across), 0.10, "knees stay on their respective sides")
+		assert_gt(_closest_legs(view.figures[top].body, body), 0.115, "the rider straddles the defender's knees")
