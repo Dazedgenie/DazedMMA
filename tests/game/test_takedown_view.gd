@@ -246,6 +246,7 @@ func _check_landing(action: String, who: int, lead: float) -> void:
 	var heads: float = INF
 	var trunks: float = INF
 	var limbs: float = INF
+	var legs: float = INF
 	var largest_step: float = 0.0
 	var last_tip := Vector3.INF
 	for phase: String in ["telegraph", "windup", "active", "landing"]:
@@ -268,6 +269,7 @@ func _check_landing(action: String, who: int, lead: float) -> void:
 					largest_step = maxf(largest_step, tip.distance_to(last_tip))
 				last_tip = tip
 				heads = minf(heads, a._world_at("Head").distance_to(b._world_at("Head")))
+				legs = minf(legs, _leg_gap(a, b))
 				var ta := a.trunk()
 				var tb := b.trunk()
 				var near := Geometry3D.get_closest_points_between_segments(ta[0], ta[1], tb[0], tb[1])
@@ -280,4 +282,17 @@ func _check_landing(action: String, who: int, lead: float) -> void:
 	assert_gt(heads, 0.215, label + " keeps the heads separate")
 	assert_gt(trunks, 0.20, label + " keeps the trunks separate")
 	assert_gt(limbs, FighterRig.TRUNK_RADIUS - 0.005, label + " routes limbs around the torso")
+	assert_gt(legs, 0.115, label + " keeps both leg chains on their own routes")
 	assert_lt(largest_step, 0.25, label + " has continuous hand travel")
+
+
+func _leg_gap(a: SkinnedBody, b: SkinnedBody) -> float:
+	var gap: float = INF
+	for side_a: String in ["Left", "Right"]:
+		for side_b: String in ["Left", "Right"]:
+			var hip := b._world_at(side_b + "UpLeg")
+			var knee := b._world_at(side_b + "Leg")
+			var ankle := b._world_at(side_b + "Foot")
+			for segment: Array[Vector3] in [[hip, knee] as Array[Vector3], [knee, ankle] as Array[Vector3]]:
+				gap = minf(gap, FighterRig.limb_clearance(a._world_at(side_a + "UpLeg"), a._world_at(side_a + "Leg"), a._world_at(side_a + "Foot"), segment))
+	return gap

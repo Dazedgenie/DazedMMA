@@ -25,7 +25,7 @@ const TIMING := {
 	"double_leg": {"fall": 0.5, "land": 0.35, "thud": 0.7, "at": Vector2(0.0, -0.55)},
 	"outside_trip": {"fall": 0.5, "land": 0.3, "thud": 0.8, "at": Vector2(0.05, -0.6)},
 	"hip_throw": {"entry": 2, "fall": 0.3, "land": 0.85, "thud": 1.0, "at": Vector2(0.0, 0.75)},
-	"guard_pull": {"entry": 2, "fall": 0.6, "land": 0.3, "thud": 0.35, "at": Vector2(0.0, 0.25)},
+	"guard_pull": {"entry": 2, "fall": 0.4, "land": 0.48, "thud": 0.35, "at": Vector2(0.0, 0.25)},
 }
 ## A takedown that only half works lands them both on their knees (a scramble), this hard.
 const SCRAMBLE_THUD: float = 0.4
@@ -104,6 +104,8 @@ static func path(action: String, start: Array, lying: Basis, far: float = -1.0) 
 		step.a.root[1] = float(step.a.root[1]) - 0.18
 		step.a.lean = 0.0
 		step.b.lean = 0.0
+		step.b.foot_l = {"at": [0.28, ANKLE, -0.55]}
+		step.b.foot_r = {"at": [-0.28, ANKLE, -0.55]}
 		var near_hand := "r" if mirror else "l"
 		step.a["hand_" + near_hand] = {"to": "b.shoulder_" + ("l" if mirror else "r"),
 			"off": [-0.10 if mirror else 0.10, -0.05, -0.06], "pole": [1 if mirror else -1, -0.4, 0.1]}
@@ -114,11 +116,22 @@ static func path(action: String, start: Array, lying: Basis, far: float = -1.0) 
 		sit.a.root[2] += 0.10
 		sit.a.lean = -12.0
 		sit.b.lean = 0.0
+		sit.a.foot_r = {"at": [0.49, 0.34, 0.18], "pole": [1, 0.4, -0.2]}
 		out.append([sit, from])
 	for pair: Dictionary in keys(action):
 		out.append([ClinchPair.mirror(pair) if mirror else pair, from])
+	if action == "guard_pull":
+		var outside: Dictionary = _pull_sit()
+		outside.a.root = [0.06, 0.30, 0.26]
+		outside.a.lean = -52
+		outside.a.foot_l = {"at": [-0.60, 0.38, 0.08], "pole": [-1, 0.6, -0.2]}
+		outside.b.root = [-0.04, 0.68, -0.32]
+		out.append([outside, from])
 	var at: Vector2 = TIMING[action].at
 	var land_frame := Transform3D(lying, from * Vector3(at.x, 0.0, at.y))
+	if action == "guard_pull":
+		land = ClinchPair.half_turn(land)
+		land_frame = land_frame * Transform3D(Basis(Vector3.UP, PI), Vector3.ZERO)
 	if action == "hip_throw":
 		var kneeling: Dictionary = land.duplicate(true)
 		var side := signf(float(land.a.root[0]))
@@ -130,10 +143,15 @@ static func path(action: String, start: Array, lying: Basis, far: float = -1.0) 
 		var post := "l" if side < 0.0 else "r"
 		kneeling.a["hand_" + post] = {"at": [float(kneeling.a.root[0]) + side * 0.14, 0.08, -0.32], "pole": [side, -0.4, 0.05]}
 		out.append([kneeling, land_frame])
+	elif action == "guard_pull":
+		var open: Dictionary = land.duplicate(true)
+		open.a.foot_l = {"to": "b.hip_r", "off": [0.20, 0.0, 0.0], "pole": [-1, 0.6, 0.0]}
+		open.a.foot_r = {"to": "b.hip_l", "off": [-0.20, 0.0, 0.0], "pole": [1, 0.6, 0.0]}
+		out.append([open, land_frame])
 	out.append([land, land_frame])
 	if action == "hip_throw":
 		_use_landing_axes(out, lying)
-	return chain(out)
+	return chain(out, action == "guard_pull")
 
 
 static func _use_landing_axes(path: Array, landing_basis: Basis) -> void:
@@ -193,14 +211,14 @@ static func pose_at(keys_in: Array, x: float) -> Dictionary:
 ## Each key after the first rewritten to follow the one before without spinning: its frame turned half round
 ## (and the pose with it, ClinchPair.half_turn) when it faces more than a quarter turn away, and each man's turn
 ## set so he goes the short way round to where he faces in the world.
-static func chain(keys_in: Array) -> Array:
+static func chain(keys_in: Array, keep_sides: bool = false) -> Array:
 	var out: Array = [keys_in[0]]
 	for k in range(1, keys_in.size()):
 		var before: Array = out[k - 1]
 		var pair: Dictionary = keys_in[k][0]
 		var frame: Transform3D = keys_in[k][1]
 		var was: Transform3D = before[1]
-		if was.basis.z.dot(frame.basis.z) < 0.0:
+		if not keep_sides and was.basis.z.dot(frame.basis.z) < 0.0:
 			pair = ClinchPair.half_turn(pair)
 			frame = frame * Transform3D(Basis(Vector3.UP, PI), Vector3.ZERO)
 		var frame_turn: float = wrapf(_yaw(frame) - _yaw(was), -180.0, 180.0)
@@ -301,15 +319,15 @@ static func _hip_load() -> Dictionary:
 			"root": [-0.18, 0.68, -0.04], "turn": 175, "lean": 26, "bend": [12, 0, 0], "head": [-6, 20],
 			"hand_l": {"to": "b.fore_r", "off": [0.0, 0.0, 0.0], "pole": [0.6, -0.8, -0.4]},
 			"hand_r": {"to": "b.lower_back", "off": [0.14, 0.02, 0.04], "pole": [1, -0.3, 0.2]},
-			"foot_l": {"at": [0.14, ANKLE, -0.12]},
-			"foot_r": {"at": [-0.14, ANKLE, -0.1]},
+			"foot_l": {"at": [0.14, ANKLE, 0.02]},
+			"foot_r": {"at": [-0.14, ANKLE, 0.02]},
 		},
 		"b": {
 			"root": [0.0, 0.92, -0.34], "turn": 180, "lean": 26, "bend": [12, 0, 0], "head": [10, 0],
 			"hand_l": {"to": "a.blade_l", "off": [0.0, 0.0, 0.04], "pole": [-0.6, 0.2, 0.6]},
 			"hand_r": {"to": "a.shoulder_l", "off": [0.0, -0.06, -0.05], "pole": [-0.4, -0.4, -0.8]},
-			"foot_l": {"at": [0.18, ANKLE, -0.36]},
-			"foot_r": {"at": [-0.18, ANKLE, -0.44]},
+			"foot_l": {"at": [0.28, ANKLE, -0.55]},
+			"foot_r": {"at": [-0.28, ANKLE, -0.55]},
 		},
 	}
 
@@ -364,15 +382,15 @@ static func _pull_sit() -> Dictionary:
 			"root": [0.21, 0.42, 0.24], "lean": -34, "bend": [16, 0, 0], "head": [20, 0],
 			"hand_l": {"to": "b.neck", "off": [-0.04, -0.09, -0.08], "pole": [-1, -0.4, 0.2]},
 			"hand_r": {"to": "b.fore_l", "off": [0.03, 0.0, 0.0], "pole": [1, -0.4, 0.2]},
-			"foot_l": {"at": [-0.2, ANKLE, -0.08]},
-			"foot_r": {"to": "b.hip_l", "off": [0.0, 0.0, -0.06], "pole": [0.6, 0.6, -0.4]},
+			"foot_l": {"at": [-0.42, ANKLE, 0.08]},
+			"foot_r": {"to": "b.hip_l", "off": [-0.17, 0.02, -0.06], "pole": [1, 0.6, -0.2]},
 		},
 		"b": {
 			"root": [-0.07, 0.8, -0.32], "turn": 180, "lean": 30, "bend": [4, 0, 0], "head": [-10, 0],
 			"hand_l": {"to": "a.chest", "off": [0.12, 0.0, -0.04], "pole": [-0.6, -0.4, 0.6]},
 			"hand_r": {"to": "a.fore_l", "off": [0.04, 0.0, 0.0], "pole": [0.6, -0.4, 0.6]},
-			"foot_l": {"at": [0.18, ANKLE, -0.36]},
-			"foot_r": {"at": [-0.2, ANKLE, -0.62]},
+			"foot_l": {"at": [0.12, ANKLE, -0.55]},
+			"foot_r": {"at": [-0.23, ANKLE, -0.68]},
 		},
 	}
 
