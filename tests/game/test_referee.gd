@@ -171,3 +171,40 @@ func test_a_stoppage_brings_him_in_to_wave_it_off_and_the_result_waits_a_few_sec
 	assert_signal_emit_count(view, "finish_shown", 1, "then it comes up, once")
 	_frames(view, 30, 1.0 / 30.0)
 	assert_signal_emit_count(view, "finish_shown", 1, "only once")
+
+func test_referee_steps_beside_the_legs_during_submission_stoppage() -> void:
+	for action: String in ["arm_triangle", "guillotine"]:
+		for who in 2:
+			var setup := _watched("bjj", "wrestler", Vector2(-0.4, 0), Vector2(0.4, 0))
+			var sim: FightSim = setup[0]
+			var view: ArenaView = setup[1]
+			if action == "arm_triangle":
+				var roles: Array[String] = [PositionLibrary.TOP, PositionLibrary.BOTTOM]
+				if who == 1:
+					roles.reverse()
+				sim.situation.set_to(sim.positions.get_position("side_control"), roles)
+			for fighter in sim.fighters:
+				fighter.clear_action()
+			_frames(view, 30)
+			assert_true(sim._lock_in(who, sim.actions.get_action(action)), "arranged stoppage")
+			sim._hold.danger = 95
+			_frames(view, 60)
+			sim._finish(who, FightSim.RESULT_SUB)
+			var gap: float = INF
+			for frame in 90:
+				view._process(1.0 / 30.0)
+				var referee_legs := _leg_segments(view.referee.body)
+				for fighter in view.figures:
+					for segment in _leg_segments(fighter.body):
+						for ref_segment in referee_legs:
+							var near := Geometry3D.get_closest_points_between_segments(ref_segment[0], ref_segment[1], segment[0], segment[1])
+							gap = minf(gap, near[0].distance_to(near[1]))
+			assert_gt(gap, 0.16, "%s: referee keeps his legs off both fighters during approach and release" % action)
+
+func _leg_segments(body: SkinnedBody) -> Array[PackedVector3Array]:
+	var segments: Array[PackedVector3Array] = []
+	for side: String in ["Left", "Right"]:
+		var knee := body._world_at(side + "Leg")
+		segments.append(PackedVector3Array([body._world_at(side + "UpLeg"), knee]))
+		segments.append(PackedVector3Array([knee, body._world_at(side + "Foot")]))
+	return segments

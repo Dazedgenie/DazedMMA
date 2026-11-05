@@ -889,7 +889,10 @@ func _move_referee(sim: FightSim, delta: float) -> void:
 		if men[0].distance_to(men[1]) <= Referee.CLEAR_OF_MEN:  # Too close to get between: a hand on one of them.
 			var on: int = 1 - loser if low else loser  # On the ground he pulls the winner off; standing he holds the beaten man.
 			hold = figures[on].body.hips_at() + Vector3.UP * (0.25 if low else 0.4)
-		referee.want(Referee.stop_spot(men[1 - loser], men[loser], eye), men[1 - loser], "stop", hold, low)
+		var at: Vector2 = Referee.stop_spot(men[1 - loser], men[loser], eye)
+		if low or shows_hold():
+			at = Referee.clear_stop_approach(at, referee.spot, men, figures)
+		referee.want(at, men[1 - loser], "stop", hold, low)
 	else:
 		var down: int = -1
 		for i in 2:

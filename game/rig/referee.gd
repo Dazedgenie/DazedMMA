@@ -16,6 +16,8 @@ const CLEAR_OF_MEN: float = 1.2
 const CLEAR_OF_FENCE: float = 0.55
 ## Stopping two men too close to get between: how far to the side of them (across the camera's view) he steps in.
 const SIDE_ON: float = 0.95
+## Space for a walking stride beside a grounded fighter (metres on the canvas).
+const STOP_STRIDE_ROOM: float = 0.58
 ## Where round the two men he looks for his spot: this many angles, and how much moving his spot costs against
 ## being on the far side from the camera (so he doesn't dance about as they move).
 const SPOT_TRIES: int = 16
@@ -158,7 +160,44 @@ static func stop_spot(winner: Vector2, loser: Vector2, camera: Vector2) -> Vecto
 	return inside(at)
 
 
-## `at` moved in toward the middle until it's CLEAR_OF_FENCE off the fence.
+## Pick an approach beside grounded fighters. Include their extended legs when deciding
+## whether the referee can walk directly to his usual position.
+static func clear_stop_approach(want: Vector2, now: Vector2, men: Array[Vector2], figures: Array[FighterFigure]) -> Vector2:
+	var segments: Array[PackedVector3Array] = []
+	for figure in figures:
+		for bones: Array in [["Hips", "Head"], ["LeftUpLeg", "LeftLeg", "LeftFoot"], ["RightUpLeg", "RightLeg", "RightFoot"]]:
+			var line := PackedVector3Array()
+			for bone: String in bones:
+				var p: Vector3 = figure.body._world_at(bone)
+				line.append(Vector3(p.x, 0, p.z))
+			segments.append(line)
+	var middle: Vector2 = (men[0] + men[1]) * 0.5
+	var best: Vector2 = want
+	var best_cost: float = INF
+	for k in range(-1, SPOT_TRIES):
+		var at := want if k < 0 else inside(middle + Vector2.from_angle(TAU * k / SPOT_TRIES) * 1.15)
+		var start := Vector3(now.x, 0, now.y)
+		var finish := Vector3(at.x, 0, at.y)
+		var clearance: float = INF
+		var end_gap: float = INF
+		for line in segments:
+			for j in range(line.size() - 1):
+				var a: Vector3 = line[j]
+				var b: Vector3 = line[j + 1]
+				var closest := Geometry3D.get_closest_points_between_segments(start, finish, a, b)
+				clearance = minf(clearance, closest[0].distance_to(closest[1]))
+				end_gap = minf(end_gap, finish.distance_to(Geometry3D.get_closest_point_to_segment(finish, a, b)))
+		var cost: float = at.distance_to(want) + 0.4 * at.distance_to(now)
+		cost += 12.0 * maxf(0.0, STOP_STRIDE_ROOM - clearance) + 16.0 * maxf(0.0, STOP_STRIDE_ROOM - end_gap)
+		if k == -1 and clearance >= STOP_STRIDE_ROOM:
+			return want
+		if cost < best_cost:
+			best_cost = cost
+			best = at
+	return best
+
+
+## Move toward the middle until the ref has CLEAR_OF_FENCE from the fence.
 static func inside(at: Vector2) -> Vector2:
 	for n in 4:  # Toward the middle isn't straight off a fence's face, so a few goes.
 		var fence: float = Octagon.distance_to_fence(at)

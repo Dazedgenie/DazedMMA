@@ -1350,6 +1350,10 @@ When the underhooks change hands in an open clinch, the fighters rise through a 
 
 The two final-body regression tests sample the fighters at 60 Hz. They cover twelve grip changes across two stances and the guard pass with either fighter on top. For mount to back control, the rider moves beside the hips, gets behind the rising defender and reaches around the shoulders before closing the hooks. An additional 96-frame check for either top fighter measures head, trunk, arm and leg clearance through that path.
 
+### Referee approach after a ground stoppage
+
+The referee checks the route to his usual stop position against both fighters' visible legs and trunks. When the route crosses their bodies, he chooses another approach alongside them, inside the fence. The referee regression samples the moving lower limbs throughout the intervention from either corner.
+
 ## Review and verification
 
 The side-control arm triangle sprawls alongside the defender, with the hands closing at the neck and nape. In the guard triangle the controlling hand stays beside the nape during the squeeze. Submission-view tests sample the approximate skull center and controlling segments throughout tightening in both corners, and check that the hands can meet in the arm triangle.
