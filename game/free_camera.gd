@@ -1,6 +1,6 @@
 class_name FreeCamera
 extends RefCounted
-## The fight camera turned by hand, for looking at a move from any side (D472–D476, docs/06 §6.18).
+## The fight camera turned by hand, for looking at a move from any side (D472–D476, docs/06 §6.19).
 ##
 ## Right-drag (or the arrow keys) turns it round the fighters and tilts it up and down, the wheel (or - and =) zooms,
 ## C puts it back. Once turned it holds that angle: it still follows the fighters round the cage, but the camera's own

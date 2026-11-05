@@ -1,0 +1,34 @@
+{
+	"schema": "style@1",
+	"id": "volume_striker",
+	"name": "Volume striker",
+	"fighter": "volume_striker",
+	"roots": [
+		"Boxing gym kid",
+		"Street kid"
+	],
+	"southpaw_chance": 0.3,
+	"variation": { "stats": 6, "style": 12, "tendencies": 0.2, "personality": 30, "height_cm": 4 },
+	"gameplan": { "approach": "pressure", "target": "body", "where": "keep_standing" },
+	"gameplans": [
+		{ "approach": "pressure", "target": "head", "where": "keep_standing" },
+		{ "approach": "", "target": "body", "where": "" }
+	],
+	"habits": [
+		{ "trigger": "own_jab_blocked", "action": "hook", "chance": 0.5, "within_ms": 1000 },
+		{ "trigger": "opp_strike_misses", "action": "cross", "chance": 0.4, "within_ms": 1000 }
+	],
+	"scouting": {
+		"summary": "Walks you down and never stops throwing: jabs and ones and twos, then a hand on your head against the fence and shots to the body.",
+		"strengths": [
+			"The busiest hands in the division and a gas tank to match",
+			"A good chin: he walks through shots to keep throwing"
+		],
+		"weaknesses": [
+			"Light hands: no one punch puts you away",
+			"Easy to hit coming in"
+		],
+		"tell": "When his jab is blocked he digs a hook to the body.",
+		"how_to_beat": "Stay off the fence, swat the hand off your head, and make him pay coming in with hard counters or takedowns."
+	}
+}

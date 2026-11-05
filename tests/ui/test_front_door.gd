@@ -1,5 +1,5 @@
 extends GutTest
-## The front door rebuilt (docs/06 §6.14, D434): a real fight behind the title (game/title_backdrop.gd) with the menu
+## The front door rebuilt (docs/06 §6.14, D434; the placeholder title art §6.18, D470, D471): a real fight behind the title (game/title_backdrop.gd) with the menu
 ## down the left, the new-career page with him in the middle and the backgrounds as tiles, him at each age of his
 ## childhood, the gym cards with the owner and chips, him in the doorway at the walk-in, and his face on the load slots.
 
@@ -60,6 +60,7 @@ func test_the_title_fight_runs_in_the_cage_and_a_new_pair_follows_the_end() -> v
 func test_the_title_starts_its_fight_and_leaving_it_stops_the_fight() -> void:
 	var main: Node = load("res://game/main.tscn").instantiate()
 	main.backdrop_in_headless = true
+	main.title_fight = true  # As with TitleScreen.PAINTED off (D470).
 	add_child_autofree(main)
 	main.save_dir = SAVE_DIR
 	main.show_title()
@@ -73,6 +74,30 @@ func test_the_title_starts_its_fight_and_leaving_it_stops_the_fight() -> void:
 	main.start_fight(s)
 	assert_false(main.backdrop.running(), "a real fight has the cage")
 	assert_eq(main.arena.driver, main.driver)
+
+
+func test_the_title_shows_the_painting_and_leaves_the_cage_empty() -> void:
+	assert_true(TitleScreen.PAINTED, "the placeholder painting is on (D470)")
+	var main: Node = load("res://game/main.tscn").instantiate()
+	main.backdrop_in_headless = true
+	add_child_autofree(main)
+	main.save_dir = SAVE_DIR
+	main.show_title()
+	assert_false(main.backdrop.running(), "no fight behind the painting")
+	assert_null(main.arena.driver, "the cage is left free")
+	var art: TextureRect = main.title.find_child("Art", true, false)
+	assert_not_null(art, "the painting is behind the menu")
+	assert_not_null(art.texture, "and it loads")
+
+
+func test_the_title_logo_loads_and_sits_in_the_strip() -> void:
+	var title: TitleScreen = add_child_autofree(TitleScreen.new())
+	await wait_process_frames(2)
+	var logo: TextureRect = title.find_child("Logo", true, false)
+	assert_not_null(logo)
+	assert_not_null(logo.texture, "the emblem loads (D471)")
+	assert_lt(logo.get_global_rect().end.x, TitleScreen.STRIP_WIDTH, "the logo is in the strip")
+	assert_gt(logo.size.y, 100.0, "and is drawn big")
 
 
 func test_the_title_menu_sits_down_the_left() -> void:

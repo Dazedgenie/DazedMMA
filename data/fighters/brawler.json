@@ -11,9 +11,9 @@
 	"style": { "pace": 70, "range": 60, "base": -20, "risk": 70 },
 	"gifts": ["heavy_hands"],
 	"flaws": [],
-	"techniques": ["jab", "cross", "hook", "overhand", "uppercut", "body_hook", "knee"],
+	"techniques": ["jab", "cross", "hook", "overhand", "uppercut", "body_hook", "knee", "head_post", "rear_body_hook"],
 	"combos": ["one_two", "cross_hook", "uppercut_hook"],
-	"tendencies": { "work_rate": 0.022, "actions": { "jab": 0.6, "cross": 1.2, "hook": 1.5, "overhand": 1.4, "uppercut": 0.8, "body_hook": 0.6, "knee": 0.3, "clinch_entry": 0.0 } },
+	"tendencies": { "work_rate": 0.022, "actions": { "jab": 0.6, "cross": 1.2, "hook": 1.5, "overhand": 1.4, "uppercut": 0.8, "body_hook": 0.6, "knee": 0.3, "head_post": 0.2, "rear_body_hook": 0.2, "clinch_entry": 0.0 } },
 	"tells": [
 		{ "trigger": "own_jab_blocked", "action": "overhand", "chance": 0.6, "within_ms": 1200 }
 	]

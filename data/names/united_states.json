@@ -6,7 +6,8 @@
 	"styles": [
 		"wrestler",
 		"gnp_wrestler",
-		"pressure_wrestler"
+		"pressure_wrestler",
+		"volume_striker"
 	],
 	"cities": [
 		"Albuquerque",

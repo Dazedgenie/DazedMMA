@@ -139,7 +139,7 @@ changes and pauses against the same fight run headless).
 ### 6.4 Keys (as built)
 1–9 intent calls (1 is Pressure! standing, Ground and pound! on top, Finish it! in a submission; 6 is Defend the shot!, or Defend the sub! caught in one; 5 is Clinch!, or Collar tie! in the clinch; 4 is Takedown!, or Pass! on top on the ground; 2 is Circle out!, or Go for the finish! on top, D200) · Q / E read calls (Q is Catch the kick!; E is Fire back!, D133: answer a defended strike with a combination, `01` §31.4) · R Cut the cage! (D230: 15 s of cutting off the exits instead of following, `01` §20.5) · H Hand fight! (D265: in the clinch and on the ground, 10 s of every grip he goes for 15% likelier to work, `01` §40.13) · Space slow-mo ·
 F fast · P pause (Easy) · T throw in the towel (asks first; a TKO loss, D31) · M strike sounds on/off (D190) · Esc menu (pauses on every difficulty) ·
-Enter presses the dialog's first button · F3 debug overlay · ` debug console · right-drag or arrow keys turn the camera, wheel or - / = zoom it, C puts it back (D472–D476, §6.18) · with F3 on: P pauses, . steps a tick, Shift+Space quarter speed (D477).
+Enter presses the dialog's first button · F3 debug overlay · ` debug console · right-drag or arrow keys turn the camera, wheel or - / = zoom it, C puts it back (D472–D476, §6.19) · with F3 on: P pauses, . steps a tick, Shift+Space quarter speed (D477).
 
 ### 6.5 Not in v0 yet
 - **Technique wheel (Tab, D6):** the only technique call is Catch the kick!, already on Q.
@@ -446,7 +446,8 @@ and lists. Now (my picks on the eight D434 cards, built while they're open):
   (never the tests' own `check_` fighters) fight a simmed fight in the cage behind the menu: both corners the AI's,
   at normal speed with the fight screen's own slow-downs on big shots, no names over their heads and no range tag
   (`ArenaView.backdrop`), the referee in with them, the camera slid left so they sit to the right of the menu, and
-  silent. When it ends the finish is held, and a few seconds later a new pair walks in. It runs only while the title is
+  silent. When it ends the finish is held, and a few seconds later a new pair walks in. (Off for now while the placeholder
+  painting is behind the title, §6.18, D470.) It runs only while the title is
   up: any other screen stops it and clears the cage, and a real fight takes the cage over. Headless runs (the tests,
   the smoke run) leave it off unless a test asks (`backdrop_in_headless` in `game/main.gd`).
 - **The menu down the left** (`ui/title_screen.gd`): CHIN CHECK, Lampsmoke Games and the buttons in a dark strip that
@@ -582,7 +583,26 @@ round break) and saves the screen (`--clean` also saves the cage with the HUD hi
 the corner card, the clock, no empty clinch card, a dialog taking the play pieces down), `tests/ui/test_fight_feed.gd`
 (key moments without odds, the details with them), `tests/ui/test_round_break_card.gd`.
 
-### 6.18 Turning the camera (D472–D477)
+### 6.18 Placeholder title art and logo (D470, D471)
+
+Kyle made two pictures in ChatGPT (2026-11-05) from the prompts in the project's `concept-art/title-art-prompts.md`, to
+stand in on the title screen until there's final art:
+
+- **The painting behind the title** (`ui/art/title_art.png`, D470): over the shoulder of an old coach at the cage
+  door, towel on his shoulder, shouting; his fighter in red shorts squared up under a single lamp; the other man in
+  blue blurred in the near corner. It fills the screen (cropped to cover any window shape) under the menu's dark strip
+  (§6.14), which darkens the blurred man. While it's on, the title doesn't run its fight in the cage (D434): the cage is
+  left empty behind it.
+- **The logo** (`ui/art/title_logo.png`, D471): a gloved fist landing on a man's chin, his head snapping round, spit
+  and a tooth flying off, CHIN CHECK under it. It takes the place of the CHIN CHECK lettering at the top of the menu,
+  with LAMPSMOKE GAMES under it as before.
+
+**To change it:** swap either picture for another of the same name (Godot re-imports it); turn the painting off and
+bring the fight back with `PAINTED` in `ui/title_screen.gd` (`title_fight` in `game/main.gd` follows it); the logo's
+size with `LOGO_SIZE` there. The painting is 1672×941 and the logo 768×768 with a see-through background. Tests:
+`tests/ui/test_front_door.gd`. Presentation only: fights are unchanged (no golden re-pin).
+
+### 6.19 Turning the camera (D472–D477)
 Kyle, 2026-11-05: "lets add in the ability to rotate the camera so we can better diagnose remaining animation issues".
 In every fight (D472) you can look at the fighters from any side: during the fight, the moments round it (touching
 gloves, the stools, the hand raised), the round break and the result's replay of the finish. Presentation only: fights

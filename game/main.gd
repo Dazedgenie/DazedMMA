@@ -87,6 +87,8 @@ var moments_in_headless: bool = false
 ## The fight behind the title screen (D434): not in headless runs unless a test asks (backdrop_in_headless).
 var backdrop: TitleBackdrop
 var backdrop_in_headless: bool = false
+## Whether the title runs that fight: not while the placeholder painting is behind it (TitleScreen.PAINTED, D470).
+var title_fight: bool = not TitleScreen.PAINTED
 ## The fade between screens off the fight (D435): the next screen comes up out of the dark.
 var _veil: ColorRect
 ## Right mouse button held over the fight: dragging turns the camera (D472–D476).
@@ -231,8 +233,8 @@ func show_title() -> void:
 	title.visible = true
 	$UI/Version.visible = true
 	state = TITLE
-	if DisplayServer.get_name() != "headless" or backdrop_in_headless:
-		backdrop.start(arena)  # A real fight behind the menu (D434).
+	if title_fight and (DisplayServer.get_name() != "headless" or backdrop_in_headless):
+		backdrop.start(arena)  # A real fight behind the menu (D434), when the painting isn't (D470).
 	title.focus_first()
 
 
@@ -1051,8 +1053,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			make_call(hud.read_call(0))
 		KEY_E:
 			make_call(hud.read_call(1))
-		KEY_R, KEY_H:
-			# Calls on a letter key (Cut the cage! on R, D230; Hand fight! on H, D265).
+		KEY_R, KEY_H, KEY_B:
+			# Calls on a letter key (Cut the cage! on R, D230; Hand fight! on H, D265; Post and dig! on B, D490).
 			handled = false
 			var letter: String = OS.get_keycode_string(key)
 			for id in driver.sim.calls.ids():

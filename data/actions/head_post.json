@@ -1,0 +1,21 @@
+{
+	"schema": "action@2",
+	"id": "head_post",
+	"name": "Head post",
+	"category": "clinch",
+	"positions": ["standing", "clinch"],
+	"ranges": ["pocket", "clinch"],
+	"phases_ms": { "telegraph": 100, "windup": 200, "active": 200, "recovery": 200 },
+	"stamina_cost": 3,
+	"flags_self": [],
+	"clinch": { "base_success": 0.5, "posts_ms": 4000 },
+	"stats": { "offense": ["boxing", "strength"], "defense": ["striking_defense", "strength"] },
+	"opportunities": [
+		{ "opponent_flag": "BACK_TO_CAGE", "success_bonus": 0.0, "required": true },
+		{ "opponent_flag": "HANDS_LOW", "success_bonus": 0.10 },
+		{ "opponent_flag": "COVERED", "success_bonus": 0.10 },
+		{ "opponent_flag": "HIGH_GUARD", "success_bonus": 0.10 },
+		{ "own_flag": "POSTURE_BROKEN", "success_bonus": -0.15 }
+	],
+	"requires_technique": null
+}

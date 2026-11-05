@@ -1,5 +1,5 @@
 extends GutTest
-## The fight camera turned by hand (D472–D476, docs/06 §6.18): turning, tilting and zooming it round the fighters,
+## The fight camera turned by hand (D472–D476, docs/06 §6.19): turning, tilting and zooming it round the fighters,
 ## holding the angle until C, easing back after C, and never changing how the fighters are laid out. Presentation only.
 
 var _actions: ActionLibrary

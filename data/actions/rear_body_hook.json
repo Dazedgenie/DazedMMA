@@ -1,0 +1,21 @@
+{
+	"schema": "action@2",
+	"id": "rear_body_hook",
+	"name": "Rear hand to the body",
+	"category": "strike",
+	"positions": ["standing"],
+	"ranges": ["pocket"],
+	"phases_ms": { "telegraph": 200, "windup": 200, "active": 100, "recovery": 300 },
+	"stamina_cost": 5,
+	"flags_self": [],
+	"strike": { "target": "body", "base_damage": 8 },
+	"stats": { "offense": ["boxing", "power"], "defense": ["striking_defense"] },
+	"opportunities": [
+		{ "opponent_flag": "HEAD_POSTED", "success_bonus": 0.25 },
+		{ "opponent_flag": "COVERED", "success_bonus": 0.15 },
+		{ "opponent_flag": "HIGH_GUARD", "success_bonus": 0.15 },
+		{ "opponent_flag": "ONE_LEG", "success_bonus": 0.10 },
+		{ "own_flag": "HEAD_POSTED", "success_bonus": -0.15 }
+	],
+	"requires_technique": null
+}

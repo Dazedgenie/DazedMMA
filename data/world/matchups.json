@@ -17,6 +17,7 @@
 		"bjj:pressure_wrestler": 1.59,
 		"bjj:sambo": 1.428,
 		"bjj:sprawl_brawl": -0.006,
+		"bjj:volume_striker": 1.572,
 		"bjj:wrestler": 1.248,
 		"boxer:brawler": -0.785,
 		"boxer:counter_striker": 1.206,
@@ -30,6 +31,7 @@
 		"boxer:pressure_wrestler": -0.081,
 		"boxer:sambo": -0.081,
 		"boxer:sprawl_brawl": 0.569,
+		"boxer:volume_striker": 0.709,
 		"boxer:wrestler": 0.149,
 		"brawler:counter_striker": 1.681,
 		"brawler:dirty_boxer": 1.085,
@@ -42,6 +44,7 @@
 		"brawler:pressure_wrestler": 0.553,
 		"brawler:sambo": 0.017,
 		"brawler:sprawl_brawl": 0.887,
+		"brawler:volume_striker": 1.322,
 		"brawler:wrestler": 0.201,
 		"counter_striker:dirty_boxer": 0.138,
 		"counter_striker:gnp_wrestler": -1.335,
@@ -53,6 +56,7 @@
 		"counter_striker:pressure_wrestler": -0.41,
 		"counter_striker:sambo": 1.182,
 		"counter_striker:sprawl_brawl": -1.22,
+		"counter_striker:volume_striker": -0.642,
 		"counter_striker:wrestler": 0.058,
 		"dirty_boxer:gnp_wrestler": 0.254,
 		"dirty_boxer:judoka": -0.229,
@@ -63,6 +67,7 @@
 		"dirty_boxer:pressure_wrestler": 0.541,
 		"dirty_boxer:sambo": 1.184,
 		"dirty_boxer:sprawl_brawl": 0.927,
+		"dirty_boxer:volume_striker": 0.109,
 		"dirty_boxer:wrestler": 1.538,
 		"gnp_wrestler:judoka": -1.343,
 		"gnp_wrestler:karate": 0.812,
@@ -72,6 +77,7 @@
 		"gnp_wrestler:pressure_wrestler": 0.167,
 		"gnp_wrestler:sambo": -1.587,
 		"gnp_wrestler:sprawl_brawl": -0.716,
+		"gnp_wrestler:volume_striker": 1.124,
 		"gnp_wrestler:wrestler": -0.075,
 		"judoka:karate": -2.317,
 		"judoka:kicker": -0.894,
@@ -80,6 +86,7 @@
 		"judoka:pressure_wrestler": 1.231,
 		"judoka:sambo": 1.01,
 		"judoka:sprawl_brawl": -0.853,
+		"judoka:volume_striker": 1.452,
 		"judoka:wrestler": 2.146,
 		"karate:kicker": 1.28,
 		"karate:leg_kicker": -0.129,
@@ -87,28 +94,36 @@
 		"karate:pressure_wrestler": 0.502,
 		"karate:sambo": 2.453,
 		"karate:sprawl_brawl": 1.708,
+		"karate:volume_striker": 1.946,
 		"karate:wrestler": 1.66,
 		"kicker:leg_kicker": -2.532,
 		"kicker:muay_thai": -0.693,
 		"kicker:pressure_wrestler": 0.092,
 		"kicker:sambo": 1.292,
 		"kicker:sprawl_brawl": 0.096,
+		"kicker:volume_striker": 1.023,
 		"kicker:wrestler": 0.651,
 		"leg_kicker:muay_thai": -0.657,
 		"leg_kicker:pressure_wrestler": 1.484,
 		"leg_kicker:sambo": 1.251,
 		"leg_kicker:sprawl_brawl": -0.984,
+		"leg_kicker:volume_striker": 0.613,
 		"leg_kicker:wrestler": 1.132,
 		"muay_thai:pressure_wrestler": 0.482,
 		"muay_thai:sambo": -0.082,
 		"muay_thai:sprawl_brawl": 0.066,
+		"muay_thai:volume_striker": 0.42,
 		"muay_thai:wrestler": 0.788,
 		"pressure_wrestler:sambo": -1.317,
 		"pressure_wrestler:sprawl_brawl": -2.662,
+		"pressure_wrestler:volume_striker": -0.353,
 		"pressure_wrestler:wrestler": 0.102,
 		"sambo:sprawl_brawl": -0.966,
+		"sambo:volume_striker": 0.438,
 		"sambo:wrestler": 0.731,
-		"sprawl_brawl:wrestler": 1.652
+		"sprawl_brawl:volume_striker": 1.623,
+		"sprawl_brawl:wrestler": 1.652,
+		"volume_striker:wrestler": -0.422
 	},
 	"wins": {
 		"boxer": {
@@ -185,6 +200,11 @@
 			"ko": 0.176,
 			"submission": 0.183,
 			"decision": 0.64
+		},
+		"volume_striker": {
+			"ko": 0.586,
+			"submission": 0.031,
+			"decision": 0.382
 		}
 	},
 	"losses": {
@@ -262,6 +282,11 @@
 			"ko": 0.329,
 			"submission": 0.218,
 			"decision": 0.454
+		},
+		"volume_striker": {
+			"ko": 0.46,
+			"submission": 0.168,
+			"decision": 0.371
 		}
 	},
 	"rounds": {
@@ -285,6 +310,11 @@
 	"made": {
 		"commit": "ea38ca5",
 		"date": "2026-11-01",
-		"seed": 1
+		"seed": 1,
+		"volume_striker": {
+			"commit": "5153dcb",
+			"date": "2026-11-05",
+			"seed": 1
+		}
 	}
 }

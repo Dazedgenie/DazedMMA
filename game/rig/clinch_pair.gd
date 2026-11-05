@@ -33,6 +33,12 @@ const BREAK_HIPS_BACK: float = 0.05
 const DRIVE_STRIDE: float = 0.9
 const STANCE_SHARE: float = 0.6
 const STEP_LIFT: float = 0.08
+## The head post on the fence (D490): the man posting rises POST_RISE (m) and stands POST_UPRIGHT degrees more
+## upright, his lead arm out to the held man's forehead, whose head goes back POSTED_HEAD degrees. Held off like that,
+## the held man's hands frame on his shoulders.
+const POST_RISE: float = 0.03
+const POST_UPRIGHT: float = 6.0
+const POSTED_HEAD: float = -16.0
 ## The moves the held man makes to get off the fence (D287: he fights off it while making one).
 const WORK_MOVES: Array[String] = ["spin_off", "turn_him", "clinch_break"]
 
@@ -43,7 +49,8 @@ const WORK_MOVES: Array[String] = ["spin_off", "turn_him", "clinch_break"]
 ## one); `collar`: who holds the collar tie (-1 none); `held`: who is held on the fence (-1 none).
 ## `motion` (D287, optional): {move: "drive", by, step} while fighter `by` drives the other to the fence
 ## (`step`: metres driven so far); {move: "work", by, action} while the held man works to get off it with
-## `action` (WORK_MOVES); {move: "break", by} while fighter `by` breaks the clinch away from the fence.
+## `action` (WORK_MOVES); {move: "break", by} while fighter `by` breaks the clinch away from the fence;
+## {move: "post", by, lead} while fighter `by` has his `lead` hand ("l" or "r") posted on the held man's head (D490).
 ## Returns {pair: {a, b}, flip: true when blue is the "a" man, kind: "drive", "collar", "fence", "lock" or "tie"}.
 static func build(grips: Array, red_sides: Array, collar: int, held: int, motion: Dictionary = {}) -> Dictionary:
 	var lock_owner: int = int(grips[0]) if int(grips[0]) == int(grips[1]) and int(grips[0]) >= 0 else -1
@@ -99,6 +106,8 @@ static func build(grips: Array, red_sides: Array, collar: int, held: int, motion
 		_work(pair, String(motion.get("action", "")), grips, a_sides, held)
 	elif move == "break" and kind != "collar":
 		_break(pair, "a" if int(motion.by) == driver else "b")
+	elif move == "post" and kind == "fence" and int(motion.by) == driver:
+		_post(pair, String(motion.get("lead", "l")))
 	return {"pair": pair, "flip": driver == 1, "kind": kind}
 
 
@@ -133,6 +142,7 @@ static func examples() -> Dictionary:
 		"blue_turns_red": [[0, 1], sides, -1, 1, {"move": "work", "by": 1, "action": "turn_him"}],
 		"blue_breaks_off_the_fence": [[0, 1], sides, -1, 1, {"move": "work", "by": 1, "action": "clinch_break"}],
 		"red_breaks": [[0, 1], sides, -1, -1, {"move": "break", "by": 0}],
+		"red_posts_on_blue_on_the_fence": [[0, 1], sides, -1, 1, {"move": "post", "by": 0, "lead": "l"}],
 	}
 
 
@@ -249,6 +259,22 @@ static func _work(pair: Dictionary, action: String, grips: Array, a_sides: Array
 	var post: String = _other(out_letter)
 	var post_x: float = 1.0 if post == "l" else -1.0
 	b["hand_" + post] = {"at": [post_x * POST_OUT, POST_UP, -FENCE_Z + 0.04], "pole": [post_x, -0.4, -0.5]}
+
+
+## The a man's head post on the man held on the fence (D490): he stands a little taller, his `lead` hand on the man's
+## forehead pushing his head back onto the wire, the other hand digging to his body; the held man's hands frame on him.
+static func _post(pair: Dictionary, lead: String) -> void:
+	var a: Dictionary = pair.a
+	var root: Array = a.root
+	a.root = [root[0], float(root[1]) + POST_RISE, root[2]]
+	a.lean = float(a.lean) - POST_UPRIGHT
+	a.head = [0, 0]
+	var out: float = -1.0 if lead == "l" else 1.0
+	a["hand_" + lead] = {"to": "b.forehead", "off": [0.0, 0.0, -0.03], "pole": [out, -0.5, 0.3]}
+	a["hand_" + _other(lead)] = {"to": "b.waist_" + lead, "off": [0.0, 0.04, 0.0], "pole": [-out, -0.8, 0.2]}  # Digging.
+	pair.b.head = [POSTED_HEAD, 0]
+	for letter: String in ["l", "r"]:
+		pair.b["hand_" + letter] = hand("frame", letter, "a")
 
 
 ## `man` ("a" or "b") breaking the clinch (D287): both hands framing on the other man, hips pushed back.
