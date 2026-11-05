@@ -170,13 +170,16 @@ func make_offer(c: Career, style_id: String, difficulty: String, rng: RandomNumb
 ## An offer against one of the world's men (see make_offer).
 func _offer(c: Career, w: World, id: String, difficulty: String, week: int, card: Dictionary, purse: Dictionary, index: int) -> Dictionary:
 	var m: Dictionary = w.man(id)
-	return {
+	var out := {
 		"id": "offer_w%d_%d" % [c.week, index], "profile": w.profile(id, c.week), "about": World.about(m),
 		"style": String(m.style), "difficulty": difficulty, "division": c.division_now(),
 		"week": week, "expires": c.week + OPEN_WEEKS - 1,
 		"ruleset": rules_for(c), "pro": c.pro, "purse": purse,
 		"card": card,
 	}
+	if Lads.used_to(c.gym, id):
+		out.former_mate = true  # He used to train at your gym (D444).
+	return out
 
 
 ## His title fight offer (D356; Kyle, 2026-11-02: "At #1 or #2 in his promotion"), {} when there's none: in the
@@ -368,6 +371,8 @@ func pick_man(c: Career, w: World, division: String, target: float, style_id: St
 	for m: Dictionary in w.in_division(division, c.week):
 		if bool(m.pro) != c.pro or String(m.id) in taken_ids or not World.can_rematch(m, c.week):
 			continue
+		if Lads.at_gym(c.gym, String(m.id)):
+			continue  # Gym-mates aren't offered against him (D444).
 		if not promotions.is_empty() and not String(m.get("promotion", "")) in promotions:
 			continue  # A pro offer is on one of these promotions' cards (D354).
 		if (style_id != "" and String(m.style) != style_id) or (style_id == "" and String(m.style) in taken_styles):

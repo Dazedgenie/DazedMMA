@@ -118,3 +118,25 @@ func test_the_coaches_tab_lists_who_is_looking_and_hiring_puts_him_on_your_staff
 	assert_string_contains(CoachesView.coach_text(Staff.coaches(c.gym)[0], true), "Striking stats learn 15% faster")
 	assert_eq(page.coaches.let_go("striking"), "")
 	assert_false(page.coaches.let_go_buttons.has("striking"))
+
+
+func test_the_fighters_tab_shows_him_and_the_gyms_lads_and_what_the_best_partner_does() -> void:
+	var c: Career = _career()
+	c.gym.lads = [{ "id": "nobody_a", "name": "Jake Moss", "style": "boxer", "born": 17.0, "avg": 90.0, "record": "4-1-0",
+		"pro": false, "country": "England", "since": 0 }]
+	c.gym.former = []
+	var page: GymPage = add_child_autofree(GymPage.new())
+	page.show_gym(c)
+	page.fighters_tab.pressed.emit()
+	assert_true(page.fighters.visible)
+	assert_false(page.coaches.visible)
+	page.show_tab(GymPage.FIGHTERS)
+	assert_false(page.rooms_tab.button_pressed, "only the Fighters tab lit")
+	assert_eq(page.fighters.lad_rows.size(), 1)
+	assert_string_contains(LadsView.lad_text(c.gym.lads[0], 40.0, c.week), "Well ahead of him")
+	assert_string_contains(LadsView.lad_text(c.gym.lads[0], 40.0, c.week), "4-1-0 amateur")
+	assert_string_contains(LadsView.side_text(c), "Jake Moss")
+	assert_string_contains(LadsView.side_text(c), "15% faster")
+	assert_string_contains(CareerHub.gym_text(c), "1 other lad trains here")
+	c.gym.lads = []
+	assert_string_contains(LadsView.side_text(c), "Nobody to spar with")

@@ -1137,6 +1137,8 @@ func test_gyms_train_real_session_kinds_and_every_background_has_one_that_suits_
 			var instead: String = String(session.get("instead", ""))
 			if not _items("sessions").has(instead) or _items("sessions")[instead].has("needs"):
 				problems.append("session '%s': instead must be a session that needs no room (D442)" % id)
+		if session.has("partner") and not session.partner is bool:
+			problems.append("session '%s': partner must be true or false: whether a sparring partner at the gym helps it (D444)" % id)
 	_report(problems)
 
 

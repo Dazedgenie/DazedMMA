@@ -472,7 +472,8 @@ func _run_slot(id: String, day: int, quality: float, variety: float, instruction
 			stats[String(dent.stat)] = maxf(1.0, stat(String(dent.stat)) - float(dent.points))  # A lasting dent (D406).
 			hurt_entry.dent = dent
 		week.injuries.append(hurt_entry)
-	var mult: float = clampf(quality, PLAYED_MIN, PLAYED_MAX) * fatigue_factor() * variety * Gym.xp_share(gym, String(session.get("kind", "")), id)
+	var mult: float = clampf(quality, PLAYED_MIN, PLAYED_MAX) * fatigue_factor() * variety * Gym.xp_share(gym, String(session.get("kind", "")), id) \
+		* Lads.partner_share(gym, Matchmaker.average_stat(stats), session)  # A better partner at the gym (D444).
 	for stat_id: String in session.trains:
 		var points: float = float(session.xp) * float(session.trains[stat_id]) * mult * learning(stat_id) / xp_per_point(stat_id)
 		if _camp_gains.get(stat_id, 0.0) >= CAMP_SOFT_CAP:
