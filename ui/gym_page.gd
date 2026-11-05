@@ -4,7 +4,8 @@ extends PanelContainer
 ## (FloorPlan) with its rooms on their squares, and down the side the room you clicked (its level, what it does now
 ## and at the next level, what that costs and how long the room's shut) with *Build* and *Tear it down*, or, with
 ## no room picked, every room you could build with its size and cost. The gym's money and month along the top.
-## Building spends the gym's money straight away (Career.build_room). Close or Esc goes back to the hub.
+## Building spends the gym's money straight away (Career.build_room). Close or Esc goes back to the hub. The *Coaches*
+## tab (CoachesView, §14.3, D443) has the coaches you've hired and the men looking for work.
 
 signal closed
 ## Something was built or torn down: the career changed (main saves it).
@@ -12,9 +13,18 @@ signal changed
 
 const SIDE_WIDTH: float = 460.0
 
+const ROOMS := "rooms"
+const COACHES := "coaches"
+
 var career: Career
 var picked_room: String = ""
 var plan: FloorPlan
+## Which tab is showing: ROOMS or COACHES.
+var tab: String = ROOMS
+var rooms_tab: Button
+var coaches_tab: Button
+var coaches: CoachesView
+var _rooms_body: HBoxContainer
 
 var _title: Label
 var _subtitle: Label
@@ -67,11 +77,23 @@ func _init() -> void:
 	_money.scroll_active = false
 	_money.add_theme_font_size_override("normal_font_size", 19)
 	column.add_child(_money)
+	var tabs := HBoxContainer.new()
+	tabs.add_theme_constant_override("separation", 6)
+	column.add_child(tabs)
+	var group := ButtonGroup.new()
+	rooms_tab = _tab(tabs, "Rooms", group, ROOMS)
+	coaches_tab = _tab(tabs, "Coaches", group, COACHES)
+	rooms_tab.set_pressed_no_signal(true)
 
 	var body := HBoxContainer.new()
 	body.add_theme_constant_override("separation", 20)
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	column.add_child(body)
+	_rooms_body = body
+	coaches = CoachesView.new()
+	coaches.visible = false
+	coaches.changed.connect(func() -> void: _money.text = money_text(career); changed.emit())
+	column.add_child(coaches)
 	plan = FloorPlan.new()
 	plan.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	plan.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -112,11 +134,18 @@ func _init() -> void:
 	visible = false
 
 
-## Opens the page for this career's gym, with nothing picked.
+## Opens the page for this career's gym, with nothing picked, on the Rooms tab.
 func show_gym(c: Career, p_picked: String = "") -> void:
 	career = c
 	picked_room = p_picked
 	visible = true
+	show_tab(ROOMS)
+
+
+## Shows the Rooms or the Coaches tab.
+func show_tab(id: String) -> void:
+	tab = id
+	(rooms_tab if id == ROOMS else coaches_tab).set_pressed_no_signal(true)
 	refresh()
 
 
@@ -128,6 +157,11 @@ func refresh() -> void:
 	_subtitle.text = "%s · %s · %d of %d squares of floor used" % [String(Gym.place(String(gym.get("place", ""))).get("name", "")),
 		Gym.kind_line(gym), Gym.floor_used(gym), Gym.floor_size(gym)]
 	_money.text = money_text(career)
+	_rooms_body.visible = tab == ROOMS
+	coaches.visible = tab == COACHES
+	if tab == COACHES:
+		coaches.show_career(career)
+		return
 	plan.show_gym(gym, career.week, picked_room)
 	_build.visible = false
 	_tear.visible = false
@@ -186,6 +220,8 @@ static func money_text(c: Career) -> String:
 		var left: int = maxi(1, int(building.get("done", c.week)) - c.week)
 		var name: String = String(Gym.room(String(building.room)).get("name", "")).to_lower()
 		bits.append("%s the %s: %d week%s" % ["tearing out" if int(building.level) == 0 else "building", name, left, "" if left == 1 else "s"])
+	if not Staff.coaches(c.gym).is_empty():  # The coaches' wages (D443).
+		bits.append("wages $%d a week" % Staff.wages(c.gym))
 	return " · ".join(bits)
 
 
@@ -291,6 +327,18 @@ func _show_list() -> void:
 		b.pressed.connect(func() -> void: build(id))
 		box.add_child(b)
 		list_buttons[id] = b
+
+
+func _tab(parent: Control, label: String, group: ButtonGroup, id: String) -> Button:
+	var b := Button.new()
+	b.text = label
+	b.toggle_mode = true
+	b.button_group = group
+	DisplayFont.apply(b, 22)
+	b.custom_minimum_size = Vector2(140.0, 42.0)
+	b.pressed.connect(func() -> void: show_tab(id))
+	parent.add_child(b)
+	return b
 
 
 func _button(label: String, action: Callable) -> Button:

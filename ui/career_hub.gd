@@ -171,7 +171,7 @@ func _init() -> void:
 	var hub_tab: Button = _tab(tabs, "Hub", "This week, his next fight and the calendar")
 	hub_tab.set_pressed_no_signal(true)
 	hub_tab.pressed.connect(func() -> void: hub_tab.set_pressed_no_signal(true))
-	gym_tab = _tab(tabs, "Your gym", "Your gym from above: build and upgrade its rooms")
+	gym_tab = _tab(tabs, "Your gym", "Your gym: build and upgrade its rooms, hire its coaches")
 	gym_tab.pressed.connect(func() -> void: _tab_back(gym_tab); gym_pressed.emit())
 	_division = _tab(tabs, "His division", "The men in his division this week")
 	_division.pressed.connect(func() -> void: _tab_back(_division); division_pressed.emit())
@@ -1405,7 +1405,21 @@ static func gym_text(c: Career) -> String:
 		var left: int = maxi(1, int(building.get("done", c.week)) - c.week)
 		out += "\n%s the %s: %d week%s to go" % ["Tearing out" if int(building.level) == 0 else "Building", String(Gym.room(String(building.room)).get("name", "")).to_lower(),
 			left, "" if left == 1 else "s"]
+	var staff: Array = Staff.coaches(c.gym)
+	if not staff.is_empty():  # The coaches you've hired (D443).
+		out += "\n%s · $%d a week in wages" % [coaches_line(staff), Staff.wages(c.gym)]
 	return out
+
+
+## "Coached by Joe Hart (striking) and Ann Lee (nutritionist)": the gym's coaches by name and what they do.
+static func coaches_line(staff: Array) -> String:
+	var names: Array[String] = []
+	for coach: Dictionary in staff:
+		var role: String = Staff.role_words(String(coach.get("role", ""))).replace(" coach", "")
+		names.append("%s (%s)" % [String(coach.get("name", "")), role])
+	if names.size() == 1:
+		return "Coaching with you: " + names[0]
+	return "Coaching with you: %s and %s" % [", ".join(PackedStringArray(names.slice(0, names.size() - 1))), names[-1]]
 
 
 ## A month of the gym as it turned (Gym.month): "The gym's month: dues $640, rent $540 (+$100), 16 members (+1)."

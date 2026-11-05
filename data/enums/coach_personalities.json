@@ -1,0 +1,22 @@
+{
+	"schema": "enum@1",
+	"id": "coach_personalities",
+	"values": {
+		"hard": {
+			"name": "Hard",
+			"about": "Drives them hard: his side of it learns a bit faster, but more of them get hurt.",
+			"xp": 0.05,
+			"injury": 1.15
+		},
+		"patient": {
+			"name": "Patient",
+			"about": "Brings them along slowly: fewer of them get hurt.",
+			"injury": 0.85
+		},
+		"fiery": {
+			"name": "Fiery",
+			"about": "Shouts them through the door: fewer skipped sessions.",
+			"skips": 0.7
+		}
+	}
+}
