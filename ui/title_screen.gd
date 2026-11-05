@@ -1,8 +1,9 @@
 class_name TitleScreen
 extends PanelContainer
-## The title screen (docs/03 §10.2, D302), in the corner-board look of the screens off the cage (D170): over a real
-## fight in the cage (TitleBackdrop, docs/06 §6.14, D434), down a dark strip on the left: CHIN CHECK in the
-## display font, Lampsmoke Games under it (D242), then Continue (the career saved last, with who and when), New career,
+## The title screen (docs/03 §10.2, D302), in the corner-board look of the screens off the cage (D170): over the
+## placeholder painting of the coach in the corner (D470, docs/06 §6.18), or a real fight in the cage with PAINTED off
+## (TitleBackdrop, docs/06 §6.14, D434), down a dark strip on the left: the impact emblem logo (D471), Lampsmoke Games
+## under it (D242), then Continue (the career saved last, with who and when), New career,
 ## Load career, Quick fight (the fight setup and the Playtest fights, as they were) and Quit (not in the browser build,
 ## which can't close its own tab).
 
@@ -24,6 +25,13 @@ const STRIP_ALPHA: float = 0.92
 const STRIP_SOLID: float = 0.55
 ## The menu's left edge.
 const MENU_LEFT: float = 110.0
+## The placeholder title art (D470, D471): the painting of the coach in the corner behind the menu, in place of the
+## fight in the cage. Off (false) brings the fight back (game/main.gd reads it).
+const PAINTED: bool = true
+const ART_PATH := "res://ui/art/title_art.png"
+## The logo: the fist on the chin with CHIN CHECK under it, this tall and wide on a 1080-high screen.
+const LOGO_PATH := "res://ui/art/title_logo.png"
+const LOGO_SIZE: float = 420.0
 
 ## Where the career saves are (CareerSaves.DIR; tests use their own folder).
 var save_dir: String = CareerSaves.DIR
@@ -42,6 +50,15 @@ func _init() -> void:
 	var layer := Control.new()
 	layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(layer)
+	if PAINTED:
+		var art := TextureRect.new()
+		art.name = "Art"
+		art.texture = load(ART_PATH) as Texture2D
+		art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		art.set_anchors_preset(Control.PRESET_FULL_RECT)
+		art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		layer.add_child(art)
 	var strip := TextureRect.new()
 	strip.texture = strip_texture()
 	strip.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -60,11 +77,14 @@ func _init() -> void:
 	column.add_theme_constant_override("separation", 12)
 	margin.add_child(column)
 
-	var title := Label.new()
-	title.text = "CHIN CHECK"
-	DisplayFont.apply(title, 132)
-	title.add_theme_color_override("font_color", RED_CORNER)
-	column.add_child(title)
+	var logo := TextureRect.new()
+	logo.name = "Logo"
+	logo.texture = load(LOGO_PATH) as Texture2D
+	logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT
+	logo.custom_minimum_size = Vector2(LOGO_SIZE, LOGO_SIZE)
+	logo.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	column.add_child(logo)
 	var studio := FightNightCard._label(22, DIM)
 	DisplayFont.apply(studio, 22)
 	studio.text = "LAMPSMOKE GAMES"
@@ -87,7 +107,7 @@ func _init() -> void:
 	_quit.visible = not OS.has_feature("web")
 
 
-## The strip behind the menu: BACKGROUND, solid for the menu's width, then fading out to the right over the fight.
+## The strip behind the menu: BACKGROUND, solid for the menu's width, then fading out to the right over the picture.
 static func strip_texture() -> GradientTexture2D:
 	var gradient := Gradient.new()
 	gradient.set_color(0, Color(BACKGROUND, STRIP_ALPHA))
