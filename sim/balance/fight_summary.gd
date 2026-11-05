@@ -41,6 +41,8 @@ const COLUMNS: Array[String] = [
 	"collar_ties_blue", "collar_ties_won_blue", "clinch_knees_blue", "tied_knees_blue",
 	"fence_hold_red", "fence_drives_red", "fence_drives_won_red", "spin_offs_red", "spin_offs_won_red",
 	"fence_hold_blue", "fence_drives_blue", "fence_drives_won_blue", "spin_offs_blue", "spin_offs_won_blue",
+	"posts_red", "posts_won_red", "post_s_red", "post_body_red", "posts_swatted_red", "posts_circled_red", "posts_tied_red", "swats_red", "swats_won_red",
+	"posts_blue", "posts_won_blue", "post_s_blue", "post_body_blue", "posts_swatted_blue", "posts_circled_blue", "posts_tied_blue", "swats_blue", "swats_won_blue",
 	"underhook_red", "body_lock_red", "pummels_red", "pummels_won_red", "strips_red", "strips_won_red", "turns_red", "turns_won_red",
 	"underhook_blue", "body_lock_blue", "pummels_blue", "pummels_won_blue", "strips_blue", "strips_won_blue", "turns_blue", "turns_won_blue",
 	"held_top_red", "tied_top_red", "half_uh_red", "ground_ties_red", "ground_ties_won_red", "wrists_red", "wrists_won_red",
@@ -292,6 +294,15 @@ static func of(sim: FightSim, lows: Array[float] = [], moves: Dictionary = {}) -
 		row["fence_drives_won_" + side] = f.fence_drives_won
 		row["spin_offs_" + side] = f.spin_offs_tried
 		row["spin_offs_won_" + side] = f.spin_offs_won
+		row["posts_" + side] = f.posts_tried  # The head post (D490).
+		row["posts_won_" + side] = f.posts_won
+		row["post_s_" + side] = float(f.post_ticks) / FightClock.TICKS_PER_SECOND
+		row["post_body_" + side] = f.post_body_landed
+		row["posts_swatted_" + side] = int(f.post_ends.get(FightSim.POST_SWATTED, 0))
+		row["posts_circled_" + side] = int(f.post_ends.get(FightSim.POST_CIRCLED, 0))
+		row["posts_tied_" + side] = int(f.post_ends.get(FightSim.POST_TIED, 0))
+		row["swats_" + side] = f.swats_tried
+		row["swats_won_" + side] = f.swats_won
 		var clinch_ticks: int = moves.get("clinch", 0)
 		row["underhook_" + side] = _share_of(moves.get("underhook", [0, 0])[i], clinch_ticks)
 		row["body_lock_" + side] = _share_of(moves.get("body_lock", [0, 0])[i], clinch_ticks)

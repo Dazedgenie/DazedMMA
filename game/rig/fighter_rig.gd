@@ -47,6 +47,7 @@ const POINTS := {
 	"head": ["head", Vector3(0, 0.03, 0.0)],
 	"back_of_head": ["head", Vector3(0, 0.03, 0.13)],
 	"chin": ["head", Vector3(0, -0.11, -0.09)],
+	"forehead": ["head", Vector3(0, 0.08, -0.11)],
 	"shoulder_l": ["chest", Vector3(-0.245, 0.33, 0.0)],
 	"shoulder_r": ["chest", Vector3(0.245, 0.33, 0.0)],
 	"armpit_l": ["chest", Vector3(-0.2, 0.2, 0.0)],

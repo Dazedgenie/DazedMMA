@@ -14,7 +14,8 @@
 	"stats": { "offense": ["boxing", "power"], "defense": ["striking_defense"] },
 	"opportunities": [
 		{ "opponent_flag": "HANDS_LOW", "success_bonus": 0.20 },
-		{ "opponent_flag": "ONE_LEG", "success_bonus": 0.10 }
+		{ "opponent_flag": "ONE_LEG", "success_bonus": 0.10 },
+		{ "own_flag": "HEAD_POSTED", "success_bonus": -0.15 }
 	],
 	"requires_technique": null
 }

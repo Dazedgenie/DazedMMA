@@ -404,6 +404,14 @@ func struggle_stamina() -> float:
 	return _sum("struggle_stamina")
 
 
+## How much the focus on now weighs a move by its id (its `weights`), 1 when there's none (D493:
+## *Post and dig!* lets him post again straight away).
+func focus_weight(id: String) -> float:
+	if focus.is_empty():
+		return 1.0
+	return float(focus.call.focus.get("weights", {}).get(id, 1.0))
+
+
 ## *Hand fight!* (D265): while its focus is on, this much on the odds of every grip move (its `grip_bonus`).
 func grip_bonus() -> float:
 	return _sum("grip_bonus")

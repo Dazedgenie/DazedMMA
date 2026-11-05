@@ -962,8 +962,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			make_call(hud.read_call(0))
 		KEY_E:
 			make_call(hud.read_call(1))
-		KEY_R, KEY_H:
-			# Calls on a letter key (Cut the cage! on R, D230; Hand fight! on H, D265).
+		KEY_R, KEY_H, KEY_B:
+			# Calls on a letter key (Cut the cage! on R, D230; Hand fight! on H, D265; Post and dig! on B, D490).
 			handled = false
 			var letter: String = OS.get_keycode_string(key)
 			for id in driver.sim.calls.ids():

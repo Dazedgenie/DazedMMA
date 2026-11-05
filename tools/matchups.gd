@@ -9,7 +9,10 @@ extends SceneTree
 ##
 ## Usage:
 ##   godot --headless --script res://tools/matchups.gd [-- --fights=40 --seed=1 --jobs=4 --out=data/world/matchups.json]
-## --fights is per pair of styles (105 pairs), so 40 is 4,200 fights: about 15 minutes on 4 cores.
+## --fights is per pair of styles (120 pairs), so 40 is 4,800 fights: about 17 minutes on 4 cores.
+## --only=<style> plays just the pairs with that style (a new style: 15 pairs) and merges its edges, wins and losses
+## into the table already at --out, leaving every other number there as it was (D495: the Volume striker added
+## without moving the rest of the world).
 
 const BASE_AVG: float = 55.0
 const BASE_SPREAD: float = 6.0
@@ -25,6 +28,7 @@ func _initialize() -> void:
 	var worker: int = -1
 	var out_path: String = "res://data/world/matchups.json"
 	var part_path: String = ""
+	var only: String = ""
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--fights="):
 			fights = int(arg.trim_prefix("--fights="))
@@ -36,11 +40,13 @@ func _initialize() -> void:
 			worker = int(arg.trim_prefix("--worker="))
 		elif arg.begins_with("--part="):
 			part_path = arg.trim_prefix("--part=")
+		elif arg.begins_with("--only="):
+			only = arg.trim_prefix("--only=")
 		elif arg.begins_with("--out="):
 			out_path = arg.trim_prefix("--out=")
 			if not out_path.begins_with("res://") and not out_path.begins_with("/"):
 				out_path = "res://" + out_path
-	var jobs: Array[Dictionary] = plan(fights, first_seed)
+	var jobs: Array[Dictionary] = plan(fights, first_seed, only)
 	if worker >= 0:
 		var rows: Array = _play(jobs, worker, processes)
 		var f := FileAccess.open(part_path, FileAccess.WRITE)
@@ -50,7 +56,7 @@ func _initialize() -> void:
 	var started: int = Time.get_ticks_msec()
 	print("Playing %d fights (%d pairs of styles × %d) in %d process%s…" % [jobs.size(), jobs.size() / maxi(1, fights), fights, processes, "" if processes == 1 else "es"])
 	var args: PackedStringArray = ["--headless", "--path", ProjectSettings.globalize_path("res://"), "--script", "res://tools/matchups.gd", "--",
-		"--fights=%d" % fights, "--seed=%d" % first_seed, "--jobs=%d" % processes]
+		"--fights=%d" % fights, "--seed=%d" % first_seed, "--jobs=%d" % processes, "--only=" + only]
 	var pids: Array[int] = []
 	var parts: Array[String] = []
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://build/matchups"))
@@ -72,6 +78,8 @@ func _initialize() -> void:
 	var table: Dictionary = ResultModel.fit(rows)
 	table.fights_per_pair = fights
 	table.made = { "commit": _commit(), "date": Time.get_date_string_from_system(), "seed": first_seed }
+	if only != "":
+		table = _merged(out_path, table, only)
 	var f := FileAccess.open(out_path, FileAccess.WRITE)
 	f.store_string(JSON.stringify(table, "\t", false) + "\n")
 	f = null
@@ -82,13 +90,16 @@ func _initialize() -> void:
 	_done = true
 
 
-## Every fight to play: each pair of different styles `fights` times, { a, b, seed, avg_a, avg_b, a_red }.
-static func plan(fights: int, first_seed: int) -> Array[Dictionary]:
+## Every fight to play: each pair of different styles `fights` times, { a, b, seed, avg_a, avg_b, a_red }; with
+## `only`, just the pairs with that style.
+static func plan(fights: int, first_seed: int, only: String = "") -> Array[Dictionary]:
 	var ids: Array = StyleLibrary.shared().ids().duplicate()
 	ids.sort()
 	var out: Array[Dictionary] = []
 	for i in ids.size():
 		for j in range(i + 1, ids.size()):
+			if only != "" and ids[i] != only and ids[j] != only:
+				continue
 			for n in fights:
 				var s: int = first_seed + n
 				var rng := RandomNumberGenerator.new()
@@ -128,6 +139,29 @@ static func _play(jobs: Array[Dictionary], worker: int, processes: int) -> Array
 		if worker == 0 and rows.size() % 100 == 0:
 			print("  %d of about %d fights here…" % [rows.size(), jobs.size() / processes])
 	return rows
+
+
+## The table at `path` with `style`'s edges, wins and losses from `fitted` (fitted on its pairs only); the rest kept.
+static func _merged(path: String, fitted: Dictionary, style: String) -> Dictionary:
+	var table: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+	if not table is Dictionary:
+		return fitted
+	for pair: String in fitted.edges:
+		if style in pair.split(":"):
+			table.edges[pair] = fitted.edges[pair]
+	var keys: Array = table.edges.keys()
+	keys.sort()
+	var edges: Dictionary = {}
+	for pair: String in keys:
+		edges[pair] = table.edges[pair]
+	table.edges = edges
+	for part: String in ["wins", "losses"]:
+		if fitted.get(part, {}).has(style):
+			table[part][style] = fitted[part][style]
+	table.made[style] = fitted.made
+	table.fights_per_pair = int(table.fights_per_pair)  # JSON reads whole numbers back as floats.
+	table.made.seed = int(table.made.seed)
+	return table
 
 
 static func _level(model: World, style_id: String, avg: float) -> int:
