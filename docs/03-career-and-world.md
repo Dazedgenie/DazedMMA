@@ -1925,7 +1925,8 @@ picked. The first time the gym is looked at (a new career, or an old save) **two
 **How many:** the gym has **room for one lad for every 8 members, 2 to 8** (`room`). On the first of each month every lad's
 snapshot is refreshed; a man who's retired goes (*Jake Moss has retired and left the gym*); each lad **leaves at 5%**
 (*Jake Moss has left the gym to train somewhere else*); then, while there's room, **one walks in at 35%** (*Jake Moss
-walked in to train at Hill's Gym*). The news goes on the hub and the calendar. Seeded: the same month brings the same men.
+walked in to train at Hill's Gym*). The news goes on the hub and the calendar; *Advance* runs on past it
+(`Career.JUST_NEWS`). Seeded: the same month brings the same men.
 
 **What they do for him.** A session with a partner (`partner: true` in `data/sessions/`: hard and light sparring, rolling,
 wrestling drills, clinch work, the sprawl drill, Shark tank) **learns faster with a better partner**: his best lad's
