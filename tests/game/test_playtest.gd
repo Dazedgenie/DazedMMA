@@ -20,7 +20,7 @@ func after_each() -> void:
 func test_the_playtest_fights_follow_the_onboarding_order() -> void:
 	var steps: Array[Dictionary] = Playtest.steps()
 	assert_eq(steps.map(func(s: Dictionary) -> String: return s.id), ["fight_1_first_calls", "fight_2_catch_the_kick", "fight_3_drilled_rule"])
-	assert_eq(steps[0].calls, ["pressure", "circle_out", "takedown", "ground_and_pound", "go_for_the_finish", "finish_it", "defend_the_sub"],
+	assert_eq(steps[0].calls, ["pressure", "finish_him", "circle_out", "takedown", "ground_and_pound", "go_for_the_finish", "finish_it", "defend_the_sub"],
 		"three call keys first (docs/07 step 4; on top Ground and pound! and Go for the finish! share keys 1 and 2, Finish it! and Defend the sub! are only live in a hold)")
 	assert_true(steps[1].calls.has("catch_the_kick"), "then the read call against the Kicker (step 7)")
 	for step in steps.slice(0, 2):

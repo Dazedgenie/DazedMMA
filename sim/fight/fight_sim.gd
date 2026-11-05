@@ -934,6 +934,7 @@ func _advance_fighter(i: int) -> void:
 	if calls_here.active:
 		decisions[i].update_calls(views[i])
 		f.attention = calls_here.attention
+		f.guard_drop = calls_here.guard_drop
 	if not f.is_free():
 		f.phase_ticks_left -= 1
 		if f.phase_ticks_left <= 0:

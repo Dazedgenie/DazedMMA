@@ -245,6 +245,8 @@ var combo_next_until: int = -1
 var queued_combo: String = ""
 ## Share of Striking and Takedown defense the primed read calls take away (0 = none, LiveCalls).
 var attention: float = 0.0
+## Share of Striking defense a swarm takes away (Finish him!, D480: his guard drops while he goes for the finish).
+var guard_drop: float = 0.0
 ## How much of the gas tank a camp left them (docs/02 §3.7, D135): 1 fresh, less when they come in tired.
 var tank_share: float = 1.0
 ## The corner's calls take this share of their usual delay to reach him: a Tactician head coach's 0.75 (D311), else 1.
@@ -321,6 +323,8 @@ func effective_stat(id: String) -> float:
 		value *= 1.0 - LIMP_PENALTY
 	if attention > 0.0 and ATTENTION_STATS.has(id):
 		value *= 1.0 - attention
+	if guard_drop > 0.0 and id == "striking_defense":
+		value *= 1.0 - guard_drop
 	var defense: bool = PANIC_DEFENSE_STATS.has(id)
 	if defense or id == "power":
 		if head < 0.0:
@@ -345,6 +349,8 @@ func condition_reasons(id: String) -> Array[String]:
 		out.append("limping")
 	if attention > 0.0 and id in ATTENTION_STATS:
 		out.append("watching for a read")
+	if guard_drop > 0.0 and id == "striking_defense":
+		out.append("swarming")
 	if is_panicking() and (id in PANIC_DEFENSE_STATS or id == "power"):
 		out.append("panicking")
 	return out

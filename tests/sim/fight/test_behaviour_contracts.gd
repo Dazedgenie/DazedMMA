@@ -10,9 +10,10 @@ extends GutTest
 ## Brawler from seed 2 (the Brawler's out-of-range share is over 15% in about one fight in six, on main too) when the
 ## fights changed with resetting to the centre (D290). Kicker vs Boxer went back to seed 1 when the AI corner's repeated calls
 ## started to wear off (D258): seed 4 became a second-round knockout with one combination from the Kicker. It moved to
-## seed 2 with the shoulder roll, lean back and high guard (D181): seed 1 became a first-round triangle for the Kicker.
+## seed 2 with the shoulder roll, lean back and high guard (D181): seed 1 became a first-round triangle for the Kicker. It moved
+## to seed 3 with Finish him! (D484): the Boxer's corner swarming the rocked Kicker left seed 2 with 2 combinations from him.
 const FIGHTS: Array = [
-	["kicker", "boxer", "pro", 2], ["wrestler", "boxer", "pro", 1], ["bjj", "wrestler", "pro", 1],
+	["kicker", "boxer", "pro", 3], ["wrestler", "boxer", "pro", 1], ["bjj", "wrestler", "pro", 1],
 	["judoka", "kicker", "pro", 1], ["muay_thai", "wrestler", "pro", 1], ["sambo", "bjj", "pro", 1],
 	["counter_striker", "pressure_wrestler", "pro", 1], ["gnp_wrestler", "brawler", "pride", 1],
 	["dirty_boxer", "karate", "amateur_adult", 1], ["leg_kicker", "sprawl_brawl", "pro", 1],
