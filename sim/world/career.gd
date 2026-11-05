@@ -65,6 +65,8 @@ const COACH_LEFT := "coach_left"
 ## A lad walked in to train at your gym, or left it (D444): { kind, name, retired? }.
 const LAD_IN := Lads.WALKED_IN
 const LAD_LEFT := Lads.LEFT
+## Events that are only news: Advance runs on past them (a lad walking in or leaving, D444).
+const JUST_NEWS: Array[String] = [LAD_IN, LAD_LEFT]
 ## School (D314, School): the summer holidays start (every session is his until September), school starts again, and
 ## he's left school for good (LEAVES_AT): { kind }.
 const SCHOOL_OUT := "school_out"
@@ -313,7 +315,8 @@ func run_week(plan: Variant = null, played: Dictionary = {}) -> Dictionary:
 
 
 ## Weeks on the career's week plan until something happens (docs/03 §10.3, D303): he's hurt, he's healed, his
-## suspension ends, training wears him down, a birthday, an offer comes in (D304), or ADVANCE_MAX_WEEKS go by.
+## suspension ends, training wears him down, a birthday, an offer comes in (D304), or ADVANCE_MAX_WEEKS go by. The
+## gym's lads coming and going (JUST_NEWS, D444) doesn't stop it.
 ## Nothing runs while he's booked for a fight: the camp runs that (D304). Returns each week's report, oldest first.
 func advance(max_weeks: int = ADVANCE_MAX_WEEKS) -> Array[Dictionary]:
 	var reports: Array[Dictionary] = []
@@ -322,7 +325,7 @@ func advance(max_weeks: int = ADVANCE_MAX_WEEKS) -> Array[Dictionary]:
 	for i in max_weeks:
 		var report: Dictionary = run_week()
 		reports.append(report)
-		if not (report.events as Array).is_empty():
+		if (report.events as Array).any(func(e: Dictionary) -> bool: return not String(e.get("kind", "")) in JUST_NEWS):
 			break
 	return reports
 
