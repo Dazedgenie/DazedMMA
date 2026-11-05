@@ -27,7 +27,7 @@ const ROLES: Array[String] = ["neutral", "top", "bottom", "attacker", "defender"
 ## Letters the fight screen already uses (game/main.gd): reads on Q and E, fast, pause, towel, sounds.
 const LETTER_KEYS_TAKEN: Array[String] = ["Q", "E", "F", "P", "T", "M"]
 ## What a focus call (docs/09 call@2) may hold.
-const FOCUS_KEYS: Array[String] = ["duration_ms", "leanings", "weights", "read_bonus", "sprawl_bonus", "struggle", "struggle_stamina", "cover_bonus", "hunt", "cut", "grip_bonus", "bottom_strikes"]
+const FOCUS_KEYS: Array[String] = ["duration_ms", "leanings", "weights", "read_bonus", "sprawl_bonus", "struggle", "struggle_stamina", "cover_bonus", "hunt", "cut", "grip_bonus", "bottom_strikes", "lead_rate", "guard_drop"]
 ## Where a submission (docs/09 action@2 `submission.escape_to`, D126) leaves the fight when the defender gets out.
 const ESCAPES: Array[String] = ["back", "scramble"]
 ## The minigames a session can be played as (D38, docs/02 §3.2).
@@ -405,10 +405,13 @@ func test_calls_are_an_attempt_a_focus_or_a_read() -> void:
 				problems.append("%s: hotkey is a digit 0–9 or null" % where)
 			else:
 				# Two calls can share a key when they're never possible in the same position
-				# (1 is Pressure! standing and Ground and pound! on top, D121).
+				# (1 is Pressure! standing and Ground and pound! on top, D121), or when one of them only
+				# works on a hurt man and takes the key over then (Finish him! over Pressure!, D480).
 				for other: String in hotkeys.get(key, []):
 					var theirs: Array = _items("calls")[other].get("positions", [])
 					var mine: Array = c.get("positions", [])
+					if c.has("opponent_hurt") != _items("calls")[other].has("opponent_hurt"):
+						continue
 					if mine.is_empty() or theirs.is_empty() or mine.any(func(p: Variant) -> bool: return theirs.has(p)):
 						problems.append("%s: hotkey %d is taken by '%s' in the same position" % [where, key, other])
 				if not hotkeys.has(key):
@@ -425,6 +428,10 @@ func test_calls_are_an_attempt_a_focus_or_a_read() -> void:
 				for r: Variant in by_role:
 					if not c.get("roles", []).has(r) or not by_role[r] is Array or by_role[r].any(func(p: Variant) -> bool: return not c.get("positions", []).has(p)):
 						problems.append("%s: positions_by_role['%s'] narrows the call's positions for one of its roles (D271)" % [where, r])
+		if c.has("opponent_hurt"):
+			var hurt: Variant = c.opponent_hurt
+			if not hurt is float or hurt <= 0.0 or hurt >= 1.0:
+				problems.append("%s: opponent_hurt is the opponent's health (0–1) at or under which the call works, as well as when he's rocked (D480)" % where)
 		if c.has("priority_boost"):
 			problems.append("%s: priority_boost went with call@1; an accepted call claims the choice outright" % where)
 		var actions: Array = c.get("actions", [])
@@ -476,6 +483,12 @@ func test_calls_are_an_attempt_a_focus_or_a_read() -> void:
 			var grip_bonus: Variant = focus.get("grip_bonus", 0.0)
 			if not grip_bonus is float or grip_bonus < 0.0 or grip_bonus > 0.5:
 				problems.append("%s: focus.grip_bonus is a chance from 0 to 0.5 on every grip move (D265)" % where)
+			var lead_rate: Variant = focus.get("lead_rate", 1.0)
+			if not lead_rate is float or lead_rate < 1.0 or lead_rate > 4.0:
+				problems.append("%s: focus.lead_rate multiplies how often he leads, 1 to 4 (D480)" % where)
+			var guard_drop: Variant = focus.get("guard_drop", 0.0)
+			if not guard_drop is float or guard_drop < 0.0 or guard_drop > 0.5:
+				problems.append("%s: focus.guard_drop is a share of Striking defense from 0 to 0.5 (D480)" % where)
 			if focus.has("hunt"):
 				var hunt: Variant = focus.hunt
 				if not hunt is Dictionary or hunt.keys() != ["rate"] or not hunt.rate is float or hunt.rate <= 0.0 or hunt.rate > 1.0:

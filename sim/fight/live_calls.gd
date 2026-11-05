@@ -13,7 +13,8 @@ extends DecisionSource
 ##                       An attempt with `then` (Feint!, D131) goes on: once the first move is
 ##                       over, the fighter goes straight into the first of those that would work
 ##              focus    Pressure!, Circle out! …: style leanings and weights tilt for 15 s;
-##                       Go for the finish! (D200) sends the top fighter hunting a hold for 10 s
+##                       Go for the finish! (D200) sends the top fighter hunting a hold for 10 s;
+##                       Finish him! (D480) swarms a rocked or badly hurt man on the feet for 6 s
 ##              read     Catch the kick!: primed for 6 s; when the trigger comes the fighter
 ##                       reacts with their own reaction time (D93), at an attention cost (D67).
 ##                       A call with `combo` (Fire back!, D133) answers with the fighter's first
@@ -21,8 +22,8 @@ extends DecisionSource
 ##
 ## Every outcome is logged as a call_answered event with its reason (A16): accepted,
 ## ignored, infeasible, fired (a read went off), missed (a read came too late),
-## expired, replaced. A new call replaces one of the same shape still being processed
-## (reads stack up to 2, D67). Every number is a first guess for the harness.
+## expired, replaced. A new attempt replaces one still being processed; reads stack up to 2 (D67),
+## and so do focuses (D485), a focus pulling the other way on a leaning replacing the older one (D486). Every number is a first guess for the harness.
 
 ## 0.6 s of fight time (D92).
 const BASE_DELAY_TICKS: int = 6
@@ -64,6 +65,8 @@ const ATTEMPT_TICKS: int = 20
 const THEN_TICKS: int = 3
 ## Read calls primed at once (D67); a third replaces the oldest.
 const MAX_READS: int = 2
+## Focus calls he fights to at once (Kyle, D485): a third replaces the oldest. 1 is how it was before.
+const MAX_FOCUSES: int = 2
 ## A move started on a call takes the place of one the fighter would have tried: their own
 ## tries of that kind of move from standing (takedowns, clinch entries) wait this long after
 ## it. Calls pick the moment; they don't add work. Moves off the feet (getting up, breaking
@@ -107,14 +110,24 @@ var pending: Array[Dictionary] = []
 ## The attempt the fighter is going for: {call, heard, until, why, then?}, or empty. `then` is
 ## true once the first move of a call with a `then` list has started: the follow-up is next.
 var attempt: Dictionary = {}
-## The focus the fighter is fighting to: {call, until}, or empty.
-var focus: Dictionary = {}
+## The focuses the fighter is fighting to, oldest first: [{call, since, until, scale}], at most MAX_FOCUSES (D485).
+var focuses: Array[Dictionary] = []
+## The newest focus, or empty. Setting it puts that one focus on alone (tests set it straight).
+var focus: Dictionary:
+	get:
+		return {} if focuses.is_empty() else focuses[-1]
+	set(value):
+		focuses.clear()
+		if not value.is_empty():
+			focuses.append(value)
 ## Call id → when each of its focuses started lately, for REPEAT_WEAR (D258).
 var _focus_starts: Dictionary = {}
 ## Primed reads, oldest first: [{call, until, notice, move}]. notice ≥ 0 once the trigger came.
 var reads: Array[Dictionary] = []
 ## How much the primed reads cost the fighter's other defense (0–1), for the sim to apply.
 var attention: float = 0.0
+## How much a swarm (Finish him!'s focus.guard_drop, D480) takes off his Striking defense (0–1), for the sim to apply.
+var guard_drop: float = 0.0
 ## True when a focus started or ended: the AI should look at its leanings again now.
 var retilt: bool = false
 ## True while anything is pending, being attempted, focused on or primed (update() has work).
@@ -237,10 +250,11 @@ func update(view: FightView) -> void:
 		var heard: Dictionary = pending[n]
 		pending.remove_at(n)
 		_process(view, heard)
-	if not focus.is_empty() and view.now >= focus.until:
-		_answer(focus.call, EXPIRED, "back to the gameplan")
-		focus = {}
-		retilt = true
+	for k in range(focuses.size() - 1, -1, -1):
+		if view.now >= int(focuses[k].until):
+			_answer(focuses[k].call, EXPIRED, "back to the gameplan" if focuses.size() == 1 else "over")
+			focuses.remove_at(k)
+			retilt = true
 	for k in range(reads.size() - 1, -1, -1):
 		var read: Dictionary = reads[k]
 		if read.notice >= 0 and view.opponent.action_id != read.move:
@@ -315,91 +329,111 @@ func on_event(view: FightView, event: FightEvent) -> void:
 
 
 func adjust_lead_rate(view: FightView, rate: float) -> float:
-	return 0.0 if view.now < _leads_held_until else rate
+	if view.now < _leads_held_until:
+		return 0.0
+	for f: Dictionary in focuses:
+		rate *= float(f.call.focus.get("lead_rate", 1.0))  # Finish him! (D480): he throws more.
+	return rate
 
 
+## Stacked focuses (D485) add their pushes on a leaning.
 func adjust_leaning(_view: FightView, which: String, value: float) -> float:
-	if focus.is_empty():
-		return value
-	return value + float(focus.call.focus.get("leanings", {}).get(which, 0.0)) * float(focus.get("scale", 1.0))
+	for f: Dictionary in focuses:
+		value += float(f.call.focus.get("leanings", {}).get(which, 0.0)) * float(f.get("scale", 1.0))
+	return value
 
 
 func adjust_weight(view: FightView, action: Dictionary, weight: float) -> float:
 	if not _spent.is_empty() and view.now < int(_spent.get(action.category, -1)) and action.positions.has(PositionLibrary.STANDING):
 		return 0.0
-	if focus.is_empty():
-		return weight
-	return Gameplan.scale_weight(focus.call.focus.get("weights", {}), action, weight)
+	for f: Dictionary in focuses:
+		weight = Gameplan.scale_weight(f.call.focus.get("weights", {}), action, weight)
+	return weight
 
 
 func adjust_read(_view: FightView, action: Dictionary, chance: float) -> float:
-	if focus.is_empty():
-		return chance
-	return chance + float(focus.call.focus.get("read_bonus", {}).get(action.category, 0.0))
+	for f: Dictionary in focuses:
+		chance += float(f.call.focus.get("read_bonus", {}).get(action.category, 0.0))
+	return chance
 
 
 func adjust_sprawl(_view: FightView, chance: float) -> float:
-	if focus.is_empty():
-		return chance
-	return chance + float(focus.call.focus.get("sprawl_bonus", 0.0))
+	return chance + _sum("sprawl_bonus")
 
 
 ## A focus call's push on covering up when rocked (D180): Survive!'s cover_bonus.
 func adjust_cover(_view: FightView, chance: float) -> float:
-	if focus.is_empty():
-		return chance
-	return chance + float(focus.call.focus.get("cover_bonus", 0.0))
+	return chance + _sum("cover_bonus")
 
 
 ## A struggle call's push on a submission hold (D126): Finish it! for the attacker, Defend the
 ## sub! for the defender, while the focus is on (FightSim.struggle_share).
 func struggle_bonus() -> float:
-	if focus.is_empty():
-		return 0.0
-	return float(focus.call.focus.get("struggle", 0.0))
+	return _sum("struggle")
 
 
 ## Whether a focus call has him pressing (D258): its Range push is at least PRESSING_RANGE
 ## (Pressure!, Cut the cage!). The other man sees it, and reads him better the longer it goes on.
 func pressing() -> bool:
-	return not focus.is_empty() and float(focus.call.focus.get("leanings", {}).get("range", 0.0)) >= PRESSING_RANGE
+	for f: Dictionary in focuses:
+		if float(f.call.focus.get("leanings", {}).get("range", 0.0)) >= PRESSING_RANGE:
+			return true
+	return false
 
 
 ## How hard Cut the cage! has the fighter cut off the cage (D230): its focus's `cut` (0–1),
-## or −1 when no such focus is on.
+## or −1 when no such focus is on (the hardest of two stacked, D485).
 func cut_focus() -> float:
-	if focus.is_empty():
-		return -1.0
-	return float(focus.call.focus.get("cut", -1.0))
+	var cut: float = -1.0
+	for f: Dictionary in focuses:
+		cut = maxf(cut, float(f.call.focus.get("cut", -1.0)))
+	return cut
 
 
 ## How much more he strikes from his back while a focus call says so (D271, *Ground and pound!*
 ## from underneath): its focus's `bottom_strikes`, or 1 when no such focus is on.
 func bottom_strike_focus() -> float:
-	if focus.is_empty():
-		return 1.0
-	return float(focus.call.focus.get("bottom_strikes", 1.0))
+	var most: float = 1.0
+	for f: Dictionary in focuses:
+		most = maxf(most, float(f.call.focus.get("bottom_strikes", 1.0)))
+	return most
 
 
 ## The extra stamina each beat of a struggle costs while a struggle call's focus is on.
 func struggle_stamina() -> float:
-	if focus.is_empty():
-		return 0.0
-	return float(focus.call.focus.get("struggle_stamina", 0.0))
+	return _sum("struggle_stamina")
 
 
 ## *Hand fight!* (D265): while its focus is on, this much on the odds of every grip move (its `grip_bonus`).
 func grip_bonus() -> float:
-	if focus.is_empty():
-		return 0.0
-	return float(focus.call.focus.get("grip_bonus", 0.0))
+	return _sum("grip_bonus")
 
 
 ## *Go for the finish!* (D200): while its focus is on, the top fighter hunts a hold (FighterAI._work_position).
 func hunt(_view: FightView) -> Dictionary:
-	if focus.is_empty() or not focus.call.focus.has("hunt"):
-		return {}
-	return { "since": focus.since, "rate": float(focus.call.focus.hunt.get("rate", 0.0)) }
+	for f: Dictionary in focuses:
+		if f.call.focus.has("hunt"):
+			return { "since": f.since, "rate": float(f.call.focus.hunt.get("rate", 0.0)) }
+	return {}
+
+
+## One number of the focuses' blocks, added up over the stacked ones (D485).
+func _sum(key: String) -> float:
+	var total: float = 0.0
+	for f: Dictionary in focuses:
+		total += float(f.call.focus.get(key, 0.0))
+	return total
+
+
+## Whether two focus calls pull opposite ways (D486): a leaning one pushes up and the other down.
+## The newer one then replaces the older: the corner has changed its mind (Circle out! after Pressure!).
+static func pulls_against(a: Dictionary, b: Dictionary) -> bool:
+	var mine: Dictionary = a.get("focus", {}).get("leanings", {})
+	var theirs: Dictionary = b.get("focus", {}).get("leanings", {})
+	for which: String in mine:
+		if float(mine[which]) * float(theirs.get(which, 0.0)) < 0.0:
+			return true
+	return false
 
 
 ## Going for an attempt that's out of range: step in to the nearest band one of its moves reaches from.
@@ -505,8 +539,16 @@ func _process(view: FightView, heard: Dictionary) -> void:
 			_count_attention(view.now)
 			_answer(call, ACCEPTED, "watching for it for %d s" % roundi(float(call.read.duration_ms) / 1000.0))
 		FOCUS:
-			if not focus.is_empty():
-				_answer(focus.call, REPLACED, "now %s" % call.name)
+			# Two at once (D485): the same call again starts afresh, one pulling the other way is
+			# replaced (D486), and a third replaces the oldest.
+			for k in range(focuses.size() - 1, -1, -1):
+				var old: Dictionary = focuses[k]
+				if old.call.id == call.id or pulls_against(call, old.call):
+					_answer(old.call, REPLACED, "now %s" % call.name)
+					focuses.remove_at(k)
+			if focuses.size() >= MAX_FOCUSES:
+				_answer(focuses[0].call, REPLACED, "now %s: %d at most" % [call.name, MAX_FOCUSES])
+				focuses.remove_at(0)
 			var starts: Array = _focus_starts.get_or_add(call.id, [])
 			while not starts.is_empty() and starts[0] < view.now - REPEAT_TICKS:
 				starts.pop_front()
@@ -514,7 +556,7 @@ func _process(view: FightView, heard: Dictionary) -> void:
 			if REPEAT_STAMINA > 0.0:
 				view.me.spend_stamina(REPEAT_STAMINA * starts.size())  # and wears him out a little more each time.
 			starts.append(view.now)
-			focus = { "call": call, "since": view.now, "until": view.now + int(call.focus.duration_ms) / FightClock.TICK_MS, "scale": scale }
+			focuses.append({ "call": call, "since": view.now, "until": view.now + int(call.focus.duration_ms) / FightClock.TICK_MS, "scale": scale })
 			retilt = true
 			_answer(call, ACCEPTED, "for %d s" % roundi(float(call.focus.duration_ms) / 1000.0) + ("" if scale >= 1.0 else ", %d%% as hard: called again" % roundi(scale * 100.0)))
 		_:
@@ -535,6 +577,8 @@ func _infeasible(view: FightView, call: Dictionary) -> String:
 	var technique: Variant = call.get("requires_technique")
 	if technique != null and not view.me.repertoire.has(technique):
 		return "hasn't learned the %s" % _move_name(view, technique)
+	if not opponent_hurt(view.opponent, call):
+		return "he isn't hurt"
 	if call.get("actions", []).is_empty() or not _moves(view, call).is_empty():
 		return ""
 	for id: String in call.actions:
@@ -544,6 +588,14 @@ func _infeasible(view: FightView, call: Dictionary) -> String:
 		if why != "":
 			return why
 	return "doesn't know how"
+
+
+## A call for a hurt man (Finish him!, D480: `opponent_hurt`): true when the opponent is rocked or his
+## health is at or under it. Always true for a call without one.
+static func opponent_hurt(opponent: FighterState, call: Dictionary) -> bool:
+	if not call.has("opponent_hurt"):
+		return true
+	return opponent.is_rocked() or opponent.health() <= float(call.opponent_hurt)
 
 
 static func _at_downed_man(action: Dictionary) -> bool:
@@ -565,9 +617,10 @@ func _settle() -> void:
 	var armed: bool = false
 	for read: Dictionary in reads:
 		armed = armed or read.notice >= 0
+	guard_drop = _sum("guard_drop")
 	may_claim = armed or not attempt.is_empty()
 	steers_feet = not attempt.is_empty()
-	active = may_claim or not pending.is_empty() or not focus.is_empty() or not reads.is_empty() or _listening_until >= 0
+	active = may_claim or not pending.is_empty() or not focuses.is_empty() or not reads.is_empty() or _listening_until >= 0
 
 
 ## Ticks a move takes this fighter from start to finish.

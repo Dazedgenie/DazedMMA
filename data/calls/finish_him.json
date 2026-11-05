@@ -1,0 +1,22 @@
+{
+	"schema": "call@2",
+	"id": "finish_him",
+	"name": "Finish him!",
+	"kind": "now",
+	"tier": "intent",
+	"parent": null,
+	"hotkey": 1,
+	"voice_cost": 20,
+	"positions": ["standing"],
+	"actions": [],
+	"opponent_hurt": 0.5,
+	"focus": {
+		"duration_ms": 6000,
+		"leanings": { "pace": 80, "range": 80, "risk": 60 },
+		"weights": { "strike": 1.5, "takedown": 0.3, "clinch": 0.3 },
+		"cut": 1.0,
+		"lead_rate": 1.5,
+		"guard_drop": 0.15
+	},
+	"requires_technique": null
+}

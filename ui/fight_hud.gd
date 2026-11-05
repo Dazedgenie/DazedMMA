@@ -57,7 +57,8 @@ const BANNER_SECONDS: float = 1.6
 ## The read-call slots, in order (docs/06 §3).
 const READ_KEYS: Array[String] = ["Q", "E"]
 ## Why a call can't be made that hides its button rather than dimming it (D462): it can't be made from here at all.
-const HIDES: Array[String] = ["not from here", "not from the", "not learned"]
+## "he isn't hurt" hides Finish him! (D480), so key 1 shows Pressure! until he's hurt.
+const HIDES: Array[String] = ["not from here", "not from the", "not learned", "he isn't hurt"]
 
 var driver: FightDriver
 var feed: FightFeed
@@ -161,6 +162,8 @@ func details_shown() -> bool:
 static func call_problem(sim: FightSim, i: int, call: Dictionary) -> String:
 	if sim.is_over():
 		return "the fight is over"
+	if not LiveCalls.opponent_hurt(sim.fighters[1 - i], call):
+		return "he isn't hurt"  # Finish him! (D480): only on a rocked or badly hurt man.
 	if sim.decisions[i].calls.voice(sim.now) < float(call.get("voice_cost", 0)):
 		return "not enough voice"
 	var positions: Array = call.get("positions", [])
@@ -172,6 +175,18 @@ static func call_problem(sim: FightSim, i: int, call: Dictionary) -> String:
 	if technique != null and not sim.fighters[i].repertoire.has(technique):
 		return "not learned"
 	return ""
+
+
+## A call whose key another call takes over right now (D480): Pressure! while Finish him! fits
+## (the other man rocked or badly hurt), so the key's button shows the call the key makes.
+func taken_over(sim: FightSim, i: int, call: Dictionary) -> bool:
+	if call.has("opponent_hurt") or not call.get("hotkey") is float:
+		return false  # Only a digit key is shared this way (Pressure! on 1).
+	for id: String in sim.calls.ids():
+		var other: Dictionary = sim.calls.get_call(id)
+		if other.has("opponent_hurt") and other.get("hotkey") is float and other.hotkey == call.hotkey and is_allowed(id) and call_fits(sim, i, other):
+			return true
+	return false
 
 
 ## Is this call on the call bar in this fight?
@@ -307,8 +322,8 @@ static func plan_text(sim: FightSim, i: int, flashing: Array[float] = [0.0, 0.0]
 	if not calls.attempt.is_empty():
 		lines.append("[color=#ffc94d]%s[/color]  going for it" % calls.attempt.call.name)
 		any = true
-	if not calls.focus.is_empty():
-		lines.append("%s  %d s" % [calls.focus.call.name, _seconds_left(sim, int(calls.focus.until))])
+	for focus: Dictionary in calls.focuses:
+		lines.append("%s  %d s" % [focus.call.name, _seconds_left(sim, int(focus.until))])
 		any = true
 	for read: Dictionary in calls.reads:
 		lines.append("[color=#66d9e8]%s[/color]  primed %d s" % [read.call.name, _seconds_left(sim, int(read.until))])
@@ -341,8 +356,8 @@ static func call_state(sim: FightSim, i: int) -> String:
 		parts.append("%s · hearing it…" % heard.call.name)
 	if not calls.attempt.is_empty():
 		parts.append("%s · going for it" % calls.attempt.call.name)
-	if not calls.focus.is_empty():
-		parts.append("%s · %d s" % [calls.focus.call.name, _seconds_left(sim, int(calls.focus.until))])
+	for focus: Dictionary in calls.focuses:
+		parts.append("%s · %d s" % [focus.call.name, _seconds_left(sim, int(focus.until))])
 	for read: Dictionary in calls.reads:
 		parts.append("%s · primed %d s" % [read.call.name, _seconds_left(sim, int(read.until))])
 	return "    ".join(parts)
@@ -528,12 +543,13 @@ func _refresh(delta: float) -> void:
 		var b: Button = _call_buttons[id]
 		var call: Dictionary = sim.calls.get_call(id)
 		var why: String = call_problem(sim, driver.player, call)
-		b.visible = call_fits(sim, driver.player, call)
+		b.visible = call_fits(sim, driver.player, call) and not taken_over(sim, driver.player, call)
 		b.disabled = why != ""
 		b.tooltip_text = why if why != "" else String(call.name)
 		reads_up = reads_up or (b.visible and _read_ids.has(id))
-		var live: bool = (not calls.focus.is_empty() and calls.focus.call.id == id) \
-			or (not calls.attempt.is_empty() and calls.attempt.call.id == id)
+		var live: bool = not calls.attempt.is_empty() and calls.attempt.call.id == id
+		for focus: Dictionary in calls.focuses:
+			live = live or focus.call.id == id
 		for read: Dictionary in calls.reads:
 			live = live or read.call.id == id
 		if live != _live.has(id):

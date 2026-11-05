@@ -975,7 +975,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			handled = false
 			if key >= KEY_0 and key <= KEY_9:
 				# Calls can share a key when they're for different positions (1: Pressure!
-				# standing, Ground and pound! on top, D121): make the one that works from here.
+				# standing, Ground and pound! on top, D121) or one is for a hurt man (1: Finish him!
+				# while he's rocked or badly hurt, D480): make the first that works from here.
 				var on_key: Array[String] = []
 				for id in driver.sim.calls.ids():
 					var hotkey: Variant = driver.sim.calls.get_call(id).get("hotkey")

@@ -1229,7 +1229,7 @@ A new call replaces one of the same kind still being processed (logged as `repla
 | Kind | Calls | What the fighter does |
 |---|---|---|
 | **Attempt** | Takedown!, Clinch!, Get up!, Feint! | Goes for the first of the call's moves that would work right now: in range, the stamina for it, and the opening it needs there when it lands. *Takedown!* lists following a knocked-down man down first (D142, §34), then the catch-kick single, so a Takedown! call that lands while the opponent's leg is up (or will be as the catch lands) becomes the catch-kick (§5.1); otherwise the double-leg. Out of range, the fighter steps straight in to the nearest band one of the moves reaches from, for up to **2 s**, then gives up (`infeasible`, *"couldn't get in range"*). An attempt with a `then` list (*Feint!*, §29.3a) goes on once its first move is over: straight into the first of the `then` moves that would work |
-| **Focus** | Pressure!, Circle out!, Work the range!, Defend the shot!, Survive!, Stay safe! | For **15 s** the fighter's style leanings and move weights tilt, like a short gameplan, then it's back to the gameplan (`expired`). Calling it again starts the 15 s again; a different focus replaces it. The AI looks at its leanings and range plan again straight away when a focus starts or ends. *Go for the finish!* (D200, §25.7) is a 10 s focus that sends the fighter on top after a hold |
+| **Focus** | Pressure!, Circle out!, Work the range!, Defend the shot!, Survive!, Stay safe! | For **15 s** the fighter's style leanings and move weights tilt, like a short gameplan, then it's back to the gameplan (`expired`). Calling it again starts the 15 s again; since D485 two different focuses run at once (a third replaces the older, one pulling a leaning the other way replaces the one it pulls against, §22.14). The AI looks at its leanings and range plan again straight away when a focus starts or ends. *Go for the finish!* (D200, §25.7) is a 10 s focus that sends the fighter on top after a hold |
 | **Read** (D49) | Catch the kick! | Primed for 6 s. When the trigger comes (`opp_kick_starts`: the opponent starts a body kick or teep), the fighter reacts with their own reaction time (D93) and catches as the leg comes up (a quick fighter waits for it). It fires once (`fired`), and comes back as `missed` if the kick was over first. While primed it costs attention: Striking and Takedown defense −15% (`attention_cost`). Up to 2 reads at once (D67), costs added; a third replaces the oldest |
 
 What each focus does (`focus` in each call's file): **Pressure** Pace +60, Range +50 (walks the opponent down, cuts the cage).
@@ -1558,6 +1558,83 @@ with `--corners=ideal:fire_back+get_up+collar_tie+cut_the_cage+follow_down+keep_
 `LiveCalls.REPEAT_TICKS`. Tests: `test_close_in_has_a_grappler_press_a_striker_to_get_to_his_shots` and
 `test_close_in_fresh_waits_until_pressure_would_be_fresh_again` in `tests/sim/fight/test_corner.gd`. The golden fight with the
 ideal corner was re-pinned (Wrestler vs Kicker: now a first-round submission).
+
+### 22.13 *Finish him!* on the feet (D480–D484)
+Kyle asked for it (2026-11-05: "need to add a finish him on the feet call"). *Go for the finish!* (§25.7) sends the man on top
+after a hold and *Pressure!* walks a man forward, but nothing told a fighter to swarm a hurt man standing up. On his own he
+already picks it up against a rocked man (his lead rate × (1.5 + Risk / 200), head shots weighted up, §20); the call is that, much
+harder, for 6 s. Kyle picked each part on a decision card (my picks except the first):
+
+| | | |
+|---|---|---|
+| When (D480) | Only standing, while the other man is **rocked** (getting up from a knockdown counts: he comes up rocked) **or badly hurt**, his health at 50% or under (Kyle picked this over rocked only and any time). On a man who isn't, the fighter answers *"he isn't hurt"*. It's checked when the call reaches him, about half a second after it's shouted, so a rock that wears off in between loses it | `opponent_hurt` in `data/calls/finish_him.json` (0.5); `LiveCalls.opponent_hurt()` |
+| Key (D481) | **1**, in Pressure!'s place: while the other man is rocked or past half hurt key 1 makes Finish him! and the call bar shows it where Pressure! was; otherwise key 1 is Pressure! (and Ground and pound! on top, as before). So once a man's past half hurt, it's Finish him! on key 1 for the rest of the fight | `hotkey` 1; `FightHud.taken_over()`, the `HIDES` list ("he isn't hurt") |
+| What he does (D482) | For **6 s, even if the other man recovers** in the middle of it: Pace +80, Range +80 and Risk +60 (busier, walking him down, bigger shots), leads 1.5× as often, strikes weighted ×1.5 and takedowns and clinch entries ×0.3 (he swarms with his hands), and he cuts the cage off as hard as *Cut the cage!* (`cut` 1.0), so the hurt man can't circle away | `focus` in the call's file: `duration_ms`, `leanings`, `lead_rate`, `weights`, `cut` |
+| What it costs (D483) | **His guard drops 15%** while he swarms: his Striking defense is 15% lower for the 6 s (the feed and odds say *"swarming"*), so a hurt man's counter lands more often. That and the gas of all the extra shots; nothing else | `focus.guard_drop` (0.15); `FighterState.guard_drop` |
+| The AI corner (D484) | Kyle: *"Yes, if the bots say it helps"*. They did, so the ideal and AI corners call **Finish him! instead of Pressure! when the other man is rocked** standing (the `finish_him` moment in `Corner.DEFAULT_MOMENTS`; a corner without it calls Pressure! as before). It only calls it on a rock, not on a man past half hurt | `Corner.on_event()` |
+| Voice, repeats | Voice 20, through the normal pipeline (delay, compliance, §22.1); no extra wait between calls: it's only there while he's hurt, and the same call again wears off within a minute like any focus (§22.11) | |
+
+**What it does to fights** (harness, 200 fights a pairing from seed 1, pro rules, the bot in each corner in turn, both corners
+pooled; change in the coached fighter's wins against the same fights without calls; paired 95% ranges about ±8 on each line).
+"Before" is the ideal corner with the `finish_him` moment left out, which calls Pressure! on a rock as it always did:
+
+| Coached vs opponent | Ideal, before | Ideal, with Finish him! | Finish him! a fight, won its exchange |
+|---|---|---|---|
+| Boxer vs Kicker | +34.0 | +38.0 | 7.1 heard, 70% |
+| Kicker vs Boxer | +0.5 | +9.5 | 2.4, 90% |
+| Muay Thai vs Boxer | −1.5 | +0.5 | 0.5, 71% |
+| Boxer vs Muay Thai | +8.5 | +13.5 | 1.2, 83% |
+| Brawler vs Boxer | +23.5 | +27.5 | 3.8, 72% |
+| Boxer vs Brawler | +17.0 | +18.5 | 2.0, 88% |
+| Wrestler vs Boxer | +4.5 | +4.0 | 0.3, 88% |
+| Boxer vs Wrestler | +0.0 | +1.5 | 0.5, 98% |
+| **Average** | **+10.8** | **+14.1** | |
+
+Seven lines of eight go up, by about 3 points on average; the Wrestler hardly sees a rocked man standing. The AI corner (noticing
+half the moments) calls it about half as often. Fights without corners don't change: the call is only ever made by a corner.
+
+**To change it.** Everything is in `data/calls/finish_him.json` (`09` call@2): `opponent_hurt` (the health at or under which he
+counts as badly hurt), `focus.duration_ms`, the `leanings`, `lead_rate` (1–4), `weights`, `cut` and `guard_drop` (0–0.5). Leave
+it out of the corners by taking `finish_him` out of `Corner.DEFAULT_MOMENTS`. Tests: `tests/sim/fight/test_finish_him.gd` (the
+key, when he takes it, the 6 s carrying on after he recovers, the guard, the swarm against what he does on his own, the call bar),
+`test_corner.gd` (the corner on a rock, with and without the moment), `tests/data/test_data_files.gd` (the new fields and key 1
+shared with Pressure!).
+
+### 22.14 Two focus calls at once (D485–D487)
+Kyle (2026-11-05): *"we should also look into making calls stack. I should be able to call for pressure and cage cutting for
+example"*. Until now a fighter fought to one focus call at a time and a new one replaced it (§22.2). He picked:
+
+| | | |
+|---|---|---|
+| How many (D485) | **Two**; a third replaces the older one (like the two read calls, D67). The same call again starts its own time afresh and leaves the other on | `LiveCalls.MAX_FOCUSES` (2; 1 is how it was) |
+| Pulling opposite ways (D486) | **The newer one replaces the one it pulls against**: if they push any leaning (Pace, Range, Base, Risk) in opposite directions, the corner has changed its mind, so *Circle out!* after *Pressure!* ends the Pressure!. Calls that agree stack: *Pressure!* and *Cut the cage!*, *Ground and pound!* and *Hand fight!*. A call with no leanings (*Hand fight!*, *Go for the finish!*, the struggle calls) never clashes | `LiveCalls.pulls_against()` |
+| How two add up (D487) | Their leanings add (each still weakened by repeats, §22.11), their weights multiply, their bonuses add (reads, sprawl, cover, struggle, grips, the guard drop), *Finish him!*'s lead rate multiplies, and the harder of two cage cuts is used. Each runs out on its own clock. The feed and the corner card name both (*"Pressure! · 9 s · Cut the cage! · 14 s"*) and both buttons are lit | `LiveCalls.adjust_*()`, `_sum()`; `FightHud.call_state()` |
+
+The AI corner keeps its old rule that a new focus doesn't cut short an urgent one (Survive!, Finish him!, Pressure!, Ground and
+pound!, the struggle calls), so it stacks only when a calm call (Cut the cage!, Hand fight!) is on and a second comes along.
+
+**What it did to fights** (the same 200 fights a pairing, ideal corner with Finish him!): the corners hardly notice it, as
+expected from their rule above: it's for the player.
+
+| Coached vs opponent | One focus at a time | Two at once |
+|---|---|---|
+| Boxer vs Kicker | +38.0 | +37.0 |
+| Kicker vs Boxer | +9.5 | +8.5 |
+| Muay Thai vs Boxer | +0.5 | +0.5 |
+| Boxer vs Muay Thai | +13.5 | +12.0 |
+| Brawler vs Boxer | +27.5 | +27.5 |
+| Boxer vs Brawler | +18.5 | +16.5 |
+| Wrestler vs Boxer | +4.0 | +7.5 |
+| Boxer vs Wrestler | +1.5 | +2.5 |
+| **Average** | **+14.1** | **+14.0** |
+
+Every line is inside the dice (about ±8). Fights without corners don't change. The behaviour contracts' Kicker vs Boxer moved
+from seed 2 to seed 3 with these two changes (seed 2 left the Kicker 2 combinations, the contract wants more than 2), and the
+golden fight with the ideal corner was re-pinned (§2.2): Wrestler vs Kicker is still the Wrestler on points, with 11 takedowns where it had 5. The one with the AI corner plays out as before.
+
+**To change it.** `LiveCalls.MAX_FOCUSES` (back to 1 for one at a time), `LiveCalls.pulls_against()` (what counts as a clash).
+Tests: `tests/sim/fight/test_stacked_calls.gd` (Pressure! and Cut the cage! together and adding up, each on its own clock, a third
+replacing the oldest, a clash replacing, the same call again, the corner card naming both).
 
 ## 23. Drilled rules in the engine (#17, D82, D116)
 How §6.0's second layer works in the code (`sim/fight/drilled_rules.gd`, one per fighter, third in the §19 stack: under live
