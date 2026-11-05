@@ -132,12 +132,14 @@ changes and pauses against the same fight run headless).
 | Auto slow-mo | half of Normal for 1.5 s | A fighter rocked or knocked down, a scramble, or a submission locked in, through every beat of the struggle (D53, D126) |
 | Flourish | half of Normal for 1.2 s | A perfect call (D52) |
 | Pause | 0 | P on Easy only (D50). Calls still go in and land on the next tick |
+| Quarter speed | a quarter of Normal | Shift+Space with the F3 debug overlay on (D477) |
+| Pause with F3 | 0 | P on any difficulty with the F3 debug overlay on; . steps one tick, played through at Normal (D477) |
 | Held | 0 | The bell between rounds, the Esc menu, the towel question |
 
 ### 6.4 Keys (as built)
 1–9 intent calls (1 is Pressure! standing, Ground and pound! on top, Finish it! in a submission; 6 is Defend the shot!, or Defend the sub! caught in one; 5 is Clinch!, or Collar tie! in the clinch; 4 is Takedown!, or Pass! on top on the ground; 2 is Circle out!, or Go for the finish! on top, D200) · Q / E read calls (Q is Catch the kick!; E is Fire back!, D133: answer a defended strike with a combination, `01` §31.4) · R Cut the cage! (D230: 15 s of cutting off the exits instead of following, `01` §20.5) · H Hand fight! (D265: in the clinch and on the ground, 10 s of every grip he goes for 15% likelier to work, `01` §40.13) · Space slow-mo ·
 F fast · P pause (Easy) · T throw in the towel (asks first; a TKO loss, D31) · M strike sounds on/off (D190) · Esc menu (pauses on every difficulty) ·
-Enter presses the dialog's first button · F3 debug overlay · ` debug console.
+Enter presses the dialog's first button · F3 debug overlay · ` debug console · right-drag or arrow keys turn the camera, wheel or - / = zoom it, C puts it back (D472–D476, §6.19) · with F3 on: P pauses, . steps a tick, Shift+Space quarter speed (D477).
 
 ### 6.5 Not in v0 yet
 - **Technique wheel (Tab, D6):** the only technique call is Catch the kick!, already on Q.
@@ -599,3 +601,39 @@ stand in on the title screen until there's final art:
 bring the fight back with `PAINTED` in `ui/title_screen.gd` (`title_fight` in `game/main.gd` follows it); the logo's
 size with `LOGO_SIZE` there. The painting is 1672×941 and the logo 768×768 with a see-through background. Tests:
 `tests/ui/test_front_door.gd`. Presentation only: fights are unchanged (no golden re-pin).
+
+### 6.19 Turning the camera (D472–D477)
+Kyle, 2026-11-05: "lets add in the ability to rotate the camera so we can better diagnose remaining animation issues".
+In every fight (D472) you can look at the fighters from any side: during the fight, the moments round it (touching
+gloves, the stools, the hand raised), the round break and the result's replay of the finish. Presentation only: fights
+are unchanged (no golden re-pin).
+
+| Do | How |
+|---|---|
+| Turn round them | Right-drag left or right, or hold ← → |
+| Tilt up or down | Right-drag up or down, or hold ↑ ↓: from a couple of degrees off the canvas to nearly straight down |
+| Zoom | Mouse wheel, or hold - and = (numpad - and + too): from right up at them to the whole cage |
+| Put it back | C: it eases back to the normal camera in about a second |
+| Freeze and step (F3 on) | P pauses any fight, . moves it on one tick (a tenth of a fight second), Shift+Space plays at a quarter of Normal (D477) |
+
+- **It holds the angle (D474).** Once turned it still follows the fighters round the cage and still moves in for the
+  clinch and the ground, but its own swing to see them side-on (D361) stops moving it, so the angle you picked stays put
+  until C.
+- **Only the camera turns (D475).** The fighters are laid out from the camera's own angle as always (a man underneath
+  lies across the normal screen, a leg lock is side-on to it), so a turned camera shows exactly the frame players see,
+  from somewhere else. The things that follow the camera follow it: the near fence goes see-through on whichever side
+  the camera is, the referee keeps to the far side of it (D373), the range tag sits in front of the fighters.
+- **Back to normal (D476).** Each fight, and each replay of a finish, starts on the normal camera. Camera keys and the
+  right button don't skip a moment (only a left click or another key does, D394), and they never make a call.
+- **Stepping (D477)** plays the one tick at Normal speed and stops, so the bodies' motion moves on with it (a frozen
+  picture doesn't), and stops just as far into the next tick as it was. While paused, calls still go in.
+
+**To change it:** how far a drag or a held key turns, tilts and zooms (`TURN_PER_PIXEL`, `TILT_PER_PIXEL`,
+`KEY_TURN_SPEED`, `KEY_TILT_SPEED`, `ZOOM_STEP`, `KEY_ZOOM_SPEED`), how far it can tilt and zoom (`RISE_MIN`, `RISE_MAX`,
+`ZOOM_MIN`, `ZOOM_MAX`) and how fast C eases back (`RETURN_SPEED`): the constants at the top of `game/free_camera.gd`.
+Quarter speed's share: `FightDriver.QUARTER_SHARE` in `game/fight_driver.gd`. The keys: `CAMERA_KEYS` and
+`_turn_camera_by_keys` in `game/main.gd`. The camera's own aim: `ArenaView._aim`.
+**Tests:** `tests/game/test_free_camera.gd` (turning moves only the camera, the angle held while they move, C easing
+back, the tilt and zoom limits, a new fight on the normal camera), `tests/game/test_fight_driver.gd` (quarter speed, a
+step playing one tick, neither changing the fight), `tests/game/test_main_scene.gd` (F3 pause, step and quarter speed;
+the wheel, C and a right-drag).

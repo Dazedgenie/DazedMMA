@@ -74,6 +74,60 @@ func test_easy_lets_the_player_pause() -> void:
 	assert_true(_main.driver.paused)
 
 
+func test_with_the_debug_overlay_on_any_fight_can_pause_step_a_tick_and_go_quarter_speed() -> void:
+	_start()
+	_main._process(FRAME)
+	_press(KEY_F3)
+	_press(KEY_P)
+	assert_true(_main.driver.paused, "F3 on: P pauses on any difficulty (D477)")
+	var at: int = _main.driver.sim.now
+	_press(KEY_PERIOD)
+	for n in 10:
+		_main._process(FRAME)
+	assert_eq(_main.driver.sim.now, at + 1, ". steps one tick")
+	var event := InputEventKey.new()
+	event.keycode = KEY_SPACE
+	event.pressed = true
+	event.shift_pressed = true
+	_main._unhandled_input(event)
+	assert_eq(_main.driver.speed, FightDriver.QUARTER, "Shift+Space: quarter speed")
+	_press(KEY_F3)
+	_press(KEY_P)
+	assert_false(_main.driver.paused, "it can always be unpaused")
+
+
+func test_the_wheel_zooms_the_fight_camera_and_c_puts_it_back() -> void:
+	_start()
+	_main._process(FRAME)
+	var wheel := InputEventMouseButton.new()
+	wheel.button_index = MOUSE_BUTTON_WHEEL_UP
+	wheel.pressed = true
+	_main._unhandled_input(wheel)
+	assert_true(_main.arena.free_cam.held, "the wheel takes the camera (D473)")
+	assert_lt(_main.arena.free_cam.zoom, 1.0, "in closer")
+	_press(KEY_C)
+	assert_false(_main.arena.free_cam.held, "C gives it back")
+
+
+func test_a_right_drag_turns_the_fight_camera() -> void:
+	_start()
+	_main._process(FRAME)
+	var press := InputEventMouseButton.new()
+	press.button_index = MOUSE_BUTTON_RIGHT
+	press.pressed = true
+	_main._input(press)
+	var move := InputEventMouseMotion.new()
+	move.relative = Vector2(120.0, 0.0)
+	_main._input(move)
+	assert_true(_main.arena.free_cam.held, "dragging took the camera (D473)")
+	var release := InputEventMouseButton.new()
+	release.button_index = MOUSE_BUTTON_RIGHT
+	_main._input(release)
+	var swing: float = _main.arena.free_cam.swing
+	_main._input(move)
+	assert_eq(_main.arena.free_cam.swing, swing, "let go, moving the mouse doesn't turn it")
+
+
 func test_a_full_three_round_fight_plays_through_the_bell_to_the_result() -> void:
 	_start()
 	_main.driver.speed = FightDriver.FAST

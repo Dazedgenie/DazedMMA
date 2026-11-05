@@ -91,6 +91,8 @@ var backdrop_in_headless: bool = false
 var title_fight: bool = not TitleScreen.PAINTED
 ## The fade between screens off the fight (D435): the next screen comes up out of the dark.
 var _veil: ColorRect
+## Right mouse button held over the fight: dragging turns the camera (D472–D476).
+var _dragging_camera: bool = false
 var _snap: TextureRect
 ## The verdict read out over the cage before the result's sheet, and the finish again behind it (D436). Headless runs
 ## (the tests) go straight to the sheet unless a test asks.
@@ -886,6 +888,7 @@ func _first_bell() -> void:
 
 
 func _process(delta: float) -> void:
+	_turn_camera_by_keys(delta)
 	if driver != null and state == FIGHT:
 		driver.advance(delta)
 	elif state == TITLE and backdrop.running():
@@ -897,13 +900,90 @@ func _process(delta: float) -> void:
 			sounds.watch(replay.driver.sim)  # Each time it plays again, its own sounds.
 
 
-## True when `event` is a key or click that skips the moment playing (D394; not F3, the debug overlay).
+## True when `event` is a key or click that skips the moment playing (D394; not F3, the debug overlay, nor turning
+## the camera, D472–D476).
 func _skips_moment(event: InputEvent) -> bool:
 	if driver == null or not arena.moment_playing():
 		return false
 	if event is InputEventKey:
-		return event.pressed and not event.echo and (event as InputEventKey).keycode != KEY_F3
-	return event is InputEventMouseButton and event.pressed
+		var key: Key = (event as InputEventKey).keycode
+		return event.pressed and not event.echo and key != KEY_F3 and not key in CAMERA_KEYS
+	if event is InputEventMouseButton:
+		var button: MouseButton = (event as InputEventMouseButton).button_index
+		return event.pressed and button == MOUSE_BUTTON_LEFT
+	return false
+
+
+## The keys that turn and zoom the fight camera, and C to put it back (D472–D476).
+const CAMERA_KEYS: Array[Key] = [KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN, KEY_MINUS, KEY_EQUAL, KEY_KP_SUBTRACT, KEY_KP_ADD, KEY_C]
+
+
+## True while there's a fight in the cage to turn the camera round: the fight, the moments round it, the round break
+## and the result with its replay (D472: every fight).
+func _camera_free() -> bool:
+	return arena != null and arena.driver != null and state in [FIGHT, ROUND_BREAK, MOMENT, OVER]
+
+
+## Held arrow keys turn and tilt the camera, held - and = zoom it (D473). Not while typing in the debug console.
+func _turn_camera_by_keys(delta: float) -> void:
+	if not _camera_free() or DisplayServer.get_name() == "headless":
+		return
+	var focus: Control = get_viewport().gui_get_focus_owner()
+	if focus is LineEdit or focus is TextEdit:
+		return
+	var turn: float = 0.0
+	var tilt: float = 0.0
+	if Input.is_physical_key_pressed(KEY_LEFT):
+		turn += 1.0
+	if Input.is_physical_key_pressed(KEY_RIGHT):
+		turn -= 1.0
+	if Input.is_physical_key_pressed(KEY_UP):
+		tilt += 1.0
+	if Input.is_physical_key_pressed(KEY_DOWN):
+		tilt -= 1.0
+	if turn != 0.0 or tilt != 0.0:
+		arena.turn_camera(turn * FreeCamera.KEY_TURN_SPEED * delta, tilt * FreeCamera.KEY_TILT_SPEED * delta)
+	var zoom: float = 0.0
+	if Input.is_physical_key_pressed(KEY_EQUAL) or Input.is_physical_key_pressed(KEY_KP_ADD):
+		zoom += 1.0
+	if Input.is_physical_key_pressed(KEY_MINUS) or Input.is_physical_key_pressed(KEY_KP_SUBTRACT):
+		zoom -= 1.0
+	if zoom != 0.0:
+		arena.zoom_camera(zoom * FreeCamera.KEY_ZOOM_SPEED * delta)
+
+
+## The right mouse button dragged over the fight turns the camera round them and tilts it (D473). Taken here,
+## before the HUD, so a drag that starts over a panel still turns it.
+func _input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_RIGHT:
+		_dragging_camera = event.pressed and _camera_free()
+		return
+	if event is InputEventMouseMotion and _dragging_camera:
+		if not _camera_free():
+			_dragging_camera = false
+			return
+		arena.drag_camera((event as InputEventMouseMotion).relative)
+		get_viewport().set_input_as_handled()
+
+
+## The wheel zooms the camera and C puts it back (D473); the arrow keys and - and = are read while held
+## (_turn_camera_by_keys), so their presses are only taken here. True when it took `event`.
+func _camera_input(event: InputEvent) -> bool:
+	if not _camera_free():
+		return false
+	if event is InputEventMouseButton and event.pressed:
+		var button: MouseButton = (event as InputEventMouseButton).button_index
+		if button == MOUSE_BUTTON_WHEEL_UP or button == MOUSE_BUTTON_WHEEL_DOWN:
+			arena.zoom_camera(1.0 if button == MOUSE_BUTTON_WHEEL_UP else -1.0)
+			return true
+		return false
+	if not event is InputEventKey or not event.pressed:
+		return false
+	var key: Key = (event as InputEventKey).keycode
+	if key == KEY_C and not event.echo:
+		arena.reset_camera()
+		return true
+	return key in CAMERA_KEYS
 
 
 ## The player's corner makes a call (call bar, keys 1–9 and Q/E). Calls go in while paused.
@@ -920,6 +1000,9 @@ func make_call(id: String) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if _skips_moment(event):
 		arena.skip_moment()  # Any key or click skips a moment (D394).
+		get_viewport().set_input_as_handled()
+		return
+	if _camera_input(event):
 		get_viewport().set_input_as_handled()
 		return
 	if not event is InputEventKey or not event.pressed or event.echo:
@@ -946,7 +1029,15 @@ func _unhandled_input(event: InputEvent) -> void:
 	var handled: bool = true
 	match key:
 		KEY_SPACE:
-			driver.toggle_slow()
+			if event.shift_pressed and overlay.visible:
+				driver.toggle_quarter()  # Quarter speed with the debug overlay on (D477).
+			else:
+				driver.toggle_slow()
+		KEY_PERIOD:
+			# One tick on while paused, with the debug overlay on (D477).
+			handled = overlay.visible and driver.paused
+			if handled:
+				driver.step_tick()
 		KEY_F:
 			driver.toggle_fast()
 		KEY_P:
@@ -1000,7 +1091,8 @@ func _on_control(which: String) -> void:
 		"fast":
 			driver.toggle_fast()
 		"pause":
-			if hud.pause_allowed:
+			# Easy only (D50), or any fight with the debug overlay on (D477); it can always be unpaused.
+			if hud.pause_allowed or overlay.visible or driver.paused:
 				driver.paused = not driver.paused
 		"towel":
 			driver.held = true

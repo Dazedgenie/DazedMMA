@@ -26,11 +26,15 @@ signal fight_over(event: FightEvent)
 const SLOW := "slow"
 const NORMAL := "normal"
 const FAST := "fast"
+## Quarter speed (D477): Shift+Space, for watching a move through.
+const QUARTER := "quarter"
 ## Fight seconds per real second.
 const FAST_RATE: float = 4.0
 const NORMAL_RATES: Array[float] = [2.0, 1.0]
 ## Slow-mo plays at this share of Normal (2× → 1× fight time, docs/01 §2).
 const SLOW_SHARE: float = 0.5
+## Quarter speed plays at this share of Normal (2× → 0.5× fight time, D477).
+const QUARTER_SHARE: float = 0.25
 const AUTO_SLOW_SECONDS: float = 1.5
 const FLOURISH_SECONDS: float = 1.2
 ## A frame never runs more than this many ticks (a long hitch doesn't fast-forward the fight).
@@ -41,7 +45,7 @@ var sim: FightSim
 var player: int = 0
 ## Normal speed in fight seconds per real second: 2 (D9) or 1 (the D91 comparison).
 var normal_rate: float = 2.0
-## The speed the player picked: SLOW, NORMAL or FAST.
+## The speed the player picked: SLOW, NORMAL, FAST or QUARTER.
 var speed: String = NORMAL
 ## Active pause (Easy only, D50: the fight screen allows it). Calls still go in.
 var paused: bool = false
@@ -54,6 +58,10 @@ var flourishes: bool = true
 var _before: Array[Vector2] = []
 var _budget: float = 0.0
 var _slow_left: float = 0.0
+## Paused, how many ticks of fight are still to play from a step (D477, step_tick).
+var _step_left: float = 0.0
+## Fight seconds per real second the last advance() played at.
+var _played_rate: float = 0.0
 ## Which layer started each fighter's current move ("call", "rule", "ai" …), from its telegraph.
 var _started_by: Array[String] = ["", ""]
 
@@ -66,10 +74,14 @@ func _init(p_sim: FightSim, p_player: int = 0) -> void:
 	sim.event_emitted.connect(_on_event)
 
 
-## Fight seconds per real second right now (0 while paused or held).
+## Fight seconds per real second right now (0 while paused or held; Normal while a step plays out paused).
 func rate() -> float:
-	if paused or held or sim.is_over():
+	if held or sim.is_over():
 		return 0.0
+	if paused:
+		return normal_rate if _step_left > 0.0 else 0.0
+	if speed == QUARTER:
+		return normal_rate * QUARTER_SHARE
 	if speed == SLOW or _slow_left > 0.0:
 		return normal_rate * SLOW_SHARE
 	return FAST_RATE if speed == FAST else normal_rate
@@ -77,24 +89,45 @@ func rate() -> float:
 
 ## True while auto slow-mo or a flourish is slowing the fight.
 func is_auto_slowed() -> bool:
-	return _slow_left > 0.0 and speed != SLOW and rate() > 0.0
+	return _slow_left > 0.0 and speed != SLOW and speed != QUARTER and not paused and rate() > 0.0
 
 
 ## Feeds in the ticks that `delta` real seconds are worth. Returns how many ran.
 func advance(delta: float) -> int:
 	var r: float = rate()
+	_played_rate = r
 	if r <= 0.0:
 		return 0
-	_slow_left = maxf(0.0, _slow_left - delta)
-	_budget += delta * r * FightClock.TICKS_PER_SECOND
+	var stepping: bool = paused
+	var worth: float = delta * r * FightClock.TICKS_PER_SECOND
+	if stepping:
+		worth = minf(worth, _step_left)  # A step plays exactly one tick's worth, then it's paused again.
+		_step_left -= worth
+		_played_rate = worth / (delta * FightClock.TICKS_PER_SECOND) if delta > 0.0 else 0.0
+	else:
+		_step_left = 0.0
+		_slow_left = maxf(0.0, _slow_left - delta)
+	_budget += worth
 	var ran: int = 0
-	while _budget >= 1.0 and ran < MAX_TICKS_PER_FRAME and rate() > 0.0:
+	while _budget >= 1.0 and ran < MAX_TICKS_PER_FRAME and (rate() > 0.0 or (stepping and not held and not sim.is_over())):
 		_budget -= 1.0
 		step()
 		ran += 1
 	if ran >= MAX_TICKS_PER_FRAME or rate() <= 0.0:
 		_budget = minf(_budget, 0.999)
 	return ran
+
+
+## Paused, plays one more tick of the fight at Normal speed and stops again (D477: . with the debug overlay on), so
+## the picture moves on exactly a tick with every move's motion played through. Nothing while it isn't paused.
+func step_tick() -> void:
+	if paused and not held and not sim.is_over():
+		_step_left += 1.0
+
+
+## Fight seconds per real second the picture moves at this frame: rate(), or what a step played at while paused.
+func motion_rate() -> float:
+	return _played_rate if paused else rate()
 
 
 ## One tick, remembering where the fighters stood before it.
@@ -157,6 +190,10 @@ func toggle_fast() -> void:
 	speed = NORMAL if speed == FAST else FAST
 
 
+func toggle_quarter() -> void:
+	speed = NORMAL if speed == QUARTER else QUARTER
+
+
 ## The speed as the top bar shows it, e.g. "2×", "1× slow-mo", "paused".
 func label() -> String:
 	if paused:
@@ -165,7 +202,9 @@ func label() -> String:
 		return "%s× · stopped" % _number(normal_rate)
 	var r: float = rate()
 	var text: String = "%s×" % _number(r)
-	if speed == SLOW or is_auto_slowed():
+	if speed == QUARTER:
+		text += " quarter speed"
+	elif speed == SLOW or is_auto_slowed():
 		text += " slow-mo"
 	elif speed == FAST:
 		text += " fast"
