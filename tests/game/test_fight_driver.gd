@@ -83,6 +83,52 @@ func test_a_paused_fight_stands_still_but_calls_still_go_in() -> void:
 	assert_eq(heard[0].tick, at, "it lands on the next tick")
 
 
+func test_quarter_speed_plays_a_quarter_of_normal() -> void:
+	var driver := FightDriver.new(_sim())
+	driver.toggle_quarter()
+	assert_eq(_ticks_in(driver, 2.0), 10, "quarter speed: half a fight second a second at Normal 2× (D477)")
+	assert_eq(driver.label(), "0.5× quarter speed")
+	driver.toggle_quarter()
+	assert_eq(driver.speed, FightDriver.NORMAL)
+
+
+func test_paused_a_step_plays_exactly_one_tick_and_stops_again() -> void:
+	var driver := FightDriver.new(_sim())
+	_ticks_in(driver, 0.5)
+	driver.paused = true
+	var at: int = driver.sim.now
+	var alpha: float = driver.alpha()
+	driver.step_tick()
+	var ran: int = _ticks_in(driver, 1.0)
+	assert_eq(ran, 1, "one tick (D477)")
+	assert_eq(driver.sim.now, at + 1)
+	assert_almost_eq(driver.alpha(), alpha, 0.001, "the picture stops just as far into the next tick as before")
+	assert_eq(driver.motion_rate(), 0.0, "and stands still again")
+	assert_eq(_ticks_in(driver, 1.0), 0)
+	driver.paused = false
+	driver.step_tick()
+	assert_eq(_ticks_in(driver, 1.0), 20, "a step does nothing unpaused")
+
+
+func test_stepping_and_quarter_speed_never_change_the_fight() -> void:
+	var played: FightSim = _sim()
+	var driver := FightDriver.new(played)
+	var frames: int = 0
+	while not played.is_over():
+		frames += 1
+		if frames % 41 == 0:
+			driver.toggle_quarter()
+		driver.paused = frames % 29 < 6
+		if frames % 29 == 2:
+			driver.step_tick()
+		if driver.held:
+			driver.resume()
+		driver.advance(0.07)
+	var headless: FightSim = _sim()
+	headless.run_to_end()
+	assert_eq(played.events_as_dicts(), headless.events_as_dicts(), "same seed and commands: the same fight")
+
+
 func test_the_bell_holds_the_fight_until_the_next_round_is_started() -> void:
 	# Seed 5 goes the distance; on the file's seed the Wrestler finishes it in round 1 since the
 	# corners take turns stepping first (D253), and on seed 2 since strikes from the bottom (D271).
