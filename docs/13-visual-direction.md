@@ -1350,6 +1350,10 @@ When the underhooks change hands in an open clinch, the fighters rise through a 
 
 The two final-body regression tests sample the fighters at 60 Hz. They cover twelve grip changes across two stances and the guard pass with either fighter on top. For mount to back control, the rider moves beside the hips, gets behind the rising defender and reaches around the shoulders before closing the hooks. An additional 96-frame check for either top fighter measures head, trunk, arm and leg clearance through that path.
 
+### Up-kick during a stand-up
+
+The stand-up path poses both fighters. The bottom fighter's up-kick now extends the lead leg from that pose toward the front of the opponent's head. The leg retains its reach limit, misses travel outside the head, and recovery returns the foot to the continuing paired pose. The scramble-view tests measure the visible heel and shin in full and half guard, including recovery, both corners and misses.
+
 ## Review and verification
 
 Open `project.godot` in Godot 4.7.2 and run the game normally. Start a fight and check striking,
