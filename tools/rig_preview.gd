@@ -145,7 +145,7 @@ func _capture() -> void:
 			ClinchPair.swap(GroundPair.build("full_guard").pair), swept)
 		for n in 9:
 			_title.text = "%ssweep %d" % [_prefix(), n]
-			_takedown_pose(roll, n / 4.0)
+			_takedown_pose(roll, (roll.size() - 1) * n / 8.0)
 			await _frames(1, "ground-sweep-%d.png" % n)
 	elif _takedowns:
 		var start: Array = [ClinchPair.build([0, 0], ["l", "r"], -1, -1).pair, _pair_frame]

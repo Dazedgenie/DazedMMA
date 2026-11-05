@@ -131,7 +131,7 @@ const GROUND_UNPOSED: Array[String] = ["stand_up", "get_up"]
 ## and the catch-kick single) and following him down play ShotPair's from the two standing apart.
 const OPEN_SHOTS: Array[String] = ["double_leg", "catch_kick_single", "follow_down"]
 ## A sweep, a bridge or getting out from under the back (GroundPair.ROLLS) rolls them over in this many seconds.
-const ROLL_SECONDS: float = 0.6
+const ROLL_SECONDS: float = 1.85
 ## A ground strike is cocked over this share of its telegraph and wind-up and thrown over the rest (D289).
 const COCK_SHARE: float = 0.65
 ## Submissions from the rig (D366): a hold once locked in is posed by SubmissionPair, loose to tight as the danger
@@ -215,6 +215,7 @@ var _ground_far: float = -1.0
 ## The last ground pose shown, [pair, frame, the man on top], and a roll under way ({from: that, left}).
 var _ground_last: Array = []
 var _roll: Dictionary = {}
+var _roll_leg_settle: float = 0.0
 var _regrip_path: Array = []
 var _regrip_grips: Array = []
 var _regrip_time: float = 0.0
@@ -324,6 +325,7 @@ func watch(p_driver: FightDriver) -> void:
 	_ground_key = ""
 	_ground_last = []
 	_roll = {}
+	_roll_leg_settle = 0.0
 	_hold_pose = {}
 	_tap_time = -1.0
 	_scramble_last = []
@@ -553,11 +555,21 @@ func _pose_clinch(sim: FightSim, delta: float) -> void:
 
 ## Eases both bodies into the poses just set (SkinnedBody.settle), each kept out of the other's trunk (D397).
 func _settle_bodies(delta: float, ground_top: int = -1) -> void:
+	var rolling := ground_top >= 0 and _roll_leg_settle > 0.0 and _roll.has("from") and int(_roll.from[2]) != ground_top
 	for i in figures.size():
 		var other: SkinnedBody = figures[1 - i].body if figures.size() == 2 else null
 		figures[i].body.moving_grips = not _takedown.is_empty() or not _roll.is_empty() or not _turn.is_empty() or _clinch_shown == TAKEDOWN_ENDED
 		figures[i].body.avoid = other.trunk() if other != null else ([] as Array[Vector3])
-		figures[i].body.settle(delta)
+		figures[i].body.settle(delta, rolling)
+	if rolling:
+		# The paired path carries their hips. A planted-foot adjustment must not
+		# sink one fighter through the other during the exchange.
+		for i in 2:
+			var body: SkinnedBody = figures[i].body
+			var hip_y: float = _clinch_rigs[i].bones.pelvis.global_position.y
+			body.translate_pose(Vector3.UP * (hip_y - body.hips_at().y))
+		figures[1].body.avoid = figures[0].body.trunk()
+		figures[1].body.keep_out()
 	if figures.size() == 2:  # The first again, against where the second ended up.
 		figures[0].body.avoid = figures[1].body.trunk()
 		figures[0].body.keep_out()
@@ -565,8 +577,27 @@ func _settle_bodies(delta: float, ground_top: int = -1) -> void:
 		for figure in figures:
 			figure.protect_missed_head_strike()
 	if ground_top >= 0:
+		if _roll_leg_settle > 0.0:
+			if SkinnedBody.clear_rolling_legs(figures[0].body, figures[1].body, delta, _roll.is_empty()):
+				_roll_leg_settle = maxf(_roll_leg_settle, 0.1 + delta)
+			if rolling:
+				_ground_rolling_pair()
 		_protect_ground_cover(ground_top)
+	_roll_leg_settle = maxf(0.0, _roll_leg_settle - delta)
 	_keep_bodies_in_cage()
+
+
+## Bring the pair's lowest supporting surface to the mat together. Lowering the
+## bodies separately would undo the leg and torso clearance just established.
+func _ground_rolling_pair() -> void:
+	var gap := INF
+	for figure in figures:
+		for bone: String in FENCE_BONES:
+			var allowance: float = SkinnedBody.CANVAS_FLOOR if bone.ends_with("ToeBase") else FENCE_BONES[bone]
+			gap = minf(gap, figure.body._world_at(bone).y - allowance)
+	if absf(gap) > 0.001:
+		for figure in figures:
+			figure.body.translate_pose(Vector3.DOWN * gap)
 
 
 ## Stop the fitted striking arm at the forearms actually covering the head.
@@ -985,6 +1016,7 @@ func _pose_ground(sim: FightSim, delta: float) -> bool:
 		_ground_key = ""
 		_ground_last = []
 		_roll = {}
+		_roll_leg_settle = 0.0
 		return false
 	var where: String = sim.situation.position
 	var top: int = sim.situation.roles.find(PositionLibrary.TOP)
@@ -992,9 +1024,17 @@ func _pose_ground(sim: FightSim, delta: float) -> bool:
 	var new_position: bool = key != _ground_key
 	var previous_key: String = _ground_key
 	if new_position:
+		_roll_leg_settle = 0.0
 		var laid: Array = ground_frame(sim, top)
 		_ground_frame = laid[0]
 		_ground_far = laid[1]
+		if _roll.has("from") and int(_roll.from[2]) != top:
+			# The old rider becomes the grounded fighter. Roll him onto his hip
+			# where the pair actually was, even if the simulation spots are apart.
+			var hip: Vector3 = _roll.anchor
+			var correction := Vector2(hip.x - _ground_frame.origin.x, hip.z - _ground_frame.origin.z)
+			_ground_shift += correction
+			_ground_frame.origin += Vector3(correction.x, 0.0, correction.y)
 		_ground_key = key
 	var f: FighterState = sim.fighters[top]
 	var posture: bool = f.action_id == "posture_up"
@@ -1006,14 +1046,16 @@ func _pose_ground(sim: FightSim, delta: float) -> bool:
 			_roll = {}
 	if new_position and previous_key.ends_with(" %d" % top) and not _ground_last.is_empty():
 		_start_ground_path(previous_key.get_slice(" ", 0), where, built.pair)
-	if _roll.has("destination"):
+	if _roll.has("destination") or _roll_leg_settle > 0.0:
 		for fighter: FighterState in sim.fighters:
 			if fighter.phase in ["telegraph", "windup", "active"] and (GroundPair.STRIKES.has(fighter.action_id) or GroundPair.BOTTOM_STRIKES.has(fighter.action_id) or fighter.action_id == "up_kick"):
 				_roll = {}
+				_roll_leg_settle = 0.0
 				_clinch_shown = ""
 				break
 	if not _roll.is_empty() and new_position:
 		_roll.top = top
+		_roll.destination = key
 	if not _roll.is_empty() and _roll.has("top"):
 		if _pose_roll(built.pair, top, delta):
 			_clinch_shown = shown
@@ -1115,9 +1157,11 @@ func _start_ground_path(previous: String, where: String, pair: Dictionary) -> vo
 func _pose_roll(now: Dictionary, top: int, delta: float) -> bool:
 	var from: Array = _roll.from
 	var was_top: int = int(from[2])
+	if was_top != top:
+		_roll_leg_settle = SkinnedBody.EASE_MAX + delta
 	if not _roll.has("path"):
 		var to: Dictionary = ClinchPair.swap(now) if top != was_top else now
-		_roll.path = GroundPair.roll_path(from[0], from[1], to, _ground_frame)
+		_roll.path = GroundPair.roll_path(from[0], from[1], to, _ground_frame, _roll.get("position", "full_guard"))
 	_roll.left = float(_roll.left) - delta
 	var t: float = clampf(1.0 - float(_roll.left) / float(_roll.get("duration", ROLL_SECONDS)), 0.0, 1.0)
 	var x := lerpf(float(_roll.get("start_x", 0.0)), float(_roll.get("end_x", _roll.path.size() - 1)), smoothstep(0.0, 1.0, t))
@@ -2018,7 +2062,12 @@ func _on_event(event: FightEvent) -> void:
 		_downed[event.actor] = {"data": event.data, "tick": event.tick, "ground": not driver.sim.situation.is_standing()}
 	if event.type == FightEvent.GRAPPLE_WON and event.data.get("result", "") == PositionLibrary.SUCCESS \
 			and GroundPair.ROLLS.has(String(event.data.get("action_id", ""))) and not _ground_last.is_empty():
-		_roll = {"from": _ground_last, "left": ROLL_SECONDS}  # Rolled over (D289): the pose plays the roll.
+		for figure in figures:
+			figure.body.reset_rolling_pose()
+		var anchor := figures[int(_ground_last[2])].body.hips_at()
+		var source_position := _ground_key.get_slice(" ", 0)
+		var duration := 2.6 if source_position == "half_guard" else ROLL_SECONDS
+		_roll = {"from": _ground_last, "anchor": anchor, "left": duration, "duration": duration, "position": source_position}
 	if event.type == FightEvent.GRAPPLE_WON and event.data.get("result", "") == "turned" and not _clinch_last.is_empty():
 		_turn = {"from": _clinch_last, "left": TURN_SECONDS, "slam": event.data.action_id == "turn_him"}
 	if not _takedown.is_empty() and event.actor == int(_takedown.by) and String(_takedown.state) == "attempt" \

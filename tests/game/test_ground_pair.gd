@@ -142,7 +142,7 @@ func test_a_sweep_rolls_them_over_onto_their_sides_and_out_the_other_way_round()
 	var guard: Dictionary = GroundPair.build("full_guard").pair
 	var swept := Transform3D(Basis(Vector3.UP, PI), Vector3(0, 0, 0.55))
 	var path: Array = GroundPair.roll_path(guard, Transform3D.IDENTITY, ClinchPair.swap(guard), swept)
-	assert_eq(path.size(), 3, "from, over, to")
+	assert_eq(path.size(), 5, "from, rolled onto the side, caught, open guard, settled")
 	TakedownPair.pose_along(_rigs[0], _rigs[1], path, 0.0)
 	var red_was: float = _rigs[0].point("chest").y
 	var blue_was: float = _rigs[1].point("chest").y
@@ -150,6 +150,6 @@ func test_a_sweep_rolls_them_over_onto_their_sides_and_out_the_other_way_round()
 	for i in 2:
 		for spot: String in ["back", "back_of_head", "chest", "head"]:
 			assert_gt(_rigs[i].point(spot).y, -0.02, "over: no one under the canvas")
-	TakedownPair.pose_along(_rigs[0], _rigs[1], path, 2.0)
+	TakedownPair.pose_along(_rigs[0], _rigs[1], path, path.size() - 1.0)
 	assert_lt(_rigs[0].point("chest").y, red_was - 0.1, "red, on top before, is on his back")
 	assert_gt(_rigs[1].point("chest").y, blue_was + 0.1, "blue is up on top")

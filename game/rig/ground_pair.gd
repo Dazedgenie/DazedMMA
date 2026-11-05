@@ -23,10 +23,6 @@ const COLLAR_SINK: float = 0.03
 const COLLAR_FORWARD: float = 0.08
 ## Turned toward him for the half-guard underhook (degrees of roll), flattened by the crossface.
 const UNDERHOOK_ROLL: float = 24.0
-## A sweep or a bridge rolling them over (D289): at the top of the roll the man going over ("a") is tipped this
-## far onto his side and the man coming up ("b") this far (degrees), both lifted ROLL_RISE.
-const ROLL_SIDE := {"a": 70.0, "b": 30.0}
-const ROLL_RISE: float = 0.06
 ## The moves that roll them over (Kyle, D289): the man underneath ends up on top.
 const ROLLS: Array[String] = ["sweep", "bridge", "escape_back"]
 ## Ground and pound from the pose (Kyle, D289: the striking arm only, the bomb sits him up first): where each
@@ -220,17 +216,61 @@ static func strike_up(pair: Dictionary, action: String, letter: String, where: S
 ## A roll (a sweep, a bridge, getting out from under the back: ROLLS) as a path of keys for
 ## TakedownPair.pose_along: from `from` in `from_frame` (the man on top "a"), over onto their sides, to `to` in
 ## `to_frame` (written with the same man as "a", the one now underneath).
-static func roll_path(from: Dictionary, from_frame: Transform3D, to: Dictionary, to_frame: Transform3D) -> Array:
-	var ends: Array = TakedownPair.chain([[_short_leans(from), from_frame], [_short_leans(to), to_frame]])
-	var mid: Dictionary = TakedownPair.pose_at(ends, 0.5)
+static func roll_path(from: Dictionary, from_frame: Transform3D, to: Dictionary, to_frame: Transform3D, position: String = "full_guard") -> Array:
+	var landing := to
+	var close: Array = []
+	if position == "half_guard":
+		var far := signf(float(to.b.root[0]) - float(to.a.root[0]))
+		landing = ClinchPair.swap(build("side_control", {}, false, far).pair)
+		close = pass_path([ClinchPair.swap(to), to_frame], ClinchPair.swap(landing), to_frame)
+		close.reverse()
+		for key: Array in close:
+			key[0] = ClinchPair.swap(key[0])
+	var ends := TakedownPair.chain([[_short_leans(from), from_frame], [_short_leans(landing), to_frame]])
+	var angle := 45.0
+	var offset := 0.06
+	var rise := 0.18
+	match position:
+		"half_guard":
+			angle = -50.0
+			offset = -0.34
+		"back_control":
+			angle = -75.0
+			offset = -0.22
+	var open: Dictionary = _short_leans(landing).duplicate(true)
+	_open_guard_feet(open.a, position != "half_guard")
+	var ready: Array = TakedownPair.chain([ends[0], [open, to_frame]])[1]
+	var over := _tip_pair(ends[0][0], deg_to_rad(angle), offset, rise)
+	var caught := _tip_pair(ready[0], -deg_to_rad(angle), offset, rise)
+	var path: Array = [ends[0], [over, ends[0][1]], [caught, ready[1]], ready, ends[1]]
+	path.append_array(close.slice(1))
+	return TakedownPair.chain(path)
+
+
+## Rotate the bodies and their planted targets around a common point between the hips.
+## A grip on the other body follows that body automatically.
+static func _tip_pair(pair: Dictionary, angle: float, offset: float, rise: float) -> Dictionary:
+	var tilt := Basis(Vector3.BACK, angle)
+	var pivot := FighterRig._vec(pair.a.root).lerp(FighterRig._vec(pair.b.root), 0.5)
+	var tipped := pair.duplicate(true)
 	for man: String in ["a", "b"]:
-		var spec: Dictionary = mid[man]
-		spec.roll = float(spec.get("roll", 0.0)) + float(ROLL_SIDE[man])
-		spec.root = [spec.root[0], float(spec.root[1]) + ROLL_RISE, spec.root[2]]
-		for limb: String in ["hand_l", "hand_r", "foot_l", "foot_r"]:  # Limbs loose as they go over.
-			spec.erase(limb)
-	var mid_frame: Transform3D = Transform3D(ends[0][1]).interpolate_with(ends[1][1], 0.5)
-	return [ends[0], [mid, mid_frame], ends[1]]
+		var pose: Dictionary = tipped[man]
+		var shift := Vector3(-offset if man == "a" else offset, rise, 0.0)
+		var turn := Transform3D(tilt, pivot - tilt * pivot + shift)
+		var hip: Vector3 = turn * FighterRig._vec(pose.root)
+		pose.root = [hip.x, hip.y, hip.z]
+		var before := Vector3(deg_to_rad(-float(pose.get("lean", 0.0))), deg_to_rad(float(pose.get("turn", 0.0))), deg_to_rad(float(pose.get("roll", 0.0))))
+		var angles := (tilt * Basis.from_euler(before, EULER_ORDER_YXZ)).get_euler(EULER_ORDER_YXZ)
+		pose.lean = -rad_to_deg(angles.x)
+		pose.turn = rad_to_deg(angles.y)
+		pose.roll = rad_to_deg(angles.z)
+		for limb: String in ["foot_l", "foot_r", "hand_l", "hand_r"]:
+			if pose.has(limb) and pose[limb].has("at"):
+				var at: Vector3 = turn * FighterRig._vec(pose[limb].at)
+				pose[limb].at = [at.x, maxf(0.06, at.y), at.z]
+				if limb.begins_with("foot"):
+					pose[limb].flat = 0.0
+	return tipped
 
 
 # --- The positions ---------------------------------------------------------------
