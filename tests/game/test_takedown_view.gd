@@ -211,3 +211,19 @@ func test_taken_down_off_the_fence_he_lands_inside_the_cage() -> void:
 		for i in 2:
 			for spot: String in ["head", "back_of_head", "lower_back"]:
 				assert_lt(view._clinch_rigs[i].point(spot).x, Octagon.APOTHEM, "frame %d: %s's %s through the fence" % [n, "red" if i == 0 else "blue", spot])
+
+func test_either_corner_starts_throws_from_the_existing_clinch_pose() -> void:
+	for by in 2:
+		for owner in 2:
+			var setup := _clinch()
+			var sim: FightSim = setup[0]
+			var view: ArenaView = setup[1]
+			sim.set_grips([owner, owner])
+			_frames(view, 30)
+			var hips: Array[Vector3] = [_pelvis(view, 0), _pelvis(view, 1)]
+			var heads: Array[Vector3] = [view._clinch_rigs[0].point("head"), view._clinch_rigs[1].point("head")]
+			_doing(sim, by, "double_leg", "telegraph", 0.0)
+			_frames(view, 1)
+			for i in 2:
+				assert_lt(hips[i].distance_to(_pelvis(view, i)), 0.01, "first key preserves the fighter's hips")
+				assert_lt(heads[i].distance_to(view._clinch_rigs[i].point("head")), 0.01, "first key preserves the fighter's facing")

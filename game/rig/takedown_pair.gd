@@ -156,6 +156,10 @@ static func chain(keys_in: Array) -> Array:
 			var turn_was: float = float(before[0][man].get("turn", 0.0))
 			var world: float = wrapf(float(spec.get("turn", 0.0)) + _yaw(frame) - turn_was - _yaw(was), -180.0, 180.0)
 			spec.turn = turn_was + world - frame_turn
+			var lean_was: float = float(before[0][man].get("lean", 0.0))
+			var lean: float = float(spec.get("lean", 0.0))
+			if absf(lean - lean_was) > 180.0:
+				spec.lean = lean_was + wrapf(lean - lean_was, -180.0, 180.0)
 			turned[man] = spec
 		out.append([turned, frame])
 	return out

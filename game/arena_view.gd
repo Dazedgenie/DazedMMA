@@ -1161,9 +1161,7 @@ func _start_takedown(sim: FightSim) -> bool:
 		var f: FighterState = sim.fighters[by]
 		if not TakedownPair.MOVES.has(f.action_id) or f.phase == "recovery":
 			continue
-		var start: Array = _clinch_last  # [pair, frame] with red as "a": turned round when blue takes him down.
-		if by == 1:
-			start = [ClinchPair.swap(_clinch_last[0]), Transform3D(_clinch_last[1]) * Transform3D(Basis(Vector3.UP, PI), Vector3.ZERO)]
+		var start: Array = ClinchPair.for_actor(_clinch_last, by == 1)
 		var lying: Array = landing_turn(sim, by, f.action_id)
 		var path: Array = TakedownPair.path(f.action_id, start, lying[0], lying[1])
 		_keep_off_fence(path, by)
@@ -1208,12 +1206,9 @@ func _move_for(sim: FightSim, by: int) -> Dictionary:
 	var landing: Array = []  # [pair, frame] where it lands on the ground, if it does.
 	if where == "scramble" and action in ["scramble", "get_up"] and not _scramble_last.is_empty():
 		move = "scramble" if action == "scramble" else "scramble_up"
-		var start: Array = _scramble_last
+		var start: Array = ClinchPair.for_actor(_scramble_last, int(_scramble_last[2]) != by)
 		var pair: Dictionary = start[0]
 		var frame: Transform3D = start[1]
-		if int(start[2]) != by:  # Turned round so the man making the move is "a".
-			pair = ClinchPair.swap(pair)
-			frame = frame * Transform3D(Basis(Vector3.UP, PI), Vector3.ZERO)
 		keys_in = [[pair, frame]]
 		for key: Dictionary in ScramblePair.keys(move):
 			keys_in.append([key, frame])

@@ -280,6 +280,16 @@ static func effective(built: Dictionary, frame: Transform3D) -> Array:
 	return [built.pair, frame]
 
 
+## Begin a move in the actor's frame without moving either fighter at its first key.
+static func for_actor(start: Array, swap_roles: bool) -> Array:
+	var pair: Dictionary = swap(start[0]) if swap_roles else start[0]
+	var frame: Transform3D = start[1]
+	if float(pair.a.root[2]) < float(pair.b.root[2]):
+		pair = half_turn(pair)
+		frame = frame * Transform3D(Basis(Vector3.UP, PI), Vector3.ZERO)
+	return [pair, frame]
+
+
 ## Raise the chest and free the hands before swimming to the other side.
 static func regrip_path(from: Array, to: Array) -> Array:
 	var ends: Array = TakedownPair.chain([from, to])
