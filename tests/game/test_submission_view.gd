@@ -179,3 +179,40 @@ func _nearest_shin(body: SkinnedBody, point: Vector3) -> float:
 	for side: String in ["Left", "Right"]:
 		gap = minf(gap, point.distance_to(Geometry3D.get_closest_point_to_segment(point, body._world_at(side + "Leg"), body._world_at(side + "Foot"))))
 	return gap
+
+func test_triangle_holds_keep_the_forearms_and_shins_outside_the_skull() -> void:
+	for action: String in ["arm_triangle", "triangle"]:
+		for top in 2:
+			var under: bool = action == "triangle"
+			var setup := _watched("full_guard" if under else "side_control", top)
+			var sim: FightSim = setup[0]
+			var view: ArenaView = setup[1]
+			var who: int = 1 - top if under else top
+			_lock(sim, who, action)
+			sim._hold.danger = 20.0
+			_frames(view, 60)
+			var least: float = INF
+			var heads: float = INF
+			var hands: float = 0.0
+			for frame in 96:
+				sim._hold.danger = lerpf(20.0, 95.0, minf(frame / 60.0, 1.0))
+				view._process(1.0 / 60.0)
+				var attacker: SkinnedBody = view.figures[who].body
+				var defender: SkinnedBody = view.figures[1 - who].body
+				var skull := _skull_centre(defender)
+				heads = minf(heads, _skull_centre(attacker).distance_to(skull))
+				for limb: Array in SkinnedBody.LIMBS:
+					for segment in 2:
+						var near := Geometry3D.get_closest_point_to_segment(skull, attacker._world_at(limb[segment]), attacker._world_at(limb[segment + 1]))
+						least = minf(least, near.distance_to(skull))
+				hands = maxf(hands, attacker._world_at("LeftHand").distance_to(attacker._world_at("RightHand")))
+			assert_gt(least, 0.13, action + " keeps the skull separate from the controlling limbs")
+			assert_gt(heads, 0.21, action + " keeps the two heads separate")
+			if not under:
+				assert_lt(hands, 0.17, "the head-and-arm grip closes throughout the squeeze")
+
+
+## The head bone starts near the neck. Sample inside the cranium along the neck-to-head axis.
+func _skull_centre(body: SkinnedBody) -> Vector3:
+	var head := body._world_at("Head")
+	return head + (head - body._world_at("Neck")).normalized() * 0.08

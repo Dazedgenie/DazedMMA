@@ -1352,6 +1352,8 @@ The two final-body regression tests sample the fighters at 60 Hz. They cover twe
 
 ## Review and verification
 
+The side-control arm triangle sprawls alongside the defender, with the hands closing at the neck and nape. In the guard triangle the controlling hand stays beside the nape during the squeeze. Submission-view tests sample the approximate skull center and controlling segments throughout tightening in both corners, and check that the hands can meet in the arm triangle.
+
 Open `project.godot` in Godot 4.7.2 and run the game normally. Start a fight and check striking,
 clinch, ground transitions and fighting against each side of the fence. Compare at 1280×720 and
 1920×1080, keeping both fighters and all coaching controls readable.

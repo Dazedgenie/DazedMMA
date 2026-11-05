@@ -191,7 +191,7 @@ static func _triangle(tight: bool) -> Dictionary:
 		"a": {
 			"root": [0.0, 0.19, 0.0], "turn": 180, "lean": 270, "roll": 10, "bend": [15, 0, 0],
 			"head": [30, 0],
-			"hand_l": {"to": "b.nape", "off": [0.1 - 0.1 * k, -0.14 + 0.18 * k, 0.02], "pole": [1, 0.2, 0.4]},
+			"hand_l": {"to": "b.nape", "off": [0.14, -0.14 + 0.07 * k, 0.02], "pole": [1, 0.2, 0.4]},
 			"hand_r": {"to": "b.wrist_r", "off": [0.0, 0.0, 0.0], "pole": [-1, 0.2, 0.4]},
 			"foot_l": {"to": "b.nape", "off": [-0.16, 0.04, 0.02], "pole": [1, 0.6, -0.2]},
 			"foot_r": {"to": "b.nape", "off": [0.18, -0.02, 0.04], "pole": [-1, 0.6, 0.2]},
@@ -287,11 +287,14 @@ static func _arm_triangle(tight: bool) -> Dictionary:
 	var pair: Dictionary = GroundPair.side_control()
 	var a: Dictionary = pair.a
 	var b: Dictionary = pair.b
-	a.root = [-0.3 + 0.02 * k, 0.29 - 0.02 * k, -0.38 - 0.01 * k]
+	a.root = [-0.39 + 0.02 * k, 0.32 - 0.02 * k, 0.05 - 0.03 * k]
+	a.turn = -16
 	a.lean = 74 + 6 * k
-	a.head = [-20, 40]
-	a.hand_l = {"to": "b.nape", "off": [0.06, 0.0, 0.0], "pole": [-0.6, -0.6, -0.4]}
-	a.hand_r = {"to": "b.head", "off": [0.06 + 0.04 * k, -0.06 + 0.04 * k, -0.1 + 0.08 * k], "pole": [0.6, -0.6, -0.4]}
+	a.head = [-16, -18]
+	a.foot_l = {"at": [-0.60, ANKLE, 0.67], "pole": [-0.5, -0.4, -1], "flat": 0.0}
+	a.foot_r = {"at": [-0.43, ANKLE, 0.88], "pole": [0.3, -0.4, -1], "flat": 0.0}
+	a.hand_l = {"to": "b.nape", "off": [0.035, -0.06, 0.0], "pole": [-0.6, -0.6, -0.4]}
+	a.hand_r = {"to": "b.neck", "off": [0.015, -0.03, -0.05 + 0.03 * k], "pole": [0.6, -0.6, -0.4]}
 	b.head = [10, 26 + 14 * k]
 	b.hand_r = {"to": "b.head", "off": [0.1, 0.02, -0.08], "pole": [-1, 0.4, 0.0]}
 	b.hand_l = {"at": [0.42, 0.06, -0.2], "pole": [1, 0, 0.3]}
