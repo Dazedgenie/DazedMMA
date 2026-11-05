@@ -716,6 +716,7 @@ func _lift_off_canvas() -> void:
 ## The other man's trunk, the line from his hips to his chest in the world (set each frame before settle; empty
 ## when there's no one to keep out of). Used to route complete limb segments around it (D397, D425).
 var avoid: Array[Vector3] = []
+var moving_grips: bool = false
 
 
 ## The line up the middle of this body's trunk, its hips to its chest, in the world (D397).
@@ -745,11 +746,42 @@ func _keep_out() -> void:
 		var chain: Array[Vector3] = FighterMotion.solve_bones(root, to, middle - root.lerp(to, 0.5),
 			root.distance_to(middle), middle.distance_to(tip))
 		var bent_at: Vector3 = FighterRig.clear_of(root, chain[0], chain[1], avoid)
+		if moving_grips and (limb[4] == "arm" or chain[1].y > 0.13) and FighterRig.limb_clearance(root, bent_at, chain[1], avoid) < FighterRig.TRUNK_RADIUS - 0.001:
+			var floor_y: float = FighterRig.HAND_FLOOR if limb[4] == "arm" else _at(end).y * FighterRig.FOOT_FLOOR
+			var routed := _route_released_limb(root, bent_at, chain[1], floor_y)
+			bent_at = routed[0]
+			chain[1] = routed[1]
 		var bend: Vector3 = bent_at - root.lerp(chain[1], 0.5)
 		var arm: bool = limb[4] == "arm"
 		_aim_bone(upper, lower, root, bent_at, bend, arm, to_skeleton)
 		_aim_bone(lower, end, bent_at, chain[1], bend, arm, to_skeleton)
 		_set_world(end, Transform3D(tip_turn, chain[1]), to_skeleton)
+
+
+## Between grips, a hand may briefly leave an unreachable target. Turn the whole chain
+## about the shoulder (or hip for a raised foot), keeping both segment lengths.
+func _route_released_limb(root: Vector3, bend: Vector3, tip: Vector3, floor_y: float) -> Array[Vector3]:
+	var best: Array[Vector3] = [bend, tip]
+	var gap: float = FighterRig.limb_clearance(root, bend, tip, avoid)
+	var away := (root - FighterRig.closest_on(root, avoid[0], avoid[1])).normalized()
+	var axes: Array[Vector3] = [(bend - root).cross(away), (tip - root).cross(away), Vector3.UP, (avoid[1] - avoid[0]).normalized()]
+	for step in range(1, 13):
+		for axis in axes:
+			if axis.length_squared() < 0.0001:
+				continue
+			for direction: float in [1.0, -1.0]:
+				var turn := Basis(axis.normalized(), direction * deg_to_rad(5.0 * step))
+				var elbow: Vector3 = root + turn * (bend - root)
+				var hand: Vector3 = root + turn * (tip - root)
+				if elbow.y < CANVAS_FLOOR or hand.y < floor_y:
+					continue
+				var distance := FighterRig.limb_clearance(root, elbow, hand, avoid)
+				if distance > gap:
+					gap = distance
+					best = [elbow, hand]
+				if gap >= FighterRig.TRUNK_RADIUS:
+					return best
+	return best
 
 
 ## The lowest a joint's middle may be shown while easing (metres above the canvas).

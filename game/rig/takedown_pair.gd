@@ -24,8 +24,8 @@ const MOVES: Array[String] = ["double_leg", "outside_trip", "hip_throw", "guard_
 const TIMING := {
 	"double_leg": {"fall": 0.5, "land": 0.35, "thud": 0.7, "at": Vector2(0.0, -0.55)},
 	"outside_trip": {"fall": 0.5, "land": 0.3, "thud": 0.8, "at": Vector2(0.05, -0.6)},
-	"hip_throw": {"fall": 0.3, "land": 0.5, "thud": 1.0, "at": Vector2(0.0, 0.75)},
-	"guard_pull": {"fall": 0.6, "land": 0.3, "thud": 0.35, "at": Vector2(0.0, 0.25)},
+	"hip_throw": {"entry": 2, "fall": 0.3, "land": 0.85, "thud": 1.0, "at": Vector2(0.0, 0.75)},
+	"guard_pull": {"entry": 2, "fall": 0.6, "land": 0.3, "thud": 0.35, "at": Vector2(0.0, 0.25)},
 }
 ## A takedown that only half works lands them both on their knees (a scramble), this hard.
 const SCRAMBLE_THUD: float = 0.4
@@ -56,7 +56,7 @@ static func landing(action: String, far: float = -1.0) -> Dictionary:
 			var pair: Dictionary = GroundPair.side_control()
 			return pair if far < 0.0 else ClinchPair.mirror(pair)
 		"guard_pull":  # The puller underneath: the full guard with the men the other way round.
-			return _at_hips(ClinchPair.half_turn(ClinchPair.swap(RigPairs.full_guard())), "a")
+			return ClinchPair.swap(GroundPair.base("full_guard"))
 	return _at_hips(RigPairs.full_guard(), "b")
 
 
@@ -94,12 +94,66 @@ static func scramble() -> Dictionary:
 static func path(action: String, start: Array, lying: Basis, far: float = -1.0) -> Array:
 	var from: Transform3D = start[1]
 	var out: Array = [start]
-	for pair: Dictionary in keys(action):
-		out.append([pair, from])
 	var land: Dictionary = landing(action, far)
+	var mirror: bool = false
+	if action == "hip_throw":
+		var offset := FighterRig._vec(land.b.root) - FighterRig._vec(land.a.root)
+		mirror = (from.basis.inverse() * lying * offset).x > 0.0
+		var step: Dictionary = start[0].duplicate(true)
+		step.a.root[0] = float(step.a.root[0]) + (0.20 if mirror else -0.20)
+		step.a.root[1] = float(step.a.root[1]) - 0.18
+		step.a.lean = 0.0
+		step.b.lean = 0.0
+		var near_hand := "r" if mirror else "l"
+		step.a["hand_" + near_hand] = {"to": "b.shoulder_" + ("l" if mirror else "r"),
+			"off": [-0.10 if mirror else 0.10, -0.05, -0.06], "pole": [1 if mirror else -1, -0.4, 0.1]}
+		out.append([step, from])
+	if action == "guard_pull":
+		var sit: Dictionary = start[0].duplicate(true)
+		sit.a.root[1] -= 0.16
+		sit.a.root[2] += 0.10
+		sit.a.lean = -12.0
+		sit.b.lean = 0.0
+		out.append([sit, from])
+	for pair: Dictionary in keys(action):
+		out.append([ClinchPair.mirror(pair) if mirror else pair, from])
 	var at: Vector2 = TIMING[action].at
-	out.append([land, Transform3D(lying, from * Vector3(at.x, 0.0, at.y))])
+	var land_frame := Transform3D(lying, from * Vector3(at.x, 0.0, at.y))
+	if action == "hip_throw":
+		var kneeling: Dictionary = land.duplicate(true)
+		var side := signf(float(land.a.root[0]))
+		kneeling.a.root[0] += side * 0.38
+		kneeling.a.root[1] += 0.22
+		kneeling.a.lean = 48
+		kneeling.b.root[1] += 0.18
+		kneeling.b.lean = 240
+		var post := "l" if side < 0.0 else "r"
+		kneeling.a["hand_" + post] = {"at": [float(kneeling.a.root[0]) + side * 0.14, 0.08, -0.32], "pole": [side, -0.4, 0.05]}
+		out.append([kneeling, land_frame])
+	out.append([land, land_frame])
+	if action == "hip_throw":
+		_use_landing_axes(out, lying)
 	return chain(out)
+
+
+static func _use_landing_axes(path: Array, landing_basis: Basis) -> void:
+	# Interpolate the airborne fighter and the catch in the same axes.
+	# Otherwise his local hip offset changes sign as the landing frame turns.
+	for key: Array in path:
+		var previous: Transform3D = key[1]
+		var rotate := landing_basis.inverse() * previous.basis
+		var pair: Dictionary = key[0].duplicate(true)
+		for man: String in ["a", "b"]:
+			var spec: Dictionary = pair[man]
+			var root := rotate * FighterRig._vec(spec.root)
+			spec.root = [root.x, root.y, root.z]
+			spec.turn = float(spec.get("turn", 0.0)) + rad_to_deg(atan2(rotate.z.x, rotate.z.z))
+			for name: String in spec:
+				if spec[name] is Dictionary and spec[name].has("at"):
+					var foot := rotate * FighterRig._vec(spec[name].at)
+					spec[name].at = [foot.x, foot.y, foot.z]
+		key[0] = pair
+		key[1] = Transform3D(landing_basis, previous.origin)
 
 
 ## The same path with its last key (the landing) swapped for the scramble, where a half-worked takedown ends.
@@ -244,9 +298,9 @@ static func _trip_tip() -> Dictionary:
 static func _hip_load() -> Dictionary:
 	return {
 		"a": {
-			"root": [0.0, 0.7, -0.13], "turn": 175, "lean": 26, "bend": [12, 0, 0], "head": [-6, 20],
+			"root": [-0.18, 0.68, -0.04], "turn": 175, "lean": 26, "bend": [12, 0, 0], "head": [-6, 20],
 			"hand_l": {"to": "b.fore_r", "off": [0.0, 0.0, 0.0], "pole": [0.6, -0.8, -0.4]},
-			"hand_r": {"to": "b.lower_back", "off": [-0.12, 0.02, 0.02], "pole": [-1, -0.2, 0.2]},
+			"hand_r": {"to": "b.lower_back", "off": [0.14, 0.02, 0.04], "pole": [1, -0.3, 0.2]},
 			"foot_l": {"at": [0.14, ANKLE, -0.12]},
 			"foot_r": {"at": [-0.14, ANKLE, -0.1]},
 		},
@@ -267,15 +321,15 @@ static func _hip_over() -> Dictionary:
 		"a": {
 			"root": [0.0, 0.84, -0.02], "turn": 175, "lean": 62, "bend": [18, 0, 0], "head": [-24, 20],
 			"hand_l": {"to": "b.fore_r", "off": [0.0, 0.0, 0.0], "pole": [0.6, -0.8, -0.4]},
-			"hand_r": {"to": "b.lower_back", "off": [-0.12, 0.02, 0.02], "pole": [-1, -0.2, 0.2]},
+			"hand_r": {"to": "b.lower_back", "off": [0.14, 0.02, 0.04], "pole": [1, -0.3, 0.2]},
 			"foot_l": {"at": [0.14, ANKLE, -0.12]},
 			"foot_r": {"at": [-0.14, ANKLE, -0.1]},
 		},
 		"b": {
-			"root": [-0.17, 1.24, -0.08], "turn": 180, "lean": 80, "bend": [6, 0, 0], "head": [-10, 0],
+			"root": [-0.30, 1.24, -0.08], "turn": 180, "lean": 80, "bend": [6, 0, 0], "head": [-10, 0],
 			"hand_l": {"to": "a.back", "off": [0.06, 0.0, 0.06], "pole": [0.6, 0.2, 0.6]},
 			"hand_r": {"to": "a.shoulder_r", "off": [0.0, -0.04, -0.04], "pole": [-0.4, -0.4, -0.8]},
-			"foot_l": {"at": [0.18, 0.86, -0.72]},
+			"foot_l": {"at": [0.07, 0.88, -0.70]},
 			"foot_r": {"at": [-0.14, 0.7, -0.78]},
 		},
 	}
@@ -288,35 +342,35 @@ static func _hip_flip() -> Dictionary:
 		"a": {
 			"root": [0.0, 0.8, 0.02], "turn": 175, "lean": 76, "bend": [20, 0, 0], "head": [-30, 20],
 			"hand_l": {"to": "b.fore_r", "off": [0.0, 0.0, 0.0], "pole": [0.6, -0.8, -0.4]},
-			"hand_r": {"to": "b.lower_back", "off": [-0.12, 0.02, 0.02], "pole": [-1, -0.2, 0.2]},
+			"hand_r": {"to": "b.lower_back", "off": [0.14, 0.02, 0.04], "pole": [1, -0.3, 0.2]},
 			"foot_l": {"at": [0.14, ANKLE, -0.12]},
 			"foot_r": {"at": [-0.14, ANKLE, -0.1]},
 		},
 		"b": {
-			"root": [-0.42, 1.26, 0.2], "turn": 180, "lean": 186, "bend": [6, 0, 0], "head": [-20, 0],
+			"root": [-0.53, 1.26, 0.2], "turn": 180, "lean": 186, "bend": [6, 0, 0], "head": [-20, 0],
 			"hand_l": {"at": [-0.16, 0.36, 0.26], "pole": [0.6, 0.2, 0.6]},
 			"hand_r": {"to": "a.shoulder_r", "off": [0.0, -0.04, -0.04], "pole": [-0.4, -0.4, -0.8]},
-			"foot_l": {"at": [0.18, 1.86, 0.14]},
+			"foot_l": {"at": [0.08, 1.86, 0.14]},
 			"foot_r": {"at": [-0.14, 1.84, 0.0]},
 		},
 	}
 
 
-## The guard pull: red sits down under blue, one foot on blue's hip and his hands on the back of blue's neck,
+## The guard pull: red sits down under blue, one foot on blue's hip, with a collar grip and forearm control,
 ## pulling him forward and down.
 static func _pull_sit() -> Dictionary:
 	return {
 		"a": {
-			"root": [0.0, 0.42, 0.24], "lean": -34, "bend": [16, 0, 0], "head": [20, 0],
-			"hand_l": {"to": "b.nape", "off": [0.04, 0.0, 0.0], "pole": [-1, -0.4, 0.2]},
-			"hand_r": {"to": "b.nape", "off": [-0.04, 0.0, 0.0], "pole": [1, -0.4, 0.2]},
+			"root": [0.21, 0.42, 0.24], "lean": -34, "bend": [16, 0, 0], "head": [20, 0],
+			"hand_l": {"to": "b.neck", "off": [-0.04, -0.09, -0.08], "pole": [-1, -0.4, 0.2]},
+			"hand_r": {"to": "b.fore_l", "off": [0.03, 0.0, 0.0], "pole": [1, -0.4, 0.2]},
 			"foot_l": {"at": [-0.2, ANKLE, -0.08]},
 			"foot_r": {"to": "b.hip_l", "off": [0.0, 0.0, -0.06], "pole": [0.6, 0.6, -0.4]},
 		},
 		"b": {
-			"root": [0.0, 0.8, -0.32], "turn": 180, "lean": 40, "bend": [16, 0, 0], "head": [-10, 0],
+			"root": [-0.07, 0.8, -0.32], "turn": 180, "lean": 30, "bend": [4, 0, 0], "head": [-10, 0],
 			"hand_l": {"to": "a.chest", "off": [0.12, 0.0, -0.04], "pole": [-0.6, -0.4, 0.6]},
-			"hand_r": {"to": "a.chest", "off": [-0.12, 0.0, -0.04], "pole": [0.6, -0.4, 0.6]},
+			"hand_r": {"to": "a.fore_l", "off": [0.04, 0.0, 0.0], "pole": [0.6, -0.4, 0.6]},
 			"foot_l": {"at": [0.18, ANKLE, -0.36]},
 			"foot_r": {"at": [-0.2, ANKLE, -0.62]},
 		},

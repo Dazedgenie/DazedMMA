@@ -554,6 +554,7 @@ func _pose_clinch(sim: FightSim, delta: float) -> void:
 func _settle_bodies(delta: float) -> void:
 	for i in figures.size():
 		var other: SkinnedBody = figures[1 - i].body if figures.size() == 2 else null
+		figures[i].body.moving_grips = not _takedown.is_empty() or not _roll.is_empty() or _clinch_shown == TAKEDOWN_ENDED
 		figures[i].body.avoid = other.trunk() if other != null else ([] as Array[Vector3])
 		figures[i].body.settle(delta)
 	if figures.size() == 2:  # The first again, against where the second ended up.
@@ -1505,6 +1506,11 @@ func _sprawled() -> void:
 
 ## The takedown is over: the bodies ease from where it left them to whatever comes next over `seconds`.
 func _end_takedown(seconds: float) -> void:
+	if _takedown.get("state", "") == "landing" and _takedown.get("ends", "") == "ground" and not _takedown.get("scramble", false):
+		var bottom: int = driver.sim.situation.roles.find(PositionLibrary.BOTTOM)
+		if bottom >= 0:
+			var hips: Vector3 = _clinch_rigs[bottom].bones.pelvis.global_position
+			_ground_shift = Vector2(hips.x, hips.z) - driver.shown_pos(bottom)
 	_takedown = {}
 	_clinch_last = []
 	_clinch_shown = TAKEDOWN_ENDED

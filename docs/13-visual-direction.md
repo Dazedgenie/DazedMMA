@@ -1354,6 +1354,12 @@ The two final-body regression tests sample the fighters at 60 Hz. They cover twe
 
 The first throw or scramble key is expressed in the actor's frame. Changing which man leads relabels the roles. Turning the frame also transforms the pose into that frame, so both fighters keep their world positions and facings. The key chain uses the nearby equivalent lean angle when a flat guard pose starts a stand-up. The takedown-view test checks the first hips and heads for either actor and grip owner. The scramble-view test follows both bodies through standing out of half guard.
 
+### Hip throw and guard-pull landings
+
+The thrower steps beside the hips before turning in. The lifted fighter goes over the shoulder to the side used for the catch, with a posted hand as the thrower settles into side control. Writing the keys in the landing axes keeps their moving hip offsets from crossing when the camera-facing ground layout changes the frame. Between grips, the visible limb can turn about its root when an exact hand target would route it through the opponent. A planted foot keeps its target.
+
+The guard pull sits back before lowering the defender with a collar grip and forearm control. Its last pose uses the ground guard orientation and retains the actual hips at the handoff. Takedown-view tests sample extension, catch and recovery for either corner and lead, checking heads, trunks, complete limb segments and hand travel. The existing rig-target reach checks also pass.
+
 ## Review and verification
 
 Open `project.godot` in Godot 4.7.2 and run the game normally. Start a fight and check striking,
