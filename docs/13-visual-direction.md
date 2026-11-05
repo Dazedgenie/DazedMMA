@@ -104,8 +104,9 @@ miss each look different. All of it reads the sim's state and events; nothing he
   `FOOT_PIVOT` (35% of the hip turn for the lead foot, 80% for the rear), and the rear heel lifts `HEEL_LIFT`
   (0.6 rad per radian of turn, at most 0.45). Round kicks turn the hips over further than before (body kick 1.0 rad,
   head kick 1.1, leg kick 0.7).
-- **The near fence** (`LocalVenue.show_near_fence`). The camera-side panels stay cut down to a rail, but a panel fades
-  in, see-through (`NEAR_FENCE_ALPHA` 0.7), while a fighter is within `NEAR_FENCE_WITHIN` (1.2 m) of it.
+- **The near fence** (`LocalVenue.show_near_fence`). Panels between the live camera and the cage lose their
+  upper rail and post. Their wire fades in at 22% opacity while a fighter is within 1.2 m of that panel.
+  When the camera moves to the other side, the full rail and pad return and the wire keeps its current bend.
 - **Labels.** The move label, call label, delay ring, stars and the tell's "!" sit `LABEL_ABOVE_HEAD` (0.5 m) over
   his head wherever it is, standing or down, and the two move labels lean apart on screen when both are up.
 
@@ -1344,7 +1345,55 @@ kick-clearance and paired-strike tests pass. `tools/defence_preview.gd --motion`
 at 20 fps from 60 Hz updates, revealing the outcome at contact. These are contact repairs, not a
 complete swept-mesh guarantee; missed-strike trajectories and punch wind-up continuity remain open.
 
+## Changing grips and passing half guard (D429)
+
+When the underhooks change hands in an open clinch, the fighters rise through a brief shoulder frame before closing the new grip. The route follows the pair as it moves. Strikes, turns and fence drives keep their own poses. A half-guard pass has a middle pose where the passer posts beside the hips and releases the trapped leg before settling into side control. The view discards the route if the destination changes.
+
+The two final-body regression tests sample the fighters at 60 Hz. They cover twelve grip changes across two stances and the guard pass with either fighter on top. For mount to back control, the rider moves beside the hips, gets behind the rising defender and reaches around the shoulders before closing the hooks. An additional 96-frame check for either top fighter measures head, trunk, arm and leg clearance through that path.
+
+In half guard the top fighter plants the free foot wide. The defender bends the knees outward and hooks either side of the trapped shin. In back control the rider's insteps sit farther around the defender's thighs. The fitted-body checks measure the space between opposing leg segments and how close each hooking foot stays to its intended leg for both riders and both half-guard orientations.
+
+Between half guard and side control, the defender opens the hooks before the passer lifts the captured knee and posts on the outside. Partial guard recovery follows those steps in reverse over 1.25 seconds. During a back take, the rider lifts the inside foot, steps past the defender, sits behind the hips and closes the hooks last. In mount, the bottom fighter can plant both feet with the knees pointing up between the rider's legs. The pass and recovery checks measure both fighters' arms and legs at 30 and 60 frames per second.
+
+Full guard, half guard and side control share a sequence of foot placements. The top fighter lifts and steps over the open guard as the bottom fighter plants the heels, then closes around one shin. Another pass or recovery can reverse from the current step, and a new ground strike can interrupt it. The step from side control to mount has its own route over the defender's hips.
+
+The fence spin-off releases toward the centre and facing of the two standing fighters. Both corner assignments use the same turn even when the original clinch pose has the fighters in swapped roles. The pressing fighter plants the lead foot wider and farther from the defender's shin. Near-fence checks cover the turn, the spin and the handoff back to standing.
+
+After the posed body settles, a toe below the canvas pitches up around its own ankle while retaining the length of the foot. The near-fence knockdown check follows both toes through a fall and the return to standing, including leg and body-shot knockdowns.
+
+When a ground head strike hits a cover, the fitted striking arm stops on the forearm in its path. The posture bomb rises during its preparation and starts coming down before the active tick. In the crucifix the trapped arm stays between the rider's legs while the free glove covers the brow. Motion checks cover the striking joint and forearm through the block and release for either attacker and lead.
+
+### Entering paired takedowns and stand-ups
+
+The first throw or scramble key is expressed in the actor's frame. Changing which man leads relabels the roles. Turning the frame also transforms the pose into that frame, so both fighters keep their world positions and facings. The key chain uses the nearby equivalent lean angle when a flat guard pose starts a stand-up. The takedown-view test checks the first hips and heads for either actor and grip owner. The scramble-view test follows both bodies through standing out of half guard.
+
+### Hip throw and guard-pull landings
+
+The thrower steps beside the hips before turning in. The lifted fighter goes over the shoulder to the side used for the catch, with a posted hand as the thrower settles into side control. Writing the keys in the landing axes keeps their moving hip offsets from crossing when the camera-facing ground layout changes the frame. Between grips, the visible limb can turn about its root when an exact hand target would route it through the opponent. A planted foot keeps its target.
+
+The guard pull sits back before lowering the defender with a collar grip and forearm control. Its last pose uses the ground guard orientation and retains the actual hips at the handoff. Takedown-view tests sample extension, catch and recovery for either corner and lead, checking heads, trunks, complete limb segments and hand travel. The existing rig-target reach checks also pass.
+
+### Up-kick during a stand-up
+
+The stand-up path poses both fighters. The bottom fighter's up-kick now extends the lead leg from that pose toward the front of the opponent's head. The leg retains its reach limit, misses travel outside the head, and recovery returns the foot to the continuing paired pose. The scramble-view tests measure the visible heel and shin in full and half guard, including recovery, both corners and misses.
+
+### Referee approach after a ground stoppage
+
+The referee checks the route to his usual stop position against both fighters' visible legs and trunks. When the route crosses their bodies, he chooses another approach alongside them, inside the fence. The referee regression samples the moving lower limbs throughout the intervention from either corner.
+
+### Between-rounds corner clearance
+
+The coach and cutman enter and leave on their own sides of the stool. The coach crouches beside the nearer visible knee and gestures with the other hand. The cutman supports the near shoulder or reaches the brow when treating a cut. Ceremony tests follow both corners through sitting, working, standing and walking out.
+
+### Standing misses and the guard
+
+While a head strike approaches, its target stays on the striking side of the visible guard. On a miss it can carry forward once it clears the side of the guard. If the final body’s elbow or shin still cuts through a guarding arm, the body re-solves the offending limb and turns its bend while preserving both bone lengths. The cage correction runs after the adjustment. Landed and blocked strikes retain their contact targets.
+
+The miss regression reveals the result at the active phase and samples follow-through and recovery in both corners and leads. It measures head/body and guard clearances, limb length and joint travel at 60 Hz for the jab, cross, hook, overhand and body/head kicks.
+
 ## Review and verification
+
+The side-control arm triangle sprawls alongside the defender, with the hands closing at the neck and nape. In the guard triangle the controlling hand stays beside the nape during the squeeze. Submission-view tests sample the approximate skull center and controlling segments throughout tightening in both corners, and check that the hands can meet in the arm triangle.
 
 Open `project.godot` in Godot 4.7.2 and run the game normally. Start a fight and check striking,
 clinch, ground transitions and fighting against each side of the fence. Compare at 1280×720 and

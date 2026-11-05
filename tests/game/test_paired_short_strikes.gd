@@ -97,3 +97,53 @@ func test_short_strike_windup_and_recovery_keep_bone_lengths_and_return_to_the_h
 		assert_lt(body._world_at(names[2]).distance_to(resting), 0.03, "%s returns to the hold" % case[1])
 		assert_true(view._clinch_rigs[who].joint_strikes.is_empty(), "no stale joint target after recovery")
 		view.free()
+
+
+func test_covered_ground_strikes_meet_the_fitted_guard() -> void:
+	for row: Array in [["full_guard", "posture_bomb"], ["half_guard", "ground_elbow"], ["side_control", "ground_punch"], ["mount", "hammerfist"], ["back_control", "ground_punch"], ["crucifix", "ground_elbow"]]:
+		for top in 2:
+			for lead: float in [-1.0, 1.0]:
+				var action: String = row[1]
+				var view := _arrange(row[0], top, lead)
+				var sim := view.driver.sim
+				var fighter: FighterState = sim.fighters[top]
+				var defending: FighterState = sim.fighters[1 - top]
+				defending.action_id = "ground_cover"
+				defending.phase = "active"
+				defending.phase_ticks_left = 1
+				for frame in 20:
+					view._process(1.0 / 30.0)
+				var body: SkinnedBody = view.figures[top].body
+				var guard: SkinnedBody = view.figures[1 - top].body
+				var lead_arm := FighterFigure.limb_for(action).begins_with("lead")
+				var letter := view.figures[top].arm_letter(0 if lead_arm else 1)
+				var side := "Left" if letter == "l" else "Right"
+				var clearance := INF
+				var contact := INF
+				for phase: String in ["windup", "active", "recovery"]:
+					var ticks := sim.phase_ticks(fighter, action, phase)
+					for tick in ticks:
+						fighter.action_id = action
+						fighter.phase = phase
+						fighter.phase_ticks_left = ticks - tick
+						if phase == "active":
+							view.figures[top].show_outcome(action, "covered")
+						for frame in 6:
+							view.driver._budget = float(frame) / 6.0
+							view._process(1.0 / 60.0)
+							var strike := ArenaView.strike_blend(sim, fighter, view.driver.alpha())
+							if strike.is_empty() or strike[0] == 0:
+								continue
+							var shoulder := body._world_at(side + "Arm")
+							var elbow := body._world_at(side + "ForeArm")
+							var hand := body._world_at(side + "Hand")
+							for rival: String in ["Left", "Right"]:
+								var axis: Array[Vector3] = [guard._world_at(rival + "ForeArm"), guard._world_at(rival + "Hand")]
+								clearance = minf(clearance, FighterRig.limb_clearance(shoulder, elbow, hand, axis))
+								if phase == "active":
+									var point := elbow if action == "ground_elbow" else hand
+									contact = minf(contact, point.distance_to(Geometry3D.get_closest_point_to_segment(point, axis[0], axis[1])))
+				var label := "%s %s corner %d lead %.0f" % [row[0], action, top, lead]
+				assert_gt(clearance, 0.105, label + " striking arm stays outside the guard")
+				assert_lt(contact, 0.19, label + " the striking joint reaches the block")
+				view.free()

@@ -9,7 +9,7 @@ const HEIGHT: float = 1.9
 ## The camera-side fence (D281): a panel fades in, see-through, while a fighter is within NEAR_FENCE_WITHIN
 ## metres of it, up to NEAR_FENCE_ALPHA, over about 1 / NEAR_FENCE_SPEED seconds.
 const NEAR_FENCE_WITHIN: float = 1.2
-const NEAR_FENCE_ALPHA: float = 0.7
+const NEAR_FENCE_ALPHA: float = 0.22
 const NEAR_FENCE_SPEED: float = 4.0
 ## The fence bowing where a man is held on it (D287): the wire is a grid of BOW_GRID squares a metre so it can
 ## bend, BOW_SIZE metres across and up (to where the bow has mostly faded), none at the posts and rails.
@@ -95,45 +95,48 @@ func _cage() -> void:
 	_canvas_text("LOCAL FIGHT SERIES", Vector3(0, 0.013, 0.48), 0.008, 48, Color("#777b79"))
 	_canvas_text("LAMPSMOKE", Vector3(-2.65, 0.012, -0.2), 0.006, 52, Color("#626865"), PI / 2.0)
 	_canvas_text("FIGHT CLUB", Vector3(2.65, 0.012, -0.2), 0.006, 52, Color("#626865"), -PI / 2.0)
-	var camera_side := Vector2(ArenaView.CAMERA_FROM.x, ArenaView.CAMERA_FROM.z).normalized()
 	for k in 8:
 		var a: Vector2 = Vector2.from_angle(PI / 8.0 + k * PI / 4.0) * radius
 		var b: Vector2 = Vector2.from_angle(PI / 8.0 + (k + 1) * PI / 4.0) * radius
 		var middle: Vector2 = (a + b) / 2.0
 		var angle: float = -(b - a).angle()
-		var near_side: bool = middle.normalized().dot(camera_side) > 0.05
 		var length: float = a.distance_to(b)
 		# Camera-side panels are cut down to an ankle-high rail, keeping fence grappling visible.
 		_box(Vector3(middle.x, 0.07, middle.y), Vector3(length, 0.1, 0.09), "#20252c", angle)
-		if near_side:
-			_near_panel(middle, length, angle)
-			continue
-		var mesh_material := ShaderMaterial.new()  # Its own, so it can bow on its own (D287).
-		mesh_material.shader = load("res://game/shaders/chain_link.gdshader")
-		var wire: MeshInstance3D = FightMesh.instance(self, _wire_mesh(length), mesh_material, Vector3(middle.x, HEIGHT / 2.0, middle.y))
-		wire.rotation.y = angle
-		wire.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		_add_fence_panel(wire, mesh_material, middle.normalized(), length)
-		_box(Vector3(middle.x, HEIGHT, middle.y), Vector3(length, 0.13, 0.13), "#20252c", angle)
+		var structure := Node3D.new()
+		add_child(structure)
+		var rail := FightMesh.instance(structure, _cube, _mat("#20252c"), Vector3(middle.x, HEIGHT, middle.y))
+		rail.rotation.y = angle
+		rail.scale = Vector3(length, 0.13, 0.13)
 		var pad_hex: String = "#a83c3d" if k == 3 else ("#37688e" if k == 5 else "#252e39")
-		_box(Vector3(a.x, HEIGHT / 2.0, a.y), Vector3(0.22, HEIGHT + 0.12, 0.22), pad_hex, angle)
-		var label: Label3D = _sign("CHIN\nCHECK", Vector3(a.x, 1.25, a.y) + Vector3(-a.x, 0, -a.y).normalized() * 0.14, 0.0026, 48, Color("#d6d4ca"))
+		var pad := FightMesh.instance(structure, _cube, _mat(pad_hex), Vector3(a.x, HEIGHT / 2.0, a.y))
+		pad.rotation.y = angle
+		pad.scale = Vector3(0.22, HEIGHT + 0.12, 0.22)
+		var label := _sign("CHIN\nCHECK", Vector3(a.x, 1.25, a.y) + Vector3(-a.x, 0, -a.y).normalized() * 0.14, 0.0026, 48, Color("#d6d4ca"))
 		label.rotation.y = atan2(-a.x, -a.y)
+		label.reparent(structure, false)
+		_fence_panel(middle, length, angle, structure)
+	show_near_fence([], 1.0)
 	# A small stair unit at the visible entrance.
 	for step in 3:
 		_box(Vector3(4.2 + step * 0.32, -0.48 - step * 0.12, 3.3), Vector3(0.45, 0.14, 1.1), "#343d45")
 
 
-func _near_panel(middle: Vector2, length: float, angle: float) -> void:
-	var material := ShaderMaterial.new()
-	material.shader = load("res://game/shaders/chain_link_fade.gdshader")
-	material.set_shader_parameter("fade", 0.0)
-	var wire: MeshInstance3D = FightMesh.instance(self, _wire_mesh(length), material, Vector3(middle.x, HEIGHT / 2.0, middle.y))
+func _fence_panel(middle: Vector2, length: float, angle: float, structure: Node3D) -> void:
+	var solid := ShaderMaterial.new()
+	solid.shader = preload("res://game/shaders/chain_link.gdshader")
+	var sheer := ShaderMaterial.new()
+	sheer.shader = preload("res://game/shaders/chain_link_fade.gdshader")
+	for material: ShaderMaterial in [solid, sheer]:
+		material.set_shader_parameter("panel_half", Vector2(length, HEIGHT) / 2.0)
+		material.set_shader_parameter("bow_size", BOW_SIZE)
+	var wire := FightMesh.instance(self, _wire_mesh(length), solid, Vector3(middle.x, HEIGHT / 2.0, middle.y))
 	wire.rotation.y = angle
 	wire.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	wire.visible = false
-	near_panels.append({ "node": wire, "material": material, "normal": middle.normalized(), "fade": 0.0 })
-	_add_fence_panel(wire, material, middle.normalized(), length)
+	var normal := middle.normalized()
+	var out := signf(Vector2(wire.basis.z.x, wire.basis.z.z).dot(normal))
+	fence_panels.append({"node": wire, "structure": structure, "material": solid, "solid": solid, "sheer": sheer,
+		"normal": normal, "out": out, "near": false, "fade": 0.0})
 
 
 ## A fence panel's wire, `length` long: a grid fine enough to bow (D287).
@@ -143,14 +146,6 @@ func _wire_mesh(length: float) -> QuadMesh:
 	panel.subdivide_width = int(length * BOW_GRID)
 	panel.subdivide_depth = int(HEIGHT * BOW_GRID)
 	return panel
-
-
-func _add_fence_panel(wire: MeshInstance3D, material: ShaderMaterial, normal: Vector2, length: float) -> void:
-	material.set_shader_parameter("panel_half", Vector2(length, HEIGHT) / 2.0)
-	material.set_shader_parameter("bow_size", BOW_SIZE)
-	var quad_z: Vector3 = wire.basis.z
-	var out: float = 1.0 if Vector2(quad_z.x, quad_z.z).dot(normal) > 0.0 else -1.0
-	fence_panels.append({ "node": wire, "material": material, "normal": normal, "out": out })
 
 
 ## Bows the fence out `depth` metres at the world point `at` (D287) on the panel it is against; the rest flat.
@@ -184,9 +179,25 @@ func fence_bowed() -> float:
 
 
 ## Fades in the camera-side fence where a fighter (drawn at `spots`) is against it, and out again (D281).
-func show_near_fence(spots: Array[Vector2], delta: float) -> void:
-	for panel: Dictionary in near_panels:
+func show_near_fence(spots: Array[Vector2], delta: float, camera_at: Vector3 = ArenaView.CAMERA_FROM * 100.0) -> void:
+	near_panels.clear()
+	for panel: Dictionary in fence_panels:
 		var normal: Vector2 = panel.normal
+		var near := normal.dot(Vector2(camera_at.x, camera_at.z)) > Octagon.APOTHEM - 0.05
+		if near != bool(panel.near):
+			var material: ShaderMaterial = panel.sheer if near else panel.solid
+			var before: ShaderMaterial = panel.material
+			for key: String in ["bow_at", "bow_depth"]:
+				material.set_shader_parameter(key, before.get_shader_parameter(key))
+			panel.material = material
+			panel.node.material_override = material
+			panel.structure.visible = not near
+			panel.node.visible = true
+			panel.near = near
+			panel.fade = 0.0
+		if not near:
+			continue
+		near_panels.append(panel)
 		var want: float = 0.0
 		for p: Vector2 in spots:
 			var facing_it: bool = p.length() < 0.5 or p.normalized().dot(normal) > cos(PI / 8.0 + 0.2)

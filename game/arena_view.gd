@@ -215,6 +215,10 @@ var _ground_far: float = -1.0
 ## The last ground pose shown, [pair, frame, the man on top], and a roll under way ({from: that, left}).
 var _ground_last: Array = []
 var _roll: Dictionary = {}
+var _regrip_path: Array = []
+var _regrip_grips: Array = []
+var _regrip_time: float = 0.0
+var _regrip_frame := Transform3D.IDENTITY
 ## A hold posed from the rig (D366): {action, attacker, built (SubmissionPair.build), frame, danger shown, pulled},
 ## kept after the fight ends in a submission so the tap can play; the tap's seconds so far (-1 none).
 var _hold_pose: Dictionary = {}
@@ -432,12 +436,12 @@ func _process(delta: float) -> void:
 	_hold_finish(delta)
 	_facing_set = true
 	var middle: Vector2 = (spots[0] + spots[1]) / 2.0 + _ground_shift
-	if _venue != null:
-		_venue.show_near_fence(shown, delta)
 	_show_tag(sim, middle, delta)
 	# While a hold is locked in, the HUD's danger meter names it, just where the words would sit (D466).
 	_tag.visible = not drill and not backdrop and (not hud_names_holds or sim.hold().is_empty())
 	_place_camera(delta, middle, sim, shown)
+	if _venue != null:
+		_venue.show_near_fence(shown, delta, camera.position)
 	if debug_marks:
 		for i in _want_rings.size():
 			var want: float = sim.last_wanted_distance(i)
@@ -489,8 +493,6 @@ func _play_moment(sim: FightSim, delta: float) -> void:
 	ceremony.advance(delta)
 	_show_marks(sim, delta)
 	var shown: Array[Vector2] = [ceremony.men[0].spot, ceremony.men[1].spot]
-	if _venue != null:
-		_venue.show_near_fence(shown, delta)
 	var view: Dictionary = ceremony.view()
 	var k: float = 1.0 if _snap_view else 1.0 - exp(-CAMERA_SPEED * delta)
 	var focus: Vector2 = view.focus
@@ -506,6 +508,8 @@ func _play_moment(sim: FightSim, delta: float) -> void:
 	camera_rise = lerpf(camera_rise, _rise_want, turn)
 	camera.position = _focus + camera_from(camera_swing, camera_rise) * distance
 	camera.look_at(_focus, Vector3.UP)
+	if _venue != null:
+		_venue.show_near_fence(shown, delta, camera.position)
 
 
 ## Poses the bodies from the rig in the clinch (D286, D287; CLINCH_POSE_MOVES), easing in and out, playing the
@@ -523,8 +527,9 @@ func _pose_clinch(sim: FightSim, delta: float) -> void:
 		_settle_bodies(delta)
 		_bow_fence(-1, delta)  # Off the fence: it springs back.
 		return
-	if _pose_ground(sim, delta) or _pose_scramble(sim):
-		_settle_bodies(delta)
+	var on_ground := _pose_ground(sim, delta)
+	if on_ground or _pose_scramble(sim):
+		_settle_bodies(delta, sim.situation.roles.find(PositionLibrary.TOP) if on_ground else -1)
 		_bow_fence(-1, delta)
 		return
 	var built: Dictionary = {}
@@ -540,22 +545,53 @@ func _pose_clinch(sim: FightSim, delta: float) -> void:
 	if not _turn.is_empty():
 		_pose_turn(sim, built, frame, delta)
 	else:
-		_pose_built(sim, built, frame)
+		_pose_built(sim, built, frame, delta)
 	_pose_downed(sim, delta)
 	_settle_bodies(delta)
 	_bow_fence(held, delta)
 
 
 ## Eases both bodies into the poses just set (SkinnedBody.settle), each kept out of the other's trunk (D397).
-func _settle_bodies(delta: float) -> void:
+func _settle_bodies(delta: float, ground_top: int = -1) -> void:
 	for i in figures.size():
 		var other: SkinnedBody = figures[1 - i].body if figures.size() == 2 else null
+		figures[i].body.moving_grips = not _takedown.is_empty() or not _roll.is_empty() or not _turn.is_empty() or _clinch_shown == TAKEDOWN_ENDED
 		figures[i].body.avoid = other.trunk() if other != null else ([] as Array[Vector3])
 		figures[i].body.settle(delta)
 	if figures.size() == 2:  # The first again, against where the second ended up.
 		figures[0].body.avoid = figures[1].body.trunk()
 		figures[0].body.keep_out()
+	if driver != null and driver.sim.situation.is_standing() and not driver.sim.fighters[0].is_down() and not driver.sim.fighters[1].is_down():
+		for figure in figures:
+			figure.protect_missed_head_strike()
+	if ground_top >= 0:
+		_protect_ground_cover(ground_top)
 	_keep_bodies_in_cage()
+
+
+## Stop the fitted striking arm at the forearms actually covering the head.
+func _protect_ground_cover(top: int) -> void:
+	var sim := driver.sim
+	var fighter: FighterState = sim.fighters[top]
+	var action := fighter.action_id
+	if not GroundPair.STRIKES.has(action) or GroundPair.STRIKES[action].to != "head":
+		return
+	if not _ground_head_blocked(top, action):
+		return
+	var stage := strike_blend(sim, fighter, driver.alpha())
+	if stage.is_empty() or stage[0] == 0:
+		return
+	var letter := figures[top].arm_letter(0 if FighterFigure.limb_for(action).begins_with("lead") else 1)
+	var body := figures[top].body
+	var other := figures[1 - top].body
+	var shoulder := body._world_at(("Left" if letter == "l" else "Right") + "Arm")
+	var hands := other._world_at("LeftHand").lerp(other._world_at("RightHand"), 0.5)
+	body.clear_strike_from_guard(other, letter, true, shoulder.direction_to(hands), true)
+
+
+func _ground_head_blocked(top: int, action: String) -> bool:
+	var outcome := figures[top].outcome_of(action)
+	return outcome == "covered" or (outcome == "" and ground_grips_now(driver.sim, top).cover)
 
 
 ## A single translation preserves both bodies' contact and bone lengths, including between path keys.
@@ -585,7 +621,7 @@ func _keep_bodies_in_cage() -> void:
 
 
 ## Poses `built` (empty: today's figures) in `frame`, with any strike's limb from today's figure.
-func _pose_built(sim: FightSim, built: Dictionary, frame: Transform3D) -> void:
+func _pose_built(sim: FightSim, built: Dictionary, frame: Transform3D, delta: float) -> void:
 	var strikes: Array = [[], []]  # The limbs thrown from the pose, each man's, as follow_joints names them.
 	var held_pose_key: String = "" if built.is_empty() else str(built.pair)
 	if not built.is_empty():
@@ -622,11 +658,39 @@ func _pose_built(sim: FightSim, built: Dictionary, frame: Transform3D) -> void:
 			for figure in figures:
 				figure.body.ease_over(CLINCH_EASE)
 		_clinch_shown = shown
-	_clinch_last = []
 	if built.is_empty():
+		_clinch_last = []
+		_regrip_grips = []
+		_regrip_path = []
 		return
-	ClinchPair.pose(_clinch_rigs[0], _clinch_rigs[1], built, frame)
-	_clinch_last = ClinchPair.effective(built, frame)
+	var target: Array = ClinchPair.effective(built, frame)
+	var striking: bool = CLINCH_STRIKES.has(sim.fighters[0].action_id) or CLINCH_STRIKES.has(sim.fighters[1].action_id)
+	if built.kind in ["tie", "lock"] and not striking:
+		if not _clinch_last.is_empty() and not _regrip_grips.is_empty() and sim.grips() != _regrip_grips:
+			_regrip_path = ClinchPair.regrip_path(_clinch_last, target)
+			_regrip_time = 0.0
+			_regrip_frame = target[1]
+		_regrip_grips = sim.grips().duplicate()
+	else:
+		_regrip_grips = []
+		_regrip_path = []
+	if not _regrip_path.is_empty() and not _clinch_last.is_empty():
+		_regrip_time += delta
+		var share: float = clampf(_regrip_time / (2.0 * CLINCH_EASE), 0.0, 1.0)
+		var move: Transform3D = Transform3D(target[1]) * _regrip_frame.affine_inverse()
+		var path: Array = []
+		for key: Array in _regrip_path:
+			path.append([key[0], move * Transform3D(key[1])])
+		var x: float = 2.0 * share
+		TakedownPair.pose_along(_clinch_rigs[0], _clinch_rigs[1], path, x)
+		var index: int = mini(floori(x), 1)
+		_clinch_last = [TakedownPair.pose_at(path, x), Transform3D(path[index][1]).interpolate_with(path[index + 1][1], x - index)]
+		if share >= 1.0:
+			_regrip_path = []
+	else:
+		_regrip_path = []
+		ClinchPair.pose(_clinch_rigs[0], _clinch_rigs[1], built, frame)
+		_clinch_last = target
 	for i in 2:
 		figures[i].body.follow(_clinch_rigs[i])
 		if not (strikes[i] as Array).is_empty():
@@ -857,7 +921,10 @@ func _move_referee(sim: FightSim, delta: float) -> void:
 		if men[0].distance_to(men[1]) <= Referee.CLEAR_OF_MEN:  # Too close to get between: a hand on one of them.
 			var on: int = 1 - loser if low else loser  # On the ground he pulls the winner off; standing he holds the beaten man.
 			hold = figures[on].body.hips_at() + Vector3.UP * (0.25 if low else 0.4)
-		referee.want(Referee.stop_spot(men[1 - loser], men[loser], eye), men[1 - loser], "stop", hold, low)
+		var at: Vector2 = Referee.stop_spot(men[1 - loser], men[loser], eye)
+		if low or shows_hold():
+			at = Referee.clear_stop_approach(at, referee.spot, men, figures)
+		referee.want(at, men[1 - loser], "stop", hold, low)
 	else:
 		var down: int = -1
 		for i in 2:
@@ -923,15 +990,28 @@ func _pose_ground(sim: FightSim, delta: float) -> bool:
 	var top: int = sim.situation.roles.find(PositionLibrary.TOP)
 	var key: String = "%s %d" % [where, top]
 	var new_position: bool = key != _ground_key
+	var previous_key: String = _ground_key
 	if new_position:
 		var laid: Array = ground_frame(sim, top)
 		_ground_frame = laid[0]
 		_ground_far = laid[1]
 		_ground_key = key
 	var f: FighterState = sim.fighters[top]
-	var posture: bool = f.action_id == "posture_up" or (f.action_id == "posture_bomb" and f.phase in ["telegraph", "windup"])
-	var built: Dictionary = GroundPair.build(where, ground_grips_now(sim, top), posture, _ground_far)
+	var posture: bool = f.action_id == "posture_up"
+	var grips := ground_grips_now(sim, top)
+	var built: Dictionary = GroundPair.build(where, grips, posture, _ground_far)
 	var shown: String = str(built.pair)
+	if _roll.has("destination") and _roll.destination != key:
+		if not (_roll.has("guard_keys") and where in _roll.guard_keys and int(_roll.top) == top):
+			_roll = {}
+	if new_position and previous_key.ends_with(" %d" % top) and not _ground_last.is_empty():
+		_start_ground_path(previous_key.get_slice(" ", 0), where, built.pair)
+	if _roll.has("destination"):
+		for fighter: FighterState in sim.fighters:
+			if fighter.phase in ["telegraph", "windup", "active"] and (GroundPair.STRIKES.has(fighter.action_id) or GroundPair.BOTTOM_STRIKES.has(fighter.action_id) or fighter.action_id == "up_kick"):
+				_roll = {}
+				_clinch_shown = ""
+				break
 	if not _roll.is_empty() and new_position:
 		_roll.top = top
 	if not _roll.is_empty() and _roll.has("top"):
@@ -950,6 +1030,10 @@ func _pose_ground(sim: FightSim, delta: float) -> bool:
 	if GroundPair.STRIKES.has(f.action_id) and not posture:
 		var letter: String = figures[top].arm_letter(0 if FighterFigure.limb_for(f.action_id).begins_with("lead") else 1)
 		var keys: Array = GroundPair.strike(pair, f.action_id, letter, where)
+		if f.action_id == "posture_bomb":
+			var raised: Dictionary = GroundPair.build(where, grips, true, _ground_far).pair
+			raised.a["hand_" + letter] = keys[0].a["hand_" + letter]
+			keys[0] = raised
 		var thrown: Array = strike_blend(sim, f, driver.alpha())
 		if not thrown.is_empty():
 			var stage: Array = [pair, keys[0], keys[1], pair]
@@ -967,10 +1051,63 @@ func _pose_ground(sim: FightSim, delta: float) -> bool:
 			to = stage_up[int(thrown_up[0]) + 1]
 			t = float(thrown_up[1])
 	FighterRig.pose_pair(_clinch_rigs[top], _clinch_rigs[1 - top], pair, _ground_frame, to, t)
+	_pose_up_kick(sim, top)
 	for i in 2:
 		figures[i].body.follow(_clinch_rigs[i])
 	_ground_last = [built.pair, _ground_frame, top]
 	return true
+
+
+func _pose_up_kick(sim: FightSim, top: int) -> void:
+	var bottom: int = 1 - top
+	var fighter: FighterState = sim.fighters[bottom]
+	if fighter.action_id != "up_kick":
+		return
+	var phase: Array = strike_blend(sim, fighter, driver.alpha())
+	if phase.is_empty() or int(phase[0]) == 0:
+		return
+	var amount: float = float(phase[1]) if int(phase[0]) == 1 else 1.0 - float(phase[1])
+	_clinch_rigs[bottom].up_kick(figures[bottom].arm_letter(0), _clinch_rigs[top], amount, figures[bottom]._miss)
+
+
+## The three guard positions share one path. If another pass or recovery wins
+## before the first one finishes, continue from the point actually on screen.
+func _start_ground_path(previous: String, where: String, pair: Dictionary) -> void:
+	if previous == "side_control" and where == "mount":
+		var path := GroundPair.mount_path(_ground_last, pair, _ground_frame)
+		_roll = {"from": _ground_last, "path": path, "left": 1.3, "duration": 1.3, "destination": _ground_key}
+		return
+	if previous == "mount" and where == "back_control":
+		var path := GroundPair.back_take_path(_ground_last, pair, _ground_frame)
+		_roll = {"from": _ground_last, "path": path, "left": 1.5, "duration": 1.5, "destination": _ground_key}
+		return
+	var guards: Array[String] = ["full_guard", "half_guard", "side_control"]
+	if previous not in guards or where not in guards:
+		return
+	if not _roll.has("guard_keys"):
+		var holds := {}
+		holds[previous] = _ground_last
+		holds[where] = [pair, _ground_frame]
+		for guard: String in guards:
+			if not holds.has(guard):
+				holds[guard] = [GroundPair.build(guard, {}, false, _ground_far).pair, _ground_frame]
+		var path := GroundPair.guard_path(holds.full_guard, holds.half_guard)
+		var halfway := path.size() - 1
+		var passing := GroundPair.pass_path(holds.half_guard, holds.side_control[0], holds.side_control[1])
+		path.append_array(passing.slice(1))
+		var keys := {"full_guard": 0, "half_guard": halfway, "side_control": path.size() - 1}
+		_roll = {"from": _ground_last, "path": path, "guard_keys": keys, "x": float(keys[previous])}
+	var start := float(_roll.x)
+	var end := float(_roll.guard_keys[where])
+	var half := float(_roll.guard_keys.half_guard)
+	var outside := absf(maxf(start, half) - maxf(end, half))
+	var inside := absf(minf(start, half) - minf(end, half))
+	var duration := maxf(0.02, inside / half * 1.4 + outside / (float(_roll.guard_keys.side_control) - half) * (0.95 if end > start else 1.25))
+	_roll.start_x = start
+	_roll.end_x = end
+	_roll.duration = duration
+	_roll.left = duration
+	_roll.destination = _ground_key
 
 
 ## A roll under way (D289): from the pose before it over onto their sides to `now` (the new position, fighter
@@ -982,8 +1119,10 @@ func _pose_roll(now: Dictionary, top: int, delta: float) -> bool:
 		var to: Dictionary = ClinchPair.swap(now) if top != was_top else now
 		_roll.path = GroundPair.roll_path(from[0], from[1], to, _ground_frame)
 	_roll.left = float(_roll.left) - delta
-	var t: float = clampf(1.0 - float(_roll.left) / ROLL_SECONDS, 0.0, 1.0)
-	TakedownPair.pose_along(_clinch_rigs[was_top], _clinch_rigs[1 - was_top], _roll.path, smoothstep(0.0, 1.0, t) * 2.0)
+	var t: float = clampf(1.0 - float(_roll.left) / float(_roll.get("duration", ROLL_SECONDS)), 0.0, 1.0)
+	var x := lerpf(float(_roll.get("start_x", 0.0)), float(_roll.get("end_x", _roll.path.size() - 1)), smoothstep(0.0, 1.0, t))
+	_roll.x = x
+	TakedownPair.pose_along(_clinch_rigs[was_top], _clinch_rigs[1 - was_top], _roll.path, x)
 	for i in 2:
 		figures[i].body.follow(_clinch_rigs[i])
 	if t >= 1.0:
@@ -1055,13 +1194,15 @@ func ground_frame(sim: FightSim, top: int, where: String = "") -> Array:
 ## `frame`; after a spin-off, standing apart), then the fence rattles if it put a man on it.
 func _pose_turn(sim: FightSim, built: Dictionary, frame: Transform3D, delta: float) -> void:
 	var to: Array = []
-	if built.is_empty():  # Spun off: standing apart where they were, the other way round.
-		to = [ClinchPair.apart(), Transform3D(_turn.from[1]) * Transform3D(Basis(Vector3.UP, PI), Vector3.ZERO)]
+	var start: Array = _turn.from
+	if built.is_empty():  # Spin into the standing fighters' actual sides and centre.
+		start = ClinchPair.for_actor(start, false)
+		to = [ClinchPair.apart(), clinch_frame()]
 	else:
 		to = ClinchPair.effective(built, frame)
 	_turn.left = float(_turn.left) - delta
 	var t: float = clampf(1.0 - float(_turn.left) / TURN_SECONDS, 0.0, 1.0)
-	ClinchPair.turning(_clinch_rigs[0], _clinch_rigs[1], _turn.from, to, t)
+	ClinchPair.turning(_clinch_rigs[0], _clinch_rigs[1], start, to, t)
 	for i in 2:
 		figures[i].body.follow(_clinch_rigs[i])
 	if t >= 1.0:
@@ -1100,6 +1241,8 @@ func _pose_takedown(sim: FightSim, delta: float) -> bool:
 			_takedown.x = smoothstep(0.0, 1.0, 1.0 - float(_takedown.left) / SPRAWL_SECONDS)
 	var a: int = int(_takedown.a)
 	TakedownPair.pose_along(_clinch_rigs[a], _clinch_rigs[1 - a], _takedown.path, float(_takedown.x))
+	if _takedown.get("move", "") == "stand_up":
+		_pose_up_kick(sim, a)
 	for i in 2:
 		figures[i].body.follow(_clinch_rigs[i])
 	if String(_takedown.state) == "landing" and float(_takedown.x) >= last:
@@ -1120,9 +1263,7 @@ func _start_takedown(sim: FightSim) -> bool:
 		var f: FighterState = sim.fighters[by]
 		if not TakedownPair.MOVES.has(f.action_id) or f.phase == "recovery":
 			continue
-		var start: Array = _clinch_last  # [pair, frame] with red as "a": turned round when blue takes him down.
-		if by == 1:
-			start = [ClinchPair.swap(_clinch_last[0]), Transform3D(_clinch_last[1]) * Transform3D(Basis(Vector3.UP, PI), Vector3.ZERO)]
+		var start: Array = ClinchPair.for_actor(_clinch_last, by == 1)
 		var lying: Array = landing_turn(sim, by, f.action_id)
 		var path: Array = TakedownPair.path(f.action_id, start, lying[0], lying[1])
 		_keep_off_fence(path, by)
@@ -1167,12 +1308,9 @@ func _move_for(sim: FightSim, by: int) -> Dictionary:
 	var landing: Array = []  # [pair, frame] where it lands on the ground, if it does.
 	if where == "scramble" and action in ["scramble", "get_up"] and not _scramble_last.is_empty():
 		move = "scramble" if action == "scramble" else "scramble_up"
-		var start: Array = _scramble_last
+		var start: Array = ClinchPair.for_actor(_scramble_last, int(_scramble_last[2]) != by)
 		var pair: Dictionary = start[0]
 		var frame: Transform3D = start[1]
-		if int(start[2]) != by:  # Turned round so the man making the move is "a".
-			pair = ClinchPair.swap(pair)
-			frame = frame * Transform3D(Basis(Vector3.UP, PI), Vector3.ZERO)
 		keys_in = [[pair, frame]]
 		for key: Dictionary in ScramblePair.keys(move):
 			keys_in.append([key, frame])
@@ -1469,6 +1607,11 @@ func _sprawled() -> void:
 
 ## The takedown is over: the bodies ease from where it left them to whatever comes next over `seconds`.
 func _end_takedown(seconds: float) -> void:
+	if _takedown.get("state", "") == "landing" and _takedown.get("ends", "") == "ground" and not _takedown.get("scramble", false):
+		var bottom: int = driver.sim.situation.roles.find(PositionLibrary.BOTTOM)
+		if bottom >= 0:
+			var hips: Vector3 = _clinch_rigs[bottom].bones.pelvis.global_position
+			_ground_shift = Vector2(hips.x, hips.z) - driver.shown_pos(bottom)
 	_takedown = {}
 	_clinch_last = []
 	_clinch_shown = TAKEDOWN_ENDED

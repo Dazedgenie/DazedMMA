@@ -652,6 +652,7 @@ func settle(delta: float) -> void:
 		_restore_limb_lengths()
 		_lift_off_canvas()
 	_keep_out()
+	_level_buried_toes()
 	_remember_shown()
 
 
@@ -679,6 +680,70 @@ func _restore_limb_lengths() -> void:
 ## Keeps this body out of the other man's trunk again (`avoid` set afresh), once he's settled too (D397).
 func keep_out() -> void:
 	_keep_out()
+	_level_buried_toes()
+	_remember_shown()
+
+
+## The body's actual reach and bend can differ from the driver's aim. If either visible
+## segment crosses a guard, keep the elbow/knee and tip on the striking side of it.
+func clear_strike_from_guard(other: SkinnedBody, side: String, arm: bool, toward: Vector3, touching: bool = false) -> void:
+	var prefix := "Left" if side == "l" else "Right"
+	var upper := prefix + ("Arm" if arm else "UpLeg")
+	var lower := prefix + ("ForeArm" if arm else "Leg")
+	var end := prefix + ("Hand" if arm else "Foot")
+	var root := _world_at(upper)
+	var middle := _world_at(lower)
+	var tip := _world_at(end)
+	var limit := INF
+	var guards: Array[Array] = []
+	for guard_side: String in ["Left", "Right"]:
+		var guard: Array[Vector3] = [other._world_at(guard_side + "ForeArm"), other._world_at(guard_side + "Hand")]
+		if touching:
+			guards.append(guard)
+		if FighterRig.limb_clearance(root, middle, tip, guard) < (0.115 if touching else 0.13):
+			limit = minf(limit, minf(guard[0].dot(toward), guard[1].dot(toward)) - 0.13)
+	if not is_finite(limit):
+		return
+	var target := tip - toward * maxf(0.0, tip.dot(toward) - limit)
+	var pole := middle - root.lerp(target, 0.5)
+	var chain := FighterMotion.solve_bones(root, target, pole, root.distance_to(middle), middle.distance_to(tip))
+	var bent: Vector3 = chain[0]
+	var axis := root.direction_to(chain[1])
+	var normal := toward - toward.project(axis)
+	var centre := root + (bent - root).project(axis)
+	var radius := bent.distance_to(centre)
+	if bent.dot(toward) > limit and normal.length() * radius > 0.0001:
+		var fraction := clampf((limit - centre.dot(toward)) / (normal.length() * radius), -1.0, 1.0)
+		var outward := normal.normalized()
+		var tangent := axis.cross(outward)
+		if tangent.dot(bent - centre) < 0.0:
+			tangent = -tangent
+		bent = centre + radius * (outward * fraction + tangent * sqrt(1.0 - fraction * fraction))
+	if touching:
+		# A blocked hit stops on the first forearm it meets. Blending directions
+		# keeps both bone lengths while finding the nearest pose outside the guard.
+		var low := 0.0
+		var high := 1.0
+		for step in 9:
+			var t := (low + high) * 0.5
+			var elbow := root + (middle - root).slerp(bent - root, t)
+			var wrist := elbow + (tip - middle).slerp(chain[1] - bent, t)
+			var gap := INF
+			for guard in guards:
+				gap = minf(gap, FighterRig.limb_clearance(root, elbow, wrist, guard))
+			if gap < 0.115:
+				low = t
+			else:
+				high = t
+		var forearm := (tip - middle).slerp(chain[1] - bent, high)
+		bent = root + (middle - root).slerp(bent - root, high)
+		chain[1] = bent + forearm
+	var pose := skeleton.global_transform.affine_inverse()
+	var turn := (skeleton.global_basis * skeleton.get_bone_global_pose(_ids[end]).basis).orthonormalized()
+	var bend := bent - root.lerp(chain[1], 0.5)
+	_aim_bone(upper, lower, root, bent, bend, arm, pose)
+	_aim_bone(lower, end, bent, chain[1], bend, arm, pose)
+	_set_world(end, Transform3D(turn, chain[1]), pose)
 	_remember_shown()
 
 
@@ -713,9 +778,36 @@ func _lift_off_canvas() -> void:
 	skeleton.set_bone_pose_position(id, skeleton.get_bone_pose_position(id) + up)
 
 
+## An ankle can clear the floor while a pitched foot drives the toes below it.
+## Turn just the foot about the ankle until the ball of the foot reaches the canvas.
+func _level_buried_toes() -> void:
+	for side: String in ["Left", "Right"]:
+		var foot := side + "Foot"
+		var toe := _world_at(side + "ToeBase")
+		var floor_y := minf(CANVAS_FLOOR, _at(side + "ToeBase").y)
+		if toe.y >= floor_y - 0.00001:
+			continue
+		var ankle := _world_at(foot)
+		var offset := toe - ankle
+		var length := offset.length()
+		if length < 0.0001:
+			continue
+		var forward := Vector3(offset.x, 0.0, offset.z)
+		var posed := (skeleton.global_basis * skeleton.get_bone_global_pose(_ids[foot]).basis).orthonormalized()
+		if forward.length_squared() < 0.000001:
+			forward = Vector3(posed.z.x, 0.0, posed.z.z)
+			if forward.length_squared() < 0.000001:
+				forward = Vector3.FORWARD
+		var height := clampf(floor_y - ankle.y, -length, length)
+		var level := forward.normalized() * sqrt(maxf(0.0, length * length - height * height)) + Vector3.UP * height
+		var rotation := Basis(Quaternion(offset / length, level.normalized()))
+		_set_world(foot, Transform3D(rotation * posed, ankle), skeleton.global_transform.affine_inverse())
+
+
 ## The other man's trunk, the line from his hips to his chest in the world (set each frame before settle; empty
 ## when there's no one to keep out of). Used to route complete limb segments around it (D397, D425).
 var avoid: Array[Vector3] = []
+var moving_grips: bool = false
 
 
 ## The line up the middle of this body's trunk, its hips to its chest, in the world (D397).
@@ -745,11 +837,42 @@ func _keep_out() -> void:
 		var chain: Array[Vector3] = FighterMotion.solve_bones(root, to, middle - root.lerp(to, 0.5),
 			root.distance_to(middle), middle.distance_to(tip))
 		var bent_at: Vector3 = FighterRig.clear_of(root, chain[0], chain[1], avoid)
+		if moving_grips and (limb[4] == "arm" or chain[1].y > 0.13) and FighterRig.limb_clearance(root, bent_at, chain[1], avoid) < FighterRig.TRUNK_RADIUS - 0.001:
+			var floor_y: float = FighterRig.HAND_FLOOR if limb[4] == "arm" else _at(end).y * FighterRig.FOOT_FLOOR
+			var routed := _route_released_limb(root, bent_at, chain[1], floor_y)
+			bent_at = routed[0]
+			chain[1] = routed[1]
 		var bend: Vector3 = bent_at - root.lerp(chain[1], 0.5)
 		var arm: bool = limb[4] == "arm"
 		_aim_bone(upper, lower, root, bent_at, bend, arm, to_skeleton)
 		_aim_bone(lower, end, bent_at, chain[1], bend, arm, to_skeleton)
 		_set_world(end, Transform3D(tip_turn, chain[1]), to_skeleton)
+
+
+## Between grips, a hand may briefly leave an unreachable target. Turn the whole chain
+## about the shoulder (or hip for a raised foot), keeping both segment lengths.
+func _route_released_limb(root: Vector3, bend: Vector3, tip: Vector3, floor_y: float) -> Array[Vector3]:
+	var best: Array[Vector3] = [bend, tip]
+	var gap: float = FighterRig.limb_clearance(root, bend, tip, avoid)
+	var away := (root - FighterRig.closest_on(root, avoid[0], avoid[1])).normalized()
+	var axes: Array[Vector3] = [(bend - root).cross(away), (tip - root).cross(away), Vector3.UP, (avoid[1] - avoid[0]).normalized()]
+	for step in range(1, 13):
+		for axis in axes:
+			if axis.length_squared() < 0.0001:
+				continue
+			for direction: float in [1.0, -1.0]:
+				var turn := Basis(axis.normalized(), direction * deg_to_rad(5.0 * step))
+				var elbow: Vector3 = root + turn * (bend - root)
+				var hand: Vector3 = root + turn * (tip - root)
+				if elbow.y < CANVAS_FLOOR or hand.y < floor_y:
+					continue
+				var distance := FighterRig.limb_clearance(root, elbow, hand, avoid)
+				if distance > gap:
+					gap = distance
+					best = [elbow, hand]
+				if gap >= FighterRig.TRUNK_RADIUS:
+					return best
+	return best
 
 
 ## The lowest a joint's middle may be shown while easing (metres above the canvas).

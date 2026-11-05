@@ -152,3 +152,71 @@ func test_the_fence_bows_only_on_the_panel_he_is_against() -> void:
 	assert_eq(bowed, 1, "one panel bows")
 	venue.bow_fence(Vector3.ZERO, 0.0)
 	assert_eq(venue.fence_bowed(), 0.0, "flat again")
+
+
+func test_the_foreground_fence_follows_the_camera_around_all_eight_panels() -> void:
+	var venue := LocalVenue.new()
+	add_child_autofree(venue)
+	for panel: Dictionary in venue.fence_panels:
+		var normal: Vector2 = panel.normal
+		var at := Vector3(normal.x, 0.0, normal.y) * Octagon.APOTHEM
+		var spots: Array[Vector2] = [normal * (Octagon.APOTHEM - Octagon.BODY_MARGIN)]
+		venue.bow_fence(at + Vector3.UP, 0.05)
+		venue.show_near_fence(spots, 1.0, at * 1.5 + Vector3.UP)
+		assert_false(panel.structure.visible, "foreground rail and pad clear the fighters")
+		assert_true(panel.node.visible, "wire still shows where a fighter presses against it")
+		assert_almost_eq(float(panel.material.get_shader_parameter("fade")), LocalVenue.NEAR_FENCE_ALPHA, 0.001)
+		venue.show_near_fence(spots, 1.0, -at * 1.5 + Vector3.UP)
+		assert_true(panel.structure.visible, "the rail and pad return on the far side")
+		assert_true(panel.node.visible, "the far fence is complete")
+		assert_almost_eq(venue.fence_bowed(), 0.05, 0.001, "changing the view retains the bend")
+
+func test_turns_and_spin_offs_clear_the_other_fighter_through_the_standing_handoff() -> void:
+	for move: String in ["spin_off", "turn_him"]:
+		for held in 2:
+			for panel: int in [0, 3, 7]:
+				var normal := Vector2.from_angle(PI * panel / 4.0)
+				var setup := _clinch(normal * (4.1 if held == 0 else 3.65), normal * (4.1 if held == 1 else 3.65))
+				var sim: FightSim = setup[0]
+				var view: ArenaView = setup[1]
+				var fighter: FighterState = sim.fighters[held]
+				fighter.action_id = move
+				fighter.phase = "windup"
+				fighter.phase_ticks_left = 1
+				for frame in 30:
+					view._process(1.0 / 60.0)
+				var before := fighter.pos
+				fighter.pos = sim.fighters[1 - held].pos
+				sim.fighters[1 - held].pos = before
+				view._on_event(FightEvent.new(sim.now, held, FightEvent.GRAPPLE_WON, held, {"action_id": move, "result": "turned"}))
+				if move == "spin_off":
+					sim.apply_transition(held, move)
+				fighter.clear_action()
+				view.driver._snap()
+				var heads := INF
+				var trunks := INF
+				var legs := INF
+				var arms := INF
+				for frame in 65:
+					view._process(1.0 / 60.0)
+					var a: SkinnedBody = view.figures[0].body
+					var b: SkinnedBody = view.figures[1].body
+					heads = minf(heads, a._world_at("Head").distance_to(b._world_at("Head")))
+					var ta := a.trunk()
+					var tb := b.trunk()
+					var near := Geometry3D.get_closest_points_between_segments(ta[0], ta[1], tb[0], tb[1])
+					trunks = minf(trunks, near[0].distance_to(near[1]))
+					for i in 2:
+						var body: SkinnedBody = view.figures[i].body
+						var other: SkinnedBody = view.figures[1 - i].body
+						for side: String in ["Left", "Right"]:
+							arms = minf(arms, FighterRig.limb_clearance(body._world_at(side + "Arm"), body._world_at(side + "ForeArm"), body._world_at(side + "Hand"), other.trunk()))
+							var shin: Array[Vector3] = [body._world_at(side + "Leg"), body._world_at(side + "Foot")]
+							for rival: String in ["Left", "Right"]:
+								legs = minf(legs, FighterRig.limb_clearance(other._world_at(rival + "UpLeg"), other._world_at(rival + "Leg"), other._world_at(rival + "Foot"), shin))
+				var label := "%s, held %d at panel %d" % [move, held, panel]
+				assert_gt(heads, 0.25, label + " heads stay separate")
+				assert_gt(trunks, 0.35, label + " fighters turn around each other")
+				assert_gt(legs, 0.10, label + " planted legs keep their space")
+				assert_gt(arms, FighterRig.TRUNK_RADIUS - 0.006, label + " arms stay outside the trunk")
+				assert_true(view._turn.is_empty(), label + " movement completes")

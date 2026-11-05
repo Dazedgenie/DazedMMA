@@ -279,6 +279,25 @@ func _solve_arm(side: String, target: Vector3, pole: Vector3, trunk: Array[Vecto
 	joints["wrist_" + side] = wrist
 
 
+## Overlay the bottom fighter's lead heel on the current ground or stand-up pose.
+func up_kick(side: String, other: FighterRig, amount: float, missed: float) -> void:
+	if amount <= 0.0:
+		return
+	var ankle: Vector3 = joints["ankle_" + side]
+	var head: Vector3 = other.point("head")
+	var trunk: Array[Vector3] = other.trunk()
+	var out: Vector3 = bones.pelvis.global_basis.x * (-1.0 if side == "l" else 1.0)
+	var hip: Vector3 = joints["hip_" + side]
+	var front := Vector3(hip.x - head.x, 0, hip.z - head.z).normalized()
+	var target: Vector3 = head + front * 0.19 + out * (0.08 + missed * 0.35)
+	var knee: Vector3 = joints["knee_" + side]
+	var pole: Vector3 = (knee - hip.lerp(ankle, 0.5)).normalized()
+	var foot: Node3D = bones["foot_" + side]
+	var before: Basis = foot.global_basis.orthonormalized()
+	_solve_leg(side, ankle.lerp(target, amount), pole.lerp(Vector3.UP + out * 0.65, amount), 0.0, trunk)
+	foot.global_basis = before.slerp(foot.global_basis.orthonormalized(), amount)
+
+
 func _solve_leg(side: String, target: Vector3, pole: Vector3, planted: float, trunk: Array[Vector3] = [], strike: Dictionary = {}) -> void:
 	var pelvis: Node3D = bones.pelvis
 	var hip: Vector3 = pelvis.global_transform * Vector3(hip_x * (-1.0 if side == "l" else 1.0), 0, 0)

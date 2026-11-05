@@ -211,3 +211,88 @@ func test_taken_down_off_the_fence_he_lands_inside_the_cage() -> void:
 		for i in 2:
 			for spot: String in ["head", "back_of_head", "lower_back"]:
 				assert_lt(view._clinch_rigs[i].point(spot).x, Octagon.APOTHEM, "frame %d: %s's %s through the fence" % [n, "red" if i == 0 else "blue", spot])
+
+func test_either_corner_starts_throws_from_the_existing_clinch_pose() -> void:
+	for by in 2:
+		for owner in 2:
+			var setup := _clinch()
+			var sim: FightSim = setup[0]
+			var view: ArenaView = setup[1]
+			sim.set_grips([owner, owner])
+			_frames(view, 30)
+			var hips: Array[Vector3] = [_pelvis(view, 0), _pelvis(view, 1)]
+			var heads: Array[Vector3] = [view._clinch_rigs[0].point("head"), view._clinch_rigs[1].point("head")]
+			_doing(sim, by, "double_leg", "telegraph", 0.0)
+			_frames(view, 1)
+			for i in 2:
+				assert_lt(hips[i].distance_to(_pelvis(view, i)), 0.01, "first key preserves the fighter's hips")
+				assert_lt(heads[i].distance_to(view._clinch_rigs[i].point("head")), 0.01, "first key preserves the fighter's facing")
+
+func test_hip_throw_and_guard_pull_keep_the_fighters_separate_through_landing() -> void:
+	for action: String in ["hip_throw", "guard_pull"]:
+		for who in 2:
+			for lead: float in [-1.0, 1.0]:
+				_check_landing(action, who, lead)
+
+
+func _check_landing(action: String, who: int, lead: float) -> void:
+	var setup := _clinch()
+	var sim: FightSim = setup[0]
+	var view: ArenaView = setup[1]
+	view.figures[who].lead = lead
+	view.figures[1 - who].lead = -lead
+	view.driver.normal_rate = 1.0
+	_frames(view, 30)
+	var heads: float = INF
+	var trunks: float = INF
+	var limbs: float = INF
+	var legs: float = INF
+	var largest_step: float = 0.0
+	var last_tip := Vector3.INF
+	for phase: String in ["telegraph", "windup", "active", "landing"]:
+		var ticks := 12 if phase == "landing" else sim.phase_ticks(sim.fighters[who], action, phase)
+		if phase == "landing":
+			_won(view, sim, who, action, PositionLibrary.SUCCESS)
+			sim.fighters[who].phase = "recovery"
+		for tick in ticks:
+			sim.now += 1
+			if phase != "landing":
+				_doing(sim, who, action, phase, 0.0)
+				sim.fighters[who].phase_ticks_left = ticks - tick
+			for frame in 6:
+				view.driver._budget = float(frame) / 6.0
+				view._process(1.0 / 60.0)
+				var a: SkinnedBody = view.figures[who].body
+				var b: SkinnedBody = view.figures[1 - who].body
+				var tip := a._world_at("RightHand")
+				if last_tip.is_finite():
+					largest_step = maxf(largest_step, tip.distance_to(last_tip))
+				last_tip = tip
+				heads = minf(heads, a._world_at("Head").distance_to(b._world_at("Head")))
+				legs = minf(legs, _leg_gap(a, b))
+				var ta := a.trunk()
+				var tb := b.trunk()
+				var near := Geometry3D.get_closest_points_between_segments(ta[0], ta[1], tb[0], tb[1])
+				trunks = minf(trunks, near[0].distance_to(near[1]))
+				for i in 2:
+					var body := view.figures[i].body
+					for limb: Array in SkinnedBody.LIMBS:
+						limbs = minf(limbs, FighterRig.limb_clearance(body._world_at(limb[0]), body._world_at(limb[1]), body._world_at(limb[2]), view.figures[1 - i].body.trunk()))
+	var label := "%s corner %d lead %s" % [action, who, lead]
+	assert_gt(heads, 0.215, label + " keeps the heads separate")
+	assert_gt(trunks, 0.20, label + " keeps the trunks separate")
+	assert_gt(limbs, FighterRig.TRUNK_RADIUS - 0.005, label + " routes limbs around the torso")
+	assert_gt(legs, 0.115, label + " keeps both leg chains on their own routes")
+	assert_lt(largest_step, 0.25, label + " has continuous hand travel")
+
+
+func _leg_gap(a: SkinnedBody, b: SkinnedBody) -> float:
+	var gap: float = INF
+	for side_a: String in ["Left", "Right"]:
+		for side_b: String in ["Left", "Right"]:
+			var hip := b._world_at(side_b + "UpLeg")
+			var knee := b._world_at(side_b + "Leg")
+			var ankle := b._world_at(side_b + "Foot")
+			for segment: Array[Vector3] in [[hip, knee] as Array[Vector3], [knee, ankle] as Array[Vector3]]:
+				gap = minf(gap, FighterRig.limb_clearance(a._world_at(side_a + "UpLeg"), a._world_at(side_a + "Leg"), a._world_at(side_a + "Foot"), segment))
+	return gap

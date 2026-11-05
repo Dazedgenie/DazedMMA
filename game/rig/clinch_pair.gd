@@ -152,7 +152,7 @@ static func body(kind: String, head_side: float) -> Dictionary:
 			# wire, feet a little out. The a man is in low on him, head under his chin, hips square.
 			pair = {
 				"a": {"root": [0.04, 0.8, 0.29], "lean": 26, "bend": [10, -6, 8], "head": [-18, -HEAD_TURN],
-					"foot_l": {"at": [-0.18, ANKLE, 0.16]}, "foot_r": {"at": [0.2, ANKLE, 0.7]}},
+					"foot_l": {"at": [-0.32, ANKLE, 0.28]}, "foot_r": {"at": [0.2, ANKLE, 0.7]}},
 				"b": {"root": [0.02, 0.92, -0.33], "turn": 180, "lean": -4, "bend": [-2, 4, 4], "head": [-6, HEAD_TURN],
 					"foot_l": {"at": [0.18, ANKLE, -0.2]}, "foot_r": {"at": [-0.16, ANKLE, -0.26]}},
 			}
@@ -278,6 +278,32 @@ static func effective(built: Dictionary, frame: Transform3D) -> Array:
 	if bool(built.flip):
 		return [swap(built.pair), frame * Transform3D(Basis(Vector3.UP, PI), Vector3.ZERO)]
 	return [built.pair, frame]
+
+
+## Begin a move in the actor's frame without moving either fighter at its first key.
+static func for_actor(start: Array, swap_roles: bool) -> Array:
+	var pair: Dictionary = swap(start[0]) if swap_roles else start[0]
+	var frame: Transform3D = start[1]
+	if float(pair.a.root[2]) < float(pair.b.root[2]):
+		pair = half_turn(pair)
+		frame = frame * Transform3D(Basis(Vector3.UP, PI), Vector3.ZERO)
+	return [pair, frame]
+
+
+## Raise the chest and free the hands before swimming to the other side.
+static func regrip_path(from: Array, to: Array) -> Array:
+	var ends: Array = TakedownPair.chain([from, to])
+	var mid: Dictionary = TakedownPair.pose_at(ends, 0.5)
+	for man: String in ["a", "b"]:
+		mid[man].lean = -4.0
+		mid[man].bend = [0, 0, 0]
+		var other: String = "b" if man == "a" else "a"
+		for letter: String in ["l", "r"]:
+			var side: float = -1.0 if letter == "l" else 1.0
+			mid[man]["hand_" + letter] = {"to": other + ".shoulder_" + _other(letter),
+				"off": [-side * 0.08, -0.12, -0.08], "pole": [side, -0.6, 0.1]}
+	var frame: Transform3D = Transform3D(ends[0][1]).interpolate_with(ends[1][1], 0.5)
+	return [ends[0], [mid, frame], ends[1]]
 
 
 ## The same pose written for the pair frame turned half round: every place in the frame turned with it.

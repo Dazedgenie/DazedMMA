@@ -1401,7 +1401,41 @@ func aim_point(action_id: String, root: Vector3) -> Vector3:
 			past += MISS_SWEEP * float(_pose.get("through", 0.0))
 		else:
 			through += MISS_REACH * float(_pose.get("through", 0.0))
-	return point + (-side * past + toward * through + Vector3.UP * 0.08) * _miss  # Over his shoulder.
+	var at: Vector3 = point + (-side * past + toward * through + Vector3.UP * 0.08) * _miss
+	if aim.point == "head" and opponent.body != null and not _stance.is_empty() and _outcome in ["", "missed"]:
+		at = _approach_head(at)
+	return at
+
+
+## Before the result is known the strike approaches the guard. A miss sweeps across its face.
+func _approach_head(at: Vector3) -> Vector3:
+	var toward: Vector3 = -global_basis.z.normalized()
+	var lateral: Vector3 = global_basis.x.normalized()
+	var skull: Vector3 = opponent.body._world_at("Head")
+	var limit: float = skull.dot(toward) - 0.23
+	var left: float = skull.dot(lateral) - 0.09
+	var right: float = skull.dot(lateral) + 0.09
+	for side: String in ["Left", "Right"]:
+		for bone: String in ["Hand", "ForeArm"]:
+			var guard: Vector3 = opponent.body._world_at(side + bone)
+			if guard.y >= skull.y - 0.36:
+				limit = minf(limit, guard.dot(toward) - 0.12)
+				left = minf(left, guard.dot(lateral))
+				right = maxf(right, guard.dot(lateral))
+	var outside: float = maxf(left - at.dot(lateral), at.dot(lateral) - right)
+	var pass_by: float = smoothstep(0.10, 0.20, outside) * _miss
+	return at - toward * maxf(0.0, at.dot(toward) - limit) * (1.0 - pass_by)
+
+
+func protect_missed_head_strike() -> void:
+	if body == null or opponent == null or opponent.body == null or not AIMS.has(_outcome_action):
+		return
+	var aim: Dictionary = AIMS[_outcome_action]
+	if aim.point != "head" or not _outcome in ["", "missed"] or float(_pose.aim) < 0.01:
+		return
+	var limb: String = aim.limb
+	var side: String = arm_letter(0 if limb.begins_with("lead") else 1)
+	body.clear_strike_from_guard(opponent.body, side, limb.ends_with("arm"), -global_basis.z.normalized())
 
 
 ## Labels, the delay ring, the stars and the tell's "!" ride a set height over his head, standing or

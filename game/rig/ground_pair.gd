@@ -104,9 +104,10 @@ static func build(where: String, grips: Dictionary = {}, posture: bool = false, 
 			if bool(grips.get("two_on_one", false)):  # Both hands on the choking arm.
 				b.hand_l = {"to": "a.fore_r", "off": [0.0, -0.06, 0.04], "pole": [1, -0.6, 0.4]}
 				b.hand_r = {"to": "a.fore_r", "off": [0.0, 0.06, 0.04], "pole": [-1, -0.6, 0.4]}
-	if bool(grips.get("cover", false)) and where != "back_control":  # Gloves up in front of his face.
-		b.hand_l = {"to": "b.head", "off": [0.07, 0.0, -0.13], "pole": [1, -0.2, 0.0]}
-		b.hand_r = {"to": "b.head", "off": [-0.07, 0.0, -0.13], "pole": [-1, -0.2, 0.0]}
+	if bool(grips.get("cover", false)):  # Gloves up in front of his face.
+		b.hand_l = {"to": "b.head", "off": [0.0 if where == "crucifix" else 0.07, 0.0, -0.13], "pole": [1, -0.2, 0.0]}
+		if where != "crucifix":  # The rider's legs still pin this arm.
+			b.hand_r = {"to": "b.head", "off": [-0.07, 0.0, -0.13], "pole": [-1, -0.2, 0.0]}
 	if far > 0.0 and SIDE_POSITIONS.has(where):
 		pair = ClinchPair.mirror(pair)
 	return {"pair": pair, "kind": where}
@@ -185,6 +186,9 @@ static func strike(pair: Dictionary, action: String, letter: String, where: Stri
 				landed.a.lean = 78.0
 			"side_control", "crucifix":
 				landed.a.root[2] -= 0.28
+		if where == "crucifix":
+			# Turn the striking shoulder toward the guard while the knees keep the arm pinned.
+			landed.a.turn -= signf(float(landed.a.root[0])) * 18.0
 	return [cocked, landed]
 
 
@@ -231,6 +235,121 @@ static func roll_path(from: Dictionary, from_frame: Transform3D, to: Dictionary,
 
 # --- The positions ---------------------------------------------------------------
 
+## The passer posts outside the hips as he frees his knee from half guard.
+static func pass_path(from: Array, to: Dictionary, frame: Transform3D) -> Array:
+	var ends: Array = TakedownPair.chain([[_short_leans(from[0]), from[1]], [_short_leans(to), frame]])
+	var mid: Dictionary = TakedownPair.pose_at(ends, 0.5)
+	var side: float = signf(float(ends[1][0].a.root[0]) - float(ends[1][0].b.root[0]))
+	mid.a.root[0] = float(mid.b.root[0]) + side * 0.38
+	mid.a.root[1] = float(mid.a.root[1]) + 0.12
+	for man: String in ["a", "b"]:
+		for limb: String in ["hand_l", "hand_r", "foot_l", "foot_r"]:
+			mid[man].erase(limb)
+	var post: String = "hand_l" if side < 0.0 else "hand_r"
+	mid.a[post] = {"at": [mid.a.root[0] + side * 0.12, 0.07, mid.a.root[2]], "pole": [side, -0.3, 0.1]}
+	# Open the hooks while the passer is still above the hips. He can now lift the
+	# captured shin before turning it across the defender's legs.
+	var release: Dictionary = ends[0][0].duplicate(true)
+	var outside: float = signf(float(release.a.root[0]) - float(release.b.root[0]))
+	var trapped := "foot_r" if outside < 0.0 else "foot_l"
+	var free := "foot_l" if outside < 0.0 else "foot_r"
+	_open_guard_feet(release.b, false)
+	_open_guard_feet(mid.b, false)
+	var lift: Dictionary = release.duplicate(true)
+	lift.a.root[1] += 0.12
+	lift.a[trapped] = {"at": [-outside * 0.075, 0.58, 0.42], "pole": [outside * 0.5, -0.1, -1]}
+	mid.a[trapped] = {"at": [outside * 0.22, 0.58, -0.06], "pole": [outside, -0.2, -1]}
+	mid.a[free] = {"at": [outside * 0.76, ANKLE, -0.2], "pole": [outside, -0.3, -1]}
+	var halfway: Transform3D = Transform3D(ends[0][1]).interpolate_with(ends[1][1], 0.5)
+	return [ends[0], [release, ends[0][1]], [lift, ends[0][1]], [mid, halfway], ends[1]]
+
+
+## Open full guard, plant the defender's heels, then lift the free knee over one
+## thigh before the defender traps the other shin. Reversed, this recovers full guard.
+static func guard_path(full: Array, half: Array) -> Array:
+	var ends := TakedownPair.chain([[_short_leans(full[0]), full[1]], [_short_leans(half[0]), half[1]]])
+	var open: Dictionary = ends[0][0].duplicate(true)
+	_open_guard_feet(open.b, true)
+	var release: Dictionary = open.duplicate(true)
+	_open_guard_feet(release.b, false)
+	var chamber: Dictionary = ends[1][0].duplicate(true)
+	_open_guard_feet(chamber.b, false)
+	var side := signf(float(chamber.a.root[0]) - float(chamber.b.root[0]))
+	var free := "foot_l" if side < 0.0 else "foot_r"
+	var lift: Dictionary = release.duplicate(true)
+	lift.a.root[1] += 0.16
+	lift.a[free] = {"at": [side * 0.16, 0.58, 0.85], "pole": [-side * 0.4, -0.1, 1]}
+	var over: Dictionary = release.duplicate(true)
+	over.a.root[1] += 0.12
+	over.a.root[2] += 0.12
+	over.a[free] = {"at": [side * 0.48, 0.58, 0.50], "pole": [side, -0.2, 0.5]}
+	return [ends[0], [open, ends[0][1]], [release, ends[0][1]], [lift, ends[0][1]],
+		[over, ends[0][1]], [chamber, ends[1][1]], ends[1]]
+
+
+static func _open_guard_feet(defender: Dictionary, raised: bool) -> void:
+	for foot: String in ["foot_l", "foot_r"]:
+		var side := 1.0 if foot == "foot_l" else -1.0
+		defender[foot] = {"at": [side * 0.72, 0.55, 0.25], "pole": [-side, 0.3, -0.3]} if raised else \
+			{"at": [side * 0.7, ANKLE, 0.75], "pole": [-side, 0.25, 0.3]}
+
+
+## From side control, lift the near knee before stepping across the belly into mount.
+static func mount_path(from: Array, to: Dictionary, frame: Transform3D) -> Array:
+	var ends := TakedownPair.chain([[_short_leans(from[0]), from[1]], [_short_leans(to), frame]])
+	var side := signf(float(ends[0][0].a.root[0]) - float(ends[0][0].b.root[0]))
+	var inner := "foot_r" if side < 0.0 else "foot_l"
+	var outer := "foot_l" if side < 0.0 else "foot_r"
+	var lift: Dictionary = ends[0][0].duplicate(true)
+	lift.a.root[1] += 0.24
+	lift.a[inner] = {"at": [side * 0.45, 0.55, -0.32], "pole": [side * 0.5, -0.4, 0.6]}
+	var over := TakedownPair.pose_at(ends, 0.62)
+	over.a.root[1] += 0.24
+	over.a[outer] = {"at": [side * 0.60, ANKLE, -0.12], "pole": [side, -0.2, -1]}
+	over.a[inner] = {"at": [-side * 0.27, 0.55, -0.32], "pole": [-side * 0.85, 0.2, 0.6]}
+	over.b.foot_l = ends[1][0].b.foot_l
+	over.b.foot_r = ends[1][0].b.foot_r
+	return [ends[0], [lift, ends[0][1]], [over, ends[1][1]], ends[1]]
+
+
+## The rider leaves mount beside the hips, then comes behind as the defender sits up.
+static func back_take_path(from: Array, to: Dictionary, frame: Transform3D) -> Array:
+	var ends: Array = TakedownPair.chain([[_short_leans(from[0]), from[1]], [_short_leans(to), frame]])
+	var first: Dictionary = ends[0][0].duplicate(true)
+	var behind: Dictionary = ends[1][0].duplicate(true)
+	var back: float = signf(float(behind.a.root[2]) - float(behind.b.root[2]))
+	for key: Dictionary in [first, behind]:
+		key.a.root[0] = float(key.b.root[0]) - back * 0.5
+		key.a.root[1] = 0.42
+		key.a.lean = 0.0
+		for limb: String in ["hand_l", "hand_r", "foot_l", "foot_r"]:
+			key.a.erase(limb)
+			key.b.erase(limb)
+	behind.a.root[2] += back * 0.5
+	var outside := signf(float(first.a.root[0]) - float(first.b.root[0]))
+	var inner := "foot_r" if outside < 0.0 else "foot_l"
+	var outer := "foot_l" if outside < 0.0 else "foot_r"
+	var lift: Dictionary = ends[0][0].duplicate(true)
+	lift.a.root[1] += 0.08
+	lift.a[inner] = {"at": [-outside * 0.34, 0.62, -0.30], "pole": [-outside * 0.6, -0.4, -1]}
+	first.a[outer] = {"at": [outside * 0.77, ANKLE, -0.05], "pole": [outside, -0.2, -1]}
+	first.a[inner] = {"at": [outside * 0.2, 0.62, -0.30], "pole": [outside * 0.45, -0.4, -1]}
+	var close: Dictionary = ends[1][0].duplicate(true)
+	close.a.root[1] += 0.10
+	close.a.root[2] += signf(float(close.a.root[2])) * 0.15
+	for letter: String in ["l", "r"]:
+		var side: float = -1.0 if letter == "l" else 1.0
+		var foot := "foot_" + letter
+		first.b[foot] = ends[0][0].b[foot]
+		behind.b[foot] = ends[1][0].b[foot].duplicate(true)
+		behind.b[foot].at[2] = signf(float(behind.b[foot].at[2])) * 0.65
+		behind.a[foot] = {"at": [behind.a.root[0] - side * 0.34, ANKLE, behind.a.root[2] + 0.13], "pole": [side, -0.2, -1]}
+		close.a[foot].off[0] += signf(float(close.a[foot].off[0])) * 0.15
+		close.a[foot].off[1] += 0.08
+		behind.a["hand_" + letter] = {"to": "b.shoulder_" + letter, "off": [side * 0.14, -0.08, 0.04], "pole": [side, -0.5, 0.1]}
+	return [ends[0], [lift, ends[0][1]], [first, ends[0][1]], [behind, ends[1][1]], [close, ends[1][1]], ends[1]]
+
+
 ## Side control: blue flat on his back (his feet toward +Z, hips at the origin), red down on his -X side, chest
 ## across blue's chest, one arm round his head and the other at his far hip (the hip throw lands here, D288).
 static func side_control() -> Dictionary:
@@ -262,15 +381,15 @@ static func _half_guard() -> Dictionary:
 			"root": [-0.1, 0.36, -0.04], "lean": 68, "bend": [12, 0, 0], "head": [-16, -24],
 			"hand_l": {"to": "b.shoulder_r", "off": [0.0, 0.02, 0.0], "pole": [-1, -0.4, 0.0]},
 			"hand_r": {"to": "b.armpit_l", "off": [0.0, 0.04, 0.0], "pole": [1, -0.4, 0.0]},
-			"foot_l": {"at": [-0.5, ANKLE, 0.42], "pole": [-0.6, 0.2, -1]},
-			"foot_r": _with(kneel, {"at": [0.04, ANKLE, 0.66]}),
+			"foot_l": {"at": [-0.65, ANKLE, 0.42], "pole": [-0.6, 0.2, -1]},
+			"foot_r": _with(kneel, {"at": [0.18, ANKLE, 0.66]}),
 		},
 		"b": {
 			"root": [0.0, 0.14, 0.0], "turn": 180, "lean": 270, "roll": 0, "bend": [-6, 0, 0], "head": [16, 0],
 			"hand_l": {"to": "a.shoulder_r", "off": [0.0, 0.02, -0.04], "pole": [1, -0.2, 0.3]},
 			"hand_r": {"to": "a.neck", "off": [-0.06, 0.0, -0.04], "pole": [-1, -0.2, 0.3]},
-			"foot_l": {"to": "a.shin_r", "off": [0.07, 0.04, 0.06], "pole": [1, 0.6, 0.3]},
-			"foot_r": {"to": "a.shin_r", "off": [-0.07, -0.02, 0.02], "pole": [-0.6, 0.6, 0.3]},
+			"foot_l": {"to": "a.shin_r", "off": [0.15, 0.04, 0.06], "pole": [-1, 0.6, 0.3]},
+			"foot_r": {"to": "a.shin_r", "off": [-0.15, -0.02, 0.02], "pole": [1, 0.6, 0.3]},
 		},
 	}
 
@@ -284,15 +403,15 @@ static func _mount() -> Dictionary:
 			"root": [0.0, 0.42, -0.14], "lean": 52, "bend": [10, 0, 0], "head": [-14, 0],
 			"hand_l": {"to": "b.sternum", "off": [-0.1, 0.0, -0.02], "pole": [-0.8, -0.4, 0.2]},
 			"hand_r": {"to": "b.sternum", "off": [0.1, 0.0, -0.02], "pole": [0.8, -0.4, 0.2]},
-			"foot_l": _with(kneel, {"at": [-0.26, ANKLE, 0.32]}),
-			"foot_r": _with(kneel, {"at": [0.26, ANKLE, 0.32]}),
+			"foot_l": _with(kneel, {"at": [-0.32, ANKLE, 0.32]}),
+			"foot_r": _with(kneel, {"at": [0.32, ANKLE, 0.32]}),
 		},
 		"b": {
 			"root": [0.0, 0.13, 0.0], "turn": 180, "lean": 270, "bend": [-2, 0, 0], "head": [14, 0],
 			"hand_l": {"to": "a.hip_r", "off": [0.0, 0.04, -0.04], "pole": [1, -0.4, 0.2]},
 			"hand_r": {"to": "a.hip_l", "off": [0.0, 0.04, -0.04], "pole": [-1, -0.4, 0.2]},
-			"foot_l": {"at": [0.2, ANKLE, 0.56], "pole": [0.3, 1, 0.2]},
-			"foot_r": {"at": [-0.2, ANKLE, 0.56], "pole": [-0.3, 1, 0.2]},
+			"foot_l": {"at": [0.2, ANKLE, 0.65], "pole": [-0.05, 0.3, -1]},
+			"foot_r": {"at": [-0.2, ANKLE, 0.65], "pole": [0.05, 0.3, -1]},
 		},
 	}
 
@@ -306,8 +425,8 @@ static func _back() -> Dictionary:
 			"root": [0.0, 0.14, -0.34], "turn": 180, "lean": -10, "bend": [16, 0, 0], "head": [-6, 34],
 			"hand_l": {"to": "b.chest", "off": [-0.08, -0.02, -0.03], "pole": [1, -0.4, -0.3]},
 			"hand_r": {"to": "b.sternum", "off": [0.06, -0.02, -0.03], "pole": [-1, 0.2, -0.3]},
-			"foot_l": {"to": "b.thigh_l", "off": [-0.07, 0.1, 0.0], "pole": [1, 0.6, 0.3]},
-			"foot_r": {"to": "b.thigh_r", "off": [0.07, 0.1, 0.0], "pole": [-1, 0.6, 0.3]},
+			"foot_l": {"to": "b.thigh_l", "off": [-0.14, 0.1, 0.0], "pole": [1, 0.6, 0.3]},
+			"foot_r": {"to": "b.thigh_r", "off": [0.14, 0.1, 0.0], "pole": [-1, 0.6, 0.3]},
 		},
 		"b": {
 			"root": [0.0, 0.14, 0.02], "turn": 180, "lean": -14, "bend": [10, 0, 0], "head": [8, 0],

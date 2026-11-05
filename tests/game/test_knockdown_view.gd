@@ -183,3 +183,31 @@ func test_a_rocked_man_drops_his_hands_and_sinks_on_his_legs() -> void:
 	sim.fighters[1].rocked_ticks = 2
 	var coming_round: Dictionary = view.figures[1].pose_for(sim, 1)
 	assert_gt(float(coming_round.arm_lead), float(fresh.arm_lead) - FighterFigure.ROCKED_HANDS * 0.5, "less as he comes round")
+
+
+func test_the_toes_clear_the_canvas_through_a_near_fence_fall_and_rise() -> void:
+	var outward := Vector2.from_angle(15.0 * PI / 8.0)
+	var edge := Octagon.APOTHEM / outward.dot(Vector2.RIGHT)
+	for data: Dictionary in [{}, {"liver": true}, {"leg": FighterState.LEFT_LEG}]:
+		var setup: Array = _watched(outward * (edge - 1.55), outward * (edge - 0.42))
+		var sim: FightSim = setup[0]
+		var view: ArenaView = setup[1]
+		var ticks: int = FightSim.LEG_DOWN_TICKS if data.has("leg") else (FightSim.LIVER_DOWN_TICKS if data.has("liver") else FightSim.DOWN_TICKS)
+		var body: SkinnedBody = view.figures[1].body
+		var lengths := {}
+		for side: String in ["Left", "Right"]:
+			lengths[side] = body._world_at(side + "Foot").distance_to(body._world_at(side + "ToeBase"))
+		_dropped(view, sim, data, ticks)
+		var lowest := INF
+		var error := 0.0
+		for frame in ticks * 3 + 15:
+			sim.now = frame / 3
+			sim.fighters[1].down_ticks = maxi(0, ticks - frame / 3)
+			view.driver._budget = float(frame % 3) / 3.0
+			view._process(1.0 / 30.0)
+			for side: String in ["Left", "Right"]:
+				var toe := body._world_at(side + "ToeBase")
+				lowest = minf(lowest, toe.y)
+				error = maxf(error, absf(body._world_at(side + "Foot").distance_to(toe) - float(lengths[side])))
+		assert_gt(lowest, -0.0001, "toes stay above the canvas during the fall and recovery")
+		assert_lt(error, 0.001, "levelling the foot preserves ankle-to-toe length")
