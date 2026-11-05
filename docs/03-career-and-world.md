@@ -1731,7 +1731,7 @@ doc (https://claude.ai/artifact/BrEV5jejZtpFWMJiT9HuYC). The pieces, in this ord
 | Rooms and upgrades: mats, bag area, ring, cage, weights, recovery, video and changing rooms at three levels inside the building's floor space, 1 to 4 weeks to build with the room shut; faster training and a few sessions opened; the gym page as a drawn floor plan | D442 | Built (§14.2) |
 | Hiring coaches: specialists for a weekly wage by level, mostly the world's retired fighters | D443 | Built (§14.3) |
 | The gym's other fighters: named lads training there as sparring partners, walk-ins as it grows (was D407) | D444 | Built (§14.4) |
-| Recruiting and the stable: signing the world's men, 2 fighters at first and up to 8, plans set once, each fight played or simmed, men who leave when unhappy | D445 | Planned |
+| Recruiting and the stable: signing the world's men, 2 fighters at first and up to 8, plans set once, each fight played or simmed, men who leave when unhappy | D445 | Signing and training built (§14.5); their offers and fight nights, then their planner, next |
 | The gym's name: members, who'll sign, which coaches come, news | D446 | Planned |
 | Your own levels as head coach (was D408) | D447 | Planned |
 | Expanding and moving: the unit next door, a bigger building (was D409) | D448 | Planned |
@@ -1945,7 +1945,7 @@ then each lad with his face, name and age, style, record, how he compares (*Well
 what he does to the partner sessions now, the room the members make, and the men who used to train there. The hub's gym
 line adds *2 other lads train here · best sparring partner: Jake Moss (about even)*.
 
-**Not yet:** signing them to your stable (D445), training them yourself, sparring a named lad in a session, lads getting
+**Not yet:** training them yourself (D445's third piece; signing them to your stable is §14.5), sparring a named lad in a session, lads getting
 hurt in sparring, and the gym's name deciding who comes (D446).
 
 **Old saves.** A gym from before D444 trains as before until it's next played, when its first two lads walk in. Fights
@@ -1958,4 +1958,65 @@ partner (`partner` in `data/sessions/`); where it acts in `sim/world/training_ca
 `ui/lads_view.gd` and `ui/gym_page.gd`, the hub's line in `ui/career_hub.gd` (`gym_text`, `best_partner_text`). Tests:
 `tests/sim/world/test_lads.gd`, `tests/ui/test_gym_page.gd`, `tests/data/test_data_files.gd`. Then update this section
 and D444.
+
+### 14.5 Your stable (D445)
+
+Kyle (2026-11-05) said "You can start", then picked "Three pieces, signing first", "Gym lads and local men", "A chance by
+what your gym offers", "One place per 10 members", "A focus, like striking or wrestling" and "Losing, waiting, or a broke
+gym", my picks. D445 comes in three pieces: **signing men and their training** (this one), then **their offers and fight
+nights** (each played or simmed), then **opening their planner and the minigames**. The men you sign stay **the world's
+men** (§12.2): the world plays their fights on its cards (§12.3), and the stable is on the gym (`Stable`,
+`sim/world/stable.gd`; `gym.stable`, each a lad's snapshot plus his focus and how he feels), so it saves with it.
+
+**Places.** The gym runs **one fighter for every 10 members, 2 to 8, his own lad among them** (`places`): a new unit's
+16 members make room for him and one more, a busy unit 3, a full hall 5; 8 waits for a bigger building (D448).
+
+**Who you can sign** (`prospects`, the gym page's *Stable* tab): the gym's lads first (§14.4), then up to **10** of his
+country's amateurs and local or regional pros aged **16 to 30**, his town's first and then the best. Offering a man a
+place (*Offer him a place*) rolls **his chance of saying yes** (`yes_chance`): **70% for an amateur, 25 points less a
+level up** (45% for a local pro, 20% for a regional one), **3 points more for every room and coach level** at the gym,
+**20 more for a lad who already trains there**, kept between 5% and 95%. A man who says no **won't be asked again for 13
+weeks** (`gym.asked`). The roll comes from the career's seed, the man and the week, so asking again the same week can't
+change it. A man who signs comes off the lads; he's still at the gym, so he's never offered against your lad.
+
+**Training.** Each man has **a focus you set once** (`data/enums/stable_focus.json`): *All-round*, *Striking*,
+*Wrestling*, *Grappling* or *Fitness*. Each week he grows **about half as much again** as he would on his own (the
+world's growth for his age and potential, `WorldWeeks.growth_a_week`), × the gym's rooms for his focus's kind of session
+and its coach for his focus's stats (`boost`), and the extra goes into **his focus's stats** (the world man's `gains`), so
+a striking focus makes him a better striker as well as better on average. All-round spreads it over every stat. A
+22-year-old regional pro on *Striking* at a new unit adds about 1.5 to his average stat in a year on top of his own 3 or
+4, about 5 points in each striking stat. A man going backwards with age loses nothing extra.
+
+**Money.** A pro fight pays him his promotion's purse (as the career's purses are, §12.4); **the gym takes 15%**
+(`Gym.PURSE_CUT`), straight into its money. The hub says *Harry Wright beat Tom Reid by knockout · the gym's cut $1350*.
+Amateurs aren't paid. Two of your stable are **never matched with each other** on the world's cards.
+
+**Leaving.** On the first of each month (`month`) each man's snapshot is refreshed and a man who's retired goes. A man is
+**unhappy** when he's **lost 3 in a row**, gone **26 weeks without a fight**, or the gym's **behind on the rent**. The first
+month you're warned (*Harry Wright is unhappy (3 losses in a row): put it right or he'll leave next month*, which stops
+*Advance*); a happy month clears it, and **a second unhappy month in a row and he leaves** (`gym.former`, so he can be
+offered against your lad). *Let him go* does the same at once.
+
+**On screen.** The gym page's fourth tab, *Stable* (`ui/stable_view.gd`): down the left *YOUR STABLE* and how many places
+are used, him first, then each signed man with his face, name and age, style, record, average stat, his focus and how
+much faster the gym makes him learn, *Happy here* or why he's unhappy, a focus picker and *Let him go*; down the side
+*SIGN A FIGHTER*, each prospect with his face, what he is, his chance of saying yes and *Offer him a place* (or why you
+can't). The *Fighters* tab lists your stable after him, and your stable spars with him like the lads (§14.4). The hub's
+gym line adds *Your stable: Harry Wright · 2 of 3 places*. Signings and fights are news on the hub and the calendar and
+*Advance* runs on past them (`Career.JUST_NEWS`); a warning or a man leaving stops it.
+
+**Not yet:** their own offers and fight nights, playing or simming each (D445's second piece), their week planner and the
+minigames (the third), the gym's name drawing better men (D446), and signing national or world-class men.
+
+**Old saves.** A gym from before D445 has an empty stable. Fights outside a career don't change (no golden re-pin), and a
+career without a stable plays as before.
+
+**What to change:** the numbers at the top of `sim/world/stable.gd` (`PER_MEMBERS`, `MIN_PLACES`, `MAX_PLACES`,
+`PROSPECTS`, `AGES`, `TIERS`, `YES_BASE`, `YES_PER_TIER`, `YES_PER_LEVEL`, `YES_LAD`, `YES_RANGE`, `ASK_AGAIN_WEEKS`,
+`BOOST`, `LOSSES_IN_A_ROW`, `IDLE_WEEKS`, `UNHAPPY_MONTHS`); the focuses in `data/enums/stable_focus.json`; where it acts
+in `sim/world/world_weeks.gd` (`_age_a_week`, `play_week`), `sim/world/world.gd` (`average`, `gained`, `profile`) and
+`sim/world/career.gd` (`world`, `end_week`, `stable_prospects`, `sign_fighter`, `release_fighter`, `set_stable_focus`,
+`STABLE_SIGNED`, `STABLE_FOUGHT`, `STABLE_UNHAPPY`, `STABLE_LEFT`); the tab in `ui/stable_view.gd` and `ui/gym_page.gd`,
+the hub's line in `ui/career_hub.gd` (`stable_line`). Tests: `tests/sim/world/test_stable.gd`,
+`tests/ui/test_gym_page.gd`, `tests/data/test_data_files.gd`. Then update this section and D445.
 

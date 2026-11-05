@@ -84,6 +84,9 @@ var champion_cache: Dictionary = {}
 var reigns: Dictionary = {}
 ## The men next in line for a title shot (Titles.waiting, D357), worked out when needed; not saved.
 var next_cache: Dictionary = {}
+## The men training in your stable (Stable.trained, D445): id → { stats, boost }. Set by the career before the weeks
+## are played; not saved.
+var trained: Dictionary = {}
 
 var _styles: StyleLibrary
 var _names: NameLibrary
@@ -147,7 +150,17 @@ static func active(man: Dictionary) -> bool:
 ## His average stat: his style's signature fighter's, moved by his level (StyleLibrary.generate; `lv`, the level to a
 ## fraction as the weeks change it, D353).
 func average(man: Dictionary) -> float:
-	return signature_average(String(man.get("style", ""))) + float(man.get("lv", man.get("level", 0)))
+	return signature_average(String(man.get("style", ""))) + float(man.get("lv", man.get("level", 0))) + gained(man)
+
+
+## What training at your gym has added to his average stat (D445): his `gains` (stat id → points) over every stat.
+static func gained(man: Dictionary) -> float:
+	if not man.get("gains") is Dictionary or (man.gains as Dictionary).is_empty():
+		return 0.0
+	var total: float = 0.0
+	for stat: String in man.gains:
+		total += float(man.gains[stat])
+	return total / maxf(1.0, StyleLibrary.stat_ids().size())
 
 
 ## A style's signature fighter's average stat.
@@ -185,6 +198,10 @@ func profile(id: String, week: int) -> Dictionary:
 	for key: String in ["height_cm", "reach_cm"]:
 		p.frame[key] = int(p.frame[key])
 	p.home = _names.country_id_of(String(m.get("country", "")))  # His look comes from where he's from (D364).
+	if m.get("gains") is Dictionary:  # What training in your stable added (D445).
+		for stat: String in m.gains:
+			if p.stats.has(stat):
+				p.stats[stat] = clampi(int(p.stats[stat]) + roundi(float(m.gains[stat])), 0, 100)
 	return p
 
 

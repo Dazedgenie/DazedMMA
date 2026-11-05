@@ -1,9 +1,10 @@
 class_name LadsView
 extends HBoxContainer
-## The *Fighters* tab of your gym's page (docs/03 §14.4, D444): him first, then the other lads who train at your gym,
-## one row each (his face, name and age, style, record, how he compares with your lad, how long he's trained here),
-## and down the side what they do for him: the sparring partner his best lad makes and what that does to his
-## partner sessions (Lads.partner_share), how many lads the gym has room for, and the lads who've left.
+## The *Fighters* tab of your gym's page (docs/03 §14.4, D444): him first, then the men in your stable (D445) and the
+## other lads who train at your gym, one row each (his face, name and age, style, record, how he compares with your
+## lad, how long he's trained here), and down the side what they do for him: the sparring partner his best lad makes
+## and what that does to his partner sessions (Lads.partner_share), how many lads the gym has room for, and the lads
+## who've left.
 
 const FACE := Vector2(84.0, 98.0)
 const GOOD := Color("#69db7c")
@@ -47,12 +48,18 @@ func refresh() -> void:
 	var his: float = Matchmaker.average_stat(me.get("stats", {}))
 	_heading(_list, "WHO TRAINS HERE", "Real fighters from round here. They keep fighting on the world's cards; a gym-mate is never offered against him.")
 	_list.add_child(_row(me, him_text(career)))
-	if lads.is_empty():
+	var w: World = career.world()
+	for e: Dictionary in Stable.fighters(career.gym):  # Your stable trains here too (D445).
+		var face: Dictionary = w.profile(String(e.get("id", "")), career.week)
+		if not face.is_empty():
+			var words: String = lad_text(e, his, career.week)
+			words = words.insert(words.find("\n"), " · [color=%s]your stable[/color]" % CareerHub.RED_CORNER.to_html(false))
+			_list.add_child(_row(face, words))
+	if lads.is_empty() and Stable.fighters(career.gym).is_empty():
 		var none := Label.new()
 		none.text = "Nobody else trains here yet."
 		none.add_theme_color_override("font_color", CareerHub.DIM)
 		_list.add_child(none)
-	var w: World = career.world()
 	for lad: Dictionary in lads:
 		var face: Dictionary = w.profile(String(lad.get("id", "")), career.week)
 		if face.is_empty():
@@ -99,7 +106,7 @@ static func side_text(c: Career) -> String:
 	var share: float = Lads.partner_share(c.gym, his, { "partner": true })
 	var pct: int = roundi(absf(share - 1.0) * 100.0)
 	var best: String = CareerHub.best_partner_text(c)
-	if Lads.lads(c.gym).is_empty():
+	if Lads.lads(c.gym).is_empty() and Stable.fighters(c.gym).is_empty():
 		lines.append("[color=%s]Nobody to spar with: his partner sessions learn %d%% slower.[/color]" % [CareerHub.WARN.to_html(false), pct])
 	elif share >= 1.0:
 		lines.append("[b]Best partner: %s[/b]" % best)

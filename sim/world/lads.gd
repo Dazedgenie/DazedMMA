@@ -38,12 +38,12 @@ static func lads(gym: Dictionary) -> Array:
 	return gym.get("lads", []) if gym.get("lads") is Array else []
 
 
-## Whether this world man trains at your gym.
+## Whether this world man trains at your gym: one of its lads, or signed to your stable (Stable, D445).
 static func at_gym(gym: Dictionary, id: String) -> bool:
 	for lad: Dictionary in lads(gym):
 		if String(lad.get("id", "")) == id:
 			return true
-	return false
+	return Stable.in_stable(gym, id)
 
 
 ## Whether he used to train at your gym.
@@ -142,10 +142,10 @@ static func _pick(pool: Array, dice: RandomNumberGenerator) -> Dictionary:
 
 # --- What they do -----------------------------------------------------------------------------------------------------
 
-## The best lad's average stat (-1 with nobody).
+## The best partner's average stat (-1 with nobody): the lads' and your stable's (D445).
 static func best_avg(gym: Dictionary) -> float:
 	var best: float = -1.0
-	for lad: Dictionary in lads(gym):
+	for lad: Dictionary in lads(gym) + Stable.fighters(gym):
 		best = maxf(best, float(lad.get("avg", 0.0)))
 	return best
 

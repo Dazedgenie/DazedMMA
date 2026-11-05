@@ -86,7 +86,7 @@ const RESULTS_WEEKS: int = 8
 ## A retired pro who never fought him or held a belt is forgotten this long after he retires (let_go, D359): 5 years.
 const FORGET_PROS_WEEKS: int = 5 * 52
 ## What a retired man no longer needs.
-const RETIRED_DROPS: Array[String] = ["frame", "seed", "potential", "lv", "history", "next_week", "out_until", "met_close", "best", "points"]
+const RETIRED_DROPS: Array[String] = ["frame", "seed", "potential", "lv", "history", "next_week", "out_until", "met_close", "best", "points", "gains"]
 
 
 ## What the weeks need on a man that doesn't have it yet (one made before D353, or new): his potential, his level to a
@@ -178,6 +178,8 @@ static func play_week(w: World, week: int, busy: Dictionary) -> Array:
 			for o: Dictionary in due:
 				if String(o.id) == String(m.id) or taken.has(String(o.id)) or _met_lately(m, String(o.id), week):
 					continue
+				if w.trained.has(String(m.id)) and w.trained.has(String(o.id)):
+					continue  # Two of your stable aren't matched with each other (D445).
 				var gap: float = pair_gap(w, m, o)
 				if gap <= best_gap:
 					best_gap = gap
@@ -335,12 +337,7 @@ static func tier_for(avg: float) -> String:
 ## How much a week changes his average stat at this age: growing toward his potential while he's young (GROWTH), less
 ## each week from DECLINE_AT.
 static func change_a_week(w: World, m: Dictionary, age: float) -> float:
-	var rate: float = 0.0
-	for step: Array in GROWTH:
-		if age < float(step[0]):
-			rate = float(step[1])
-			break
-	var change: float = maxf(0.0, float(m.get("potential", 0.0)) - w.average(m)) * rate / Career.WEEKS_PER_YEAR
+	var change: float = growth_a_week(w, m, age)
 	if age >= DECLINE_LATE_AT:
 		change -= (DECLINE_LATE + TOP_DECLINE * maxf(0.0, w.average(m) - TOP_DECLINE_FROM)) / Career.WEEKS_PER_YEAR
 	elif age >= DECLINE_AT:
@@ -348,11 +345,23 @@ static func change_a_week(w: World, m: Dictionary, age: float) -> float:
 	return change
 
 
+## His growth this week before any decline: GROWTH (by age) of the way from his average to his potential, a week of it.
+static func growth_a_week(w: World, m: Dictionary, age: float) -> float:
+	var rate: float = 0.0
+	for step: Array in GROWTH:
+		if age < float(step[0]):
+			rate = float(step[1])
+			break
+	return maxf(0.0, float(m.get("potential", 0.0)) - w.average(m)) * rate / Career.WEEKS_PER_YEAR
+
+
 ## A week older for one man: better or worse, maybe pro, maybe retired. A man booked to fight the career's fighter or in
 ## his offers (`booked`) ages but neither retires nor turns pro until that's done.
 static func _age_a_week(w: World, m: Dictionary, week: int, rng: RandomNumberGenerator, booked: bool = false) -> void:
 	var age: float = World.age_of(m, week)
 	var change: float = change_a_week(w, m, age)
+	if w.trained.has(String(m.id)):  # Training in your stable adds to his growth (D445).
+		Stable.train_week(m, growth_a_week(w, m, age), w.trained[String(m.id)])
 	m.lv = snappedf(clampf(float(m.lv) + change, -float(StyleLibrary.MAX_LEVEL), float(StyleLibrary.MAX_LEVEL)), 0.001)
 	m.level = roundi(float(m.lv))
 	m.best = maxf(float(m.get("best", 0.0)), snappedf(w.average(m), 0.1))

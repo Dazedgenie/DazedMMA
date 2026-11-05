@@ -1142,6 +1142,27 @@ func test_gyms_train_real_session_kinds_and_every_background_has_one_that_suits_
 	_report(problems)
 
 
+func test_stable_focuses_train_a_real_stat_group_and_a_real_session_kind() -> void:
+	var problems: Array[String] = []
+	var focuses: Dictionary = _items("enums").get("stable_focus", {}).get("values", {})
+	var groups: Array = (_items("enums").get("stats", {}).get("values", {}) as Dictionary).values()
+	var kinds: Array = []
+	for id: String in _items("sessions"):
+		kinds.append(String(_items("sessions")[id].get("kind", "")))
+	if not focuses.has("all_round"):
+		problems.append("data/enums/stable_focus.json needs all_round, the focus a man signs with (D445)")
+	for id: String in focuses:
+		var f: Variant = focuses[id]
+		if not f is Dictionary or String(f.get("name", "")) == "" or String(f.get("about", "")) == "":
+			problems.append("stable focus '%s': needs a name and an about line (D445)" % id)
+			continue
+		if f.has("group") and not String(f.group) in groups:
+			problems.append("stable focus '%s': group must be a data/enums/stats group (D445)" % id)
+		if not String(f.get("kind", "")) in kinds:
+			problems.append("stable focus '%s': kind must be a session kind, whose rooms count for it (D445)" % id)
+	_report(problems)
+
+
 func test_coach_roles_train_a_real_stat_group_or_the_cut_and_come_from_real_styles() -> void:
 	var problems: Array[String] = []
 	var roles: Dictionary = _items("enums").get("coach_roles", {}).get("values", {})
