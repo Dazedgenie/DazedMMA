@@ -298,15 +298,15 @@ static func _half_guard() -> Dictionary:
 			"root": [-0.1, 0.36, -0.04], "lean": 68, "bend": [12, 0, 0], "head": [-16, -24],
 			"hand_l": {"to": "b.shoulder_r", "off": [0.0, 0.02, 0.0], "pole": [-1, -0.4, 0.0]},
 			"hand_r": {"to": "b.armpit_l", "off": [0.0, 0.04, 0.0], "pole": [1, -0.4, 0.0]},
-			"foot_l": {"at": [-0.5, ANKLE, 0.42], "pole": [-0.6, 0.2, -1]},
-			"foot_r": _with(kneel, {"at": [0.04, ANKLE, 0.66]}),
+			"foot_l": {"at": [-0.65, ANKLE, 0.42], "pole": [-0.6, 0.2, -1]},
+			"foot_r": _with(kneel, {"at": [0.18, ANKLE, 0.66]}),
 		},
 		"b": {
 			"root": [0.0, 0.14, 0.0], "turn": 180, "lean": 270, "roll": 0, "bend": [-6, 0, 0], "head": [16, 0],
 			"hand_l": {"to": "a.shoulder_r", "off": [0.0, 0.02, -0.04], "pole": [1, -0.2, 0.3]},
 			"hand_r": {"to": "a.neck", "off": [-0.06, 0.0, -0.04], "pole": [-1, -0.2, 0.3]},
-			"foot_l": {"to": "a.shin_r", "off": [0.07, 0.04, 0.06], "pole": [1, 0.6, 0.3]},
-			"foot_r": {"to": "a.shin_r", "off": [-0.07, -0.02, 0.02], "pole": [-0.6, 0.6, 0.3]},
+			"foot_l": {"to": "a.shin_r", "off": [0.15, 0.04, 0.06], "pole": [-1, 0.6, 0.3]},
+			"foot_r": {"to": "a.shin_r", "off": [-0.15, -0.02, 0.02], "pole": [1, 0.6, 0.3]},
 		},
 	}
 
@@ -342,8 +342,8 @@ static func _back() -> Dictionary:
 			"root": [0.0, 0.14, -0.34], "turn": 180, "lean": -10, "bend": [16, 0, 0], "head": [-6, 34],
 			"hand_l": {"to": "b.chest", "off": [-0.08, -0.02, -0.03], "pole": [1, -0.4, -0.3]},
 			"hand_r": {"to": "b.sternum", "off": [0.06, -0.02, -0.03], "pole": [-1, 0.2, -0.3]},
-			"foot_l": {"to": "b.thigh_l", "off": [-0.07, 0.1, 0.0], "pole": [1, 0.6, 0.3]},
-			"foot_r": {"to": "b.thigh_r", "off": [0.07, 0.1, 0.0], "pole": [-1, 0.6, 0.3]},
+			"foot_l": {"to": "b.thigh_l", "off": [-0.14, 0.1, 0.0], "pole": [1, 0.6, 0.3]},
+			"foot_r": {"to": "b.thigh_r", "off": [0.14, 0.1, 0.0], "pole": [-1, 0.6, 0.3]},
 		},
 		"b": {
 			"root": [0.0, 0.14, 0.02], "turn": 180, "lean": -14, "bend": [10, 0, 0], "head": [8, 0],
