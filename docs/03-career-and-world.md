@@ -1911,8 +1911,9 @@ Then update this section and D443.
 
 ### 14.4 The gym's other fighters (D444)
 
-Kyle (2026-11-05) said "you can start now"; six cards went to him on this piece and it's built on my recommendations
-until he picks (then this section and D444 change to his answers). These are phase 4's sparring partners (D407). The lads
+Kyle (2026-11-05) said "you can start now", then picked "Real local men from the world", "Better partners, faster
+sparring", "2 to start, 1 more per 8 members", "Never while they share a gym", "Sometimes, and come back as rivals" and
+"A Fighters tab on the gym page", my picks. These are phase 4's sparring partners (D407). The lads
 are **real men from the world** (§12.2), not made-up partners: they keep fighting on the world's cards and their records
 grow. They're on the gym (`Lads`, `sim/world/lads.gd`; `gym.lads`, a snapshot of each: id, name, style, born, average
 stat, record, pro, country, the week he came), so they save with it; the world's own man is the truth and the snapshot is
