@@ -527,8 +527,9 @@ func _pose_clinch(sim: FightSim, delta: float) -> void:
 		_settle_bodies(delta)
 		_bow_fence(-1, delta)  # Off the fence: it springs back.
 		return
-	if _pose_ground(sim, delta) or _pose_scramble(sim):
-		_settle_bodies(delta)
+	var on_ground := _pose_ground(sim, delta)
+	if on_ground or _pose_scramble(sim):
+		_settle_bodies(delta, sim.situation.roles.find(PositionLibrary.TOP) if on_ground else -1)
 		_bow_fence(-1, delta)
 		return
 	var built: Dictionary = {}
@@ -551,7 +552,7 @@ func _pose_clinch(sim: FightSim, delta: float) -> void:
 
 
 ## Eases both bodies into the poses just set (SkinnedBody.settle), each kept out of the other's trunk (D397).
-func _settle_bodies(delta: float) -> void:
+func _settle_bodies(delta: float, ground_top: int = -1) -> void:
 	for i in figures.size():
 		var other: SkinnedBody = figures[1 - i].body if figures.size() == 2 else null
 		figures[i].body.moving_grips = not _takedown.is_empty() or not _roll.is_empty() or not _turn.is_empty() or _clinch_shown == TAKEDOWN_ENDED
@@ -563,7 +564,34 @@ func _settle_bodies(delta: float) -> void:
 	if driver != null and driver.sim.situation.is_standing() and not driver.sim.fighters[0].is_down() and not driver.sim.fighters[1].is_down():
 		for figure in figures:
 			figure.protect_missed_head_strike()
+	if ground_top >= 0:
+		_protect_ground_cover(ground_top)
 	_keep_bodies_in_cage()
+
+
+## Stop the fitted striking arm at the forearms actually covering the head.
+func _protect_ground_cover(top: int) -> void:
+	var sim := driver.sim
+	var fighter: FighterState = sim.fighters[top]
+	var action := fighter.action_id
+	if not GroundPair.STRIKES.has(action) or GroundPair.STRIKES[action].to != "head":
+		return
+	if not _ground_head_blocked(top, action):
+		return
+	var stage := strike_blend(sim, fighter, driver.alpha())
+	if stage.is_empty() or stage[0] == 0:
+		return
+	var letter := figures[top].arm_letter(0 if FighterFigure.limb_for(action).begins_with("lead") else 1)
+	var body := figures[top].body
+	var other := figures[1 - top].body
+	var shoulder := body._world_at(("Left" if letter == "l" else "Right") + "Arm")
+	var hands := other._world_at("LeftHand").lerp(other._world_at("RightHand"), 0.5)
+	body.clear_strike_from_guard(other, letter, true, shoulder.direction_to(hands), true)
+
+
+func _ground_head_blocked(top: int, action: String) -> bool:
+	var outcome := figures[top].outcome_of(action)
+	return outcome == "covered" or (outcome == "" and ground_grips_now(driver.sim, top).cover)
 
 
 ## A single translation preserves both bodies' contact and bone lengths, including between path keys.
@@ -969,8 +997,9 @@ func _pose_ground(sim: FightSim, delta: float) -> bool:
 		_ground_far = laid[1]
 		_ground_key = key
 	var f: FighterState = sim.fighters[top]
-	var posture: bool = f.action_id == "posture_up" or (f.action_id == "posture_bomb" and f.phase in ["telegraph", "windup"])
-	var built: Dictionary = GroundPair.build(where, ground_grips_now(sim, top), posture, _ground_far)
+	var posture: bool = f.action_id == "posture_up"
+	var grips := ground_grips_now(sim, top)
+	var built: Dictionary = GroundPair.build(where, grips, posture, _ground_far)
 	var shown: String = str(built.pair)
 	if _roll.has("destination") and _roll.destination != key:
 		if not (_roll.has("guard_keys") and where in _roll.guard_keys and int(_roll.top) == top):
@@ -1001,6 +1030,10 @@ func _pose_ground(sim: FightSim, delta: float) -> bool:
 	if GroundPair.STRIKES.has(f.action_id) and not posture:
 		var letter: String = figures[top].arm_letter(0 if FighterFigure.limb_for(f.action_id).begins_with("lead") else 1)
 		var keys: Array = GroundPair.strike(pair, f.action_id, letter, where)
+		if f.action_id == "posture_bomb":
+			var raised: Dictionary = GroundPair.build(where, grips, true, _ground_far).pair
+			raised.a["hand_" + letter] = keys[0].a["hand_" + letter]
+			keys[0] = raised
 		var thrown: Array = strike_blend(sim, f, driver.alpha())
 		if not thrown.is_empty():
 			var stage: Array = [pair, keys[0], keys[1], pair]

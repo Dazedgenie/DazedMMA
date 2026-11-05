@@ -104,9 +104,10 @@ static func build(where: String, grips: Dictionary = {}, posture: bool = false, 
 			if bool(grips.get("two_on_one", false)):  # Both hands on the choking arm.
 				b.hand_l = {"to": "a.fore_r", "off": [0.0, -0.06, 0.04], "pole": [1, -0.6, 0.4]}
 				b.hand_r = {"to": "a.fore_r", "off": [0.0, 0.06, 0.04], "pole": [-1, -0.6, 0.4]}
-	if bool(grips.get("cover", false)) and where != "back_control":  # Gloves up in front of his face.
-		b.hand_l = {"to": "b.head", "off": [0.07, 0.0, -0.13], "pole": [1, -0.2, 0.0]}
-		b.hand_r = {"to": "b.head", "off": [-0.07, 0.0, -0.13], "pole": [-1, -0.2, 0.0]}
+	if bool(grips.get("cover", false)):  # Gloves up in front of his face.
+		b.hand_l = {"to": "b.head", "off": [0.0 if where == "crucifix" else 0.07, 0.0, -0.13], "pole": [1, -0.2, 0.0]}
+		if where != "crucifix":  # The rider's legs still pin this arm.
+			b.hand_r = {"to": "b.head", "off": [-0.07, 0.0, -0.13], "pole": [-1, -0.2, 0.0]}
 	if far > 0.0 and SIDE_POSITIONS.has(where):
 		pair = ClinchPair.mirror(pair)
 	return {"pair": pair, "kind": where}
@@ -185,6 +186,9 @@ static func strike(pair: Dictionary, action: String, letter: String, where: Stri
 				landed.a.lean = 78.0
 			"side_control", "crucifix":
 				landed.a.root[2] -= 0.28
+		if where == "crucifix":
+			# Turn the striking shoulder toward the guard while the knees keep the arm pinned.
+			landed.a.turn -= signf(float(landed.a.root[0])) * 18.0
 	return [cocked, landed]
 
 

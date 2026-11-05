@@ -686,7 +686,7 @@ func keep_out() -> void:
 
 ## The body's actual reach and bend can differ from the driver's aim. If either visible
 ## segment crosses a guard, keep the elbow/knee and tip on the striking side of it.
-func clear_strike_from_guard(other: SkinnedBody, side: String, arm: bool, toward: Vector3) -> void:
+func clear_strike_from_guard(other: SkinnedBody, side: String, arm: bool, toward: Vector3, touching: bool = false) -> void:
 	var prefix := "Left" if side == "l" else "Right"
 	var upper := prefix + ("Arm" if arm else "UpLeg")
 	var lower := prefix + ("ForeArm" if arm else "Leg")
@@ -695,9 +695,12 @@ func clear_strike_from_guard(other: SkinnedBody, side: String, arm: bool, toward
 	var middle := _world_at(lower)
 	var tip := _world_at(end)
 	var limit := INF
+	var guards: Array[Array] = []
 	for guard_side: String in ["Left", "Right"]:
 		var guard: Array[Vector3] = [other._world_at(guard_side + "ForeArm"), other._world_at(guard_side + "Hand")]
-		if FighterRig.limb_clearance(root, middle, tip, guard) < 0.13:
+		if touching:
+			guards.append(guard)
+		if FighterRig.limb_clearance(root, middle, tip, guard) < (0.115 if touching else 0.13):
 			limit = minf(limit, minf(guard[0].dot(toward), guard[1].dot(toward)) - 0.13)
 	if not is_finite(limit):
 		return
@@ -716,6 +719,25 @@ func clear_strike_from_guard(other: SkinnedBody, side: String, arm: bool, toward
 		if tangent.dot(bent - centre) < 0.0:
 			tangent = -tangent
 		bent = centre + radius * (outward * fraction + tangent * sqrt(1.0 - fraction * fraction))
+	if touching:
+		# A blocked hit stops on the first forearm it meets. Blending directions
+		# keeps both bone lengths while finding the nearest pose outside the guard.
+		var low := 0.0
+		var high := 1.0
+		for step in 9:
+			var t := (low + high) * 0.5
+			var elbow := root + (middle - root).slerp(bent - root, t)
+			var wrist := elbow + (tip - middle).slerp(chain[1] - bent, t)
+			var gap := INF
+			for guard in guards:
+				gap = minf(gap, FighterRig.limb_clearance(root, elbow, wrist, guard))
+			if gap < 0.115:
+				low = t
+			else:
+				high = t
+		var forearm := (tip - middle).slerp(chain[1] - bent, high)
+		bent = root + (middle - root).slerp(bent - root, high)
+		chain[1] = bent + forearm
 	var pose := skeleton.global_transform.affine_inverse()
 	var turn := (skeleton.global_basis * skeleton.get_bone_global_pose(_ids[end]).basis).orthonormalized()
 	var bend := bent - root.lerp(chain[1], 0.5)
