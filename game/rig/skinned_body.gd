@@ -642,9 +642,12 @@ func ease_over(seconds: float) -> void:
 ## can move (POP_SPEED: one move handing over to another, the pair turned round, a pose built afresh) is eased in
 ## too, over the time it takes at EASE_SPEED (D396), and an ease_over too short for how far the pose moves is
 ## lengthened the same way.
-func settle(delta: float) -> void:
+## Paired rolls supply their own interpolation and shared floor contact.
+func settle(delta: float, paired_motion: bool = false) -> void:
 	var count: int = skeleton.get_bone_count()
-	if _shown.size() == count and not _shown_world.is_empty() and delta > 0.0:
+	if paired_motion:
+		_ease_left = 0.0
+	if not paired_motion and _shown.size() == count and not _shown_world.is_empty() and delta > 0.0:
 		var moved: float = _furthest_move()
 		if moved > POP_SPEED * delta or _ease_left > 0.0:
 			_ease_left = maxf(_ease_left, minf(moved / EASE_SPEED, EASE_MAX))
@@ -751,6 +754,136 @@ func clear_strike_from_guard(other: SkinnedBody, side: String, arm: bool, toward
 	_aim_bone(lower, end, bent, chain[1], bend, arm, pose)
 	_set_world(end, Transform3D(turn, chain[1]), pose)
 	_remember_shown()
+
+
+## Last rolling leg directions, used to limit abrupt knee or ankle movement.
+var _rolling_pose: Dictionary = {}
+
+
+func reset_rolling_pose() -> void:
+	_rolling_pose.clear()
+	for side: String in ["Left", "Right"]:
+		_rolling_pose[side] = [_world_at(side + "UpLeg"), _world_at(side + "Leg"), _world_at(side + "Foot")]
+
+
+## During a reversal both legs can move. Share a correction between knees and
+## ankles at the nearest points of contact, then refit each two-bone chain.
+static func clear_rolling_legs(red: SkinnedBody, blue: SkinnedBody, delta: float, hold_feet: bool = false) -> bool:
+	var bodies := [red, blue]
+	var chains: Array[Array] = []
+	var lengths: Array[Vector2] = []
+	var floors: Array[Vector2] = []
+	var targets: Array[Vector3] = []
+	var trunks := [red.trunk(), blue.trunk()]
+	var moved := false
+	for body: SkinnedBody in bodies:
+		for side: String in ["Left", "Right"]:
+			var hip := body._world_at(side + "UpLeg")
+			var knee := body._world_at(side + "Leg")
+			var foot := body._world_at(side + "Foot")
+			var chain: Array[Vector3] = [hip, knee, foot]
+			if body._rolling_pose.has(side):
+				var prior: Array = body._rolling_pose[side]
+				var thigh: Vector3 = prior[1] - prior[0]
+				var shin: Vector3 = prior[2] - prior[1]
+				var upper := knee - hip
+				var lower := foot - knee
+				var upper_share := minf(1.0, 4.8 * delta / maxf(0.00001, thigh.distance_to(upper)))
+				var lower_share := minf(1.0, 4.8 * delta / maxf(0.00001, shin.distance_to(lower)))
+				if minf(upper_share, lower_share) < 1.0:
+					chain[1] = hip + thigh.slerp(upper, upper_share)
+					chain[2] = chain[1] + shin.slerp(lower, lower_share)
+					moved = true
+			targets.append(chain[2].move_toward(foot, 2.0 * delta) if hold_feet else foot)
+			chains.append(chain)
+			lengths.append(Vector2(hip.distance_to(knee), knee.distance_to(foot)))
+			floors.append(Vector2(minf(0.05, knee.y), minf(0.075, foot.y)))
+	for iteration in 24:
+		var contact := false
+		for a in 2:
+			for b in range(2, 4):
+				for i in 2:
+					for j in 2:
+						if _separate_roll_segments(chains[a], i, chains[b], j):
+							contact = true
+		if not contact:
+			break
+		moved = true
+		for k in 4:
+			var chain: Array[Vector3] = chains[k]
+			for i in 2:
+				_separate_roll_segments(chain, i, trunks[1 - k / 2], 0, true)
+			if hold_feet:
+				var goal := targets[k]
+				for other in range((1 - k / 2) * 2, (1 - k / 2) * 2 + 2):
+					for segment in 2:
+						goal = FighterRig.out_of(goal, chains[other][segment], chains[other][segment + 1])
+				var fit := FighterMotion.solve_bones(chain[0], goal, chain[1] - chain[0].lerp(goal, 0.5), lengths[k].x, lengths[k].y)
+				chain[1] = FighterRig.above_canvas(chain[0], fit[0], fit[1])
+				chain[2] = fit[1]
+			else:
+				chain[1] = _roll_segment_end(chain[0], chain[1], lengths[k].x, floors[k].x)
+				chain[2] = _roll_segment_end(chain[1], chain[2], lengths[k].y, floors[k].y)
+	for i in 2:
+		var body: SkinnedBody = bodies[i]
+		body._rolling_pose["Left"] = chains[i * 2]
+		body._rolling_pose["Right"] = chains[i * 2 + 1]
+		if moved:
+			body._lay_rolling_leg("Left", chains[i * 2])
+			body._lay_rolling_leg("Right", chains[i * 2 + 1])
+			body._level_buried_toes()
+			body._remember_shown()
+	return moved
+
+
+## Restore each segment along its displaced direction, with its tip above the mat.
+static func _roll_segment_end(root: Vector3, tip: Vector3, length: float, floor_y: float) -> Vector3:
+	var offset := root.direction_to(tip) * length
+	if offset.is_zero_approx():
+		offset = Vector3.UP * length
+	if root.y + offset.y < floor_y:
+		var height := clampf(floor_y - root.y, -length, length)
+		var flat := Vector3(offset.x, 0.0, offset.z).normalized()
+		if flat.is_zero_approx():
+			flat = Vector3.FORWARD
+		offset = flat * sqrt(maxf(0.0, length * length - height * height)) + Vector3.UP * height
+	return root + offset
+
+
+## Hips stay anchored. A knee can move freely and a planted ankle resists sliding.
+static func _separate_roll_segments(a: Array[Vector3], i: int, b: Array[Vector3], j: int, fixed: bool = false) -> bool:
+	var near := Geometry3D.get_closest_points_between_segments(a[i], a[i + 1], b[j], b[j + 1])
+	var offset := near[0] - near[1]
+	var distance := offset.length()
+	var radius := FighterRig.TRUNK_RADIUS + 0.001 if fixed else 0.118
+	if distance >= radius - 0.00001:
+		return false
+	var ta := clampf((near[0] - a[i]).dot(a[i + 1] - a[i]) / maxf(0.00001, a[i].distance_squared_to(a[i + 1])), 0.0, 1.0)
+	var tb := clampf((near[1] - b[j]).dot(b[j + 1] - b[j]) / maxf(0.00001, b[j].distance_squared_to(b[j + 1])), 0.0, 1.0)
+	var blend_a := Vector2(1.0 - ta, ta)
+	var blend_b := Vector2(1.0 - tb, tb)
+	var move_a := blend_a * (Vector2(0, 1) if i == 0 else Vector2(1, 0.65))
+	var move_b := Vector2.ZERO if fixed else blend_b * (Vector2(0, 1) if j == 0 else Vector2(1, 0.65))
+	var normal := offset.normalized() if distance > 0.000001 else (a[0] - b[0]).normalized()
+	if normal.is_zero_approx():
+		normal = Vector3.UP
+	var push := normal * minf(0.12, (radius - distance) / maxf(0.05, move_a.dot(blend_a) + move_b.dot(blend_b)))
+	a[i] += push * move_a.x
+	a[i + 1] += push * move_a.y
+	if not fixed:
+		b[j] -= push * move_b.x
+		b[j + 1] -= push * move_b.y
+	return true
+
+
+func _lay_rolling_leg(side: String, chain: Array[Vector3]) -> void:
+	var local := skeleton.global_transform.affine_inverse()
+	var tip := side + "Foot"
+	var foot_turn := (skeleton.global_basis * skeleton.get_bone_global_pose(_ids[tip]).basis).orthonormalized()
+	var bend := chain[1] - chain[0].lerp(chain[2], 0.5)
+	_aim_bone(side + "UpLeg", side + "Leg", chain[0], chain[1], bend, false, local)
+	_aim_bone(side + "Leg", tip, chain[1], chain[2], bend, false, local)
+	_set_world(tip, Transform3D(foot_turn, chain[2]), local)
 
 
 ## Moves the whole posed body without changing its limbs, and remembers the corrected result (D422).

@@ -127,7 +127,7 @@ func test_a_sweep_rolls_them_over_and_the_sweeper_ends_up_on_top() -> void:
 	view.driver._snap()
 	_frames(view, 8)
 	assert_true(view._roll.has("path"), "rolling")
-	_frames(view, 30)
+	_frames(view, 60)
 	assert_true(view._roll.is_empty(), "over")
 	assert_gt(view._clinch_rigs[1].point("chest").y, view._clinch_rigs[0].point("chest").y, "blue on top")
 
@@ -277,3 +277,70 @@ func test_an_interrupted_guard_recovery_reverses_from_the_current_step() -> void
 	_doing(sim, 0, "ground_punch", "active", 0.5)
 	view._process(1.0 / 60.0)
 	assert_true(view._roll.is_empty(), "a new ground strike gets its own pose immediately")
+
+
+func test_ground_reversals_roll_around_the_old_riders_hips() -> void:
+	var moves := [["full_guard", "full_guard", "sweep"], ["half_guard", "half_guard", "sweep"],
+		["mount", "full_guard", "bridge"], ["back_control", "full_guard", "escape_back"]]
+	for move: Array in moves:
+		for top in 2:
+			for rate: int in [30, 60]:
+				var setup := _ground(move[0], top)
+				var sim: FightSim = setup[0]
+				var view: ArenaView = setup[1]
+				var anchor := view.figures[top].body.hips_at()
+				view._on_event(FightEvent.new(sim.now, 1 - top, FightEvent.GRAPPLE_WON, 1 - top, {"action_id": move[2], "result": PositionLibrary.SUCCESS}))
+				_put(sim, move[1], 1 - top)
+				var legs := INF
+				var heads := INF
+				var trunks := INF
+				var floor_y := INF
+				var foot_step := 0.0
+				var before := {}
+				var lengths := {}
+				var stretch := 0.0
+				for i in 2:
+					for side: String in ["Left", "Right"]:
+						var body := view.figures[i].body
+						lengths[str(i) + side] = Vector2(body._world_at(side + "UpLeg").distance_to(body._world_at(side + "Leg")), body._world_at(side + "Leg").distance_to(body._world_at(side + "Foot")))
+				for frame in 3 * rate:
+					view._process(1.0 / rate)
+					var a := view.figures[0].body
+					var b := view.figures[1].body
+					legs = minf(legs, _closest_legs(a, b))
+					heads = minf(heads, a._world_at("Head").distance_to(b._world_at("Head")))
+					var ta := a.trunk()
+					var tb := b.trunk()
+					var near := Geometry3D.get_closest_points_between_segments(ta[0], ta[1], tb[0], tb[1])
+					trunks = minf(trunks, near[0].distance_to(near[1]))
+					for i in 2:
+						for side: String in ["Left", "Right"]:
+							var body := view.figures[i].body
+							var wanted: Vector2 = lengths[str(i) + side]
+							stretch = maxf(stretch, absf(body._world_at(side + "UpLeg").distance_to(body._world_at(side + "Leg")) - wanted.x))
+							stretch = maxf(stretch, absf(body._world_at(side + "Leg").distance_to(body._world_at(side + "Foot")) - wanted.y))
+						for name: String in ["LeftFoot", "RightFoot", "LeftLeg", "RightLeg"]:
+							var point := view.figures[i].body._world_at(name)
+							floor_y = minf(floor_y, point.y)
+							var key := str(i) + name
+							if before.has(key):
+								foot_step = maxf(foot_step, point.distance_to(before[key]))
+							before[key] = point
+				var label := "%s %s top %d at %d Hz" % [move[0], move[2], top, rate]
+				assert_gt(legs, 0.105, label + " legs pass around each other")
+				assert_gt(heads, 0.21, label + " heads remain apart")
+				assert_gt(trunks, 0.205, label + " bodies roll on opposite sides")
+				assert_gt(floor_y, -0.005, label + " legs stay above the mat")
+				assert_lt(foot_step, 0.28 * 60.0 / rate, label + " feet and knees move continuously")
+				assert_lt(Vector2(anchor.x, anchor.z).distance_to(Vector2(view._ground_frame.origin.x, view._ground_frame.origin.z)), 0.01, label + " lands by the original hips")
+				assert_true(view._roll.is_empty(), label + " the new top position settles")
+				assert_lt(stretch, 0.001, label + " thigh and shin lengths stay fixed")
+				var feet: Array[Vector3] = []
+				for body in [view.figures[0].body, view.figures[1].body]:
+					feet.append(body._world_at("LeftFoot"))
+					feet.append(body._world_at("RightFoot"))
+				view._roll_leg_settle = 0.0
+				_frames(view, 30, 0.1)
+				for i in 2:
+					assert_lt(view.figures[i].body._world_at("LeftFoot").distance_to(feet[i * 2]), 0.03, label + " left hook reaches the ordinary hold")
+					assert_lt(view.figures[i].body._world_at("RightFoot").distance_to(feet[i * 2 + 1]), 0.03, label + " right hook reaches the ordinary hold")
