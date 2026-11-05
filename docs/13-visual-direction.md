@@ -1364,7 +1364,17 @@ The guard pull sits back before lowering the defender with a collar grip and for
 
 The stand-up path poses both fighters. The bottom fighter's up-kick now extends the lead leg from that pose toward the front of the opponent's head. The leg retains its reach limit, misses travel outside the head, and recovery returns the foot to the continuing paired pose. The scramble-view tests measure the visible heel and shin in full and half guard, including recovery, both corners and misses.
 
+### Referee approach after a ground stoppage
+
+The referee checks the route to his usual stop position against both fighters' visible legs and trunks. When the route crosses their bodies, he chooses another approach alongside them, inside the fence. The referee regression samples the moving lower limbs throughout the intervention from either corner.
+
+### Between-rounds corner clearance
+
+The coach and cutman enter and leave on their own sides of the stool. The coach crouches beside the nearer visible knee and gestures with the other hand. The cutman supports the near shoulder or reaches the brow when treating a cut. Ceremony tests follow both corners through sitting, working, standing and walking out.
+
 ## Review and verification
+
+The side-control arm triangle sprawls alongside the defender, with the hands closing at the neck and nape. In the guard triangle the controlling hand stays beside the nape during the squeeze. Submission-view tests sample the approximate skull center and controlling segments throughout tightening in both corners, and check that the hands can meet in the arm triangle.
 
 Open `project.godot` in Godot 4.7.2 and run the game normally. Start a fight and check striking,
 clinch, ground transitions and fighting against each side of the fence. Compare at 1280×720 and
