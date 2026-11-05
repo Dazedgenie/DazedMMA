@@ -444,7 +444,8 @@ and lists. Now (my picks on the eight D434 cards, built while they're open):
   (never the tests' own `check_` fighters) fight a simmed fight in the cage behind the menu: both corners the AI's,
   at normal speed with the fight screen's own slow-downs on big shots, no names over their heads and no range tag
   (`ArenaView.backdrop`), the referee in with them, the camera slid left so they sit to the right of the menu, and
-  silent. When it ends the finish is held, and a few seconds later a new pair walks in. It runs only while the title is
+  silent. When it ends the finish is held, and a few seconds later a new pair walks in. (Off for now while the placeholder
+  painting is behind the title, §6.18, D470.) It runs only while the title is
   up: any other screen stops it and clears the cage, and a real fight takes the cage over. Headless runs (the tests,
   the smoke run) leave it off unless a test asks (`backdrop_in_headless` in `game/main.gd`).
 - **The menu down the left** (`ui/title_screen.gd`): CHIN CHECK, Lampsmoke Games and the buttons in a dark strip that
@@ -579,3 +580,22 @@ round break) and saves the screen (`--clean` also saves the cage with the HUD hi
 **Tests:** `tests/ui/test_fight_hud.gd` (the row of calls by position, dimmed for voice, the numbers with the details,
 the corner card, the clock, no empty clinch card, a dialog taking the play pieces down), `tests/ui/test_fight_feed.gd`
 (key moments without odds, the details with them), `tests/ui/test_round_break_card.gd`.
+
+### 6.18 Placeholder title art and logo (D470, D471)
+
+Kyle made two pictures in ChatGPT (2026-11-05) from the prompts in the project's `concept-art/title-art-prompts.md`, to
+stand in on the title screen until there's final art:
+
+- **The painting behind the title** (`ui/art/title_art.png`, D470): over the shoulder of an old coach at the cage
+  door, towel on his shoulder, shouting; his fighter in red shorts squared up under a single lamp; the other man in
+  blue blurred in the near corner. It fills the screen (cropped to cover any window shape) under the menu's dark strip
+  (§6.14), which darkens the blurred man. While it's on, the title doesn't run its fight in the cage (D434): the cage is
+  left empty behind it.
+- **The logo** (`ui/art/title_logo.png`, D471): a gloved fist landing on a man's chin, his head snapping round, spit
+  and a tooth flying off, CHIN CHECK under it. It takes the place of the CHIN CHECK lettering at the top of the menu,
+  with LAMPSMOKE GAMES under it as before.
+
+**To change it:** swap either picture for another of the same name (Godot re-imports it); turn the painting off and
+bring the fight back with `PAINTED` in `ui/title_screen.gd` (`title_fight` in `game/main.gd` follows it); the logo's
+size with `LOGO_SIZE` there. The painting is 1672×941 and the logo 768×768 with a see-through background. Tests:
+`tests/ui/test_front_door.gd`. Presentation only: fights are unchanged (no golden re-pin).

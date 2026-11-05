@@ -87,6 +87,8 @@ var moments_in_headless: bool = false
 ## The fight behind the title screen (D434): not in headless runs unless a test asks (backdrop_in_headless).
 var backdrop: TitleBackdrop
 var backdrop_in_headless: bool = false
+## Whether the title runs that fight: not while the placeholder painting is behind it (TitleScreen.PAINTED, D470).
+var title_fight: bool = not TitleScreen.PAINTED
 ## The fade between screens off the fight (D435): the next screen comes up out of the dark.
 var _veil: ColorRect
 var _snap: TextureRect
@@ -229,8 +231,8 @@ func show_title() -> void:
 	title.visible = true
 	$UI/Version.visible = true
 	state = TITLE
-	if DisplayServer.get_name() != "headless" or backdrop_in_headless:
-		backdrop.start(arena)  # A real fight behind the menu (D434).
+	if title_fight and (DisplayServer.get_name() != "headless" or backdrop_in_headless):
+		backdrop.start(arena)  # A real fight behind the menu (D434), when the painting isn't (D470).
 	title.focus_first()
 
 
