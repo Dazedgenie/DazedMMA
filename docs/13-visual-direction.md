@@ -1350,6 +1350,8 @@ When the underhooks change hands in an open clinch, the fighters rise through a 
 
 The two final-body regression tests sample the fighters at 60 Hz. They cover twelve grip changes across two stances and the guard pass with either fighter on top. For mount to back control, the rider moves beside the hips, gets behind the rising defender and reaches around the shoulders before closing the hooks. An additional 96-frame check for either top fighter measures head, trunk, arm and leg clearance through that path.
 
+In half guard the top fighter plants the free foot wide. The defender bends the knees outward and hooks either side of the trapped shin. In back control the rider's insteps sit farther around the defender's thighs. The fitted-body checks measure the space between opposing leg segments and how close each hooking foot stays to its intended leg for both riders and both half-guard orientations.
+
 ### Entering paired takedowns and stand-ups
 
 The first throw or scramble key is expressed in the actor's frame. Changing which man leads relabels the roles. Turning the frame also transforms the pose into that frame, so both fighters keep their world positions and facings. The key chain uses the nearby equivalent lean angle when a flat guard pose starts a stand-up. The takedown-view test checks the first hips and heads for either actor and grip owner. The scramble-view test follows both bodies through standing out of half guard.

@@ -192,3 +192,45 @@ func test_back_take_circles_around_the_rising_defender() -> void:
 		assert_gt(trunks, 0.21, "rider circles outside the defender")
 		assert_gt(limbs, FighterRig.TRUNK_RADIUS - 0.005, "top %d, %s passes around the torso" % [top, worst])
 		assert_true(view._roll.is_empty(), "back take completes")
+
+
+func test_ground_hooks_wrap_the_leg_without_crossing_it() -> void:
+	for where: String in ["half_guard", "back_control"]:
+		for top in 2:
+			var view: ArenaView = _ground(where, top)[1]
+			for far: float in [-1.0, 1.0]:
+				var holds: Array = [{}, {"underhook": true}, {"crossface": true}, {"collar": true}] if where == "half_guard" else [{}, {"two_on_one": true}]
+				for grip: Dictionary in holds:
+					var pair: Dictionary = GroundPair.build(where, grip, false, far).pair
+					FighterRig.pose_pair(view._clinch_rigs[top], view._clinch_rigs[1 - top], pair, view._ground_frame)
+					for i in 2:
+						view.figures[i].body.follow(view._clinch_rigs[i])
+					view._settle_bodies(1.0)
+					var rider: SkinnedBody = view.figures[top].body
+					var defender: SkinnedBody = view.figures[1 - top].body
+					var label := "%s top %d side %.0f grip %s" % [where, top, far, grip]
+					assert_gt(_closest_legs(rider, defender), 0.115, label + " opposing legs stay apart")
+					for side: String in ["Left", "Right"]:
+						var foot: Vector3
+						var start: Vector3
+						var end: Vector3
+						if where == "half_guard":
+							var trapped := "Left" if far > 0.0 else "Right"
+							foot = defender._world_at(side + "Foot")
+							start = rider._world_at(trapped + "Leg")
+							end = rider._world_at(trapped + "Foot")
+						else:
+							foot = rider._world_at(side + "Foot")
+							start = defender._world_at(side + "UpLeg")
+							end = defender._world_at(side + "Leg")
+						assert_lt(foot.distance_to(Geometry3D.get_closest_point_to_segment(foot, start, end)), 0.22, label + " hook stays on its leg")
+
+
+func _closest_legs(a: SkinnedBody, b: SkinnedBody) -> float:
+	var gap := INF
+	for left: String in ["Left", "Right"]:
+		for right: String in ["Left", "Right"]:
+			for bones: Array in [["UpLeg", "Leg"], ["Leg", "Foot"]]:
+				var other: Array[Vector3] = [b._world_at(right + bones[0]), b._world_at(right + bones[1])]
+				gap = minf(gap, FighterRig.limb_clearance(a._world_at(left + "UpLeg"), a._world_at(left + "Leg"), a._world_at(left + "Foot"), other))
+	return gap
