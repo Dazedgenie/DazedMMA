@@ -22,8 +22,8 @@ extends RefCounted
 ##     Takedown! at once, so the call lands while the leg is up
 ##   - the opponent's scouted tell is set off (their jab blocked: a kick is coming): the read
 ##     call for that move (Catch the kick!), so the fighter is primed before the kick
-##   - this fighter rocked: Survive!; the opponent rocked: Pressure! (Ground and pound! on top,
-##     Get up! underneath)
+##   - this fighter rocked: Survive!; the opponent rocked: Finish him! (D480; Pressure! for a corner
+##     that leaves the finish_him moment out), Ground and pound! on top, Get up! underneath
 ##   - this fighter ends up on top: Ground and pound! (D121), once: not again for a pass (D130)
 ##   - a submission locks in (D126): Finish it! for the attacker, Defend the sub! for the defender
 ## and since D257, moments for the calls it used to leave out (MOMENTS; docs/01 §22.10). A plain ideal
@@ -60,19 +60,19 @@ const MASH := "mash"
 const STYLES: Array[String] = [NONE, IDEAL, AI, SPAM, MASH]
 ## The moments the ideal and AI corners have called since D257. A style written `ideal:fire_back+pass`
 ## (the harness's --corners) uses only these of them, `ideal:` none, to weigh each one on its own.
-const MOMENTS: Array[String] = ["fire_back", "defend_the_shot", "feint", "get_up", "pass",
+const MOMENTS: Array[String] = ["finish_him", "fire_back", "defend_the_shot", "feint", "get_up", "pass",
 	"go_for_the_finish", "collar_tie", "cut_the_cage", "circle_out", "follow_down", "keep_pressing", "hand_fight",
 	"close_in", "close_in_fresh"]
 ## The moments a plain `ideal` or `ai` corner uses: the ones that won fights when tried one by one
 ## (docs/01 §22.10). The others cost wins at these moments and stay for the harness to try again.
-const DEFAULT_MOMENTS: Array[String] = ["fire_back", "get_up", "collar_tie", "cut_the_cage", "follow_down", "keep_pressing",
+const DEFAULT_MOMENTS: Array[String] = ["finish_him", "fire_back", "get_up", "collar_tie", "cut_the_cage", "follow_down", "keep_pressing",
 	"close_in_fresh"]
 ## keep_pressing: Pressure! when this fighter has landed this much more damage than he's taken over
 ## the last PRESSING_TICKS standing, and no other focus is on.
 const PRESSING_LEAD: float = 10.0
 const PRESSING_TICKS: int = 200
 ## Focus calls a new focus mustn't replace while they're on (the corner's own count of them).
-const URGENT: Array[String] = ["survive", "pressure", "ground_and_pound", "finish_it", "defend_the_sub"]
+const URGENT: Array[String] = ["survive", "finish_him", "pressure", "ground_and_pound", "finish_it", "defend_the_sub"]
 ## Where Go for the finish! is called on top (D257): the positions with holds from on top.
 const FINISH_FROM: Array[String] = ["side_control", "mount", "back_control"]
 ## Why a stuffed shot stopped, for the Feint! moment (FightEvent.GRAPPLE_STOPPED).
@@ -206,7 +206,8 @@ func on_event(view: FightView, event: FightEvent) -> void:
 			if event.actor == me:
 				_decide(event.tick, "survive")
 			elif view.is_standing():
-				_decide(event.tick, "pressure")
+				# Finish him! (D480) on a rocked man; a corner without the moment calls Pressure! as before.
+				_decide(event.tick, "finish_him" if moments.has("finish_him") and _usable.has("finish_him") else "pressure")
 			elif view.my_role() == PositionLibrary.TOP:
 				_decide(event.tick, "ground_and_pound")
 			else:

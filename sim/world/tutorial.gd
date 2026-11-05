@@ -22,7 +22,7 @@ extends RefCounted
 const LESSON_FIGHTS: int = 3
 ## The calls open in lesson 1: the three to learn and the ones sharing their keys in other positions (as in the first
 ## Playtest fight, docs/07 §3).
-const FIRST_CALLS: Array[String] = ["pressure", "circle_out", "takedown", "ground_and_pound", "go_for_the_finish",
+const FIRST_CALLS: Array[String] = ["pressure", "finish_him", "circle_out", "takedown", "ground_and_pound", "go_for_the_finish",
 	"finish_it", "defend_the_sub"]
 ## What lesson 2 adds: the read call (Q) the game is built around.
 const SECOND_CALLS: Array[String] = ["catch_the_kick"]

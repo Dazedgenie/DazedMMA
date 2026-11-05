@@ -84,14 +84,22 @@ func test_the_ideal_corner_primes_catch_the_kick_when_the_kickers_scouted_tell_f
 	assert_eq(_due_after(corner, view, Corner.IDEAL_REACTION), ["catch_the_kick"] as Array[String], "the Kicker's jab got blocked: the body kick is coming")
 
 
-func test_survive_when_rocked_and_pressure_when_the_opponent_is() -> void:
+func test_survive_when_rocked_and_finish_him_when_the_opponent_is() -> void:
 	var sim: FightSim = _pair("boxer", "boxer")
 	var corner := Corner.new(Corner.IDEAL, 1)
 	var view: FightView = sim.views[0]
 	corner.on_event(view, FightEvent.new(0, 1, FightEvent.ROCKED, 0, { "by": "hook" }))
 	assert_eq(_due_after(corner, view, Corner.IDEAL_REACTION), ["survive"] as Array[String])
 	corner.on_event(view, FightEvent.new(view.now, 1, FightEvent.ROCKED, 1, { "by": "hook" }))
-	assert_eq(_due_after(corner, view, Corner.IDEAL_REACTION), ["pressure"] as Array[String])
+	assert_eq(_due_after(corner, view, Corner.IDEAL_REACTION), ["finish_him"] as Array[String], "Finish him! on a rocked man (D480)")
+
+
+func test_a_corner_without_the_finish_him_moment_calls_pressure_on_a_rocked_man() -> void:
+	var sim: FightSim = _pair("boxer", "boxer")
+	var corner := Corner.new(OLD_CALLS, 1)
+	var view: FightView = sim.views[0]
+	corner.on_event(view, FightEvent.new(0, 1, FightEvent.ROCKED, 1, { "by": "hook" }))
+	assert_eq(_due_after(corner, view, Corner.IDEAL_REACTION), ["pressure"] as Array[String], "as before D480")
 
 
 func test_on_top_the_corner_calls_ground_and_pound() -> void:
