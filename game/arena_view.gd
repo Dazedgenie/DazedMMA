@@ -1028,7 +1028,7 @@ func _pose_ground(sim: FightSim, delta: float) -> bool:
 		var laid: Array = ground_frame(sim, top)
 		_ground_frame = laid[0]
 		_ground_far = laid[1]
-		if _roll.has("from") and int(_roll.from[2]) != top:
+		if _roll.has("anchor") and int(_roll.from[2]) != top:
 			# The old rider becomes the grounded fighter. Roll him onto his hip
 			# where the pair actually was, even if the simulation spots are apart.
 			var hip: Vector3 = _roll.anchor
