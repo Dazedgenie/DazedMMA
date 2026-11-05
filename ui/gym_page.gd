@@ -6,7 +6,8 @@ extends PanelContainer
 ## no room picked, every room you could build with its size and cost. The gym's money and month along the top.
 ## Building spends the gym's money straight away (Career.build_room). Close or Esc goes back to the hub. The *Coaches*
 ## tab (CoachesView, §14.3, D443) has the coaches you've hired and the men looking for work; the *Fighters* tab
-## (LadsView, §14.4, D444) has him and the other lads who train at your gym.
+## (LadsView, §14.4, D444) has him and the other lads who train at your gym; the *Stable* tab (StableView, §14.5,
+## D445) has the men you've signed to fight out of your gym and the men you could sign.
 
 signal closed
 ## Something was built or torn down: the career changed (main saves it).
@@ -17,17 +18,20 @@ const SIDE_WIDTH: float = 460.0
 const ROOMS := "rooms"
 const COACHES := "coaches"
 const FIGHTERS := "fighters"
+const STABLE := "stable"
 
 var career: Career
 var picked_room: String = ""
 var plan: FloorPlan
-## Which tab is showing: ROOMS, COACHES or FIGHTERS.
+## Which tab is showing: ROOMS, COACHES, FIGHTERS or STABLE.
 var tab: String = ROOMS
 var rooms_tab: Button
 var coaches_tab: Button
 var fighters_tab: Button
+var stable_tab: Button
 var coaches: CoachesView
 var fighters: LadsView
+var stable: StableView
 var _rooms_body: HBoxContainer
 
 var _title: Label
@@ -88,6 +92,7 @@ func _init() -> void:
 	rooms_tab = _tab(tabs, "Rooms", group, ROOMS)
 	coaches_tab = _tab(tabs, "Coaches", group, COACHES)
 	fighters_tab = _tab(tabs, "Fighters", group, FIGHTERS)
+	stable_tab = _tab(tabs, "Stable", group, STABLE)
 	rooms_tab.set_pressed_no_signal(true)
 
 	var body := HBoxContainer.new()
@@ -102,6 +107,10 @@ func _init() -> void:
 	fighters = LadsView.new()
 	fighters.visible = false
 	column.add_child(fighters)
+	stable = StableView.new()
+	stable.visible = false
+	stable.changed.connect(func() -> void: _money.text = money_text(career); changed.emit())
+	column.add_child(stable)
 	plan = FloorPlan.new()
 	plan.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	plan.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -150,10 +159,10 @@ func show_gym(c: Career, p_picked: String = "") -> void:
 	show_tab(ROOMS)
 
 
-## Shows the Rooms, Coaches or Fighters tab.
+## Shows the Rooms, Coaches, Fighters or Stable tab.
 func show_tab(id: String) -> void:
 	tab = id
-	for pair: Array in [[ROOMS, rooms_tab], [COACHES, coaches_tab], [FIGHTERS, fighters_tab]]:  # Set by hand: no signal unpresses the rest.
+	for pair: Array in [[ROOMS, rooms_tab], [COACHES, coaches_tab], [FIGHTERS, fighters_tab], [STABLE, stable_tab]]:  # Set by hand: no signal unpresses the rest.
 		(pair[1] as Button).set_pressed_no_signal(pair[0] == id)
 	refresh()
 
@@ -169,11 +178,15 @@ func refresh() -> void:
 	_rooms_body.visible = tab == ROOMS
 	coaches.visible = tab == COACHES
 	fighters.visible = tab == FIGHTERS
+	stable.visible = tab == STABLE
 	if tab == COACHES:
 		coaches.show_career(career)
 		return
 	if tab == FIGHTERS:
 		fighters.show_career(career)
+		return
+	if tab == STABLE:
+		stable.show_career(career)
 		return
 	plan.show_gym(gym, career.week, picked_room)
 	_build.visible = false

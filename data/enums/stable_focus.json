@@ -1,0 +1,35 @@
+{
+	"schema": "enum@1",
+	"id": "stable_focus",
+	"values": {
+		"all_round": {
+			"name": "All-round",
+			"about": "A bit of everything: every stat comes on together.",
+			"kind": "sparring"
+		},
+		"striking": {
+			"name": "Striking",
+			"about": "Pads, bags and sparring: his striking stats come on fastest.",
+			"group": "Striking",
+			"kind": "striking"
+		},
+		"wrestling": {
+			"name": "Wrestling",
+			"about": "Shots, sprawls and the clinch: his wrestling stats come on fastest.",
+			"group": "Wrestling",
+			"kind": "wrestling"
+		},
+		"grappling": {
+			"name": "Grappling",
+			"about": "Rolling and positions: his grappling stats come on fastest.",
+			"group": "Grappling",
+			"kind": "grappling"
+		},
+		"fitness": {
+			"name": "Fitness",
+			"about": "Roadwork, weights and sprints: his physical stats come on fastest.",
+			"group": "Physical",
+			"kind": "conditioning"
+		}
+	}
+}

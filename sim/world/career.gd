@@ -65,8 +65,15 @@ const COACH_LEFT := "coach_left"
 ## A lad walked in to train at your gym, or left it (D444): { kind, name, retired? }.
 const LAD_IN := Lads.WALKED_IN
 const LAD_LEFT := Lads.LEFT
-## Events that are only news: Advance runs on past them (a lad walking in or leaving, D444).
-const JUST_NEWS: Array[String] = [LAD_IN, LAD_LEFT]
+## Your stable (D445): a man signed, one of them fought on the world's cards, one is unhappy and one has left:
+## { kind, name, ... } (Stable.news_text).
+const STABLE_SIGNED := Stable.SIGNED
+const STABLE_FOUGHT := Stable.FOUGHT
+const STABLE_UNHAPPY := Stable.UNHAPPY
+const STABLE_LEFT := Stable.LEFT
+## Events that are only news: Advance runs on past them (a lad walking in or leaving, D444; a stable man signing or
+## fighting, D445).
+const JUST_NEWS: Array[String] = [LAD_IN, LAD_LEFT, STABLE_SIGNED, STABLE_FOUGHT]
 ## School (D314, School): the summer holidays start (every session is his until September), school starts again, and
 ## he's left school for good (LEAVES_AT): { kind }.
 const SCHOOL_OUT := "school_out"
@@ -113,6 +120,8 @@ var room_done: Dictionary = {}
 var coach_week: Dictionary = {}
 ## The gym's lads who walked in or left as this month began (Lads.month), for run_week's news (D444).
 var lad_news: Array = []
+## Your stable's fights, worries and leavers since the last week's report (Stable, D445), for run_week's news.
+var stable_news: Array = []
 var trainee: TrainingCamp
 ## The day (days since 1 Jan 1970) of the Monday that starts week 0, and the week it is now.
 var first_monday: int = 0
@@ -306,6 +315,8 @@ func run_week(plan: Variant = null, played: Dictionary = {}) -> Dictionary:
 	for coach: Dictionary in coach_week.get("left", []):
 		report.events.append({ "kind": COACH_LEFT, "name": String(coach.name), "role": String(coach.role), "weeks": int(coach.unpaid) })
 	report.events.append_array(lad_news)
+	report.events.append_array(stable_news)
+	stable_news = []
 	var worn: bool = float(report.get("fatigue_peak", 0.0)) >= TrainingCamp.FATIGUE_FREE
 	if worn and not worn_last_week:
 		report.events.append({ "kind": WORN_DOWN })
@@ -417,6 +428,8 @@ static func event_text(event: Dictionary) -> String:
 		COACH_LEFT:
 			return "%s, your %s, has walked out: %d weeks without pay" % [String(event.get("name", "")),
 				Staff.role_words(String(event.get("role", ""))), int(event.get("weeks", 0))]
+		STABLE_SIGNED, STABLE_FOUGHT, STABLE_UNHAPPY, STABLE_LEFT:
+			return Stable.news_text(event)
 		LAD_IN, LAD_LEFT:
 			return Lads.news_text(event)
 		SCHOOL_OUT:
@@ -467,7 +480,11 @@ func world() -> World:
 			if o.get("tournament") is Dictionary:
 				for r: Dictionary in o.tournament.get("rest", []):
 					busy[String(r.profile.id)] = true
-		WorldWeeks.advance(_world, week - 1, busy, func(w: int) -> Dictionary: return date(0, w))
+		_world.trained = Stable.trained(gym)  # Your stable trains at your gym as the weeks go (D445).
+		var happened: Array = WorldWeeks.advance(_world, week - 1, busy, func(w: int) -> Dictionary: return date(0, w))
+		var paid: Dictionary = Stable.after_fights(_world, gym, happened)
+		gym_money += int(paid.cut)
+		stable_news.append_array(paid.news)
 	return _world
 
 
@@ -900,6 +917,10 @@ func end_week() -> Dictionary:
 			lad_news = Lads.month(_world, gym, week, lad_dice)
 	coach_week = Staff.pay_week(gym, gym_money)  # Monday's wages, after the month's dues are in (D443).
 	gym_money -= int(coach_week.paid)
+	if not Stable.fighters(gym).is_empty():  # Your stable's week in the world, and its month (D445).
+		world()
+		if int(date(0, week).month) != int(date(0, week - 1).month):
+			stable_news.append_array(Stable.month(_world, gym, week, gym_money))
 	return out
 
 
@@ -924,6 +945,37 @@ func tear_down_room(id: String) -> String:
 func gym_lads() -> Array:
 	_first_lads()
 	return Lads.lads(gym)
+
+
+## The men you could sign this week (Stable.prospects, D445): the gym's lads, then his country's best local men.
+func stable_prospects() -> Array:
+	_first_lads()
+	return Stable.prospects(world(), gym, week)
+
+
+## Offers the world's man `id` a place in your stable (D445): "" when he signs, else why not. Whether he says yes is
+## rolled from the career's seed, the man and the week, so asking again the same week can't change it.
+func sign_fighter(id: String, focus_id: String = Stable.DEFAULT_FOCUS) -> String:
+	var w: World = world()
+	var m: Dictionary = w.man(id)
+	if m.is_empty():
+		return "Nobody by that name"
+	var dice := RandomNumberGenerator.new()
+	dice.seed = hash([career_seed, id, week, "sign"])
+	var why: String = Stable.offer(w, gym, m, week, dice.randf(), focus_id)
+	if why == "":
+		stable_news.append({ "kind": STABLE_SIGNED, "name": String(m.get("name", "")) })
+	return why
+
+
+## Lets a man in your stable go (D445): the entry, or {} when he wasn't there.
+func release_fighter(id: String) -> Dictionary:
+	return Stable.release(gym, id)
+
+
+## Sets what a man in your stable trains (data/enums/stable_focus.json, D445): false when he isn't signed.
+func set_stable_focus(id: String, focus_id: String) -> bool:
+	return Stable.set_focus(gym, id, focus_id)
 
 
 func _first_lads() -> void:
@@ -1181,12 +1233,18 @@ static func from_dict(data: Dictionary, library: TrainingLibrary = null) -> Care
 							coach[key] = int(coach[key])
 	if c.gym.has("looking_at"):
 		c.gym.looking_at = int(c.gym.looking_at)
-	if c.gym.get("lads") is Array:  # The gym's lads (D444).
-		for lad: Variant in c.gym.lads:
-			if lad is Dictionary:
-				lad.since = int(lad.get("since", 0))
-				lad.avg = float(lad.get("avg", 0.0))
-				lad.born = float(lad.get("born", 0.0))
+	for list: String in ["lads", "stable"]:  # The gym's lads (D444) and your stable (D445).
+		if c.gym.get(list) is Array:
+			for lad: Variant in c.gym[list]:
+				if lad is Dictionary:
+					lad.since = int(lad.get("since", 0))
+					lad.avg = float(lad.get("avg", 0.0))
+					lad.born = float(lad.get("born", 0.0))
+					if list == "stable":
+						lad.unhappy = int(lad.get("unhappy", 0))
+	if c.gym.get("asked") is Dictionary:
+		for id: String in c.gym.asked:
+			c.gym.asked[id] = int(c.gym.asked[id])
 	var was_theirs: bool = not c.gym.is_empty() and not c.gym.has("place")
 	c.gym = Gym.made_yours(c.gym)  # A save from before D441, when he paid a fee at someone else's: it's yours now.
 	c.gym_money = int(d.get("gym_money", Gym.START_MONEY if was_theirs else 0))

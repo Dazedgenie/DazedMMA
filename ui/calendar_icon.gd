@@ -4,7 +4,7 @@ extends Control
 ## D430 cards and "Icons drawn in code" on the D433 cards): crossed gloves for fight night, a red cross for hurt, a green
 ## cross for healed, a tick for cleared to fight, a candle for a birthday, a book for school, a sun for the summer
 ## holidays, an envelope for offers, a coin for the gym behind on its rent, a low battery for worn down and a little
-## building for a room built at your gym (D442).
+## building for a room built at your gym (D442); a lad or your stable's news is a dot in its colour (D444, D445).
 
 const SIZE := Vector2(26.0, 26.0)
 ## Each kind's colour.
@@ -15,6 +15,8 @@ const COLOURS := {
 	Career.GYM_BEHIND: Color("#fcc419"), Career.WORN_DOWN: Color("#ffa94d"), Career.ROOM_DONE: Color("#4dabf7"),
 	Career.COACH_UNPAID: Color("#fcc419"), Career.COACH_LEFT: Color("#ff8787"),
 	Career.LAD_IN: Color("#69db7c"), Career.LAD_LEFT: Color("#91a7ff"),
+	Career.STABLE_SIGNED: Color("#38d9a9"), Career.STABLE_FOUGHT: Color("#e599f7"),
+	Career.STABLE_UNHAPPY: Color("#ffa94d"), Career.STABLE_LEFT: Color("#748ffc"),
 }
 
 var kind: String = ""

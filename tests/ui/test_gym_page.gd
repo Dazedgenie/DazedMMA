@@ -140,3 +140,30 @@ func test_the_fighters_tab_shows_him_and_the_gyms_lads_and_what_the_best_partner
 	assert_string_contains(CareerHub.gym_text(c), "1 other lad trains here")
 	c.gym.lads = []
 	assert_string_contains(LadsView.side_text(c), "Nobody to spar with")
+
+
+func test_the_stable_tab_lists_who_you_could_sign_and_signing_puts_him_in_your_stable() -> void:
+	var c: Career = _career()
+	c.gym.members = 30
+	var page: GymPage = add_child_autofree(GymPage.new())
+	page.show_gym(c)
+	page.stable_tab.pressed.emit()
+	assert_true(page.stable.visible)
+	assert_false(page.fighters.visible)
+	assert_false(page.rooms_tab.button_pressed, "only the Stable tab lit")
+	assert_gt(page.stable.sign_buttons.size(), 0)
+	assert_string_contains(StableView.prospect_text(c.world(), c.gym, page.stable.shown_prospects[0], c.week), "he says yes")
+	var m: Dictionary = page.stable.shown_prospects[0]
+	assert_eq(Stable.offer(c.world(), c.gym, m, c.week, 0.0), "")
+	watch_signals(page)
+	page.stable.refresh()
+	assert_true(page.stable.focus_pickers.has(String(m.id)))
+	assert_true(page.stable.set_focus(String(m.id), "wrestling"))
+	assert_signal_emitted(page, "changed")
+	assert_string_contains(StableView.fighter_text(c.gym, Stable.entry(c.gym, String(m.id)), c.week), "Wrestling: he learns")
+	assert_string_contains(CareerHub.gym_text(c), "Your stable: %s · 2 of 3 places" % String(m.name))
+	assert_string_contains(LadsView.side_text(c), "Best partner")
+	assert_eq(page.stable.let_go(String(m.id)), "")
+	assert_false(page.stable.focus_pickers.has(String(m.id)))
+	var why: String = page.stable.offer_place(0)
+	assert_true(why == "" or "said no" in why or "ask again" in why, why)

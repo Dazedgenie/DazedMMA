@@ -1414,14 +1414,28 @@ static func gym_text(c: Career) -> String:
 	if not lads.is_empty():  # The gym's other lads (D444).
 		out += "\n%d other lad%s train%s here · best sparring partner: %s" % [lads.size(), "" if lads.size() == 1 else "s",
 			"s" if lads.size() == 1 else "", best_partner_text(c)]
+	var stable: Array = Stable.fighters(c.gym)
+	if not stable.is_empty():  # Your stable (D445).
+		out += "\n" + stable_line(c)
 	return out
 
 
-## "Jake Moss (about even)": the gym's best lad and how he compares with him (D444).
+## "Your stable: Jake Moss, Tom Reid · 3 of 4 places" (D445), with any man who's unhappy marked.
+static func stable_line(c: Career) -> String:
+	var names: Array[String] = []
+	for e: Dictionary in Stable.fighters(c.gym):
+		var who: String = String(e.get("name", ""))
+		if int(e.get("unhappy", 0)) > 0:
+			who = "[color=%s]%s (unhappy)[/color]" % [WARN.to_html(false), who]
+		names.append(who)
+	return "Your stable: %s · %d of %d places" % [", ".join(PackedStringArray(names)), names.size() + 1, Stable.places(c.gym)]
+
+
+## "Jake Moss (about even)": the gym's best lad or stable man and how he compares with him (D444, D445).
 static func best_partner_text(c: Career) -> String:
 	var his: float = Matchmaker.average_stat(c.profile().get("stats", {}))
 	var best: Dictionary = {}
-	for lad: Dictionary in Lads.lads(c.gym):
+	for lad: Dictionary in Lads.lads(c.gym) + Stable.fighters(c.gym):
 		if best.is_empty() or float(lad.get("avg", 0.0)) > float(best.get("avg", 0.0)):
 			best = lad
 	if best.is_empty():
