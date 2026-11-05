@@ -14,14 +14,15 @@ extends RefCounted
 ##            session learn faster, a few sessions need one (hard sparring a ring or cage, Shark tank the cage, film
 ##            study the video room), the recovery room clears fatigue and heals, the video room finds habits. You build
 ##            them one at a time with the gym's money, the room shut until it's done; each level you build brings a member.
+##   coaches  (D443) the specialists you hire for a weekly wage (Staff, `coaches` and `looking`)
 ##   money    the gym's own bank (Career.gym_money), apart from his savings. On the first Monday of every month its
 ##            members pay their dues (the kind's `fee`) and the rent goes out (month()); the gym takes PURSE_CUT of
 ##            every purse he's paid (Kyle: "Members plus a cut of purses"). Members drift towards a number that grows
 ##            with his wins, up to what the place holds.
 ##
 ## A gym is plain data on the career ({kind, culture, place, name, owner_name, owner, dues, members, members_start,
-## rent, rooms, levels_start, spent, building, spots}), so it saves as it is. `owner_name` and `owner` are the man you
-## take the place over from. Pure and seeded:
+## rent, rooms, levels_start, spent, building, spots, coaches, looking, looking_at}), so it saves as it is. `owner_name`
+## and `owner` are the man you take the place over from. Pure and seeded:
 ## the same career seed offers the same three places.
 
 const DEFAULT_DIR := "res://data/gyms/"
@@ -213,11 +214,12 @@ static func purse_cut(paid: int) -> int:
 	return roundi(maxi(0, paid) * PURSE_CUT)
 
 
-## How many members the gym is heading towards with `wins` wins behind him: its first members and MEMBERS_PER_WIN a
-## win, never more than the place holds.
+## How many members the gym is heading towards with `wins` wins behind him: its first members, MEMBERS_PER_WIN a
+## win, one for each room level built and each coach's level (Staff, D443), never more than the place holds.
 static func members_target(gym: Dictionary, wins: int) -> int:
 	return clampi(int(gym.get("members_start", gym.get("members", 0))) + MEMBERS_PER_WIN * wins
-		+ MEMBERS_PER_ROOM_LEVEL * (levels(gym) - int(gym.get("levels_start", levels(gym)))), 0, cap(gym))
+		+ MEMBERS_PER_ROOM_LEVEL * (levels(gym) - int(gym.get("levels_start", levels(gym))))
+		+ Staff.MEMBERS_PER_LEVEL * Staff.levels(gym), 0, cap(gym))
 
 
 ## The most members the gym holds: its place's `cap`, and each changing rooms level's `cap` more (D442).
@@ -268,20 +270,20 @@ static func xp_share(gym: Dictionary, session_kind: String, session_id: String =
 	return out * room_share(gym, session_kind, session_id)
 
 
-## The chance a party animal skips × this.
+## The chance a party animal skips × this: the culture's, and a fiery coach's (Staff, D443).
 static func skip_share(gym: Dictionary) -> float:
-	return float(culture(String(gym.get("culture", ""))).get("skips", 1.0)) if not gym.is_empty() else 1.0
+	return float(culture(String(gym.get("culture", ""))).get("skips", 1.0)) * Staff.skip_share(gym) if not gym.is_empty() else 1.0
 
 
 ## A session's injury odds × this: the culture's, and less for each level of a room that makes its kind safer (the
-## ring's sparring, D442).
+## ring's sparring, D442), and the coaches' personalities (Staff, D443).
 static func injury_share(gym: Dictionary, session_kind: String = "") -> float:
 	if gym.is_empty():
 		return 1.0
 	var safer: float = 0.0
 	for id: String in rooms():
 		safer += working_level(gym, id) * float(room(id).get("injury", {}).get(session_kind, 0.0))
-	return float(culture(String(gym.get("culture", ""))).get("injury", 1.0)) * maxf(0.0, 1.0 - safer)
+	return float(culture(String(gym.get("culture", ""))).get("injury", 1.0)) * maxf(0.0, 1.0 - safer) * Staff.injury_share(gym)
 
 
 # --- Rooms (D442) ---------------------------------------------------------------------------------------------------

@@ -1,0 +1,45 @@
+{
+	"schema": "enum@1",
+	"id": "coach_roles",
+	"values": {
+		"striking": {
+			"name": "Striking coach",
+			"about": "Pads, bags and footwork.",
+			"group": "Striking",
+			"xp": 0.05,
+			"styles": ["boxer", "brawler", "counter_striker", "dirty_boxer", "karate", "kicker", "leg_kicker", "muay_thai", "sprawl_brawl"],
+			"career": ["Ran a boxing club above a pub for twenty years", "Held pads at a Muay Thai camp abroad", "Taught kickboxing at the leisure centre"]
+		},
+		"wrestling": {
+			"name": "Wrestling coach",
+			"about": "Shots, sprawls and the clinch.",
+			"group": "Wrestling",
+			"xp": 0.05,
+			"styles": ["gnp_wrestler", "pressure_wrestler", "wrestler"],
+			"career": ["Coached the county wrestling squad", "Ran a school's wrestling team", "Wrestled for his country as a young man"]
+		},
+		"bjj": {
+			"name": "BJJ coach",
+			"about": "Guards, passes and submissions.",
+			"group": "Grappling",
+			"xp": 0.05,
+			"styles": ["bjj", "judoka", "sambo"],
+			"career": ["A black belt who taught evening classes", "Ran a judo club for years", "Competed at grappling tournaments abroad"]
+		},
+		"strength": {
+			"name": "Strength coach",
+			"about": "Weights, sprints and the gas tank.",
+			"group": "Physical",
+			"xp": 0.05,
+			"styles": [],
+			"career": ["Ran the weights room at a rugby club", "A personal trainer with a full diary", "Trained sprinters at the athletics club"]
+		},
+		"nutrition": {
+			"name": "Nutritionist",
+			"about": "Meals, water and making weight.",
+			"cut": 0.2,
+			"styles": [],
+			"career": ["A sports dietitian at the hospital", "Did the diets for a football club", "Made weight for a dozen pro fighters"]
+		}
+	}
+}

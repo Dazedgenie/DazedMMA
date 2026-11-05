@@ -92,3 +92,29 @@ func test_the_camp_planner_offers_a_sessions_stand_in_when_the_gym_hasnt_its_roo
 	assert_eq(String(planner.week_plan().days[5][1]), "light_sparring", "no ring or cage: light sparring")
 	planner.set_slot(11, "rolling")
 	assert_eq(String(planner.week_plan().days[5][1]), "rolling")
+
+
+func test_the_coaches_tab_lists_who_is_looking_and_hiring_puts_him_on_your_staff() -> void:
+	var c: Career = _career()
+	c.gym.looking = [{ "id": "a", "name": "Joe Hart", "role": "striking", "level": 2, "personality": "hard", "country_id": "england",
+		"age": 41, "line": "Retired regional pro, 14-6-0", "from": "" },
+		{ "id": "b", "name": "Ann Lee", "role": "nutrition", "level": 1, "personality": "patient", "country_id": "england",
+		"age": 35, "line": "A sports dietitian", "from": "" }]
+	c.gym.looking_at = Staff.month_key(c.date())
+	var page: GymPage = add_child_autofree(GymPage.new())
+	page.show_gym(c)
+	assert_false(page.coaches.visible, "rooms first")
+	page.coaches_tab.pressed.emit()
+	assert_true(page.coaches.visible)
+	assert_eq(page.coaches.hire_buttons.size(), 2)
+	assert_string_contains(page.coaches.hire_buttons[0].text, "$40 a week")
+	watch_signals(page)
+	assert_eq(page.coaches.hire(0), "")
+	assert_signal_emitted(page, "changed")
+	assert_true(page.coaches.let_go_buttons.has("striking"))
+	assert_eq(page.coaches.hire_buttons.size(), 1, "off the list")
+	assert_string_contains(GymPage.money_text(c), "wages $40 a week")
+	assert_string_contains(CareerHub.gym_text(c), "Joe Hart (striking)")
+	assert_string_contains(CoachesView.coach_text(Staff.coaches(c.gym)[0], true), "Striking stats learn 15% faster")
+	assert_eq(page.coaches.let_go("striking"), "")
+	assert_false(page.coaches.let_go_buttons.has("striking"))
