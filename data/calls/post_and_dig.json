@@ -1,0 +1,14 @@
+{
+	"schema": "call@2",
+	"id": "post_and_dig",
+	"name": "Post and dig!",
+	"kind": "now",
+	"tier": "intent",
+	"parent": null,
+	"hotkey": "B",
+	"voice_cost": 20,
+	"positions": ["standing", "clinch"],
+	"actions": [],
+	"focus": { "duration_ms": 15000, "leanings": { "range": 30, "pace": 20 }, "cut": 0.5, "weights": { "head_post": 4.0, "rear_body_hook": 1.8, "short_body_hook": 1.8, "knee": 1.3 } },
+	"requires_technique": "head_post"
+}

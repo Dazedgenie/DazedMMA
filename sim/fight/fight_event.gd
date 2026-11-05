@@ -42,6 +42,7 @@ const ROCKED := "rocked"  # actor got rocked. data: {by, again? (rocked again on
 const KNOCKDOWN := "knockdown"  # actor got knocked down. data: {by, liver? (true: a liver shot folded him, D143), leg? (the leg that buckled, D144), flash? (true: one clean shot dropped a man who wasn't rocked, D145)}
 const STANCE_SWITCHED := "stance_switched"  # actor switched stance to hide a hurt front leg (D144). data: {hiding (the leg, 0 left / 1 right)}
 const RESET := "reset"  # actor walks back to the middle of the cage to reset, not having much success (D290). data: {why: "losing" (taking more than he lands) or "missing" (throwing, nothing landing)}
+const POST_ENDED := "post_ended"  # actor's head post came off (D490). data: {how: "time" / "swatted" / "circled off" / "tied up" / "down"}
 const LIVER_SHOT := "liver_shot"  # actor took a liver shot: frozen, and he folds a moment later (D143). data: {by}
 const GOT_UP := "got_up"  # actor is back up after a knockdown
 const RECOVERED := "recovered"  # actor is no longer rocked

@@ -214,6 +214,24 @@ const FENCE_HOLD_DRAIN_PER_S: float = 0.1
 ## A shot at a man on the fence that half works leaves the shooter on him, tied up against the
 ## fence, this often (the "pressed" transition); otherwise it's the scramble, as anywhere else.
 const PRESSED_CHANCE: float = 0.25
+## The head post (D490, docs/01 §47): the lead hand on his head, framing him against the fence while
+## the other hand digs to the body. A clinch-category move whose `posts_ms` holds it that long, on the
+## feet in the pocket with his back on the fence, or in the clinch while he's held there. POSTING on
+## the man doing it, HEAD_POSTED on the man under it; it ends on its time, swatted off (SWAT_POST, a
+## move whose `clears_post` takes it off), circled off (out of the pocket or off the fence), tied up
+## (any change of position) or when either man goes down.
+const HEAD_POST := "head_post"
+const SWAT_POST := "swat_post"
+const POSTING := "POSTING"
+const HEAD_POSTED := "HEAD_POSTED"
+## Posted on the fence, his feet get this share of a step: the arm on his head holds him there.
+const POSTED_FEET: float = 0.6
+## How a post ended (FightEvent.POST_ENDED `how`, FighterState.post_ends).
+const POST_TIME := "time"
+const POST_SWATTED := "swatted"
+const POST_CIRCLED := "circled off"
+const POST_TIED := "tied up"
+const POST_DOWN := "down"
 const COVERED := "COVERED"
 ## Grips in the clinch (D261, docs/01 §40.3). Chest to chest the clinch has two sides (red's left
 ## meets blue's right, red's right meets blue's left) and on each side one man has the inside, an
@@ -407,6 +425,10 @@ var _half_inside: int = NO_GRIP
 ## The rest of the ground (D264): the frame underneath, two hands on the choking arm.
 var _frame: bool = false
 var _two_on_one: bool = false
+## The head post (D490): who has it (a fighter's index, or NO_GRIP), until when, and where it started.
+var _post: int = NO_GRIP
+var _post_until: int = 0
+var _post_where: String = ""
 ## What the current position does to each fighter every tick (its data, worked out
 ## when the position changes): stamina drained, judges' control points, strike damage ×.
 var _drain: Array[float] = [0.0, 0.0]
@@ -593,6 +615,7 @@ func tick() -> void:
 		if _fight_over:
 			now += 1
 			return
+	_check_post()
 	if not situation.is_standing():
 		for k in 2:
 			_round_points[k] += _control[k]
@@ -1088,6 +1111,8 @@ func _move(i: int, want: float, circle: float, cut: float = 0.0, way: int = 0, a
 		stride = stride.normalized() * step
 	if f.bit_ticks > 0:
 		stride *= BIT_FEET
+	if posted(i):
+		stride *= POSTED_FEET  # The arm on his head holds him on the fence (D490).
 	# The fence stops the part of the step that goes into it; the rest slides along it.
 	f.pos = Octagon.keep_inside(f.pos + stride)
 	var effort: float = (f.pos - from).length() / step if step > 0.0 else 0.0
@@ -1304,6 +1329,8 @@ func apply_transition(i: int, action_id: String, result: String = PositionLibrar
 	var control_before: float = float(positions.get_position(situation.position).control_score.get(PositionLibrary.TOP, 0.0))
 	if situation.position != PositionLibrary.CLINCH or t.to != PositionLibrary.CLINCH:
 		_clear_grips()  # A new clinch starts hand fighting; turning him on the fence keeps the grips (D261).
+	if t.to != situation.position:
+		_end_post(POST_TIED if t.to == PositionLibrary.CLINCH else POST_DOWN)  # Tied up, or the fight went somewhere else (D490).
 	var roles: Array[String] = ["", ""]
 	roles[i] = t.roles.actor
 	roles[1 - i] = t.roles.opponent
@@ -1384,6 +1411,7 @@ func _maybe_turn_away(k: int, covered: bool) -> void:
 ## Back to standing without anyone's move (a knockdown in the clinch): the fighters
 ## come apart where they are, a standing gap apart.
 func _break_apart(i: int) -> void:
+	_end_post(POST_CIRCLED)  # Out of the clinch (D490).
 	situation.reset()
 	_drive = {}
 	_clear_grips()
@@ -1449,6 +1477,10 @@ func _start_action(i: int, id: String, decision: Decision = null) -> void:
 				f.stand_leg_grabs += 1  # Grabbing the leg as he stands up (D333).
 	elif id == COLLAR_TIE:
 		f.collar_ties_tried += 1
+	elif id == HEAD_POST:
+		f.posts_tried += 1
+	elif id == SWAT_POST:
+		f.swats_tried += 1
 	elif id == FENCE_DRIVE:
 		f.fence_drives_tried += 1
 	elif id == SPIN_OFF or id == TURN_HIM:
@@ -1603,6 +1635,8 @@ func active_flags(i: int) -> Array[String]:
 	if f.tied_up_ticks > 0:
 		out.append("POSTURE_BROKEN")
 	_grip_flags(i, out)
+	if _post != NO_GRIP:
+		out.append(POSTING if _post == i else HEAD_POSTED)  # The head post (D490).
 	if f.backed_off_ticks > 0 and not out.has(POSTURED_UP) and not out.has(POSTURE_BROKEN):
 		out.append(POSTURED_UP)  # Sat up away from the shots from underneath (D271).
 	if f.bit_ticks > 0:
@@ -1642,6 +1676,8 @@ func flags_ahead(i: int, ahead: int) -> Array[String]:
 	if f.tied_up_ticks > turns:
 		out.append("POSTURE_BROKEN")
 	_grip_flags(i, out)
+	if _post != NO_GRIP:
+		out.append(POSTING if _post == i else HEAD_POSTED)  # The head post (D490).
 	if f.backed_off_ticks > turns and not out.has(POSTURED_UP) and not out.has(POSTURE_BROKEN):
 		out.append(POSTURED_UP)
 	if f.bit_ticks > turns:
@@ -1722,6 +1758,11 @@ func odds_breakdown(i: int, id: String, ahead: int = 0) -> OddsBreakdown:
 			b.add_bonus(opp.opponent_flag, float(opp.success_bonus))
 		elif opp.get("required", false) and b.missing == "":
 			b.missing = opp.opponent_flag
+	if action.category == "clinch" and b.missing == "" and action.clinch.has("posts_ms"):
+		if _post == i:
+			b.missing = "own " + POSTING  # One hand, one post (D490).
+		elif situation.position == PositionLibrary.CLINCH and not held_on_fence(1 - i):
+			b.missing = HELD_ON_FENCE  # In the clinch it's his back on the fence, held there.
 	if action.category == "ground" and b.missing == "" and action.ground.has("grip"):
 		b.missing = _ground_grip_missing(i, String(action.ground.grip))
 	if action.category == "ground" and action.ground.has("position_bonus"):
@@ -2007,6 +2048,8 @@ func _land_strike(i: int, action: Dictionary) -> void:
 	# A clean shot breaks the combination he was in the middle of (D133).
 	defender.combo_id = ""
 	defender.combo_next_until = -1
+	if target == "body" and _post == i:
+		attacker.post_body_landed += 1  # Digging to the body off the post (D490).
 	if situation.position == PositionLibrary.CLINCH and action.id == "knee":
 		attacker.clinch_knees_landed += 1
 		if _has_bonus(breakdown, "POSTURE_BROKEN"):
@@ -2075,7 +2118,8 @@ func _make_contact(i: int, action: Dictionary) -> void:
 			_meet_shot(1 - i)  # Already sprawling as it arrives?
 			return
 		stopped.reason = { "own " + HELD_ON_FENCE: "not on the fence", "own " + UNDERHOOK: "no underhook",
-			"own " + OVERHOOK: "no underhook to strip" }.get(b.missing, b.missing if GRIP_STOPS.has(b.missing) else "nothing to catch")
+			"own " + OVERHOOK: "no underhook to strip", "BACK_TO_CAGE": "not on the fence", HELD_ON_FENCE: "not on the fence",
+			"own " + POSTING: "already posting", "own " + HEAD_POSTED: "no post to swat" }.get(b.missing, b.missing if GRIP_STOPS.has(b.missing) else "nothing to catch")
 		stopped.chance = 0.0
 		stopped.odds = b.to_dict()
 	_emit(FightEvent.GRAPPLE_STOPPED, i, stopped)
@@ -2131,6 +2175,14 @@ func _finish_grip(i: int) -> bool:
 		result = PositionLibrary.PARTIAL
 	if result != PositionLibrary.SUCCESS and _pressed_on_fence(i, action, b, result):
 		return true
+	if result == PositionLibrary.SUCCESS and action[action.category].has("posts_ms"):
+		_take_post(i, action, b)
+		return false  # The fight stays where it is, his hand on the other man's head (D490).
+	if result == PositionLibrary.SUCCESS and action[action.category].get("clears_post", false):
+		_emit(FightEvent.GRAPPLE_WON, i, { "action_id": action.id, "result": "swatted", "chance": b.chance, "odds": b.to_dict() })
+		f.swats_won += 1
+		_end_post(POST_SWATTED)
+		return false
 	if result == PositionLibrary.SUCCESS and action[action.category].has("ties_up_ms"):
 		_tie_up(i, action, b)
 		return false  # The fight stays where it is; the move goes on to its recovery.
@@ -2198,6 +2250,68 @@ func _tie_up(i: int, action: Dictionary, b: OddsBreakdown) -> void:
 	if not o.is_free() and actions.get_action(o.action_id).category == "strike":
 		o.clear_action()
 	_emit(FightEvent.GRAPPLE_WON, i, { "action_id": action.id, "result": "tied_up", "chance": b.chance, "odds": b.to_dict() })
+
+
+# --- The head post (D490, docs/01 §47) ----------------------------------------
+
+## True while fighter i has his lead hand on the other man's head (D490, POSTING).
+func posting(i: int) -> bool:
+	return _post == i
+
+
+## True while the other man has fighter i posted (D490, HEAD_POSTED).
+func posted(i: int) -> bool:
+	return _post != NO_GRIP and _post == 1 - i
+
+
+## The head post as it stands (D490): { by, until, where }, or empty. Read-only.
+func post() -> Dictionary:
+	return {} if _post == NO_GRIP else { "by": _post, "until": _post_until, "where": _post_where }
+
+
+## Puts fighter `by`'s head post on for `ticks` (D490), for tests and set pieces; NO_GRIP takes it off.
+func set_post(by: int, ticks: int = 40) -> void:
+	_post = by
+	_post_until = now + ticks
+	_post_where = situation.position
+
+
+## Fighter i's head post works (D490): his hand is on the other man's head for the move's `posts_ms`.
+func _take_post(i: int, action: Dictionary, b: OddsBreakdown) -> void:
+	_post = i
+	_post_until = now + int(action.clinch.posts_ms) / FightClock.TICK_MS
+	_post_where = situation.position
+	fighters[i].posts_won += 1
+	fighters[i].unanswered = 0
+	_emit(FightEvent.GRAPPLE_WON, i, { "action_id": action.id, "result": "posted", "chance": b.chance, "odds": b.to_dict() })
+
+
+## Ends the head post if there is one (D490), saying how, and counts it on the man who had it.
+func _end_post(how: String) -> void:
+	if _post == NO_GRIP:
+		return
+	var by: int = _post
+	_post = NO_GRIP
+	var ends: Dictionary = fighters[by].post_ends
+	ends[how] = int(ends.get(how, 0)) + 1
+	_emit(FightEvent.POST_ENDED, by, { "how": how })
+
+
+## Every tick (D490): the post holds while its time lasts, both men are up, and the other man stays
+## where it works (on the feet: in the pocket with his back on the fence; in the clinch: held there).
+func _check_post() -> void:
+	if _post == NO_GRIP:
+		return
+	var k: int = 1 - _post
+	fighters[_post].post_ticks += 1
+	if fighters[0].is_down() or fighters[1].is_down() or situation.position != _post_where:
+		_end_post(POST_DOWN)
+	elif situation.is_standing() and (band() != Octagon.BAND_POCKET or cage_proximity(k) != Octagon.CAGE_PINNED):
+		_end_post(POST_CIRCLED)
+	elif situation.position == PositionLibrary.CLINCH and not held_on_fence(k):
+		_end_post(POST_CIRCLED)
+	elif now >= _post_until:
+		_end_post(POST_TIME)
 
 
 # --- The cage clinch (D220, docs/01 §39) --------------------------------------
@@ -2697,6 +2811,7 @@ func _end_round() -> void:
 
 ## Between rounds: both fighters back to their corners, recovered, with the round's tallies cleared.
 func _next_round() -> void:
+	_end_post(POST_TIME)  # The bell takes his hand off (D490).
 	for f in fighters:
 		f.clear_action()
 		f.recover_between_rounds()

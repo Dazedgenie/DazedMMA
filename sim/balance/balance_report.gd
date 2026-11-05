@@ -517,6 +517,11 @@ func _pair_lines(of_rows: Array[Dictionary], names: Dictionary) -> PackedStringA
 		average(of_rows, "spin_offs_won_red"), average(of_rows, "spin_offs_red"),
 		blue, _pct(average(of_rows, "fence_hold_blue")), average(of_rows, "fence_drives_won_blue"), average(of_rows, "fence_drives_blue"),
 		average(of_rows, "spin_offs_won_blue"), average(of_rows, "spin_offs_blue")])
+	lines.append("  Head post  %s %.1f of %.1f a fight (%.1f s on), %.1f body shots off it, swatted off %.1f, circled off %.1f, tied up %.1f, swats %.1f of %.1f · %s %.1f of %.1f (%.1f s), %.1f, %.1f, %.1f, %.1f, %.1f of %.1f (D490)" % [
+		red, average(of_rows, "posts_won_red"), average(of_rows, "posts_red"), average(of_rows, "post_s_red"), average(of_rows, "post_body_red"),
+		average(of_rows, "posts_swatted_red"), average(of_rows, "posts_circled_red"), average(of_rows, "posts_tied_red"), average(of_rows, "swats_won_red"), average(of_rows, "swats_red"),
+		blue, average(of_rows, "posts_won_blue"), average(of_rows, "posts_blue"), average(of_rows, "post_s_blue"), average(of_rows, "post_body_blue"),
+		average(of_rows, "posts_swatted_blue"), average(of_rows, "posts_circled_blue"), average(of_rows, "posts_tied_blue"), average(of_rows, "swats_won_blue"), average(of_rows, "swats_blue")])
 	lines.append("  Grips      %s an underhook %s of the clinch (both %s), pummels %.1f of %.1f won, strips %.1f of %.1f, turns him on the fence %.1f of %.1f · %s %s (%s), %.1f of %.1f, %.1f of %.1f, %.1f of %.1f (D261, D262)" % [
 		red, _pct(average(of_rows, "underhook_red")), _pct(average(of_rows, "body_lock_red")), average(of_rows, "pummels_won_red"), average(of_rows, "pummels_red"),
 		average(of_rows, "strips_won_red"), average(of_rows, "strips_red"), average(of_rows, "turns_won_red"), average(of_rows, "turns_red"),

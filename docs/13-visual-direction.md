@@ -1395,6 +1395,22 @@ While a head strike approaches, its target stays on the striking side of the vis
 
 The miss regression reveals the result at the active phase and samples follow-through and recovery in both corners and leads. It measures head/body and guard clearances, limb length and joint travel at 60 Hz for the jab, cross, hook, overhand and body/head kicks.
 
+## The head post (D497)
+
+Kyle picked "Yes, pose it on the rig" for the head post (`01` §47, D490), so it is drawn in the same PR as the move.
+
+- **On the feet:** while a man posts, his lead arm goes out and up (`POST_ARM`, radians from hanging) to `POST_REACH` of
+  its guard length, onto the other man's head, and he stands off him at `POST_GAP` (m, `game/arena_view.gd`) instead of
+  stepping in to the usual striking distance. His rear hand is free for the rear-hand body hook. The man under it leans back
+  by `POSTED_LEAN` (`game/fighter_figure.gd`), his back on the fence. The arm reaches out over the head post's wind-up and
+  comes back on its recovery; while the post holds it stays there.
+- **In the clinch on the fence** (`ClinchPair`, D286): the man posting rises `POST_RISE`, stands `POST_UPRIGHT` degrees
+  taller, and his lead hand goes to the held man's forehead (the rig's new `forehead` point), pushing his head back
+  `POSTED_HEAD` degrees onto the wire; his other hand is on the man's ribs, digging. The held man's hands frame on his
+  shoulders. `tools/rig_preview.gd --clinch` shows it as *red posts on blue on the fence*; it's the one clinch pose not
+  held chest to chest (`tests/game/test_clinch_pair.gd`).
+- **Swatting it off** is the rear hand slapping across at the posting arm, short and quick.
+
 ## Review and verification
 
 The side-control arm triangle sprawls alongside the defender, with the hands closing at the neck and nape. In the guard triangle the controlling hand stays beside the nape during the squeeze. Submission-view tests sample the approximate skull center and controlling segments throughout tightening in both corners, and check that the hands can meet in the arm triangle.

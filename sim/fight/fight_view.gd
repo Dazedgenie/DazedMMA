@@ -173,6 +173,16 @@ func opponent_held_on_fence() -> bool:
 	return _sim().held_on_fence(1 - index)
 
 
+## True while my lead hand is on his head (D490, the head post).
+func posting() -> bool:
+	return _sim().posting(index)
+
+
+## True while he has me posted (D490).
+func posted() -> bool:
+	return _sim().posted(index)
+
+
 ## My underhooks in the clinch (D261): 0, 1 or 2 (the body lock).
 func underhooks() -> int:
 	return _sim().underhooks(index)

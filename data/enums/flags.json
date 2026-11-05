@@ -28,6 +28,8 @@
 		"COVERED": "Covering up: hands high and elbows in (D180). Half the head damage gets through; exploited by shots to the body.",
 		"ROLLING": "Rolling a punch off the shoulder (D181): chin tucked behind the lead shoulder for a moment. The overhand comes over the top more often.",
 		"LEANING_BACK": "Leaning back out of the way (D181): weight on the back foot, can't be done with his back on the fence.",
-		"HIGH_GUARD": "High guard up to block (D181): a blocked head shot does a third of its damage; exploited by the uppercut and shots to the body."
+		"HIGH_GUARD": "High guard up to block (D181): a blocked head shot does a third of its damage; exploited by the uppercut and shots to the body.",
+		"POSTING": "His lead hand is on the other man's head, framing him on the fence (the head post, D490). His jab is much harder to throw; his body shots find the man under it.",
+		"HEAD_POSTED": "A hand on his head holds him on the fence (the head post, D490). Body shots find him more, his own straight punches and short punches are smothered, his feet are slower and getting off the fence is harder, but his hook comes over the arm more easily. He can swat it off, circle off or tie up."
 	}
 }
