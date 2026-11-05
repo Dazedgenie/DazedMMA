@@ -652,6 +652,7 @@ func settle(delta: float) -> void:
 		_restore_limb_lengths()
 		_lift_off_canvas()
 	_keep_out()
+	_level_buried_toes()
 	_remember_shown()
 
 
@@ -679,6 +680,7 @@ func _restore_limb_lengths() -> void:
 ## Keeps this body out of the other man's trunk again (`avoid` set afresh), once he's settled too (D397).
 func keep_out() -> void:
 	_keep_out()
+	_level_buried_toes()
 	_remember_shown()
 
 
@@ -752,6 +754,32 @@ func _lift_off_canvas() -> void:
 	var id: int = _ids.Hips
 	var up: Vector3 = skeleton.global_transform.basis.inverse() * Vector3.UP * (CANVAS_FLOOR - lowest)
 	skeleton.set_bone_pose_position(id, skeleton.get_bone_pose_position(id) + up)
+
+
+## An ankle can clear the floor while a pitched foot drives the toes below it.
+## Turn just the foot about the ankle until the ball of the foot reaches the canvas.
+func _level_buried_toes() -> void:
+	for side: String in ["Left", "Right"]:
+		var foot := side + "Foot"
+		var toe := _world_at(side + "ToeBase")
+		var floor_y := minf(CANVAS_FLOOR, _at(side + "ToeBase").y)
+		if toe.y >= floor_y - 0.00001:
+			continue
+		var ankle := _world_at(foot)
+		var offset := toe - ankle
+		var length := offset.length()
+		if length < 0.0001:
+			continue
+		var forward := Vector3(offset.x, 0.0, offset.z)
+		var posed := (skeleton.global_basis * skeleton.get_bone_global_pose(_ids[foot]).basis).orthonormalized()
+		if forward.length_squared() < 0.000001:
+			forward = Vector3(posed.z.x, 0.0, posed.z.z)
+			if forward.length_squared() < 0.000001:
+				forward = Vector3.FORWARD
+		var height := clampf(floor_y - ankle.y, -length, length)
+		var level := forward.normalized() * sqrt(maxf(0.0, length * length - height * height)) + Vector3.UP * height
+		var rotation := Basis(Quaternion(offset / length, level.normalized()))
+		_set_world(foot, Transform3D(rotation * posed, ankle), skeleton.global_transform.affine_inverse())
 
 
 ## The other man's trunk, the line from his hips to his chest in the world (set each frame before settle; empty

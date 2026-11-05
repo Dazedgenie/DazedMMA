@@ -1356,6 +1356,8 @@ Between half guard and side control, the defender opens the hooks before the pas
 
 The fence spin-off releases toward the centre and facing of the two standing fighters. Both corner assignments use the same turn even when the original clinch pose has the fighters in swapped roles. The pressing fighter plants the lead foot wider and farther from the defender's shin. Near-fence checks cover the turn, the spin and the handoff back to standing.
 
+After the posed body settles, a toe below the canvas pitches up around its own ankle while retaining the length of the foot. The near-fence knockdown check follows both toes through a fall and the return to standing, including leg and body-shot knockdowns.
+
 ### Entering paired takedowns and stand-ups
 
 The first throw or scramble key is expressed in the actor's frame. Changing which man leads relabels the roles. Turning the frame also transforms the pose into that frame, so both fighters keep their world positions and facings. The key chain uses the nearby equivalent lean angle when a flat guard pose starts a stand-up. The takedown-view test checks the first hips and heads for either actor and grip owner. The scramble-view test follows both bodies through standing out of half guard.
