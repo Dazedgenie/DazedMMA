@@ -152,7 +152,7 @@ static func body(kind: String, head_side: float) -> Dictionary:
 			# wire, feet a little out. The a man is in low on him, head under his chin, hips square.
 			pair = {
 				"a": {"root": [0.04, 0.8, 0.29], "lean": 26, "bend": [10, -6, 8], "head": [-18, -HEAD_TURN],
-					"foot_l": {"at": [-0.18, ANKLE, 0.16]}, "foot_r": {"at": [0.2, ANKLE, 0.7]}},
+					"foot_l": {"at": [-0.32, ANKLE, 0.28]}, "foot_r": {"at": [0.2, ANKLE, 0.7]}},
 				"b": {"root": [0.02, 0.92, -0.33], "turn": 180, "lean": -4, "bend": [-2, 4, 4], "head": [-6, HEAD_TURN],
 					"foot_l": {"at": [0.18, ANKLE, -0.2]}, "foot_r": {"at": [-0.16, ANKLE, -0.26]}},
 			}

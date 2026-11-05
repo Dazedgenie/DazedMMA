@@ -1354,6 +1354,8 @@ In half guard the top fighter plants the free foot wide. The defender bends the 
 
 Between half guard and side control, the defender opens the hooks before the passer lifts the captured knee and posts on the outside. Partial guard recovery follows those steps in reverse over 1.25 seconds. During a back take, the rider lifts the inside foot, steps past the defender, sits behind the hips and closes the hooks last. In mount, the bottom fighter can plant both feet with the knees pointing up between the rider's legs. The pass and recovery checks measure both fighters' arms and legs at 30 and 60 frames per second.
 
+The fence spin-off releases toward the centre and facing of the two standing fighters. Both corner assignments use the same turn even when the original clinch pose has the fighters in swapped roles. The pressing fighter plants the lead foot wider and farther from the defender's shin. Near-fence checks cover the turn, the spin and the handoff back to standing.
+
 ### Entering paired takedowns and stand-ups
 
 The first throw or scramble key is expressed in the actor's frame. Changing which man leads relabels the roles. Turning the frame also transforms the pose into that frame, so both fighters keep their world positions and facings. The key chain uses the nearby equivalent lean angle when a flat guard pose starts a stand-up. The takedown-view test checks the first hips and heads for either actor and grip owner. The scramble-view test follows both bodies through standing out of half guard.

@@ -554,7 +554,7 @@ func _pose_clinch(sim: FightSim, delta: float) -> void:
 func _settle_bodies(delta: float) -> void:
 	for i in figures.size():
 		var other: SkinnedBody = figures[1 - i].body if figures.size() == 2 else null
-		figures[i].body.moving_grips = not _takedown.is_empty() or not _roll.is_empty() or _clinch_shown == TAKEDOWN_ENDED
+		figures[i].body.moving_grips = not _takedown.is_empty() or not _roll.is_empty() or not _turn.is_empty() or _clinch_shown == TAKEDOWN_ENDED
 		figures[i].body.avoid = other.trunk() if other != null else ([] as Array[Vector3])
 		figures[i].body.settle(delta)
 	if figures.size() == 2:  # The first again, against where the second ended up.
@@ -1124,13 +1124,15 @@ func ground_frame(sim: FightSim, top: int, where: String = "") -> Array:
 ## `frame`; after a spin-off, standing apart), then the fence rattles if it put a man on it.
 func _pose_turn(sim: FightSim, built: Dictionary, frame: Transform3D, delta: float) -> void:
 	var to: Array = []
-	if built.is_empty():  # Spun off: standing apart where they were, the other way round.
-		to = [ClinchPair.apart(), Transform3D(_turn.from[1]) * Transform3D(Basis(Vector3.UP, PI), Vector3.ZERO)]
+	var start: Array = _turn.from
+	if built.is_empty():  # Spin into the standing fighters' actual sides and centre.
+		start = ClinchPair.for_actor(start, false)
+		to = [ClinchPair.apart(), clinch_frame()]
 	else:
 		to = ClinchPair.effective(built, frame)
 	_turn.left = float(_turn.left) - delta
 	var t: float = clampf(1.0 - float(_turn.left) / TURN_SECONDS, 0.0, 1.0)
-	ClinchPair.turning(_clinch_rigs[0], _clinch_rigs[1], _turn.from, to, t)
+	ClinchPair.turning(_clinch_rigs[0], _clinch_rigs[1], start, to, t)
 	for i in 2:
 		figures[i].body.follow(_clinch_rigs[i])
 	if t >= 1.0:
