@@ -389,6 +389,8 @@ func body_pose() -> Dictionary:
 		pose["knee_" + side] = _thighs[i].global_transform * Vector3(0, -FighterMotion.THIGH, 0)
 		pose["ankle_" + side] = _shins[i].global_transform * Vector3(0, -FighterMotion.SHIN, 0)
 		pose["foot_" + side] = _feet[i].global_basis.orthonormalized()
+		if motion._enabled[i] and not motion._enabled[1 - i]:
+			pose["ball_" + side] = motion.feet[i] + global_basis * Vector3(0, 0, -FOOT_BALL) - Vector3.UP * 0.032
 	# Short strikes aim their middle joint, not the endpoint (D421). Retarget in the body's own lengths.
 	var action: String = _outcome_action
 	if AIMS.has(action) and bool(AIMS[action].get("joint", false)):

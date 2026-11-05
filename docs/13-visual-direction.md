@@ -1363,6 +1363,8 @@ After the posed body settles, a toe below the canvas pitches up around its own a
 
 When a ground head strike hits a cover, the fitted striking arm stops on the forearm in its path. The posture bomb rises during its preparation and starts coming down before the active tick. In the crucifix the trapped arm stays between the rider's legs while the free glove covers the brow. Motion checks cover the striking joint and forearm through the block and release for either attacker and lead.
 
+When one leg kicks or checks, the foot planner keeps the remaining support on the mat. A step already in flight lands below its current position. The fitted supporting foot pivots around its own forefoot, with the ankle following the model's actual foot dimensions. Ordinary two-foot stepping resumes when the raised leg returns.
+
 ### Entering paired takedowns and stand-ups
 
 The first throw or scramble key is expressed in the actor's frame. Changing which man leads relabels the roles. Turning the frame also transforms the pose into that frame, so both fighters keep their world positions and facings. The key chain uses the nearby equivalent lean angle when a flat guard pose starts a stand-up. The takedown-view test checks the first hips and heads for either actor and grip owner. The scramble-view test follows both bodies through standing out of half guard.
