@@ -76,7 +76,7 @@ func get_position(id: String) -> Dictionary:
 func leads_somewhere(id: String, role: String, action: Dictionary) -> bool:
 	var block: Dictionary = action.get(action.category, {})
 	if not MOVING_CATEGORIES.has(action.category) or block.has("ties_up_ms") or block.has("drives_m") or block.get("turns", false) \
-			or block.has("grip"):
+			or block.has("grip") or block.has("posts_ms") or block.get("clears_post", false):
 		return true
 	return not transition(id, role, action.id).is_empty()
 

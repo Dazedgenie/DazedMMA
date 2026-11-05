@@ -13,7 +13,8 @@
 	"opportunities": [
 		{ "opponent_flag": "COMING_IN", "success_bonus": 0.10, "stops": true },
 		{ "opponent_flag": "ONE_LEG", "success_bonus": 0.15 },
-		{ "opponent_flag": "LEANING", "success_bonus": 0.10 }
+		{ "opponent_flag": "LEANING", "success_bonus": 0.10 },
+		{ "own_flag": "HEAD_POSTED", "success_bonus": -0.15 }
 	],
 	"requires_technique": null
 }

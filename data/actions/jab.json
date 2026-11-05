@@ -11,7 +11,9 @@
 	"strike": { "target": "head", "base_damage": 3 },
 	"stats": { "offense": ["boxing", "speed"], "defense": ["striking_defense"] },
 	"opportunities": [
-		{ "opponent_flag": "COMING_IN", "success_bonus": 0.10, "stops": true }
+		{ "opponent_flag": "COMING_IN", "success_bonus": 0.10, "stops": true },
+		{ "own_flag": "POSTING", "success_bonus": -0.30 },
+		{ "own_flag": "HEAD_POSTED", "success_bonus": -0.15 }
 	],
 	"requires_technique": null
 }

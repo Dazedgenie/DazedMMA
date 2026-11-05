@@ -182,6 +182,10 @@ func test_skipping_the_minigame_lets_the_session_auto_resolve() -> void:
 
 
 func test_a_ticked_film_study_plays_his_tape_first_and_its_score_counts() -> void:
+	# Camp seed 2: the sample man is a Boxer whose tape has his habit in it. Seed 1's (a GnP wrestler since the 16th
+	# style, D495) is one of the odd tapes where he never shows it, so there's nothing to mark.
+	_planner = CampPlanner.new(FighterLibrary.load_dir().profile("wrestler"), 2)
+	add_child_autofree(_planner)
 	_planner.set_slot(0, "film_study")
 	_planner.set_play(0, true)
 	assert_eq(_planner.played_slots(), [0] as Array[int], "film study can be played (D410)")

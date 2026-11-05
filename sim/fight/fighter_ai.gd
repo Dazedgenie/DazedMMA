@@ -70,7 +70,8 @@ const BAND_SPOTS := {
 ## The grips in the clinch (D261) are there to see too, his and your own.
 const STATE_FLAGS := { "HANDS_LOW": true, "BACK_TO_CAGE": true, "HELD_ON_FENCE": true, "BODY_LOCK": true, "WRIST_HELD": true,
 	"FRAMED": true, "ARM_PINNED": true, "TWO_ON_ONE": true, "own FRAMED": true, "own ARM_PINNED": true, "own TWO_ON_ONE": true,
-	"own UNDERHOOK": true, "own BODY_LOCK": true, "own OVERHOOK": true }
+	"own UNDERHOOK": true, "own BODY_LOCK": true, "own OVERHOOK": true, "HEAD_POSTED": true, "POSTING": true,
+	"own HEAD_POSTED": true, "own POSTING": true }
 ## The opponent knocked down (D141, D142): the chance a free tick of following him down, or of a
 ## soccer kick or a stomp where the rules allow them (× 0.5 to 1.5 from the Risk leaning).
 const DOWNED_RATE: float = 0.3
@@ -431,6 +432,15 @@ const ESCAPE_SUB: float = 0.5
 ## COLLAR_RATE × as often (the holder's knees come in a burst, the one tied up fights out), and
 ## the one tied up weights the break and a collar tie of his own COLLARED_ESCAPE × (he wants out).
 ## Nobody ties up a head that's already tied.
+## The head post (D490, docs/01 §47). With his hand on the man's head he digs to the body: his body
+## shots × POST_DIG. Under it, swatting it off weighs SWAT_WEIGHT (× 1 + the Fight IQ above 50 / 50),
+## and tying up (for a man who likes the clinch) × POSTED_TIE_UP.
+const POST_DIG: float = 2.0
+## A post's a moment, not the whole fight (Kyle, D493): after one comes off he doesn't go for the
+## next for POST_AGAIN_TICKS, unless his corner's calling for it (*Post and dig!*).
+const POST_AGAIN_TICKS: int = 300
+const SWAT_WEIGHT: float = 1.5
+const POSTED_TIE_UP: float = 2.0
 const COLLAR_RATE: float = 2.0
 const COLLARED_ESCAPE: float = 3.0
 ## The cage clinch (D220, docs/01 §39). How much a fighter likes fighting on the fence is his
@@ -544,6 +554,8 @@ var _burst_way: int = 0
 var _burst_read_at: int = -1000
 ## When it last started a feint as bait (D236): a bite on that one opens a counter.
 var _bait_at: int = -1000
+## When this fighter's last head post came off (D493, POST_AGAIN_TICKS).
+var _post_off_at: int = -1000
 ## Which way they circle in open space (±1), thought again at _way_at + SWITCH_EVERY.
 var _way: int = 1
 var _way_at: int = -SWITCH_EVERY
@@ -1092,6 +1104,10 @@ func _lead(view: FightView, layer: DecisionLayer) -> Decision:
 	var setup: String = _setups.get(id, "")
 	if setup != "" and view.me.repertoire.has(setup) and _usable(view, view.actions.get_action(setup)):
 		return Decision.new(setup, DecisionLayer.AI, "sets up the %s" % String(view.actions.get_action(id).name).to_lower())
+	if id == FightSim.HEAD_POST:
+		return Decision.new(id, DecisionLayer.AI, "posts on his head against the fence")
+	if id == FightSim.SWAT_POST:
+		return Decision.new(id, DecisionLayer.AI, "swats the hand off his head")
 	return Decision.new(id, DecisionLayer.AI, "swarms" if view.opponent.is_rocked() else "leads")
 
 
@@ -1237,6 +1253,10 @@ func _tied(view: FightView, layer: DecisionLayer) -> Decision:
 			FightSim.STRIP_GRIP:
 				w *= maxf(CLINCH_BREAK_MIN, 1.0 - base - range_leaning / 2.0) * GRIP_PER_HIS * view.opponent_underhooks()
 				reason = "strips the underhook"
+			FightSim.HEAD_POST:
+				reason = "posts on his head against the fence"
+			FightSim.SWAT_POST:
+				reason = "swats the hand off his head"
 			FightSim.COLLAR_TIE:
 				if holding:
 					w = 0.0
@@ -1628,8 +1648,17 @@ func _score(view: FightView, layer: DecisionLayer, action: Dictionary, chance: f
 	if action.category == STRIKE:
 		w *= commitment(_lean(view, layer, StyleLeanings.RISK), view.actions.total_ticks(action.id), _danger.get(_band, DANGER_EVEN))
 		w *= _finishing(view, layer, action)
+	elif action.category == CLINCH and is_post_move(action):
+		if action.clinch.has("posts_ms") and view.now < _post_off_at + POST_AGAIN_TICKS and layer.calls.focus_weight(action.id) <= 1.0:
+			return 0.0  # Just had one; it's a moment, not the whole fight (D493).
+		if action.clinch.get("clears_post", false):
+			w *= SWAT_WEIGHT * maxf(0.5, 1.0 + (f.effective_stat("fight_iq") - 50.0) / 50.0)  # Get the hand off his head (D490).
 	elif action.category == CLINCH and view.is_standing():
 		w *= clinch_liking(_lean(view, layer, StyleLeanings.BASE), _lean(view, layer, StyleLeanings.RANGE)) if _clinch_weapon else 0.0
+		if view.posted():
+			w *= POSTED_TIE_UP  # Tie him up to get out from under the post (D490).
+	if action.category == STRIKE and action.strike.target == "body" and view.posting():
+		w *= POST_DIG  # The hand's on his head: dig to the body (D490).
 	w *= stamina_weight(f, action)
 	w *= _working_weight(view, action.id)
 	if not _caught.is_empty():
@@ -1639,6 +1668,11 @@ func _score(view: FightView, layer: DecisionLayer, action: Dictionary, chance: f
 	if counter:
 		w *= FightSim.COUNTER_DAMAGE
 	return layer.weight(view, action, w)
+
+
+## True for the head post and swatting it off (D490): clinch moves that work on the feet as well.
+static func is_post_move(action: Dictionary) -> bool:
+	return action.category == CLINCH and (action.clinch.has("posts_ms") or action.clinch.get("clears_post", false))
 
 
 ## The Base leaning: +100 doubles takedowns and halves strikes, −100 never shoots.
@@ -1713,8 +1747,8 @@ func _pick(view: FightView, weights: Array[float]) -> int:
 
 ## Odds with only what anyone can see (the opponent's state flags), no reads.
 func _seen_chance(_view: FightView, action: Dictionary, b: OddsBreakdown) -> float:
-	if _needs_opening(action) or b.missing.begins_with("own "):
-		return 0.0  # A read has to spot it, or it needs his own back on the fence and it isn't (D220).
+	if _needs_opening(action) or b.missing.begins_with("own ") or (b.missing != "" and STATE_FLAGS.has(b.missing)):
+		return 0.0  # A read has to spot it, or it needs his own back on the fence and it isn't (D220), or the other man's (D490).
 	var bonus: float = 0.0
 	for x: Dictionary in b.bonuses:
 		if STATE_FLAGS.has(x.name):
@@ -2194,8 +2228,9 @@ func _plan_moves(view: FightView, f: FighterState) -> Array:
 	for id in ids:
 		var action: Dictionary = view.actions.get_action(id)
 		if (action.category != STRIKE and action.category != TAKEDOWN and action.category != CLINCH) \
-				or not view.ruleset.allows_action(action) or _needs_opening(action) or not action.positions.has(PositionLibrary.STANDING):
-			continue
+				or not view.ruleset.allows_action(action) or _needs_opening(action) or not action.positions.has(PositionLibrary.STANDING) \
+				or is_post_move(action):
+			continue  # The head post and the swat are moments on the fence, not what a range is worth (D490).
 		var ticks: int = view.actions.total_ticks(id)
 		var bands: Array[int] = []
 		for n in BANDS.size():
@@ -2266,6 +2301,9 @@ func on_event(view: FightView, event: FightEvent, layer: DecisionLayer) -> void:
 				_opp = {}
 		FightEvent.STRIKE_LANDED, FightEvent.STRIKE_MISSED:
 			_scored(event, me)
+		FightEvent.POST_ENDED:
+			if event.actor == me:
+				_post_off_at = event.tick  # D493.
 		FightEvent.GRAPPLE_WON, FightEvent.GRAPPLE_STOPPED:
 			if event.actor != me and _last_move != "" and _timed_on_me(view, event):
 				_caught[_last_move] = int(_caught.get(_last_move, 0)) + 1

@@ -58,6 +58,8 @@ const RECIPES := {
 	"uppercut": { "thump": 120.0, "decay": 0.07, "snap": 0.75, "bright": 0.65, "swish": 0.18, "tone": 0.75, "gain": 0.95 },
 	"overhand": { "thump": 100.0, "decay": 0.10, "snap": 0.90, "bright": 0.55, "swish": 0.24, "tone": 0.50, "gain": 1.05 },
 	"body_hook": { "thump": 80.0, "decay": 0.11, "snap": 0.40, "bright": 0.30, "swish": 0.20, "tone": 0.50, "gain": 1.00 },
+	"rear_body_hook": { "thump": 76.0, "decay": 0.12, "snap": 0.45, "bright": 0.30, "swish": 0.22, "tone": 0.45, "gain": 1.05 },
+	"short_body_hook": { "thump": 82.0, "decay": 0.10, "snap": 0.40, "bright": 0.28, "swish": 0.10, "tone": 0.50, "gain": 0.90 },
 	"short_hook": { "thump": 125.0, "decay": 0.06, "snap": 0.70, "bright": 0.60, "swish": 0.10, "tone": 0.60, "gain": 0.85 },
 	"short_uppercut": { "thump": 130.0, "decay": 0.06, "snap": 0.70, "bright": 0.65, "swish": 0.10, "tone": 0.70, "gain": 0.85 },
 	"ground_punch": { "thump": 105.0, "decay": 0.07, "snap": 0.55, "bright": 0.50, "swish": 0.10, "tone": 0.55, "gain": 0.85 },

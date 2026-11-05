@@ -55,6 +55,8 @@ const AIMS := {
 	"body_hook": { "limb": "lead_arm", "point": "body", "contact": 0.8, "across": 0.12, "bend": "out" },
 	"short_hook": { "limb": "lead_arm", "point": "head", "contact": 0.7, "across": 0.1, "bend": "out" },
 	"short_uppercut": { "limb": "rear_arm", "point": "head", "contact": 0.7, "across": 0.0, "bend": "under" },
+	"rear_body_hook": { "limb": "rear_arm", "point": "body", "contact": 0.8, "across": 0.12, "bend": "out" },
+	"short_body_hook": { "limb": "rear_arm", "point": "body", "contact": 0.7, "across": 0.1, "bend": "out" },
 	"elbow": { "limb": "rear_arm", "point": "head", "contact": 0.65, "across": 0.08, "bend": "out", "joint": true },
 	"knee": { "limb": "rear_leg", "point": "body", "contact": 0.67, "across": 0.0, "bend": "up", "joint": true },
 	"ground_punch": { "limb": "rear_arm", "point": "head", "contact": 0.0, "across": 0.0, "bend": "down" },
@@ -102,6 +104,12 @@ const HEEL_LIFT: float = 0.6
 const FOOT_BALL: float = 0.09
 ## The labels over his head sit this far (metres) above it, wherever his head is (D281).
 const LABEL_ABOVE_HEAD: float = 0.5
+## The head post (D490): the posting man's lead arm (radians up from hanging, POST_ARM) reaches POST_REACH of its
+## guard length to the other man's head standing, POST_REACH_CLINCH chest to chest; the man under it leans back by POSTED_LEAN.
+const POST_ARM: float = 1.6
+const POST_REACH: float = 1.45
+const POST_REACH_CLINCH: float = 1.0
+const POSTED_LEAN: float = 0.18
 ## Clinch grips you can see (D282): where each hand sits on the other man, in metres from the middle of his
 ## chest: x out to the side the arm is on, y up, z round behind his back. "under": the underhook, under his
 ## arm to the shoulder blade; "over": the overhook, over his arm, clamping it at the triceps; "lock": the body
@@ -132,6 +140,7 @@ const TELLS := {
 	"hook": { "twist": -0.22, "hip_y": -0.03, "arm_lead": -0.2 },
 	"uppercut": { "twist": -0.12, "hip_y": -0.09, "lean": -0.12, "arm_rear": -0.75, "reach_rear": -0.2 },
 	"body_hook": { "twist": -0.18, "hip_y": -0.08, "arm_lead": -0.25 },
+	"rear_body_hook": { "twist": 0.2, "hip_y": -0.08, "arm_rear": -0.25 },
 	"body_kick": { "twist": 0.22, "lean": 0.06, "arm_rear": -0.3 },
 	"head_kick": { "twist": 0.26, "lean": 0.1, "arm_rear": -0.3 },
 	"leg_kick": { "twist": 0.18, "arm_rear": -0.2 },
@@ -179,9 +188,9 @@ const STANCE_PULLS := {
 ## resets over the recovery. A shot that lands carries on by his drive (drive_for: Power over Speed, either side of
 ## DRIVE_SPREAD points): a heavy hitter's LAND_CARRY of the way a miss would, the glove or shin DRIVE_THROUGH metres
 ## through the target; a quick man's punch snaps back to guard in SNAP_RETURN of the recovery.
-const SHIFT := { "jab": 0.03, "cross": 0.07, "hook": 0.03, "overhand": 0.09, "uppercut": 0.04, "body_hook": 0.04,
+const SHIFT := { "jab": 0.03, "cross": 0.07, "hook": 0.03, "overhand": 0.09, "uppercut": 0.04, "body_hook": 0.04, "rear_body_hook": 0.06,
 	"body_kick": 0.03, "head_kick": 0.02, "leg_kick": 0.03, "calf_kick": 0.02, "teep": -0.03 }
-const CARRY := { "jab": 0.15, "cross": 0.6, "hook": 0.8, "overhand": 1.0, "uppercut": 0.5, "body_hook": 0.6,
+const CARRY := { "jab": 0.15, "cross": 0.6, "hook": 0.8, "overhand": 1.0, "uppercut": 0.5, "body_hook": 0.6, "rear_body_hook": 0.6,
 	"body_kick": 0.8, "head_kick": 1.0, "leg_kick": 0.6, "calf_kick": 0.4, "teep": 0.3 }
 const MISS_TURN: float = 0.8
 ## A round kick turns through further than a punch (its hips are already most of the way round).
@@ -601,6 +610,12 @@ func pose_for(sim: FightSim, i: int, fractional_tick: float = 0.0) -> Dictionary
 			p.arm_rear = 1.2
 	elif not hold.is_empty():  # Held in a choke or an arm lock (D282).
 		_sub_pose(p, String(hold.action_id), int(hold.attacker) == i, 1.0)
+	if not f.is_down() and hold.is_empty():
+		if sim.posting(i):  # The head post (D490): his lead arm out straight, the glove on the other man's head.
+			p.arm_lead = POST_ARM
+			p.reach_lead = POST_REACH if sim.situation.is_standing() else POST_REACH_CLINCH
+		elif sim.posted(i):  # His head pushed back on the fence by it.
+			p.lean = float(p.lean) + POSTED_LEAN
 	if f.action_id == "" or not sim.actions.has(f.action_id):
 		return p
 	var reach: float = float(PHASE_REACH.get(f.phase, 0.0))
@@ -701,6 +716,24 @@ func _move_pose(p: Dictionary, f: FighterState, action: Dictionary, reach: float
 			p.reach_lead = lerpf(1.0, 1.15, reach)
 			p.hip_y = lerpf(p.hip_y, HIP_HEIGHT - 0.12, reach)
 			p.twist = lerpf(p.twist, 0.5, reach)
+		"rear_body_hook":  # The rear hand ripped into the ribs under his elbow (D490), dropping the level for it.
+			p.arm_rear = lerpf(p.arm_rear, 1.35, reach)
+			p.reach_rear = lerpf(1.0, 1.15, reach)
+			p.hip_y = lerpf(p.hip_y, HIP_HEIGHT - 0.12, reach)
+			p.twist = lerpf(p.twist, -0.5, reach)
+		"short_body_hook":  # In the clinch, the rear hand dug short into his side (D490).
+			p.arm_rear = lerpf(p.arm_rear, 1.35, reach)
+			p.reach_rear = lerpf(1.0, 0.85, reach)
+			p.hip_y = lerpf(p.hip_y, HIP_HEIGHT - 0.08, reach)
+			p.twist = lerpf(p.twist, -0.4, reach)
+		"head_post":  # The lead arm goes out straight to the other man's head (D490); the post holds it there after.
+			p.arm_lead = lerpf(p.arm_lead, POST_ARM, reach)
+			p.reach_lead = lerpf(1.0, POST_REACH, reach)
+			p.lean = lerpf(p.lean, -0.1, reach)
+		"swat_post":  # The rear hand slaps the arm off his head and away across him (D490).
+			p.arm_rear = lerpf(p.arm_rear, 1.6, reach)
+			p.reach_rear = lerpf(1.0, 1.2, reach)
+			p.twist = lerpf(p.twist, -0.35, reach)
 		"short_uppercut":  # Up the middle from chest to chest.
 			p.arm_rear = lerpf(p.arm_rear, 1.1, reach)
 			p.reach_rear = lerpf(1.0, 0.9, reach)
@@ -1115,9 +1148,9 @@ static func _ease(p: Dictionary, key: String, value: float, amount: float) -> vo
 ## Which body part a move is thrown with ("lead_arm", "rear_leg", "hips" …), for the tell cue.
 static func limb_for(action_id: String) -> String:
 	match action_id:
-		"jab", "hook", "body_hook", "short_hook", "bottom_punch":
+		"jab", "hook", "body_hook", "short_hook", "bottom_punch", "head_post":
 			return "lead_arm"
-		"cross", "uppercut", "short_uppercut", "overhand", "elbow", "ground_punch", "ground_elbow", "hammerfist", \
+		"rear_body_hook", "short_body_hook", "swat_post", "cross", "uppercut", "short_uppercut", "overhand", "elbow", "ground_punch", "ground_elbow", "hammerfist", \
 				"ground_body_punch", "posture_bomb", "bottom_elbow":
 			return "rear_arm"
 		"teep", "stomp", "up_kick":
