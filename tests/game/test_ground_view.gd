@@ -279,6 +279,20 @@ func test_an_interrupted_guard_recovery_reverses_from_the_current_step() -> void
 	assert_true(view._roll.is_empty(), "a new ground strike gets its own pose immediately")
 
 
+func test_a_new_top_fighter_clears_an_interrupted_guard_path() -> void:
+	var setup: Array = _ground("side_control")
+	var sim: FightSim = setup[0]
+	var view: ArenaView = setup[1]
+	_put(sim, "full_guard", 0)
+	_frames(view, 12, 1.0 / 60.0)
+	assert_true(view._roll.has("guard_keys"), "guard recovery is underway")
+	_put(sim, "full_guard", 1)
+	view._process(1.0 / 60.0)
+	assert_true(view._roll.is_empty(), "the old rider's route is discarded")
+	_frames(view, 60, 1.0 / 60.0)
+	assert_gt(view._clinch_rigs[1].point("chest").y, view._clinch_rigs[0].point("chest").y, "the new top fighter has the active hold")
+
+
 func test_ground_reversals_roll_around_the_old_riders_hips() -> void:
 	var moves := [["full_guard", "full_guard", "sweep"], ["half_guard", "half_guard", "sweep"],
 		["mount", "full_guard", "bridge"], ["back_control", "full_guard", "escape_back"]]

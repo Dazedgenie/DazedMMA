@@ -34,6 +34,37 @@ func test_releasing_a_kicking_leg_cancels_its_support_step() -> void:
 	assert_eq(motion.swing, 0)
 	motion.update(goals, [false, true], 0.016)
 	assert_eq(motion.swing, -1, "kicks release the step planner")
+
+
+func test_the_only_supporting_foot_stays_down_during_a_kick() -> void:
+	for kick in 2:
+		var motion := FighterMotion.new()
+		var goals: Array[Vector3] = [Vector3(-0.2, 0.032, -0.2), Vector3(0.2, 0.032, 0.2)]
+		motion.update(goals, [true, true], 0.0)
+		var support: Array[bool] = [true, true]
+		support[kick] = false
+		var planted := motion.feet[1 - kick]
+		for frame in 30:
+			goals[1 - kick].z += 0.008
+			motion.update(goals, support, 1.0 / 60.0)
+			assert_eq(motion.swing, -1, "the remaining support cannot start a step")
+			assert_almost_eq(motion.feet[1 - kick], planted, Vector3.ONE * 0.0001, "the foot stays at its planted spot")
+		motion.update(goals, [true, true], 1.0 / 60.0)
+		assert_eq(motion.swing, 1 - kick, "normal stepping resumes with both feet available")
+
+
+func test_the_supporting_foot_lands_when_the_other_leg_lifts() -> void:
+	var motion := FighterMotion.new()
+	var goals: Array[Vector3] = [Vector3(-0.2, 0.032, -0.2), Vector3(0.2, 0.032, 0.2)]
+	motion.update(goals, [true, true], 0.0)
+	goals[1].z += 0.3
+	motion.update(goals, [true, true], 0.01)
+	motion.update(goals, [true, true], 0.08)
+	assert_gt(motion.feet[1].y, goals[1].y, "the step has lifted")
+	var spot := motion.feet[1]
+	motion.update(goals, [false, true], 0.016)
+	assert_eq(motion.swing, -1)
+	assert_almost_eq(motion.feet[1], Vector3(spot.x, goals[1].y, spot.z), Vector3.ONE * 0.0001, "lands under the current foot position")
 	goals[0].z = -0.5
 	motion.update(goals, [true, true], 0.016)
 	assert_eq(motion.feet[0], goals[0], "a returning foot replants at its current stance")
@@ -83,3 +114,33 @@ func test_a_punch_extends_through_windup_and_returns_to_guard_during_recovery() 
 	assert_almost_eq(float(figure.pose_for(sim, 0).reach_rear), float(extended.reach_rear), 0.001, "no jump at recovery start")
 	f.phase_ticks_left = 0
 	assert_almost_eq(float(figure.pose_for(sim, 0).reach_rear), 1.0, 0.001, "back in guard by recovery end")
+
+
+func test_the_fitted_support_foot_pivots_at_its_own_forefoot() -> void:
+	for action: String in ["teep", "body_kick", "knee", "check_kick"]:
+		for lead: float in [-1.0, 1.0]:
+			var sim := FightSim.new(3, FighterLibrary.load_dir().make_pair("kicker", "boxer"), ActionLibrary.load_dir())
+			sim.fighters[0].pos = Vector2(-0.9, 0.0)
+			sim.fighters[1].pos = Vector2(0.9, 0.0)
+			var view := ArenaView.new()
+			add_child_autofree(view)
+			view.watch(FightDriver.new(sim))
+			view.figures[0].lead = lead
+			var fighter: FighterState = sim.fighters[0]
+			fighter.action_id = action
+			fighter.phase = "active"
+			fighter.phase_ticks_left = 1
+			for frame in 60:
+				view._process(1.0 / 60.0)
+			var figure: FighterFigure = view.figures[0]
+			var pose := figure.body_pose()
+			var supports := 0
+			for side: String in ["l", "r"]:
+				if not pose.has("ball_" + side):
+					continue
+				supports += 1
+				var bone := "LeftToeBase" if side == "l" else "RightToeBase"
+				var wanted: Vector3 = pose["ball_" + side] + Vector3.UP * figure.body._at(bone).y
+				assert_lt(figure.body._world_at(bone).distance_to(wanted), 0.045, action + " pivots about its fitted forefoot")
+			assert_eq(supports, 1, action + " has one planted supporting foot")
+			assert_eq(figure.motion.swing, -1, action + " keeps the supporting foot down")

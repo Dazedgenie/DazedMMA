@@ -1363,6 +1363,8 @@ After the posed body settles, a toe below the canvas pitches up around its own a
 
 When a ground head strike hits a cover, the fitted striking arm stops on the forearm in its path. The posture bomb rises during its preparation and starts coming down before the active tick. In the crucifix the trapped arm stays between the rider's legs while the free glove covers the brow. Motion checks cover the striking joint and forearm through the block and release for either attacker and lead.
 
+When one leg kicks or checks, the foot planner keeps the remaining support on the mat. A step already in flight lands below its current position. The fitted supporting foot pivots around its own forefoot, with the ankle following the model's actual foot dimensions. Ordinary two-foot stepping resumes when the raised leg returns.
+
 Sweeps, bridges and back escapes capture the old rider's visible hip position at the event. The paired route rolls around that anchor, settles on the mat and opens the legs before the final hooks close. The half-guard sweeper first comes up beside the hips, then settles into half guard. During the exchange the fitted knees and ankles share contact corrections with fixed thigh and shin lengths. Both actors are checked at 30 and 60 frames per second, including the return to ordinary hold targets and the end of the temporary contact correction.
 
 ### Entering paired takedowns and stand-ups

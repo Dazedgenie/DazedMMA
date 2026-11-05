@@ -29,6 +29,13 @@ func update(goals: Array[Vector3], support: Array[bool], delta: float) -> void:
 		_enabled[i] = support[i]
 	if delta <= 0.0:
 		return
+	if not support[0] or not support[1]:
+		# A kicking or checking leg leaves the other foot as the only support.
+		# Land any step already in flight and keep that foot planted.
+		if swing >= 0:
+			feet[swing].y = goals[swing].y
+			swing = -1
+		return
 	if swing >= 0:
 		progress = minf(1.0, progress + delta / STEP_TIME)
 		var ease: float = smoothstep(0.0, 1.0, progress)

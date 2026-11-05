@@ -594,6 +594,12 @@ func _sink_to_feet(pose: Dictionary) -> float:
 
 ## Where the driver's `side` ankle wants this body's ankle (its ankle height over the sole may differ).
 func _foot_target(pose: Dictionary, side: String) -> Vector3:
+	if pose.has("ball_" + side):
+		# The fitted forefoot stays at the planted point as the heel pivots.
+		var prefix := "Left" if side == "l" else "Right"
+		var ankle := _at(prefix + "Foot")
+		var toe := _at(prefix + "ToeBase")
+		return Vector3(pose["ball_" + side]) + Vector3.UP * toe.y - Basis(pose["foot_" + side]) * (toe - ankle)
 	var end_at: Vector3 = pose["ankle_" + side]
 	if pose.has("ankle_up"):
 		end_at += Basis(pose["foot_" + side]).y * (_at("RightFoot").y - float(pose.ankle_up))
