@@ -682,6 +682,47 @@ func keep_out() -> void:
 	_remember_shown()
 
 
+## The body's actual reach and bend can differ from the driver's aim. If either visible
+## segment crosses a guard, keep the elbow/knee and tip on the striking side of it.
+func clear_strike_from_guard(other: SkinnedBody, side: String, arm: bool, toward: Vector3) -> void:
+	var prefix := "Left" if side == "l" else "Right"
+	var upper := prefix + ("Arm" if arm else "UpLeg")
+	var lower := prefix + ("ForeArm" if arm else "Leg")
+	var end := prefix + ("Hand" if arm else "Foot")
+	var root := _world_at(upper)
+	var middle := _world_at(lower)
+	var tip := _world_at(end)
+	var limit := INF
+	for guard_side: String in ["Left", "Right"]:
+		var guard: Array[Vector3] = [other._world_at(guard_side + "ForeArm"), other._world_at(guard_side + "Hand")]
+		if FighterRig.limb_clearance(root, middle, tip, guard) < 0.13:
+			limit = minf(limit, minf(guard[0].dot(toward), guard[1].dot(toward)) - 0.13)
+	if not is_finite(limit):
+		return
+	var target := tip - toward * maxf(0.0, tip.dot(toward) - limit)
+	var pole := middle - root.lerp(target, 0.5)
+	var chain := FighterMotion.solve_bones(root, target, pole, root.distance_to(middle), middle.distance_to(tip))
+	var bent: Vector3 = chain[0]
+	var axis := root.direction_to(chain[1])
+	var normal := toward - toward.project(axis)
+	var centre := root + (bent - root).project(axis)
+	var radius := bent.distance_to(centre)
+	if bent.dot(toward) > limit and normal.length() * radius > 0.0001:
+		var fraction := clampf((limit - centre.dot(toward)) / (normal.length() * radius), -1.0, 1.0)
+		var outward := normal.normalized()
+		var tangent := axis.cross(outward)
+		if tangent.dot(bent - centre) < 0.0:
+			tangent = -tangent
+		bent = centre + radius * (outward * fraction + tangent * sqrt(1.0 - fraction * fraction))
+	var pose := skeleton.global_transform.affine_inverse()
+	var turn := (skeleton.global_basis * skeleton.get_bone_global_pose(_ids[end]).basis).orthonormalized()
+	var bend := bent - root.lerp(chain[1], 0.5)
+	_aim_bone(upper, lower, root, bent, bend, arm, pose)
+	_aim_bone(lower, end, bent, chain[1], bend, arm, pose)
+	_set_world(end, Transform3D(turn, chain[1]), pose)
+	_remember_shown()
+
+
 ## Moves the whole posed body without changing its limbs, and remembers the corrected result (D422).
 func translate_pose(offset: Vector3) -> void:
 	var id: int = _ids.Hips

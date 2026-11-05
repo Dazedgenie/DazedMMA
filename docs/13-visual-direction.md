@@ -1344,6 +1344,12 @@ kick-clearance and paired-strike tests pass. `tools/defence_preview.gd --motion`
 at 20 fps from 60 Hz updates, revealing the outcome at contact. These are contact repairs, not a
 complete swept-mesh guarantee; missed-strike trajectories and punch wind-up continuity remain open.
 
+### Standing misses and the guard
+
+While a head strike approaches, its target stays on the striking side of the visible guard. On a miss it can carry forward once it clears the side of the guard. If the final body’s elbow or shin still cuts through a guarding arm, the body re-solves the offending limb and turns its bend while preserving both bone lengths. The cage correction runs after the adjustment. Landed and blocked strikes retain their contact targets.
+
+The miss regression reveals the result at the active phase and samples follow-through and recovery in both corners and leads. It measures head/body and guard clearances, limb length and joint travel at 60 Hz for the jab, cross, hook, overhand and body/head kicks.
+
 ## Review and verification
 
 Open `project.godot` in Godot 4.7.2 and run the game normally. Start a fight and check striking,

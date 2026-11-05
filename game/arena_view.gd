@@ -555,6 +555,9 @@ func _settle_bodies(delta: float) -> void:
 	if figures.size() == 2:  # The first again, against where the second ended up.
 		figures[0].body.avoid = figures[1].body.trunk()
 		figures[0].body.keep_out()
+	if driver != null and driver.sim.situation.is_standing() and not driver.sim.fighters[0].is_down() and not driver.sim.fighters[1].is_down():
+		for figure in figures:
+			figure.protect_missed_head_strike()
 	_keep_bodies_in_cage()
 
 
