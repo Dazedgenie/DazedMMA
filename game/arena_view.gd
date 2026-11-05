@@ -269,6 +269,12 @@ var _hall_turn: float = 0.0
 ## finish's replay from another angle, closer in (D436, FinishReplay).
 var view_turn: float = 0.0
 var view_zoom: float = 1.0
+## The camera turned by hand (D472–D476, FreeCamera): main feeds it the right-drag, wheel and keys. The fighters are
+## still laid out from camera_swing, the camera's own; only the camera's aim takes the hand's.
+var free_cam := FreeCamera.new()
+## Where the camera is aimed this frame, the hand's turn included (radians, as camera_from takes them).
+var aimed_swing: float = 0.0
+var aimed_rise: float = 0.0
 var debug_marks: bool = false:
 	set(value):
 		debug_marks = value
@@ -347,6 +353,7 @@ func watch(p_driver: FightDriver) -> void:
 	_tell_until = [-1, -1]
 	_offset = [Vector2.ZERO, Vector2.ZERO]
 	_facing_set = false
+	free_cam.clear()  # Each fight (and each replay of a finish) starts on the normal camera.
 	driver = p_driver
 	_tag.visible = driver != null
 	if driver == null:
@@ -395,6 +402,7 @@ func watch(p_driver: FightDriver) -> void:
 
 
 func _process(delta: float) -> void:
+	free_cam.advance(delta)
 	if driver == null:
 		_place_camera(delta)
 		return
@@ -428,7 +436,7 @@ func _process(delta: float) -> void:
 	for i in figures.size():
 		var at: Vector2 = shown[i]
 		figures[i].label_scale = zoom_share()
-		figures[i].show_state(sim, i, at, at + Vector2.from_angle(_facing[i]), delta, delta * driver.rate())
+		figures[i].show_state(sim, i, at, at + Vector2.from_angle(_facing[i]), delta, delta * driver.motion_rate())
 		figures[i].show_tell(_tell_limb[i] if tell_cues and sim.now <= _tell_until[i] else "")
 		if drill or backdrop:
 			figures[i].hide_overhead()
@@ -508,8 +516,7 @@ func _play_moment(sim: FightSim, delta: float) -> void:
 	_snap_view = false
 	camera_swing = lerp_angle(camera_swing, _swing_want, turn)
 	camera_rise = lerpf(camera_rise, _rise_want, turn)
-	camera.position = _focus + camera_from(camera_swing, camera_rise) * distance
-	camera.look_at(_focus, Vector3.UP)
+	_aim(camera_swing, camera_rise, distance, 1.0)
 	if _venue != null:
 		_venue.show_near_fence(shown, delta, camera.position)
 
@@ -930,7 +937,7 @@ func _show_marks(sim: FightSim, delta: float) -> void:
 	for i in 2:
 		if figures[i].body == null:
 			continue
-		marks[i].update(sim.fighters[i], delta * driver.rate(), minutes)
+		marks[i].update(sim.fighters[i], delta * driver.motion_rate(), minutes)
 		figures[i].body.set_damage(marks[i])
 
 
@@ -1946,7 +1953,7 @@ func _show_tag(sim: FightSim, middle: Vector2, delta: float) -> void:
 	# Labels are sized in metres: shrink them as the camera moves in so they stay the same on screen.
 	_tag.scale = Vector3.ONE * _tag_scale * zoom_share()
 	# Just in front of the fighters as the camera sees them, on the canvas.
-	_tag.position = Vector3(middle.x, 0.05, middle.y) + Vector3(0.9, 0.0, 0.9).rotated(Vector3.UP, camera_swing)
+	_tag.position = Vector3(middle.x, 0.05, middle.y) + Vector3(0.9, 0.0, 0.9).rotated(Vector3.UP, free_cam.aim_swing(camera_swing))
 
 
 ## The fight screen's HUD names a locked-in hold on its danger meter, so the words under the fighters step aside for
@@ -2027,8 +2034,37 @@ func _place_camera(delta: float, middle: Vector2 = Vector2.ZERO, sim: FightSim =
 	var turn: float = 1.0 - exp(-CAMERA_TURN_SPEED * delta)
 	camera_swing = lerp_angle(camera_swing, _swing_want, turn)
 	camera_rise = lerpf(camera_rise, _rise_want, turn)
-	camera.size = _zoom * view_zoom
-	camera.position = _focus + camera_from(camera_swing + view_turn, camera_rise) * distance * view_zoom
+	_aim(camera_swing + view_turn, camera_rise, distance, view_zoom)
+
+
+## Turns the camera by hand `turn` radians round and `tilt` up (D472–D476: the arrow keys).
+func turn_camera(turn: float, tilt: float) -> void:
+	free_cam.turn_by(turn, tilt, aimed_swing, aimed_rise)
+
+
+## A right-drag of `pixels` across the screen.
+func drag_camera(pixels: Vector2) -> void:
+	free_cam.drag(pixels, aimed_swing, aimed_rise)
+
+
+## Zooms it `notches` wheel notches in (negative is out).
+func zoom_camera(notches: float) -> void:
+	free_cam.zoom_by(notches, aimed_swing, aimed_rise)
+
+
+## Puts it back to the normal camera (C), easing there.
+func reset_camera() -> void:
+	free_cam.reset()
+
+
+## Aims the camera at the focus from `swing` and `rise` at `distance` times `zoom`, with the hand's turn laid over
+## them (D472–D476): what the camera would do on its own, unless it's been turned.
+func _aim(swing: float, rise: float, distance: float, zoom: float) -> void:
+	aimed_swing = free_cam.aim_swing(swing)
+	aimed_rise = free_cam.aim_rise(rise)
+	var share: float = zoom * free_cam.aim_zoom()
+	camera.size = _zoom * share
+	camera.position = _focus + camera_from(aimed_swing, aimed_rise) * distance * share
 	camera.look_at(_focus, Vector3.UP)
 
 
