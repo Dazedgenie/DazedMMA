@@ -1354,6 +1354,10 @@ The two final-body regression tests sample the fighters at 60 Hz. They cover twe
 
 The referee checks the route to his usual stop position against both fighters' visible legs and trunks. When the route crosses their bodies, he chooses another approach alongside them, inside the fence. The referee regression samples the moving lower limbs throughout the intervention from either corner.
 
+### Between-rounds corner clearance
+
+The coach and cutman enter and leave on their own sides of the stool. The coach crouches beside the nearer visible knee and gestures with the other hand. The cutman supports the near shoulder or reaches the brow when treating a cut. Ceremony tests follow both corners through sitting, working, standing and walking out.
+
 ## Review and verification
 
 The side-control arm triangle sprawls alongside the defender, with the hands closing at the neck and nape. In the guard triangle the controlling hand stays beside the nape during the squeeze. Submission-view tests sample the approximate skull center and controlling segments throughout tightening in both corners, and check that the hands can meet in the arm triangle.

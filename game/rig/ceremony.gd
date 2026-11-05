@@ -27,7 +27,7 @@ const NEUTRAL_ANGLE: float = PI * 1.625
 const POST_RADIUS: float = 4.871
 ## How far in from his post a man's stool is, where his corner team come in at, and where the referee waits.
 const STOOL_IN: float = 0.8
-const TEAM_IN: float = 0.35
+const TEAM_IN: float = 0.65
 const REFEREE_IN: float = 1.0
 ## The stool: seat height and size (m).
 const SEAT_HEIGHT: float = 0.5
@@ -35,8 +35,8 @@ const SEAT_RADIUS: float = 0.19
 const STOOL_COLOUR := Color(0.1, 0.1, 0.11)
 ## Where the coach crouches (in front of the stool, a little to one side so the camera sees past him) and the cutman
 ## stands (at the fighter's side): metres toward the middle and to the side.
-const COACH_AT := Vector2(0.55, 0.5)
-const CUTMAN_AT := Vector2(-0.02, -0.52)
+const COACH_AT := Vector2(0.60, 0.68)
+const CUTMAN_AT := Vector2(-0.02, -0.60)
 ## The corner team's height (shoulders, m).
 const TEAM_SHOULDERS: float = 1.42
 ## Touching gloves: how far apart they stand and for how long (s).
@@ -261,7 +261,8 @@ static func stool_spot(i: int) -> Vector2:
 ## Where his corner team (k: 0 the coach, 1 the cutman) come in at, by his post, and where they work.
 static func team_door(i: int, k: int) -> Vector2:
 	var post: Vector2 = Vector2.from_angle(POST_ANGLES[i])
-	return post * (POST_RADIUS - TEAM_IN) + Vector2(-post.y, post.x) * (0.35 if k == 0 else -0.35)
+	# Approach and leave on the same side of the stool as the work position.
+	return post * (POST_RADIUS - TEAM_IN) + Vector2(post.y, -post.x) * (0.60 if k == 0 else -0.60)
 
 
 static func team_spot(i: int, k: int) -> Vector2:
@@ -598,21 +599,33 @@ func _pose_team() -> void:
 			continue
 		var rig: FighterRig = arena._clinch_rigs[i]
 		var talk: float = sin(TAU * 1.1 * time)
+		var left := men[i].body._world_at("LeftLeg")
+		var right := men[i].body._world_at("RightLeg")
+		var at := Vector3(coach.spot.x, 0.0, coach.spot.y)
+		var knee: Vector3 = left if at.distance_squared_to(left) < at.distance_squared_to(right) else right
+		var hand: String = _near_hand(coach, Vector2(knee.x, knee.z))
+		var sign_side: float = -1.0 if hand == "l" else 1.0
 		coach.pose = {
-			"root": [0, FighterRig.PELVIS_HEIGHT - 0.36, 0.1], "lean": 22, "bend": [8, 0, 0], "head": [10, 0],
-			"hand_l": {"world": rig.point("knee_l"), "pole": [-1, -0.5, 0.3]},
-			"hand_r": {"at": [0.24, 0.98 + 0.06 * talk, -0.34], "pole": [1, -0.6, 0.2]},
+			"root": [0, FighterRig.PELVIS_HEIGHT - 0.43, 0.1], "lean": 36, "bend": [8, 0, 0], "head": [10, 0],
 		}
+		coach.pose["hand_" + hand] = {"world": knee + Vector3.UP * 0.08, "pole": [sign_side, -0.5, 0.3]}
+		coach.pose["hand_" + ("r" if hand == "l" else "l")] = {"at": [-sign_side * 0.34, 0.69 + 0.06 * talk, -0.38], "pole": [-sign_side, -0.6, 0.2]}
 		var cut: int = -1
 		if arena.marks.size() == 2:
 			for side in 2:
 				if arena.marks[i].cut[side]:
 					cut = side
-		var brow: Vector3 = rig.point("head", Vector3((-0.06 if cut == 0 else 0.06), 0.05, -0.1))
+		var brow: Vector3 = rig.point("head", Vector3((-0.07 if cut == 0 else 0.07), 0.05, -0.13))
+		var near_arm := men[i].body._world_at("LeftArm")
+		var far_arm := men[i].body._world_at("RightArm")
+		var cutman_at := Vector3(cutman.spot.x, near_arm.y, cutman.spot.y)
+		if cutman_at.distance_squared_to(far_arm) < cutman_at.distance_squared_to(near_arm):
+			near_arm = far_arm
+		var shoulder: Vector3 = near_arm + (cutman_at - near_arm).normalized() * 0.08
 		cutman.pose = {
 			"root": [0, FighterRig.PELVIS_HEIGHT - 0.1, 0.05], "lean": 24, "bend": [10, 0, 0], "head": [-18, 0],
-			"hand_l": {"world": brow if cut >= 0 else rig.point("nape"), "pole": [-1, -0.4, 0.2]},
-			"hand_r": {"world": rig.point("back_of_head") if cut >= 0 else rig.point("shoulder_r"), "pole": [1, -0.4, 0.2]},
+			"hand_l": {"world": brow if cut >= 0 else rig.point("nape", Vector3(0, 0, 0.025)), "pole": [-1, -0.4, 0.2]},
+			"hand_r": {"world": rig.point("back_of_head", Vector3(0, 0, 0.04)) if cut >= 0 else shoulder, "pole": [1, -0.4, 0.2]},
 		}
 
 

@@ -285,3 +285,44 @@ func test_the_round_panel_sits_down_the_side_while_the_corners_show() -> void:
 	assert_true(hud.dialog_on_side())
 	hud.show_dialog("Paused", "", [])
 	assert_false(hud.dialog_on_side(), "the other dialogs stay in the middle")
+
+func test_corner_staff_clear_the_fighters_legs_and_still_reach_them() -> void:
+	var view: ArenaView = _watched()[1]
+	var c := view.ceremony
+	view.driver.held = true
+	view.play_moment(Ceremony.CORNERS)
+	var least: float = INF
+	var seated_frames: int = 0
+	for frame in 600:
+		view._process(1.0 / 30.0)
+		if not c.active():
+			break
+		for i in 2:
+			var legs := _legs(c.men[i].body)
+			for n in 2:
+				for staff_leg in _legs(c.team[2 * i + n].body):
+					for leg in legs:
+						var near := Geometry3D.get_closest_points_between_segments(staff_leg[0], staff_leg[1], leg[0], leg[1])
+						least = minf(least, near[0].distance_to(near[1]))
+		if c.beat == "seated":
+			seated_frames += 1
+			if seated_frames == 30:
+				for i in 2:
+					var knee_gap: float = INF
+					for hand: String in ["RightHand", "LeftHand"]:
+						for knee: String in ["LeftLeg", "RightLeg"]:
+							knee_gap = minf(knee_gap, c.team[2 * i].body._world_at(hand).distance_to(c.men[i].body._world_at(knee)))
+					assert_between(knee_gap, 0.05, 0.15, "coach reaches the knee surface")
+					assert_lt(c.team[2 * i + 1].body._world_at("LeftHand").distance_to(c.men[i].body._world_at("Neck")), 0.17, "cutman reaches the nape")
+				view.play_moment(Ceremony.OUT)
+	assert_eq(seated_frames, 30, "checked the entire sit and rise")
+	assert_gt(least, 0.15, "corner staff walk and crouch outside the fighters' legs")
+
+
+func _legs(body: SkinnedBody) -> Array[PackedVector3Array]:
+	var segments: Array[PackedVector3Array] = []
+	for side: String in ["Left", "Right"]:
+		var knee := body._world_at(side + "Leg")
+		segments.append(PackedVector3Array([body._world_at(side + "UpLeg"), knee]))
+		segments.append(PackedVector3Array([knee, body._world_at(side + "Foot")]))
+	return segments
