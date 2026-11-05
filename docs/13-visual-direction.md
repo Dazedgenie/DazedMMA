@@ -104,8 +104,9 @@ miss each look different. All of it reads the sim's state and events; nothing he
   `FOOT_PIVOT` (35% of the hip turn for the lead foot, 80% for the rear), and the rear heel lifts `HEEL_LIFT`
   (0.6 rad per radian of turn, at most 0.45). Round kicks turn the hips over further than before (body kick 1.0 rad,
   head kick 1.1, leg kick 0.7).
-- **The near fence** (`LocalVenue.show_near_fence`). The camera-side panels stay cut down to a rail, but a panel fades
-  in, see-through (`NEAR_FENCE_ALPHA` 0.7), while a fighter is within `NEAR_FENCE_WITHIN` (1.2 m) of it.
+- **The near fence** (`LocalVenue.show_near_fence`). Panels between the live camera and the cage lose their
+  upper rail and post. Their wire fades in at 22% opacity while a fighter is within 1.2 m of that panel.
+  When the camera moves to the other side, the full rail and pad return and the wire keeps its current bend.
 - **Labels.** The move label, call label, delay ring, stars and the tell's "!" sit `LABEL_ABOVE_HEAD` (0.5 m) over
   his head wherever it is, standing or down, and the two move labels lean apart on screen when both are up.
 

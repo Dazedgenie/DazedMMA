@@ -436,12 +436,12 @@ func _process(delta: float) -> void:
 	_hold_finish(delta)
 	_facing_set = true
 	var middle: Vector2 = (spots[0] + spots[1]) / 2.0 + _ground_shift
-	if _venue != null:
-		_venue.show_near_fence(shown, delta)
 	_show_tag(sim, middle, delta)
 	# While a hold is locked in, the HUD's danger meter names it, just where the words would sit (D466).
 	_tag.visible = not drill and not backdrop and (not hud_names_holds or sim.hold().is_empty())
 	_place_camera(delta, middle, sim, shown)
+	if _venue != null:
+		_venue.show_near_fence(shown, delta, camera.position)
 	if debug_marks:
 		for i in _want_rings.size():
 			var want: float = sim.last_wanted_distance(i)
@@ -493,8 +493,6 @@ func _play_moment(sim: FightSim, delta: float) -> void:
 	ceremony.advance(delta)
 	_show_marks(sim, delta)
 	var shown: Array[Vector2] = [ceremony.men[0].spot, ceremony.men[1].spot]
-	if _venue != null:
-		_venue.show_near_fence(shown, delta)
 	var view: Dictionary = ceremony.view()
 	var k: float = 1.0 if _snap_view else 1.0 - exp(-CAMERA_SPEED * delta)
 	var focus: Vector2 = view.focus
@@ -510,6 +508,8 @@ func _play_moment(sim: FightSim, delta: float) -> void:
 	camera_rise = lerpf(camera_rise, _rise_want, turn)
 	camera.position = _focus + camera_from(camera_swing, camera_rise) * distance
 	camera.look_at(_focus, Vector3.UP)
+	if _venue != null:
+		_venue.show_near_fence(shown, delta, camera.position)
 
 
 ## Poses the bodies from the rig in the clinch (D286, D287; CLINCH_POSE_MOVES), easing in and out, playing the

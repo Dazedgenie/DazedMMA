@@ -153,6 +153,24 @@ func test_the_fence_bows_only_on_the_panel_he_is_against() -> void:
 	venue.bow_fence(Vector3.ZERO, 0.0)
 	assert_eq(venue.fence_bowed(), 0.0, "flat again")
 
+
+func test_the_foreground_fence_follows_the_camera_around_all_eight_panels() -> void:
+	var venue := LocalVenue.new()
+	add_child_autofree(venue)
+	for panel: Dictionary in venue.fence_panels:
+		var normal: Vector2 = panel.normal
+		var at := Vector3(normal.x, 0.0, normal.y) * Octagon.APOTHEM
+		var spots: Array[Vector2] = [normal * (Octagon.APOTHEM - Octagon.BODY_MARGIN)]
+		venue.bow_fence(at + Vector3.UP, 0.05)
+		venue.show_near_fence(spots, 1.0, at * 1.5 + Vector3.UP)
+		assert_false(panel.structure.visible, "foreground rail and pad clear the fighters")
+		assert_true(panel.node.visible, "wire still shows where a fighter presses against it")
+		assert_almost_eq(float(panel.material.get_shader_parameter("fade")), LocalVenue.NEAR_FENCE_ALPHA, 0.001)
+		venue.show_near_fence(spots, 1.0, -at * 1.5 + Vector3.UP)
+		assert_true(panel.structure.visible, "the rail and pad return on the far side")
+		assert_true(panel.node.visible, "the far fence is complete")
+		assert_almost_eq(venue.fence_bowed(), 0.05, 0.001, "changing the view retains the bend")
+
 func test_turns_and_spin_offs_clear_the_other_fighter_through_the_standing_handoff() -> void:
 	for move: String in ["spin_off", "turn_him"]:
 		for held in 2:
