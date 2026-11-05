@@ -5,7 +5,8 @@ extends PanelContainer
 ## and at the next level, what that costs and how long the room's shut) with *Build* and *Tear it down*, or, with
 ## no room picked, every room you could build with its size and cost. The gym's money and month along the top.
 ## Building spends the gym's money straight away (Career.build_room). Close or Esc goes back to the hub. The *Coaches*
-## tab (CoachesView, §14.3, D443) has the coaches you've hired and the men looking for work.
+## tab (CoachesView, §14.3, D443) has the coaches you've hired and the men looking for work; the *Fighters* tab
+## (LadsView, §14.4, D444) has him and the other lads who train at your gym.
 
 signal closed
 ## Something was built or torn down: the career changed (main saves it).
@@ -15,15 +16,18 @@ const SIDE_WIDTH: float = 460.0
 
 const ROOMS := "rooms"
 const COACHES := "coaches"
+const FIGHTERS := "fighters"
 
 var career: Career
 var picked_room: String = ""
 var plan: FloorPlan
-## Which tab is showing: ROOMS or COACHES.
+## Which tab is showing: ROOMS, COACHES or FIGHTERS.
 var tab: String = ROOMS
 var rooms_tab: Button
 var coaches_tab: Button
+var fighters_tab: Button
 var coaches: CoachesView
+var fighters: LadsView
 var _rooms_body: HBoxContainer
 
 var _title: Label
@@ -83,6 +87,7 @@ func _init() -> void:
 	var group := ButtonGroup.new()
 	rooms_tab = _tab(tabs, "Rooms", group, ROOMS)
 	coaches_tab = _tab(tabs, "Coaches", group, COACHES)
+	fighters_tab = _tab(tabs, "Fighters", group, FIGHTERS)
 	rooms_tab.set_pressed_no_signal(true)
 
 	var body := HBoxContainer.new()
@@ -94,6 +99,9 @@ func _init() -> void:
 	coaches.visible = false
 	coaches.changed.connect(func() -> void: _money.text = money_text(career); changed.emit())
 	column.add_child(coaches)
+	fighters = LadsView.new()
+	fighters.visible = false
+	column.add_child(fighters)
 	plan = FloorPlan.new()
 	plan.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	plan.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -142,10 +150,11 @@ func show_gym(c: Career, p_picked: String = "") -> void:
 	show_tab(ROOMS)
 
 
-## Shows the Rooms or the Coaches tab.
+## Shows the Rooms, Coaches or Fighters tab.
 func show_tab(id: String) -> void:
 	tab = id
-	(rooms_tab if id == ROOMS else coaches_tab).set_pressed_no_signal(true)
+	for pair: Array in [[ROOMS, rooms_tab], [COACHES, coaches_tab], [FIGHTERS, fighters_tab]]:  # Set by hand: no signal unpresses the rest.
+		(pair[1] as Button).set_pressed_no_signal(pair[0] == id)
 	refresh()
 
 
@@ -159,8 +168,12 @@ func refresh() -> void:
 	_money.text = money_text(career)
 	_rooms_body.visible = tab == ROOMS
 	coaches.visible = tab == COACHES
+	fighters.visible = tab == FIGHTERS
 	if tab == COACHES:
 		coaches.show_career(career)
+		return
+	if tab == FIGHTERS:
+		fighters.show_career(career)
 		return
 	plan.show_gym(gym, career.week, picked_room)
 	_build.visible = false
