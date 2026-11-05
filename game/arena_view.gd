@@ -973,21 +973,16 @@ func _pose_ground(sim: FightSim, delta: float) -> bool:
 	var built: Dictionary = GroundPair.build(where, ground_grips_now(sim, top), posture, _ground_far)
 	var shown: String = str(built.pair)
 	if _roll.has("destination") and _roll.destination != key:
-		_roll = {}
-	var passing := previous_key == "half_guard %d" % top and where == "side_control"
-	var recovering := previous_key == "side_control %d" % top and where == "half_guard"
-	if new_position and (passing or recovering) and not _ground_last.is_empty():
-		var path: Array
-		if recovering:
-			path = GroundPair.pass_path([built.pair, _ground_frame], _ground_last[0], _ground_last[1])
-			path.reverse()
-		else:
-			path = GroundPair.pass_path(_ground_last, built.pair, _ground_frame)
-		var duration := 1.25 if recovering else 0.95
-		_roll = {"from": _ground_last, "path": path, "left": duration, "duration": duration, "destination": key}
-	elif new_position and previous_key == "mount %d" % top and where == "back_control" and not _ground_last.is_empty():
-		var path: Array = GroundPair.back_take_path(_ground_last, built.pair, _ground_frame)
-		_roll = {"from": _ground_last, "path": path, "left": 1.5, "duration": 1.5, "destination": key}
+		if not (_roll.has("guard_keys") and where in _roll.guard_keys and int(_roll.top) == top):
+			_roll = {}
+	if new_position and previous_key.ends_with(" %d" % top) and not _ground_last.is_empty():
+		_start_ground_path(previous_key.get_slice(" ", 0), where, built.pair)
+	if _roll.has("destination"):
+		for fighter: FighterState in sim.fighters:
+			if fighter.phase in ["telegraph", "windup", "active"] and (GroundPair.STRIKES.has(fighter.action_id) or GroundPair.BOTTOM_STRIKES.has(fighter.action_id) or fighter.action_id == "up_kick"):
+				_roll = {}
+				_clinch_shown = ""
+				break
 	if not _roll.is_empty() and new_position:
 		_roll.top = top
 	if not _roll.is_empty() and _roll.has("top"):
@@ -1042,6 +1037,46 @@ func _pose_up_kick(sim: FightSim, top: int) -> void:
 	_clinch_rigs[bottom].up_kick(figures[bottom].arm_letter(0), _clinch_rigs[top], amount, figures[bottom]._miss)
 
 
+## The three guard positions share one path. If another pass or recovery wins
+## before the first one finishes, continue from the point actually on screen.
+func _start_ground_path(previous: String, where: String, pair: Dictionary) -> void:
+	if previous == "side_control" and where == "mount":
+		var path := GroundPair.mount_path(_ground_last, pair, _ground_frame)
+		_roll = {"from": _ground_last, "path": path, "left": 1.3, "duration": 1.3, "destination": _ground_key}
+		return
+	if previous == "mount" and where == "back_control":
+		var path := GroundPair.back_take_path(_ground_last, pair, _ground_frame)
+		_roll = {"from": _ground_last, "path": path, "left": 1.5, "duration": 1.5, "destination": _ground_key}
+		return
+	var guards: Array[String] = ["full_guard", "half_guard", "side_control"]
+	if previous not in guards or where not in guards:
+		return
+	if not _roll.has("guard_keys"):
+		var holds := {}
+		holds[previous] = _ground_last
+		holds[where] = [pair, _ground_frame]
+		for guard: String in guards:
+			if not holds.has(guard):
+				holds[guard] = [GroundPair.build(guard, {}, false, _ground_far).pair, _ground_frame]
+		var path := GroundPair.guard_path(holds.full_guard, holds.half_guard)
+		var halfway := path.size() - 1
+		var passing := GroundPair.pass_path(holds.half_guard, holds.side_control[0], holds.side_control[1])
+		path.append_array(passing.slice(1))
+		var keys := {"full_guard": 0, "half_guard": halfway, "side_control": path.size() - 1}
+		_roll = {"from": _ground_last, "path": path, "guard_keys": keys, "x": float(keys[previous])}
+	var start := float(_roll.x)
+	var end := float(_roll.guard_keys[where])
+	var half := float(_roll.guard_keys.half_guard)
+	var outside := absf(maxf(start, half) - maxf(end, half))
+	var inside := absf(minf(start, half) - minf(end, half))
+	var duration := maxf(0.02, inside / half * 1.4 + outside / (float(_roll.guard_keys.side_control) - half) * (0.95 if end > start else 1.25))
+	_roll.start_x = start
+	_roll.end_x = end
+	_roll.duration = duration
+	_roll.left = duration
+	_roll.destination = _ground_key
+
+
 ## A roll under way (D289): from the pose before it over onto their sides to `now` (the new position, fighter
 ## `top` on top). False once it is over.
 func _pose_roll(now: Dictionary, top: int, delta: float) -> bool:
@@ -1052,7 +1087,9 @@ func _pose_roll(now: Dictionary, top: int, delta: float) -> bool:
 		_roll.path = GroundPair.roll_path(from[0], from[1], to, _ground_frame)
 	_roll.left = float(_roll.left) - delta
 	var t: float = clampf(1.0 - float(_roll.left) / float(_roll.get("duration", ROLL_SECONDS)), 0.0, 1.0)
-	TakedownPair.pose_along(_clinch_rigs[was_top], _clinch_rigs[1 - was_top], _roll.path, smoothstep(0.0, 1.0, t) * (_roll.path.size() - 1))
+	var x := lerpf(float(_roll.get("start_x", 0.0)), float(_roll.get("end_x", _roll.path.size() - 1)), smoothstep(0.0, 1.0, t))
+	_roll.x = x
+	TakedownPair.pose_along(_clinch_rigs[was_top], _clinch_rigs[1 - was_top], _roll.path, x)
 	for i in 2:
 		figures[i].body.follow(_clinch_rigs[i])
 	if t >= 1.0:

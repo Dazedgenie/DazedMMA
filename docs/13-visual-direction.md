@@ -1355,6 +1355,8 @@ In half guard the top fighter plants the free foot wide. The defender bends the 
 
 Between half guard and side control, the defender opens the hooks before the passer lifts the captured knee and posts on the outside. Partial guard recovery follows those steps in reverse over 1.25 seconds. During a back take, the rider lifts the inside foot, steps past the defender, sits behind the hips and closes the hooks last. In mount, the bottom fighter can plant both feet with the knees pointing up between the rider's legs. The pass and recovery checks measure both fighters' arms and legs at 30 and 60 frames per second.
 
+Full guard, half guard and side control share a sequence of foot placements. The top fighter lifts and steps over the open guard as the bottom fighter plants the heels, then closes around one shin. Another pass or recovery can reverse from the current step, and a new ground strike can interrupt it. The step from side control to mount has its own route over the defender's hips.
+
 The fence spin-off releases toward the centre and facing of the two standing fighters. Both corner assignments use the same turn even when the original clinch pose has the fighters in swapped roles. The pressing fighter plants the lead foot wider and farther from the defender's shin. Near-fence checks cover the turn, the spin and the handoff back to standing.
 
 After the posed body settles, a toe below the canvas pitches up around its own ankle while retaining the length of the foot. The near-fence knockdown check follows both toes through a fall and the return to standing, including leg and body-shot knockdowns.

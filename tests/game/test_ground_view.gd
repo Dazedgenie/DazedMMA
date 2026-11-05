@@ -147,7 +147,7 @@ func test_standing_up_and_the_scramble_are_not_posed_as_a_ground_position() -> v
 
 func test_half_guard_pass_and_recovery_clear_the_arms_and_legs() -> void:
 	for top in 2:
-		for route: Array in [["half_guard", "side_control"], ["side_control", "half_guard"]]:
+		for route: Array in [["half_guard", "side_control"], ["side_control", "half_guard"], ["full_guard", "half_guard"], ["half_guard", "full_guard"], ["side_control", "full_guard"], ["side_control", "mount"]]:
 			for rate: int in [30, 60]:
 				var setup: Array = _ground(route[0], top)
 				var sim: FightSim = setup[0]
@@ -155,7 +155,7 @@ func test_half_guard_pass_and_recovery_clear_the_arms_and_legs() -> void:
 				_put(sim, route[1], top)
 				var arms := INF
 				var legs := INF
-				for frame in ceili(1.4 * rate):
+				for frame in 3 * rate:
 					view._process(1.0 / rate)
 					legs = minf(legs, _closest_legs(view.figures[0].body, view.figures[1].body))
 					for i in 2:
@@ -255,3 +255,25 @@ func test_mount_keeps_the_defenders_knees_between_the_riders_knees() -> void:
 		var across := right.direction_to(left)
 		assert_gt((body._world_at("LeftLeg") - body._world_at("RightLeg")).dot(across), 0.10, "knees stay on their respective sides")
 		assert_gt(_closest_legs(view.figures[top].body, body), 0.115, "the rider straddles the defender's knees")
+
+func test_an_interrupted_guard_recovery_reverses_from_the_current_step() -> void:
+	var setup: Array = _ground("side_control")
+	var sim: FightSim = setup[0]
+	var view: ArenaView = setup[1]
+	_put(sim, "full_guard", 0)
+	_frames(view, 34, 1.0 / 60.0)
+	var before := float(view._roll.x)
+	_put(sim, "side_control", 0)
+	view._process(1.0 / 60.0)
+	assert_almost_eq(float(view._roll.start_x), before, 0.0001, "the return starts where the recovery reached")
+	var gap := INF
+	for frame in 180:
+		view._process(1.0 / 60.0)
+		gap = minf(gap, _closest_legs(view.figures[0].body, view.figures[1].body))
+	assert_gt(gap, 0.105, "the knee clears the legs on the way back")
+	assert_true(view._roll.is_empty(), "returned to side control")
+	_put(sim, "full_guard", 0)
+	_frames(view, 12, 1.0 / 60.0)
+	_doing(sim, 0, "ground_punch", "active", 0.5)
+	view._process(1.0 / 60.0)
+	assert_true(view._roll.is_empty(), "a new ground strike gets its own pose immediately")

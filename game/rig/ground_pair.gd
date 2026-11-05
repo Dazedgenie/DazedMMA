@@ -249,11 +249,8 @@ static func pass_path(from: Array, to: Dictionary, frame: Transform3D) -> Array:
 	var outside: float = signf(float(release.a.root[0]) - float(release.b.root[0]))
 	var trapped := "foot_r" if outside < 0.0 else "foot_l"
 	var free := "foot_l" if outside < 0.0 else "foot_r"
-	for foot: String in ["foot_l", "foot_r"]:
-		var outward := 1.0 if foot == "foot_l" else -1.0
-		var open := {"at": [outward * 0.7, ANKLE, 0.75], "pole": [-outward, 0.25, 0.3]}
-		release.b[foot] = open
-		mid.b[foot] = open
+	_open_guard_feet(release.b, false)
+	_open_guard_feet(mid.b, false)
 	var lift: Dictionary = release.duplicate(true)
 	lift.a.root[1] += 0.12
 	lift.a[trapped] = {"at": [-outside * 0.075, 0.58, 0.42], "pole": [outside * 0.5, -0.1, -1]}
@@ -261,6 +258,54 @@ static func pass_path(from: Array, to: Dictionary, frame: Transform3D) -> Array:
 	mid.a[free] = {"at": [outside * 0.76, ANKLE, -0.2], "pole": [outside, -0.3, -1]}
 	var halfway: Transform3D = Transform3D(ends[0][1]).interpolate_with(ends[1][1], 0.5)
 	return [ends[0], [release, ends[0][1]], [lift, ends[0][1]], [mid, halfway], ends[1]]
+
+
+## Open full guard, plant the defender's heels, then lift the free knee over one
+## thigh before the defender traps the other shin. Reversed, this recovers full guard.
+static func guard_path(full: Array, half: Array) -> Array:
+	var ends := TakedownPair.chain([[_short_leans(full[0]), full[1]], [_short_leans(half[0]), half[1]]])
+	var open: Dictionary = ends[0][0].duplicate(true)
+	_open_guard_feet(open.b, true)
+	var release: Dictionary = open.duplicate(true)
+	_open_guard_feet(release.b, false)
+	var chamber: Dictionary = ends[1][0].duplicate(true)
+	_open_guard_feet(chamber.b, false)
+	var side := signf(float(chamber.a.root[0]) - float(chamber.b.root[0]))
+	var free := "foot_l" if side < 0.0 else "foot_r"
+	var lift: Dictionary = release.duplicate(true)
+	lift.a.root[1] += 0.16
+	lift.a[free] = {"at": [side * 0.16, 0.58, 0.85], "pole": [-side * 0.4, -0.1, 1]}
+	var over: Dictionary = release.duplicate(true)
+	over.a.root[1] += 0.12
+	over.a.root[2] += 0.12
+	over.a[free] = {"at": [side * 0.48, 0.58, 0.50], "pole": [side, -0.2, 0.5]}
+	return [ends[0], [open, ends[0][1]], [release, ends[0][1]], [lift, ends[0][1]],
+		[over, ends[0][1]], [chamber, ends[1][1]], ends[1]]
+
+
+static func _open_guard_feet(defender: Dictionary, raised: bool) -> void:
+	for foot: String in ["foot_l", "foot_r"]:
+		var side := 1.0 if foot == "foot_l" else -1.0
+		defender[foot] = {"at": [side * 0.72, 0.55, 0.25], "pole": [-side, 0.3, -0.3]} if raised else \
+			{"at": [side * 0.7, ANKLE, 0.75], "pole": [-side, 0.25, 0.3]}
+
+
+## From side control, lift the near knee before stepping across the belly into mount.
+static func mount_path(from: Array, to: Dictionary, frame: Transform3D) -> Array:
+	var ends := TakedownPair.chain([[_short_leans(from[0]), from[1]], [_short_leans(to), frame]])
+	var side := signf(float(ends[0][0].a.root[0]) - float(ends[0][0].b.root[0]))
+	var inner := "foot_r" if side < 0.0 else "foot_l"
+	var outer := "foot_l" if side < 0.0 else "foot_r"
+	var lift: Dictionary = ends[0][0].duplicate(true)
+	lift.a.root[1] += 0.24
+	lift.a[inner] = {"at": [side * 0.45, 0.55, -0.32], "pole": [side * 0.5, -0.4, 0.6]}
+	var over := TakedownPair.pose_at(ends, 0.62)
+	over.a.root[1] += 0.24
+	over.a[outer] = {"at": [side * 0.60, ANKLE, -0.12], "pole": [side, -0.2, -1]}
+	over.a[inner] = {"at": [-side * 0.27, 0.55, -0.32], "pole": [-side * 0.85, 0.2, 0.6]}
+	over.b.foot_l = ends[1][0].b.foot_l
+	over.b.foot_r = ends[1][0].b.foot_r
+	return [ends[0], [lift, ends[0][1]], [over, ends[1][1]], ends[1]]
 
 
 ## The rider leaves mount beside the hips, then comes behind as the defender sits up.
