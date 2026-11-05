@@ -1372,6 +1372,12 @@ The referee checks the route to his usual stop position against both fighters' v
 
 The coach and cutman enter and leave on their own sides of the stool. The coach crouches beside the nearer visible knee and gestures with the other hand. The cutman supports the near shoulder or reaches the brow when treating a cut. Ceremony tests follow both corners through sitting, working, standing and walking out.
 
+### Standing misses and the guard
+
+While a head strike approaches, its target stays on the striking side of the visible guard. On a miss it can carry forward once it clears the side of the guard. If the final body’s elbow or shin still cuts through a guarding arm, the body re-solves the offending limb and turns its bend while preserving both bone lengths. The cage correction runs after the adjustment. Landed and blocked strikes retain their contact targets.
+
+The miss regression reveals the result at the active phase and samples follow-through and recovery in both corners and leads. It measures head/body and guard clearances, limb length and joint travel at 60 Hz for the jab, cross, hook, overhand and body/head kicks.
+
 ## Review and verification
 
 The side-control arm triangle sprawls alongside the defender, with the hands closing at the neck and nape. In the guard triangle the controlling hand stays beside the nape during the squeeze. Submission-view tests sample the approximate skull center and controlling segments throughout tightening in both corners, and check that the hands can meet in the arm triangle.
