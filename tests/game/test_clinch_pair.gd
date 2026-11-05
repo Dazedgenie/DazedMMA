@@ -77,7 +77,8 @@ func test_the_bodies_press_together_but_do_not_pass_through_each_other() -> void
 		_pose(_built(example))
 		var deepest: float = maxf(_depth_into(_rigs[0], _rigs[1]), _depth_into(_rigs[1], _rigs[0]))
 		assert_lt(deepest, 0.03, "%s: one inside the other" % example)
-		assert_gt(deepest, -0.12, "%s: chest to chest" % example)
+		if example != "red_posts_on_blue_on_the_fence":  # The head post holds him off by the head (D497).
+			assert_gt(deepest, -0.12, "%s: chest to chest" % example)
 
 
 func test_each_grip_puts_the_hands_where_it_holds() -> void:

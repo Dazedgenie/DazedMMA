@@ -1,0 +1,18 @@
+{
+	"schema": "action@2",
+	"id": "swat_post",
+	"name": "Swat the post",
+	"category": "clinch",
+	"basic": true,
+	"positions": ["standing", "clinch"],
+	"ranges": ["pocket", "clinch"],
+	"phases_ms": { "telegraph": 0, "windup": 100, "active": 100, "recovery": 200 },
+	"stamina_cost": 2,
+	"flags_self": [],
+	"clinch": { "base_success": 0.55, "clears_post": true },
+	"stats": { "offense": ["striking_defense", "speed"], "defense": ["boxing", "strength"] },
+	"opportunities": [
+		{ "own_flag": "HEAD_POSTED", "success_bonus": 0.0, "required": true }
+	],
+	"requires_technique": null
+}

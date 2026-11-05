@@ -128,11 +128,12 @@ to beat them.
 | **Leg-kick specialist** (new) | `leg_kicker` | Dutch kickboxing, Amsterdam, Muay Thai | Walks forward chopping the legs (leg kick ×2, calf kick ×1.0 since D255, the new 1-2-leg kick combination); tell: calf kick after a blocked jab |
 | **Dirty boxer** (new) | `dirty_boxer` | Boxing gym kid, street kid | Grabs the clinch (clinch entry ×3, Range +80) and works short uppercuts and hooks; tell: grabs the clinch after a blocked jab |
 | **Ground-and-pound wrestler** (new) | `gnp_wrestler` | Wrestling family, farm kid | Takedowns to hit, not to submit: Top control 70, ground punches and elbows ×2, no submissions of his own; tell: shoots behind a blocked jab |
+| **Volume striker** (D495, 2026-11-05) | `volume_striker` | Boxing gym kid, street kid | A busy southpaw who walks you down to the fence and never stops punching (Pace +80, Cardio 80, Chin 72, Power 45): jab, cross, hooks, the rear-hand body hook, and a hand on your head on the fence to dig to the body (the head post, `01` §47); tell: body hook after a blocked jab |
 
 Every sheet uses the same variation for now: stats ±6, leanings ±12, move preferences ±20%, personality ±30, height ±4 cm.
 Check that a sheet's opponents fight in style with `tools/style_sheets.gd -- --fights=30` (prints the scouting cards, then
 a table of win rate against the other styles' signature fighters, finishes, output, shots, submissions, clinch and ground time).
-Kyle picked "recipe + scouting card" and all 15 styles (the first 10 plus five extras) on 2026-10-29. Run with all 15
+Kyle picked "recipe + scouting card" and all 15 styles (the first 10 plus five extras) on 2026-10-29; the Volume striker made 16 on 2026-11-05 (D495). Run with all 15
 (2026-10-29, 30 opponents a style at level 0, each against the other 14 signature fighters in turn; reported, no pass marks):
 
 | Style | Wins | By KO/TKO | By sub | Strikes a minute | Shots a fight | Subs tried | Clinch | Ground |
@@ -398,7 +399,7 @@ answered, and Kyle confirmed them: "Fight numbers seemed fine to me" (2026-10-31
 (`GAP_MIN`, `GAP_MAX`) and 1–3 weeks after a fight. Each set stays open this week and next (`OPEN_WEEKS`), then goes. A new
 set is an event (*N fight offers*), so *Advance* stops for it; offers already on the table don't stop it.
 
-**Who's offered.** Each offer is a new man made from one of the 15 style sheets (`StyleLibrary.generate`, §7.1), a
+**Who's offered.** Each offer is a new man made from one of the 16 style sheets (`StyleLibrary.generate`, §7.1), a
 different style each, with a name, nickname and hometown from `data/names` (`NameLibrary`). His quality level is set from
 the career fighter's: his average stat less the style's signature fighter's (`Matchmaker.level_against`), then −5 for *a
 bit easier*, 0 for *about even* or +5 for *a bit harder* (`DIFFICULTY_LEVELS`), give or take 2 (`LEVEL_SPREAD`). Two offers
@@ -906,7 +907,7 @@ knockouts wear them down, the good amateurs turn pro, men retire when they're to
   (0.2 off after a year out). How it ends and which round come from what the engine did for those two styles (the
   winner's style's wins and the loser's style's losses by each method, averaged). Results go on both records.
 - **The matchup table** is data, `data/world/matchups.json` (docs/09 matchups@1), made by `tools/matchups.gd`: every pair
-  of the 15 styles (105 pairs) plays 60 fights on the engine at an average stat of 55 give or take 6, the two up to 8
+  of the 16 styles (120 pairs since the Volume striker, D495; his 15 were played on their own with `--only=volume_striker` and merged in) plays 60 fights on the engine at an average stat of 55 give or take 6, the two up to 8
   apart, red and blue corners taking turns, on every core. It fits each pair's edge (pulled a little toward even) and the
   worth of a point together, and a test plays the most lopsided pair again and checks the model's share sits inside the
   engine's 95% range. Rebuild it whenever fights change (`godot --headless --script res://tools/matchups.gd --

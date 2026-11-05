@@ -1,0 +1,22 @@
+{
+	"schema": "action@2",
+	"id": "short_body_hook",
+	"name": "Short hook to the body",
+	"category": "strike",
+	"positions": ["clinch"],
+	"ranges": ["clinch"],
+	"phases_ms": { "telegraph": 100, "windup": 200, "active": 100, "recovery": 300 },
+	"stamina_cost": 4,
+	"flags_self": [],
+	"strike": { "target": "body", "base_damage": 6 },
+	"stats": { "offense": ["boxing", "clinch_striking"], "defense": ["striking_defense"] },
+	"opportunities": [
+		{ "opponent_flag": "HEAD_POSTED", "success_bonus": 0.20 },
+		{ "opponent_flag": "HELD_ON_FENCE", "success_bonus": 0.05 },
+		{ "own_flag": "POSTURE_BROKEN", "success_bonus": -0.15 },
+		{ "own_flag": "HEAD_POSTED", "success_bonus": -0.15 },
+		{ "own_flag": "BODY_LOCK", "success_bonus": -0.10 },
+		{ "opponent_flag": "BODY_LOCK", "success_bonus": -0.10 }
+	],
+	"requires_technique": null
+}

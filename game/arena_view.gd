@@ -70,9 +70,9 @@ const CLINCH_BODY_GAP: float = 0.68
 ## drawn from today's figures; a strike (CLINCH_STRIKES) keeps the pose with only the striking limb from today's
 ## figure. The change either way, and from one grip to the next, eases over CLINCH_EASE seconds.
 const CLINCH_POSE_MOVES: Array[String] = ["pummel", "strip_grip", "collar_tie", "fence_drive", "turn_him", "spin_off",
-	"clinch_break"]
+	"clinch_break", "head_post", "swat_post"]
 ## Strikes in the clinch thrown from the rig's pose: only the striking arm or leg follows today's figure.
-const CLINCH_STRIKES: Array[String] = ["knee", "short_hook", "short_uppercut", "elbow"]
+const CLINCH_STRIKES: Array[String] = ["knee", "short_hook", "short_uppercut", "elbow", "short_body_hook"]
 const CLINCH_EASE: float = 0.25
 ## A turn on the fence or a spin-off (D287): the two go round each other over this many seconds.
 const TURN_SECONDS: float = 0.45
@@ -1687,6 +1687,13 @@ func clinch_motion(sim: FightSim, held: int) -> Dictionary:
 			return {"move": "work", "by": i, "action": f.action_id}
 		if f.action_id == "clinch_break" and held < 0:
 			return {"move": "break", "by": i}
+	var post: Dictionary = sim.post()
+	if not post.is_empty() and held == 1 - int(post.by):
+		return {"move": "post", "by": int(post.by), "lead": figures[int(post.by)].arm_letter(0)}  # His hand on the held man's head (D490).
+	for i in 2:
+		var f: FighterState = sim.fighters[i]
+		if f.action_id == FightSim.HEAD_POST and f.phase in ["active", "recovery"] and held == 1 - i:
+			return {"move": "post", "by": i, "lead": figures[i].arm_letter(0)}
 	return {}
 
 
@@ -1810,11 +1817,17 @@ static func drawn_gap(gap: float) -> float:
 	return squeezed + maxf(0.0, gap - DRAWN_UNTIL)
 
 
+## Standing with his hand posted on the other man's head (D490), the drawn gap closes to this (metres).
+const POST_GAP: float = 0.95
+
+
 ## How far fighter i steps in for the strike he's throwing (metres, D281), from the drawn gap: enough for it to
 ## land at its contact gap (FighterFigure.AIMS), less SHORT_BY when the sim has it out of range. Eased in over
 ## the telegraph and windup, held through the active part, and taken back over the recovery.
 static func lunge_for(sim: FightSim, i: int, gap: float, fraction: float = 0.0) -> float:
 	var f: FighterState = sim.fighters[i]
+	if sim.posting(i) and sim.situation.is_standing() and not FighterFigure.AIMS.has(f.action_id):
+		return minf(maxf(0.0, gap - POST_GAP), LUNGE_MAX)  # In at arm's length, his hand on the man's head (D490).
 	if not FighterFigure.AIMS.has(f.action_id) or not sim.actions.has(f.action_id):
 		return 0.0
 	var action: Dictionary = sim.actions.get_action(f.action_id)
@@ -1858,6 +1871,8 @@ static func strike_spots(sim: FightSim, spots: Array[Vector2], knock: Array[floa
 
 
 static func _contact(sim: FightSim, i: int) -> float:
+	if sim.posting(i) and not FighterFigure.AIMS.has(sim.fighters[i].action_id):
+		return POST_GAP
 	return float(FighterFigure.AIMS.get(sim.fighters[i].action_id, {}).get("contact", 0.0))
 
 

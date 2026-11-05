@@ -137,6 +137,16 @@ var fence_drives_tried: int = 0
 var fence_drives_won: int = 0
 var spin_offs_tried: int = 0
 var spin_offs_won: int = 0
+## The head post (D490): posts this fighter went for and won, ticks he had one on, body shots he
+## landed with it on, how his posts ended (how → count, FightSim.POST_*), and the other man's posts
+## he went to swat off and did.
+var posts_tried: int = 0
+var posts_won: int = 0
+var post_ticks: int = 0
+var post_body_landed: int = 0
+var post_ends: Dictionary = {}
+var swats_tried: int = 0
+var swats_won: int = 0
 ## Grips in the clinch (D261): pummels (swimming an arm inside for an underhook) and strips (taking
 ## one of his underhooks off) this fighter went for and won.
 var pummels_tried: int = 0

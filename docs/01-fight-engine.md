@@ -4365,3 +4365,117 @@ third-round submission for the Wrestler, re-pinned again.
 Tested in `tests/sim/fight/test_knee_into_shot.gd` (the knee meets shots and the Karate fighter has one; a knee from mid range
 meets a shot and stops it, into the lowered head; from mid range it still falls short of a man who isn't shooting; an outside
 fighter knees the shots he reads and an inside one sprawls first) and `tests/data/test_data_files.gd` (`into_shots`).
+
+## 47. The head post on the fence, and the Volume striker (D490–D497)
+Kyle asked (2026-11-05) for a fighter to "get the opponent against the cage and then using a headpost just rip to the body",
+and then for a new fighter for it, a volume striker, since that isn't our Brawler. It's a generic technique: a hand on the
+other man's head while his back is on the fence, smothering him and holding him there while the other hand digs to the body.
+No real fighter is named in the game. On the cards he picked: on the feet and in the clinch; body shots land and his punches
+are smothered (no extra liver boost); swat it, circle off or tie up, and a hook over it; the AI by style plus a call; a
+now-and-then moment; posed on the rig; the Volume striker most, the Dirty boxer some, and (his note) the Brawler rarely; the
+Volume striker as a full 16th style; and the Volume striker walking him down with endless punches.
+
+### 47.1 The moves
+- **Head post** (`data/actions/head_post.json`, a `clinch` move with `posts_ms`, `09` action@2): his lead hand on the other
+  man's head for 4 s. On the feet it needs the pocket and the other man's back on the fence (`BACK_TO_CAGE`, else *not on
+  the fence*); in the clinch it needs him held on the fence (`HELD_ON_FENCE`), so the man held there can't post on the man
+  holding him. Boxing and Strength against Striking defense and Strength, 50% base; +10% on hands low, a cover-up or a high
+  guard (he isn't fighting the hand); −15% with his own posture broken. 0.7 s, 3 stamina. Only a fighter who knows it
+  (`techniques`) throws it.
+- **Swat the post** (`swat_post.json`, everyone knows it, `clears_post`): the hand slapped off his head. Only while posted
+  (`HEAD_POSTED`, else *no post to swat*); Striking defense and Speed against Boxing and Strength, 55% base; 0.4 s.
+- **Rear hand to the body** (`rear_body_hook.json`, a standing pocket strike, 8 to the body): the rear hand digs under the
+  post, so the lead hand can stay on the head. +25% on a posted man, +15% on a cover-up or high guard, +10% on one leg.
+- **Short body hook** (`short_body_hook.json`, a clinch strike, 6 to the body): the clinch's dig; +20% on a posted man, +5%
+  on a man held on the fence.
+
+### 47.2 What it does (D491)
+While a man is posting he carries `POSTING` and the other man `HEAD_POSTED` (`data/enums/flags.json`):
+- **His body shots land more:** the rear hand to the body +25% standing, the short body hook +20% in the clinch. The liver
+  (§35) is untouched: more body shots landing find it more often already.
+- **The hand on the head can't punch:** his own jab and lead hook to the body −30% (`own POSTING`).
+- **The man under it is smothered:** his jab, cross, uppercut, overhand, body shots,
+  short hook and short uppercut −15% (`own HEAD_POSTED`); his **hook comes over the arm**, +10%, and a knee at him +10%.
+- **He's held there:** spinning off and turning him on the fence −15%, and on the feet his steps are `POSTED_FEET` (60%)
+  as long, so circling off along the fence takes longer.
+
+### 47.3 Getting it off (D492)
+The post ends (`FightSim._check_post`, a `post_ended` event with `how`):
+- **time:** after 4 s on its own, or at the end of a round;
+- **swatted:** he swats it off (`swat_post`; the feed says *swats the hand off his head*);
+- **circled off:** on the feet he gets off the fence or out of the pocket; in the clinch he's no longer held there;
+- **tied up:** on the feet he ties up into the clinch (a clinch post stays through grip changes and the fence drive);
+- **down:** the fight goes anywhere else (a takedown, a knockdown, the ground).
+And while it's on, his hook comes over the top (above).
+
+### 47.4 Who does it and how often (D493, D494)
+`FighterAI` scores the head post like any other clinch move on the feet (without the clinch liking: it's a striker's move)
+by the fighter's `head_post` tendency: the **Volume striker** 1.0, the **Dirty boxer** 0.12, the **Brawler** 0.2; nobody
+else knows it. While he's posting, his body shots are weighed `POST_DIG` (×2): dig to the body. **A moment, not the whole
+fight:** after a post comes off he doesn't post again for `POST_AGAIN_TICKS` (30 s) unless his corner calls *Post and
+dig!* (without the wait the Volume striker posted 18 times a fight against the Boxer; with 15 s, 7). The man posted swats it (`SWAT_WEIGHT`
+×1.5, more with Fight IQ) or ties up (`POSTED_TIE_UP`, ×2 on the clinch entry); the feed's reasons are *posts on his head
+against the fence* and *swats the hand off his head*. The post and the swat are left out of what a range is worth to him
+(`_plan_moves`), so fighters who never post fight exactly as before.
+
+### 47.5 The Volume striker (D495)
+`data/fighters/volume_striker.json` and `data/styles/volume_striker.json`: a busy southpaw pocket puncher (183 cm, reach
+191) who walks you down and throws all night: Pace +80, work rate 0.03, Boxing 68, Cardio 80, Chin 72, Durability 70,
+but Power 45, Striking defense 56, and Footwork and Cage cutting 45: he follows you rather than cutting you off. Jab, cross, hook, uppercut, both body hooks, the head post, and the short hook,
+uppercut and body hook in the clinch; combinations one-two, one-two-three, double jab and cross, one-two and body hook,
+body hook and hook, cross and hook. Tell: a body hook after a blocked jab; habits: a hook after a blocked jab, a cross
+when you miss. A world style (16 now; `03` §7.1): Boxing gym kid or Street kid, 30% southpaw, gameplan pressure, body,
+keep it standing; his scouting card; his 15 rows of the matchup table (`data/world/matchups.json`, §47.7).
+
+### 47.6 *Post and dig!* (D496)
+`data/calls/post_and_dig.json`, key **B**, for a fighter who knows the head post (`requires_technique`), standing or in
+the clinch: a 15 s focus on the head post (×4, and it skips the wait) and the body shots off it (rear hand to the body
+and short body hook ×1.8, knee ×1.3), coming forward (Range +30, Pace +20). On the call bar only for a man who knows it
+(D462). The AI corner doesn't make it (no moment in `Corner`, §22.10): the AI posts by style already.
+
+### 47.7 Balance
+Harness, no calls, seed 1, 100 fights a pairing:
+
+| Volume striker against | His wins | How it ends | His head posts a fight (tried) |
+|---|---|---|---|
+| Boxer | 44% | TKO 99% (both stand in the pocket) | 3.9 (6.3), 2.8 body shots off them; the Boxer swats 0.2 |
+| Brawler | 47% | | 0 (the Brawler doesn't back up) |
+| Kicker | 50% | | 0 (he's never pinned) |
+| Muay Thai | 62% | decision 59% | 5.5 (9.4), 1.4 tied up out of |
+| Dirty boxer | 58% | | 1.8, and swats 0.5 of the Dirty boxer's 1.3 |
+| Wrestler | 45% | decision 83% | 1.4 |
+| Sprawl-and-brawl | 27% | TKO 93% | 4.0 |
+| Counter-striker | 97% | | 0.3 |
+
+He beats the men who stand and wait for him (the Counter-striker can't keep him off) and loses to the men who hit
+harder in the pocket. In the world's quick result model (`data/world/matchups.json`, D353) his 15 pairs were
+played on their own (`tools/matchups.gd --only=volume_striker`, 60 fights each) and merged in, so the rest of the world is
+unchanged: at an even average stat he's the weakest style per point, about level with the Wrestler (many of his points are
+in Cardio, Chin, Heart and Recovery, which win long fights more than they win exchanges).
+
+The fights that change (200 fights, seed 1, main before this → now): Dirty boxer vs Boxer 69.5% → 70.0% (about 1 post a
+fight), vs Wrestler 68.5% → 63.0%, Muay Thai vs Dirty boxer 47.5% → 48.5%, Dirty boxer vs Sprawl-and-brawl 66.5% → 65.5%;
+Brawler vs Boxer 51.5% → 58.0% (the rear hand to the body; one post in three fights), vs Kicker 74.0% → 65.5%, vs
+Counter-striker 86.0% → 89.0%, vs Wrestler 25.0% → 24.0%. Fights between men who don't know the post are the same fight to
+the event: swatting is a move everyone knows, and at first it leaked into how each man weighed a range (`_plan_moves`) and
+changed every fight; it's left out there now. The golden fights (§2.2) are unchanged.
+
+### 47.8 To change it, and the tests
+- How long a post holds: `posts_ms` in `data/actions/head_post.json`; its odds there too. What it does: the `POSTING` and
+  `HEAD_POSTED` opportunities in the strikes' and clinch moves' files (`rear_body_hook`, `short_body_hook`, `jab`,
+  `cross`, `hook`, `body_hook`, `uppercut`, `overhand`, `short_hook`, `short_uppercut`, `spin_off`, `turn_him`, `knee`).
+- His feet under it: `POSTED_FEET` in `sim/fight/fight_sim.gd`; the ways off it: `_check_post` there.
+- How often: the `head_post` tendency in `data/fighters/`, and `POST_AGAIN_TICKS`, `POST_DIG`, `SWAT_WEIGHT`,
+  `POSTED_TIE_UP` in `sim/fight/fighter_ai.gd`.
+- The call: `data/calls/post_and_dig.json`. The Volume striker: `data/fighters/volume_striker.json`,
+  `data/styles/volume_striker.json`.
+- How it looks: `POST_ARM`, `POST_REACH`, `POSTED_LEAN` in `game/fighter_figure.gd`, `POST_GAP` in
+  `game/arena_view.gd`, `POST_RISE`, `POST_UPRIGHT`, `POSTED_HEAD` in `game/rig/clinch_pair.gd` (`13`, D497).
+- The harness prints a **Head post** line per pairing: posts won of tried a fight, seconds on, body shots landed off it,
+  how they ended (swatted, circled off, tied up) and swats won of tried, for each corner.
+
+Tested in `tests/sim/fight/test_head_post.gd` (a post on a man on the fence and none in the middle of the cage; in the
+clinch only on the man held there; the body shots, the smothered hand and the hook over it; his feet held; off after
+4 s, swatted, circled off and tied up; the Volume striker posts now and then and the Boxer never does but swats it; the
+wait between posts; *Post and dig!* on B), `tests/data/test_data_files.gd` (`posts_ms`, `clears_post`),
+`tests/sim/world/test_style_library.gd` (16 styles) and `tests/game/test_clinch_pair.gd` (the clinch pose).

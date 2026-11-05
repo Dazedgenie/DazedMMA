@@ -254,6 +254,10 @@ func test_values_come_from_the_allowed_lists() -> void:
 			elif (block.has("drives_m") or block.has("turns")) and (category != "clinch" or not block.get("drives_m", 1.0) is float \
 					or block.get("drives_m", 1.0) <= 0.0 or not block.get("turns", false) is bool):
 				problems.append("action '%s': drives_m (metres walked back to the fence, above 0) and turns (true or false) are a clinch move's (D220)" % id)
+			elif (block.has("posts_ms") or block.has("clears_post")) and (category != "clinch" or not block.get("posts_ms", 100.0) is float \
+					or block.get("posts_ms", 100.0) <= 0.0 or int(block.get("posts_ms", 100.0)) % FightClock.TICK_MS != 0 or not block.get("clears_post", false) is bool \
+					or not action.get("positions", []).has("standing")):
+				problems.append("action '%s': posts_ms (how long the head post holds, ms, a multiple of %d) and clears_post (true: swats it off) are a clinch move's that works on the feet too (D490)" % [id, FightClock.TICK_MS])
 			elif block.has("grip") and not ((category == "clinch" and block.grip in ["inside", "strip"]) \
 					or (category == "ground" and block.grip in ["collar", "wrist", "posture", "half_inside", "frame", "flatten", "two_on_one", "strip_hands"])):
 				problems.append("action '%s': grip is a clinch move's (\"inside\" to pummel for an underhook, \"strip\" to take one of his off, D261) or a ground move's (\"collar\", \"wrist\", \"posture\", \"half_inside\", D263; \"frame\", \"flatten\", \"two_on_one\", \"strip_hands\", D264)" % id)
@@ -339,8 +343,8 @@ func test_references_point_to_things_that_exist() -> void:
 			if o.has("own_flag") == o.has("opponent_flag"):
 				problems.append("%s: each opportunity names one flag, opponent_flag or own_flag" % where)
 			_expect_key(problems, where, "flag", o.get("own_flag", o.get("opponent_flag")), flags)
-			if o.has("own_flag") and o.get("required", false) and o.own_flag not in ["HELD_ON_FENCE", "UNDERHOOK", "OVERHOOK"]:
-				problems.append("%s: an own_flag opportunity can be required only for HELD_ON_FENCE (the spin-off, D220), UNDERHOOK or OVERHOOK (turning him, stripping a grip, D261)" % where)
+			if o.has("own_flag") and o.get("required", false) and o.own_flag not in ["HELD_ON_FENCE", "UNDERHOOK", "OVERHOOK", "HEAD_POSTED"]:
+				problems.append("%s: an own_flag opportunity can be required only for HELD_ON_FENCE (the spin-off, D220), UNDERHOOK or OVERHOOK (turning him, stripping a grip, D261) or HEAD_POSTED (swatting the post, D492)" % where)
 			if o.has("ai_takes") and (not o.ai_takes is bool or not o.get("required", false)):
 				problems.append("%s: ai_takes (true or false) goes on a required opening (D128)" % where)
 			if o.has("target") and o.target not in ["head", "body", "legs"]:

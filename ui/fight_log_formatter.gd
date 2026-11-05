@@ -109,6 +109,10 @@ static func _describe(event: FightEvent, sim: FightSim) -> String:
 				return "%s [b]WINS THE UNDERHOOK[/b]%s%s" % [who, _grip_state(event), _odds(event)]
 			if event.data.result == "stripped":
 				return "%s [b]STRIPS THE UNDERHOOK[/b]%s%s" % [who, _grip_state(event), _odds(event)]
+			if event.data.result == "posted":
+				return "%s [b]POSTS ON HIS HEAD[/b] against the fence: a hand on it, and the other free for the body%s" % [who, _odds(event)]
+			if event.data.result == "swatted":
+				return "%s [b]SWATS THE HAND OFF[/b] his head%s" % [who, _odds(event)]
 			if event.data.result == "driven":
 				return "%s [b]DRIVES HIM TO THE FENCE[/b]%s" % [who, _odds(event)]
 			if event.data.result == "turned" and event.data.action_id == FightSim.TURN_HIM:
@@ -196,6 +200,13 @@ static func _describe(event: FightEvent, sim: FightSim) -> String:
 		FightEvent.RESET:
 			var why: String = "he's getting the worse of it" if event.data.get("why", "") == FighterAI.WHY_LOSING else "nothing's landing"
 			return "%s walks back to the middle to reset: %s" % [who, why]
+		FightEvent.POST_ENDED:
+			var how: String = String(event.data.get("how", FightSim.POST_TIME))
+			if how == FightSim.POST_CIRCLED:
+				return "%s gets off the fence and out from under %s's hand" % [_fighter(1 - event.actor, sim), who]
+			if how == FightSim.POST_TIME:
+				return "[color=%s]%s takes the hand off his head[/color]" % [DIM_COLOUR, who]
+			return "[color=%s]%s's hand comes off his head[/color]" % [DIM_COLOUR, who]
 		FightEvent.STANCE_SWITCHED:
 			return "%s switches stance to hide the %s leg" % [who, LEG_NAMES[int(event.data.hiding)]]
 		FightEvent.LIVER_SHOT:
@@ -299,6 +310,10 @@ static func _stopped(event: FightEvent, sim: FightSim) -> String:
 			return "finds nothing to catch%s" % _odds(event)
 		"no underhook":
 			return "can't: he needs an underhook first"
+		"already posting":
+			return "can't: his hand's on his head already"
+		"no post to swat":
+			return "finds no hand on his head to swat"
 		"already tied up":
 			return "can't: he has the tie-up already"
 		"both wrists held":

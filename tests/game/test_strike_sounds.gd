@@ -84,9 +84,11 @@ func test_a_fight_plays_hits_and_misses_and_muting_silences_them() -> void:
 	assert_true(heard.all(func(h: Array) -> bool: return h[2]))
 	sounds.muted = true
 	heard.clear()
+	var again := FightSim.new(8, _roster.make_pair("kicker", "boxer"), _actions)  # A fight still going.
+	sounds.watch(again)
 	for n in 2000:
-		if not sim.is_over():
-			sim.tick()
+		if not again.is_over():
+			again.tick()
 	assert_gt(heard.size(), 0)
 	assert_true(heard.all(func(h: Array) -> bool: return not h[2]), "muted: nothing is heard")
 
