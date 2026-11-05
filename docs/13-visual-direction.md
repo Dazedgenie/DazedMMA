@@ -1360,6 +1360,10 @@ The thrower steps beside the hips before turning in. The lifted fighter goes ove
 
 The guard pull sits back before lowering the defender with a collar grip and forearm control. Its last pose uses the ground guard orientation and retains the actual hips at the handoff. Takedown-view tests sample extension, catch and recovery for either corner and lead, checking heads, trunks, complete limb segments and hand travel. The existing rig-target reach checks also pass.
 
+### Up-kick during a stand-up
+
+The stand-up path poses both fighters. The bottom fighter's up-kick now extends the lead leg from that pose toward the front of the opponent's head. The leg retains its reach limit, misses travel outside the head, and recovery returns the foot to the continuing paired pose. The scramble-view tests measure the visible heel and shin in full and half guard, including recovery, both corners and misses.
+
 ## Review and verification
 
 Open `project.godot` in Godot 4.7.2 and run the game normally. Start a fight and check striking,

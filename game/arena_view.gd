@@ -1009,10 +1009,23 @@ func _pose_ground(sim: FightSim, delta: float) -> bool:
 			to = stage_up[int(thrown_up[0]) + 1]
 			t = float(thrown_up[1])
 	FighterRig.pose_pair(_clinch_rigs[top], _clinch_rigs[1 - top], pair, _ground_frame, to, t)
+	_pose_up_kick(sim, top)
 	for i in 2:
 		figures[i].body.follow(_clinch_rigs[i])
 	_ground_last = [built.pair, _ground_frame, top]
 	return true
+
+
+func _pose_up_kick(sim: FightSim, top: int) -> void:
+	var bottom: int = 1 - top
+	var fighter: FighterState = sim.fighters[bottom]
+	if fighter.action_id != "up_kick":
+		return
+	var phase: Array = strike_blend(sim, fighter, driver.alpha())
+	if phase.is_empty() or int(phase[0]) == 0:
+		return
+	var amount: float = float(phase[1]) if int(phase[0]) == 1 else 1.0 - float(phase[1])
+	_clinch_rigs[bottom].up_kick(figures[bottom].arm_letter(0), _clinch_rigs[top], amount, figures[bottom]._miss)
 
 
 ## A roll under way (D289): from the pose before it over onto their sides to `now` (the new position, fighter
@@ -1142,6 +1155,8 @@ func _pose_takedown(sim: FightSim, delta: float) -> bool:
 			_takedown.x = smoothstep(0.0, 1.0, 1.0 - float(_takedown.left) / SPRAWL_SECONDS)
 	var a: int = int(_takedown.a)
 	TakedownPair.pose_along(_clinch_rigs[a], _clinch_rigs[1 - a], _takedown.path, float(_takedown.x))
+	if _takedown.get("move", "") == "stand_up":
+		_pose_up_kick(sim, a)
 	for i in 2:
 		figures[i].body.follow(_clinch_rigs[i])
 	if String(_takedown.state) == "landing" and float(_takedown.x) >= last:

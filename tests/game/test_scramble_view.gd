@@ -305,3 +305,54 @@ func test_standing_out_of_half_guard_keeps_the_bottom_fighter_on_his_back() -> v
 					var near := Geometry3D.get_closest_points_between_segments(a[0], a[1], b[0], b[1])
 					least = minf(least, near[0].distance_to(near[1]))
 		assert_gt(least, 0.20, "the defender does not rotate through the rising top fighter")
+
+func test_up_kick_follows_the_top_fighter_standing_out_of_guard() -> void:
+	for where: String in ["full_guard", "half_guard"]:
+		for top in 2:
+			var setup := _watched(where, top)
+			var sim: FightSim = setup[0]
+			var view: ArenaView = setup[1]
+			var bottom: int = 1 - top
+			_doing(sim, top, "stand_up", "windup", 0.9)
+			_frames(view, 20)
+			var bone: String = "LeftFoot" if view.figures[bottom].arm_letter(0) == "l" else "RightFoot"
+			var body: SkinnedBody = view.figures[bottom].body
+			var start := body._world_at(bone)
+			_doing(sim, bottom, "up_kick", "active", 1.0)
+			_frames(view, 20)
+			var finish := body._world_at(bone)
+			var head := view.figures[top].body._world_at("Head")
+			assert_gt(finish.y - start.y, 0.12, "the heel rises independently of the stand-up pose")
+			assert_lt(finish.distance_to(head), start.distance_to(head) - 0.15, "lead heel travels toward the head")
+			assert_gt(finish.distance_to(head), 0.09, "heel stops outside the head")
+			var prefix: String = bone.trim_suffix("Foot")
+			var clearance := FighterRig.limb_clearance(body._world_at(prefix + "UpLeg"), body._world_at(prefix + "Leg"), finish, view.figures[top].body.trunk())
+			assert_gt(clearance, FighterRig.TRUNK_RADIUS - 0.005, "shin stays in front of the torso")
+			view.figures[bottom].show_outcome("up_kick", "missed")
+			_frames(view, 20)
+			assert_gt(body._world_at(bone).distance_to(head), finish.distance_to(head) + 0.06, "miss passes beside the head")
+			sim.fighters[bottom].clear_action()
+			_frames(view, 30)
+			assert_lt(body._world_at(bone).distance_to(start), 0.035, "leg returns to the held stand-up pose")
+
+func test_up_kick_clears_the_torso_through_extension_and_recovery() -> void:
+	for where: String in ["full_guard", "half_guard"]:
+		var setup := _watched(where)
+		var sim: FightSim = setup[0]
+		var view: ArenaView = setup[1]
+		_doing(sim, 0, "stand_up", "windup", 0.9)
+		_frames(view, 20)
+		var body: SkinnedBody = view.figures[1].body
+		var side: String = "Left" if view.figures[1].arm_letter(0) == "l" else "Right"
+		var least: float = INF
+		for phase: String in ["windup", "active", "recovery"]:
+			var ticks: int = sim.phase_ticks(sim.fighters[1], "up_kick", phase)
+			for tick in ticks:
+				sim.now += 1
+				_doing(sim, 1, "up_kick", phase, 0)
+				sim.fighters[1].phase_ticks_left = ticks - tick
+				for frame in 6:
+					view.driver._budget = float(frame) / 6.0
+					view._process(1.0 / 60.0)
+					least = minf(least, FighterRig.limb_clearance(body._world_at(side + "UpLeg"), body._world_at(side + "Leg"), body._world_at(side + "Foot"), view.figures[0].body.trunk()))
+		assert_gt(least, FighterRig.TRUNK_RADIUS - 0.005, where + " up-kick clears the top fighter throughout the motion")
