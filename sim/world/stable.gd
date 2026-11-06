@@ -52,6 +52,8 @@ const LEAD_WEEKS: int = 3
 const MATCH_GAP: float = 10.0
 const TURN_DOWN_WEEKS: int = 4
 const CARD_SEARCH_WEEKS: int = 12
+## His camp (D451): the week plan a camp week you didn't run by hand runs on until you've set one on his planner.
+const CAMP_PLAN := "balanced"
 ## The news (`{ kind, name, … }`).
 const SIGNED := "stable_signed"
 const FOUGHT := "stable_fought"
@@ -59,6 +61,7 @@ const UNHAPPY := "stable_unhappy"
 const LEFT := "stable_left"
 const OFFERED := "stable_offers"
 const FIGHT_NIGHT := "stable_fight_night"
+const CALLED_OFF := "stable_called_off"
 
 static var _focuses: Dictionary = {}
 static var _groups: Dictionary = {}
@@ -236,6 +239,8 @@ static func boost(gym: Dictionary, focus_id: String) -> float:
 static func trained(gym: Dictionary) -> Dictionary:
 	var out: Dictionary = {}
 	for e: Dictionary in fighters(gym):
+		if not camp_of(e).is_empty():
+			continue  # A man in a camp you've opened trains in it instead (D451).
 		var focus_id: String = String(e.get("focus", DEFAULT_FOCUS))
 		out[String(e.get("id", ""))] = { "stats": focus_stats(focus_id), "boost": boost(gym, focus_id) }
 	return out
@@ -484,6 +489,7 @@ static func turn_down(gym: Dictionary, id: String, week: int) -> bool:
 		return false
 	e.booked = {}
 	e.wait_until = week + TURN_DOWN_WEEKS
+	e.erase("camp")
 	return true
 
 
@@ -499,6 +505,7 @@ static func settle(w: World, gym: Dictionary, id: String, result: String, method
 	var m: Dictionary = w.man(id)
 	var o: Dictionary = w.man(String(b.opponent))
 	e.booked = {}
+	end_camp(m, e, int(b.week))
 	if m.is_empty() or o.is_empty():
 		return {}
 	var rng := RandomNumberGenerator.new()
@@ -524,6 +531,7 @@ static func quick(w: World, gym: Dictionary, id: String, week: int, seed_value: 
 	var o: Dictionary = w.man(String(b.opponent))
 	if m.is_empty() or o.is_empty() or not World.active(m) or not World.active(o):
 		e.booked = {}  # One of them has gone: the fight's off.
+		e.erase("camp")
 		return {}
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value
@@ -531,6 +539,49 @@ static func quick(w: World, gym: Dictionary, id: String, week: int, seed_value: 
 		WorldWeeks.nudge_for(m, int(b.week)) - WorldWeeks.nudge_for(o, int(b.week)))
 	var result: String = { "a": "win", "b": "loss" }.get(String(r.winner), "draw")
 	return settle(w, gym, id, result, String(r.method), int(r.round), seed_value)
+
+
+# --- His camp (D445's third piece, D451) ------------------------------------------------------------------------------
+
+## His camp for his booked fight, when you've opened it: { snap (TrainingCamp.snapshot), plan (the week on the planner,
+## week_plan@1, {} for the default), ran (the last week run, -1 for none), report (that week's report) }, or {}. The
+## career holds the TrainingCamp itself (Career.stable_camp) and saves it here after every week.
+static func camp_of(e: Dictionary) -> Dictionary:
+	return e.camp if e.get("camp") is Dictionary else {}
+
+
+## Whether his camp can be opened or run this week: he's booked and his fight is this week or later.
+static func can_camp(e: Dictionary, week: int) -> bool:
+	var b: Dictionary = booking(e)
+	return not b.is_empty() and int(b.get("week", -1)) >= week
+
+
+## The weeks of his camp left, this one included (0 when he isn't booked).
+static func camp_weeks_left(e: Dictionary, week: int) -> int:
+	return maxi(0, int(booking(e).get("week", week - 1)) - week + 1) if not booking(e).is_empty() else 0
+
+
+## Adds what a camp week did to his stats (`before` and `after`, stat id → value) to the world man's `gains`, so it
+## stays on him (World.profile adds them).
+static func add_gains(m: Dictionary, before: Dictionary, after: Dictionary) -> void:
+	if not m.get("gains") is Dictionary:
+		m.gains = {}
+	for stat: String in after:
+		var d: float = float(after[stat]) - float(before.get(stat, after[stat]))
+		if absf(d) > 0.0001:
+			m.gains[stat] = float(m.gains.get(stat, 0.0)) + d
+
+
+## His camp is over (his fight's been fought, or it's off): an injury from it keeps him out (the world man's
+## `out_until`) for the weeks it has left to heal from `week`, and the camp goes.
+static func end_camp(m: Dictionary, e: Dictionary, week: int) -> void:
+	var c: Dictionary = camp_of(e)
+	e.erase("camp")
+	if c.is_empty() or m.is_empty():
+		return
+	var days: int = int(c.get("snap", {}).get("injured_days", 0))
+	if days > 0:
+		m.out_until = maxi(int(m.get("out_until", 0)), week + ceili(days / 7.0))
 
 
 # --- Happiness ---------------------------------------------------------------------------------------------------------
@@ -564,7 +615,7 @@ static func month(w: World, gym: Dictionary, week: int, gym_money: int) -> Array
 			continue
 		var fresh: Dictionary = Lads.snapshot(w, m, int(e.get("since", week)))
 		fresh.focus = String(e.get("focus", DEFAULT_FOCUS))
-		for key: String in ["booked", "offers", "offers_until", "wait_until"]:  # His fight, his offers and when the next come.
+		for key: String in ["booked", "offers", "offers_until", "wait_until", "camp"]:  # His fight, offers, the next and his camp.
 			if e.has(key):
 				fresh[key] = e[key]
 		var why: Array[String] = unhappy_reasons(m, e, week, gym_money)
@@ -597,6 +648,8 @@ static func news_text(event: Dictionary) -> String:
 		OFFERED:
 			var count: int = int(event.get("count", 0))
 			return "%d fight offer%s for %s: pick one on the hub" % [count, "" if count == 1 else "s", name]
+		CALLED_OFF:
+			return "%s's fight with %s is off: the doctor won't clear him after his camp" % [name, String(event.get("opponent", ""))]
 		FIGHT_NIGHT:
 			return "Fight night for %s: %s this Saturday. Play it or sim it from the hub" % [name, String(event.get("opponent", ""))]
 		FOUGHT:

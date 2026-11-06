@@ -8,6 +8,8 @@ extends HBoxContainer
 ## (Career.sign_fighter, Career.set_stable_focus, Career.release_fighter); `changed` tells the page to save and redraw.
 
 signal changed
+## *Plan his camp* (D451): main opens the camp planner on him.
+signal camp_pressed(id: String)
 
 const FACE := Vector2(84.0, 98.0)
 const GOOD := Color("#69db7c")
@@ -17,6 +19,7 @@ var career: Career
 var focus_pickers: Dictionary = {}
 var let_go_buttons: Dictionary = {}
 var turn_down_buttons: Dictionary = {}
+var camp_buttons: Dictionary = {}
 var sign_buttons: Array[Button] = []
 ## The prospects shown, in order (each the world's man).
 var shown_prospects: Array = []
@@ -53,6 +56,7 @@ func refresh() -> void:
 	focus_pickers.clear()
 	let_go_buttons.clear()
 	turn_down_buttons.clear()
+	camp_buttons.clear()
 	sign_buttons.clear()
 	var gym: Dictionary = career.gym
 	var w: World = career.world()
@@ -89,6 +93,20 @@ func refresh() -> void:
 		if not booked.is_empty():  # His next fight (D445's second piece, D450), with the chance to turn it down.
 			next_line = "Next: %s, %s%s" % [String(booked.get("opponent_name", "")), career.short_date(int(booked.week), 5),
 				" · %s" % String(booked.card) if String(booked.get("card", "")) != "" else ""]
+			if Stable.can_camp(e, career.week):  # His camp for it (D451).
+				var camp := Button.new()
+				camp.add_theme_font_size_override("font_size", 16)
+				camp.text = camp_label(career, e)
+				camp.disabled = camp.text == WEEK_RUN
+				camp.tooltip_text = "Plan his week's training and play the minigames, like your lad's camp"
+				camp.pressed.connect(func() -> void: camp_pressed.emit(id))
+				camp_buttons[id] = camp
+				controls.append(camp)
+				var c: Dictionary = Stable.camp_of(e)
+				if not c.is_empty():
+					var weeks: int = Stable.camp_weeks_left(e, career.week)
+					next_line += " · his camp: %s, fatigue %d" % ["fight week" if weeks <= 1 else "%d weeks to go" % weeks,
+						roundi(float(c.get("snap", {}).get("fatigue", 0.0)))]
 			var no := Button.new()
 			no.text = "Turn the fight down"
 			no.tooltip_text = "He waits %d weeks for more offers" % Stable.TURN_DOWN_WEEKS
@@ -159,6 +177,19 @@ func let_go(id: String) -> String:
 	changed.emit()
 	refresh()
 	return ""
+
+
+const WEEK_RUN := "This week's camp is run"
+
+
+## His camp button's words (D451): *Plan his camp* until it's opened, then this week's, fight night, or run already.
+static func camp_label(c: Career, e: Dictionary) -> String:
+	var id: String = String(e.get("id", ""))
+	if Stable.camp_of(e).is_empty():
+		return "Plan his camp"
+	if c.stable_camp_ran(id):
+		return "His fight night" if Stable.camp_weeks_left(e, c.week) <= 1 else WEEK_RUN
+	return "His fight week" if Stable.camp_weeks_left(e, c.week) <= 1 else "His camp this week"
 
 
 ## A signed man's words: who he is, his style and record, what he trains and how much faster, how he feels, and his

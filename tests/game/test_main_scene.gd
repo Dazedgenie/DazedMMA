@@ -848,7 +848,66 @@ func test_a_new_career_teaches_the_game_with_tips_and_a_first_fight_of_three_cal
 	assert_false(_main.world_page.visible)
 
 
+func test_a_stable_mans_own_camp_runs_a_week_at_a_time_and_ends_on_his_fight_night() -> void:
+	seed(451)  # The same career every run: a random one may have no amateur to sign or no man to fight him.
+	_main.open_new_career()
+	_main.new_career.set_play_childhood(false)
+	_main.new_career.set_know_the_game(true)
+	_main.new_career.press_start()
+	_main.gym_screen.pick(0)
+	_main.gym_screen.press_start()
+	var c: Career = _main.career
+	c.next_offers_week = 1000
+	c.gym.members = 40
+	var id: String = ""
+	for p: Dictionary in c.stable_prospects():
+		if not bool(p.get("pro", false)):
+			assert_eq(Stable.offer(c.world(), c.gym, p, c.week, 0.0), "")
+			id = String(p.id)
+			break
+	for i in 30:
+		if not Stable.offers_of(Stable.entry(c.gym, id)).is_empty():
+			break
+		c.end_week()
+	assert_true(c.take_stable_offer(id, 0))
+	var b: Dictionary = Stable.booking(Stable.entry(c.gym, id))
+	_main.show_hub()
+	_main.open_gym_page()
+	_main.gym_page.show_tab(GymPage.STABLE)
+	assert_true(_main.gym_page.stable.camp_buttons.has(id), "Plan his camp on the Stable tab (D451)")
+	assert_eq((_main.gym_page.stable.camp_buttons[id] as Button).text, "Plan his camp")
+	(_main.gym_page.stable.camp_buttons[id] as Button).pressed.emit()
+	var planner: CampPlanner = _main.planner
+	assert_not_null(planner, "his camp")
+	assert_eq(planner.stable_id, id)
+	assert_eq(planner.weeks, int(b.week) - c.week + 1)
+	assert_false(planner._run_rest.visible, "a week at a time")
+	planner.run_week()
+	assert_true(c.stable_camp_ran(id))
+	assert_true(_main.gym_page.visible and _main.gym_page.tab == GymPage.STABLE, "back to the Stable tab")
+	assert_eq((_main.gym_page.stable.camp_buttons[id] as Button).text, StableView.WEEK_RUN)
+	assert_true((_main.gym_page.stable.camp_buttons[id] as Button).disabled)
+	while c.week < int(b.week):
+		c.end_week()
+	_main.show_hub()
+	_main.open_gym_page()
+	_main.gym_page.show_tab(GymPage.STABLE)
+	(_main.gym_page.stable.camp_buttons[id] as Button).pressed.emit()
+	planner = _main.planner
+	assert_true(planner.fight_week())
+	planner.run_week()
+	assert_true(planner.done(), "fight week run")
+	assert_true(planner.night_card.visible or not planner.can_fight(), "his fight night card")
+	if planner.can_fight():
+		var fought: int = (c.world().man(id).history as Array).size()
+		planner.sim_pressed.emit(planner.trained_profile())
+		assert_eq(_main.state, _main.OVER, "simmed at once")
+		assert_eq((c.world().man(id).history as Array).size(), mini(fought + 1, WorldWeeks.HISTORY), "onto the world")
+		assert_true(Stable.camp_of(Stable.entry(c.gym, id)).is_empty(), "his camp's over")
+
+
 func test_a_stable_mans_fight_in_his_camp_is_simmed_from_the_camp_and_back_to_it() -> void:
+	seed(451)  # The same career every run: a random one may have no amateur to sign or no man to fight him.
 	_main.open_new_career()
 	_main.new_career.set_play_childhood(false)
 	_main.new_career.set_know_the_game(true)
@@ -862,7 +921,7 @@ func test_a_stable_mans_fight_in_his_camp_is_simmed_from_the_camp_and_back_to_it
 	c.gym.members = 40
 	var m: Dictionary = {}
 	for p: Dictionary in c.stable_prospects():
-		if not bool(p.get("pro", false)) and not Lads.at_gym(c.gym, String(p.id)):
+		if not bool(p.get("pro", false)):
 			m = p
 			break
 	assert_eq(Stable.offer(c.world(), c.gym, m, c.week, 0.0), "")
@@ -886,6 +945,7 @@ func test_a_stable_mans_fight_in_his_camp_is_simmed_from_the_camp_and_back_to_it
 
 
 func test_a_stable_mans_fight_is_simmed_from_the_hub_onto_the_world() -> void:
+	seed(451)  # The same career every run: a random one may have no amateur to sign or no man to fight him.
 	_main.open_new_career()
 	_main.new_career.set_play_childhood(false)
 	_main.new_career.set_know_the_game(true)
