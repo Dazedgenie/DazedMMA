@@ -77,7 +77,9 @@ const STABLE_UNHAPPY := Stable.UNHAPPY
 const STABLE_LEFT := Stable.LEFT
 ## Events that are only news: Advance runs on past them (a lad walking in or leaving, D444; a stable man signing or
 ## fighting, D445).
-const JUST_NEWS: Array[String] = [LAD_IN, LAD_LEFT, STABLE_SIGNED, STABLE_FOUGHT, STABLE_CALLED_OFF]
+const JUST_NEWS: Array[String] = [LAD_IN, LAD_LEFT, STABLE_SIGNED, STABLE_FOUGHT, STABLE_CALLED_OFF, GYM_NAME]
+## The gym's name moved a level (D446): { kind, level, up } (GymRepute.news_text).
+const GYM_NAME := GymRepute.MOVED
 ## School (D314, School): the summer holidays start (every session is his until September), school starts again, and
 ## he's left school for good (LEAVES_AT): { kind }.
 const SCHOOL_OUT := "school_out"
@@ -126,6 +128,8 @@ var coach_week: Dictionary = {}
 var lad_news: Array = []
 ## Your stable's fights, worries and leavers since the last week's report (Stable, D445), for run_week's news.
 var stable_news: Array = []
+## The gym's name moving a level since the last week's report (GymRepute, D446), for run_week's news.
+var gym_news: Array = []
 var trainee: TrainingCamp
 ## The day (days since 1 Jan 1970) of the Monday that starts week 0, and the week it is now.
 var first_monday: int = 0
@@ -324,6 +328,8 @@ func run_week(plan: Variant = null, played: Dictionary = {}) -> Dictionary:
 	report.events.append_array(lad_news)
 	report.events.append_array(stable_news)
 	stable_news = []
+	report.events.append_array(gym_news)
+	gym_news = []
 	var worn: bool = float(report.get("fatigue_peak", 0.0)) >= TrainingCamp.FATIGUE_FREE
 	if worn and not worn_last_week:
 		report.events.append({ "kind": WORN_DOWN })
@@ -442,6 +448,8 @@ static func event_text(event: Dictionary) -> String:
 				Staff.role_words(String(event.get("role", ""))), int(event.get("weeks", 0))]
 		STABLE_SIGNED, STABLE_FOUGHT, STABLE_UNHAPPY, STABLE_LEFT, STABLE_OFFERS, STABLE_FIGHT_NIGHT, STABLE_CALLED_OFF:
 			return Stable.news_text(event)
+		GYM_NAME:
+			return GymRepute.news_text(event)
 		LAD_IN, LAD_LEFT:
 			return Lads.news_text(event)
 		SCHOOL_OUT:
@@ -925,23 +933,87 @@ func end_week() -> Dictionary:
 	if not gym.is_empty() and int(date(0, week).month) != int(date(0, week - 1).month):
 		var dice := RandomNumberGenerator.new()
 		dice.seed = hash([career_seed, week, "gym members"])  # Its own dice: nothing else the career rolls moves.
-		var wins: int = fights.filter(func(f: Dictionary) -> bool: return String(f.get("result", "")) == "win").size()
-		out = Gym.month(gym, wins, dice)
+		refresh_repute()
+		out = Gym.month(gym, GymRepute.fame(gym), dice)  # Members by the gym's name (D446).
 		gym_money += int(out.net)
 		out.week = week
 		gym_last_month = out.duplicate()
+		if gym_money < 0:  # A month started behind on the rent: talked about (D446).
+			GymRepute.mark(gym, week, -GymRepute.BEHIND_ON_RENT, "rent")
 		if _world != null:  # The gym's lads come and go (D444), from the world as it stands.
 			var lad_dice := RandomNumberGenerator.new()
 			lad_dice.seed = hash([career_seed, week, "gym lads"])
 			lad_news = Lads.month(_world, gym, week, lad_dice)
 	coach_week = Staff.pay_week(gym, gym_money)  # Monday's wages, after the month's dues are in (D443).
 	gym_money -= int(coach_week.paid)
+	for coach: Dictionary in coach_week.get("left", []):  # A coach who walked out unpaid (D446).
+		GymRepute.mark(gym, week, -GymRepute.COACH_WALKED, "walked")
 	if not Stable.fighters(gym).is_empty():  # Your stable's week in the world, and its month (D445).
 		world()
 		if int(date(0, week).month) != int(date(0, week - 1).month):
-			stable_news.append_array(Stable.month(_world, gym, week, gym_money))
+			var month_news: Array = Stable.month(_world, gym, week, gym_money)
+			for n: Dictionary in month_news:
+				if String(n.get("kind", "")) == STABLE_LEFT and not bool(n.get("retired", false)):
+					GymRepute.mark(gym, week, -GymRepute.MAN_LEFT, "left")  # A man who left unhappy (D446).
+			stable_news.append_array(month_news)
 		_stable_fights()
+	_repute_week()
 	return out
+
+
+## The gym's name (GymRepute, D446) worked out again and kept on the gym: his fights, your stable's and the trouble,
+## the ranked men and belts now, the rooms and coaches. Read only on the world (it never moves it on). Returns the score.
+func refresh_repute() -> float:
+	if gym.is_empty():
+		return 0.0
+	return GymRepute.work_out(gym, week, _his_repute(), _standing_repute())
+
+
+## His own fights for the gym's name, faded (GymRepute.fight_points): a pro fight by the promotion whose card it was.
+func _his_repute() -> float:
+	var out: float = 0.0
+	for e: Dictionary in fights:
+		var pro_fight: bool = bool(e.get("pro", false))
+		var rank: int = -1
+		if pro_fight and _world != null:
+			var on: String = String(e.get("card", {}).get("promotion", "")) if e.get("card") is Dictionary else ""
+			rank = int(Promotions.by_id(_world, on).get("rank", -1)) if on != "" else -1
+		var title: bool = String(e.get("title", "")) != "" and String(e.get("result", "")) == "win"
+		out += GymRepute.fight_points(String(e.get("result", "")), String(e.get("method", "")), pro_fight, rank, title) \
+			* GymRepute.fade(int(e.get("week", week)), week)
+	return out
+
+
+## The men fighting for the gym now (D446): RANKED for each ranked man and CHAMPION for each belt, by his promotion.
+func _standing_repute() -> float:
+	if _world == null:
+		return 0.0
+	var out: float = 0.0
+	var ids: Array[String] = []
+	if pro:
+		ids.append(FIGHTER_ID)
+	for e: Dictionary in Stable.fighters(gym):
+		ids.append(String(e.get("id", "")))
+	for id: String in ids:
+		var m: Dictionary = _world.him if id == FIGHTER_ID else _world.man(id)
+		var rank: int = int(Promotions.of(_world, m).get("rank", Promotions.REGIONAL))
+		var share: float = GymRepute.PROMOTION_SHARE[clampi(rank, 0, GymRepute.PROMOTION_SHARE.size() - 1)]
+		if Rankings.rank_of(_world, id) > 0:
+			out += GymRepute.RANKED * share
+		if Titles.held_by(_world, id) != "":
+			out += GymRepute.CHAMPION * share
+	return out
+
+
+## The week's look at the gym's name: worked out again, and news when it's moved a level since last week (none the
+## first time, for a career saved before D446).
+func _repute_week() -> void:
+	if gym.is_empty():
+		return
+	var now: int = GymRepute.level_of(refresh_repute())
+	if gym.has("repute_level") and now != int(gym.repute_level):
+		gym_news.append({ "kind": GYM_NAME, "level": now, "up": now > int(gym.repute_level) })
+	gym.repute_level = now
 
 
 ## Your stable's fights at the start of a week (D445's second piece, D450): a fight nobody opened last week decided by
@@ -1001,6 +1073,7 @@ func finish_stable_fight(id: String, result: String, method: String, round: int,
 	for n: Dictionary in done.news:
 		out.append(Stable.news_text(n))
 	stable_news.append_array(done.news)
+	refresh_repute()  # The gym's name (D446).
 	return out
 
 
@@ -1252,6 +1325,7 @@ func add_fight(entry: Dictionary) -> void:
 	e.week = week
 	e.pro = bool(e.get("pro", pro))
 	fights.append(e)
+	refresh_repute()  # The gym's name (D446).
 
 
 ## His wins, losses, draws and no contests, pro or amateur: { win, loss, draw, no_contest }.

@@ -89,6 +89,7 @@ func test_hiring_takes_him_off_the_list_and_you_get_one_coach_a_role() -> void:
 	c.gym.looking = [_coach("striking"), _coach("striking", 2), _coach("bjj")]
 	c.gym.looking[1].id = "other"
 	c.gym.looking_at = Staff.month_key(c.date())
+	c.gym.repute = { "score": GymRepute.LEVELS[GymRepute.TOWN] }  # Known in town: a level 2 coach comes (D446).
 	assert_eq(c.hire_coach(0), "")
 	assert_eq(Staff.coaches(c.gym).size(), 1)
 	assert_eq((c.gym.looking as Array).size(), 2, "off the list")

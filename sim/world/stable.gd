@@ -29,6 +29,10 @@ const MAX_PLACES: int = 8
 const PROSPECTS: int = 10
 const AGES: Array[float] = [16.0, 30.0]
 const TIERS: Array[String] = ["amateur", "local", "regional"]
+## The tiers above them, who only sign for a gym with a big enough name (GymRepute.tier_needs, D446).
+const BIG_TIERS: Array[String] = ["national", "world"]
+## The gym's name (D446): this much more chance he says yes for every point of it.
+const YES_PER_POINT: float = 0.004
 const YES_BASE: float = 0.7
 const YES_PER_TIER: float = 0.25
 const YES_PER_LEVEL: float = 0.03
@@ -128,11 +132,12 @@ static func prospects(w: World, gym: Dictionary, week: int, names: NameLibrary =
 		if not m.is_empty() and World.active(m):
 			out.append(m)
 	var lib: NameLibrary = names if names != null else NameLibrary.shared()
+	var tiers: Array[String] = signing_tiers(gym)
 	var town: Array = []
 	var rest: Array = []
 	for m: Dictionary in w.men.values():
 		var id: String = String(m.get("id", ""))
-		if not World.active(m) or Lads.at_gym(gym, id) or Lads.used_to(gym, id) or not String(m.get("tier", "")) in TIERS:
+		if not World.active(m) or Lads.at_gym(gym, id) or Lads.used_to(gym, id) or not String(m.get("tier", "")) in tiers:
 			continue
 		var age: float = World.age_of(m, week)
 		if age < AGES[0] or age > AGES[1]:
@@ -150,16 +155,27 @@ static func prospects(w: World, gym: Dictionary, week: int, names: NameLibrary =
 	return out
 
 
+## The tiers that will sign for your gym (D446): amateurs, local and regional pros anywhere, national-level pros from
+## Known nationally and world-class men from World famous (GymRepute.tier_needs).
+static func signing_tiers(gym: Dictionary) -> Array[String]:
+	var out: Array[String] = TIERS.duplicate()
+	for t: String in BIG_TIERS:
+		if GymRepute.level(gym) >= GymRepute.tier_needs(t):
+			out.append(t)
+	return out
+
+
 ## How many levels of rooms and coaches the gym has: what a man weighs up before he signs.
 static func gym_levels(gym: Dictionary) -> int:
 	return Gym.levels(gym) + Staff.levels(gym)
 
 
-## The chance he says yes (YES_RANGE): YES_BASE, less YES_PER_TIER for each level above amateur (TIERS), more
-## YES_PER_LEVEL for every room and coach level, more YES_LAD when he already trains at your gym.
+## The chance he says yes (YES_RANGE): YES_BASE, less YES_PER_TIER for each level above amateur (TIERS, then
+## BIG_TIERS), more YES_PER_LEVEL for every room and coach level and YES_PER_POINT for every point of the gym's name
+## (D446), more YES_LAD when he already trains at your gym.
 static func yes_chance(gym: Dictionary, m: Dictionary) -> float:
-	var tier: int = maxi(0, TIERS.find(String(m.get("tier", "amateur"))))
-	var out: float = YES_BASE - YES_PER_TIER * tier + YES_PER_LEVEL * gym_levels(gym)
+	var tier: int = maxi(0, (TIERS + BIG_TIERS).find(String(m.get("tier", "amateur"))))
+	var out: float = YES_BASE - YES_PER_TIER * tier + YES_PER_LEVEL * gym_levels(gym) + YES_PER_POINT * GymRepute.score(gym)
 	if Lads.at_gym(gym, String(m.get("id", ""))):
 		out += YES_LAD
 	return clampf(out, YES_RANGE[0], YES_RANGE[1])
@@ -289,6 +305,9 @@ static func after_fights(w: World, gym: Dictionary, results: Array) -> Dictionar
 			var result: String = "draw" if winner == "" or winner == "draw" else ("win" if winner == side or winner == id else "loss")
 			var cut: int = Gym.purse_cut(purse(w, m, result == "win"))
 			out.cut = int(out.cut) + cut
+			var title: bool = String(r.get("title", "")) != "" and result == "win"
+			GymRepute.mark(gym, int(r.get("week", 0)), GymRepute.fight_points(result, String(r.get("method", "")), bool(m.get("pro", false)),
+				int(Promotions.of(w, m).get("rank", -1)) if bool(m.get("pro", false)) else -1, title), "fight")  # The gym's name (D446).
 			(out.news as Array).append({ "kind": FOUGHT, "name": String(m.get("name", "")), "opponent": String(other.get("name", "")),
 				"result": result, "method": String(r.get("method", "")), "cut": cut })
 	return out

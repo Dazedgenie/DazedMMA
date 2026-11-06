@@ -81,6 +81,9 @@ func refresh() -> void:
 		var why: String = Staff.cant_hire(career.gym, coach)
 		var b := Button.new()
 		b.text = "Hire him · $%d a week" % Staff.wage(coach) if why == "" else "You have one"
+		if why != "" and Staff.in_role(career.gym, String(coach.get("role", ""))).is_empty():
+			# The gym's name isn't big enough for him yet (D446).
+			b.text = "Comes once you're %s" % GymRepute.level_name(GymRepute.coach_needs(int(coach.get("level", 1)))).to_lower()
 		b.tooltip_text = why
 		b.disabled = why != ""
 		b.add_theme_font_size_override("font_size", 16)

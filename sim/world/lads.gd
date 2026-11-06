@@ -19,6 +19,8 @@ const MEMBERS_PER_LAD: int = 8
 const MIN_LADS: int = 2
 const MAX_LADS: int = 8
 const WALK_IN_CHANCE: float = 0.35
+## The gym's name (D446): this much more chance a month a lad walks in for every point of it.
+const WALK_IN_PER_POINT: float = 0.004
 const LEAVE_CHANCE: float = 0.05
 ## Sparring with a partner: up to PARTNER_UP more XP when his best lad is PARTNER_SPREAD points of average stat better,
 ## down to PARTNER_DOWN less when he's that much worse (or there's nobody).
@@ -126,7 +128,7 @@ static func month(w: World, gym: Dictionary, week: int, dice: RandomNumberGenera
 		keep.append(fresh)
 	gym.lads = keep
 	var walk_in: float = dice.randf()
-	if keep.size() < room(gym) and walk_in < WALK_IN_CHANCE:
+	if keep.size() < room(gym) and walk_in < WALK_IN_CHANCE + WALK_IN_PER_POINT * GymRepute.score(gym):
 		var pool: Array = candidates(w, gym, week)
 		if not pool.is_empty():
 			var m: Dictionary = _pick(pool, dice)

@@ -13,6 +13,8 @@ signal closed
 ## Something was built or torn down: the career changed (main saves it).
 signal changed
 
+## The gym's name block's width (D446).
+const NAME_WIDTH: float = 260.0
 const SIDE_WIDTH: float = 460.0
 
 const ROOMS := "rooms"
@@ -37,6 +39,10 @@ var _rooms_body: HBoxContainer
 var _title: Label
 var _subtitle: Label
 var _money: RichTextLabel
+## The gym's name (D446): its word, the bar to the next and how far, what it's made of.
+var name_word: Label
+var name_bar: ProgressBar
+var name_next: Label
 var _side: VBoxContainer
 var _room_title: Label
 var _room_text: RichTextLabel
@@ -72,6 +78,37 @@ func _init() -> void:
 	_subtitle.add_theme_font_size_override("font_size", 17)
 	_subtitle.add_theme_color_override("font_color", CareerHub.DIM)
 	names.add_child(_subtitle)
+	var repute := VBoxContainer.new()  # The gym's name (D446).
+	repute.add_theme_constant_override("separation", 2)
+	repute.custom_minimum_size.x = NAME_WIDTH
+	top.add_child(repute)
+	var heading := Label.new()
+	heading.text = "THE GYM'S NAME"
+	DisplayFont.apply(heading, 15)
+	heading.add_theme_color_override("font_color", CareerHub.DIM)
+	repute.add_child(heading)
+	name_word = Label.new()
+	DisplayFont.apply(name_word, 24)
+	name_word.add_theme_color_override("font_color", CareerHub.TEXT)
+	repute.add_child(name_word)
+	name_bar = ProgressBar.new()
+	name_bar.show_percentage = false
+	name_bar.custom_minimum_size = Vector2(NAME_WIDTH, 8.0)
+	name_bar.max_value = 1.0
+	var fill := StyleBoxFlat.new()
+	fill.bg_color = CareerHub.RED_CORNER
+	fill.set_corner_radius_all(3)
+	name_bar.add_theme_stylebox_override("fill", fill)
+	var back := StyleBoxFlat.new()
+	back.bg_color = Color(1.0, 1.0, 1.0, 0.1)
+	back.set_corner_radius_all(3)
+	name_bar.add_theme_stylebox_override("background", back)
+	repute.add_child(name_bar)
+	name_next = Label.new()
+	name_next.add_theme_font_size_override("font_size", 14)
+	name_next.add_theme_color_override("font_color", CareerHub.DIM)
+	repute.add_child(name_next)
+	repute.mouse_filter = Control.MOUSE_FILTER_PASS
 	var close := Button.new()
 	close.text = "Back to the hub"
 	close.tooltip_text = "Esc"
@@ -154,6 +191,7 @@ func _init() -> void:
 ## Opens the page for this career's gym, with nothing picked, on the Rooms tab.
 func show_gym(c: Career, p_picked: String = "") -> void:
 	career = c
+	c.refresh_repute()  # The gym's name as it stands (D446).
 	picked_room = p_picked
 	visible = true
 	show_tab(ROOMS)
@@ -175,6 +213,7 @@ func refresh() -> void:
 	_subtitle.text = "%s · %s · %d of %d squares of floor used" % [String(Gym.place(String(gym.get("place", ""))).get("name", "")),
 		Gym.kind_line(gym), Gym.floor_used(gym), Gym.floor_size(gym)]
 	_money.text = money_text(career)
+	_show_name(gym)
 	_rooms_body.visible = tab == ROOMS
 	coaches.visible = tab == COACHES
 	fighters.visible = tab == FIGHTERS
@@ -229,6 +268,23 @@ func tear_down(room_id: String) -> String:
 	refresh()
 	_why.text = why
 	return why
+
+
+## The gym's name (D446): "Known in town", the bar to Known in the region, "14 of 30 · fights 9 · rooms and coaches 5".
+func _show_name(gym: Dictionary) -> void:
+	var points: float = GymRepute.score(gym)
+	var i: int = GymRepute.level_of(points)
+	name_word.text = GymRepute.level_name(i)
+	name_bar.value = GymRepute.to_next(points)
+	if i >= GymRepute.LEVELS.size() - 1:
+		name_next.text = "%d · the top" % roundi(points)
+	else:
+		name_next.text = "%d of %d to %s" % [roundi(points), roundi(GymRepute.LEVELS[i + 1]), GymRepute.level_name(i + 1).to_lower()]
+	var tip: String = "Made of: %s.\nNext: %s" % [GymRepute.parts_line(gym),
+		GymRepute.what_opens(i + 1) if i < GymRepute.LEVELS.size() - 1 else "you're at the top"]
+	for c: Control in [name_word, name_bar, name_next]:
+		c.tooltip_text = tip
+		c.mouse_filter = Control.MOUSE_FILTER_PASS
 
 
 ## "The gym has $620 · +$100 a month · building the ring, open in 2 weeks"

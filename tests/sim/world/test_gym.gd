@@ -98,21 +98,21 @@ func test_members_pay_and_the_rent_goes_out_on_the_first_monday_of_each_month() 
 	assert_eq(_career({}, 120).end_week(), {}, "no gym, no month")
 
 
-func test_members_come_with_his_wins_up_to_what_the_place_holds() -> void:
+func test_members_come_with_the_gyms_name_up_to_what_the_place_holds() -> void:
 	var g: Dictionary = _gym("boxing_gym")
 	var dice := RandomNumberGenerator.new()
 	assert_eq(Gym.members_target(g, 0), 16)
-	assert_eq(Gym.members_target(g, 3), 16 + 3 * Gym.MEMBERS_PER_WIN)
+	assert_eq(Gym.members_target(g, 4), 16 + roundi(4 * GymRepute.MEMBERS_PER_POINT), "its name brings members (D446)")
 	assert_eq(Gym.members_target(g, 100), int(Gym.place("unit").cap), "never more than the place holds")
 	var grown: Array = []
 	for i in 12:
 		grown.append(int(Gym.month(g, 10, dice).members))
-	assert_gt(grown[-1], 16, "members join as he wins")
+	assert_gt(grown[-1], 16, "members join as its name grows")
 	assert_lte(grown.max(), Gym.members_target(g, 10))
 	var quiet: Dictionary = _gym("boxing_gym")
 	for i in 12:
 		Gym.month(quiet, 0, dice)
-	assert_lte(int(quiet.members), 16, "with no wins they only drift off")
+	assert_lte(int(quiet.members), 16, "with no name they only drift off")
 
 
 func test_the_gym_takes_its_cut_of_every_purse_he_is_paid() -> void:

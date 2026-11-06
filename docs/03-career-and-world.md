@@ -1732,7 +1732,7 @@ doc (https://claude.ai/artifact/BrEV5jejZtpFWMJiT9HuYC). The pieces, in this ord
 | Hiring coaches: specialists for a weekly wage by level, mostly the world's retired fighters | D443 | Built (§14.3) |
 | The gym's other fighters: named lads training there as sparring partners, walk-ins as it grows (was D407) | D444 | Built (§14.4) |
 | Recruiting and the stable: signing the world's men, 2 fighters at first and up to 8, plans set once, each fight played or simmed, men who leave when unhappy | D445, D450 | Signing and training built (§14.5); their fights, played or simmed, built (§14.6, D450); their camps with the planner and minigames built (§14.7, D451) |
-| The gym's name: members, who'll sign, which coaches come, news | D446 | Planned |
+| The gym's name: members, who'll sign, which coaches come, news | D446 | Built (§14.8) |
 | Your own levels as head coach (was D408) | D447 | Planned |
 | Expanding and moving: the unit next door, a bigger building (was D409) | D448 | Planned |
 | When he retires: the gym carries on | D449 | Planned |
@@ -1764,7 +1764,8 @@ he."
   wrestling club $25–45, an MMA gym $70–110) and the **rent** goes out. The rent is 85% of what its first members pay, to
   the nearest $10 (`RENT_SHARE`), so the first year is tight: a garage of 12 at $40 is $480 in and $410 rent.
 - **Members** then move one towards a number (two when they're five or more off): its first members plus **2 for each of
-  his wins** (`MEMBERS_PER_WIN`), never more than the place holds. One may drift off in a month (25%, `LEAVE_CHANCE`), so
+  his wins** (`MEMBERS_PER_WIN`), never more than the place holds. Since D446 it's the gym's name instead: 1.5 members
+  for each point of its fights, ranked men and trouble (§14.8). One may drift off in a month (25%, `LEAVE_CHANCE`), so
   with no wins it slowly empties. The drift rolls on its own dice, so nothing else in the career changes.
 - The gym takes **15% of every purse** he's paid (`PURSE_CUT`): a $2,000 win pays the gym $300 and him $1,700. The
   fight's entry keeps it (`gym_cut`) and the result says so (*Purse $2000 (savings $1700, the gym's 15%: $300)*).
@@ -1783,7 +1784,7 @@ with 16 members, its fee now what a member pays, and $500 (`Gym.made_yours`). Wh
 before D313 still has no gym. Fights don't change (no golden re-pin).
 
 **What to change:** the places in `data/enums/gym_places.json`; what members pay in each kind's `fee` in `data/gyms/`; the
-money numbers at the top of `sim/world/gym.gd` (`START_MONEY`, `PURSE_CUT`, `RENT_SHARE`, `MEMBERS_PER_WIN`,
+money numbers at the top of `sim/world/gym.gd` (`START_MONEY`, `PURSE_CUT`, `RENT_SHARE`,
 `LEAVE_CHANCE`, `OLD_SAVE_PLACE`, `OLD_SAVE_MEMBERS`) and the month in `Gym.month`; where the career turns it in
 `sim/world/career.gd` (`end_week`, `_pay`, `GYM_BEHIND`); the cards and the walk-in in `ui/gym_screen.gd` (`gym_text`,
 `money_text`, `place_line`, `walk_in_text`); the hub in `ui/career_hub.gd` (`gym_text`, `month_text`); the result's purse
@@ -1895,7 +1896,7 @@ with *Hire him · $40 a week* or *You have one*. The money line adds the week's 
 (*Coaching with you: Reece Wright (striking) and Ann Lee (nutritionist) · $105 a week in wages*).
 
 **Not yet:** coaches teaching moves (D40's catalogue), a cutman (cuts don't change fights yet, D375), coaches in your
-corner on fight night, poaching (D26), coaches getting better, and the gym's name deciding who comes (D446). The coaches
+corner on fight night, poaching (D26), coaches getting better. (The gym's name deciding who comes is §14.8.) The coaches
 are drawn in fight shorts, like the old owner, until people off the fight screen get clothes.
 
 **Old saves.** A gym from before D443 has no coaches. Fights outside a career don't change (no golden re-pin).
@@ -1946,7 +1947,7 @@ what he does to the partner sessions now, the room the members make, and the men
 line adds *2 other lads train here · best sparring partner: Jake Moss (about even)*.
 
 **Not yet:** training them yourself (D445's third piece; signing them to your stable is §14.5), sparring a named lad in a session, lads getting
-hurt in sparring, and the gym's name deciding who comes (D446).
+hurt in sparring. (The gym's name brings more walk-ins: §14.8.)
 
 **Old saves.** A gym from before D444 trains as before until it's next played, when its first two lads walk in. Fights
 outside a career don't change (no golden re-pin); a career's partner sessions do.
@@ -2007,7 +2008,7 @@ can't). The *Fighters* tab lists your stable after him, and your stable spars wi
 gym line adds *Your stable: Harry Wright · 2 of 3 places*. Signings and fights are news on the hub and the calendar and
 *Advance* runs on past them (`Career.JUST_NEWS`); a warning or a man leaving stops it.
 
-**Not yet:** a week planner between fights (their fights are §14.6, their camps §14.7), the gym's name drawing better men (D446), and signing national or world-class men.
+**Not yet:** a week planner between fights (their fights are §14.6, their camps §14.7), signing men from abroad (the gym's name drawing better men, national and world-class, is §14.8) men.
 
 **Old saves.** A gym from before D445 has an empty stable. Fights outside a career don't change (no golden re-pin), and a
 career without a stable plays as before.
@@ -2147,3 +2148,76 @@ look.
 `ui/camp_planner.gd` (`use_stable`, `use_plan`, `waiting_for_monday`), the button in `ui/stable_view.gd` (`camp_label`).
 Tests: `tests/sim/world/test_stable_camp.gd`, `tests/game/test_main_scene.gd`. Then update this section and D451.
 
+### 14.8 The gym's name (D446)
+
+Kyle (2026-11-06) said "Start" for D440's sixth piece. **Your gym has a name**: one number, 0 to 100, for how well
+known it is, shown as a word and a bar to the next (`sim/world/gym_repute.gd`, `GymRepute`). Kyle picked my
+recommendation on all five cards (below).
+
+| Level | From | What it opens |
+|---|---|---|
+| Unknown | 0 | Level 1 coaches, amateurs and local and regional pros |
+| Known in town | 10 | Level 2 coaches |
+| Known in the region | 30 | Level 3 coaches (the former champions) |
+| Known nationally | 55 | National-level pros will sign |
+| World famous | 80 | World-class men will sign |
+
+**What makes it** (`GymRepute.work_out`, added up and kept on the gym as `repute`):
+
+- **Fights.** Every fight your lad and your stable have for the gym: an amateur win **1**, a pro win **2** on a
+  regional card, **4** for the international organisation and **6** for the world one (`WIN_PRO`, `PROMOTION_SHARE`),
+  half as much again for a finish (`FINISH_SHARE`) and **6** more (times the same) for a title fight won (`TITLE_WIN`).
+  A pro loss takes **0.5** off (times the same, `LOSS_PRO`); an amateur loss nothing. His fights are read from his
+  record, so an old career has a name the day it loads; your stable's are marked on the gym as they're fought
+  (`repute_marks`, `Stable.after_fights`), so a man who leaves still leaves his wins behind.
+- **Fading.** A fight counts **half after two years** and a quarter after four (`HALF_LIFE_WEEKS`), as the rankings do:
+  a gym that stops winning slips back.
+- **Ranked men and belts.** Each man fighting for the gym who's ranked now adds **3**, each belt **8**, times his
+  promotion's share (`RANKED`, `CHAMPION`).
+- **Rooms and coaches.** **0.5** for every room level built since it opened and **1** for every coach's level
+  (`PER_ROOM_LEVEL`, `PER_COACH_LEVEL`).
+- **Trouble.** **6** off for a man who leaves your stable unhappy (`MAN_LEFT`), **6** for a coach who walks out unpaid
+  (`COACH_WALKED`), **4** for each month that starts behind on the rent (`BEHIND_ON_RENT`); fading as fights do.
+
+A lad's amateur career of a dozen wins and a coach makes the gym *Known in town*; a few pro wins and a ranked man in
+the stable make it *Known in the region*; *Known nationally* needs men in the international organisation; *World famous*
+a champion or two at the top.
+
+**What it does.**
+
+- **Members** head for its first members plus **1.5 for each point** of its fights, ranked men and trouble
+  (`GymRepute.fame`, `MEMBERS_PER_POINT`; the rooms and coaches already bring their own members), up to what the place
+  holds. It replaced 2 members a win of his (D441), so a gym that stops winning now loses members as its name fades.
+- **Signing** (§14.5): a man is **0.4% likelier to say yes for every point** (`Stable.YES_PER_POINT`), and **national-level
+  pros** are among the men you can sign once you're *Known nationally*, **world-class** ones at *World famous*
+  (`Stable.signing_tiers`, `BIG_TIERS`).
+- **Coaches** (§14.3): a level 2 coach won't come until you're *Known in town*, level 3 until *Known in the region*
+  (`Staff.cant_hire`, `GymRepute.coach_needs`). They're still on the list, their button saying *Comes once you're known
+  in the region*.
+- **Lads** (§14.4): a lad's **0.4% likelier to walk in each month for every point** (`Lads.WALK_IN_PER_POINT`).
+- **News** when it moves a level: *Your gym is known in the region now: level 3 coaches will come*, or *Your gym's name is
+  slipping: known in town now* (`Career.GYM_NAME`). Advance runs on past it.
+
+**On screen.** The gym page's top right: *THE GYM'S NAME*, the word, a red bar to the next level and *13 of 30 to known
+in the region*; hovering it says what it's made of (*fights 12 · rooms and coaches 1*) and what the next level opens.
+The hub's gym line adds *The gym's name: **Known in town** · 13 of 30 to Known in the region*.
+
+**The cards** (asked 2026-11-06; Kyle picked all five of my recommendations at 13:15): what builds it: **results, plus rooms and coaches a little**;
+fading: **yes, slowly**; what a bigger name opens: **better men and coaches**; what hurts it: **losses a little,
+trouble a lot**; how it shows: **a word and a bar**.
+
+**Not yet:** the world's news naming your gym (*Hill's Gym: 3 ranked men*), the name bringing offers or sponsors, and
+fans.
+
+**Old saves.** A career saved before D446 has a name from his fights, ranked men, rooms and coaches the first time it's
+looked at, without news; its members head for the new number from the next month. Fights don't change (no golden
+re-pin).
+
+**What to change:** the numbers at the top of `sim/world/gym_repute.gd` (`LEVELS`, `LEVEL_NAMES`, `WIN_AMATEUR`,
+`WIN_PRO`, `FINISH_SHARE`, `TITLE_WIN`, `LOSS_PRO`, `PROMOTION_SHARE`, `HALF_LIFE_WEEKS`, `RANKED`, `CHAMPION`,
+`PER_ROOM_LEVEL`, `PER_COACH_LEVEL`, `MAN_LEFT`, `COACH_WALKED`, `BEHIND_ON_RENT`, `MEMBERS_PER_POINT`) and what each
+level opens (`coach_needs`, `tier_needs`, `what_opens`); `Stable.YES_PER_POINT` and `BIG_TIERS`, `Lads.WALK_IN_PER_POINT`;
+where it's worked out in `sim/world/career.gd` (`refresh_repute`, `_his_repute`, `_standing_repute`, `_repute_week`,
+`end_week`, `GYM_NAME`); members in `Gym.members_target`; the page's block in `ui/gym_page.gd` (`_show_name`), the
+coaches' button in `ui/coaches_view.gd`, the hub's line in `ui/career_hub.gd` (`gym_text`). Tests:
+`tests/sim/world/test_gym_repute.gd`, `tests/ui/test_gym_page.gd`. Then update this section and D446.
