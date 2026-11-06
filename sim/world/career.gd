@@ -65,9 +65,12 @@ const COACH_LEFT := "coach_left"
 ## A lad walked in to train at your gym, or left it (D444): { kind, name, retired? }.
 const LAD_IN := Lads.WALKED_IN
 const LAD_LEFT := Lads.LEFT
-## Your stable (D445): a man signed, one of them fought on the world's cards, one is unhappy and one has left:
+## Your stable (D445): a man signed, one of them fought, one is unhappy and one has left; offers in for one (pick one
+## on the hub, D450) and one's fight night this week (Play it or Sim it on the hub); both of those stop Advance:
 ## { kind, name, ... } (Stable.news_text).
 const STABLE_SIGNED := Stable.SIGNED
+const STABLE_OFFERS := Stable.OFFERED
+const STABLE_FIGHT_NIGHT := Stable.FIGHT_NIGHT
 const STABLE_FOUGHT := Stable.FOUGHT
 const STABLE_UNHAPPY := Stable.UNHAPPY
 const STABLE_LEFT := Stable.LEFT
@@ -353,6 +356,11 @@ func calendar(weeks: int = CALENDAR_WEEKS) -> Array[Dictionary]:
 	_add_ahead(ahead, to_birthday, { "kind": BIRTHDAY, "age": age() + 1 })
 	if not booked.is_empty() and booked.has("week"):
 		_add_ahead(ahead, int(booked.week) - week, { "kind": FIGHT_NIGHT, "opponent": String(booked.get("opponent", "")) })
+	for e: Dictionary in Stable.fighters(gym):  # Your stable's fight nights (D445).
+		var b: Dictionary = Stable.booking(e)
+		if not b.is_empty():
+			_add_ahead(ahead, int(b.week) - week, { "kind": STABLE_FIGHT_NIGHT, "name": String(e.get("name", "")),
+				"opponent": String(b.get("opponent_name", "")) })
 	var build: Dictionary = gym.get("building", {})
 	if not build.is_empty():  # A room being built (D442): the week it opens.
 		_add_ahead(ahead, int(build.get("done", week)) - week - 1, { "kind": ROOM_DONE, "room": String(build.room), "level": int(build.level) })
@@ -428,7 +436,7 @@ static func event_text(event: Dictionary) -> String:
 		COACH_LEFT:
 			return "%s, your %s, has walked out: %d weeks without pay" % [String(event.get("name", "")),
 				Staff.role_words(String(event.get("role", ""))), int(event.get("weeks", 0))]
-		STABLE_SIGNED, STABLE_FOUGHT, STABLE_UNHAPPY, STABLE_LEFT:
+		STABLE_SIGNED, STABLE_FOUGHT, STABLE_UNHAPPY, STABLE_LEFT, STABLE_OFFERS, STABLE_FIGHT_NIGHT:
 			return Stable.news_text(event)
 		LAD_IN, LAD_LEFT:
 			return Lads.news_text(event)
@@ -471,21 +479,28 @@ func world() -> World:
 	_make_world()
 	if _world.played < week - 1:
 		# The world's Saturdays since it last caught up (D353): everyone but the men booked to fight him or in his
-		# offers.
-		var busy: Dictionary = {}
-		for id: String in _unmet():
-			busy[id] = true
-		for o: Dictionary in offers:
-			busy[String(o.get("profile", {}).get("id", ""))] = true
-			if o.get("tournament") is Dictionary:
-				for r: Dictionary in o.tournament.get("rest", []):
-					busy[String(r.profile.id)] = true
+		# offers, and your stable's booked fights (D445).
+		var busy: Dictionary = _held()
+		busy.merge(Stable.busy(gym))
 		_world.trained = Stable.trained(gym)  # Your stable trains at your gym as the weeks go (D445).
 		var happened: Array = WorldWeeks.advance(_world, week - 1, busy, func(w: int) -> Dictionary: return date(0, w))
 		var paid: Dictionary = Stable.after_fights(_world, gym, happened)
 		gym_money += int(paid.cut)
 		stable_news.append_array(paid.news)
 	return _world
+
+
+## The world's men the career holds for itself: the men booked to fight him and the men in his offers.
+func _held() -> Dictionary:
+	var busy: Dictionary = {}
+	for id: String in _unmet():
+		busy[id] = true
+	for o: Dictionary in offers:
+		busy[String(o.get("profile", {}).get("id", ""))] = true
+		if o.get("tournament") is Dictionary:
+			for r: Dictionary in o.tournament.get("rest", []):
+				busy[String(r.profile.id)] = true
+	return busy
 
 
 func _make_world() -> void:
@@ -921,7 +936,70 @@ func end_week() -> Dictionary:
 		world()
 		if int(date(0, week).month) != int(date(0, week - 1).month):
 			stable_news.append_array(Stable.month(_world, gym, week, gym_money))
+		_stable_fights()
 	return out
+
+
+## Your stable's fights at the start of a week (D445's second piece, D450): a fight nobody opened last week decided by
+## the quick result, new offers in, and this week's fight nights on the news (offers and fight nights stop Advance).
+func _stable_fights() -> void:
+	for e: Dictionary in Stable.fighters(gym).duplicate():
+		var id: String = String(e.get("id", ""))
+		var done: Dictionary = Stable.quick(_world, gym, id, week - 1, hash([career_seed, id, week, "stable quick"]))
+		if not done.is_empty():
+			gym_money += int(done.cut)
+			stable_news.append_array(done.news)
+	stable_news.append_array(Stable.make_offers(_world, gym, week, _held()))
+	for d: Dictionary in Stable.due(gym, week):
+		stable_news.append({ "kind": STABLE_FIGHT_NIGHT, "name": String(d.entry.get("name", "")),
+			"opponent": String(_world.man(String(d.booking.opponent)).get("name", "")) })
+
+
+## A stable man's fight this week, for the fight screen (D445): { red (his profile), blue (the other man's), ruleset,
+## card, label }, or {} when he has none this week.
+func stable_fight(id: String) -> Dictionary:
+	var w: World = world()
+	for d: Dictionary in Stable.due(gym, week):
+		if String(d.id) != id:
+			continue
+		var red: Dictionary = w.profile(id, week)
+		var blue: Dictionary = w.profile(String(d.booking.opponent), week)
+		if red.is_empty() or blue.is_empty():
+			return {}
+		return { "red": red, "blue": blue, "ruleset": String(d.booking.get("ruleset", Matchmaker.PRO_RULES)),
+			"card": String(d.booking.get("card", "")), "label": "%s vs %s" % [String(red.name), String(blue.name)] }
+	return {}
+
+
+## A stable man's fight played or simmed on the fight screen (D445): onto the world, the gym's cut in, the news.
+## `result` is his (win, loss or draw). Returns the news's words ([] when he had no fight this week).
+func finish_stable_fight(id: String, result: String, method: String, round: int, fight_seed: int) -> Array[String]:
+	var out: Array[String] = []
+	if Stable.due(gym, week).filter(func(d: Dictionary) -> bool: return String(d.id) == id).is_empty():
+		return out
+	var done: Dictionary = Stable.settle(world(), gym, id, result, method, round, fight_seed)
+	if done.is_empty():
+		return out
+	gym_money += int(done.cut)
+	for n: Dictionary in done.news:
+		out.append(Stable.news_text(n))
+	stable_news.append_array(done.news)
+	return out
+
+
+## Turns a stable man's booked fight down (D445): he waits Stable.TURN_DOWN_WEEKS for the next. False when none.
+func turn_down_stable_fight(id: String) -> bool:
+	return Stable.turn_down(gym, id, week)
+
+
+## Takes a stable man's offer at `index` (D450): he's booked for it. False when there's no such offer.
+func take_stable_offer(id: String, index: int) -> bool:
+	return Stable.take(gym, id, index)
+
+
+## Turns down a stable man's offer at `index` (D450); his others stay. False when there's no such offer.
+func decline_stable_offer(id: String, index: int) -> bool:
+	return Stable.decline(gym, id, index)
 
 
 ## Builds the next level of a room at your gym (D442) with the gym's money: "" when it's started, else why not
@@ -1242,6 +1320,15 @@ static func from_dict(data: Dictionary, library: TrainingLibrary = null) -> Care
 					lad.born = float(lad.get("born", 0.0))
 					if list == "stable":
 						lad.unhappy = int(lad.get("unhappy", 0))
+						for key: String in ["wait_until", "offers_until"]:
+							if lad.has(key):
+								lad[key] = int(lad[key])
+						if lad.get("offers") is Array:
+							for o: Variant in lad.offers:
+								if o is Dictionary and (o as Dictionary).has("week"):
+									o.week = int(o.week)
+						if lad.get("booked") is Dictionary and lad.booked.has("week"):
+							lad.booked.week = int(lad.booked.week)
 	if c.gym.get("asked") is Dictionary:
 		for id: String in c.gym.asked:
 			c.gym.asked[id] = int(c.gym.asked[id])

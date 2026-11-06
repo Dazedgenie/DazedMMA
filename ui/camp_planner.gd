@@ -24,6 +24,8 @@ const WEEKS_MAX: int = 8
 const WEEKS_DEFAULT: int = 6
 ## The week plan the planner opens on, and the name of a week changed by hand.
 const START_PLAN := "balanced"
+## How tall your stable's box is beside the buttons in a career's camp (D450); more than fits scrolls.
+const STABLE_BOX_HEIGHT: float = 150.0
 const CUSTOM := "custom"
 const CUSTOM_NAME := "Custom week"
 const SLOT_NAMES: Array[String] = ["Morning", "Evening"]
@@ -152,6 +154,8 @@ var _cut_heading: Label
 var _cut_text: Label
 var weigh_in_card: WeighInCard
 var _weighed: bool = false
+## In a career (D450): your stable's offers and this week's fights, with Play and Sim, left of the buttons.
+var stable_box: StableFightsBox
 
 
 func _init(profile: Dictionary, camp_seed: int = 1, library: TrainingLibrary = null) -> void:
@@ -249,6 +253,19 @@ func use_career(c: Career) -> void:
 		(heading as Label).visible = false
 	_reset.visible = false
 	_back.text = "Back to the hub"
+	if stable_box == null:
+		# Down the left of the buttons, scrolling when there's more than fits (D450).
+		stable_box = StableFightsBox.new()
+		stable_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var scroll := ScrollContainer.new()
+		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		scroll.custom_minimum_size.y = STABLE_BOX_HEIGHT
+		scroll.add_child(stable_box)
+		scroll.visible = false
+		stable_box.visibility_changed.connect(func() -> void: scroll.visible = stable_box.visible)
+		_back.get_parent().add_child(scroll)
+		_back.get_parent().move_child(scroll, 0)
 	night_card.sim_allowed = true
 	night_card.sim_pressed.connect(func() -> void: sim_pressed.emit(trained_profile()))
 	for id: String in _library.session_ids():
@@ -511,11 +528,25 @@ func days_to_fight() -> int:
 func run_rest() -> void:
 	if minigame != null or film != null or sprawl != null or bag != null or pads != null:
 		return
+	var waiting: String = _stable_waiting()
 	while not done():
 		var report: Dictionary = camp.run_plan(week_plan(), {}, fight_week())
 		reports.append(report)
 		week_ran.emit(report)
+		var now: String = _stable_waiting()
+		if now != "" and now != waiting:
+			break  # New offers or a fight night for your stable (D450): stops here, like Advance on the hub.
+		waiting = now
 	_refresh()
+
+
+## What your stable has waiting this week (D450): its men with offers and those fighting, "" for nothing.
+func _stable_waiting() -> String:
+	if career == null:
+		return ""
+	var ids: Array = Stable.offered(career.gym).map(func(d: Dictionary) -> String: return "o:" + String(d.id))
+	ids.append_array(Stable.due(career.gym, career.week).map(func(d: Dictionary) -> String: return "f:" + String(d.id)))
+	return ",".join(PackedStringArray(ids))
 
 
 func done() -> bool:
@@ -1059,6 +1090,8 @@ func scouted_potential() -> String:
 
 
 func _refresh() -> void:
+	if stable_box != null:
+		stable_box.show_career(career)
 	var fighter_name: String = String(_start.get("name", "Fighter"))
 	_title.text = "%s, %d" % [fighter_name, camp.age]
 	_subtitle.text = "Training camp · potential %s (scouted)" % scouted_potential()

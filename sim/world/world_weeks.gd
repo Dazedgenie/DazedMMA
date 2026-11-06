@@ -149,6 +149,8 @@ static func play_week(w: World, week: int, busy: Dictionary) -> Array:
 	for m: Dictionary in w.men.values():
 		if not World.active(m) or busy.has(String(m.id)) or int(m.next_week) > week or int(m.out_until) > week:
 			continue
+		if w.trained.has(String(m.id)):
+			continue  # Your stable's fights are booked by your gym (Stable.book, D445), not here.
 		if Titles.held_by(w, String(m.id)) != "" or Titles.waiting(w).has(String(m.id)):
 			continue  # A champion only fights for his belt, and the man next in line waits for his shot (D357).
 		var age: float = World.age_of(m, week)
@@ -178,8 +180,6 @@ static func play_week(w: World, week: int, busy: Dictionary) -> Array:
 			for o: Dictionary in due:
 				if String(o.id) == String(m.id) or taken.has(String(o.id)) or _met_lately(m, String(o.id), week):
 					continue
-				if w.trained.has(String(m.id)) and w.trained.has(String(o.id)):
-					continue  # Two of your stable aren't matched with each other (D445).
 				var gap: float = pair_gap(w, m, o)
 				if gap <= best_gap:
 					best_gap = gap
@@ -219,6 +219,13 @@ static func fight(w: World, a: Dictionary, b: Dictionary, week: int, rng: Random
 	var avg_b: float = mid + (w.average(b) - mid) * squeeze
 	var chance: float = ResultModel.win_chance(String(a.style), avg_a, String(b.style), avg_b, nudge)
 	var r: Dictionary = ResultModel.decide(String(a.style), avg_a, String(b.style), avg_b, rng, rounds, nudge)
+	return record(w, a, b, week, r, chance, rng)
+
+
+## A fight's result onto both men (`r`: { winner ("a", "b" or "draw"), method, round }, from the quick model or a fight
+## played or simmed for your stable, D445): their records, histories, form and rankings, and when they're due again.
+## Returns the result as fight() does.
+static func record(w: World, a: Dictionary, b: Dictionary, week: int, r: Dictionary, chance: float, rng: RandomNumberGenerator) -> Dictionary:
 	var result_a: String = { "a": "win", "b": "loss" }.get(String(r.winner), "draw")
 	var result_b: String = { "a": "loss", "b": "win" }.get(String(r.winner), "draw")
 	var ranks: Array = [Rankings.rank_of(w, String(a.id)), Rankings.rank_of(w, String(b.id))]

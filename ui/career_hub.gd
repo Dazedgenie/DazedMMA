@@ -34,6 +34,13 @@ signal ask_pressed
 signal history_pressed
 ## The Your gym tab (D442): the gym's page with its floor plan.
 signal gym_pressed
+## A stable man's fight this week (D445): play it on the fight screen, sim it, or turn it down; and his offers (D450):
+## take one or turn one down.
+signal stable_play_pressed(id: String)
+signal stable_sim_pressed(id: String)
+signal stable_turn_down_pressed(id: String)
+signal stable_take_pressed(id: String, index: int)
+signal stable_decline_pressed(id: String, index: int)
 
 ## Around his division (D353, news_text): at most NEWS_MAX lines; a winner who had under UPSET_CHANCE is an upset; a man
 ## averaging NEWS_BEST or more is one of the best.
@@ -94,6 +101,8 @@ var _figure: BodyDamageFigure
 var _card_text: RichTextLabel
 var _bars: StatBars
 var _week_text: RichTextLabel
+## Your stable's offers and this week's fights (StableFightsBox, D445, D450), under his own.
+var stable_box: StableFightsBox
 var _plan: OptionButton
 var _plan_ids: Array[String] = []
 var _week: Button
@@ -240,6 +249,13 @@ func _init() -> void:
 	_offers.add_theme_constant_override("h_separation", 12)
 	_offers.add_theme_constant_override("v_separation", 12)
 	middle.add_child(_offers)
+	stable_box = StableFightsBox.new()
+	stable_box.play_pressed.connect(func(id: String) -> void: stable_play_pressed.emit(id))
+	stable_box.sim_pressed.connect(func(id: String) -> void: stable_sim_pressed.emit(id))
+	stable_box.turn_down_pressed.connect(func(id: String) -> void: stable_turn_down_pressed.emit(id))
+	stable_box.take_pressed.connect(func(id: String, i: int) -> void: stable_take_pressed.emit(id, i))
+	stable_box.decline_pressed.connect(func(id: String, i: int) -> void: stable_decline_pressed.emit(id, i))
+	middle.add_child(stable_box)
 	_week_text = _rich()
 	middle.add_child(_week_text)
 	week_box.add_child(_scroll(middle))
@@ -358,6 +374,7 @@ func show_career(p_career: Career, reports: Array = []) -> void:
 			_pro_division.add_item("%s: %s" % [Weight.label(id), why])
 		_pro_division.select(_pro_division_ids.find(home))
 	_show_offers()
+	stable_box.show_career(career)
 	_show_news(news_items(career, maxi(1, reports.size())))
 	_show_fights()
 	_show_calendar(career.calendar())
@@ -1604,8 +1621,8 @@ func text() -> String:
 	var fights: Array[String] = []
 	for line: String in _fight_lines:
 		fights.append(_plain(line))
-	return "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s" % [_who.text, _line.text, _date.text, _card_text.get_parsed_text(), _week_text.get_parsed_text(),
-		"\n".join(news), "\n".join(offer_cards), _camp.text if _camp.visible else "", "\n".join(fights), " | ".join(tiles)]
+	return "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s" % [_who.text, _line.text, _date.text, _card_text.get_parsed_text(), _week_text.get_parsed_text(),
+		"\n".join(news), "\n".join(offer_cards), "\n".join(stable_box.lines), _camp.text if _camp.visible else "", "\n".join(fights), " | ".join(tiles)]
 
 
 ## BBCode with its tags taken out.

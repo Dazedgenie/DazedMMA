@@ -2,9 +2,10 @@ class_name Stable
 extends RefCounted
 ## Your stable (docs/03 §14.5, D445): the world's men (D352) you've signed to fight out of your gym, beside the lad you
 ## raised. The first of D445's three pieces: who you can sign, how many, what you set for their training, the gym's cut
-## of their purses, and leaving when they're unhappy. Their fights are still the world's (WorldWeeks); their offers and
-## playing their fights come next, then their planner. On the gym (`gym.stable`, each a Lads.snapshot plus his `focus`,
-## `unhappy` months and `why`), so they save with it; `gym.asked` keeps who said no and when.
+## of their purses, and leaving when they're unhappy. Their fights (the second piece, D450) are offers you pick from,
+## played or simmed or left to the quick result, below; their planner comes next. On the gym (`gym.stable`, each a
+## Lads.snapshot plus his `focus`, `unhappy` months and `why`, and his `offers` and `booked` fight), so they save with
+## it; `gym.asked` keeps who said no and when.
 ##
 ##   places      one a PER_MEMBERS members, MIN_PLACES to MAX_PLACES, counting the lad you raised (places())
 ##   signing     the gym's lads, and up to PROSPECTS of his country's amateurs and local or regional pros AGES old (his
@@ -39,11 +40,25 @@ const LOSSES_IN_A_ROW: int = 3
 const IDLE_WEEKS: int = 26
 const UNHAPPY_MONTHS: int = 2
 const DEFAULT_FOCUS := "all_round"
+## Their fights (D445's second piece, D450): when he's due one, up to OFFERS offers come in for him like your lad's,
+## each for a fight LEAD_WEEKS ahead (a pro on his promotion's next card from then) against a world man whose average
+## stat is within MATCH_GAP of his: the men nearest a bit easier, about even and a bit harder than him (Matchmaker's
+## DIFFICULTY_LEVELS). They're open OFFER_WEEKS; the next set can come OFFERS_GAP weeks after that. You take one and
+## he's booked; turning a booked fight down makes him wait TURN_DOWN_WEEKS for the next offers.
+const OFFERS: int = 3
+const OFFER_WEEKS: int = 2
+const OFFERS_GAP: int = 1
+const LEAD_WEEKS: int = 3
+const MATCH_GAP: float = 10.0
+const TURN_DOWN_WEEKS: int = 4
+const CARD_SEARCH_WEEKS: int = 12
 ## The news (`{ kind, name, … }`).
 const SIGNED := "stable_signed"
 const FOUGHT := "stable_fought"
 const UNHAPPY := "stable_unhappy"
 const LEFT := "stable_left"
+const OFFERED := "stable_offers"
+const FIGHT_NIGHT := "stable_fight_night"
 
 static var _focuses: Dictionary = {}
 static var _groups: Dictionary = {}
@@ -274,6 +289,250 @@ static func after_fights(w: World, gym: Dictionary, results: Array) -> Dictionar
 	return out
 
 
+# --- Their fights (D445's second piece) -------------------------------------------------------------------------------
+
+## The men your stable's bookings and offers hold back from the world's own pairings (and your lad's offers): each
+## booked man and his opponent, and the men in his offers.
+static func busy(gym: Dictionary) -> Dictionary:
+	var out: Dictionary = {}
+	for e: Dictionary in fighters(gym):
+		var b: Dictionary = booking(e)
+		if not b.is_empty():
+			out[String(e.get("id", ""))] = true
+			out[String(b.get("opponent", ""))] = true
+		for o: Dictionary in offers_of(e):
+			out[String(o.get("opponent", ""))] = true
+	return out
+
+
+## His offers on the table: [{ opponent, opponent_name, week, card, promotion, ruleset, difficulty (much_easier, easier,
+## even, harder or much_harder), chance (his, 0..1) }], or [].
+static func offers_of(e: Dictionary) -> Array:
+	return e.offers if e.get("offers") is Array else []
+
+
+## The men with offers on the table this week: [{ id, entry, offers }], in the stable's order.
+static func offered(gym: Dictionary) -> Array:
+	var out: Array = []
+	for e: Dictionary in fighters(gym):
+		if not offers_of(e).is_empty():
+			out.append({ "id": String(e.get("id", "")), "entry": e, "offers": offers_of(e) })
+	return out
+
+
+## A man's booked fight: { opponent (a world man's id), week, card ("NCC 14" or ""), promotion, ruleset }, or {}.
+static func booking(e: Dictionary) -> Dictionary:
+	return e.booked if e.get("booked") is Dictionary else {}
+
+
+## The bookings whose fight night is `week`: [{ id, entry, booking }], in the stable's order.
+static func due(gym: Dictionary, week: int) -> Array:
+	var out: Array = []
+	for e: Dictionary in fighters(gym):
+		var b: Dictionary = booking(e)
+		if not b.is_empty() and int(b.get("week", -1)) == week:
+			out.append({ "id": String(e.get("id", "")), "entry": e, "booking": b })
+	return out
+
+
+## The rules his fight is under: pro, or amateur by his age on the night (Matchmaker's).
+static func ruleset_for(m: Dictionary, week: int) -> String:
+	if bool(m.get("pro", false)):
+		return Matchmaker.PRO_RULES
+	return Matchmaker.TEEN_RULES if World.age_of(m, week) < float(Matchmaker.ADULT_AGE) else Matchmaker.ADULT_RULES
+
+
+## Offers for each man who's due a fight by LEAD_WEEKS from `week` and has none booked or on the table (not a champion
+## or the man next in line: their fights are the belt's, Titles). `held` is men who can't be offered (the career's own
+## opponents and offers). Offers left past their last week go first. Returns the news: [{ kind OFFERED, name, count }].
+static func make_offers(w: World, gym: Dictionary, week: int, held: Dictionary = {}) -> Array:
+	var news: Array = []
+	for e: Dictionary in fighters(gym):
+		if not offers_of(e).is_empty() and int(e.get("offers_until", -1)) < week:
+			e.offers = []  # Left unanswered: they go.
+	var taken: Dictionary = held.duplicate()
+	taken.merge(busy(gym))
+	for e: Dictionary in fighters(gym):
+		var id: String = String(e.get("id", ""))
+		var m: Dictionary = w.man(id)
+		if not booking(e).is_empty() or not offers_of(e).is_empty() or m.is_empty() or not World.active(m):
+			continue
+		if Titles.held_by(w, id) != "" or Titles.waiting(w).has(id):
+			continue
+		var on: int = maxi(week + LEAD_WEEKS, int(m.get("out_until", 0)))
+		if int(m.get("next_week", 0)) > week + LEAD_WEEKS or on > week + LEAD_WEEKS or int(e.get("wait_until", 0)) > week:
+			continue
+		var p: Dictionary = Promotions.of(w, m)
+		if bool(m.get("pro", false)) and not p.is_empty():
+			var found: bool = false
+			for i in CARD_SEARCH_WEEKS:
+				if Promotions.has_card(p, on + i):
+					on += i
+					found = true
+					break
+			if not found:
+				continue
+		var men: Array = pick_opponents(w, m, find_opponents(w, gym, m, on, taken))
+		if men.is_empty():
+			continue
+		var card: String = String(Promotions.card(w, p, on).short) if not p.is_empty() else ""
+		var list: Array = []
+		for o: Dictionary in men:
+			taken[String(o.id)] = true
+			list.append({ "opponent": String(o.id), "opponent_name": String(o.get("name", "")), "week": on, "card": card,
+				"promotion": String(p.get("id", "")), "ruleset": ruleset_for(m, on), "difficulty": difficulty(w, m, o),
+				"chance": chance(w, m, o) })
+		e.offers = list
+		e.offers_until = week + OFFER_WEEKS - 1
+		e.wait_until = week + OFFER_WEEKS + OFFERS_GAP
+		news.append({ "kind": OFFERED, "name": String(m.get("name", "")), "count": list.size() })
+	return news
+
+
+## His chance of beating `o` (the world's quick result model, ResultModel.win_chance), 0..1.
+static func chance(w: World, m: Dictionary, o: Dictionary) -> float:
+	return ResultModel.win_chance(String(m.get("style", "")), w.average(m), String(o.get("style", "")), w.average(o))
+
+
+## How `o` compares with him: harder or easier past Matchmaker.TITLE_EVEN points of average stat, much harder or much
+## easier past twice that, else even.
+static func difficulty(w: World, m: Dictionary, o: Dictionary) -> String:
+	var gap: float = w.average(o) - w.average(m)
+	var much: String = "much_" if absf(gap) > 2.0 * Matchmaker.TITLE_EVEN else ""
+	return much + "harder" if gap > Matchmaker.TITLE_EVEN else (much + "easier" if gap < -Matchmaker.TITLE_EVEN else "even")
+
+
+## Up to OFFERS of `candidates` (find_opponents') to offer him, like your lad's: for each of Matchmaker's difficulties,
+## easier, even and harder, the man nearest his average stat plus its DIFFICULTY_LEVELS, each man once. Easiest first.
+static func pick_opponents(w: World, m: Dictionary, candidates: Array) -> Array:
+	var out: Array = []
+	var his: float = w.average(m)
+	for level: String in Matchmaker.DIFFICULTIES:
+		var target: float = his + float(Matchmaker.DIFFICULTY_LEVELS[level])
+		var best: Dictionary = {}
+		for o: Dictionary in candidates:
+			if out.has(o):
+				continue
+			if best.is_empty() or absf(w.average(o) - target) < absf(w.average(best) - target):
+				best = o
+		if not best.is_empty() and out.size() < OFFERS:
+			out.append(best)
+	out.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return w.average(a) < w.average(b))
+	return out
+
+
+## Takes his offer at `index`: he's booked for it (booking()) and the others go. False when there's no such offer.
+static func take(gym: Dictionary, id: String, index: int) -> bool:
+	var e: Dictionary = entry(gym, id)
+	var list: Array = offers_of(e)
+	if index < 0 or index >= list.size() or not booking(e).is_empty():
+		return false
+	var o: Dictionary = (list[index] as Dictionary).duplicate()
+	o.erase("chance")
+	e.booked = o
+	e.offers = []
+	return true
+
+
+## Turns down his offer at `index`; the rest stay. False when there's no such offer.
+static func decline(gym: Dictionary, id: String, index: int) -> bool:
+	var e: Dictionary = entry(gym, id)
+	var list: Array = offers_of(e)
+	if index < 0 or index >= list.size():
+		return false
+	list.remove_at(index)
+	return true
+
+
+## The world's men who could fight `m` on `on`, nearest his average stat first: same division, pro with pro on his
+## promotion, amateur with amateur of his age group (under or over 18), not at your gym, not a champion or next in line,
+## not hurt, not met lately, not `taken`, due a fight by then; within MATCH_GAP of his average stat.
+static func find_opponents(w: World, gym: Dictionary, m: Dictionary, on: int, taken: Dictionary = {}) -> Array:
+	var division: String = World.division_of(m, on)
+	var teen: bool = World.age_of(m, on) < float(Matchmaker.ADULT_AGE)
+	var found: Array = []
+	var ids: Array = w.men.keys()
+	ids.sort()
+	for oid: String in ids:
+		var o: Dictionary = w.men[oid]
+		if oid == String(m.get("id", "")) or taken.has(oid) or not World.active(o) or Lads.at_gym(gym, oid):
+			continue
+		if bool(o.get("pro", false)) != bool(m.get("pro", false)) or World.division_of(o, on) != division:
+			continue
+		if bool(m.get("pro", false)) and String(o.get("promotion", "")) != String(m.get("promotion", "")):
+			continue
+		if not bool(m.get("pro", false)) and (World.age_of(o, on) < float(Matchmaker.ADULT_AGE)) != teen:
+			continue
+		if World.age_of(o, on) < float(BackgroundLibrary.START_AGE):
+			continue
+		if int(o.get("out_until", 0)) > on or int(o.get("next_week", 0)) > on or WorldWeeks._met_lately(m, oid, on):
+			continue
+		if Titles.held_by(w, oid) != "" or Titles.waiting(w).has(oid):
+			continue
+		var gap: float = absf(w.average(o) - w.average(m))
+		if gap < MATCH_GAP:
+			found.append([gap, o])
+	found.sort_custom(func(a: Array, b: Array) -> bool: return float(a[0]) < float(b[0]))
+	return found.map(func(f: Array) -> Dictionary: return f[1])
+
+
+## Turns his booked fight down: the other man's free again, and no offers come for him for TURN_DOWN_WEEKS. False when
+## he has nothing booked.
+static func turn_down(gym: Dictionary, id: String, week: int) -> bool:
+	var e: Dictionary = entry(gym, id)
+	if booking(e).is_empty():
+		return false
+	e.booked = {}
+	e.wait_until = week + TURN_DOWN_WEEKS
+	return true
+
+
+## His booked fight's result onto the world (played or simmed on the fight screen, or the quick result for one left
+## alone): `result` his (win, loss or draw), `method` (ko, submission, decision, draw, or the fight screen's words),
+## `round`. The booking's gone, the result's in the world's results, and the gym's cut and the news as after_fights.
+## Returns { result (WorldWeeks.record's), cut, news } ({} when he had nothing booked).
+static func settle(w: World, gym: Dictionary, id: String, result: String, method: String, round: int, seed_value: int) -> Dictionary:
+	var e: Dictionary = entry(gym, id)
+	var b: Dictionary = booking(e)
+	if b.is_empty():
+		return {}
+	var m: Dictionary = w.man(id)
+	var o: Dictionary = w.man(String(b.opponent))
+	e.booked = {}
+	if m.is_empty() or o.is_empty():
+		return {}
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value
+	var winner: String = { "win": "a", "loss": "b" }.get(result, "draw")
+	var r: Dictionary = WorldWeeks.record(w, m, o, int(b.week), { "winner": winner, "method": WorldWeeks._method(method), "round": round },
+		ResultModel.win_chance(String(m.style), w.average(m), String(o.style), w.average(o)), rng)
+	w.results.append(r)
+	Promotions.after_fight(w, m, int(b.week))
+	Promotions.after_fight(w, o, int(b.week))
+	var paid: Dictionary = after_fights(w, gym, [r])
+	return { "result": r, "cut": int(paid.cut), "news": paid.news }
+
+
+## A booked fight nobody opened by the end of its week (or one in his camp): the world's quick result decides it
+## (WorldWeeks' model). Returns settle()'s, or {} when it isn't due by `week`.
+static func quick(w: World, gym: Dictionary, id: String, week: int, seed_value: int) -> Dictionary:
+	var e: Dictionary = entry(gym, id)
+	var b: Dictionary = booking(e)
+	if b.is_empty() or int(b.week) > week:
+		return {}
+	var m: Dictionary = w.man(id)
+	var o: Dictionary = w.man(String(b.opponent))
+	if m.is_empty() or o.is_empty() or not World.active(m) or not World.active(o):
+		e.booked = {}  # One of them has gone: the fight's off.
+		return {}
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value
+	var r: Dictionary = ResultModel.decide(String(m.style), w.average(m), String(o.style), w.average(o), rng, 3,
+		WorldWeeks.nudge_for(m, int(b.week)) - WorldWeeks.nudge_for(o, int(b.week)))
+	var result: String = { "a": "win", "b": "loss" }.get(String(r.winner), "draw")
+	return settle(w, gym, id, result, String(r.method), int(r.round), seed_value)
+
+
 # --- Happiness ---------------------------------------------------------------------------------------------------------
 
 ## Why he's unhappy now ([] when he isn't): a losing run, waiting for a fight, the gym behind on the rent.
@@ -283,7 +542,7 @@ static func unhappy_reasons(m: Dictionary, e: Dictionary, week: int, gym_money: 
 	if history.size() >= LOSSES_IN_A_ROW and history.slice(-LOSSES_IN_A_ROW).all(func(h: Array) -> bool: return String(h[2]) == "l"):
 		out.append("%d losses in a row" % LOSSES_IN_A_ROW)
 	var last: int = int(history[-1][0]) if not history.is_empty() else -1
-	if week - maxi(last, int(e.get("since", week))) >= IDLE_WEEKS:
+	if week - maxi(last, int(e.get("since", week))) >= IDLE_WEEKS and booking(e).is_empty():
 		out.append("six months without a fight")
 	if gym_money < 0:
 		out.append("the gym's behind on the rent")
@@ -305,6 +564,9 @@ static func month(w: World, gym: Dictionary, week: int, gym_money: int) -> Array
 			continue
 		var fresh: Dictionary = Lads.snapshot(w, m, int(e.get("since", week)))
 		fresh.focus = String(e.get("focus", DEFAULT_FOCUS))
+		for key: String in ["booked", "offers", "offers_until", "wait_until"]:  # His fight, his offers and when the next come.
+			if e.has(key):
+				fresh[key] = e[key]
 		var why: Array[String] = unhappy_reasons(m, e, week, gym_money)
 		fresh.unhappy = int(e.get("unhappy", 0)) + 1 if not why.is_empty() else 0
 		fresh.why = ", ".join(PackedStringArray(why))
@@ -332,6 +594,11 @@ static func news_text(event: Dictionary) -> String:
 	match String(event.get("kind", "")):
 		SIGNED:
 			return "%s signed to fight out of your gym" % name
+		OFFERED:
+			var count: int = int(event.get("count", 0))
+			return "%d fight offer%s for %s: pick one on the hub" % [count, "" if count == 1 else "s", name]
+		FIGHT_NIGHT:
+			return "Fight night for %s: %s this Saturday. Play it or sim it from the hub" % [name, String(event.get("opponent", ""))]
 		FOUGHT:
 			var how: String = String({ "ko": "knockout", "submission": "submission", "decision": "decision" }.get(String(event.get("method", "")), ""))
 			var line: String = "%s %s %s%s" % [name, {"win": "beat", "loss": "lost to", "draw": "drew with"}.get(String(event.get("result", "")), "fought"),
