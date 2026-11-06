@@ -186,6 +186,9 @@ func _ready() -> void:
 	hub.ask_pressed.connect(ask_step_up)
 	hub.history_pressed.connect(open_history)
 	hub.gym_pressed.connect(open_gym_page)
+	hub.stable_play_pressed.connect(play_stable_fight)
+	hub.stable_sim_pressed.connect(sim_stable_fight)
+	hub.stable_turn_down_pressed.connect(turn_down_stable_fight)
 	ui.add_child(hub)
 	result = FightResultCard.new()
 	result.visible = false
@@ -721,6 +724,71 @@ static func method_text(result: String) -> String:
 	return result.substr(0, 1).to_upper() + result.substr(1)
 
 
+## A stable man's fight this week (D445), on the fight screen with you in his corner: the two men as they are (no
+## camp yet), under the booking's rules, with a seed from the career's dice.
+func play_stable_fight(id: String) -> void:
+	if career == null:
+		return
+	var s: Dictionary = _stable_settings(id)
+	if s.is_empty():
+		return
+	save_career()
+	start_fight(s)
+
+
+## Sim it (D445): the same fight, played out at once with no sound, straight to the result, as Sim the fight (D305).
+func sim_stable_fight(id: String) -> void:
+	if career == null:
+		return
+	var s: Dictionary = _stable_settings(id)
+	if s.is_empty():
+		return
+	s.sim = true
+	s.sound_volume = 0.0
+	save_career()
+	start_fight(s)
+	while not driver.sim.is_over():
+		driver.step()
+
+
+func turn_down_stable_fight(id: String) -> void:
+	if career != null and career.turn_down_stable_fight(id):
+		save_career()
+		show_hub()
+
+
+func _stable_settings(id: String) -> Dictionary:
+	var f: Dictionary = career.stable_fight(id)
+	if f.is_empty():
+		return {}
+	_roster.add(f.blue)
+	return {
+		"stable": id, "label": String(f.label),
+		"red": String(f.red.id), "red_profile": f.red, "blue": String(f.blue.id),
+		"ruleset": String(f.ruleset), "seed": career.next_seed(), "normal_rate": 2.0, "auto_slow": true, "flourishes": true,
+		"tell_cues": false, "sound_volume": float(setup.settings().get("sound_volume", 1.0)), "easy": false,
+		"moments": bool(setup.settings().get("moments", true)),
+	}
+
+
+## A stable man's fight is over (D445): onto the world (Career.finish_stable_fight), saved. The result screen's lines.
+func _finish_stable_fight(sim: FightSim, record: Dictionary) -> Array[String]:
+	var ended: Dictionary = record.get("result", {})
+	var winner: int = int(ended.get("winner", -1))
+	var res: String = "draw"
+	if winner == driver.player:
+		res = "win"
+	elif winner >= 0:
+		res = "loss"
+	var lines: Array[String] = []
+	if bool(settings.get("sim", false)):
+		lines.append("Simmed: the fighters' own AI fought it.")
+	lines.append_array(career.finish_stable_fight(String(settings.stable), res, String(ended.get("result", "")),
+		sim.clock.current_round, sim.fight_seed))
+	save_career()
+	return lines
+
+
 ## A tournament's next round (D315): the next man, straight away, carrying the last fight (simmed again if the last
 ## one was).
 func next_tournament_fight() -> void:
@@ -1250,6 +1318,11 @@ func _on_fight_over(event: FightEvent) -> void:
 	if not injury.is_empty():
 		notes.append(("[color=#ff8787]Fighting hurt made the %s injury worse: out %d days.[/color]" if injury.worse
 			else "The %s injury held up: %d more days to heal.") % [injury.area, injury.days_out])
+	if String(settings.get("stable", "")) != "" and career != null:
+		notes.append_array(_finish_stable_fight(sim, record))
+		hud.hide_dialog()
+		result.show_result(sim, driver.player, record.stats, notes, [["Back to the hub", _career_after_fight]])
+		return
 	if bool(settings.get("career", false)) and career != null:
 		notes.append_array(_spotted_notes(sim))
 		notes.append_array(_finish_career_fight(sim, record, injury))

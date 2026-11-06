@@ -167,3 +167,20 @@ func test_the_stable_tab_lists_who_you_could_sign_and_signing_puts_him_in_your_s
 	assert_false(page.stable.focus_pickers.has(String(m.id)))
 	var why: String = page.stable.offer_place(0)
 	assert_true(why == "" or "said no" in why or "ask again" in why, why)
+
+
+func test_the_stable_tab_shows_a_mans_next_fight_and_can_turn_it_down() -> void:
+	var c: Career = _career()
+	c.gym.members = 30
+	var m: Dictionary = c.stable_prospects()[0]
+	assert_eq(Stable.offer(c.world(), c.gym, m, c.week, 0.0), "")
+	var e: Dictionary = Stable.entry(c.gym, String(m.id))
+	e.booked = { "opponent": "x", "opponent_name": "Tom Reid", "week": c.week + 3, "card": "NCC 14", "promotion": "", "ruleset": "pro" }
+	var page: GymPage = add_child_autofree(GymPage.new())
+	page.show_gym(c)
+	page.show_tab(GymPage.STABLE)
+	assert_true(page.stable.turn_down_buttons.has(String(m.id)))
+	assert_string_contains(StableView.fighter_text(c.gym, e, c.week, "Next: Tom Reid, Sat · NCC 14"), "Next: Tom Reid")
+	assert_true(page.stable.turn_down(String(m.id)))
+	assert_false(page.stable.turn_down_buttons.has(String(m.id)))
+	assert_true(Stable.booking(Stable.entry(c.gym, String(m.id))).is_empty())

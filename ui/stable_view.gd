@@ -2,9 +2,9 @@ class_name StableView
 extends HBoxContainer
 ## The *Stable* tab of your gym's page (docs/03 §14.5, D445): down the left your stable, him first and then each man
 ## you've signed (his face, name and age, style, record, what he trains and how much faster the gym makes it, whether
-## he's happy), with a focus picker and *Let him go*; down the side the men you could sign this week
-## (Career.stable_prospects: the gym's lads first, then his country's best local men), each with his chance of saying
-## yes and *Offer him a place*, or why you can't. Signing, a focus and letting go change the career at once
+## he's happy, his next fight), with a focus picker, *Let him go* and *Turn the fight down* (§14.6); down the side the
+## men you could sign this week (Career.stable_prospects: the gym's lads first, then his country's best local men), each
+## with his chance of saying yes and *Offer him a place*, or why you can't. Signing, a focus and letting go change the career at once
 ## (Career.sign_fighter, Career.set_stable_focus, Career.release_fighter); `changed` tells the page to save and redraw.
 
 signal changed
@@ -16,6 +16,7 @@ var career: Career
 ## The focus pickers and Let go buttons by the man's id, and the Sign buttons in the prospects' order.
 var focus_pickers: Dictionary = {}
 var let_go_buttons: Dictionary = {}
+var turn_down_buttons: Dictionary = {}
 var sign_buttons: Array[Button] = []
 ## The prospects shown, in order (each the world's man).
 var shown_prospects: Array = []
@@ -51,6 +52,7 @@ func refresh() -> void:
 			child.queue_free()
 	focus_pickers.clear()
 	let_go_buttons.clear()
+	turn_down_buttons.clear()
 	sign_buttons.clear()
 	var gym: Dictionary = career.gym
 	var w: World = career.world()
@@ -81,7 +83,20 @@ func refresh() -> void:
 		b.add_theme_font_size_override("font_size", 16)
 		b.pressed.connect(func() -> void: let_go(id))
 		let_go_buttons[id] = b
-		_list.add_child(_row(_face(w, e), fighter_text(gym, e, career.week), [picker, b]))
+		var controls: Array = [picker, b]
+		var next_line: String = ""
+		var booked: Dictionary = Stable.booking(e)
+		if not booked.is_empty():  # His next fight (D445's second piece), with the chance to turn it down.
+			next_line = "Next: %s, %s%s" % [String(booked.get("opponent_name", "")), career.short_date(int(booked.week), 5),
+				" · %s" % String(booked.card) if String(booked.get("card", "")) != "" else ""]
+			var no := Button.new()
+			no.text = "Turn the fight down"
+			no.tooltip_text = "He waits %d weeks for another" % Stable.TURN_DOWN_WEEKS
+			no.add_theme_font_size_override("font_size", 16)
+			no.pressed.connect(func() -> void: turn_down(id))
+			turn_down_buttons[id] = no
+			controls.append(no)
+		_list.add_child(_row(_face(w, e), fighter_text(gym, e, career.week, next_line), controls))
 
 	_heading(_side, "SIGN A FIGHTER", "The lads who train here, then the best amateurs and local and regional pros from round here. Better rooms and coaches make a yes likelier; a man who says no won't be asked again for %d weeks." % Stable.ASK_AGAIN_WEEKS)
 	_why = Label.new()
@@ -127,6 +142,14 @@ func set_focus(id: String, focus_id: String) -> bool:
 	return true
 
 
+func turn_down(id: String) -> bool:
+	if career == null or not career.turn_down_stable_fight(id):
+		return false
+	changed.emit()
+	refresh()
+	return true
+
+
 func let_go(id: String) -> String:
 	if career == null or career.release_fighter(id).is_empty():
 		return "Nobody to let go"
@@ -135,8 +158,9 @@ func let_go(id: String) -> String:
 	return ""
 
 
-## A signed man's words: who he is, his style and record, what he trains and how much faster, how he feels.
-static func fighter_text(gym: Dictionary, e: Dictionary, week: int) -> String:
+## A signed man's words: who he is, his style and record, what he trains and how much faster, how he feels, and his
+## next fight (`next_line`, "" for none).
+static func fighter_text(gym: Dictionary, e: Dictionary, week: int, next_line: String = "") -> String:
 	var age: int = int(floor(World.age_of(e, week))) if e.has("born") else 0
 	var record: String = "%s %s" % [String(e.get("record", "0-0-0")), "pro" if bool(e.get("pro", false)) else "amateur"]
 	var focus_id: String = String(e.get("focus", Stable.DEFAULT_FOCUS))
@@ -146,7 +170,8 @@ static func fighter_text(gym: Dictionary, e: Dictionary, week: int) -> String:
 		mood = "[color=%s]Unhappy: %s. He leaves next month if it isn't put right.[/color]" % [CareerHub.WARN.to_html(false), String(e.get("why", ""))]
 	return "[b]%s[/b]%s\n%s · %s · average stat %d\n[color=%s]%s: he learns %d%% faster than on his own[/color]\n%s" % [
 		String(e.get("name", "")), ", %d" % age if age > 0 else "", LadsView._style_name(String(e.get("style", ""))), record,
-		roundi(float(e.get("avg", 0.0))), CareerHub.DIM.to_html(false), String(Stable.focus(focus_id).get("name", "")), faster, mood]
+		roundi(float(e.get("avg", 0.0))), CareerHub.DIM.to_html(false), String(Stable.focus(focus_id).get("name", "")), faster, mood] \
+		+ ("\n[color=%s]%s[/color]" % [Color("#cc5de8").to_html(false), next_line] if next_line != "" else "")
 
 
 ## A prospect's words: who he is, what he is, and his chance of saying yes.

@@ -1731,7 +1731,7 @@ doc (https://claude.ai/artifact/BrEV5jejZtpFWMJiT9HuYC). The pieces, in this ord
 | Rooms and upgrades: mats, bag area, ring, cage, weights, recovery, video and changing rooms at three levels inside the building's floor space, 1 to 4 weeks to build with the room shut; faster training and a few sessions opened; the gym page as a drawn floor plan | D442 | Built (§14.2) |
 | Hiring coaches: specialists for a weekly wage by level, mostly the world's retired fighters | D443 | Built (§14.3) |
 | The gym's other fighters: named lads training there as sparring partners, walk-ins as it grows (was D407) | D444 | Built (§14.4) |
-| Recruiting and the stable: signing the world's men, 2 fighters at first and up to 8, plans set once, each fight played or simmed, men who leave when unhappy | D445 | Signing and training built (§14.5); their offers and fight nights, then their planner, next |
+| Recruiting and the stable: signing the world's men, 2 fighters at first and up to 8, plans set once, each fight played or simmed, men who leave when unhappy | D445, D450 | Signing and training built (§14.5); their fights, played or simmed, built (§14.6, D450); their planner next |
 | The gym's name: members, who'll sign, which coaches come, news | D446 | Planned |
 | Your own levels as head coach (was D408) | D447 | Planned |
 | Expanding and moving: the unit next door, a bigger building (was D409) | D448 | Planned |
@@ -1989,7 +1989,9 @@ a striking focus makes him a better striker as well as better on average. All-ro
 
 **Money.** A pro fight pays him his promotion's purse (as the career's purses are, §12.4); **the gym takes 15%**
 (`Gym.PURSE_CUT`), straight into its money. The hub says *Harry Wright beat Tom Reid by knockout · the gym's cut $1350*.
-Amateurs aren't paid. Two of your stable are **never matched with each other** on the world's cards.
+Amateurs aren't paid. Since D450 the world doesn't make your stable's fights at all: your gym books them (§14.6), and
+never two of your stable against each other. A champion's or the next man in line's title fights are still the
+world's.
 
 **Leaving.** On the first of each month (`month`) each man's snapshot is refreshed and a man who's retired goes. A man is
 **unhappy** when he's **lost 3 in a row**, gone **26 weeks without a fight**, or the gym's **behind on the rent**. The first
@@ -2005,8 +2007,7 @@ can't). The *Fighters* tab lists your stable after him, and your stable spars wi
 gym line adds *Your stable: Harry Wright · 2 of 3 places*. Signings and fights are news on the hub and the calendar and
 *Advance* runs on past them (`Career.JUST_NEWS`); a warning or a man leaving stops it.
 
-**Not yet:** their own offers and fight nights, playing or simming each (D445's second piece), their week planner and the
-minigames (the third), the gym's name drawing better men (D446), and signing national or world-class men.
+**Not yet:** their week planner and the minigames (the third piece; their fights are §14.6), the gym's name drawing better men (D446), and signing national or world-class men.
 
 **Old saves.** A gym from before D445 has an empty stable. Fights outside a career don't change (no golden re-pin), and a
 career without a stable plays as before.
@@ -2019,4 +2020,58 @@ in `sim/world/world_weeks.gd` (`_age_a_week`, `play_week`), `sim/world/world.gd`
 `STABLE_SIGNED`, `STABLE_FOUGHT`, `STABLE_UNHAPPY`, `STABLE_LEFT`); the tab in `ui/stable_view.gd` and `ui/gym_page.gd`,
 the hub's line in `ui/career_hub.gd` (`stable_line`). Tests: `tests/sim/world/test_stable.gd`,
 `tests/ui/test_gym_page.gd`, `tests/data/test_data_files.gd`. Then update this section and D445.
+
+### 14.6 Your stable's fights (D450)
+
+Kyle (2026-11-06) said "You can start now" for D445's second piece; the five cards are below with my picks, which this
+is built on. Your gym now **books your stable's fights** instead of the world (`Stable.book`, run each Monday from
+`Career.end_week`), and **you play or sim each one**.
+
+**Booking.** A man due a fight (the world's `next_week`) is booked **3 weeks ahead** (`LEAD_WEEKS`): a pro on his
+promotion's next card from then (*NCC 14*), an amateur that Saturday. His opponent is the world's man **nearest his
+level** (`WorldWeeks.pair_gap`, within `MATCH_GAP` 10 points), in his division, pro against pro on the same promotion,
+amateur against amateur of his age group (under or over 18), not at your gym, not hurt, not a champion or the man next in
+line, not met lately and not booked to fight your lad. Both men are held back from the world's own pairings until the
+night (`Stable.busy`), and the booking goes on the hub's news (*Harry Wright is booked to fight Tom Reid on NCC 14*,
+which doesn't stop *Advance*), the calendar (purple gloves) and the *Stable* tab (*Next: Tom Reid, Sat 14 Mar · NCC
+14*). **Turn the fight down** (on the Stable tab, or on the hub in fight week) frees the other man, and he isn't booked
+again for **4 weeks** (`TURN_DOWN_WEEKS`, `wait_until`). A booked man isn't unhappy for waiting.
+
+**Fight night.** The Monday of the week of his fight, the news says *Fight night for Harry Wright: Tom Reid this
+Saturday. Play it or sim it from the hub*, which **stops Advance**. The hub's middle shows *YOUR STABLE FIGHTS THIS
+SATURDAY* with each man's fight (the two men and their records, the card, the rules) and three buttons:
+
+- **Play it**: the fight screen with **you in his corner**, every call as for your lad, the two men as they are (no camp:
+  their planner is the third piece), under the booking's rules. No habit cues: you haven't scouted the other man.
+- **Sim it**: the same fight run at once by the fighters' own AI, straight to the result, as *Sim the fight* (D305).
+- **Turn it down**.
+
+Either way the result goes **onto the world** (`Stable.settle`, `WorldWeeks.record`, split out of `WorldWeeks.fight`):
+both men's records, histories, form, rankings and promotions, as the world's own fights do, the gym's 15% of a pro purse,
+and the news (*Harry Wright beat Tom Reid by knockout · the gym's cut $1350*). It isn't on your lad's record.
+
+**Left alone.** A fight nobody opened by the end of its week, or one that falls **while your lad is in camp** (the camp
+runs his weeks, not the hub), is decided by **the world's quick result** (`Stable.quick`: ResultModel, with form and
+rust) when the week ends, onto the world the same way.
+
+**The cards** (Kyle's answers, when they come, go here): how their fights are made (booked for them and you can say no,
+my pick; offers to pick from; no say); what Play means (the fight screen in his corner, my pick; watch only); what Sim
+does (the full engine at once, my pick; the quick result); a fight you don't open (Advance stops and running the week
+anyway is the quick result, my pick; Advance never stops; it waits for you); while your lad's in camp (the quick result,
+my pick; play or sim them from the camp).
+
+**Not yet:** their camps, planner and minigames (D445's third piece), their title fights played or simmed (still the
+world's), playing a stable fight during your lad's camp, and a stable man's injuries beyond the world's time out after
+a knockout.
+
+**Old saves.** A stable saved before D450 has no bookings; each man's first is made the next Monday.
+
+**What to change:** the numbers at the top of `sim/world/stable.gd` (`LEAD_WEEKS`, `MATCH_GAP`, `TURN_DOWN_WEEKS`,
+`CARD_SEARCH_WEEKS`); where it acts in `sim/world/stable.gd` (`book`, `find_opponent`, `settle`, `quick`, `turn_down`),
+`sim/world/world_weeks.gd` (`record`, `play_week` leaving your stable out), `sim/world/career.gd` (`_stable_fights`,
+`stable_fight`, `finish_stable_fight`, `turn_down_stable_fight`, `calendar`, `STABLE_BOOKED`, `STABLE_FIGHT_NIGHT`) and
+`game/main.gd` (`play_stable_fight`, `sim_stable_fight`, `_finish_stable_fight`); the hub's box in `ui/career_hub.gd`
+(`_show_stable_fights`, `stable_fight_text`), the Stable tab's line in `ui/stable_view.gd`. Tests:
+`tests/sim/world/test_stable_fights.gd`, `tests/ui/test_gym_page.gd`, `tests/game/test_main_scene.gd`. Then update this
+section and D450.
 

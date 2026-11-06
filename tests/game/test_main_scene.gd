@@ -846,3 +846,43 @@ func test_a_new_career_teaches_the_game_with_tips_and_a_first_fight_of_three_cal
 		"the man who beat him is in the list (D352)")
 	_main.world_page.close_page()
 	assert_false(_main.world_page.visible)
+
+
+func test_a_stable_mans_fight_is_simmed_from_the_hub_onto_the_world() -> void:
+	_main.open_new_career()
+	_main.new_career.set_play_childhood(false)
+	_main.new_career.set_know_the_game(true)
+	_main.new_career.press_start()
+	_main.gym_screen.pick(0)
+	_main.gym_screen.press_start()
+	var c: Career = _main.career
+	c.next_offers_week = 1000
+	c.gym.members = 40
+	var m: Dictionary = {}
+	for p: Dictionary in c.stable_prospects():
+		if not bool(p.get("pro", false)):
+			m = p
+			break
+	assert_eq(Stable.offer(c.world(), c.gym, m, c.week, 0.0), "")
+	var id: String = String(m.id)
+	for i in 30:
+		if not Stable.booking(Stable.entry(c.gym, id)).is_empty():
+			break
+		c.end_week()
+	var b: Dictionary = Stable.booking(Stable.entry(c.gym, id))
+	assert_false(b.is_empty(), "booked")
+	while c.week < int(b.week):
+		c.end_week()
+	_main.show_hub()
+	assert_true(_main.hub.stable_buttons.has(id), "Play it and Sim it on the hub")
+	assert_string_contains(_main.hub.text(), String(m.name))
+	var fought: int = (c.world().man(id).history as Array).size()
+	(_main.hub.stable_buttons[id].sim as Button).pressed.emit()
+	assert_eq(_main.state, _main.OVER, "played out at once")
+	assert_string_contains(_main.result.text(), "Simmed")
+	assert_eq(str(_main.result.button_labels()), str(["Back to the hub"]))
+	assert_eq((c.world().man(id).history as Array).size(), mini(fought + 1, WorldWeeks.HISTORY), "onto the world")
+	assert_true(Stable.booking(Stable.entry(c.gym, id)).is_empty())
+	assert_eq(c.fights.size(), 0, "not his own record")
+	_main._career_after_fight()
+	assert_false(_main.hub.stable_buttons.has(id), "done for this week")

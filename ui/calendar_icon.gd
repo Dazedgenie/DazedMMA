@@ -4,7 +4,7 @@ extends Control
 ## D430 cards and "Icons drawn in code" on the D433 cards): crossed gloves for fight night, a red cross for hurt, a green
 ## cross for healed, a tick for cleared to fight, a candle for a birthday, a book for school, a sun for the summer
 ## holidays, an envelope for offers, a coin for the gym behind on its rent, a low battery for worn down and a little
-## building for a room built at your gym (D442); a lad or your stable's news is a dot in its colour (D444, D445).
+## building for a room built at your gym (D442); a lad or your stable's news is a dot in its colour (D444, D445), and a stable man's fight night purple gloves.
 
 const SIZE := Vector2(26.0, 26.0)
 ## Each kind's colour.
@@ -17,6 +17,7 @@ const COLOURS := {
 	Career.LAD_IN: Color("#69db7c"), Career.LAD_LEFT: Color("#91a7ff"),
 	Career.STABLE_SIGNED: Color("#38d9a9"), Career.STABLE_FOUGHT: Color("#e599f7"),
 	Career.STABLE_UNHAPPY: Color("#ffa94d"), Career.STABLE_LEFT: Color("#748ffc"),
+	Career.STABLE_BOOKED: Color("#b197fc"), Career.STABLE_FIGHT_NIGHT: Color("#cc5de8"),
 }
 
 var kind: String = ""
@@ -39,8 +40,8 @@ func _draw() -> void:
 	var ink := Color("#0f1217")
 	var line: float = maxf(2.0, s * 0.1)
 	match kind:
-		Career.FIGHT_NIGHT:
-			# Two gloves, crossed.
+		Career.FIGHT_NIGHT, Career.STABLE_FIGHT_NIGHT:
+			# Two gloves, crossed (purple for one of your stable's, D445).
 			for side in [-1.0, 1.0]:
 				var centre: Vector2 = o + Vector2(s * (0.5 + 0.17 * side), s * 0.42)
 				draw_circle(centre, s * 0.24, c)
