@@ -116,11 +116,15 @@ static func levels(gym: Dictionary) -> int:
 	return out
 
 
-## Why you can't hire him ("" when you can): a coach in that role already, or he's not looking any more.
+## Why you can't hire him ("" when you can): a coach in that role already, or the gym's name isn't big enough for a
+## man of his level yet (GymRepute.coach_needs, D446).
 static func cant_hire(gym: Dictionary, coach: Dictionary) -> String:
 	var there: Dictionary = in_role(gym, String(coach.get("role", "")))
 	if not there.is_empty():
 		return "%s is your %s: let him go first" % [String(there.get("name", "")), role_words(String(coach.get("role", "")))]
+	var needs: int = GymRepute.coach_needs(int(coach.get("level", 1)))
+	if GymRepute.level(gym) < needs:
+		return "He wants a gym with a bigger name: %s" % GymRepute.level_name(needs).to_lower()
 	return ""
 
 

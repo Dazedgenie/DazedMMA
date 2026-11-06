@@ -101,6 +101,7 @@ func test_the_coaches_tab_lists_who_is_looking_and_hiring_puts_him_on_your_staff
 		{ "id": "b", "name": "Ann Lee", "role": "nutrition", "level": 1, "personality": "patient", "country_id": "england",
 		"age": 35, "line": "A sports dietitian", "from": "" }]
 	c.gym.looking_at = Staff.month_key(c.date())
+	GymRepute.mark(c.gym, c.week, GymRepute.LEVELS[GymRepute.TOWN] + 1.0, "fight")  # Known in town: a level 2 coach comes (D446).
 	var page: GymPage = add_child_autofree(GymPage.new())
 	page.show_gym(c)
 	assert_false(page.coaches.visible, "rooms first")
@@ -189,3 +190,18 @@ func test_the_stable_tab_shows_a_mans_next_fight_and_can_turn_it_down() -> void:
 	page.stable.refresh()
 	assert_false(page.stable.turn_down_buttons.has(String(m.id)))
 	assert_eq(Stable.offered(c.gym).size(), 1, "his offers (D450), picked on the hub")
+
+
+func test_the_page_shows_the_gyms_name_as_a_word_and_a_bar_and_the_hub_says_it_too() -> void:
+	var c: Career = _career()
+	for i in 4:
+		c.add_opponent({ "id": "opp_%d" % i, "name": "Tom Reid" })
+		c.add_fight({ "result": "win", "method": "decision", "opponent": "opp_%d" % i, "pro": false })
+	var page := GymPage.new()
+	add_child_autofree(page)
+	page.show_gym(c)
+	assert_eq(page.name_word.text, "Unknown")
+	assert_almost_eq(page.name_bar.value, GymRepute.to_next(GymRepute.score(c.gym)), 0.001)
+	assert_eq(page.name_next.text, "4 of 10 to known in town")
+	assert_string_contains(page.name_word.tooltip_text, "fights 4")
+	assert_string_contains(CareerHub.gym_text(c), "The gym's name: [b]Unknown[/b] · 4 of 10 to Known in town")

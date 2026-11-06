@@ -18,7 +18,7 @@ extends RefCounted
 ##   money    the gym's own bank (Career.gym_money), apart from his savings. On the first Monday of every month its
 ##            members pay their dues (the kind's `fee`) and the rent goes out (month()); the gym takes PURSE_CUT of
 ##            every purse he's paid (Kyle: "Members plus a cut of purses"). Members drift towards a number that grows
-##            with his wins, up to what the place holds.
+##            with the gym's name (GymRepute, D446), up to what the place holds.
 ##
 ## A gym is plain data on the career ({kind, culture, place, name, owner_name, owner, dues, members, members_start,
 ## rent, rooms, levels_start, spent, building, spots, coaches, looking, looking_at}), so it saves as it is. `owner_name`
@@ -33,12 +33,11 @@ const ROOMS_PATH := "res://data/enums/gym_rooms.json"
 ## where he comes from (a kind whose `backgrounds` has his).
 const OFFERS: int = 3
 ## The gym's money (D441): what you put in to open it ($), the share of every purse it takes, the rent as a share of
-## what its first members pay (rounded to $10: tight, Kyle's pick on the first year), each of his wins bringing this
-## many more members in (up to the place's `cap`), and the chance one drifts off in a month.
+## what its first members pay (rounded to $10: tight, Kyle's pick on the first year), and the chance one drifts off in
+## a month. The gym's name brings members in (GymRepute.MEMBERS_PER_POINT, D446; up to the place's `cap`).
 const START_MONEY: int = 500
 const PURSE_CUT: float = 0.15
 const RENT_SHARE: float = 0.85
-const MEMBERS_PER_WIN: int = 2
 const LEAVE_CHANCE: float = 0.25
 ## An old save's gym (before D441, when he paid a fee at someone else's): it becomes yours, as a unit with this many
 ## members.
@@ -214,10 +213,11 @@ static func purse_cut(paid: int) -> int:
 	return roundi(maxi(0, paid) * PURSE_CUT)
 
 
-## How many members the gym is heading towards with `wins` wins behind him: its first members, MEMBERS_PER_WIN a
-## win, one for each room level built and each coach's level (Staff, D443), never more than the place holds.
-static func members_target(gym: Dictionary, wins: int) -> int:
-	return clampi(int(gym.get("members_start", gym.get("members", 0))) + MEMBERS_PER_WIN * wins
+## How many members the gym is heading towards: its first members, GymRepute.MEMBERS_PER_POINT for each point of the
+## gym's `fame` (its name from fights, ranked men and trouble, GymRepute.fame, D446; it was 2 a win of his before),
+## one for each room level built and each coach's level (Staff, D443), never more than the place holds.
+static func members_target(gym: Dictionary, fame: float) -> int:
+	return clampi(int(gym.get("members_start", gym.get("members", 0))) + roundi(GymRepute.MEMBERS_PER_POINT * fame)
 		+ MEMBERS_PER_ROOM_LEVEL * (levels(gym) - int(gym.get("levels_start", levels(gym))))
 		+ Staff.MEMBERS_PER_LEVEL * Staff.levels(gym), 0, cap(gym))
 
@@ -230,11 +230,11 @@ static func cap(gym: Dictionary) -> int:
 ## The gym's month as it turns (D441), on the first Monday: the members pay their dues, the rent goes out, then the
 ## members move one towards members_target (two when they're five or more off) and one may drift away. `gym` changes
 ## in place; `dice` rolls the drift. Returns { dues, rent, net, members (after), joined (± change) }.
-static func month(gym: Dictionary, wins: int, dice: RandomNumberGenerator) -> Dictionary:
+static func month(gym: Dictionary, fame: float, dice: RandomNumberGenerator) -> Dictionary:
 	var paid: int = dues_in(gym)
 	var rent: int = int(gym.get("rent", 0))
 	var before: int = int(gym.get("members", 0))
-	var target: int = members_target(gym, wins)
+	var target: int = members_target(gym, fame)
 	var now: int = before
 	if now < target:
 		now += 2 if target - now >= 5 else 1

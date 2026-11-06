@@ -1419,6 +1419,7 @@ static func gym_text(c: Career) -> String:
 	if c.gym_money < 0:
 		money = "[color=%s]$%d, behind on the rent[/color]" % [WARN.to_html(false), c.gym_money]
 	var out: String = "Your gym: %s · %s · %s%d a month" % [money, Gym.money_line(c.gym), "+$" if net >= 0 else "−$", absi(net)]
+	out += "\nThe gym's name: [b]%s[/b] · %s" % [GymRepute.level_name(GymRepute.level(c.gym)), GymRepute.line(c.gym).get_slice(" · ", 1)]  # D446.
 	var building: Dictionary = c.gym.get("building", {})
 	if not building.is_empty():  # A room being built (D442).
 		var left: int = maxi(1, int(building.get("done", c.week)) - c.week)
