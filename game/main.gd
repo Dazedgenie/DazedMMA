@@ -1055,10 +1055,13 @@ func _unhandled_input(event: InputEvent) -> void:
 			make_call(hud.read_call(1))
 		KEY_R, KEY_H, KEY_B:
 			# Calls on a letter key (Cut the cage! on R, D230; Hand fight! on H, D265; Post and dig! on B, D490).
+			# Only the calls on a letter: most sit on a number, and Godot stops on comparing a number to a
+			# letter (that broke R, H and B in the editor, D500).
 			handled = false
 			var letter: String = OS.get_keycode_string(key)
 			for id in driver.sim.calls.ids():
-				if driver.sim.calls.get_call(id).get("hotkey") == letter and hud.is_allowed(id):
+				var hotkey: Variant = driver.sim.calls.get_call(id).get("hotkey")
+				if hotkey is String and hotkey == letter and hud.is_allowed(id):
 					make_call(id)
 					handled = true
 					break

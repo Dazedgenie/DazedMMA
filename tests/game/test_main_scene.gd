@@ -62,8 +62,26 @@ func test_hotkeys_make_calls_and_change_the_speed() -> void:
 	assert_eq(_main.driver.speed, FightDriver.SLOW)
 	_press(KEY_F)
 	assert_eq(_main.driver.speed, FightDriver.FAST)
+	for n in 40:
+		_main._process(FRAME)  # A couple of seconds at 4× plays without a script error.
 	_press(KEY_P)
 	assert_false(_main.driver.paused, "pause is for Easy only (D50)")
+
+
+func test_the_letter_keys_make_their_calls_without_a_script_error() -> void:
+	# R, H and B look the call up among calls that mostly sit on numbers; comparing a number to the
+	# letter stopped the game in the editor (D500). GUT fails the test on that script error too.
+	_start()
+	_press(KEY_R)
+	_main._process(FRAME)
+	var heard: Array = _main.driver.sim.events.filter(func(e: FightEvent) -> bool: return e.type == FightEvent.CALL_HEARD and e.actor == 0)
+	assert_eq(heard.map(func(e: FightEvent) -> String: return e.data.call_id), ["cut_the_cage"], "R is Cut the cage! standing (D230)")
+	for key_and_call: Array in [[KEY_H, "hand_fight", "Hand fight!"], [KEY_B, "post_and_dig", "Post and dig!"]]:
+		_press(key_and_call[0])
+		_main._process(FRAME)
+		var ids: Array = _main.driver.sim.events.filter(func(e: FightEvent) -> bool: return e.type == FightEvent.CALL_HEARD and e.actor == 0).map(func(e: FightEvent) -> String: return e.data.call_id)
+		assert_true(ids.has(key_and_call[1]) or _main.hud.feed.text().contains(key_and_call[2]),
+			"%s finds %s: made, or a note says why not from here (D265, D490)" % [OS.get_keycode_string(key_and_call[0]), key_and_call[2]])
 
 
 func test_easy_lets_the_player_pause() -> void:
