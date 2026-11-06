@@ -2151,8 +2151,8 @@ Tests: `tests/sim/world/test_stable_camp.gd`, `tests/game/test_main_scene.gd`. T
 ### 14.8 The gym's name (D446)
 
 Kyle (2026-11-06) said "Start" for D440's sixth piece. **Your gym has a name**: one number, 0 to 100, for how well
-known it is, shown as a word and a bar to the next (`sim/world/gym_repute.gd`, `GymRepute`). It's built on my picks
-while the five cards are open (below).
+known it is, shown as a word and a bar to the next (`sim/world/gym_repute.gd`, `GymRepute`). Kyle picked my
+recommendation on all five cards (below).
 
 | Level | From | What it opens |
 |---|---|---|
@@ -2202,7 +2202,7 @@ a champion or two at the top.
 in the region*; hovering it says what it's made of (*fights 12 · rooms and coaches 1*) and what the next level opens.
 The hub's gym line adds *The gym's name: **Known in town** · 13 of 30 to Known in the region*.
 
-**The cards** (asked 2026-11-06, open; built on my picks): what builds it: **results, plus rooms and coaches a little**;
+**The cards** (asked 2026-11-06; Kyle picked all five of my recommendations at 13:15): what builds it: **results, plus rooms and coaches a little**;
 fading: **yes, slowly**; what a bigger name opens: **better men and coaches**; what hurts it: **losses a little,
 trouble a lot**; how it shows: **a word and a bar**.
 
