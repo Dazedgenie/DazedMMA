@@ -137,9 +137,11 @@ changes and pauses against the same fight run headless).
 | Held | 0 | The bell between rounds, the Esc menu, the towel question |
 
 ### 6.4 Keys (as built)
-1–9 intent calls (1 is Pressure! standing, Ground and pound! on top, Finish it! in a submission; 6 is Defend the shot!, or Defend the sub! caught in one; 5 is Clinch!, or Collar tie! in the clinch; 4 is Takedown!, or Pass! on top on the ground; 2 is Circle out!, or Go for the finish! on top, D200) · Q / E read calls (Q is Catch the kick!; E is Fire back!, D133: answer a defended strike with a combination, `01` §31.4) · R Cut the cage! (D230: 15 s of cutting off the exits instead of following, `01` §20.5) · H Hand fight! (D265: in the clinch and on the ground, 10 s of every grip he goes for 15% likelier to work, `01` §40.13) · Space slow-mo ·
+1–9 intent calls (1 is Pressure! standing, Ground and pound! on top, Finish it! in a submission; 6 is Defend the shot!, or Defend the sub! caught in one; 5 is Clinch!, or Collar tie! in the clinch; 4 is Takedown!, or Pass! on top on the ground; 2 is Circle out!, or Go for the finish! on top, D200) · Q / E read calls (Q is Catch the kick!; E is Fire back!, D133: answer a defended strike with a combination, `01` §31.4) · R Cut the cage! (D230: 15 s of cutting off the exits instead of following, `01` §20.5) · H Hand fight! (D265: in the clinch and on the ground, 10 s of every grip he goes for 15% likelier to work, `01` §40.13) · B Post and dig! (D496, `01` §47) · Space slow-mo ·
 F fast · P pause (Easy) · T throw in the towel (asks first; a TKO loss, D31) · M strike sounds on/off (D190) · Esc menu (pauses on every difficulty) ·
 Enter presses the dialog's first button · F3 debug overlay · ` debug console · right-drag or arrow keys turn the camera, wheel or - / = zoom it, C puts it back (D472–D476, §6.19) · with F3 on: P pauses, . steps a tick, Shift+Space quarter speed (D477).
+
+A letter key finds its call among the calls with a letter only: most calls sit on a number, and comparing a number to a letter is a script error that stopped the game in the editor on R, H and B (D500). `tests/game/test_main_scene.gd` presses each letter in a fight.
 
 ### 6.5 Not in v0 yet
 - **Technique wheel (Tab, D6):** the only technique call is Catch the kick!, already on Q.
