@@ -202,6 +202,7 @@ func _ready() -> void:
 	ui.add_child(world_page)
 	gym_page = GymPage.new()
 	gym_page.changed.connect(func() -> void: save_career())
+	gym_page.stable.camp_pressed.connect(open_stable_camp)
 	gym_page.closed.connect(func() -> void: hub.refresh())
 	ui.add_child(gym_page)
 	_veil = ColorRect.new()
@@ -732,6 +733,53 @@ static func method_text(result: String) -> String:
 	return result.substr(0, 1).to_upper() + result.substr(1)
 
 
+## A stable man's camp for his booked fight (D451), from the Stable tab's *Plan his camp*: the planner on his own
+## TrainingCamp, a week at a time. A week run goes back to the Stable tab; fight week ends on his fight night card.
+func open_stable_camp(id: String) -> void:
+	if career == null or career.stable_camp(id) == null:
+		return
+	_hide_screens()
+	planner = CampPlanner.new(career.stable_camp(id).profile(), hash([career.career_seed, id, career.week, "stable planner"]))
+	planner.use_stable(career, id)
+	planner.week_ran.connect(func(report: Dictionary) -> void: _stable_camp_week(id, report))
+	planner.fight_pressed.connect(func(_p: Dictionary) -> void: play_stable_fight(id))
+	planner.sim_pressed.connect(func(_p: Dictionary) -> void: sim_stable_fight(id))
+	planner.back_pressed.connect(func() -> void: _stable_camp_back(id))
+	planner.theme = OffCage.theme()
+	$UI.add_child(planner)
+	_veil_on_top()
+	$UI.move_child(_console, -1)
+	$UI.move_child(tips, -1)
+	state = CAREER
+	planner.focus_run()
+
+
+## His camp's week ran (D451): onto him and saved; back to the Stable tab unless it was fight week.
+func _stable_camp_week(id: String, report: Dictionary) -> void:
+	career.stable_camp_week(id, report)
+	career.set_stable_camp_plan(id, planner.week_plan())
+	save_career()
+	if not planner.done():
+		_show_stable_tab()
+
+
+## Back from his camp (D451): the week on the planner kept; on fight night with the fight off (pulled out, or the
+## doctor said no), the fight's turned down.
+func _stable_camp_back(id: String) -> void:
+	if planner != null and not planner.done():
+		career.set_stable_camp_plan(id, planner.week_plan())
+	elif planner != null and not planner.can_fight():
+		career.turn_down_stable_fight(id)
+	save_career()
+	_show_stable_tab()
+
+
+func _show_stable_tab() -> void:
+	show_hub()
+	open_gym_page()
+	gym_page.show_tab(GymPage.STABLE)
+
+
 ## A stable man's fight this week (D445), on the fight screen with you in his corner: the two men as they are (no
 ## camp yet), under the booking's rules, with a seed from the career's dice.
 func play_stable_fight(id: String) -> void:
@@ -739,6 +787,7 @@ func play_stable_fight(id: String) -> void:
 		return
 	var s: Dictionary = _stable_settings(id)
 	if s.is_empty():
+		_stable_changed()  # Called off: the doctor wouldn't clear him after his camp (D451).
 		return
 	save_career()
 	start_fight(s)
@@ -750,6 +799,7 @@ func sim_stable_fight(id: String) -> void:
 		return
 	var s: Dictionary = _stable_settings(id)
 	if s.is_empty():
+		_stable_changed()
 		return
 	s.sim = true
 	s.sound_volume = 0.0

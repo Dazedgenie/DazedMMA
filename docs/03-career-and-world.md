@@ -1731,7 +1731,7 @@ doc (https://claude.ai/artifact/BrEV5jejZtpFWMJiT9HuYC). The pieces, in this ord
 | Rooms and upgrades: mats, bag area, ring, cage, weights, recovery, video and changing rooms at three levels inside the building's floor space, 1 to 4 weeks to build with the room shut; faster training and a few sessions opened; the gym page as a drawn floor plan | D442 | Built (§14.2) |
 | Hiring coaches: specialists for a weekly wage by level, mostly the world's retired fighters | D443 | Built (§14.3) |
 | The gym's other fighters: named lads training there as sparring partners, walk-ins as it grows (was D407) | D444 | Built (§14.4) |
-| Recruiting and the stable: signing the world's men, 2 fighters at first and up to 8, plans set once, each fight played or simmed, men who leave when unhappy | D445, D450 | Signing and training built (§14.5); their fights, played or simmed, built (§14.6, D450); their planner next |
+| Recruiting and the stable: signing the world's men, 2 fighters at first and up to 8, plans set once, each fight played or simmed, men who leave when unhappy | D445, D450 | Signing and training built (§14.5); their fights, played or simmed, built (§14.6, D450); their camps with the planner and minigames built (§14.7, D451) |
 | The gym's name: members, who'll sign, which coaches come, news | D446 | Planned |
 | Your own levels as head coach (was D408) | D447 | Planned |
 | Expanding and moving: the unit next door, a bigger building (was D409) | D448 | Planned |
@@ -2007,7 +2007,7 @@ can't). The *Fighters* tab lists your stable after him, and your stable spars wi
 gym line adds *Your stable: Harry Wright · 2 of 3 places*. Signings and fights are news on the hub and the calendar and
 *Advance* runs on past them (`Career.JUST_NEWS`); a warning or a man leaving stops it.
 
-**Not yet:** their week planner and the minigames (the third piece; their fights are §14.6), the gym's name drawing better men (D446), and signing national or world-class men.
+**Not yet:** a week planner between fights (their fights are §14.6, their camps §14.7), the gym's name drawing better men (D446), and signing national or world-class men.
 
 **Old saves.** A gym from before D445 has an empty stable. Fights outside a career don't change (no golden re-pin), and a
 career without a stable plays as before.
@@ -2053,8 +2053,8 @@ can be (six months without a fight, §14.5).
 Saturday. Play it or sim it from the hub*, which **stops Advance**. The hub's middle shows *YOUR STABLE FIGHTS THIS
 SATURDAY* with each man's fight (the two men and their records, the card, the rules) and three buttons:
 
-- **Play it**: the fight screen with **you in his corner**, every call as for your lad, the two men as they are (no camp:
-  their planner is the third piece), under the booking's rules. No habit cues: you haven't scouted the other man.
+- **Play it**: the fight screen with **you in his corner**, every call as for your lad, the two men as they are (or as his
+  camp leaves him, §14.7), under the booking's rules. No habit cues: you haven't scouted the other man.
 - **Sim it**: the same fight run at once by the fighters' own AI, straight to the result, as *Sim the fight* (D305).
 - **Turn it down**.
 
@@ -2077,7 +2077,7 @@ Sim does: **the full engine at once** (my pick); a fight you don't open: **Advan
 the quick result** (my pick); while your lad's in camp: **play or sim them from the camp** (Kyle's pick; mine was the
 quick result).
 
-**Not yet:** their camps, planner and minigames (D445's third piece), their title fights offered and played (still the
+**Not yet:** their title fights offered and played (still the
 world's), and a stable man's injuries beyond the world's time out after a knockout.
 
 **Old saves.** A stable saved before D450 has no offers; each man's first come the next Monday he's due a fight.
@@ -2093,4 +2093,57 @@ your stable's men out), `sim/world/career.gd` (`_stable_fights`, `stable_fight`,
 and in the camp, `ui/camp_planner.gd`), the Stable tab's line in `ui/stable_view.gd`. Tests:
 `tests/sim/world/test_stable_fights.gd`, `tests/ui/test_gym_page.gd`, `tests/game/test_main_scene.gd`. Then update this
 section and D450.
+
+### 14.7 Your stable's camps (D451)
+
+Kyle (2026-11-06) said "Start now" for D445's third piece: their planner and minigames. **A stable man booked for a fight
+gets a camp you can open**, the same planner as your lad's, run **a week at a time with the calendar**, ending on his
+fight night card. It's built on my picks while the cards are open (below).
+
+**Opening it.** On the *Stable* tab a booked man has **Plan his camp** next to his fight. It opens the camp planner on a
+camp made from the world man as he is (`Career.stable_camp`, a `TrainingCamp` from his world profile with your gym's
+rooms and your specialty), counting down the weeks to his fight (*Week 1 of 4*). Every session, preset and minigame
+works as in your lad's camp (Mitt work, Film study, Sprawl drills, Heavy bag, Thai pads; film study on a man of the
+other man's style). The weeks picker, *Reset* and *Run every week left* are hidden; the back button is *Back to your
+stable*. Once opened his **focus stops training him** while the camp does (`Stable.trained` leaves him out) and the
+button reads *His camp this week*, *His fight week* or, when the week's run, *This week's camp is run*. The tab's line
+adds *his camp: 4 weeks to go, fatigue 3*.
+
+**A week at a time.** *Run week N* runs this week and goes back to the Stable tab; the next week opens on Monday (the
+planner says *This week's run: back on Monday*). What the week did **stays on the world man** (his stats' `gains`,
+`Stable.add_gains`), so his record, rankings and the quick result all see it, and the camp's fatigue and any injury are
+saved on his stable entry. A week you don't run **runs on the plan you left** on his planner (the *Balanced* preset if
+you never set one, `Stable.CAMP_PLAN`) when the week ends, so an opened camp never stalls Advance.
+
+**Fight night.** Fight week runs as the last week and ends on **his fight night card**: his gas tank from the camp's
+fatigue, any injury and the doctor, then *Fight!* (the fight screen, you in his corner), *Sim it* or *Pull out of the
+fight* (turned down). Play it and Sim it on the hub or in your lad's camp still work: fight week runs on his plan first
+if you haven't run it, and he fights **as his camp leaves him** (`TrainingCamp.fight_profile`, his condition and any
+injury). If the doctor won't clear him, **the fight's off**: the news says *Jake Moss's fight with Tom Reid is off: the
+doctor won't clear him after his camp*, the fight is turned down, and the injury keeps him out (the world man's
+`out_until`) until it heals. A hurt man left alone isn't put in the fight either.
+
+**After.** The fight (or turning it down) ends the camp: back on his focus, and any injury from it keeps him out the
+weeks it has left (`Stable.end_camp`).
+
+**A camp you don't open.** Nothing changes: his focus trains him and the fight is as in §14.6, fresh.
+
+**The cards** (asked 2026-11-06, open; built on my picks): what opening a man gives: **a camp for his booked fight**;
+an unopened camp: **his focus trains him, as now**; what carries into his fight: **gains, fatigue and injuries**; how
+much of your lad's camp: **sessions and minigames now** (scouting, drilled rules and the weight cut later); what it
+costs your lad: **nothing, you plan both**.
+
+**Not yet:** scouting and film study on the other man, drilled rules and the weight cut for a stable man's camp; a
+planner for his weeks between fights; their title fights (still the world's).
+
+**Old saves.** A stable saved before D451 has no camps; *Plan his camp* opens one for a booked man the next time you
+look.
+
+**What to change:** `CAMP_PLAN` at the top of `sim/world/stable.gd`; where it acts in `sim/world/stable.gd` (`camp_of`,
+`can_camp`, `camp_weeks_left`, `add_gains`, `end_camp`, `trained`, `settle`, `turn_down`, `month`), `sim/world/career.gd`
+(`stable_camp`, `_camp_for`, `stable_camp_week`, `set_stable_camp_plan`, `stable_camp_ran`, `stable_cleared`,
+`_catch_up_stable_camp`, `_call_off_stable_fight`, `stable_fight`, `_stable_fights`, `STABLE_CALLED_OFF`) and
+`game/main.gd` (`open_stable_camp`, `_stable_camp_week`, `_stable_camp_back`); the planner's stable mode in
+`ui/camp_planner.gd` (`use_stable`, `use_plan`, `waiting_for_monday`), the button in `ui/stable_view.gd` (`camp_label`).
+Tests: `tests/sim/world/test_stable_camp.gd`, `tests/game/test_main_scene.gd`. Then update this section and D451.
 

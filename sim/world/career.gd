@@ -71,12 +71,13 @@ const LAD_LEFT := Lads.LEFT
 const STABLE_SIGNED := Stable.SIGNED
 const STABLE_OFFERS := Stable.OFFERED
 const STABLE_FIGHT_NIGHT := Stable.FIGHT_NIGHT
+const STABLE_CALLED_OFF := Stable.CALLED_OFF
 const STABLE_FOUGHT := Stable.FOUGHT
 const STABLE_UNHAPPY := Stable.UNHAPPY
 const STABLE_LEFT := Stable.LEFT
 ## Events that are only news: Advance runs on past them (a lad walking in or leaving, D444; a stable man signing or
 ## fighting, D445).
-const JUST_NEWS: Array[String] = [LAD_IN, LAD_LEFT, STABLE_SIGNED, STABLE_FOUGHT]
+const JUST_NEWS: Array[String] = [LAD_IN, LAD_LEFT, STABLE_SIGNED, STABLE_FOUGHT, STABLE_CALLED_OFF]
 ## School (D314, School): the summer holidays start (every session is his until September), school starts again, and
 ## he's left school for good (LEAVES_AT): { kind }.
 const SCHOOL_OUT := "school_out"
@@ -171,6 +172,9 @@ var rule_slots: Array[String] = ["", ""]
 var drills: Dictionary = {}
 ## The world's fighters (World, D352), made the first time they're needed and kept in the save.
 var _world: World
+## Your stable's camps you've opened (D451): man id → his TrainingCamp, made from the save's snapshot (Stable.camp_of)
+## the first time it's needed.
+var _stable_camps: Dictionary = {}
 var _world_data: Dictionary = {}
 
 var _dice := RandomNumberGenerator.new()
@@ -436,7 +440,7 @@ static func event_text(event: Dictionary) -> String:
 		COACH_LEFT:
 			return "%s, your %s, has walked out: %d weeks without pay" % [String(event.get("name", "")),
 				Staff.role_words(String(event.get("role", ""))), int(event.get("weeks", 0))]
-		STABLE_SIGNED, STABLE_FOUGHT, STABLE_UNHAPPY, STABLE_LEFT, STABLE_OFFERS, STABLE_FIGHT_NIGHT:
+		STABLE_SIGNED, STABLE_FOUGHT, STABLE_UNHAPPY, STABLE_LEFT, STABLE_OFFERS, STABLE_FIGHT_NIGHT, STABLE_CALLED_OFF:
 			return Stable.news_text(event)
 		LAD_IN, LAD_LEFT:
 			return Lads.news_text(event)
@@ -945,6 +949,10 @@ func end_week() -> Dictionary:
 func _stable_fights() -> void:
 	for e: Dictionary in Stable.fighters(gym).duplicate():
 		var id: String = String(e.get("id", ""))
+		_catch_up_stable_camp(id, week - 1)  # A camp week you didn't run runs on the plan you left (D451).
+		if int(Stable.booking(e).get("week", -1)) == week - 1 and not stable_cleared(id):
+			_call_off_stable_fight(id, week - 1)
+			continue
 		var done: Dictionary = Stable.quick(_world, gym, id, week - 1, hash([career_seed, id, week, "stable quick"]))
 		if not done.is_empty():
 			gym_money += int(done.cut)
@@ -963,6 +971,14 @@ func stable_fight(id: String) -> Dictionary:
 		if String(d.id) != id:
 			continue
 		var red: Dictionary = w.profile(id, week)
+		if not Stable.camp_of(d.entry).is_empty():
+			# His camp (D451): fight week runs on the plan you left if you haven't run it, and he fights as it leaves him.
+			_catch_up_stable_camp(id, week)
+			if not stable_cleared(id):
+				_call_off_stable_fight(id, week)
+				return {}
+			red = stable_camp(id).fight_profile()
+			red.id = id + "_camp"
 		var blue: Dictionary = w.profile(String(d.booking.opponent), week)
 		if red.is_empty() or blue.is_empty():
 			return {}
@@ -978,6 +994,7 @@ func finish_stable_fight(id: String, result: String, method: String, round: int,
 	if Stable.due(gym, week).filter(func(d: Dictionary) -> bool: return String(d.id) == id).is_empty():
 		return out
 	var done: Dictionary = Stable.settle(world(), gym, id, result, method, round, fight_seed)
+	_stable_camps.erase(id)
 	if done.is_empty():
 		return out
 	gym_money += int(done.cut)
@@ -987,9 +1004,107 @@ func finish_stable_fight(id: String, result: String, method: String, round: int,
 	return out
 
 
-## Turns a stable man's booked fight down (D445): he waits Stable.TURN_DOWN_WEEKS for the next. False when none.
+## Turns a stable man's booked fight down (D445): he waits Stable.TURN_DOWN_WEEKS for the next, and his camp's over
+## (an injury from it keeps him out). False when none.
 func turn_down_stable_fight(id: String) -> bool:
+	var e: Dictionary = Stable.entry(gym, id)
+	if Stable.booking(e).is_empty():
+		return false
+	Stable.end_camp(world().man(id), e, week)
+	_stable_camps.erase(id)
 	return Stable.turn_down(gym, id, week)
+
+
+## A stable man's camp for his booked fight (D451): his TrainingCamp, made the first time it's opened from the world
+## man as he is (and kept on his stable entry), with your gym's rooms and your specialty. null when he isn't booked for
+## this week or later.
+func stable_camp(id: String) -> TrainingCamp:
+	var e: Dictionary = Stable.entry(gym, id)
+	if e.is_empty() or not Stable.can_camp(e, week):
+		return null
+	return _camp_for(id, e)
+
+
+func _camp_for(id: String, e: Dictionary) -> TrainingCamp:
+	var c: Dictionary = Stable.camp_of(e)
+	if not c.is_empty() and _stable_camps.has(id):
+		return _stable_camps[id]
+	var p: Dictionary = world().profile(id, week)
+	if p.is_empty():
+		return null
+	var t := TrainingCamp.new(p, hash([career_seed, id, int(Stable.booking(e).get("week", 0)), "stable camp"]), _library)
+	t.gym = gym
+	t.coach_specialty = coach_specialty
+	if c.is_empty():
+		t.start_camp()
+		e.camp = { "snap": t.snapshot(), "plan": {}, "ran": -1, "report": {} }
+	else:
+		t.restore(c.get("snap", {}))
+	_stable_camps[id] = t
+	return t
+
+
+## His camp's week ran on the planner (D451): what it did goes onto the world man and into the save.
+func stable_camp_week(id: String, report: Dictionary) -> void:
+	_saved_camp_week(id, week, report)
+
+
+## The week on his planner, kept for a week you don't run by hand (D451).
+func set_stable_camp_plan(id: String, plan: Dictionary) -> void:
+	var c: Dictionary = Stable.camp_of(Stable.entry(gym, id))
+	if not c.is_empty():
+		c.plan = plan.duplicate(true)
+
+
+## Whether he ran this week of his camp already (D451).
+func stable_camp_ran(id: String) -> bool:
+	return int(Stable.camp_of(Stable.entry(gym, id)).get("ran", -1)) == week
+
+
+## Whether the doctor clears him for his fight (D451): true without a camp, else his camp's fight night says.
+func stable_cleared(id: String) -> bool:
+	var e: Dictionary = Stable.entry(gym, id)
+	if Stable.camp_of(e).is_empty():
+		return true
+	var t: TrainingCamp = _camp_for(id, e)
+	return t == null or t.fight_night().doctor != TrainingCamp.NOT_CLEARED
+
+
+## Runs `on`'s week of his camp on the plan left on his planner when it hasn't been run (D451).
+func _catch_up_stable_camp(id: String, on: int) -> void:
+	var e: Dictionary = Stable.entry(gym, id)
+	var c: Dictionary = Stable.camp_of(e)
+	var b: Dictionary = Stable.booking(e)
+	if c.is_empty() or b.is_empty() or int(c.get("ran", -1)) >= on or int(b.week) < on:
+		return
+	var t: TrainingCamp = _camp_for(id, e)
+	if t == null:
+		return
+	var plan: Dictionary = c.plan if c.get("plan") is Dictionary and not (c.plan as Dictionary).is_empty() \
+		else _library.plan(Stable.CAMP_PLAN)
+	_saved_camp_week(id, on, t.run_plan(plan, {}, int(b.week) == on))
+
+
+func _saved_camp_week(id: String, on: int, report: Dictionary) -> void:
+	var e: Dictionary = Stable.entry(gym, id)
+	var c: Dictionary = Stable.camp_of(e)
+	var t: TrainingCamp = _stable_camps.get(id)
+	if c.is_empty() or t == null:
+		return
+	Stable.add_gains(world().man(id), c.get("snap", {}).get("stats", {}), t.stats)
+	c.snap = t.snapshot()
+	c.ran = on
+	c.report = report.duplicate(true)
+
+
+## His fight's off: the doctor won't clear him after his camp (D451). The news says so; he waits as if turned down.
+func _call_off_stable_fight(id: String, on: int) -> void:
+	var e: Dictionary = Stable.entry(gym, id)
+	var b: Dictionary = Stable.booking(e)
+	stable_news.append({ "kind": STABLE_CALLED_OFF, "name": String(e.get("name", "")), "opponent": String(b.get("opponent_name", "")) })
+	Stable.end_camp(world().man(id), e, on)
+	_stable_camps.erase(id)
+	Stable.turn_down(gym, id, on)
 
 
 ## Takes a stable man's offer at `index` (D450): he's booked for it. False when there's no such offer.
@@ -1323,6 +1438,8 @@ static func from_dict(data: Dictionary, library: TrainingLibrary = null) -> Care
 						for key: String in ["wait_until", "offers_until"]:
 							if lad.has(key):
 								lad[key] = int(lad[key])
+						if lad.get("camp") is Dictionary:
+							lad.camp.ran = int(lad.camp.get("ran", -1))
 						if lad.get("offers") is Array:
 							for o: Variant in lad.offers:
 								if o is Dictionary and (o as Dictionary).has("week"):

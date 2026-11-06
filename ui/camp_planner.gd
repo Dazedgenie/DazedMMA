@@ -156,6 +156,9 @@ var weigh_in_card: WeighInCard
 var _weighed: bool = false
 ## In a career (D450): your stable's offers and this week's fights, with Play and Sim, left of the buttons.
 var stable_box: StableFightsBox
+## A stable man's camp (D451, use_stable()): the career he's in and his id ("" for your lad's camp or a camp on its own).
+var stable_career: Career
+var stable_id: String = ""
 
 
 func _init(profile: Dictionary, camp_seed: int = 1, library: TrainingLibrary = null) -> void:
@@ -305,6 +308,64 @@ func use_career(c: Career) -> void:
 	_refresh()
 
 
+## Plans a stable man's camp for his booked fight (D451): his TrainingCamp from the career (Career.stable_camp), the
+## weeks to his fight, the week he last left on it. One week at a time, with the calendar: a week run here is this
+## week's (the career runs a week you don't on the plan you left), so there's no running the rest at once. Sessions and
+## minigames only: no scouting, rules or weight cut. Back goes back to the gym page.
+func use_stable(c: Career, id: String) -> void:
+	stable_career = c
+	stable_id = id
+	var e: Dictionary = Stable.entry(c.gym, id)
+	var b: Dictionary = Stable.booking(e)
+	camp = c.stable_camp(id)
+	_start = camp.profile()
+	weeks = maxi(1, Stable.camp_weeks_left(e, c.week))
+	reports.clear()
+	if c.stable_camp_ran(id):
+		reports.append(Stable.camp_of(e).get("report", {}))  # This week's already run: fight night, or wait for Monday.
+	pulled_out = false
+	_night_open = true
+	card_name = String(b.get("card", ""))
+	opponent_name = String(b.get("opponent_name", ""))
+	_weeks_picker.get_parent().visible = false
+	var heading: Node = _weeks_picker.get_parent().get_parent().get_child(_weeks_picker.get_parent().get_index() - 1)
+	if heading is Label:
+		(heading as Label).visible = false
+	_reset.visible = false
+	_run_rest.visible = false
+	_back.text = "Back to your stable"
+	night_card.sim_allowed = true
+	night_card.sim_pressed.connect(func() -> void: sim_pressed.emit(trained_profile()))
+	var plan: Dictionary = Stable.camp_of(e).get("plan", {})
+	if plan.get("days") is Array:
+		use_plan(plan)
+	else:
+		pick_preset(Stable.CAMP_PLAN if _plan_ids.has(Stable.CAMP_PLAN) else _plan_ids[0])
+	_refresh()
+
+
+## Fills the week from a week_plan@1 Dictionary (week_plan()'s): a preset's id picks the preset, else the slots and
+## instruction as they were (a custom week).
+func use_plan(plan: Dictionary) -> void:
+	var id: String = String(plan.get("id", CUSTOM))
+	if id != CUSTOM and _plan_ids.has(id):
+		pick_preset(id)
+		return
+	_filling = true
+	for day in mini(TrainingCamp.DAYS, (plan.days as Array).size()):
+		for slot in TrainingCamp.SLOTS_PER_DAY:
+			_slot_ids[day * TrainingCamp.SLOTS_PER_DAY + slot] = at_gym(String(plan.days[day][slot]))
+	var instruction: Variant = plan.get("instruction")
+	_instruction.selected = maxi(0, _instruction_ids.find("" if instruction == null else String(instruction)))
+	_filling = false
+	_on_changed_by_hand()
+
+
+## Whether this week of a stable man's camp has run and the next waits for Monday (D451).
+func waiting_for_monday() -> bool:
+	return stable_id != "" and not done() and stable_career != null and stable_career.stable_camp_ran(stable_id)
+
+
 ## How hard he cuts for the booked fight (D405): light, normal, hard or extreme. Fixed once the camp is over.
 func set_cut(level: String) -> void:
 	if career == null or done() or not level in WeightCut.LEVELS:
@@ -381,7 +442,7 @@ func week_plan() -> Dictionary:
 ## Runs the week on screen (the next week of the camp). Sessions ticked to Play are played first, one
 ## minigame after another, and the week runs when the last one is done.
 func run_week() -> void:
-	if done() or minigame != null or film != null or sprawl != null or bag != null or pads != null:
+	if done() or waiting_for_monday() or minigame != null or film != null or sprawl != null or bag != null or pads != null:
 		return
 	_to_play = played_slots()
 	_played = {}
@@ -442,10 +503,14 @@ func _play_next() -> void:
 
 
 ## A film study session played (D410): the booked man's tape when he has a habit you haven't found (one not found
-## earlier this week), else a man of his style (or any style, in a quick camp) for Fight IQ only.
+## earlier this week), else a man of his style (or any style, in a quick camp) for Fight IQ only. In a stable man's camp
+## (D451), always a man of his opponent's style.
 func _play_film(index: int) -> void:
 	var tape_seed: int = hash([_camp_seed, reports.size(), index, "film"])
 	var him: Dictionary = career.booked_opponent() if career != null else {}
+	if stable_career != null:  # A stable man's camp (D451): a man of his opponent's style, no habits to find yet.
+		var opp: Dictionary = stable_career.world().man(String(Stable.booking(Stable.entry(stable_career.gym, stable_id)).get("opponent", "")))
+		him = { "style_id": String(opp.get("style", "")) }
 	var left: Array[Dictionary] = []
 	if not him.is_empty():
 		for t: Dictionary in Scouting.unfound(career, him):
@@ -526,8 +591,8 @@ func days_to_fight() -> int:
 
 ## Runs every week left with the week on screen.
 func run_rest() -> void:
-	if minigame != null or film != null or sprawl != null or bag != null or pads != null:
-		return
+	if stable_id != "" or minigame != null or film != null or sprawl != null or bag != null or pads != null:
+		return  # A stable man's camp runs a week at a time, with the calendar (D451).
 	var waiting: String = _stable_waiting()
 	while not done():
 		var report: Dictionary = camp.run_plan(week_plan(), {}, fight_week())
@@ -1104,7 +1169,9 @@ func _refresh() -> void:
 	_week_label.text = "Camp over: fight night" if done() else "Week %d of %d · %s" % [reports.size() + 1, weeks, plan_name]
 	_about.text = "Changed by hand. Click any tile to change it." if id == CUSTOM else String(_library.plan(id).get("about", ""))
 	_run.text = "Run week" if done() else "Run week %d" % (reports.size() + 1)
-	_run.disabled = done()
+	_run.disabled = done() or waiting_for_monday()
+	if waiting_for_monday():
+		_run.text = "This week's run: back on Monday"
 	_run_rest.disabled = done()
 	_fight.disabled = not can_fight()
 	_pull_out.disabled = not done() or pulled_out
