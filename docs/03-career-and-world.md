@@ -2098,7 +2098,7 @@ section and D450.
 
 Kyle (2026-11-06) said "Start now" for D445's third piece: their planner and minigames. **A stable man booked for a fight
 gets a camp you can open**, the same planner as your lad's, run **a week at a time with the calendar**, ending on his
-fight night card. It's built on my picks while the cards are open (below).
+fight night card. Kyle picked my recommendation on all five cards (below).
 
 **Opening it.** On the *Stable* tab a booked man has **Plan his camp** next to his fight. It opens the camp planner on a
 camp made from the world man as he is (`Career.stable_camp`, a `TrainingCamp` from his world profile with your gym's
@@ -2128,7 +2128,7 @@ weeks it has left (`Stable.end_camp`).
 
 **A camp you don't open.** Nothing changes: his focus trains him and the fight is as in §14.6, fresh.
 
-**The cards** (asked 2026-11-06, open; built on my picks): what opening a man gives: **a camp for his booked fight**;
+**The cards** (Kyle's answers, 2026-11-06, all my picks): what opening a man gives: **a camp for his booked fight**;
 an unopened camp: **his focus trains him, as now**; what carries into his fight: **gains, fatigue and injuries**; how
 much of your lad's camp: **sessions and minigames now** (scouting, drilled rules and the weight cut later); what it
 costs your lad: **nothing, you plan both**.
