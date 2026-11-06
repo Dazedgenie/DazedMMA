@@ -849,6 +849,7 @@ func test_a_new_career_teaches_the_game_with_tips_and_a_first_fight_of_three_cal
 
 
 func test_a_stable_mans_own_camp_runs_a_week_at_a_time_and_ends_on_his_fight_night() -> void:
+	seed(451)  # The same career every run: a random one may have no amateur to sign or no man to fight him.
 	_main.open_new_career()
 	_main.new_career.set_play_childhood(false)
 	_main.new_career.set_know_the_game(true)
@@ -860,7 +861,7 @@ func test_a_stable_mans_own_camp_runs_a_week_at_a_time_and_ends_on_his_fight_nig
 	c.gym.members = 40
 	var id: String = ""
 	for p: Dictionary in c.stable_prospects():
-		if not bool(p.get("pro", false)) and not Lads.at_gym(c.gym, String(p.id)):
+		if not bool(p.get("pro", false)):
 			assert_eq(Stable.offer(c.world(), c.gym, p, c.week, 0.0), "")
 			id = String(p.id)
 			break
@@ -906,6 +907,7 @@ func test_a_stable_mans_own_camp_runs_a_week_at_a_time_and_ends_on_his_fight_nig
 
 
 func test_a_stable_mans_fight_in_his_camp_is_simmed_from_the_camp_and_back_to_it() -> void:
+	seed(451)  # The same career every run: a random one may have no amateur to sign or no man to fight him.
 	_main.open_new_career()
 	_main.new_career.set_play_childhood(false)
 	_main.new_career.set_know_the_game(true)
@@ -919,7 +921,7 @@ func test_a_stable_mans_fight_in_his_camp_is_simmed_from_the_camp_and_back_to_it
 	c.gym.members = 40
 	var m: Dictionary = {}
 	for p: Dictionary in c.stable_prospects():
-		if not bool(p.get("pro", false)) and not Lads.at_gym(c.gym, String(p.id)):
+		if not bool(p.get("pro", false)):
 			m = p
 			break
 	assert_eq(Stable.offer(c.world(), c.gym, m, c.week, 0.0), "")
@@ -943,6 +945,7 @@ func test_a_stable_mans_fight_in_his_camp_is_simmed_from_the_camp_and_back_to_it
 
 
 func test_a_stable_mans_fight_is_simmed_from_the_hub_onto_the_world() -> void:
+	seed(451)  # The same career every run: a random one may have no amateur to sign or no man to fight him.
 	_main.open_new_career()
 	_main.new_career.set_play_childhood(false)
 	_main.new_career.set_know_the_game(true)
