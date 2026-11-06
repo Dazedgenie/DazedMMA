@@ -1,7 +1,7 @@
 extends GutTest
-## Your stable's fights (sim/world/stable.gd, docs/03 §14.6, D445's second piece): booked about three weeks ahead
-## against a man near his level, held back from the world's pairings, a fight night that stops Advance, played or
-## simmed onto the world, decided by the quick result when left alone, turned down, saved.
+## Your stable's fights (sim/world/stable.gd, docs/03 §14.6, D450): offers to pick from about three weeks ahead
+## against men near his level, held back from the world's pairings, taking one and turning one down, a fight night
+## that stops Advance, played or simmed onto the world, decided by the quick result when left alone, saved.
 
 
 func _career(members: int = 40) -> Career:
@@ -25,17 +25,119 @@ func _sign(c: Career, pro: bool) -> Dictionary:
 	return {}
 
 
-## Runs weeks until he has a booking (at most `weeks`).
-func _until_booked(c: Career, id: String, weeks: int = 30) -> Dictionary:
+## Runs weeks until he has offers (at most `weeks`). His offers, [] when none came.
+func _until_offered(c: Career, id: String, weeks: int = 30) -> Array:
 	for i in weeks:
-		var b: Dictionary = Stable.booking(Stable.entry(c.gym, id))
-		if not b.is_empty():
-			return b
+		if not Stable.offers_of(Stable.entry(c.gym, id)).is_empty():
+			break
 		c.end_week()
+	return Stable.offers_of(Stable.entry(c.gym, id))
+
+
+## Runs weeks until he has offers and takes the first: his booking ({} when none came).
+func _until_booked(c: Career, id: String, weeks: int = 30) -> Dictionary:
+	if _until_offered(c, id, weeks).is_empty():
+		return {}
+	assert_true(c.take_stable_offer(id, 0))
 	return Stable.booking(Stable.entry(c.gym, id))
 
 
-func test_a_signed_man_is_booked_three_weeks_ahead_against_a_man_near_his_level() -> void:
+func test_offers_come_in_for_a_signed_man_against_men_near_his_level() -> void:
+	var c: Career = _career()
+	var m: Dictionary = _sign(c, false)
+	var offers: Array = _until_offered(c, String(m.id))
+	assert_between(offers.size(), 1, Stable.OFFERS, "offers in")
+	var w: World = c.world()
+	var seen: Dictionary = {}
+	for o: Dictionary in offers:
+		var opp: Dictionary = w.man(String(o.opponent))
+		assert_false(seen.has(String(o.opponent)), "a different man each")
+		seen[String(o.opponent)] = true
+		assert_gte(int(o.week), c.week + Stable.LEAD_WEEKS - 1)
+		assert_eq(World.division_of(opp, int(o.week)), World.division_of(m, int(o.week)), "his division")
+		assert_lt(absf(w.average(opp) - w.average(w.man(String(m.id)))), Stable.MATCH_GAP, "near his level")
+		assert_false(Lads.at_gym(c.gym, String(opp.id)), "not a gym-mate")
+		assert_between(float(o.chance), 0.0, 1.0)
+		assert_eq(String(o.difficulty), Stable.difficulty(w, w.man(String(m.id)), opp))
+		assert_true(Stable.busy(c.gym).has(String(o.opponent)), "held back while he's offered")
+	c.end_week()
+	assert_eq(Stable.offered(c.gym).size(), 1, "still on the table next week")
+
+
+func test_the_offers_are_a_bit_easier_about_even_and_a_bit_harder_like_his() -> void:
+	var c: Career = _career()
+	var m: Dictionary = _sign(c, false)
+	var w: World = c.world()
+	var him: Dictionary = w.man(String(m.id))
+	var all: Array = w.in_division(World.division_of(him, c.week), c.week).filter(func(o: Dictionary) -> bool:
+		return String(o.id) != String(m.id))
+	assert_gt(all.size(), Stable.OFFERS)
+	var picked: Array = Stable.pick_opponents(w, him, all)
+	assert_eq(picked.size(), Stable.OFFERS)
+	for i in Stable.OFFERS:
+		var target: float = w.average(him) + float(Matchmaker.DIFFICULTY_LEVELS[Matchmaker.DIFFICULTIES[i]])
+		var nearest: float = all.map(func(o: Dictionary) -> float: return absf(w.average(o) - target)).min()
+		assert_almost_eq(absf(w.average(picked[i]) - target), nearest, 2.0, "%s: the man nearest it" % Matchmaker.DIFFICULTIES[i])
+	assert_lte(w.average(picked[0]), w.average(picked[1]), "easiest first")
+	assert_lte(w.average(picked[1]), w.average(picked[2]))
+	assert_eq(Stable.pick_opponents(w, him, all.slice(0, 2)).size(), 2, "fewer men, fewer offers")
+	assert_eq(Stable.difficulty(w, him, him), "even")
+
+
+func test_taking_an_offer_books_him_and_lets_the_others_go() -> void:
+	var c: Career = _career()
+	var m: Dictionary = _sign(c, false)
+	var offers: Array = _until_offered(c, String(m.id)).duplicate(true)
+	assert_false(offers.is_empty())
+	var pick: int = offers.size() - 1
+	assert_true(c.take_stable_offer(String(m.id), pick))
+	var b: Dictionary = Stable.booking(Stable.entry(c.gym, String(m.id)))
+	assert_eq(String(b.opponent), String(offers[pick].opponent))
+	assert_false(b.has("chance"))
+	assert_true(Stable.offers_of(Stable.entry(c.gym, String(m.id))).is_empty(), "the others go")
+	for i in offers.size() - 1:
+		assert_false(Stable.busy(c.gym).has(String(offers[i].opponent)), "and are free again")
+	assert_false(c.take_stable_offer(String(m.id), 0), "nothing left to take")
+
+
+func test_turning_an_offer_down_leaves_the_others() -> void:
+	var c: Career = _career()
+	var m: Dictionary = _sign(c, false)
+	var offers: Array = _until_offered(c, String(m.id)).duplicate(true)
+	assert_true(c.decline_stable_offer(String(m.id), 0))
+	assert_eq(Stable.offers_of(Stable.entry(c.gym, String(m.id))).size(), offers.size() - 1)
+	assert_false(Stable.busy(c.gym).has(String(offers[0].opponent)))
+	assert_false(c.decline_stable_offer(String(m.id), 5))
+
+
+func test_offers_left_unanswered_go_and_new_ones_come_later() -> void:
+	var c: Career = _career()
+	var m: Dictionary = _sign(c, false)
+	_until_offered(c, String(m.id))
+	var came: int = c.week
+	for i in Stable.OFFER_WEEKS:
+		c.end_week()
+	var e: Dictionary = Stable.entry(c.gym, String(m.id))
+	assert_true(Stable.offers_of(e).is_empty(), "gone after %d weeks" % Stable.OFFER_WEEKS)
+	assert_true(Stable.booking(e).is_empty(), "nothing booked for him")
+	var again: Array = _until_offered(c, String(m.id))
+	assert_false(again.is_empty(), "more come")
+	assert_gte(c.week, came + Stable.OFFER_WEEKS + Stable.OFFERS_GAP)
+
+
+func test_his_lad_isnt_offered_a_man_offered_to_the_stable() -> void:
+	var c: Career = _career()
+	var m: Dictionary = _sign(c, false)
+	_until_offered(c, String(m.id))
+	c.next_offers_week = c.week
+	c.offers.clear()
+	c.run_week()
+	var held: Dictionary = Stable.busy(c.gym)
+	for o: Dictionary in c.offers:
+		assert_false(held.has(String(o.get("profile", {}).get("id", ""))), "not one of the stable's")
+
+
+func test_a_taken_offer_is_booked_three_weeks_ahead_against_a_man_near_his_level() -> void:
 	var c: Career = _career()
 	var m: Dictionary = _sign(c, false)
 	var b: Dictionary = _until_booked(c, String(m.id))
@@ -45,7 +147,7 @@ func test_a_signed_man_is_booked_three_weeks_ahead_against_a_man_near_his_level(
 	assert_gte(int(b.week), c.week + Stable.LEAD_WEEKS - 1)
 	assert_eq(World.division_of(opp, int(b.week)), World.division_of(m, int(b.week)), "his division")
 	assert_eq(bool(opp.pro), bool(m.pro))
-	assert_lt(WorldWeeks.pair_gap(w, m, opp), Stable.MATCH_GAP, "near his level")
+	assert_lt(absf(w.average(opp) - w.average(w.man(String(m.id)))), Stable.MATCH_GAP, "near his level")
 	assert_false(Lads.at_gym(c.gym, String(opp.id)), "not a gym-mate")
 	assert_eq(String(b.ruleset), Stable.ruleset_for(m, int(b.week)))
 	var held: Dictionary = Stable.busy(c.gym)
@@ -155,10 +257,9 @@ func test_the_bookings_save_and_load() -> void:
 
 
 func test_the_news_reads_plainly() -> void:
-	assert_eq(Stable.news_text({ "kind": Stable.BOOKED, "name": "Jake Moss", "opponent": "Tom Reid", "card": "NCC 14" }),
-		"Jake Moss is booked to fight Tom Reid on NCC 14")
+	assert_eq(Stable.news_text({ "kind": Stable.OFFERED, "name": "Jake Moss", "count": 3 }), "3 fight offers for Jake Moss: pick one on the hub")
 	assert_string_contains(Stable.news_text({ "kind": Stable.FIGHT_NIGHT, "name": "Jake Moss", "opponent": "Tom Reid" }), "Play it or sim it")
-	assert_true(Career.STABLE_BOOKED in Career.JUST_NEWS, "a booking doesn't stop Advance")
+	assert_false(Career.STABLE_OFFERS in Career.JUST_NEWS, "offers stop Advance")
 	assert_false(Career.STABLE_FIGHT_NIGHT in Career.JUST_NEWS, "fight night does")
-	for kind: String in [Career.STABLE_BOOKED, Career.STABLE_FIGHT_NIGHT]:
+	for kind: String in [Career.STABLE_OFFERS, Career.STABLE_FIGHT_NIGHT]:
 		assert_ne(CalendarIcon.colour_of(kind), Color("#adb5bd"), kind)

@@ -189,6 +189,8 @@ func _ready() -> void:
 	hub.stable_play_pressed.connect(play_stable_fight)
 	hub.stable_sim_pressed.connect(sim_stable_fight)
 	hub.stable_turn_down_pressed.connect(turn_down_stable_fight)
+	hub.stable_take_pressed.connect(take_stable_offer)
+	hub.stable_decline_pressed.connect(decline_stable_offer)
 	ui.add_child(hub)
 	result = FightResultCard.new()
 	result.visible = false
@@ -513,6 +515,12 @@ func open_career_camp() -> void:
 	planner.fight_pressed.connect(_career_fight)
 	planner.sim_pressed.connect(sim_career_fight)
 	planner.back_pressed.connect(_career_camp_back)
+	# Your stable's offers and fights this week, from the camp too (D450).
+	planner.stable_box.play_pressed.connect(play_stable_fight)
+	planner.stable_box.sim_pressed.connect(sim_stable_fight)
+	planner.stable_box.turn_down_pressed.connect(turn_down_stable_fight)
+	planner.stable_box.take_pressed.connect(take_stable_offer)
+	planner.stable_box.decline_pressed.connect(decline_stable_offer)
 	# The gameplan opens with his third fight (D316).
 	planner.night_card.gameplan.visible = Tutorial.plan_open(Tutorial.lesson(career))
 	planner.theme = OffCage.theme()
@@ -753,7 +761,27 @@ func sim_stable_fight(id: String) -> void:
 
 func turn_down_stable_fight(id: String) -> void:
 	if career != null and career.turn_down_stable_fight(id):
-		save_career()
+		_stable_changed()
+
+
+## Takes a stable man's offer (D450): he's booked for it.
+func take_stable_offer(id: String, index: int) -> void:
+	if career != null and career.take_stable_offer(id, index):
+		_stable_changed()
+
+
+## Turns down one of a stable man's offers (D450).
+func decline_stable_offer(id: String, index: int) -> void:
+	if career != null and career.decline_stable_offer(id, index):
+		_stable_changed()
+
+
+## Saved, and the screen it was done from (the hub or his camp) shown again.
+func _stable_changed() -> void:
+	save_career()
+	if planner != null and planner.career != null:
+		planner._refresh()
+	else:
 		show_hub()
 
 
@@ -763,7 +791,7 @@ func _stable_settings(id: String) -> Dictionary:
 		return {}
 	_roster.add(f.blue)
 	return {
-		"stable": id, "label": String(f.label),
+		"stable": id, "label": String(f.label), "from_camp": planner != null and planner.career != null,
 		"red": String(f.red.id), "red_profile": f.red, "blue": String(f.blue.id),
 		"ruleset": String(f.ruleset), "seed": career.next_seed(), "normal_rate": 2.0, "auto_slow": true, "flourishes": true,
 		"tell_cues": false, "sound_volume": float(setup.settings().get("sound_volume", 1.0)), "easy": false,
@@ -814,6 +842,13 @@ func _career_after_fight() -> void:
 	hud.visible = false
 	result.visible = false
 	show_hub()
+
+
+## Back to his camp after a stable man's fight played from it (D450).
+func _back_to_career_camp() -> void:
+	hud.visible = false
+	result.visible = false
+	open_career_camp()
 
 
 ## Saves the career in its slot. Returns false when it couldn't (the hub keeps going; the last save stays).
@@ -1321,7 +1356,10 @@ func _on_fight_over(event: FightEvent) -> void:
 	if String(settings.get("stable", "")) != "" and career != null:
 		notes.append_array(_finish_stable_fight(sim, record))
 		hud.hide_dialog()
-		result.show_result(sim, driver.player, record.stats, notes, [["Back to the hub", _career_after_fight]])
+		if bool(settings.get("from_camp", false)) and not career.booked.is_empty():
+			result.show_result(sim, driver.player, record.stats, notes, [["Back to the camp", _back_to_career_camp]])
+		else:
+			result.show_result(sim, driver.player, record.stats, notes, [["Back to the hub", _career_after_fight]])
 		return
 	if bool(settings.get("career", false)) and career != null:
 		notes.append_array(_spotted_notes(sim))

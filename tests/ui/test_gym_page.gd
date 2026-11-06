@@ -184,3 +184,8 @@ func test_the_stable_tab_shows_a_mans_next_fight_and_can_turn_it_down() -> void:
 	assert_true(page.stable.turn_down(String(m.id)))
 	assert_false(page.stable.turn_down_buttons.has(String(m.id)))
 	assert_true(Stable.booking(Stable.entry(c.gym, String(m.id))).is_empty())
+	e = Stable.entry(c.gym, String(m.id))
+	e.offers = [{ "opponent": "x", "opponent_name": "Tom Reid", "week": c.week + 3, "card": "", "promotion": "", "ruleset": "pro", "chance": 0.5 }]
+	page.stable.refresh()
+	assert_false(page.stable.turn_down_buttons.has(String(m.id)))
+	assert_eq(Stable.offered(c.gym).size(), 1, "his offers (D450), picked on the hub")

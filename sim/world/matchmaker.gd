@@ -368,11 +368,14 @@ func pick_man(c: Career, w: World, division: String, target: float, style_id: St
 	var close: Array[String] = []
 	var best: String = ""
 	var best_score: float = INF
+	var stable_held: Dictionary = Stable.busy(c.gym)
 	for m: Dictionary in w.in_division(division, c.week):
 		if bool(m.pro) != c.pro or String(m.id) in taken_ids or not World.can_rematch(m, c.week):
 			continue
 		if Lads.at_gym(c.gym, String(m.id)):
 			continue  # Gym-mates aren't offered against him (D444).
+		if stable_held.has(String(m.id)):
+			continue  # Nor a man booked or offered against your stable (D450).
 		if not promotions.is_empty() and not String(m.get("promotion", "")) in promotions:
 			continue  # A pro offer is on one of these promotions' cards (D354).
 		if (style_id != "" and String(m.style) != style_id) or (style_id == "" and String(m.style) in taken_styles):

@@ -2023,19 +2023,31 @@ the hub's line in `ui/career_hub.gd` (`stable_line`). Tests: `tests/sim/world/te
 
 ### 14.6 Your stable's fights (D450)
 
-Kyle (2026-11-06) said "You can start now" for D445's second piece; the five cards are below with my picks, which this
-is built on. Your gym now **books your stable's fights** instead of the world (`Stable.book`, run each Monday from
-`Career.end_week`), and **you play or sim each one**.
+Kyle (2026-11-06) said "You can start now" for D445's second piece, and answered its five cards (below). **Offers come
+in for each man, and you pick one**, like your lad's offers; **you play or sim each fight**, from the hub or from your
+lad's camp. The world doesn't make their fights any more (`WorldWeeks.play_week` leaves your stable out).
 
-**Booking.** A man due a fight (the world's `next_week`) is booked **3 weeks ahead** (`LEAD_WEEKS`): a pro on his
-promotion's next card from then (*NCC 14*), an amateur that Saturday. His opponent is the world's man **nearest his
-level** (`WorldWeeks.pair_gap`, within `MATCH_GAP` 10 points), in his division, pro against pro on the same promotion,
-amateur against amateur of his age group (under or over 18), not at your gym, not hurt, not a champion or the man next in
-line, not met lately and not booked to fight your lad. Both men are held back from the world's own pairings until the
-night (`Stable.busy`), and the booking goes on the hub's news (*Harry Wright is booked to fight Tom Reid on NCC 14*,
-which doesn't stop *Advance*), the calendar (purple gloves) and the *Stable* tab (*Next: Tom Reid, Sat 14 Mar · NCC
-14*). **Turn the fight down** (on the Stable tab, or on the hub in fight week) frees the other man, and he isn't booked
-again for **4 weeks** (`TURN_DOWN_WEEKS`, `wait_until`). A booked man isn't unhappy for waiting.
+**Offers.** A man due a fight (the world's `next_week`, not hurt) gets **up to 3 offers** (`OFFERS`, `Stable.make_offers`,
+run each Monday from `Career.end_week`), each for a fight **3 weeks ahead** (`LEAD_WEEKS`): a pro on his promotion's next
+card from then (*NCC 14*), an amateur that Saturday. The men are the world's whose average stat is within `MATCH_GAP`
+(10 points) of **his** (`Stable.find_opponents`), in his division, pro against pro on the same promotion, amateur
+against amateur of his age group (under or over 18), not at your gym, not hurt, not a champion or the man next in line,
+not met lately and not booked to fight your lad or in his offers. Of those he's offered, as your lad is, the men nearest
+**a bit easier, about even and a bit harder** than him (5 points either side, Matchmaker's `DIFFICULTY_LEVELS`;
+`Stable.pick_opponents`), each marked by how they compare (*Much harder* past 6 points, *A bit harder* past 3, *About
+even*; `Stable.difficulty`) and with **his chance of winning** (the quick result model, `ResultModel.win_chance`). A man
+whose promotion is well above him only gets harder fights, and the chance says so. The news says *3 fight offers for Harry Wright: pick one on the hub*,
+which **stops Advance**. The hub's middle shows *OFFERS FOR YOUR STABLE*: each man, then each offer (*vs Tom Reid (5-2-0)
+· About even · NCC 14, Sat 14 Mar · Professional MMA · 54% he wins*) with **Take it** (he's booked, his other offers go) and **Turn it
+down** (that one goes, the rest stay). The Stable tab says *3 fight offers waiting: pick one on the hub*. Offers are open
+**2 weeks** (`OFFER_WEEKS`, `offers_until`) and then go; the next set can come a week after that (`OFFERS_GAP`,
+`wait_until`). The men in a man's offers are held back from the world's pairings and from your lad's offers while
+they're on the table (`Stable.busy`).
+
+**Booked.** A taken offer is his booked fight: on the calendar (purple gloves) and the *Stable* tab (*Next: Tom Reid,
+Sat 14 Mar · NCC 14*). **Turn the fight down** (on the Stable tab, or in fight week) frees the other man, and no offers
+come for **4 weeks** (`TURN_DOWN_WEEKS`). A booked man isn't unhappy for waiting; a man whose offers you keep leaving
+can be (six months without a fight, §14.5).
 
 **Fight night.** The Monday of the week of his fight, the news says *Fight night for Harry Wright: Tom Reid this
 Saturday. Play it or sim it from the hub*, which **stops Advance**. The hub's middle shows *YOUR STABLE FIGHTS THIS
@@ -2050,28 +2062,35 @@ Either way the result goes **onto the world** (`Stable.settle`, `WorldWeeks.reco
 both men's records, histories, form, rankings and promotions, as the world's own fights do, the gym's 15% of a pro purse,
 and the news (*Harry Wright beat Tom Reid by knockout · the gym's cut $1350*). It isn't on your lad's record.
 
-**Left alone.** A fight nobody opened by the end of its week, or one that falls **while your lad is in camp** (the camp
-runs his weeks, not the hub), is decided by **the world's quick result** (`Stable.quick`: ResultModel, with form and
-rust) when the week ends, onto the world the same way.
+**In your lad's camp.** The camp planner has the same box above its buttons (`CampPlanner.stable_box`): the week's
+offers with Take it and Turn it down, and the week's fights with Play it, Sim it and Turn it down. A fight played or
+simmed from the camp ends on *Back to the camp*. *Run every week left* stops on a week with new offers or a fight night
+for your stable, as Advance does on the hub.
 
-**The cards** (Kyle's answers, when they come, go here): how their fights are made (booked for them and you can say no,
-my pick; offers to pick from; no say); what Play means (the fight screen in his corner, my pick; watch only); what Sim
-does (the full engine at once, my pick; the quick result); a fight you don't open (Advance stops and running the week
-anyway is the quick result, my pick; Advance never stops; it waits for you); while your lad's in camp (the quick result,
-my pick; play or sim them from the camp).
+**Left alone.** A fight nobody opened by the end of its week (running the week anyway, on the hub or in the camp) is
+decided by **the world's quick result** (`Stable.quick`: ResultModel, with form and rust) when the week ends, onto the
+world the same way.
 
-**Not yet:** their camps, planner and minigames (D445's third piece), their title fights played or simmed (still the
-world's), playing a stable fight during your lad's camp, and a stable man's injuries beyond the world's time out after
-a knockout.
+**The cards** (Kyle's answers, 2026-11-06): how their fights are made: **offers to pick from, like his** (Kyle's pick;
+mine was booked for them with a Turn it down); what Play means: **the fight screen, you in his corner** (my pick); what
+Sim does: **the full engine at once** (my pick); a fight you don't open: **Advance stops, and running the week anyway is
+the quick result** (my pick); while your lad's in camp: **play or sim them from the camp** (Kyle's pick; mine was the
+quick result).
 
-**Old saves.** A stable saved before D450 has no bookings; each man's first is made the next Monday.
+**Not yet:** their camps, planner and minigames (D445's third piece), their title fights offered and played (still the
+world's), and a stable man's injuries beyond the world's time out after a knockout.
 
-**What to change:** the numbers at the top of `sim/world/stable.gd` (`LEAD_WEEKS`, `MATCH_GAP`, `TURN_DOWN_WEEKS`,
-`CARD_SEARCH_WEEKS`); where it acts in `sim/world/stable.gd` (`book`, `find_opponent`, `settle`, `quick`, `turn_down`),
-`sim/world/world_weeks.gd` (`record`, `play_week` leaving your stable out), `sim/world/career.gd` (`_stable_fights`,
-`stable_fight`, `finish_stable_fight`, `turn_down_stable_fight`, `calendar`, `STABLE_BOOKED`, `STABLE_FIGHT_NIGHT`) and
-`game/main.gd` (`play_stable_fight`, `sim_stable_fight`, `_finish_stable_fight`); the hub's box in `ui/career_hub.gd`
-(`_show_stable_fights`, `stable_fight_text`), the Stable tab's line in `ui/stable_view.gd`. Tests:
+**Old saves.** A stable saved before D450 has no offers; each man's first come the next Monday he's due a fight.
+
+**What to change:** the numbers at the top of `sim/world/stable.gd` (`OFFERS`, `OFFER_WEEKS`, `OFFERS_GAP`,
+`LEAD_WEEKS`, `MATCH_GAP`, `TURN_DOWN_WEEKS`, `CARD_SEARCH_WEEKS`); where it acts in `sim/world/stable.gd`
+(`make_offers`, `find_opponents`, `pick_opponents`, `difficulty`, `take`, `decline`, `turn_down`, `settle`, `quick`),
+`sim/world/world_weeks.gd` (`record`, `play_week` leaving your stable out), `sim/world/matchmaker.gd` (`pick_man` leaving
+your stable's men out), `sim/world/career.gd` (`_stable_fights`, `stable_fight`, `finish_stable_fight`,
+`take_stable_offer`, `decline_stable_offer`, `turn_down_stable_fight`, `calendar`, `STABLE_OFFERS`,
+`STABLE_FIGHT_NIGHT`) and `game/main.gd` (`play_stable_fight`, `sim_stable_fight`, `take_stable_offer`,
+`_finish_stable_fight`, `_back_to_career_camp`); the box in `ui/stable_fights_box.gd` (on the hub, `ui/career_hub.gd`,
+and in the camp, `ui/camp_planner.gd`), the Stable tab's line in `ui/stable_view.gd`. Tests:
 `tests/sim/world/test_stable_fights.gd`, `tests/ui/test_gym_page.gd`, `tests/game/test_main_scene.gd`. Then update this
 section and D450.
 

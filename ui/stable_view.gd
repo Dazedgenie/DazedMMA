@@ -2,7 +2,7 @@ class_name StableView
 extends HBoxContainer
 ## The *Stable* tab of your gym's page (docs/03 §14.5, D445): down the left your stable, him first and then each man
 ## you've signed (his face, name and age, style, record, what he trains and how much faster the gym makes it, whether
-## he's happy, his next fight), with a focus picker, *Let him go* and *Turn the fight down* (§14.6); down the side the
+## he's happy, his next fight or his offers waiting), with a focus picker, *Let him go* and *Turn the fight down* (§14.6); down the side the
 ## men you could sign this week (Career.stable_prospects: the gym's lads first, then his country's best local men), each
 ## with his chance of saying yes and *Offer him a place*, or why you can't. Signing, a focus and letting go change the career at once
 ## (Career.sign_fighter, Career.set_stable_focus, Career.release_fighter); `changed` tells the page to save and redraw.
@@ -86,16 +86,19 @@ func refresh() -> void:
 		var controls: Array = [picker, b]
 		var next_line: String = ""
 		var booked: Dictionary = Stable.booking(e)
-		if not booked.is_empty():  # His next fight (D445's second piece), with the chance to turn it down.
+		if not booked.is_empty():  # His next fight (D445's second piece, D450), with the chance to turn it down.
 			next_line = "Next: %s, %s%s" % [String(booked.get("opponent_name", "")), career.short_date(int(booked.week), 5),
 				" · %s" % String(booked.card) if String(booked.get("card", "")) != "" else ""]
 			var no := Button.new()
 			no.text = "Turn the fight down"
-			no.tooltip_text = "He waits %d weeks for another" % Stable.TURN_DOWN_WEEKS
+			no.tooltip_text = "He waits %d weeks for more offers" % Stable.TURN_DOWN_WEEKS
 			no.add_theme_font_size_override("font_size", 16)
 			no.pressed.connect(func() -> void: turn_down(id))
 			turn_down_buttons[id] = no
 			controls.append(no)
+		elif not Stable.offers_of(e).is_empty():  # His offers (D450), taken on the hub or in your lad's camp.
+			var n: int = Stable.offers_of(e).size()
+			next_line = "%d fight offer%s waiting: pick one on the hub" % [n, "" if n == 1 else "s"]
 		_list.add_child(_row(_face(w, e), fighter_text(gym, e, career.week, next_line), controls))
 
 	_heading(_side, "SIGN A FIGHTER", "The lads who train here, then the best amateurs and local and regional pros from round here. Better rooms and coaches make a yes likelier; a man who says no won't be asked again for %d weeks." % Stable.ASK_AGAIN_WEEKS)

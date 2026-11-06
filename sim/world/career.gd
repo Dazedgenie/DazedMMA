@@ -65,18 +65,18 @@ const COACH_LEFT := "coach_left"
 ## A lad walked in to train at your gym, or left it (D444): { kind, name, retired? }.
 const LAD_IN := Lads.WALKED_IN
 const LAD_LEFT := Lads.LEFT
-## Your stable (D445): a man signed, one of them fought on the world's cards, one is unhappy and one has left; one
-## booked to fight, and one's fight night this week (Play it or Sim it on the hub, which stops Advance):
+## Your stable (D445): a man signed, one of them fought, one is unhappy and one has left; offers in for one (pick one
+## on the hub, D450) and one's fight night this week (Play it or Sim it on the hub); both of those stop Advance:
 ## { kind, name, ... } (Stable.news_text).
 const STABLE_SIGNED := Stable.SIGNED
-const STABLE_BOOKED := Stable.BOOKED
+const STABLE_OFFERS := Stable.OFFERED
 const STABLE_FIGHT_NIGHT := Stable.FIGHT_NIGHT
 const STABLE_FOUGHT := Stable.FOUGHT
 const STABLE_UNHAPPY := Stable.UNHAPPY
 const STABLE_LEFT := Stable.LEFT
 ## Events that are only news: Advance runs on past them (a lad walking in or leaving, D444; a stable man signing or
 ## fighting, D445).
-const JUST_NEWS: Array[String] = [LAD_IN, LAD_LEFT, STABLE_SIGNED, STABLE_FOUGHT, STABLE_BOOKED]
+const JUST_NEWS: Array[String] = [LAD_IN, LAD_LEFT, STABLE_SIGNED, STABLE_FOUGHT]
 ## School (D314, School): the summer holidays start (every session is his until September), school starts again, and
 ## he's left school for good (LEAVES_AT): { kind }.
 const SCHOOL_OUT := "school_out"
@@ -436,7 +436,7 @@ static func event_text(event: Dictionary) -> String:
 		COACH_LEFT:
 			return "%s, your %s, has walked out: %d weeks without pay" % [String(event.get("name", "")),
 				Staff.role_words(String(event.get("role", ""))), int(event.get("weeks", 0))]
-		STABLE_SIGNED, STABLE_FOUGHT, STABLE_UNHAPPY, STABLE_LEFT, STABLE_BOOKED, STABLE_FIGHT_NIGHT:
+		STABLE_SIGNED, STABLE_FOUGHT, STABLE_UNHAPPY, STABLE_LEFT, STABLE_OFFERS, STABLE_FIGHT_NIGHT:
 			return Stable.news_text(event)
 		LAD_IN, LAD_LEFT:
 			return Lads.news_text(event)
@@ -940,8 +940,8 @@ func end_week() -> Dictionary:
 	return out
 
 
-## Your stable's fights at the start of a week (D445's second piece): a fight nobody opened last week (or one in his
-## camp) decided by the quick result, new fights booked, and this week's fight nights on the news (which stops Advance).
+## Your stable's fights at the start of a week (D445's second piece, D450): a fight nobody opened last week decided by
+## the quick result, new offers in, and this week's fight nights on the news (offers and fight nights stop Advance).
 func _stable_fights() -> void:
 	for e: Dictionary in Stable.fighters(gym).duplicate():
 		var id: String = String(e.get("id", ""))
@@ -949,7 +949,7 @@ func _stable_fights() -> void:
 		if not done.is_empty():
 			gym_money += int(done.cut)
 			stable_news.append_array(done.news)
-	stable_news.append_array(Stable.book(_world, gym, week, _held()))
+	stable_news.append_array(Stable.make_offers(_world, gym, week, _held()))
 	for d: Dictionary in Stable.due(gym, week):
 		stable_news.append({ "kind": STABLE_FIGHT_NIGHT, "name": String(d.entry.get("name", "")),
 			"opponent": String(_world.man(String(d.booking.opponent)).get("name", "")) })
@@ -990,6 +990,16 @@ func finish_stable_fight(id: String, result: String, method: String, round: int,
 ## Turns a stable man's booked fight down (D445): he waits Stable.TURN_DOWN_WEEKS for the next. False when none.
 func turn_down_stable_fight(id: String) -> bool:
 	return Stable.turn_down(gym, id, week)
+
+
+## Takes a stable man's offer at `index` (D450): he's booked for it. False when there's no such offer.
+func take_stable_offer(id: String, index: int) -> bool:
+	return Stable.take(gym, id, index)
+
+
+## Turns down a stable man's offer at `index` (D450); his others stay. False when there's no such offer.
+func decline_stable_offer(id: String, index: int) -> bool:
+	return Stable.decline(gym, id, index)
 
 
 ## Builds the next level of a room at your gym (D442) with the gym's money: "" when it's started, else why not
@@ -1310,8 +1320,13 @@ static func from_dict(data: Dictionary, library: TrainingLibrary = null) -> Care
 					lad.born = float(lad.get("born", 0.0))
 					if list == "stable":
 						lad.unhappy = int(lad.get("unhappy", 0))
-						if lad.has("wait_until"):
-							lad.wait_until = int(lad.wait_until)
+						for key: String in ["wait_until", "offers_until"]:
+							if lad.has(key):
+								lad[key] = int(lad[key])
+						if lad.get("offers") is Array:
+							for o: Variant in lad.offers:
+								if o is Dictionary and (o as Dictionary).has("week"):
+									o.week = int(o.week)
 						if lad.get("booked") is Dictionary and lad.booked.has("week"):
 							lad.booked.week = int(lad.booked.week)
 	if c.gym.get("asked") is Dictionary:

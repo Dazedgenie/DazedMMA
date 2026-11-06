@@ -34,10 +34,13 @@ signal ask_pressed
 signal history_pressed
 ## The Your gym tab (D442): the gym's page with its floor plan.
 signal gym_pressed
-## A stable man's fight this week (D445): play it on the fight screen, sim it, or turn it down.
+## A stable man's fight this week (D445): play it on the fight screen, sim it, or turn it down; and his offers (D450):
+## take one or turn one down.
 signal stable_play_pressed(id: String)
 signal stable_sim_pressed(id: String)
 signal stable_turn_down_pressed(id: String)
+signal stable_take_pressed(id: String, index: int)
+signal stable_decline_pressed(id: String, index: int)
 
 ## Around his division (D353, news_text): at most NEWS_MAX lines; a winner who had under UPSET_CHANCE is an upset; a man
 ## averaging NEWS_BEST or more is one of the best.
@@ -98,11 +101,8 @@ var _figure: BodyDamageFigure
 var _card_text: RichTextLabel
 var _bars: StatBars
 var _week_text: RichTextLabel
-## This week's fights for your stable (D445): one row a man, with Play it, Sim it and Turn it down.
-var _stable_box: VBoxContainer
-## Those rows' buttons by the man's id: { play, sim, turn_down }.
-var stable_buttons: Dictionary = {}
-var _stable_lines: Array[String] = []
+## Your stable's offers and this week's fights (StableFightsBox, D445, D450), under his own.
+var stable_box: StableFightsBox
 var _plan: OptionButton
 var _plan_ids: Array[String] = []
 var _week: Button
@@ -249,9 +249,13 @@ func _init() -> void:
 	_offers.add_theme_constant_override("h_separation", 12)
 	_offers.add_theme_constant_override("v_separation", 12)
 	middle.add_child(_offers)
-	_stable_box = VBoxContainer.new()
-	_stable_box.add_theme_constant_override("separation", 8)
-	middle.add_child(_stable_box)
+	stable_box = StableFightsBox.new()
+	stable_box.play_pressed.connect(func(id: String) -> void: stable_play_pressed.emit(id))
+	stable_box.sim_pressed.connect(func(id: String) -> void: stable_sim_pressed.emit(id))
+	stable_box.turn_down_pressed.connect(func(id: String) -> void: stable_turn_down_pressed.emit(id))
+	stable_box.take_pressed.connect(func(id: String, i: int) -> void: stable_take_pressed.emit(id, i))
+	stable_box.decline_pressed.connect(func(id: String, i: int) -> void: stable_decline_pressed.emit(id, i))
+	middle.add_child(stable_box)
 	_week_text = _rich()
 	middle.add_child(_week_text)
 	week_box.add_child(_scroll(middle))
@@ -370,7 +374,7 @@ func show_career(p_career: Career, reports: Array = []) -> void:
 			_pro_division.add_item("%s: %s" % [Weight.label(id), why])
 		_pro_division.select(_pro_division_ids.find(home))
 	_show_offers()
-	_show_stable_fights()
+	stable_box.show_career(career)
 	_show_news(news_items(career, maxi(1, reports.size())))
 	_show_fights()
 	_show_calendar(career.calendar())
@@ -654,51 +658,6 @@ func _show_offers() -> void:
 
 
 ## The news down the right (D433), each line with its promotion's badge.
-## This week's fights for your stable (D445): "YOUR STABLE FIGHTS THIS SATURDAY", then a row a man.
-func _show_stable_fights() -> void:
-	for child in _stable_box.get_children():
-		_stable_box.remove_child(child)
-		child.queue_free()
-	stable_buttons.clear()
-	_stable_lines.clear()
-	var due: Array = Stable.due(career.gym, career.week)
-	_stable_box.visible = not due.is_empty()
-	if due.is_empty():
-		return
-	var heading := _heading("Your stable fights this Saturday")
-	_stable_box.add_child(heading)
-	for d: Dictionary in due:
-		var id: String = String(d.id)
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 8)
-		var words := _rich()
-		words.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		words.text = stable_fight_text(career, d)
-		_stable_lines.append(_plain(words.text))
-		row.add_child(words)
-		var play: Button = CampPlanner._button(row, "Play it", func() -> void: stable_play_pressed.emit(id))
-		play.tooltip_text = "The fight screen, with you in his corner"
-		var sim: Button = CampPlanner._button(row, "Sim it", func() -> void: stable_sim_pressed.emit(id))
-		sim.tooltip_text = "The whole fight at once, straight to the result"
-		var no: Button = CampPlanner._button(row, "Turn it down", func() -> void: stable_turn_down_pressed.emit(id))
-		no.tooltip_text = "He waits %d weeks for another fight" % Stable.TURN_DOWN_WEEKS
-		stable_buttons[id] = { "play": play, "sim": sim, "turn_down": no }
-		_stable_box.add_child(row)
-
-
-## A stable man's fight's words: "[b]Harry Wright[/b] vs Tom Reid · NCC 14 · pro rules".
-static func stable_fight_text(c: Career, d: Dictionary) -> String:
-	var b: Dictionary = d.booking
-	var opp: Dictionary = c.world().man(String(b.get("opponent", "")))
-	var bits: Array[String] = []
-	if String(b.get("card", "")) != "":
-		bits.append(String(b.card))
-	bits.append(rules_name(String(b.get("ruleset", ""))))
-	return "[b]%s[/b] (%s) vs %s (%s)\n[color=%s]%s[/color]" % [String(d.entry.get("name", "")), String(d.entry.get("record", "")),
-		String(opp.get("name", b.get("opponent_name", ""))), World.record_text(opp) if not opp.is_empty() else "",
-		DIM.to_html(false), " · ".join(PackedStringArray(bits))]
-
-
 func _show_news(items: Array) -> void:
 	_news_heading.text = "AROUND THE %s" % Weight.name_of(career.division_now()).to_upper()
 	_news_lines.clear()
@@ -1663,7 +1622,7 @@ func text() -> String:
 	for line: String in _fight_lines:
 		fights.append(_plain(line))
 	return "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s" % [_who.text, _line.text, _date.text, _card_text.get_parsed_text(), _week_text.get_parsed_text(),
-		"\n".join(news), "\n".join(offer_cards), "\n".join(_stable_lines), _camp.text if _camp.visible else "", "\n".join(fights), " | ".join(tiles)]
+		"\n".join(news), "\n".join(offer_cards), "\n".join(stable_box.lines), _camp.text if _camp.visible else "", "\n".join(fights), " | ".join(tiles)]
 
 
 ## BBCode with its tags taken out.

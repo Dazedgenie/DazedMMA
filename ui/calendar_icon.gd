@@ -17,7 +17,7 @@ const COLOURS := {
 	Career.LAD_IN: Color("#69db7c"), Career.LAD_LEFT: Color("#91a7ff"),
 	Career.STABLE_SIGNED: Color("#38d9a9"), Career.STABLE_FOUGHT: Color("#e599f7"),
 	Career.STABLE_UNHAPPY: Color("#ffa94d"), Career.STABLE_LEFT: Color("#748ffc"),
-	Career.STABLE_BOOKED: Color("#b197fc"), Career.STABLE_FIGHT_NIGHT: Color("#cc5de8"),
+	Career.STABLE_OFFERS: Color("#b197fc"), Career.STABLE_FIGHT_NIGHT: Color("#cc5de8"),
 }
 
 var kind: String = ""
